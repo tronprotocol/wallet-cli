@@ -44,9 +44,17 @@ export async function stageTronBroadcast(
   result: Record<string, unknown>,
 ): Promise<TxOutcome> {
   const txId = String(result.txId ?? result.hash ?? "");
-  if (!scope.wait || !txId) return { stage: "submitted", ...result };
+  if (!scope.wait || !txId) {
+    if (scope.wait && !txId) {
+      scope.warn("--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)");
+    }
+    return { stage: "submitted", ...result };
+  }
   const confirmed = await tronConfirmation(gateway, scope)(txId).catch(() => undefined);
-  if (!confirmed) return { stage: "submitted", ...result };
+  if (!confirmed) {
+    scope.warn(`--wait: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`);
+    return { stage: "submitted", ...result };
+  }
   return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
 }
 

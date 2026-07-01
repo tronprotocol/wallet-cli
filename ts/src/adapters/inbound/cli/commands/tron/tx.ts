@@ -23,7 +23,7 @@ function send(service: TronTransactionService): CommandDefinition {
       .describe("TRC20 contract address; omit with --asset-id for native TRX"),
     assetId: z.string().regex(/^\d+$/).optional()
       .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
-    feeLimit: z.coerce.number().int().positive().default(100_000_000)
+    feeLimit: Schemas.positiveIntString().default("100000000")
       .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
     ...unifiedAmountFields(
       "human amount: TRX for native, token units for TRC20/TRC10; mutually exclusive with --raw-amount",

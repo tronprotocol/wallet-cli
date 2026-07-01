@@ -3,7 +3,7 @@ import { UsageError } from "../../../domain/errors/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { DecodedTronTransaction, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { DecodedTronTransaction, TronGateway, TronTxInfo } from "../../ports/chain/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
@@ -14,7 +14,7 @@ export interface TronSendInput extends TransactionModeInput {
   token?: string;
   contract?: string;
   assetId?: string;
-  feeLimit: number;
+  feeLimit: string;
   amount?: string;
   rawAmount?: string;
 }
@@ -93,9 +93,12 @@ export class TronTransactionService {
 
   async info(network: NetworkDescriptor, txid: string): Promise<TxInfoView> {
     const gateway = this.gateways.get(network, "tron");
+    // The transaction is the source of truth for existence; the info (block/fee/energy) is
+    // enrichment. Mirror getContractMetadata's best-effort shape: a missing/failed info must not
+    // sink the command for a tx that exists (e.g. still pending, or a flaky solidity node).
     const [transaction, info] = await Promise.all([
       gateway.getTransactionById(txid),
-      gateway.getTransactionInfoById(txid),
+      gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
     ]);
     return {
       family: "tron",

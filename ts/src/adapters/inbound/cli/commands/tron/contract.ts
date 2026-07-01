@@ -18,6 +18,24 @@ function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
   throw new UsageError("invalid_value", `${flag} must be a JSON array`);
 }
 
+// call/send parameters are ABI-encoded from {type, value} entries. Validate the shape at the
+// command boundary so a malformed entry fails as invalid_value here, not as an opaque encoder/RPC
+// error deep in TronWeb. (deploy params are raw positional values — they use jsonArray, not this.)
+const typedParam = z
+  .object({ type: z.string().min(1), value: z.unknown() })
+  .refine((e) => e.value !== undefined, { message: "value is required" });
+
+function typedParams(raw: string | undefined): TronContractParameter[] {
+  const arr = jsonArray(raw);
+  if (!z.array(typedParam).safeParse(arr).success) {
+    throw new UsageError(
+      "invalid_value",
+      '--params entries must be {"type","value"} objects with a non-empty ABI type',
+    );
+  }
+  return arr as TronContractParameter[];
+}
+
 export function contractCommands(service: TronContractService): CommandDefinition[] {
   return [call(service), send(service), deploy(service), info(service)];
 }
@@ -41,7 +59,7 @@ function call(service: TronContractService): CommandDefinition {
     }],
     formatText: TextFormatters.contractCall,
     run: async (_ctx, network, input) => service.call(
-      network, input.contract, input.method, jsonArray(input.params) as TronContractParameter[],
+      network, input.contract, input.method, typedParams(input.params),
     ),
   };
 }
@@ -52,9 +70,9 @@ function send(service: TronContractService): CommandDefinition {
     method: z.string().min(1).describe("function signature, e.g. transfer(address,uint256)"),
     params: z.string().optional()
       .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
-    callValueSun: z.coerce.number().int().nonnegative().default(0)
+    callValueSun: Schemas.uintString().default("0")
       .describe("native TRX attached to the call, in SUN"),
-    feeLimit: z.coerce.number().int().positive().default(100_000_000)
+    feeLimit: Schemas.positiveIntString().default("100000000")
       .describe("maximum energy fee to burn, in SUN"),
     ...txModeFields,
   });
@@ -72,7 +90,7 @@ function send(service: TronContractService): CommandDefinition {
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => service.send(ctx, network, {
       ...input,
-      parameters: jsonArray(input.params) as TronContractParameter[],
+      parameters: typedParams(input.params),
     }),
   };
 }
@@ -81,11 +99,9 @@ function deploy(service: TronContractService): CommandDefinition {
   const fields = z.object({
     abi: z.string().min(1).describe("contract ABI as a JSON array string"),
     bytecode: z.string().min(1).describe("compiled contract bytecode as hex, 0x-prefixed or bare"),
-    feeLimit: z.coerce.number().int().positive().describe("maximum energy fee to burn, in SUN"),
-    constructorSig: z.string().optional()
-      .describe("constructor signature, e.g. constructor(uint256); omit when the contract has no constructor args"),
+    feeLimit: Schemas.positiveIntString().describe("maximum energy fee to burn, in SUN"),
     params: z.string().optional()
-      .describe("constructor args as a JSON array of {type,value}; omit to pass no constructor args"),
+      .describe("constructor args as a JSON array of raw positional values, e.g. [100, \"T...\"]; types are taken from the ABI constructor; omit to pass no constructor args"),
     ...txModeFields,
   });
   return {
@@ -97,7 +113,7 @@ function deploy(service: TronContractService): CommandDefinition {
     fields,
     input: fields,
     examples: [{
-      cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000",
+      cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000 --params '[100, \"T...\"]'",
     }],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => {

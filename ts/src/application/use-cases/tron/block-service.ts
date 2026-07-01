@@ -4,7 +4,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 export class TronBlockService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  async get(network: NetworkDescriptor, number?: number) {
+  async get(network: NetworkDescriptor, number?: string) {
     return { block: await this.gateways.get(network, "tron").getBlock(number) };
   }
 }

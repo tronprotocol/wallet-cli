@@ -87,6 +87,10 @@ class ExecutionContextImpl implements ExecutionContext {
   emit(e: ProgressEvent): void {
     this.deps.streams.event(this.deps.formatter.event(e));
   }
+
+  warn(message: string): void {
+    this.deps.streams.diagnostic("warn", message);
+  }
 }
 
 export function buildExecutionContext(globals: Globals, deps: RuntimeDeps): ExecutionContext {

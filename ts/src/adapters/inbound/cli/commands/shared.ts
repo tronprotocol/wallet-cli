@@ -17,13 +17,18 @@ export const txModeFields = {
   signOnly: z.boolean().default(false).describe("sign and output the transaction without broadcasting; mutually exclusive with --dry-run; broadcast later with tx broadcast"),
 };
 // ── unified --amount / --raw-amount selector (shared by every chain's `tx send`) ────
-const decimalAmount = z.string().regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string");
+// A transfer of 0 is meaningless on any chain — reject it here (exit 2) rather than let the node
+// reject it with an opaque error. regex-based zero check (never BigInt): zod v4 keeps running
+// refinements after the regex fails, so a throwing check would escape safeParse.
+const positiveDecimalAmount = z.string()
+  .regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string")
+  .refine((v) => !/^0+(\.0+)?$/.test(v), { message: "must be greater than zero" });
 
 /** the `--amount`/`--raw-amount` field pair; descriptions vary per chain (units differ). */
 export function unifiedAmountFields(amountDesc: string, rawDesc: string) {
   return {
-    amount: decimalAmount.optional().describe(amountDesc),
-    rawAmount: Schemas.uintString().optional().describe(rawDesc),
+    amount: positiveDecimalAmount.optional().describe(amountDesc),
+    rawAmount: Schemas.positiveIntString().optional().describe(rawDesc),
   };
 }
 

@@ -68,9 +68,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   /** build an unsigned TRX transfer (tronweb fills ref block etc.). */
   async buildNativeTransfer(from: string, to: string, amountSun: string): Promise<Types.Transaction> {
-    // tronweb's sendTrx amount param is a JS number; reject amounts that would lose precision.
-    const tx = await this.#tw.transactionBuilder.sendTrx(to, this.#safeNumber(amountSun), from);
-    return assertBuiltTx(tx, "TransferContract");
+    // tronweb's sendTrx amount param is a JS number; guard before #wrap so a precision-losing
+    // amount surfaces as invalid_amount, and a node failure as rpc_error (not a redacted internal_error).
+    const n = this.#safeNumber(amountSun);
+    return this.#wrap("build native transfer", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.sendTrx(to, n, from), "TransferContract"),
+    );
   }
 
   // ── generic error wrapper for node reads/builds ──────────────────────────────
@@ -98,9 +101,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getAccountResources(address: string): Promise<Types.AccountResourceMessage> {
     return this.#wrap("getAccountResources", () => this.#tw.trx.getAccountResources(address));
   }
-  async getBlock(numberOrLatest?: number): Promise<Types.Block> {
+  async getBlock(numberOrLatest?: string): Promise<Types.Block> {
+    // Guard before #wrap so a bad height surfaces as invalid_amount, not a wrapped rpc_error.
+    const height = numberOrLatest === undefined ? undefined : this.#safeNumber(numberOrLatest, "block number");
     return this.#wrap("getBlock", () =>
-      numberOrLatest === undefined ? this.#tw.trx.getCurrentBlock() : this.#tw.trx.getBlockByNumber(numberOrLatest),
+      height === undefined ? this.#tw.trx.getCurrentBlock() : this.#tw.trx.getBlockByNumber(height),
     );
   }
   async getTransactionById(txid: string): Promise<TronTx> {
@@ -164,13 +169,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     );
   }
 
-  async buildTrc20Transfer(from: string, to: string, contract: string, amount: string, feeLimit: number): Promise<Types.Transaction> {
+  async buildTrc20Transfer(from: string, to: string, contract: string, amount: string, feeLimit: string): Promise<Types.Transaction> {
+    const fee = this.#safeNumber(feeLimit, "fee limit"); // guard before #wrap → invalid_amount, not rpc_error
     return this.#wrap("build trc20 transfer", async () => {
       // txLocal: build & ABI-encode the call locally so the node never supplies the calldata.
       const { transaction } = await this.#tw.transactionBuilder.triggerSmartContract(
         contract,
         "transfer(address,uint256)",
-        { feeLimit, txLocal: true },
+        { feeLimit: fee, txLocal: true },
         [{ type: "address", value: to }, { type: "uint256", value: amount }],
         from,
       );
@@ -230,11 +236,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async buildDelegateResource(
     owner: string, amountSun: string, resource: RpcResourceCode,
-    receiver: string, lock: boolean, lockPeriod?: number,
+    receiver: string, lock: boolean, lockPeriod?: string,
   ): Promise<Types.Transaction> {
     const n = this.#safeNumber(amountSun);
+    const lockBlocks = lockPeriod === undefined ? undefined : this.#safeNumber(lockPeriod, "lock period");
     return this.#wrap("delegateResource", async () =>
-      assertBuiltTx(await this.#tw.transactionBuilder.delegateResource(n, receiver, resource, owner, lock, lockPeriod), "DelegateResourceContract"),
+      assertBuiltTx(await this.#tw.transactionBuilder.delegateResource(n, receiver, resource, owner, lock, lockBlocks), "DelegateResourceContract"),
     );
   }
   async buildUndelegateResource(
@@ -265,14 +272,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     contract: string,
     fn: string,
     params: TronContractParameter[],
-    opts: { feeLimit?: number; callValue?: number } = {},
+    opts: { feeLimit?: string; callValue?: string } = {},
   ): Promise<Types.Transaction> {
+    // Guard before #wrap so a bad fee/callValue surfaces as invalid_amount, not a wrapped rpc_error.
+    const feeLimit = opts.feeLimit === undefined ? undefined : this.#safeNumber(opts.feeLimit, "fee limit");
+    const callValue = opts.callValue === undefined ? undefined : this.#safeNumber(opts.callValue, "call value");
     return this.#wrap("triggerSmartContract", async () => {
       // txLocal: ABI-encode the call client-side so the node never supplies the calldata/params.
       const { transaction } = await this.#tw.transactionBuilder.triggerSmartContract(
         contract,
         fn,
-        { feeLimit: opts.feeLimit, callValue: opts.callValue, txLocal: true },
+        { feeLimit, callValue, txLocal: true },
         params as Types.ContractFunctionParameter[],
         from,
       );
@@ -281,12 +291,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async deployContract(
     from: string,
-    p: { abi: unknown; bytecode: string; feeLimit: number; parameters?: unknown[] },
+    p: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[] },
   ): Promise<Types.Transaction> {
+    const feeLimit = this.#safeNumber(p.feeLimit, "fee limit"); // guard before #wrap → invalid_amount, not rpc_error
     return this.#wrap("createSmartContract", async () =>
       assertBuiltTx(
         await this.#tw.transactionBuilder.createSmartContract(
-          { abi: p.abi as Types.CreateSmartContractOptions["abi"], bytecode: p.bytecode, feeLimit: p.feeLimit, parameters: p.parameters },
+          { abi: p.abi as Types.CreateSmartContractOptions["abi"], bytecode: p.bytecode, feeLimit, parameters: p.parameters },
           from,
         ),
         "CreateSmartContract",
@@ -307,10 +318,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return normalizeContractResponses(contract, info);
   }
 
-  #safeNumber(sun: string): number {
-    const n = BigInt(sun);
+  // tronweb's builder params are JS numbers; strings stay exact until this last inch,
+  // where we reject any value that a Number could not represent without precision loss.
+  #safeNumber(value: string, label = "amount"): number {
+    const n = BigInt(value);
     if (n > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new UsageError("invalid_amount", `amount ${sun} exceeds the safe-integer limit for this client`);
+      throw new UsageError("invalid_amount", `${label} ${value} exceeds the safe-integer limit for this client`);
     }
     return Number(n);
   }

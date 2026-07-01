@@ -16,7 +16,7 @@ export interface StakeAmountInput extends TransactionModeInput {
 export interface StakeDelegateInput extends StakeAmountInput {
   receiver: string;
   lock?: boolean;
-  lockPeriod?: number;
+  lockPeriod?: string;
 }
 
 export class TronStakeService {

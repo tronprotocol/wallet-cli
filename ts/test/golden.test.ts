@@ -347,6 +347,28 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.json.error.code).toBe("invalid_value");
   });
 
+  it("tx send --amount 0 → invalid_value, exit 2 (a zero transfer is meaningless)", () => {
+    const r = run(["--output", "json", "tx", "send", "--network", "tron:nile",
+      "--to", "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7", "--amount", "0"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+  });
+
+  it("stake freeze --amount-sun 0 → invalid_value, exit 2", () => {
+    const r = run(["--output", "json", "stake", "freeze", "--network", "tron:nile",
+      "--amount-sun", "0", "--resource", "ENERGY"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+  });
+
+  it("contract call --params with non-{type,value} entries → invalid_value, exit 2", () => {
+    const r = run(["--output", "json", "contract", "call", "--network", "tron:nile",
+      "--contract", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "--method", "balanceOf(address)",
+      "--params", '["0x1"]']);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+  });
+
   it("wrong master password → auth_failed, exit 1", () => {
     seedWallet();
     const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"], { password: "WRONGpw999" });

@@ -53,3 +53,34 @@ describe("TronAccountService.portfolio native USD conversion", () => {
     expect(result.totalValueUsd).toBeNull();
   });
 });
+
+describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => {
+  const TOK = { kind: "trc20", id: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", symbol: "USDT", decimals: 6, name: "Tether", source: "user" };
+
+  function serviceWithFailingToken() {
+    const gateway = {
+      getNativeBalance: async () => "1000000",
+      getTrc10Balance: async () => "0",
+      getTrc20Balance: async () => { throw new Error("TRON trc20 balanceOf failed: HTTP 500"); },
+    };
+    const gateways = { client: () => gateway, get: () => gateway } as unknown as ChainGatewayProvider;
+    const tokens = { effective: () => [TOK] } as unknown as TokenRepository;
+    const prices = { source: "test", nativeUsd: async () => 0.1, tokenUsd: async () => new Map([[TOK.id, 1]]) } as unknown as PriceProvider;
+    return new TronAccountService(gateways, {} as unknown as TronHistoryReader, tokens, prices);
+  }
+
+  it("one unreadable token degrades to a balanceError row without sinking the portfolio", async () => {
+    const result = await serviceWithFailingToken().portfolio(scope, net);
+    // native still resolved
+    const native = result.holdings.find((h) => h.kind === "native")!;
+    expect(native.balance).toBe("1"); // 1_000_000 sun / 1e6
+    // the failing token is present but degraded, not thrown
+    const token = result.holdings.find((h) => h.symbol === "USDT")!;
+    expect(token.rawBalance).toBeNull();
+    expect(token.balance).toBeNull();
+    expect(token.valueUsd).toBeNull();
+    expect(token.balanceError).toContain("HTTP 500");
+    // total counts only the readable holdings (native), not the degraded token
+    expect(result.totalValueUsd).toBe(0.1); // 1 × 0.1
+  });
+});

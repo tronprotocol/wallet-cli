@@ -99,7 +99,7 @@ export interface TronGateway extends Broadcaster {
   getNativeBalance(address: string): Promise<string>;
   getAccount(address: string): Promise<TronAccount>;
   getAccountResources(address: string): Promise<TronAccountResources>;
-  getBlock(number?: number): Promise<unknown>;
+  getBlock(number?: string): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
   decodeTransaction(transaction: TronTx): DecodedTronTransaction;
@@ -113,7 +113,7 @@ export interface TronGateway extends Broadcaster {
     to: string,
     contract: string,
     amount: string,
-    feeLimit: number,
+    feeLimit: string,
   ): Promise<UnsignedTx>;
   buildTrc10Transfer(
     from: string,
@@ -137,7 +137,7 @@ export interface TronGateway extends Broadcaster {
     resource: RpcResourceCode,
     receiver: string,
     lock: boolean,
-    lockPeriod?: number,
+    lockPeriod?: string,
   ): Promise<UnsignedTx>;
   buildUndelegateResource(
     owner: string,
@@ -156,11 +156,11 @@ export interface TronGateway extends Broadcaster {
     contract: string,
     method: string,
     parameters: TronContractParameter[],
-    options?: { feeLimit?: number; callValue?: number },
+    options?: { feeLimit?: string; callValue?: string },
   ): Promise<UnsignedTx>;
   deployContract(
     from: string,
-    input: { abi: unknown; bytecode: string; feeLimit: number; parameters?: unknown[] },
+    input: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[] },
   ): Promise<UnsignedTx>;
   getContract(address: string): Promise<unknown>;
   getContractInfo(address: string): Promise<unknown>;

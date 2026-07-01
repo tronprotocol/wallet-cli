@@ -30,6 +30,28 @@ function holding(
   };
 }
 
+/** degraded holding when a token balance could not be read; keeps the row (and its identity)
+ *  but nulls the numeric fields and records why. Shape stays additive with holding(). */
+function unavailableHolding(
+  kind: string,
+  symbol: string,
+  decimals: number,
+  balanceError: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    kind,
+    symbol,
+    decimals,
+    rawBalance: null,
+    balance: null,
+    priceUsd: null,
+    valueUsd: null,
+    balanceError,
+    ...extra,
+  };
+}
+
 export class TronAccountService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
@@ -83,10 +105,14 @@ export class TronAccountService {
     const tokens = this.tokens.effective(network.id, scope.activeAccount);
     const [nativeRaw, tokenBalances] = await Promise.all([
       gateway.getNativeBalance(address),
+      // per-token best-effort: one unreadable token (delisted, bad contract, RPC hiccup) must not
+      // sink the whole portfolio — degrade that row to a balanceError instead.
       Promise.all(tokens.map((token) =>
-        token.kind === "trc10"
+        (token.kind === "trc10"
           ? gateway.getTrc10Balance(token.id, address)
-          : gateway.getTrc20Balance(token.id, address),
+          : gateway.getTrc20Balance(token.id, address)
+        ).then((raw) => ({ raw }) as const)
+          .catch((error: unknown) => ({ error: (error as Error).message }) as const),
       )),
     ]);
 
@@ -108,14 +134,21 @@ export class TronAccountService {
     const nativeMeta = FAMILIES.tron;
     const holdings: Array<Record<string, unknown>> = [
       holding("native", nativeMeta.nativeSymbol, nativeMeta.nativeDecimals, nativeRaw, nativePrice),
-      ...tokens.map((token: EffectiveTokenEntry, index) => holding(
-        token.kind,
-        token.symbol,
-        token.decimals,
-        tokenBalances[index]!,
-        token.kind === "trc20" ? tokenPrices.get(token.id) ?? null : null,
-        { id: token.id, name: token.name, source: token.source },
-      )),
+      ...tokens.map((token: EffectiveTokenEntry, index) => {
+        const result = tokenBalances[index]!;
+        const extra = { id: token.id, name: token.name, source: token.source };
+        if ("error" in result) {
+          return unavailableHolding(token.kind, token.symbol, token.decimals, result.error, extra);
+        }
+        return holding(
+          token.kind,
+          token.symbol,
+          token.decimals,
+          result.raw,
+          token.kind === "trc20" ? tokenPrices.get(token.id) ?? null : null,
+          extra,
+        );
+      }),
     ];
     const values = holdings
       .map((item) => item.valueUsd)

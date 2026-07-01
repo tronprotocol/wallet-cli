@@ -33,8 +33,8 @@ export class TronContractService {
       contract: string;
       method: string;
       parameters: TronContractParameter[];
-      callValueSun: number;
-      feeLimit: number;
+      callValueSun: string;
+      feeLimit: string;
     },
   ) {
     const gateway = this.gateways.get(network, "tron");
@@ -74,7 +74,7 @@ export class TronContractService {
     input: TransactionModeInput & {
       abi: unknown;
       bytecode: string;
-      feeLimit: number;
+      feeLimit: string;
       parameters: unknown[];
     },
   ) {

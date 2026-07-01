@@ -158,9 +158,10 @@ export const TextFormatters = {
   }) satisfies TextFormatter,
   accountPortfolio: ((data, ctx) => {
     const d = asObj(data);
-    const rows = (Array.isArray(d.holdings) ? d.holdings : []).map(asObj).map((h) => [
+    const holdings = (Array.isArray(d.holdings) ? d.holdings : []).map(asObj);
+    const rows = holdings.map((h) => [
       String(h.symbol ?? ""),
-      formatScalar(h.balance),
+      h.balanceError ? "unavailable" : formatScalar(h.balance),
       h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsd(h.priceUsd)}`,
       h.valueUsd === null || h.valueUsd === undefined ? "-" : `$${formatUsd(h.valueUsd)}`,
     ]);
@@ -170,6 +171,9 @@ export const TextFormatters = {
       table(["Token", "Balance", "Price (USD)", "Value (USD)"], rows),
       `Total ≈ ${total}`,
     ];
+    for (const h of holdings) {
+      if (h.balanceError) lines.push(`${warn()} ${String(h.symbol ?? "")} balance unavailable: ${String(h.balanceError)}`);
+    }
     if (d.priceError) lines.push(`${warn()} price warning: ${String(d.priceError)}`);
     return lines.join("\n");
   }) satisfies TextFormatter,

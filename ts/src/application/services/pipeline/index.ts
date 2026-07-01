@@ -70,7 +70,14 @@ export class TxPipeline {
     const result = await withTimeout(p.broadcaster.broadcast(signed), timeoutMs, () => {});
     const txId = String(result.txId ?? result.hash ?? "");
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).
-    if (!p.ctx.wait || !p.confirm || !txId) return { stage: "submitted", ...result };
+    if (!p.ctx.wait || !p.confirm || !txId) {
+      // --wait asked but we can't even attempt confirmation (no confirm hook or no txid): the
+      // fallback to submitted is silent otherwise, so flag it rather than imply confirmation.
+      if (p.ctx.wait && !txId) {
+        p.ctx.warn("--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)");
+      }
+      return { stage: "submitted", ...result };
+    }
     // --wait: poll until the tx mines so the receipt carries real fee/energy/result.
     // Best-effort — a confirmation failure/timeout never fails an already-broadcast tx; we just
     // fall back to the submitted receipt.
@@ -80,7 +87,11 @@ export class TxPipeline {
     } catch {
       confirmed = undefined;
     }
-    if (!confirmed) return { stage: "submitted", ...result };
+    if (!confirmed) {
+      // The user asked to wait; a silent "submitted" reads like confirmation was never attempted.
+      p.ctx.warn(`--wait: ${txId} not confirmed within ${p.ctx.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`);
+      return { stage: "submitted", ...result };
+    }
     return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
   }
 }

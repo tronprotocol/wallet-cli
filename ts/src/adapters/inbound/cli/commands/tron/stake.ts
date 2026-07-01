@@ -54,7 +54,7 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
       "Stake TRX for energy/bandwidth (FreezeBalanceV2)",
       (context, network, input) => service.freeze(context, network, input),
       {
-        amountSun: Schemas.uintString().describe("amount to freeze as staked TRX, in SUN"),
+        amountSun: Schemas.positiveIntString().describe("amount to freeze as staked TRX, in SUN"),
         resource: resourceField("resource type to obtain"),
       },
     ),
@@ -63,7 +63,7 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
       "Unstake TRX (UnfreezeBalanceV2)",
       (context, network, input) => service.unfreeze(context, network, input),
       {
-        amountSun: Schemas.uintString().describe("amount to unfreeze as staked TRX, in SUN"),
+        amountSun: Schemas.positiveIntString().describe("amount to unfreeze as staked TRX, in SUN"),
         resource: resourceField("resource type to release"),
       },
     ),
@@ -82,14 +82,14 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
       "Delegate resource to another address (DelegateResourceV2)",
       (context, network, input) => service.delegate(context, network, input),
       {
-        amountSun: Schemas.uintString()
+        amountSun: Schemas.positiveIntString()
           .describe("staked-TRX amount backing the delegated resource, in SUN"),
         receiver: Schemas.addressFor("tron")
           .describe("TRON address receiving the delegated resource"),
         resource: resourceField("resource type to delegate or reclaim"),
         lock: z.boolean().default(false)
           .describe("lock the delegation and prevent early undelegation"),
-        lockPeriod: z.coerce.number().int().positive().optional()
+        lockPeriod: Schemas.positiveIntString().optional()
           .describe("lock duration in blocks, approximately 3 seconds per block; requires --lock"),
       },
       {
@@ -110,7 +110,7 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
       "Reclaim delegated resource (UnDelegateResourceV2)",
       (context, network, input) => service.undelegate(context, network, input),
       {
-        amountSun: Schemas.uintString()
+        amountSun: Schemas.positiveIntString()
           .describe("staked-TRX amount backing the resource to reclaim, in SUN"),
         receiver: Schemas.addressFor("tron")
           .describe("TRON address that previously received the delegated resource"),

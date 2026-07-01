@@ -4,10 +4,11 @@
 import { z } from "zod";
 import type { CommandDefinition } from "../../contracts/index.js";
 import type { TronBlockService } from "../../../../../application/use-cases/tron/block-service.js";
+import { Schemas } from "../../schemas/index.js";
 import { TextFormatters } from "../../render/index.js";
 
 function blockGet(service: TronBlockService): CommandDefinition {
-  const fields = z.object({ number: z.coerce.number().int().nonnegative().optional().describe("block number to fetch, in block height; omit to fetch the latest block") });
+  const fields = z.object({ number: Schemas.uintString().optional().describe("block number to fetch, in block height; omit to fetch the latest block") });
   return {
     path: ["block"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
