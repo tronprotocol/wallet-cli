@@ -72,6 +72,23 @@ export interface TronTx {
   [key: string]: unknown;
 }
 
+/** Protocol-level transfer fields decoded by the outbound TRON adapter. */
+export interface DecodedTronTransaction {
+  kind: "trx" | "trc10" | "trc20" | "contract" | "unknown";
+  from?: string;
+  to?: string;
+  rawAmount?: string;
+  tokenContract?: string;
+}
+
+/** Contract RPC variants normalized at the outbound boundary. */
+export interface TronContractMetadata {
+  name?: string;
+  methods: string[];
+  contract: unknown;
+  info?: unknown;
+}
+
 export interface TronFeeEstimate extends FeeReport {
   feeModel: "tron-resource";
   energy: number;
@@ -85,6 +102,7 @@ export interface TronGateway extends Broadcaster {
   getBlock(number?: number): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
+  decodeTransaction(transaction: TronTx): DecodedTronTransaction;
   getTrc20Balance(contract: string, address: string): Promise<string>;
   getTokenInfo(contract: string): Promise<TronTokenInfo>;
   getTrc10Balance(assetId: string, address: string): Promise<string>;
@@ -146,4 +164,5 @@ export interface TronGateway extends Broadcaster {
   ): Promise<UnsignedTx>;
   getContract(address: string): Promise<unknown>;
   getContractInfo(address: string): Promise<unknown>;
+  getContractMetadata(address: string): Promise<TronContractMetadata>;
 }

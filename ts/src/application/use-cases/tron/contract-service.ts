@@ -96,34 +96,14 @@ export class TronContractService {
   }
 
   async info(network: NetworkDescriptor, address: string) {
-    const gateway = this.gateways.get(network, "tron");
-    const [contract, info] = await Promise.all([
-      gateway.getContract(address),
-      gateway.getContractInfo(address).catch(() => undefined),
-    ]);
-    const methods = this.abiFunctions(contract, info);
-    const contractView = (contract ?? {}) as any;
-    const infoView = (info ?? {}) as any;
+    const metadata = await this.gateways.get(network, "tron").getContractMetadata(address);
     return {
       address,
-      name: contractView.name ?? infoView.name ?? undefined,
-      functionCount: methods.length,
-      methods,
-      contract,
-      info,
+      name: metadata.name,
+      functionCount: metadata.methods.length,
+      methods: metadata.methods,
+      contract: metadata.contract,
+      info: metadata.info,
     };
-  }
-
-  private abiFunctions(contract: unknown, info: unknown): string[] {
-    const contractView = (contract ?? {}) as any;
-    const infoView = (info ?? {}) as any;
-    const abi = contractView.abi ?? infoView.abi ?? contractView.ABI ?? infoView.ABI;
-    const entries: unknown[] = Array.isArray(abi)
-      ? abi
-      : Array.isArray(abi?.entrys) ? abi.entrys : [];
-    return entries
-      .filter((entry: any) => entry && (entry.type === "Function" || entry.type === "function"))
-      .map((entry: any) => entry.name)
-      .filter((name: unknown): name is string => typeof name === "string" && name.length > 0);
   }
 }

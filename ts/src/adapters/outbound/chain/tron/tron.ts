@@ -10,7 +10,9 @@ import type { BroadcastResult, SignedTx } from "../../../../domain/types/index.j
 import type { RpcResourceCode } from "../../../../domain/resources/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
 import type {
+  DecodedTronTransaction,
   TronContractParameter,
+  TronContractMetadata,
   TronAccount,
   TronGateway,
   TronTokenInfo,
@@ -21,6 +23,8 @@ import { ChainError, TransportError, UsageError } from "../../../../domain/error
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
+import { decodeTronTransaction } from "./transaction-decoder.js";
+import { normalizeContractResponses } from "./contract-response.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -104,6 +108,9 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getTransactionInfoById(txid: string): Promise<TronTxInfo> {
     return this.#wrap("getTransactionInfo", async () => parseTronTxInfo(await this.#tw.trx.getTransactionInfo(txid)));
+  }
+  decodeTransaction(transaction: TronTx): DecodedTronTransaction {
+    return decodeTronTransaction(transaction);
   }
 
   // ── TRC20 / TRC10 ──────────────────────────────────────────────────────────────
@@ -291,6 +298,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getContractInfo(address: string): Promise<unknown> {
     return this.#wrap("getContractInfo", () => this.#tw.trx.getContractInfo(address));
+  }
+  async getContractMetadata(address: string): Promise<TronContractMetadata> {
+    const [contract, info] = await Promise.all([
+      this.getContract(address),
+      this.getContractInfo(address).catch(() => undefined),
+    ]);
+    return normalizeContractResponses(contract, info);
   }
 
   #safeNumber(sun: string): number {

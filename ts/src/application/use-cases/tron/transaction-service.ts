@@ -1,10 +1,9 @@
 import type { AccountRef, EffectiveTokenEntry, NetworkDescriptor, TxInfoView, TxParties, TxStatusView } from "../../../domain/types/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
-import { tronHexToBase58 } from "../../../domain/address/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway, TronTx } from "../../ports/chain/tron-gateway.js";
+import type { DecodedTronTransaction, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
@@ -101,7 +100,7 @@ export class TronTransactionService {
     return {
       family: "tron",
       txid,
-      ...(await this.decodeParties(gateway, transaction)),
+      ...(await this.enrichParties(gateway, gateway.decodeTransaction(transaction))),
       status: info.receipt?.result ?? transaction.ret?.[0]?.contractRet,
       blockNumber: info.blockNumber,
       energyUsed: info.receipt?.energy_usage_total,
@@ -188,44 +187,33 @@ export class TronTransactionService {
     return { rawAmount: input.rawAmount ?? toBaseUnits(input.amount!, 6, "TRX") };
   }
 
-  private async decodeParties(gateway: TronGateway, transaction: TronTx): Promise<TxParties> {
-    const contract = transaction.raw_data?.contract?.[0];
-    const value = contract?.parameter?.value ?? {};
-    const type = String(contract?.type ?? "");
-    const from = tronHexToBase58(value.owner_address);
-    if (type === "TransferContract") {
+  private async enrichParties(gateway: TronGateway, decoded: DecodedTronTransaction): Promise<TxParties> {
+    if (decoded.kind === "trx") {
       return {
-        from,
-        to: tronHexToBase58(value.to_address),
-        amount: fromBaseUnits(String(value.amount ?? 0), 6),
+        from: decoded.from,
+        to: decoded.to,
+        amount: fromBaseUnits(decoded.rawAmount ?? "0", 6),
         symbol: "TRX",
       };
     }
-    if (type === "TransferAssetContract") {
-      return { from, to: tronHexToBase58(value.to_address), amount: String(value.amount ?? 0) };
+    if (decoded.kind === "trc10") {
+      return { from: decoded.from, to: decoded.to, amount: decoded.rawAmount };
     }
-    if (type === "TriggerSmartContract") {
-      const tokenContract = tronHexToBase58(value.contract_address);
-      const data = String(value.data ?? "").replace(/^0x/, "");
-      if (/^a9059cbb/i.test(data) && data.length >= 136) {
-        const to = tronHexToBase58(`41${data.slice(32, 72)}`);
-        const rawAmount = BigInt(`0x${data.slice(72, 136)}`).toString();
-        try {
-          const token = await gateway.getTokenInfo(tokenContract);
-          const decimals = token.decimals;
-          return {
-            from,
-            to,
-            contract: tokenContract,
-            symbol: typeof token.symbol === "string" ? token.symbol : undefined,
-            amount: decimals === undefined ? rawAmount : fromBaseUnits(rawAmount, decimals),
-          };
-        } catch {
-          return { from, to, contract: tokenContract, amount: rawAmount };
-        }
+    if (decoded.kind === "trc20" && decoded.tokenContract && decoded.rawAmount !== undefined) {
+      try {
+        const token = await gateway.getTokenInfo(decoded.tokenContract);
+        const decimals = token.decimals;
+        return {
+          from: decoded.from,
+          to: decoded.to,
+          contract: decoded.tokenContract,
+          symbol: typeof token.symbol === "string" ? token.symbol : undefined,
+          amount: decimals === undefined ? decoded.rawAmount : fromBaseUnits(decoded.rawAmount, decimals),
+        };
+      } catch {
+        return { from: decoded.from, to: decoded.to, contract: decoded.tokenContract, amount: decoded.rawAmount };
       }
-      return { from, contract: tokenContract };
     }
-    return from ? { from } : {};
+    return { from: decoded.from, contract: decoded.tokenContract };
   }
 }
