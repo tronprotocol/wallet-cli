@@ -140,19 +140,23 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
 });
 
-describe("txStatus formatter (family-agnostic; command supplies `failed`)", () => {
+describe("txStatus formatter (family-agnostic; command supplies `state`)", () => {
   it("tron: confirmed when not failed", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", confirmed: true, failed: false, blockNumber: 123 });
+    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "confirmed", confirmed: true, failed: false, blockNumber: 123 });
     expect(out).toContain("confirmed");
     expect(out).toContain("#123");
   });
   it("tron: failed when command flags it", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", confirmed: true, failed: true, blockNumber: 1 });
+    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "failed", confirmed: true, failed: true, blockNumber: 1 });
     expect(out).toContain("failed");
   });
-  it("pending when not yet confirmed", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", confirmed: false, failed: false });
+  it("pending when known but not yet confirmed", () => {
+    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "pending", confirmed: false, failed: false });
     expect(out).toContain("pending");
+  });
+  it("not found when the node has no record of the tx", () => {
+    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "not_found", confirmed: false, failed: false });
+    expect(out).toContain("not found");
   });
 });
 

@@ -79,16 +79,21 @@ export class TronTransactionService {
   }
 
   async status(network: NetworkDescriptor, txid: string): Promise<TxStatusView> {
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txid);
+    const gateway = this.gateways.get(network, "tron");
+    // Two endpoints, in parallel, because getTransactionInfo alone can't tell "unconfirmed" from
+    // "never existed" — it returns {} for both. getTransactionById distinguishes them: it knows a
+    // broadcast tx immediately (mempool), and throws "Transaction not found" for an unknown hash.
+    // getTransactionInfo only fills in once the tx is in a (solidified) block — that's what promotes
+    // pending → confirmed/failed.
+    const [exists, info] = await Promise.all([
+      gateway.getTransactionById(txid).then((tx) => tx?.txID !== undefined, () => false),
+      gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
+    ]);
     const confirmed = info.blockNumber !== undefined;
     const result = info.receipt?.result;
-    return {
-      family: "tron",
-      txid,
-      confirmed,
-      failed: result !== undefined && result !== "SUCCESS",
-      blockNumber: info.blockNumber,
-    };
+    const failed = confirmed && result !== undefined && result !== "SUCCESS";
+    const state = confirmed ? (failed ? "failed" : "confirmed") : exists ? "pending" : "not_found";
+    return { family: "tron", txid, state, confirmed, failed, blockNumber: info.blockNumber };
   }
 
   async info(network: NetworkDescriptor, txid: string): Promise<TxInfoView> {

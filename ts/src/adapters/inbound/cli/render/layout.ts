@@ -44,3 +44,4 @@ export function ok(): string { return "✅"; }
 export function fail(): string { return "❌"; }
 export function pending(): string { return "⏳"; }
 export function warn(): string { return "⚠️"; }
+export function unknown(): string { return "❓"; }

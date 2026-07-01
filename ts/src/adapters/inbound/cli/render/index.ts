@@ -5,7 +5,7 @@ import { RESOURCES, resourceOfRpcCode, type Resource } from "../../../../domain/
 import { sourceLabel } from "../../../../domain/sources/index.js";
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { formatScalar, formatInt, formatUsd, formatSun, formatTime, formatUtc, num, shorten, quote } from "./scalars.js";
-import { type Obj, type Pair, asObj, kv, query, receipt, titled, table, ok, fail, pending, warn } from "./layout.js";
+import { type Obj, type Pair, asObj, kv, query, receipt, titled, table, ok, fail, pending, warn, unknown } from "./layout.js";
 
 /**
  * Per-family render hooks — the one table that folds the scattered `r.family === tron ? … : …`
@@ -198,8 +198,13 @@ export const TextFormatters = {
 
   txReceipt: ((r, ctx?: TextRenderContext) => renderTxReceipt(r, ctx)) satisfies TextFormatter<TxReceiptView>,
   txStatus: ((r) => {
-    // `failed` is computed by the command (tron: result ≠ SUCCESS) — no family branch.
-    const status = r.failed ? `failed ${fail()}` : r.confirmed ? `confirmed ${ok()}` : `pending ${pending()}`;
+    // `state` is computed by the command (tron: getTransactionById + receipt result) — no family branch.
+    const status = {
+      confirmed: `confirmed ${ok()}`,
+      failed: `failed ${fail()}`,
+      pending: `pending ${pending()}`,
+      not_found: `not found ${unknown()}`,
+    }[r.state];
     return query([
       ["TxID", r.txid],
       ["Status", status],

@@ -81,8 +81,14 @@ export class HelpService {
     if (family) return this.registry.resolveForFamily(path, family)
     const neutral = this.registry.resolveNeutral(path)
     if (neutral) return neutral
-    // single-segment chain leaf (e.g. `block`): resolve by its HEAD so `block`, `block 123`, and even
-    // `block <typo>` all render the leaf help instead of a phantom `block COMMAND` group. Group heads
+    // unique chain leaf: if the full logical path has exactly one impl (single family), render/emit
+    // that command directly — so `block` and `tx info` behave alike without a family prefix. Once a
+    // path has multiple families (e.g. tron + evm), it's ambiguous → fall through to the family-scoped
+    // catalog instead.
+    const exact = this.registry.resolveCandidates(path)
+    if (exact.length === 1) return exact[0]!
+    // single-segment chain leaf (e.g. `block`): resolve by its HEAD so `block 123` and even
+    // `block <typo>` still render the leaf help instead of a phantom `block COMMAND` group. Group heads
     // like `account` have no command at the bare path, so they stay groups (headLeaf is undefined).
     const headLeaf = this.registry.resolveCandidates([path[0]!])[0]
     if (headLeaf && headLeaf.path.length === 1) return headLeaf

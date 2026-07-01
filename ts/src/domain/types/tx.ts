@@ -31,10 +31,19 @@ export type TxOutcome =
 // `tx status` carries a `failed` the command computes (tron: receipt result ≠ SUCCESS), so the
 // renderer needs no per-family branch. `tx info` is a superset of on-chain fields — each family
 // populates its own subset and the per-family render table (FAMILY_RENDER) shapes them into rows.
+/** four-state confirmation status.
+ *  - `confirmed`/`failed`: has a block + receipt (result = SUCCESS ⇒ confirmed, else failed)
+ *  - `pending`: the node knows the tx (getTransactionById) but it is not yet in a block
+ *  - `not_found`: the node has no record of the tx (never broadcast, dropped, or not yet propagated) */
+export type TxState = "confirmed" | "failed" | "pending" | "not_found";
+
 export interface TxStatusView {
   family: ChainFamily;
   txid: string;
+  state: TxState;
+  /** kept for back-compat: `state === "confirmed"`. */
   confirmed: boolean;
+  /** kept for back-compat: `state === "failed"`. */
   failed: boolean;
   blockNumber?: number | string;
 }
