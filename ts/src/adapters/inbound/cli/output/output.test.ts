@@ -125,6 +125,42 @@ describe("createOutputFormatter (text)", () => {
     expect(text).not.toContain("✅"); // existing wallets must not show the success check
   });
 
+  it("strips terminal control sequences from rendered data values", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    // a hostile label / remote metadata value carrying ANSI CSI, OSC, and a bare C1 CSI byte.
+    const text = f.success(cmd, net, { balance: "1\x1b[31mHACKED\x1b]0;pwn\x07\x9bK" });
+    expect(text).not.toContain("\x1b");
+    expect(text).not.toContain("\x9b");
+    expect(text).not.toContain("\x07");
+    expect(text).toContain("1"); // the real value survives, only control bytes are removed
+  });
+
+  it("preserves newlines while stripping control bytes", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const text = f.success(cmd, net, { balance: "1" });
+    expect(text).toContain("\n"); // layout line breaks must remain intact
+  });
+
+  it("sanitizes human error and event lines", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const frame = f.event({ type: "pre-verify-address", address: "T1\x1b[2Jabc" });
+    expect(frame).not.toContain("\x1b");
+    const { sm: sm2, err } = capture("text");
+    const f2 = createOutputFormatter("text", sm2, 0);
+    f2.error(new UsageError("invalid_value", "bad \x1b[31mvalue\x1b[0m from node"));
+    expect(err[0]).not.toContain("\x1b");
+  });
+
+  it("json mode keeps data raw (no sanitization)", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success(cmd, net, { balance: "1\x1b[31m" }));
+    expect(env.data.balance).toBe("1\x1b[31m"); // machine-parseable output stays byte-exact
+  });
+
   it("renders backup metadata without secret material", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);

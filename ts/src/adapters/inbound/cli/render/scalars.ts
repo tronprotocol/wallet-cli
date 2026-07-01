@@ -1,5 +1,5 @@
 /**
- * Scalar formatting — pure value-to-string helpers (numbers, time, identifiers).
+ * Scalar formatting - pure value-to-string helpers (numbers, time, identifiers).
  * No domain or layout knowledge; reusable across formatters and trivially unit-testable.
  */
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
@@ -37,7 +37,7 @@ export function formatTime(v: unknown): string {
   return `${mm}-${dd} ${hh}:${mi}`;
 }
 
-/** block timestamp → "YYYY-MM-DD HH:MM:SS UTC". */
+/** block timestamp -> "YYYY-MM-DD HH:MM:SS UTC". */
 export function formatUtc(v: unknown): string {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return "unknown";
@@ -56,4 +56,15 @@ export function shorten(s: string): string {
 
 export function quote(s: string): string {
   return `"${s}"`;
+}
+
+// Neutralize terminal control-sequence injection from untrusted labels / remote metadata.
+// Strips C0 (except the newline layout uses for line breaks), DEL, and C1 bytes: removing the
+// ESC (0x1B) and C1 introducers degrades any ANSI CSI / OSC payload to harmless literal text.
+// Built via RegExp so the source file itself carries no raw control bytes.
+const CONTROL_BYTES = new RegExp("[\\u0000-\\u0009\\u000B-\\u001F\\u007F-\\u009F]", "g");
+
+/** strip terminal control bytes from a text-mode output frame (never applied in JSON mode). */
+export function sanitizeText(s: string): string {
+  return s.replace(CONTROL_BYTES, "");
 }

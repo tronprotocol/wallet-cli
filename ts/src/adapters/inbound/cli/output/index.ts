@@ -15,6 +15,7 @@ import type { CommandDefinition, StreamManager } from "../contracts/index.js";
 import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderGenericText } from "../render/index.js";
+import { sanitizeText } from "../render/scalars.js";
 
 export interface OutputFormatter {
   /** the single result frame for the caller to hand to streams.result. */
@@ -53,19 +54,20 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
 }
 
 class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
+  // Text mode: strip terminal control bytes from every frame so a hostile wallet label or remote
+  // token/RPC metadata value cannot inject ANSI/OSC sequences (CLI-OUT-001). JSON mode stays raw.
   success(cmd: CommandDefinition, net: NetworkDescriptor | undefined, data: unknown, accountLabel?: string): string {
     const env = OutputEnvelope.success(cmd, net, data, this.meta());
     const custom = cmd.formatText?.(env.data, { command: env.command, net, accountLabel });
-    if (custom) return custom;
-    return renderGenericText(env.command, net, env.data);
+    return sanitizeText(custom ?? renderGenericText(env.command, net, env.data));
   }
 
   error(err: CliError): void {
-    this.streams.errorLine(`error [${err.code}]: ${err.message}`);
+    this.streams.errorLine(sanitizeText(`error [${err.code}]: ${err.message}`));
   }
 
   event(e: ProgressEvent): string {
-    return renderEvent(e);
+    return sanitizeText(renderEvent(e));
   }
 }
 
