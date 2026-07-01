@@ -102,6 +102,7 @@ export function registerWalletCommands(
   reg.add({
     path: ["import", "ledger"], network: "none", wallet: "none", auth: "none",
     interactive: true, promptHints: { label: "default-label", index: "skip", path: "skip", address: "skip", scanLimit: "skip" },
+    requires: ["a connected, unlocked Ledger with the selected app (--app) open"],
     summary: "Register a Ledger account (watch-only; signs on device)", fields: walletImportLedgerFields, input: walletImportLedgerInput,
     examples: [{ cmd: "wallet-cli import ledger --app tron --index 0 --label cold" }],
     formatText: TextFormatters.walletLedger,
@@ -111,7 +112,7 @@ export function registerWalletCommands(
       const path = hasLocator || !ctx.prompt.isTTY()
         ? await resolveLedgerPath(services.ledger, family, input)
         : await selectLedgerPath(services.ledger, family, ctx.prompt);
-      ctx.emit({ type: "awaiting_device", reason: "verify_address" });
+      ctx.emit({ type: "deriving-address" });
       return wallets.importLedger(family, path, input.label);
     },
   } satisfies CommandDefinition);
@@ -144,7 +145,7 @@ export function registerWalletCommands(
   // ── use ──────────────────────────────────────────────────────────────────
   const setActiveFields = z.object({ account: z.string().min(1).describe("accountId, label, or address to make active for future commands") });
   reg.add({
-    path: ["use"], network: "none", wallet: "none", auth: "none", positionalAccount: true,
+    path: ["use"], network: "none", wallet: "none", auth: "none", positional: { field: "account" },
     summary: "Set the active account", fields: setActiveFields, input: setActiveFields,
     examples: [{ cmd: "wallet-cli use main" }],
     formatText: TextFormatters.walletUse,
@@ -171,7 +172,7 @@ export function registerWalletCommands(
     label: Schemas.label().describe("new unique label, 1-64 chars"),
   });
   reg.add({
-    path: ["rename"], network: "none", wallet: "none", auth: "none", positionalAccount: true,
+    path: ["rename"], network: "none", wallet: "none", auth: "none", positional: { field: "account" },
     summary: "Rename an account label", fields: renameFields, input: renameFields,
     examples: [{ cmd: "wallet-cli rename main --label primary" }],
     formatText: TextFormatters.walletRename,
@@ -202,7 +203,7 @@ export function registerWalletCommands(
     yes: z.boolean().default(false).describe("skip the interactive confirmation; required for non-TTY deletion"),
   });
   reg.add({
-    path: ["delete"], network: "none", wallet: "none", auth: "none", interactive: true, positionalAccount: true,
+    path: ["delete"], network: "none", wallet: "none", auth: "none", interactive: true, positional: { field: "account" },
     summary: "Delete a wallet/account and clean orphan labels", fields: deleteFields, input: deleteFields,
     examples: [{ cmd: "wallet-cli delete old --yes" }],
     formatText: TextFormatters.walletDelete,
@@ -230,7 +231,7 @@ export function registerWalletCommands(
     out: z.string().optional().describe("output file path; omit to write <wallet-cli-root>/backups/<accountId>-<timestamp>.json; file is created with mode 0600 and never overwritten"),
   });
   reg.add({
-    path: ["backup"], network: "none", wallet: "none", auth: "required", passwordMode: "verify", interactive: true, positionalAccount: true,
+    path: ["backup"], network: "none", wallet: "none", auth: "required", passwordMode: "verify", interactive: true, positional: { field: "account" },
     summary: "Export an account's secret + metadata to a 0600 file", fields: backupFields, input: backupFields,
     examples: [{ cmd: "wallet-cli backup main --out ~/main-backup.json --password-stdin" }],
     formatText: TextFormatters.walletBackup,

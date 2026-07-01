@@ -45,14 +45,19 @@ export interface CommandDefinition<I = any, O = any> {
   broadcasts?: boolean;
   /** opt-in interactive master-password handling: "establish" = set on first wallet else verify; "verify" = require existing. Commands without this keep the lazy hasMasterPassword guard. */
   passwordMode?: "establish" | "verify";
-  /** bind an `[account]` positional on the CLI surface (account-targeting neutral leaves: use/rename/backup/delete). */
-  positionalAccount?: boolean;
+  /** expose one `fields` entry as a leading positional (`block [<number>]`, `use [<account>]`) instead
+   *  of a --flag: binds the CLI positional, and help documents it under Args + Usage and drops it from
+   *  the Flags list. `placeholder` defaults to `field`. */
+  positional?: { field: string; placeholder?: string };
   /** allow interactive TTY prompts (master password, secret, gap-fill, confirm). Absent ⇒ fail fast — safer for scripts/agents. */
   interactive?: boolean;
   /** gap-fill prompt hints, by field name: "skip" = never prompt this optional field; "default-label" = offer a generated default. */
   promptHints?: Record<string, "skip" | "default-label">;
   capability?: string;
   summary?: string;
+  /** extra command-specific preconditions rendered in the help "Requires:" block, ahead of the
+   *  auto-derived network/auth/account lines (e.g. a connected Ledger for `import ledger`). */
+  requires?: string[];
   /** per-field zod object; feeds the arity adapter + HelpService. */
   fields: ZodObject<ZodRawShape>;
   /** full validation schema (often fields.superRefine), used in dispatch. */

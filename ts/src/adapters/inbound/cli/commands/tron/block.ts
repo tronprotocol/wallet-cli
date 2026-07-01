@@ -11,10 +11,11 @@ function blockGet(service: TronBlockService): CommandDefinition {
   return {
     path: ["block"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
+    positional: { field: "number" },
     summary: "Get a block (latest if omitted)", fields, input: fields,
     examples: [
-      { cmd: "wallet-cli block --network tron:nile" },
-      { cmd: "wallet-cli block 12345 --network tron:nile" },
+      { cmd: "wallet-cli block" },
+      { cmd: "wallet-cli block 12345" },
     ],
     formatText: TextFormatters.block,
     run: async (_ctx, net, input) => service.get(net!, input.number),

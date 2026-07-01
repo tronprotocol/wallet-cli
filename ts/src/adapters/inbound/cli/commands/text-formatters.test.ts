@@ -30,6 +30,23 @@ describe("text formatters", () => {
   });
 });
 
+describe("accountBalance formatter", () => {
+  it("converts native balance to the human coin amount using decimals + symbol", () => {
+    const out = TextFormatters.accountBalance({ address: "TXaddress", balance: "1983993000", decimals: 6, symbol: "TRX" }, ctx());
+    expect(out).toContain("1983.993 TRX");
+    expect(out).not.toContain("sun");
+  });
+  it("falls back to raw scalar balance when decimals are missing", () => {
+    const out = TextFormatters.accountBalance({ address: "TXaddress", balance: "1983993000" }, ctx());
+    expect(out).toContain("1983993000");
+  });
+  it("prefers the account label over the address when present", () => {
+    const out = TextFormatters.accountBalance({ address: "TXaddress", balance: "1", decimals: 6, symbol: "TRX" }, ctx({ accountLabel: "main" }));
+    expect(out).toContain("main");
+    expect(out).not.toContain("TXaddress");
+  });
+});
+
 describe("tokenBalance formatter", () => {
   it("formats balance with decimals and symbol when metadata is present", () => {
     const out = TextFormatters.tokenBalance({ address: "TXaddress", token: "TR7token", balance: "1204560000", symbol: "USDT", decimals: 6 }, ctx());

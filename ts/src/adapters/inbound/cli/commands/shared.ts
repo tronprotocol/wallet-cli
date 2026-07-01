@@ -50,11 +50,11 @@ export function messageSignCommand(family: ChainFamily, service: MessageService)
     summary: "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
     fields,
     input: fields,
-    examples: [{ cmd: `wallet-cli message sign --network ${family === "tron" ? "tron:nile" : "evm:1"} --message "hello"` }],
+    examples: [{ cmd: `wallet-cli message sign --message "hello"` }],
     formatText: TextFormatters.messageSign,
     run: async (ctx, _net, input) => {
       const message = ctx.secrets.pick(input.message, "message", "message");
-      return service.sign(family, ctx.activeAccount, message);
+      return service.sign(ctx, family, ctx.activeAccount, message);
     },
   };
 }

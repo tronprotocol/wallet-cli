@@ -86,7 +86,7 @@ export function buildCli(opts: ShellOptions): Argv {
       // single-segment leaf (create / list / use / current / rename / derive / delete / backup / networks)
       const cmd = cmds[0]!
       cli.command(
-        cmd.positionalAccount ? `${head} [account]` : head,
+        cmd.positional ? `${head} [${cmd.positional.placeholder ?? cmd.positional.field}]` : head,
         cmd.summary ?? "",
         (y) => applyCommands(y, [cmd.fields]),
         (argv) => dispatchNeutral(opts, [head], argv),

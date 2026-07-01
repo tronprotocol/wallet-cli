@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { UsageError } from "../../../domain/errors/index.js";
 import type {
@@ -16,12 +16,18 @@ export class SecureBackupWriter implements BackupWriter {
     const path = requestedPath
       ? resolve(requestedPath)
       : join(this.root, "backups", `${accountId}-${this.now()}.json`);
-    if (existsSync(path)) {
-      throw new UsageError("output_exists", `refusing to overwrite existing file: ${path}`);
-    }
     mkdirSync(dirname(path), { recursive: true });
     const content = `${JSON.stringify(payload, null, 2)}\n`;
-    writeFileSync(path, content, { mode: 0o600 });
+    // `wx` = exclusive create: atomically fail if the file exists, closing the check-then-write
+    // race so two concurrent backups can never clobber the same secret-bearing file.
+    try {
+      writeFileSync(path, content, { flag: "wx", mode: 0o600 });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new UsageError("output_exists", `refusing to overwrite existing file: ${path}`);
+      }
+      throw e;
+    }
     return { out: path, fileMode: "0600", bytes: Buffer.byteLength(content) };
   }
 }

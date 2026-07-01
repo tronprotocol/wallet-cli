@@ -41,7 +41,7 @@ function command(
     summary,
     fields,
     input: options.refine ? fields.superRefine(options.refine) : fields,
-    examples: [{ cmd: `wallet-cli stake ${action} --network tron:nile` }],
+    examples: [{ cmd: `wallet-cli stake ${action}` }],
     formatText: TextFormatters.txReceipt,
     run: async (context, network, input) => execute(context, network!, input),
   };

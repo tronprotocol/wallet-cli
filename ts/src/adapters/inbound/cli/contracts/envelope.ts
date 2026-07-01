@@ -3,12 +3,10 @@
  * and the global runtime flags parsed off argv.
  */
 import type { ChainFamily } from "../../../../domain/family/index.js";
-import type { NetworkId } from "../../../../domain/types/network.js";
 import type { OutputMode } from "../../../../domain/types/primitives.js";
 
 export interface ChainView {
   family: ChainFamily;
-  networkId: NetworkId;
   network: string;
   chainId: string;
 }

@@ -22,13 +22,15 @@ export type ChainFamily = (typeof ChainFamily)[keyof typeof ChainFamily];
 export interface FamilyMeta {
   family: ChainFamily;
   nativeUnit: string; // smallest-unit name: "sun" / "wei"
+  nativeSymbol: string; // native coin display symbol: "TRX" / "ETH"
+  nativeDecimals: number; // native coin decimals: base unit → coin (sun→TRX = 6)
   coinType: number; // BIP44 coin_type
   codec: AddressCodec; // address derive/validate
   ledger?: { app: string }; // present = hardware app wired; value = the Ledger app name
 }
 
 export const FAMILIES: Record<ChainFamily, FamilyMeta> = {
-  tron: { family: "tron", nativeUnit: "sun", coinType: 195, codec: new TronAddress(), ledger: { app: "tron" } },
+  tron: { family: "tron", nativeUnit: "sun", nativeSymbol: "TRX", nativeDecimals: 6, coinType: 195, codec: new TronAddress(), ledger: { app: "tron" } },
 };
 
 /** every known family, in declaration order. */

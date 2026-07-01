@@ -176,7 +176,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hello world"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("tron.message.sign");
-    expect(r.json.chain.networkId).toBe("tron:nile");
+    expect(r.json.chain.network).toBe("tron:nile");
   });
 
   it("routes root-level send and validates human amount decimals before RPC", () => {
@@ -228,6 +228,50 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     expect(backup.status).toBe(0);
     expect(backup.json.command).toBe("backup");
     expect(backup.json.data.out).toBe(out);
+  });
+
+  it("derive makes the newly derived HD account the active one (§1.7)", () => {
+    seedWallet(); // "main" at index 0, active
+    const r = run(["--output", "json", "derive", "--account", "main", "--label", "child"]);
+    expect(r.status).toBe(0);
+    expect(r.json.command).toBe("derive");
+    expect(r.json.data.index).toBe(1);
+    expect(r.json.data.active).toBe(true); // derive auto-activates, not active:false
+    // and `current` now resolves to the derived child, confirming the switch persisted
+    const current = run(["--output", "json", "current"], { password: null });
+    expect(current.json.data.label).toBe("child");
+  });
+});
+
+describe("golden CLI — command help contracts", () => {
+  it("import ledger --help documents the device precondition (B5)", () => {
+    const r = run(["import", "ledger", "--help"], { password: null });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Requires:");
+    expect(r.stdout).toMatch(/connected, unlocked Ledger/);
+  });
+
+  it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
+    const r = run(["tx", "send", "--help"], { password: null });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Send native TRX or TRC20/TRC10 tokens with human --amount");
+  });
+
+  it("block --help documents the height as a positional arg, not a --number flag (H4)", () => {
+    const r = run(["block", "--help"], { password: null });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("wallet-cli block [<number>]");
+    expect(r.stdout).toMatch(/Args:\s*\n\s*number\s/);
+    expect(r.stdout).not.toContain("--number"); // positional-only surface, flag dropped from help
+  });
+
+  it("account-positional commands document [<account>] under Args, not as a --account flag", () => {
+    const r = run(["rename", "--help"], { password: null });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("wallet-cli rename [<account>]");
+    expect(r.stdout).toMatch(/Args:\s*\n\s*account\s/);
+    expect(r.stdout).not.toContain("--account"); // unified positional mechanism hides the flag
+    expect(r.stdout).toContain("--label"); // sibling flags still listed
   });
 });
 
@@ -287,7 +331,7 @@ describe("golden CLI — error contract (exit codes)", () => {
     const r = run(["--output", "json", "tx", "send"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("missing_option");
-    expect(r.json.chain.networkId).toBe("tron:mainnet");
+    expect(r.json.chain.network).toBe("tron:mainnet");
   });
 
   it("invalid address value → exit 2", () => {
@@ -336,7 +380,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     const r = run(["--output", "json", "token", "list"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("tron.token.list");
-    expect(r.json.chain.networkId).toBe("tron:mainnet");
+    expect(r.json.chain.network).toBe("tron:mainnet");
   });
 
   it("token list shows a user-added token tagged user (nile, empty official layer)", () => {

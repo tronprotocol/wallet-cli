@@ -26,7 +26,7 @@ describe("createOutputFormatter (json)", () => {
     const env = JSON.parse(f.success(cmd, net, { balance: "1" }));
     expect(env.success).toBe(true);
     expect(env.command).toBe("tron.account.balance");
-    expect(env.chain).toMatchObject({ networkId: "tron:nile", network: "tron:nile", chainId: "nile" });
+    expect(env.chain).toMatchObject({ network: "tron:nile", chainId: "nile" });
     expect(env.data).toEqual({ balance: "1" });
     expect(env.meta).toMatchObject({ warnings: [] });
   });

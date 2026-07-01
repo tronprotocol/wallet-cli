@@ -85,11 +85,11 @@ function renderEvent(e: ProgressEvent): string {
     case "awaiting_device":
       switch (e.reason) {
         case "sign": return "⧖ review and approve the transaction on your device";
-        case "verify_address": return "⧖ review and confirm the address on your device";
         case "open_app": return "⧖ confirm on your device to open the app";
         case "unlock": return "⧖ unlock your device with your PIN";
       }
     // eslint-disable-next-line no-fallthrough
+    case "deriving-address": return "deriving address from your device…";
     case "pre-verify-address": return `compare with your device: ${e.address}`;
     case "signed": return "✓ signed; broadcasting…";
     case "broadcasting": return "broadcasting…";

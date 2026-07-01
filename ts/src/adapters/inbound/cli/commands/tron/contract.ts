@@ -37,7 +37,7 @@ function call(service: TronContractService): CommandDefinition {
     fields,
     input: fields,
     examples: [{
-      cmd: `wallet-cli contract call --network tron:nile --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
+      cmd: `wallet-cli contract call --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
     }],
     formatText: TextFormatters.contractCall,
     run: async (_ctx, network, input) => service.call(
@@ -67,7 +67,7 @@ function send(service: TronContractService): CommandDefinition {
     fields,
     input: fields,
     examples: [{
-      cmd: `wallet-cli contract send --network tron:nile --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
+      cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
     }],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => service.send(ctx, network!, {
@@ -97,7 +97,7 @@ function deploy(service: TronContractService): CommandDefinition {
     fields,
     input: fields,
     examples: [{
-      cmd: "wallet-cli contract deploy --network tron:nile --abi '[...]' --bytecode 60... --fee-limit 1000000000",
+      cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000",
     }],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => {
@@ -127,7 +127,7 @@ function info(service: TronContractService): CommandDefinition {
     summary: "Show contract ABI + metadata",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli contract info --network tron:nile --contract TR7..." }],
+    examples: [{ cmd: "wallet-cli contract info --contract TR7..." }],
     formatText: TextFormatters.contractInfo,
     run: async (_ctx, network, input) => service.info(network!, input.contract),
   };

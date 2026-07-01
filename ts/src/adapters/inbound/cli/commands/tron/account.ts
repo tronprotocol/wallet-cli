@@ -17,7 +17,7 @@ function balance(service: TronAccountService): CommandDefinition {
     summary: "Show native balance (TRX/SUN)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account balance --network tron:nile" }],
+    examples: [{ cmd: "wallet-cli account balance" }],
     formatText: TextFormatters.accountBalance,
     run: async (ctx, network) => service.balance(ctx, network!, "tron"),
   };
@@ -31,7 +31,7 @@ function info(service: TronAccountService): CommandDefinition {
     summary: "Show raw account data (getAccount; TRON includes resources)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account info --network tron:nile" }],
+    examples: [{ cmd: "wallet-cli account info" }],
     formatText: TextFormatters.accountInfo,
     run: async (ctx, network) => service.info(ctx, network!),
   };
@@ -50,7 +50,7 @@ function history(service: TronAccountService): CommandDefinition {
     summary: "Show transaction history (requires TronGrid)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account history --network tron:nile --limit 10" }],
+    examples: [{ cmd: "wallet-cli account history --limit 10" }],
     formatText: TextFormatters.accountHistory,
     run: async (ctx, network, input) => service.historyFor(ctx, network!, input),
   };
@@ -65,7 +65,7 @@ function portfolio(service: TronAccountService): CommandDefinition {
     summary: "Show native + token balances with best-effort USD value",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account portfolio --network tron:nile" }],
+    examples: [{ cmd: "wallet-cli account portfolio" }],
     formatText: TextFormatters.accountPortfolio,
     run: async (ctx, network) => service.portfolio(ctx, network!),
   };

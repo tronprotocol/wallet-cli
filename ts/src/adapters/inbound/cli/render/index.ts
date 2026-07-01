@@ -44,6 +44,13 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
   },
 };
 
+/** humanize a raw base-unit balance: scale by `decimals` when known, else show the raw integer. */
+function humanBalance(d: Obj): string {
+  return d.decimals !== undefined
+    ? fromBaseUnits(String(d.balance ?? "0"), num(d.decimals, 0))
+    : formatScalar(d.balance);
+}
+
 export const TextFormatters = {
   walletCreated: (verb: "Created" | "Imported", notes: string[]): TextFormatter => (data) =>
     renderWalletCreated(verb, asObj(data), notes),
@@ -113,9 +120,8 @@ export const TextFormatters = {
 
   accountBalance: ((data, ctx) => {
     const d = asObj(data);
-    const unit = String(d.unit ?? "TRX");
-    const human = unit === "TRX" ? formatSun(d.balance) : formatScalar(d.balance);
-    return query([identity(ctx, d.address), ["Balance", `${human} ${unit}`]]);
+    const symbol = d.symbol ? ` ${String(d.symbol)}` : "";
+    return query([identity(ctx, d.address), ["Balance", `${humanBalance(d)}${symbol}`]]);
   }) satisfies TextFormatter,
   accountInfo: ((data, ctx) => renderAccountInfo(asObj(data), ctx)) satisfies TextFormatter,
   accountHistory: ((data, ctx) => {
@@ -170,12 +176,11 @@ export const TextFormatters = {
 
   tokenBalance: ((data, ctx) => {
     const d = asObj(data);
-    const balance = d.decimals !== undefined ? fromBaseUnits(String(d.balance ?? "0"), num(d.decimals, 0)) : formatScalar(d.balance);
     return query([
       identity(ctx, d.address),
       ["Name", String(d.name ?? "")],
       ["Symbol", String(d.symbol ?? "")],
-      ["Balance", balance],
+      ["Balance", humanBalance(d)],
     ]);
   }) satisfies TextFormatter,
   tokenInfo: ((data) => {

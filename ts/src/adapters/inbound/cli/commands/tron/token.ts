@@ -24,7 +24,7 @@ function balance(service: TronTokenService): CommandDefinition {
     summary: "Show a single token balance (--contract / --asset-id)",
     fields: selectorFields,
     input: selectorFields.superRefine(tokenSelector),
-    examples: [{ cmd: "wallet-cli token balance --network tron:nile --contract TR7..." }],
+    examples: [{ cmd: "wallet-cli token balance --contract TR7..." }],
     formatText: TextFormatters.tokenBalance,
     run: async (ctx, network, input) => service.balance(ctx, network!, input),
   };
@@ -38,7 +38,7 @@ function info(service: TronTokenService): CommandDefinition {
     summary: "Show token metadata (name/symbol/decimals/totalSupply)",
     fields: selectorFields,
     input: selectorFields.superRefine(tokenSelector),
-    examples: [{ cmd: "wallet-cli token info --network tron:nile --contract TR7..." }],
+    examples: [{ cmd: "wallet-cli token info --contract TR7..." }],
     formatText: TextFormatters.tokenInfo,
     run: async (_ctx, network, input) => service.info(network!, input),
   };
@@ -52,7 +52,7 @@ function add(service: TronTokenService): CommandDefinition {
     summary: "Add a token to the address book (fetches symbol/decimals)",
     fields: selectorFields,
     input: selectorFields.superRefine(tokenSelector),
-    examples: [{ cmd: "wallet-cli token add --network tron:nile --contract TR7..." }],
+    examples: [{ cmd: "wallet-cli token add --contract TR7..." }],
     formatText: TextFormatters.tokenBookAdd,
     run: async (ctx, network, input) => service.add(ctx, network!, input),
   };
@@ -67,7 +67,7 @@ function list(service: TronTokenService): CommandDefinition {
     summary: "List the address book (official + user)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli token list --network tron:nile" }],
+    examples: [{ cmd: "wallet-cli token list" }],
     formatText: TextFormatters.tokenBookList,
     run: async (ctx, network) => service.list(ctx, network!),
   };
@@ -81,7 +81,7 @@ function remove(service: TronTokenService): CommandDefinition {
     summary: "Remove a user-added token from the address book",
     fields: selectorFields,
     input: selectorFields.superRefine(tokenSelector),
-    examples: [{ cmd: "wallet-cli token remove --network tron:nile --contract TR7..." }],
+    examples: [{ cmd: "wallet-cli token remove --contract TR7..." }],
     formatText: TextFormatters.tokenBookRemove,
     run: async (ctx, network, input) => service.remove(ctx, network!, input),
   };

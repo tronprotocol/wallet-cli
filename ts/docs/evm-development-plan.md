@@ -451,7 +451,7 @@ Work list:
 - [ ] The JSON envelope keeps `wallet-cli.result.v1` and emits:
   - `command: "evm...."`
   - `chain.family: "evm"`
-  - `chain.networkId: "evm:<chainId>"`
+  - `chain.network: "evm:<chainId>"`
   - `chain.chainId: "<chainId>"`
 - [ ] All wei, gas, fee, nonce, and block quantities avoid JavaScript number precision loss; JSON uses a stable string rule.
 - [ ] error, warning, and progress still obey the stdout/stderr and single-terminal-frame contract.

@@ -40,10 +40,12 @@ export class TronAccountService {
 
   async balance(scope: AccountScope, network: NetworkDescriptor, family: ChainFamily) {
     const address = scope.resolveAddress(family);
+    const meta = FAMILIES[family];
     return {
       address,
       balance: await this.gateways.client(network).getNativeBalance(address),
-      unit: FAMILIES[family].nativeUnit,
+      decimals: meta.nativeDecimals,
+      symbol: meta.nativeSymbol,
     };
   }
 
@@ -103,8 +105,9 @@ export class TronAccountService {
       priceError = (error as Error).message;
     }
 
+    const nativeMeta = FAMILIES.tron;
     const holdings: Array<Record<string, unknown>> = [
-      holding("native", "TRX", 6, nativeRaw, nativePrice),
+      holding("native", nativeMeta.nativeSymbol, nativeMeta.nativeDecimals, nativeRaw, nativePrice),
       ...tokens.map((token: EffectiveTokenEntry, index) => holding(
         token.kind,
         token.symbol,
