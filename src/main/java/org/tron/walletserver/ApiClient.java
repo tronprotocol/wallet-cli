@@ -473,14 +473,21 @@ public class ApiClient {
    * @return max delegatable size
    */
   public long getCanDelegatedMaxSize(byte[] ownerAddress, int type, PQScheme pqScheme) {
-    int pqSchemeValue = pqScheme == null ? PQScheme.UNKNOWN_PQ_SCHEME_VALUE : pqScheme.getNumber();
+    Chain.PQScheme tridentPQScheme = toTridentPQScheme(pqScheme);
     if (!emptySolidityNode) {
       return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
-          pqSchemeValue, SOLIDITY_NODE);
+          tridentPQScheme, SOLIDITY_NODE);
     } else {
       return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
-          pqSchemeValue, FULL_NODE);
+          tridentPQScheme, FULL_NODE);
     }
+  }
+
+  private static Chain.PQScheme toTridentPQScheme(PQScheme pqScheme) {
+    if (pqScheme == null || pqScheme == PQScheme.UNKNOWN_PQ_SCHEME) {
+      return Chain.PQScheme.UNKNOWN_PQ_SCHEME;
+    }
+    return Chain.PQScheme.forNumber(pqScheme.getNumber());
   }
 
   public long getAvailableUnfreezeCount(byte[] ownerAddress) {// pass
