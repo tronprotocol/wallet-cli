@@ -40,8 +40,9 @@ public class StakingCommands {
                     long duration = opts.getLong("duration");
                     CommandSupport.requirePositive(out, "duration", duration);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
-                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, true);
                     byte[] receiver = opts.has("receiver") ? opts.getAccountAddress("receiver") : null;
+                    // v1 freeze with a receiver is a delegated freeze; TRON_POWER is not delegatable.
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, receiver == null);
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
@@ -100,8 +101,9 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
-                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, true);
                     byte[] receiver = opts.has("receiver") ? opts.getAccountAddress("receiver") : null;
+                    // v1 unfreeze with a receiver targets a delegated freeze; TRON_POWER is not delegatable.
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, receiver == null);
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,

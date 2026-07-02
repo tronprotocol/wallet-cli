@@ -1644,7 +1644,8 @@ public class Client {
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index]);
     }
 
-    if (!checkStakingResource(resourceCode, true)) {
+    // v1 freeze with a receiver is a delegated freeze; TRON_POWER is not delegatable.
+    if (!checkStakingResource(resourceCode, receiverAddress == null)) {
       return;
     }
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
@@ -1735,7 +1736,8 @@ public class Client {
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     }
 
-    if (!checkStakingResource(resourceCode, true)) {
+    // v1 unfreeze with a receiver targets a delegated freeze; TRON_POWER is not delegatable.
+    if (!checkStakingResource(resourceCode, receiverAddress == null)) {
       return;
     }
     boolean result = walletApiWrapper.unfreezeBalance(ownerAddress, resourceCode, receiverAddress, multi);
