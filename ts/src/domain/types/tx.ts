@@ -2,8 +2,6 @@
  * SharedTypes — crypto / signing / tx / rpc (implementations live in upper layers)
  * plus the per-command typed text outputs the text formatter narrows on.
  */
-import type { ChainFamily } from "../family/index.js";
-
 export type Bytes = Uint8Array;
 export type KeyPair = { privateKey: Bytes; publicKey: Bytes };
 
@@ -27,10 +25,11 @@ export type TxOutcome =
   | ({ stage: BroadcastStage } & BroadcastResult);
 
 // ════════════════════ per-command typed text outputs ══════════════════════
-// Flat, family-agnostic shapes: shared transaction contracts do not enumerate chains.
-// `tx status` carries a `failed` the command computes (tron: receipt result ≠ SUCCESS), so the
-// renderer needs no per-family branch. `tx info` is a superset of on-chain fields — each family
-// populates its own subset and the per-family render table (FAMILY_RENDER) shapes them into rows.
+// Flat, family-agnostic shapes: shared transaction contracts carry no `family` — the active
+// chain is already known from the request (the renderer reads `ctx.net.family`), so duplicating
+// it in the payload is redundant. `tx status` carries a `failed` the command computes (tron:
+// receipt result ≠ SUCCESS). `tx info` is a superset of on-chain fields — each family populates
+// its own subset and the per-family render table (FAMILY_RENDER[ctx.net.family]) shapes the rows.
 /** four-state confirmation status.
  *  - `confirmed`/`failed`: has a block + receipt (result = SUCCESS ⇒ confirmed, else failed)
  *  - `pending`: the node knows the tx (getTransactionById) but it is not yet in a block
@@ -38,7 +37,6 @@ export type TxOutcome =
 export type TxState = "confirmed" | "failed" | "pending" | "not_found";
 
 export interface TxStatusView {
-  family: ChainFamily;
   txid: string;
   state: TxState;
   /** kept for back-compat: `state === "confirmed"`. */
@@ -60,12 +58,12 @@ export type TxReceiptKind =
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
- * Flat (JSON stays additive); the text formatter narrows on `kind`/`family` and reads fixed keys
- * instead of probing aliases. Commands populate the subset relevant to their action.
+ * Flat (JSON stays additive); the text formatter narrows on `kind` (+ `ctx.net.family` for the
+ * per-family fee/amount hooks) and reads fixed keys instead of probing aliases. Commands populate
+ * the subset relevant to their action.
  */
 export interface TxReceiptView {
   kind: TxReceiptKind;
-  family: ChainFamily;
   mode?: "dry-run" | "sign-only";
   stage?: BroadcastStage;
   txId?: string;
@@ -99,7 +97,6 @@ export interface TxReceiptView {
 /** `tx info` output: flat normalized display fields (superset across families) + the raw
  *  tx/receipt blobs (kept for JSON detail). Each family populates only its own subset. */
 export interface TxInfoView extends TxParties {
-  family: ChainFamily;
   txid: string;
   status?: string;
   blockNumber?: number | string;

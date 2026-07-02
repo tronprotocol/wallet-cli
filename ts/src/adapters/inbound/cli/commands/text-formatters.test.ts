@@ -67,7 +67,7 @@ describe("tokenBalance formatter", () => {
 describe("txReceipt formatter (typed kind, narrowed — no command-id matching)", () => {
   it("tx send submitted (default): pending receipt with txid + track hint, no fee/energy", () => {
     const out = TextFormatters.txReceipt(
-      { kind: "send", family: "tron", stage: "submitted", txId: "abc123", rawAmount: "5000000", token: "USDT", decimals: 6, to: "TrecipientAddress" },
+      { kind: "send", stage: "submitted", txId: "abc123", rawAmount: "5000000", token: "USDT", decimals: 6, to: "TrecipientAddress" },
       ctx({ net: { id: "tron:nile", family: "tron", chainId: "nile", feeModel: "tron-resource", aliases: [], capabilities: [] } }),
     );
     expect(out).toContain("⏳");
@@ -79,17 +79,17 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).not.toContain("Fee");
   });
   it("tx send TRC20 via --contract --raw-amount (no symbol): never mislabels as TRX", () => {
-    const out = TextFormatters.txReceipt({ kind: "send", family: "tron", stage: "submitted", txId: "t20", rawAmount: "10000", contract: "TXYZtokenContract", to: "Tdest" });
+    const out = TextFormatters.txReceipt({ kind: "send", stage: "submitted", txId: "t20", rawAmount: "10000", contract: "TXYZtokenContract", to: "Tdest" });
     expect(out).toContain("Sent 10000 TXYZtokenContract");
     expect(out).not.toContain("TRX");
   });
   it("tx send TRC10 via --asset-id --raw-amount (no symbol): labels by asset id, not TRX", () => {
-    const out = TextFormatters.txReceipt({ kind: "send", family: "tron", stage: "submitted", txId: "t10", rawAmount: "500000", assetId: "1005416", to: "Tdest" });
+    const out = TextFormatters.txReceipt({ kind: "send", stage: "submitted", txId: "t10", rawAmount: "500000", assetId: "1005416", to: "Tdest" });
     expect(out).toContain("Sent 500000 asset 1005416");
     expect(out).not.toContain("TRX");
   });
   it("tx send confirmed (--wait): success receipt with real block + fee", () => {
-    const out = TextFormatters.txReceipt({ kind: "send", family: "tron", stage: "confirmed", txId: "abc", rawAmount: "1000000", to: "Tdest", blockNumber: 66000000, feeSun: "268000" });
+    const out = TextFormatters.txReceipt({ kind: "send", stage: "confirmed", txId: "abc", rawAmount: "1000000", to: "Tdest", blockNumber: 66000000, feeSun: "268000" });
     expect(out).toContain("✅");
     expect(out).toContain("Sent 1 TRX");
     expect(out).toContain("#66,000,000");
@@ -98,7 +98,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
   it("confirmed receipt preserves legitimate zero-valued chain fields", () => {
     const out = TextFormatters.txReceipt({
-      kind: "send", family: "tron", stage: "confirmed", txId: "zero",
+      kind: "send", stage: "confirmed", txId: "zero",
       rawAmount: "0", to: "Tdest", blockNumber: 0, energyUsed: 0, feeSun: 0,
     });
     expect(out).toContain("#0");
@@ -106,7 +106,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("0 TRX");
   });
   it("contract send failed (--wait): failure receipt with reason", () => {
-    const out = TextFormatters.txReceipt({ kind: "contract-send", family: "tron", stage: "failed", txId: "abc", method: "transfer(address,uint256)", contract: "TR7contract", result: "OUT_OF_ENERGY", blockNumber: 1, failed: true });
+    const out = TextFormatters.txReceipt({ kind: "contract-send", stage: "failed", txId: "abc", method: "transfer(address,uint256)", contract: "TR7contract", result: "OUT_OF_ENERGY", blockNumber: 1, failed: true });
     expect(out).toContain("❌");
     expect(out).toContain("Called transfer");
     expect(out).toContain("TR7contract");
@@ -114,7 +114,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
   it("dry-run with an energy estimate (TRC20/contract): renders energy, never [object Object]", () => {
     const out = TextFormatters.txReceipt({
-      kind: "send", family: "tron", mode: "dry-run",
+      kind: "send", mode: "dry-run",
       fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 133440569 } as any,
       tx: { txID: "deadbeef" } as any, rawAmount: "10000", contract: "TXYZtoken", to: "Tdest",
     } as any);
@@ -125,7 +125,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
   it("dry-run energy estimate with insufficient available energy: no 'covered' note", () => {
     const out = TextFormatters.txReceipt({
-      kind: "send", family: "tron", mode: "dry-run",
+      kind: "send", mode: "dry-run",
       fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 100 } as any,
       tx: { txID: "deadbeef" } as any, rawAmount: "10000", contract: "TXYZtoken", to: "Tdest",
     } as any);
@@ -133,7 +133,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).not.toContain("covered by staked energy");
   });
   it("stake freeze submitted: renders staked amount and resource", () => {
-    const out = TextFormatters.txReceipt({ kind: "stake-freeze", family: "tron", stage: "submitted", txId: "abc", amountSun: "2000000", resource: "energy" });
+    const out = TextFormatters.txReceipt({ kind: "stake-freeze", stage: "submitted", txId: "abc", amountSun: "2000000", resource: "energy" });
     expect(out).toContain("Staked");
     expect(out).toContain("2 TRX");
     expect(out).toContain("energy");
@@ -142,30 +142,30 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
 
 describe("txStatus formatter (family-agnostic; command supplies `state`)", () => {
   it("tron: confirmed when not failed", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "confirmed", confirmed: true, failed: false, blockNumber: 123 });
+    const out = TextFormatters.txStatus({ txid: "abc", state: "confirmed", confirmed: true, failed: false, blockNumber: 123 });
     expect(out).toContain("confirmed");
     expect(out).toContain("#123");
   });
   it("tron: failed when command flags it", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "failed", confirmed: true, failed: true, blockNumber: 1 });
+    const out = TextFormatters.txStatus({ txid: "abc", state: "failed", confirmed: true, failed: true, blockNumber: 1 });
     expect(out).toContain("failed");
   });
   it("pending when known but not yet confirmed", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "pending", confirmed: false, failed: false });
+    const out = TextFormatters.txStatus({ txid: "abc", state: "pending", confirmed: false, failed: false });
     expect(out).toContain("pending");
   });
   it("not found when the node has no record of the tx", () => {
-    const out = TextFormatters.txStatus({ family: "tron", txid: "abc", state: "not_found", confirmed: false, failed: false });
+    const out = TextFormatters.txStatus({ txid: "abc", state: "not_found", confirmed: false, failed: false });
     expect(out).toContain("not found");
   });
 });
 
-describe("txInfo formatter (per-family, narrowed on family)", () => {
+describe("txInfo formatter (per-family, narrowed on ctx.net.family)", () => {
   it("tron: shows TRX amount, energy and fee in TRX", () => {
     const out = TextFormatters.txInfo({
-      family: "tron", txid: "abc", from: "Tfrom", to: "Tto", amount: "1.5", symbol: "TRX",
+      txid: "abc", from: "Tfrom", to: "Tto", amount: "1.5", symbol: "TRX",
       status: "SUCCESS", blockNumber: 66000000, energyUsed: 28000, feeSun: 268000, transaction: {}, info: {},
-    });
+    }, ctx({ net: { id: "tron:nile", family: "tron", chainId: "nile", feeModel: "tron-resource", aliases: [], capabilities: [] } }));
     expect(out).toContain("1.5 TRX");
     expect(out).toContain("#66,000,000");
     expect(out).toContain("28,000");

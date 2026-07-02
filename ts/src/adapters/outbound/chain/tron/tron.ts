@@ -72,7 +72,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       const reason = decodeTronMessage(res.message) || res.code || "rejected by node";
       throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${reason}`, { code: res.code });
     }
-    return { txId: res.txid ?? res.transaction?.txID, raw: res };
+    return { txId: res.txid ?? res.transaction?.txID };
   }
 
   /** build an unsigned TRX transfer (tronweb fills ref block etc.). */

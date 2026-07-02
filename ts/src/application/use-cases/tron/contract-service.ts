@@ -61,7 +61,6 @@ export class TronContractService {
     });
     return {
       kind: "contract-send" as const,
-      family: "tron" as const,
       ...outcomeData(outcome),
       method: input.method,
       contract: input.contract,
@@ -92,7 +91,7 @@ export class TronContractService {
         note: "deploy energy depends on bytecode size",
       }),
     });
-    return { kind: "contract-deploy" as const, family: "tron" as const, ...outcomeData(outcome) };
+    return { kind: "contract-deploy" as const, ...outcomeData(outcome) };
   }
 
   async info(network: NetworkDescriptor, address: string) {

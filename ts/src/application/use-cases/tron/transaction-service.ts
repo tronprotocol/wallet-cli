@@ -57,7 +57,6 @@ export class TronTransactionService {
     });
     return {
       kind: "send" as const,
-      family: "tron" as const,
       ...outcomeData(outcome),
       rawAmount: resolved.rawAmount,
       token: resolved.tokenSymbol,
@@ -73,7 +72,6 @@ export class TronTransactionService {
     const result = await gateway.broadcast(signed);
     return {
       kind: "broadcast" as const,
-      family: "tron" as const,
       ...(await stageTronBroadcast(gateway, scope, result)),
     };
   }
@@ -93,7 +91,7 @@ export class TronTransactionService {
     const result = info.receipt?.result;
     const failed = confirmed && result !== undefined && result !== "SUCCESS";
     const state = confirmed ? (failed ? "failed" : "confirmed") : exists ? "pending" : "not_found";
-    return { family: "tron", txid, state, confirmed, failed, blockNumber: info.blockNumber };
+    return { txid, state, confirmed, failed, blockNumber: info.blockNumber };
   }
 
   async info(network: NetworkDescriptor, txid: string): Promise<TxInfoView> {
@@ -106,7 +104,6 @@ export class TronTransactionService {
       gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
     ]);
     return {
-      family: "tron",
       txid,
       ...(await this.enrichParties(gateway, gateway.decodeTransaction(transaction))),
       status: info.receipt?.result ?? transaction.ret?.[0]?.contractRet,

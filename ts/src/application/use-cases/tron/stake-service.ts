@@ -98,7 +98,7 @@ export class TronStakeService {
         .filter((key) => input[key] !== undefined)
         .map((key) => [key, input[key]]),
     );
-    return { kind, family: "tron" as const, ...outcomeData(outcome), ...echoed };
+    return { kind, ...outcomeData(outcome), ...echoed };
   }
 
   private assertDifferentReceiver(owner: string, receiver: string): void {

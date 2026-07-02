@@ -211,8 +211,8 @@ export const TextFormatters = {
       ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
     ]);
   }) satisfies TextFormatter<TxStatusView>,
-  txInfo: ((r) => {
-    return query(FAMILY_RENDER[r.family].txInfoRows(r));
+  txInfo: ((r, ctx) => {
+    return query(FAMILY_RENDER[renderFamily(ctx)].txInfoRows(r));
   }) satisfies TextFormatter<TxInfoView>,
 
   contractCall: ((data) => {
@@ -398,23 +398,25 @@ function configValue(v: unknown): string {
 }
 
 /** Default-mode broadcast/dry-run/sign-only receipt for tx/stake/contract signing commands.
- *  Narrows on the typed `kind`/`family` — no stringly command-id matching, no alias probing. */
+ *  Narrows on the typed `kind`; the active family comes from `ctx.net` (see renderFamily) — no
+ *  `family` in the payload, no stringly command-id matching, no alias probing. */
 function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
+  const family = renderFamily(ctx);
   if (r.mode === "dry-run") {
     return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
-      ["Fee", formatFee(r.fee, r.family)],
+      ["Fee", formatFee(r.fee, family)],
       ["Tx", summarizeTx(r.tx)],
     ]);
   }
   if (r.mode === "sign-only") {
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
-      ["Fee", formatFee(r.fee, r.family)],
+      ["Fee", formatFee(r.fee, family)],
       ["Signed", summarizeTx(r.signed)],
     ]);
   }
   const txid = String(r.txId ?? r.hash ?? "");
   const stage = r.stage ?? "submitted";
-  const summary = receiptSummary(r);
+  const summary = receiptSummary(r, family);
   const pairs: Pair[] = [...receiptRows(r)];
   if (txid) pairs.push(["TxID", txid]);
 
@@ -441,7 +443,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
 }
 
 /** the verb-phrase summary for a broadcast receipt, by action kind. */
-function receiptSummary(r: TxReceiptView): string {
+function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
   const stakeAmt = r.amountSun !== undefined ? `${formatSun(r.amountSun)} TRX` : "TRX";
   const resource = r.resource ? String(r.resource) : "";
   switch (r.kind) {
@@ -454,7 +456,7 @@ function receiptSummary(r: TxReceiptView): string {
     case "contract-send": return `Called ${methodName(String(r.method ?? ""))}`;
     case "contract-deploy": return "Contract deployed";
     case "send": {
-      const amount = receiptAmount(r);
+      const amount = receiptAmount(r, family);
       return amount ? `Sent ${amount}` : "Sent";
     }
     case "broadcast": return "Broadcast";
@@ -474,7 +476,7 @@ function receiptRows(r: TxReceiptView): Pair[] {
 
 /** broadcast-receipt amount: token-aware (symbol/decimals when known, else the contract/asset-id
  *  identifier for raw-amount sends), native smallest-unit → coin only when no token is involved. */
-function receiptAmount(r: TxReceiptView): string {
+function receiptAmount(r: TxReceiptView, family: ChainFamily): string {
   if (r.rawAmount !== undefined && r.rawAmount !== null && r.rawAmount !== "") {
     const raw = String(r.rawAmount);
     const isToken = r.token !== undefined || r.contract !== undefined || r.assetId !== undefined;
@@ -483,7 +485,7 @@ function receiptAmount(r: TxReceiptView): string {
       const label = r.token ?? r.contract ?? (r.assetId !== undefined ? `asset ${String(r.assetId)}` : "");
       return label ? `${human} ${String(label)}` : human;
     }
-    return FAMILY_RENDER[r.family].nativeAmount(raw);
+    return FAMILY_RENDER[family].nativeAmount(raw);
   }
   if (r.amountSun) return `${formatSun(r.amountSun)} TRX`;
   return "";
@@ -550,6 +552,12 @@ function addressPairs(d: Obj): Pair[] {
 
 function familyAddressLabel(family: string): string {
   return FAMILY_RENDER[family as ChainFamily]?.addressLabel ?? `${family} address`;
+}
+
+/** the active chain family for a chain-command renderer. Chain commands always resolve a network
+ *  before running, so `ctx.net` is present; the tron fallback only guards a shape that can't occur. */
+function renderFamily(ctx?: TextRenderContext): ChainFamily {
+  return ctx?.net?.family ?? "tron";
 }
 
 function typeLabel(v: unknown): string {
