@@ -53,7 +53,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const prompter = createPrompter();
   const secrets = new SecretResolver(streams, options.secretPaths, prompter);
   const keystore = new Keystore(root, store, () => secrets.masterPassword());
-  const ledger = new Ledger();
+  const ledger = new Ledger(timeoutMs);
   const walletService = new WalletService(
     keystore,
     ledger,

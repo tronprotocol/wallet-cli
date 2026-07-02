@@ -21,6 +21,7 @@ export interface AppConfig {
 }
 import { ChainError, CliError, ExecutionError } from "../../../domain/errors/index.js";
 import { ChainFamily, FAMILIES } from "../../../domain/family/index.js";
+import { withTimeout } from "../../../domain/async/index.js";
 
 export interface GetAddressOpts {
   /** false = silent derive (import scan / precheck); true = show on-device for user confirmation. */
@@ -93,17 +94,28 @@ function classifyDeviceError(e: unknown): CliError {
 }
 
 export class Ledger {
+  // effective per-invocation timeout (--timeout, else config default); bounds every device call so an
+  // unresponsive device or an un-tapped on-device prompt can't hang the CLI. Mirrors TronChain for RPC.
+  constructor(private readonly timeoutMs = 60_000) {}
+
   private assertWired(family: ChainFamily): void {
     if (!FAMILIES[family].ledger) {
       throw new ExecutionError("auth_required", `Ledger ${family} app is not wired yet (only tron is supported)`);
     }
   }
 
+  // Timeout wraps the transport run so a timed-out call surfaces as ChainError("timeout"); callers'
+  // classifyDeviceError passes CliError through, so it isn't remapped to auth_required. onTimeout is a
+  // no-op (as in TronChain): the HID call isn't truly cancelable, but the CLI unblocks.
+  #bound<T>(fn: (trx: TrxApp) => Promise<T>): Promise<T> {
+    return withTimeout(withTrx(fn), this.timeoutMs, () => {});
+  }
+
   async getAddress(family: ChainFamily, path: string, opts?: GetAddressOpts): Promise<string> {
     opts?.onWait?.();
     this.assertWired(family);
     try {
-      return await withTrx(async (trx) => (await trx.getAddress(ledgerPath(path), opts?.display ?? false)).address);
+      return await this.#bound(async (trx) => (await trx.getAddress(ledgerPath(path), opts?.display ?? false)).address);
     } catch (e) {
       throw classifyDeviceError(e);
     }
@@ -114,7 +126,7 @@ export class Ledger {
     const rawTxHex = (tx as { raw_data_hex?: string }).raw_data_hex;
     if (!rawTxHex) throw new ChainError("invalid_transaction", "TRON transaction is missing raw_data_hex for Ledger signing");
     try {
-      return await withTrx(async (trx) => {
+      return await this.#bound(async (trx) => {
         const signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
         return { ...(tx as object), signature: [signature] };
       });
@@ -127,7 +139,7 @@ export class Ledger {
     this.assertWired(family);
     const messageHex = Buffer.from(message, "utf8").toString("hex");
     try {
-      return await withTrx(async (trx) => `0x${await trx.signPersonalMessage(ledgerPath(path), messageHex)}`);
+      return await this.#bound(async (trx) => `0x${await trx.signPersonalMessage(ledgerPath(path), messageHex)}`);
     } catch (e) {
       throw classifyDeviceError(e);
     }
@@ -136,7 +148,7 @@ export class Ledger {
   async appConfig(family: ChainFamily): Promise<AppConfig> {
     this.assertWired(family);
     try {
-      return await withTrx(async (trx) => ({ version: (await trx.getAppConfiguration()).version, ready: true }));
+      return await this.#bound(async (trx) => ({ version: (await trx.getAppConfiguration()).version, ready: true }));
     } catch (e) {
       throw classifyDeviceError(e);
     }
