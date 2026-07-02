@@ -5,6 +5,7 @@ import type { TronContractParameter } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronHexToBase58 } from "../../../domain/address/index.js";
 
 export class TronContractService {
   constructor(
@@ -78,6 +79,7 @@ export class TronContractService {
     },
   ) {
     const gateway = this.gateways.get(network, "tron");
+    let contractAddress: string | undefined;
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -85,13 +87,18 @@ export class TronContractService {
       broadcaster: gateway,
       ...transactionMode(input),
       confirm: tronConfirmation(gateway, scope),
-      build: (from) => gateway.deployContract(from, input),
+      build: async (from) => {
+        const tx = await gateway.deployContract(from, input);
+        const hex = (tx as { contract_address?: string }).contract_address;
+        if (hex) contractAddress = tronHexToBase58(hex);
+        return tx;
+      },
       estimate: async () => ({
         feeModel: "tron-resource",
         note: "deploy energy depends on bytecode size",
       }),
     });
-    return { kind: "contract-deploy" as const, ...outcomeData(outcome) };
+    return { kind: "contract-deploy" as const, contractAddress, ...outcomeData(outcome) };
   }
 
   async info(network: NetworkDescriptor, address: string) {

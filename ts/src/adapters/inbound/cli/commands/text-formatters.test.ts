@@ -112,6 +112,15 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("TR7contract");
     expect(out).toContain("OUT_OF_ENERGY");
   });
+  it("contract deploy submitted: renders populated Address row", () => {
+    const out = TextFormatters.txReceipt(
+      { kind: "contract-deploy", stage: "submitted", txId: "dep1", contractAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" },
+      ctx({ net: { id: "tron:nile", family: "tron", chainId: "nile", feeModel: "tron-resource", aliases: [], capabilities: [] } }),
+    );
+    expect(out).toContain("Contract deployed");
+    expect(out).toContain("Address");
+    expect(out).toContain("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
+  });
   it("dry-run with an energy estimate (TRC20/contract): renders energy, never [object Object]", () => {
     const out = TextFormatters.txReceipt({
       kind: "send", mode: "dry-run",
