@@ -34,7 +34,7 @@ export class TxPipeline {
     const { timeoutMs } = p.ctx;
     // --wait only makes sense when we actually broadcast (dry-run/sign-only never reach the chain).
     if (p.ctx.wait && !p.broadcast) {
-      throw new UsageError("invalid_option", "choose at most one of --dry-run, --sign-only, --wait");
+      throw new UsageError("invalid_option", "--wait has nothing to wait for with --dry-run/--sign-only (neither broadcasts)");
     }
     const signer = this.signers.resolve(p.account, p.net.family);
 

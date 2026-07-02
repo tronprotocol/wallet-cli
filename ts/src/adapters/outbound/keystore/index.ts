@@ -293,6 +293,9 @@ export class Keystore {
     const family = sourceFamily(s);
     if (family) d.family = family;
     if (s.type === "ledger") d.path = s.path;
+    if (s.type === "seed") {
+      d.seedId = w.id; // the seed id `derive --seed` takes; also the `list` HD group header.
+    }
     return d;
   }
 
@@ -310,10 +313,11 @@ export class Keystore {
       const wallet = file.wallets.find((w) => w.id === walletId);
       if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${refOrWallet}`);
 
-      // account-level delete: a single HD sub-account ref (wlt_x.N) forgets just that index
-      // (re-derivable from the seed). The vault/secret survives until the wallet itself is
-      // deleted via a wallet-level ref/label — destroying a secret needs an explicit target.
-      if (wallet.source.type === "seed" && idxStr !== undefined) {
+      // account-level delete: a non-root HD sub-account ref (wlt_x.N, N>0) forgets just that index
+      // (re-derivable from the seed). The vault/secret survives until the wallet itself is deleted.
+      // The root (index 0) anchors the group and is the seed's labelled account — deleting it
+      // cascades to the whole wallet (all children + secret) via the wallet-level branch below.
+      if (wallet.source.type === "seed" && idxStr !== undefined && idxStr !== "0") {
         if (!(idxStr in wallet.source.addresses)) {
           throw new WalletError("invalid_value", `unknown account ${refOrWallet}`);
         }

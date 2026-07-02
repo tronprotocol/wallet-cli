@@ -289,6 +289,19 @@ describe("Keystore", () => {
     expect(() => ks.decryptSeed(vaultId)).not.toThrow();
   });
 
+  it("delete by root ref (index 0) cascades to the whole wallet, taking its children and vault", () => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" }).accountId; // .0
+    const walletId = ref.split(".")[0]!;
+    ks.addAccount(walletId); // .1
+    ks.addAccount(walletId); // .2
+    const vaultId = (ks.resolveAccount(`${walletId}.0`).wallet.source as any).vaultId;
+    const del = ks.delete(`${walletId}.0`);
+    expect(del.scope).toBe("wallet");
+    expect(del.secretRemoved).toBe(true);
+    expect(ks.list()).toHaveLength(0);
+    expect(() => ks.decryptSeed(vaultId)).toThrow(/missing vault/);
+  });
+
   it("delete by wallet-level ref removes the whole seed wallet and its vault", () => {
     const ref = ks.import({ secret: MNEMONIC, type: "seed" }).accountId;
     const walletId = ref.split(".")[0]!;

@@ -231,8 +231,8 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
   });
 
   it("derive makes the newly derived HD account the active one (§1.7)", () => {
-    seedWallet(); // "main" at index 0, active
-    const r = run(["--output", "json", "derive", "--account", "main", "--label", "child"]);
+    const seedId = seedWallet().split(".")[0]; // "main" at index 0, active; seed id = wlt_x
+    const r = run(["--output", "json", "derive", "--seed-id", seedId, "--label", "child"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("derive");
     expect(r.json.data.index).toBe(1);

@@ -48,6 +48,9 @@ export interface AccountDescriptor {
   addresses: Partial<ChainAddresses>;
   family?: ChainFamily;
   path?: string;
+  /** HD only: the seed id (wallet id, `wlt_…`) this account was derived from — the value `derive
+   *  --seed` takes. Combined with `index`, tells which seed an account belongs to and its slot. */
+  seedId?: string;
 }
 
 /** mutators that may hit an existing account report whether they actually created one. */

@@ -63,10 +63,26 @@ export class WalletService {
     return { previousLabel: result.previousLabel, ...this.wallets.describe(result.accountId) };
   }
 
-  derive(account: string, index?: number, label?: string) {
-    const { wallet } = this.wallets.resolveAccount(account);
+  derive(seedId: string, index?: number, label?: string) {
+    // --seed-id is strictly the seed id (wlt_…) — the HD group header in `list`. No labels, no
+    // sub-account refs: labels/refs point at an account, and the seed (not an account) is the root.
+    const id = seedId.trim();
+    if (!/^wlt_[^.]+$/.test(id)) {
+      throw new UsageError("invalid_value", `--seed-id takes a seed id (wlt_…), not '${seedId}'; copy it from the HD group header in \`list\``);
+    }
+    const wallet = this.wallets.resolveWallet(id);
+    if (wallet.source.type !== "seed") {
+      throw new UsageError("invalid_value", `${wallet.source.type} wallet is not HD; derive needs a seed wallet`);
+    }
+    const baseLabel = this.wallets.describe(`${wallet.id}.0`).label; // the wallet's name (index-0 label)
     const result = this.wallets.addAccount(wallet.id, index);
-    if (label) this.wallets.rename(result.accountId, label);
+    if (label) {
+      this.wallets.rename(result.accountId, label);
+    } else if (result.created) {
+      // auto-name new accounts <wallet-name>-<index> so they read as siblings under the same seed.
+      const newIndex = Number(result.accountId.split(".")[1]);
+      this.wallets.rename(result.accountId, `${baseLabel ?? "hd"}-${newIndex}`);
+    }
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }
 
@@ -75,8 +91,9 @@ export class WalletService {
   }
 
   delete(account: string) {
-    const { scope: _scope, ...result } = this.wallets.delete(account);
-    return result;
+    // `scope` ("account" | "wallet") tells the caller/renderer whether a single HD sub-account or
+    // the whole wallet (incl. children + secret) was removed — a root ref cascades to "wallet".
+    return this.wallets.delete(account);
   }
 
   backup(account: string, requestedPath?: string) {
