@@ -473,21 +473,21 @@ public class ApiClient {
    * @return max delegatable size
    */
   public long getCanDelegatedMaxSize(byte[] ownerAddress, int type, PQScheme pqScheme) {
-    // TODO(trident-sdk): Trident's ApiWrapper.getCanDelegatedMaxSize does not yet accept a
-    // PQScheme parameter. Once the Trident SDK is updated (add pq_scheme to its
-    // CanDelegatedMaxSizeRequestMessage proto and regenerate), pass pqScheme to the
-    // ApiWrapper call below. Until then, the scheme hint is silently ignored and the
-    // node returns the ECDSA-sized estimate (backward-compatible default).
-    //
-    // When the SDK is ready, replace this body with:
-    //   if (!emptySolidityNode) {
-    //     return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
-    //         pqScheme, SOLIDITY_NODE);
-    //   } else {
-    //     return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
-    //         pqScheme, FULL_NODE);
-    //   }
-    return getCanDelegatedMaxSize(ownerAddress, type);
+    Chain.PQScheme tridentPQScheme = toTridentPQScheme(pqScheme);
+    if (!emptySolidityNode) {
+      return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
+          tridentPQScheme, SOLIDITY_NODE);
+    } else {
+      return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
+          tridentPQScheme, FULL_NODE);
+    }
+  }
+
+  private static Chain.PQScheme toTridentPQScheme(PQScheme pqScheme) {
+    if (pqScheme == null || pqScheme == PQScheme.UNKNOWN_PQ_SCHEME) {
+      return Chain.PQScheme.UNKNOWN_PQ_SCHEME;
+    }
+    return Chain.PQScheme.forNumber(pqScheme.getNumber());
   }
 
   public long getAvailableUnfreezeCount(byte[] ownerAddress) {// pass
@@ -636,6 +636,13 @@ public class ApiClient {
 
   public Response.TransactionExtention deployContract(String contractName, String abi, String code, List<Type<?>> constructorParams, long feeLimit, long consumeUserResourcePercent, long originEnergyLimit, long value, String tokenId, long tokenValue) throws Exception {// pass
     return client.deployContract(contractName, abi, code, constructorParams, feeLimit, consumeUserResourcePercent, originEnergyLimit, value, tokenId, tokenValue);
+  }
+
+  public Response.TransactionExtention deployContract(byte[] owner, String contractName, String abi,
+      String code, List<Type<?>> constructorParams, long feeLimit, long consumeUserResourcePercent,
+      long originEnergyLimit, long value, String tokenId, long tokenValue) throws Exception {
+    return client.deployContract(encode58Check(owner), contractName, abi, code, constructorParams,
+        feeLimit, consumeUserResourcePercent, originEnergyLimit, value, tokenId, tokenValue);
   }
 
   public Response.WitnessList getPaginatedNowWitnessList(int offset, int limit) {
