@@ -36,7 +36,6 @@ function unavailableHolding(
   kind: string,
   symbol: string,
   decimals: number,
-  balanceError: string,
   extra: Record<string, unknown> = {},
 ) {
   return {
@@ -47,7 +46,8 @@ function unavailableHolding(
     balance: null,
     priceUsd: null,
     valueUsd: null,
-    balanceError,
+    balanceUnavailable: true,
+    reason: "rpc_error",
     ...extra,
   };
 }
@@ -106,17 +106,19 @@ export class TronAccountService {
     const [nativeRaw, tokenBalances] = await Promise.all([
       gateway.getNativeBalance(address),
       // per-token best-effort: one unreadable token (delisted, bad contract, RPC hiccup) must not
-      // sink the whole portfolio — degrade that row to a balanceError instead.
+      // sink the whole portfolio — degrade that row to balanceUnavailable instead.
       Promise.all(tokens.map((token) =>
         (token.kind === "trc10"
           ? gateway.getTrc10Balance(token.id, address)
           : gateway.getTrc20Balance(token.id, address)
         ).then((raw) => ({ raw }) as const)
-          .catch((error: unknown) => ({ error: (error as Error).message }) as const),
+          // best-effort: swallow the raw downstream error (may carry endpoint/key) — degrade to a
+          // stable reason instead of leaking it into the success payload (audit I-06).
+          .catch(() => ({ unavailable: true }) as const),
       )),
     ]);
 
-    let priceError: string | undefined;
+    let priceUnavailable = false;
     let nativePrice: number | null = null;
     let tokenPrices = new Map<string, number | null>();
     try {
@@ -127,8 +129,9 @@ export class TronAccountService {
           tokens.filter((token) => token.kind === "trc20").map((token) => token.id),
         ),
       ]);
-    } catch (error) {
-      priceError = (error as Error).message;
+    } catch {
+      // swallow the raw price-provider error (may carry a keyed URL); surface a stable reason only.
+      priceUnavailable = true;
     }
 
     const nativeMeta = FAMILIES.tron;
@@ -137,8 +140,8 @@ export class TronAccountService {
       ...tokens.map((token: EffectiveTokenEntry, index) => {
         const result = tokenBalances[index]!;
         const extra = { id: token.id, name: token.name, source: token.source };
-        if ("error" in result) {
-          return unavailableHolding(token.kind, token.symbol, token.decimals, result.error, extra);
+        if ("unavailable" in result) {
+          return unavailableHolding(token.kind, token.symbol, token.decimals, extra);
         }
         return holding(
           token.kind,
@@ -158,7 +161,7 @@ export class TronAccountService {
       account: scope.activeAccount,
       address,
       priceSource: this.prices.source,
-      ...(priceError ? { priceError } : {}),
+      ...(priceUnavailable ? { priceUnavailable: true, priceReason: "price_provider_error" } : {}),
       holdings,
       totalValueUsd: values.length ? round6(values.reduce((sum, value) => sum + value, 0)) : null,
     };

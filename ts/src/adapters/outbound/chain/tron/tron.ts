@@ -20,6 +20,7 @@ import type {
   TronTxInfo,
 } from "../../../../application/ports/chain/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
+import { redactErrorMessage } from "../../../../domain/errors/redact.js";
 import { withTimeout } from "../../../../domain/async/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
@@ -65,12 +66,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       );
     } catch (e) {
       if (e instanceof ChainError) throw e; // preserve timeout as ChainError, don't remap to rpc_error
-      throw new TransportError("rpc_error", `TRON broadcast failed: ${(e as Error).message}`);
+      throw new TransportError("rpc_error", `TRON broadcast failed: ${redactErrorMessage((e as Error).message ?? "")}`);
     }
     // tronweb does NOT throw on node rejection — it returns { result:false, code, message }.
     if (res.result === false) {
       const reason = decodeTronMessage(res.message) || res.code || "rejected by node";
-      throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${reason}`, { code: res.code });
+      throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`, { code: res.code });
     }
     return { txId: res.txid ?? res.transaction?.txID };
   }
@@ -95,7 +96,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     try {
       return await fn();
     } catch (e) {
-      throw new TransportError("rpc_error", `TRON ${label} failed: ${(e as Error).message?.split("\n")[0]}`);
+      throw new TransportError("rpc_error", `TRON ${label} failed: ${redactErrorMessage((e as Error).message?.split("\n")[0] ?? "")}`);
     }
   }
 
@@ -139,7 +140,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     const res = await this.#tw.transactionBuilder.triggerConstantContract(contract, fn, {}, params, owner);
     if (res.result?.result !== true) {
       const reason = decodeTronMessage(res.result?.message) || "constant call reverted";
-      throw new ChainError("execution_error", `TRON ${fn} failed: ${reason}`);
+      throw new ChainError("execution_error", `TRON ${fn} failed: ${redactErrorMessage(reason)}`);
     }
     return (res.constant_result ?? []) as string[];
   }

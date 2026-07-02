@@ -69,7 +69,7 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
     return new TronAccountService(gateways, {} as unknown as TronHistoryReader, tokens, prices);
   }
 
-  it("one unreadable token degrades to a balanceError row without sinking the portfolio", async () => {
+  it("one unreadable token degrades to a stable reason without leaking the raw error (I-06)", async () => {
     const result = await serviceWithFailingToken().portfolio(scope, net);
     // native still resolved
     const native = result.holdings.find((h) => h.kind === "native")!;
@@ -79,8 +79,30 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
     expect(token.rawBalance).toBeNull();
     expect(token.balance).toBeNull();
     expect(token.valueUsd).toBeNull();
-    expect(token.balanceError).toContain("HTTP 500");
+    // stable enum, and the raw downstream message must NOT survive into the payload
+    expect(token.balanceUnavailable).toBe(true);
+    expect(token.reason).toBe("rpc_error");
+    expect(JSON.stringify(token)).not.toContain("HTTP 500");
     // total counts only the readable holdings (native), not the degraded token
     expect(result.totalValueUsd).toBe(0.1); // 1 × 0.1
+  });
+
+  it("a failing price source degrades to a stable reason without leaking the raw error (I-06)", async () => {
+    const gateway = {
+      getNativeBalance: async () => "1000000",
+      getTrc10Balance: async () => "0",
+      getTrc20Balance: async () => "0",
+    };
+    const gateways = { client: () => gateway, get: () => gateway } as unknown as ChainGatewayProvider;
+    const tokens = { effective: () => [TOK] } as unknown as TokenRepository;
+    const prices = {
+      source: "test",
+      nativeUsd: async () => { throw new Error("request to https://api.provider.com/?key=SECRET failed"); },
+      tokenUsd: async () => new Map(),
+    } as unknown as PriceProvider;
+    const result = await new TronAccountService(gateways, {} as unknown as TronHistoryReader, tokens, prices).portfolio(scope, net);
+    expect(result.priceUnavailable).toBe(true);
+    expect(result.priceReason).toBe("price_provider_error");
+    expect(JSON.stringify(result)).not.toContain("SECRET");
   });
 });

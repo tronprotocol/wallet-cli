@@ -1,7 +1,7 @@
 /**
  * PriceProvider — best-effort USD valuation for `account portfolio`. A thin,
  * separate service: it NEVER throws into the command path. Any network/parse failure resolves
- * to null prices so the balance read always succeeds; portfolio surfaces a priceError note.
+ * to null prices so the balance read always succeeds; portfolio surfaces a priceUnavailable note.
  */
 import type { PriceConfig } from "../../../domain/types/index.js";
 import type { PriceProvider } from "../../../application/ports/price-provider.js";

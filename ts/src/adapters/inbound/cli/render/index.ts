@@ -161,7 +161,7 @@ export const TextFormatters = {
     const holdings = (Array.isArray(d.holdings) ? d.holdings : []).map(asObj);
     const rows = holdings.map((h) => [
       String(h.symbol ?? ""),
-      h.balanceError ? "unavailable" : formatScalar(h.balance),
+      h.balanceUnavailable ? "unavailable" : formatScalar(h.balance),
       h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsd(h.priceUsd)}`,
       h.valueUsd === null || h.valueUsd === undefined ? "-" : `$${formatUsd(h.valueUsd)}`,
     ]);
@@ -172,9 +172,9 @@ export const TextFormatters = {
       `Total ≈ ${total}`,
     ];
     for (const h of holdings) {
-      if (h.balanceError) lines.push(`${warn()} ${String(h.symbol ?? "")} balance unavailable: ${String(h.balanceError)}`);
+      if (h.balanceUnavailable) lines.push(`${warn()} ${String(h.symbol ?? "")} balance unavailable (${String(h.reason ?? "")})`);
     }
-    if (d.priceError) lines.push(`${warn()} price warning: ${String(d.priceError)}`);
+    if (d.priceUnavailable) lines.push(`${warn()} price warning (${String(d.priceReason ?? "")})`);
     return lines.join("\n");
   }) satisfies TextFormatter,
 
