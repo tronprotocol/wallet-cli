@@ -1923,6 +1923,19 @@ public class WalletApiWrapper {
     }
   }
 
+  /** TRUE = new resource model active, FALSE = off, null = couldn't determine (fail-open). */
+  public Boolean isNewResourceModelEnabled() {
+    Response.ChainParameters params = getChainParameters();
+    if (params == null) {
+      return null; // node unreachable / timeout → fail-open
+    }
+    return params.getChainParameterList().stream()
+        .filter(p -> "getAllowNewResourceModel".equals(p.getKey()))
+        .map(p -> p.getValue() == 1)
+        .findFirst()
+        .orElse(null); // key absent → unknown → fail-open
+  }
+
 
   public boolean approveProposal(byte[] ownerAddress, long id, boolean is_add_approval, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {

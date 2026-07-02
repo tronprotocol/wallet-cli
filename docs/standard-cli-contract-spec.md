@@ -446,6 +446,12 @@ Examples:
 Command-specific validation that runs immediately after parsing may still surface as `usage_error` when the problem
 is malformed user input rather than runtime execution failure.
 
+Staking resource-code validation is **network-aware and fail-open**: for freeze/unfreeze commands the code `2`
+(TRON_POWER) is accepted only when the chain parameter `getAllowNewResourceModel` is enabled, and when that
+parameter cannot be fetched (offline/timeout) the client-side pre-check is skipped so the node's `validate()`
+remains the single source of truth at broadcast. Delegation commands reject `2` unconditionally (BANDWIDTH/ENERGY
+only), matching the node actuator.
+
 ### Rationale
 
 This contract prevents malformed input such as `--contract --method balanceOf(address)` from being treated as

@@ -28,7 +28,7 @@ public class StakingCommands {
                 .description("Freeze TRX for bandwidth/energy (v1, deprecated)")
                 .option("amount", "Amount to freeze in SUN", true, OptionDef.Type.LONG)
                 .option("duration", "Freeze duration in days", true, OptionDef.Type.LONG)
-                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY)", false, OptionDef.Type.LONG)
+                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY, 2=TRON_POWER when getAllowNewResourceModel enabled)", false, OptionDef.Type.LONG)
                 .option("receiver", "Receiver address (for delegated freeze)", false)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
@@ -40,7 +40,7 @@ public class StakingCommands {
                     long duration = opts.getLong("duration");
                     CommandSupport.requirePositive(out, "duration", duration);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
-                    CommandSupport.requireResourceCode(out, "resource", resource);
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, true);
                     byte[] receiver = opts.has("receiver") ? opts.getAccountAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
@@ -58,7 +58,7 @@ public class StakingCommands {
                 .aliases("freezebalancev2")
                 .description("Freeze TRX for bandwidth/energy (Stake 2.0)")
                 .option("amount", "Amount to freeze in SUN", true, OptionDef.Type.LONG)
-                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY)", false, OptionDef.Type.LONG)
+                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY, 2=TRON_POWER when getAllowNewResourceModel enabled)", false, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
@@ -68,7 +68,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
-                    CommandSupport.requireResourceCode(out, "resource", resource);
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, true);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
@@ -92,7 +92,7 @@ public class StakingCommands {
                 .name("unfreeze-balance")
                 .aliases("unfreezebalance")
                 .description("Unfreeze TRX (v1, deprecated)")
-                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY)", false, OptionDef.Type.LONG)
+                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY, 2=TRON_POWER when getAllowNewResourceModel enabled)", false, OptionDef.Type.LONG)
                 .option("receiver", "Receiver address", false)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
@@ -100,7 +100,7 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
-                    CommandSupport.requireResourceCode(out, "resource", resource);
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, true);
                     byte[] receiver = opts.has("receiver") ? opts.getAccountAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
@@ -118,7 +118,7 @@ public class StakingCommands {
                 .aliases("unfreezebalancev2")
                 .description("Unfreeze TRX (Stake 2.0)")
                 .option("amount", "Amount to unfreeze in SUN", true, OptionDef.Type.LONG)
-                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY)", false, OptionDef.Type.LONG)
+                .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY, 2=TRON_POWER when getAllowNewResourceModel enabled)", false, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
@@ -128,7 +128,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
-                    CommandSupport.requireResourceCode(out, "resource", resource);
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, true);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
@@ -185,7 +185,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.getInt("resource");
-                    CommandSupport.requireResourceCode(out, "resource", resource);
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, false);
                     byte[] receiver = opts.getAccountAddress("receiver");
                     boolean lock = opts.getBoolean("lock");
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
@@ -217,7 +217,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.getInt("resource");
-                    CommandSupport.requireResourceCode(out, "resource", resource);
+                    CommandSupport.requireStakingResource(out, wrapper, "resource", resource, false);
                     byte[] receiver = opts.getAccountAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);
