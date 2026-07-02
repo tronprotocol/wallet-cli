@@ -219,7 +219,7 @@ export class HelpService {
       inputFlags: inputFlagsFor(base),
       examples: base.examples,
       requires: base.requires,
-      positional: base.positional,
+      positionals: base.positionals,
     })
   }
 
@@ -235,11 +235,11 @@ export class HelpService {
       inputFlags: inputFlagsFor(cmd),
       examples: cmd.examples,
       requires: cmd.requires,
-      positional: cmd.positional,
+      positionals: cmd.positionals,
     })
   }
 
-  /** shared leaf skeleton (叶子层): Usage → description → Requires → Flags → Input flags → Global flags → Examples. */
+  /** shared leaf skeleton (叶子层): Usage → description → Requires → Options (incl. stdin channel) → Global options → Examples. */
   #renderLeaf(c: {
     path: string[]
     summary?: string
@@ -251,16 +251,22 @@ export class HelpService {
     inputFlags: readonly GlobalFlag[]
     examples: CommandDefinition["examples"]
     requires?: string[]
-    positional?: { field: string; placeholder?: string }
+    positionals?: { field: string; placeholder?: string }[]
   }): string {
-    const posField = c.positional ? c.fields.find((f) => f.name === c.positional!.field) : undefined
-    const posName = c.positional?.placeholder ?? c.positional?.field
-    const usagePositional = posName ? ` [<${posName}>]` : ""
-    const lines = ["Usage:", `  wallet-cli ${c.path.join(" ")}${usagePositional} [flags]`]
+    const positionals = (c.positionals ?? []).map((p) => {
+      const field = c.fields.find((f) => f.name === p.field)
+      const name = p.placeholder ?? p.field
+      const required = field ? !field.optional && !field.hasDefault : false
+      return { name, required, description: field?.description ?? "" }
+    })
+    const usagePositional = positionals.map((p) => (p.required ? ` <${p.name}>` : ` [<${p.name}>]`)).join("")
+    const lines = ["Usage:", `  wallet-cli ${c.path.join(" ")}${usagePositional} [options]`]
     if (c.summary) lines.push("", c.summary)
 
-    if (posField && posName) {
-      lines.push("", "Args:", `  ${posName}  ${posField.description ?? ""}`.trimEnd())
+    if (positionals.length) {
+      lines.push("", "Args:")
+      const width = Math.min(34, Math.max(...positionals.map((p) => p.name.length)))
+      for (const p of positionals) lines.push(`  ${p.name.padEnd(width)}  ${p.description}`.trimEnd())
     }
 
     const requires: string[] = [...(c.requires ?? [])]
@@ -272,28 +278,27 @@ export class HelpService {
       for (const r of requires) lines.push(`  ${r}`)
     }
 
-    // the positional field is documented under Args, not repeated as a --flag.
-    const flagFields = c.positional ? c.fields.filter((f) => f.name !== c.positional!.field) : c.fields
-    if (flagFields.length) {
-      const heads = flagFields.map(flagHead)
-      const width = Math.min(34, Math.max(...heads.map((h) => h.length)))
-      lines.push("", "Flags:")
-      flagFields.forEach((f, i) => {
-        const desc = f.description ?? ""
-        const tag = flagTag(f)
-        lines.push(`  ${heads[i]!.padEnd(width)}  ${desc}${desc && tag ? "  " : ""}${tag}`.trimEnd())
-      })
+    // positional fields are documented under Args, not repeated as --flags. A command's stdin channel
+    // (--*-stdin) is a command-specific option too, so it renders inline under Options — not a section
+    // of its own. (The machine --json-schema catalog still keeps inputFlags as a distinct key.)
+    const posNames = new Set((c.positionals ?? []).map((p) => p.field))
+    const flagFields = posNames.size ? c.fields.filter((f) => !posNames.has(f.name)) : c.fields
+    const optionRows: Array<{ head: string; desc: string; tag: string }> = [
+      ...flagFields.map((f) => ({ head: flagHead(f), desc: f.description ?? "", tag: flagTag(f) })),
+      ...c.inputFlags.map((g) => ({ head: globalFlagHead(g), desc: g.description, tag: globalFlagTag(g) })),
+    ]
+    if (optionRows.length) {
+      const width = Math.min(34, Math.max(...optionRows.map((r) => r.head.length)))
+      lines.push("", "Options:")
+      for (const r of optionRows) {
+        lines.push(`  ${r.head.padEnd(width)}  ${r.desc}${r.desc && r.tag ? "  " : ""}${r.tag}`.trimEnd())
+      }
     }
 
-    if (c.inputFlags.length) {
-      lines.push("", "Input flags:")
-      for (const f of c.inputFlags) lines.push(globalFlagLine(f))
-    }
-
-    lines.push("", "Global flags:")
+    lines.push("", "Global options:")
     // curated per command: --network only when the command selects a network; --password-stdin
-    // only when it requires unlock; --account is surfaced via Requires, not repeated here.
-    for (const g of globalFlagsForText(c.network, c.auth, c.broadcasts ?? false)) lines.push(globalFlagLine(g))
+    // only when it requires unlock; --account only when the command acts as an account.
+    for (const g of globalFlagsForText(c.network, c.auth, c.wallet, c.broadcasts ?? false)) lines.push(globalFlagLine(g))
 
     if (c.examples.length) {
       lines.push("", "Examples:")
@@ -363,13 +368,18 @@ function formatDefault(v: unknown): string {
   return String(v)
 }
 
-// Per-command "Global flags" projection: output/timeout/verbose always; --network only when the
+// Per-command "Global options" projection: output/timeout/verbose always; --network only when the
 // command selects a network; --password-stdin only when it requires unlock; --wait/--wait-timeout
-// only for ✍️ broadcast commands; --account is never repeated here (it surfaces under Requires). The full
-// GLOBAL_FLAGS array still backs the --json-schema catalog.
-function globalFlagsForText(network: CommandDefinition["network"], auth: CommandDefinition["auth"], broadcasts: boolean): GlobalFlag[] {
+// only for ✍️ broadcast commands; --account only when the command acts as an account (also surfaced,
+// with fuller semantics, under Requires). The full GLOBAL_FLAGS array still backs the --json-schema catalog.
+function globalFlagsForText(
+  network: CommandDefinition["network"],
+  auth: CommandDefinition["auth"],
+  wallet: CommandDefinition["wallet"],
+  broadcasts: boolean,
+): GlobalFlag[] {
   return GLOBAL_FLAGS.filter((g) => {
-    if (g.flag === "--account") return false
+    if (g.flag === "--account") return wallet !== "none"
     if (g.flag === "--network") return network !== "none"
     if (g.flag === "--password-stdin") return auth === "required"
     if (g.flag === "--wait" || g.flag === "--wait-timeout") return broadcasts
@@ -377,7 +387,7 @@ function globalFlagsForText(network: CommandDefinition["network"], auth: Command
   })
 }
 
-/** one rendered "  --flag <type>   description  [tag]" line, shared by Input flags and Global flags. */
+/** one rendered "  --flag <type>   description  [tag]" line, used by the Global options section. */
 function globalFlagLine(g: GlobalFlag): string {
   const tag = globalFlagTag(g)
   return `  ${globalFlagHead(g).padEnd(26)} ${g.description}${g.description && tag ? "  " : ""}${tag}`.trimEnd()

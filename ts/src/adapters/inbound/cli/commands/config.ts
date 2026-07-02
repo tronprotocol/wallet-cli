@@ -20,6 +20,7 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
     wallet: "none",
     auth: "none",
     summary: "Show / get / set configuration values",
+    positionals: [{ field: "key" }, { field: "value" }],
     fields,
     input: fields,
     examples: [

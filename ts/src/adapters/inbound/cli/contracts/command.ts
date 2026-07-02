@@ -44,10 +44,10 @@ interface CommandDefinitionBase<I, O> {
   broadcasts?: boolean;
   /** opt-in interactive master-password handling: "establish" = set on first wallet else verify; "verify" = require existing. Commands without this keep the lazy hasMasterPassword guard. */
   passwordMode?: "establish" | "verify";
-  /** expose one `fields` entry as a leading positional (`block [<number>]`, `use [<account>]`) instead
-   *  of a --flag: binds the CLI positional, and help documents it under Args + Usage and drops it from
-   *  the Flags list. `placeholder` defaults to `field`. */
-  positional?: { field: string; placeholder?: string };
+  /** expose one or more `fields` entries as leading positionals (`block [<number>]`, `use [<account>]`,
+   *  `config [<key>] [<value>]`) instead of --flags: binds the CLI positionals in order, and help
+   *  documents them under Args + Usage and drops them from the Flags list. `placeholder` defaults to `field`. */
+  positionals?: { field: string; placeholder?: string }[];
   /** allow interactive TTY prompts (master password, secret, gap-fill, confirm). Absent ⇒ fail fast — safer for scripts/agents. */
   interactive?: boolean;
   /** gap-fill prompt hints, by field name: "skip" = never prompt this optional field; "default-label" = offer a generated default. */

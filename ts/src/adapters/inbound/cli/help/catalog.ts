@@ -50,7 +50,7 @@ export function inputFlagsFor(cmd: CommandDefinition): readonly GlobalFlag[] {
 
 /** usage line: the typed path is complete for both kinds (neutral = full, chain = logical). */
 export function commandUsage(cmd: CommandDefinition): string {
-  return `wallet-cli ${cmd.path.join(" ")} [flags]`;
+  return `wallet-cli ${cmd.path.join(" ")} [options]`;
 }
 
 /** never let one un-convertible schema break the whole catalog. */

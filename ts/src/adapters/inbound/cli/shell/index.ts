@@ -63,16 +63,6 @@ export function buildCli(opts: ShellOptions): Argv {
   }
 
   for (const [head, cmds] of neutralByHead) {
-    if (head === "config") {
-      // config keeps its positional shorthand (`config [key] [value]`) alongside get/set verbs.
-      cli.command(
-        "config [key] [value]",
-        "config commands",
-        (y) => applyCommands(y, cmds.map((c) => c.fields)),
-        (argv) => dispatchNeutral(opts, ["config"], argv),
-      )
-      continue
-    }
     const hasVerbs = cmds.some((c) => c.path.length > 1)
     if (hasVerbs) {
       // group with sub-verbs (e.g. import mnemonic|private-key|ledger|watch)
@@ -86,7 +76,9 @@ export function buildCli(opts: ShellOptions): Argv {
       // single-segment leaf (create / list / use / current / rename / derive / delete / backup / networks)
       const cmd = cmds[0]!
       cli.command(
-        cmd.positional ? `${head} [${cmd.positional.placeholder ?? cmd.positional.field}]` : head,
+        cmd.positionals?.length
+          ? `${head} ${cmd.positionals.map((p) => `[${p.placeholder ?? p.field}]`).join(" ")}`
+          : head,
         cmd.summary ?? "",
         (y) => applyCommands(y, [cmd.fields]),
         (argv) => dispatchNeutral(opts, [head], argv),

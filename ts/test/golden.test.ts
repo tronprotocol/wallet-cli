@@ -119,7 +119,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(globalFlags).not.toContain("--mnemonic-stdin");
     expect(r.json.aliases).toBeUndefined();
     const cmd = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.send");
-    expect(cmd.usage).toBe("wallet-cli tx send [flags]");
+    expect(cmd.usage).toBe("wallet-cli tx send [options]");
     expect(cmd.requires).toMatchObject({ network: "optional", auth: "required", wallet: "optional" });
     expect(cmd.inputSchema.properties.to).toBeDefined();
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic");
@@ -127,7 +127,7 @@ describe("golden CLI — meta & introspection", () => {
     const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.broadcast");
     expect(broadcast.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--tx-stdin");
     const importWatch = r.json.commands.find((c: { id: string }) => c.id === "import.watch");
-    expect(importWatch.usage).toBe("wallet-cli import watch [flags]");
+    expect(importWatch.usage).toBe("wallet-cli import watch [options]");
   });
 
   it("family --json-schema scopes the catalog to that chain family", () => {
@@ -265,10 +265,10 @@ describe("golden CLI — command help contracts", () => {
     expect(r.stdout).not.toContain("--number"); // positional-only surface, flag dropped from help
   });
 
-  it("account-positional commands document [<account>] under Args, not as a --account flag", () => {
+  it("account-positional commands document <account> under Args, not as a --account flag", () => {
     const r = run(["rename", "--help"], { password: null });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("wallet-cli rename [<account>]");
+    expect(r.stdout).toContain("wallet-cli rename <account>");
     expect(r.stdout).toMatch(/Args:\s*\n\s*account\s/);
     expect(r.stdout).not.toContain("--account"); // unified positional mechanism hides the flag
     expect(r.stdout).toContain("--label"); // sibling flags still listed

@@ -12,7 +12,7 @@ function blockGet(service: TronBlockService): CommandDefinition {
   return {
     path: ["block"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
-    positional: { field: "number" },
+    positionals: [{ field: "number" }],
     summary: "Get a block (latest if omitted)", fields, input: fields,
     examples: [
       { cmd: "wallet-cli block" },
