@@ -44,6 +44,8 @@ public class UpdateAccountPermissionInteractive {
       41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
       55, 56, 57, 58, 59
   );
+  static final String DEFAULT_ACTIVE_OPERATIONS =
+      "7fff1fc0033ef30f000000000000000000000000000000000000000000000000";
   public static final Map<String, String> operationsMap = new HashMap<>();
 
   static {
@@ -86,9 +88,15 @@ public class UpdateAccountPermissionInteractive {
     operationsMap.put("59", "Cancel Unstake");
   }
 
-  private static String opLabel(int code) {
+  static String opLabel(int code) {
     String name = operationsMap.get(String.valueOf(code));
-    return name != null ? name : "Unsupported/Disabled op " + code;
+    if (name != null) {
+      return name;
+    }
+    ContractType type = ContractType.forNumber(code);
+    return type != null
+        ? "Unlisted op " + code + " (" + type.name() + ")"
+        : "Unknown op " + code;
   }
 
   private static String contractTypeName(int code) {
@@ -115,7 +123,7 @@ public class UpdateAccountPermissionInteractive {
       active.setType(2);
       active.setPermissionName("active");
       active.setThreshold(1L);
-      active.setOperations("7fff1fc0033ef30f000000000000000000000000000000000000000000000000");
+      active.setOperations(DEFAULT_ACTIVE_OPERATIONS);
       active.setKeys(Lists.newArrayList(new Key(address, 1L)));
       activePermissions = Lists.newArrayList(active);
     }
