@@ -1,0 +1,81 @@
+{
+  "name": "walletcli",
+  "version": "0.1.0",
+  "description": "Agent-first TypeScript CLI wallet for TRON — deterministic commands, JSON output, and discoverable schemas",
+  "type": "module",
+  "bin": {
+    "wallet-cli": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "TRON",
+    "tron",
+    "wallet",
+    "cli",
+    "blockchain",
+    "trx",
+    "trc20"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tronprotocol/wallet-cli.git",
+    "directory": "ts"
+  },
+  "homepage": "https://github.com/tronprotocol/wallet-cli#readme",
+  "bugs": "https://github.com/tronprotocol/wallet-cli/issues",
+  "author": {
+    "name": "Tron Protocol",
+    "url": "https://github.com/tronprotocol"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "depcruise": "depcruise src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "license": "LGPL-3.0-or-later",
+  "dependencies": {
+    "@ledgerhq/hw-app-trx": "^6.36.3",
+    "@ledgerhq/hw-transport-node-hid": "^6.33.4",
+    "@ledgerhq/hw-transport-node-speculos-http": "^6.36.4",
+    "@noble/ciphers": "^2.2.0",
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "@scure/base": "^2.2.0",
+    "@scure/bip32": "^2.2.0",
+    "@scure/bip39": "^2.2.0",
+    "axios": "^1.18.1",
+    "lossless-json": "^4.3.0",
+    "tronweb": "^6.4.0",
+    "yaml": "^2.9.0",
+    "yargs": "^18.0.0",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "axios": "^1.18.1",
+    "ws": "^8.18.3",
+    "esbuild": "^0.28.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "@types/yargs": "^17.0.35",
+    "dependency-cruiser": "^17.4.3",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

@@ -1,5 +1,6 @@
 package org.tron.walletcli.cli.commands;
 
+import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletcli.cli.OutputFormatter;
 
 import java.util.LinkedHashMap;
@@ -84,6 +85,36 @@ final class CommandSupport {
         if (value != 0 && value != 1) {
             out.usageError(name + " must be 0 (BANDWIDTH) or 1 (ENERGY), got: " + value, null);
         }
+    }
+
+    // Network-aware staking resource guard (issue #939). freezeContext=true for
+    // freeze/unfreeze (2=TRON_POWER allowed only when getAllowNewResourceModel is on);
+    // false for delegate/undelegate (TRON_POWER is never delegatable). Fail-open: when the
+    // chain parameter can't be fetched, allow 2 and let the node validate at broadcast.
+    static void requireStakingResource(OutputFormatter out, WalletApiWrapper wrapper,
+                                       String name, int value, boolean freezeContext) {
+        if (value == 0 || value == 1) {
+            return; // common case: no chain-parameter RPC
+        }
+        if (value != 2) {
+            out.usageError(name + " must be 0 (BANDWIDTH), 1 (ENERGY)"
+                    + (freezeContext ? ", or 2 (TRON_POWER)" : "") + ", got: " + value, null);
+            return;
+        }
+        if (!freezeContext) {
+            out.usageError(name + " for delegation must be 0 (BANDWIDTH) or 1 (ENERGY); "
+                    + "TRON_POWER (2) is not delegatable, got: " + value, null);
+            return;
+        }
+        Boolean enabled = wrapper.isNewResourceModelEnabled(); // only reached when value == 2
+        if (Boolean.FALSE.equals(enabled)) {
+            out.usageError(name + " = 2 (TRON_POWER) is not enabled on this network "
+                    + "(getAllowNewResourceModel is off)", null);
+        } else if (enabled == null) {
+            out.info("[WARNING] Could not verify getAllowNewResourceModel (node unreachable); "
+                    + "proceeding with resource=2 (TRON_POWER) — the node validates at broadcast.");
+        }
+        // TRUE or null (fail-open) → allow
     }
 
     static void requireForce(OutputFormatter out, String commandName, boolean force) {

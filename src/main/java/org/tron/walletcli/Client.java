@@ -1582,6 +1582,32 @@ public class Client {
     return ownerAddress;
   }
 
+  // Network-aware staking resource guard (issue #939). Returns false (and prints guidance) when
+  // the code should be rejected. freezeContext=true for freeze/unfreeze (2=TRON_POWER allowed only
+  // when getAllowNewResourceModel is on); false for delegate/undelegate (never delegatable).
+  // Fail-open: when the chain parameter can't be fetched, allow 2 and let the node validate.
+  private boolean checkStakingResource(int resourceCode, boolean freezeContext) {
+    if (resourceCode == 0 || resourceCode == 1) {
+      return true;
+    }
+    if (resourceCode != 2 || !freezeContext) {
+      System.out.println("Invalid ResourceCode: " + resourceCode + ". Use 0 (BANDWIDTH), 1 (ENERGY)"
+          + (freezeContext ? ", or 2 (TRON_POWER, only when getAllowNewResourceModel is enabled)." : "."));
+      return false;
+    }
+    Boolean enabled = walletApiWrapper.isNewResourceModelEnabled();
+    if (Boolean.FALSE.equals(enabled)) {
+      System.out.println("ResourceCode 2 (TRON_POWER) is not enabled on this network "
+          + "(getAllowNewResourceModel is off).");
+      return false;
+    }
+    if (enabled == null) {
+      System.out.println("[WARNING] Could not verify getAllowNewResourceModel; proceeding with "
+          + "TRON_POWER — the node validates at broadcast.");
+    }
+    return true;
+  }
+
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException, IllegalException {
     boolean multi = isMulti(parameters);
@@ -1618,6 +1644,10 @@ public class Client {
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index]);
     }
 
+    // v1 freeze with a receiver is a delegated freeze; TRON_POWER is not delegatable.
+    if (!checkStakingResource(resourceCode, receiverAddress == null)) {
+      return;
+    }
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
         frozen_duration, resourceCode, receiverAddress, multi);
     if (result) {
@@ -1659,6 +1689,9 @@ public class Client {
       }
     }
 
+    if (!checkStakingResource(resourceCode, true)) {
+      return;
+    }
     boolean result = walletApiWrapper.freezeBalanceV2(ownerAddress, frozen_balance
         , resourceCode, multi);
     if (multi) {
@@ -1703,6 +1736,10 @@ public class Client {
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     }
 
+    // v1 unfreeze with a receiver targets a delegated freeze; TRON_POWER is not delegatable.
+    if (!checkStakingResource(resourceCode, receiverAddress == null)) {
+      return;
+    }
     boolean result = walletApiWrapper.unfreezeBalance(ownerAddress, resourceCode, receiverAddress, multi);
     if (result) {
       System.out.println("UnfreezeBalance " + successfulHighlight() + " !!!");
@@ -1741,6 +1778,9 @@ public class Client {
       }
     }
 
+    if (!checkStakingResource(resourceCode, true)) {
+      return;
+    }
     boolean result = walletApiWrapper.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode, multi);
     if (multi) {
       createMultiSignResult(result);
@@ -1834,6 +1874,9 @@ public class Client {
       }
     }
 
+    if (!checkStakingResource(resourceCode, false)) {
+      return;
+    }
     boolean result = walletApiWrapper.delegateresource(
         ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod, multi);
     if (multi) {
@@ -1886,6 +1929,9 @@ public class Client {
         System.out.println("unDelegateResource ownerAddress is invalid");
         return;
       }
+    }
+    if (!checkStakingResource(resourceCode, false)) {
+      return;
     }
     boolean result = walletApiWrapper.undelegateresource(ownerAddress, balance, resourceCode, receiverAddress, multi);
     if (multi) {

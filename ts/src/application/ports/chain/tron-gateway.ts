@@ -1,0 +1,168 @@
+import type { FeeReport, UnsignedTx } from "../../../domain/types/index.js";
+import type { RpcResourceCode } from "../../../domain/resources/index.js";
+import type { Broadcaster } from "./broadcaster.js";
+
+export interface TronContractParameter {
+  type: string;
+  value: unknown;
+}
+
+export interface TronAccountResources {
+  NetUsed?: number;
+  freeNetUsed?: number;
+  NetLimit?: number;
+  freeNetLimit?: number;
+  EnergyUsed?: number;
+  EnergyLimit?: number;
+}
+
+export interface TronAccountAsset {
+  key?: string;
+  value?: string;
+  [key: string]: unknown;
+}
+
+export interface TronFrozenBalance {
+  type?: unknown;
+  amount?: string;
+  unfreeze_amount?: string;
+  frozen_balance?: string;
+  [key: string]: unknown;
+}
+
+/** Account payload normalized at the adapter boundary; all SUN/token quantities are strings. */
+export interface TronAccount {
+  balance?: string;
+  allowance?: string;
+  asset?: TronAccountAsset[];
+  assetV2?: TronAccountAsset[];
+  frozen?: TronFrozenBalance[];
+  frozenV2?: TronFrozenBalance[];
+  unfrozenV2?: TronFrozenBalance[];
+  [key: string]: unknown;
+}
+
+export interface TronTokenInfo {
+  contract?: string;
+  name?: unknown;
+  abbr?: unknown;
+  symbol?: unknown;
+  decimals?: number;
+  precision?: number;
+  totalSupply?: string;
+  [key: string]: unknown;
+}
+
+export interface TronTxInfo {
+  blockNumber?: number;
+  fee?: number;
+  receipt?: { result?: string; energy_usage_total?: number; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+export interface TronTxContract {
+  type?: string;
+  parameter?: { value?: Record<string, unknown>; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+export interface TronTx {
+  ret?: Array<{ contractRet?: string; [key: string]: unknown }>;
+  raw_data?: { contract?: TronTxContract[]; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+/** Protocol-level transfer fields decoded by the outbound TRON adapter. */
+export interface DecodedTronTransaction {
+  kind: "trx" | "trc10" | "trc20" | "contract" | "unknown";
+  from?: string;
+  to?: string;
+  rawAmount?: string;
+  tokenContract?: string;
+}
+
+/** Contract RPC variants normalized at the outbound boundary. */
+export interface TronContractMetadata {
+  name?: string;
+  methods: string[];
+  contract: unknown;
+  info?: unknown;
+}
+
+export interface TronFeeEstimate extends FeeReport {
+  feeModel: "tron-resource";
+  energy: number;
+}
+
+/** TRON-specific application boundary; chain-specific capabilities remain explicit. */
+export interface TronGateway extends Broadcaster {
+  getNativeBalance(address: string): Promise<string>;
+  getAccount(address: string): Promise<TronAccount>;
+  getAccountResources(address: string): Promise<TronAccountResources>;
+  getBlock(number?: string): Promise<unknown>;
+  getTransactionById(txid: string): Promise<TronTx>;
+  getTransactionInfoById(txid: string): Promise<TronTxInfo>;
+  decodeTransaction(transaction: TronTx): DecodedTronTransaction;
+  getTrc20Balance(contract: string, address: string): Promise<string>;
+  getTokenInfo(contract: string): Promise<TronTokenInfo>;
+  getTrc10Balance(assetId: string, address: string): Promise<string>;
+  getTrc10Info(assetId: string): Promise<TronTokenInfo>;
+  buildNativeTransfer(from: string, to: string, amountSun: string): Promise<UnsignedTx>;
+  buildTrc20Transfer(
+    from: string,
+    to: string,
+    contract: string,
+    amount: string,
+    feeLimit: string,
+  ): Promise<UnsignedTx>;
+  buildTrc10Transfer(
+    from: string,
+    to: string,
+    assetId: string,
+    amount: string,
+  ): Promise<UnsignedTx>;
+  estimateResources(
+    from: string,
+    contract: string,
+    method: string,
+    parameters: TronContractParameter[],
+  ): Promise<TronFeeEstimate>;
+  buildFreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<UnsignedTx>;
+  buildUnfreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<UnsignedTx>;
+  buildWithdrawExpireUnfreeze(owner: string): Promise<UnsignedTx>;
+  buildCancelAllUnfreezeV2(owner: string): Promise<UnsignedTx>;
+  buildDelegateResource(
+    owner: string,
+    amountSun: string,
+    resource: RpcResourceCode,
+    receiver: string,
+    lock: boolean,
+    lockPeriod?: string,
+  ): Promise<UnsignedTx>;
+  buildUndelegateResource(
+    owner: string,
+    amountSun: string,
+    resource: RpcResourceCode,
+    receiver: string,
+  ): Promise<UnsignedTx>;
+  triggerConstantContract(
+    contract: string,
+    method: string,
+    parameters: TronContractParameter[],
+    owner?: string,
+  ): Promise<string[]>;
+  triggerSmartContract(
+    from: string,
+    contract: string,
+    method: string,
+    parameters: TronContractParameter[],
+    options?: { feeLimit?: string; callValue?: string },
+  ): Promise<UnsignedTx>;
+  deployContract(
+    from: string,
+    input: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[] },
+  ): Promise<UnsignedTx>;
+  getContract(address: string): Promise<unknown>;
+  getContractInfo(address: string): Promise<unknown>;
+  getContractMetadata(address: string): Promise<TronContractMetadata>;
+}
