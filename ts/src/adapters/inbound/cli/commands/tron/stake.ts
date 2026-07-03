@@ -17,6 +17,7 @@ const resourceField = (description: string) =>
 interface StakeCommandOptions {
   capability?: string;
   refine?: (value: any, context: z.RefinementCtx) => void;
+  requires?: string[];
 }
 
 type StakeExecutor = (
@@ -39,6 +40,7 @@ function command(
     broadcasts: true,
     capability: options.capability ?? "staking.freeze",
     summary,
+    requires: options.requires,
     fields,
     input: options.refine ? fields.superRefine(options.refine) : fields,
     examples: [{ cmd: `wallet-cli stake ${action}` }],
@@ -76,6 +78,12 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
       "cancel-unfreeze",
       "Cancel all pending unstakes (roll back to frozen)",
       (context, network, input) => service.cancelUnfreeze(context, network, input),
+      {},
+      {
+        // The Ledger TRON app firmware rejects CancelAllUnfreezeV2Contract (APDU 0x6a80),
+        // even with blind-signing enabled; software accounts sign it fine.
+        requires: ["a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type"],
+      },
     ),
     command(
       "delegate",

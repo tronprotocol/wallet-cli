@@ -110,6 +110,9 @@ function deploy(service: TronContractService): CommandDefinition {
     broadcasts: true,
     capability: "contract.deploy",
     summary: "Deploy a smart contract",
+    // The Ledger TRON app firmware rejects CreateSmartContract (APDU 0x6a80), even with
+    // blind-signing enabled; software accounts sign and deploy it fine.
+    requires: ["a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type"],
     fields,
     input: fields,
     examples: [{
