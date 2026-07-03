@@ -63,23 +63,6 @@ async function openTransport(): Promise<{ transport: unknown; close: () => Promi
   return { transport, close: () => transport.close() };
 }
 
-/** Open a transport, run `fn` against the Trx app, then always close (cf. the demo's withDevice). */
-async function withTrx<T>(fn: (trx: TrxApp) => Promise<T>): Promise<T> {
-  const Trx = unwrap<new (transport: unknown) => TrxApp>(await import("@ledgerhq/hw-app-trx"));
-  let handle: { transport: unknown; close: () => Promise<void> };
-  try {
-    handle = await openTransport();
-  } catch (e) {
-    // no device / emulator reachable — the pipeline treats this as "device not ready".
-    throw new ExecutionError("auth_required", `cannot reach Ledger device: ${errMessage(e)}`);
-  }
-  try {
-    return await fn(new Trx(handle.transport));
-  } finally {
-    await handle.close().catch(() => {});
-  }
-}
-
 function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
@@ -104,11 +87,33 @@ export class Ledger {
     }
   }
 
-  // Timeout wraps the transport run so a timed-out call surfaces as ChainError("timeout"); callers'
-  // classifyDeviceError passes CliError through, so it isn't remapped to auth_required. onTimeout is a
-  // no-op (as in TronChain): the HID call isn't truly cancelable, but the CLI unblocks.
+  // Open a transport, run `fn` against the Trx app, then always close (cf. the demo's withDevice).
+  // Timeout wraps the run so a timed-out call surfaces as ChainError("timeout"); callers'
+  // classifyDeviceError passes CliError through, so it isn't remapped to auth_required. Unlike an
+  // HTTP RPC, an in-flight HID APDU is not self-canceling: onTimeout MUST close the transport, which
+  // rejects the pending APDU (so the run unwinds) and releases the native handle. Without this the
+  // handle leaks, pins libuv, and the process hangs after a timeout — breaking the deterministic-exit
+  // contract. close() may run twice (here and in the finally); both swallow errors so double-close is
+  // harmless.
   #bound<T>(fn: (trx: TrxApp) => Promise<T>): Promise<T> {
-    return withTimeout(withTrx(fn), this.timeoutMs, () => {});
+    let handle: { transport: unknown; close: () => Promise<void> } | undefined;
+    const run = (async () => {
+      const Trx = unwrap<new (transport: unknown) => TrxApp>(await import("@ledgerhq/hw-app-trx"));
+      try {
+        handle = await openTransport();
+      } catch (e) {
+        // no device / emulator reachable — the pipeline treats this as "device not ready".
+        throw new ExecutionError("auth_required", `cannot reach Ledger device: ${errMessage(e)}`);
+      }
+      try {
+        return await fn(new Trx(handle.transport));
+      } finally {
+        await handle.close().catch(() => {});
+      }
+    })();
+    return withTimeout(run, this.timeoutMs, () => {
+      handle?.close().catch(() => {});
+    });
   }
 
   async getAddress(family: ChainFamily, path: string, opts?: GetAddressOpts): Promise<string> {
