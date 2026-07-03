@@ -130,6 +130,7 @@ TRON uses two resources to process transactions:
 You obtain these resources by **staking (freezing) TRX**. Resource type codes:
 - `0` = Bandwidth
 - `1` = Energy
+- `2` = TRON_POWER -- accepted by freeze/unfreeze only when the network enables `getAllowNewResourceModel`; not delegatable
 
 ---
 
@@ -748,7 +749,7 @@ Freeze TRX to obtain bandwidth or energy using **Stake 2.0** (the current stakin
 | Option | Required | Type | Description |
 |--------|----------|------|-------------|
 | `--amount` | Yes | number | Amount to freeze in SUN |
-| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy (default: `0`) |
+| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy, `2` = TRON_POWER (only when getAllowNewResourceModel enabled; default: `0`) |
 | `--owner` | No | address | Owner address |
 | `--permission-id` | No | number | Permission ID for multi-sig signing (default: 0) |
 | `--multi` | No | boolean | Multi-signature mode |
@@ -775,7 +776,7 @@ Unfreeze previously frozen TRX under **Stake 2.0**. Unfrozen TRX enters a waitin
 | Option | Required | Type | Description |
 |--------|----------|------|-------------|
 | `--amount` | Yes | number | Amount to unfreeze in SUN |
-| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy (default: `0`) |
+| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy, `2` = TRON_POWER (only when getAllowNewResourceModel enabled; default: `0`) |
 | `--owner` | No | address | Owner address |
 | `--permission-id` | No | number | Permission ID for multi-sig signing (default: 0) |
 | `--multi` | No | boolean | Multi-signature mode |
@@ -922,7 +923,7 @@ Freeze TRX using the legacy Stake 1.0 system. **Use `freeze-balance-v2` instead.
 |--------|----------|------|-------------|
 | `--amount` | Yes | number | Amount to freeze in SUN |
 | `--duration` | Yes | number | Freeze duration in days |
-| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy (default: `0`) |
+| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy, `2` = TRON_POWER (only when getAllowNewResourceModel enabled; default: `0`) |
 | `--receiver` | No | address | Delegate the frozen resources to this address |
 | `--owner` | No | address | Owner address |
 | `--multi` | No | boolean | Multi-signature mode |
@@ -944,7 +945,7 @@ Unfreeze TRX under the legacy Stake 1.0 system. **Use `unfreeze-balance-v2` inst
 
 | Option | Required | Type | Description |
 |--------|----------|------|-------------|
-| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy (default: `0`) |
+| `--resource` | No | number | Resource type: `0` = Bandwidth, `1` = Energy, `2` = TRON_POWER (only when getAllowNewResourceModel enabled; default: `0`) |
 | `--receiver` | No | address | Receiver address (if resources were delegated) |
 | `--owner` | No | address | Owner address |
 | `--multi` | No | boolean | Multi-signature mode |
@@ -2749,6 +2750,7 @@ Common error codes:
 |------|----------|---------|
 | `0` | Bandwidth | All transactions (data transfer) |
 | `1` | Energy | Smart contract calls |
+| `2` | TRON_POWER | freeze/unfreeze only, when `getAllowNewResourceModel` is enabled (not delegatable) |
 
 ### C. Network Endpoints
 

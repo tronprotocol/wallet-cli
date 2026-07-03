@@ -205,7 +205,7 @@ After the freezing time expires, funds can be unfroze.
 **Unfreeze operation is as follows:**
 
 ```console
-> unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 CPU) [receiverAddress]
+> unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 ENERGY) [receiverAddress]
 ```
 
 ## How to vote
@@ -1245,14 +1245,14 @@ frozen_duration
 > frezen duration, 3 days
 
 ResourceCode
-> 0 BANDWIDTH;1 ENERGY
+> 0 BANDWIDTH;1 ENERGY (TRON_POWER is not delegatable)
 
 receiverAddress
 > target account address
 
 ### unfreeze delegated resource
 
-    > unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 CPU) [receiverAddress]
+    > unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 ENERGY) [receiverAddress]
 
 The latter two parameters are optional. If they are not set, the BANDWIDTH resource is unfreeze
 by default; when the receiverAddress is set, the delegate resources are unfreezed.
@@ -1279,7 +1279,7 @@ frozen_balance
 > The amount of frozen, the unit is the smallest unit (Sun), the minimum is 1000000sun.
 
 ResourceCode
-> 0 BANDWIDTH;1 ENERGY
+> 0 BANDWIDTH;1 ENERGY;2 TRON_POWER (only when getAllowNewResourceModel is enabled)
 
 Example:
 ```console
@@ -1327,7 +1327,7 @@ unfreezeBalance
 > The amount of unfreeze, the unit is the smallest unit (Sun)
 
 ResourceCode
-> 0 BANDWIDTH;1 ENERGY
+> 0 BANDWIDTH;1 ENERGY;2 TRON_POWER (only when getAllowNewResourceModel is enabled)
 
 Example:
 ```console
