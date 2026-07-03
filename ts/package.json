@@ -1,10 +1,38 @@
 {
-  "name": "wallet-cli",
+  "name": "walletcli",
   "version": "0.1.0",
-  "description": "Multichain standard CLI wallet (TypeScript)",
+  "description": "Agent-first TypeScript CLI wallet for TRON — deterministic commands, JSON output, and discoverable schemas",
   "type": "module",
   "bin": {
     "wallet-cli": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "TRON",
+    "tron",
+    "wallet",
+    "cli",
+    "blockchain",
+    "trx",
+    "trc20"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tronprotocol/wallet-cli.git",
+    "directory": "ts"
+  },
+  "homepage": "https://github.com/tronprotocol/wallet-cli#readme",
+  "bugs": "https://github.com/tronprotocol/wallet-cli/issues",
+  "author": {
+    "name": "Tron Protocol",
+    "url": "https://github.com/tronprotocol"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=20"
@@ -15,12 +43,10 @@
     "typecheck": "tsc --noEmit",
     "depcruise": "depcruise src",
     "test": "vitest run",
-    "test:parity:help": "node scripts/compare-help-parity.mjs",
-    "test:live:nile": "npm run build && node scripts/nile-live-suite.mjs",
-    "test:parity:live-report": "node scripts/compare-live-report.mjs",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
-  "license": "MIT",
+  "license": "LGPL-3.0-or-later",
   "dependencies": {
     "@ledgerhq/hw-app-trx": "^6.36.3",
     "@ledgerhq/hw-transport-node-hid": "^6.33.4",

@@ -34,9 +34,7 @@ An agent-first TypeScript CLI wallet for TRON, with deterministic commands, stru
 Node.js 20 or later is required.
 
 ```bash
-npm ci
-npm run build
-npm link
+npm install -g walletcli
 ```
 
 Verify the installation:
@@ -282,6 +280,34 @@ printf '%s\n' "$PRIVATE_KEY" | wallet-cli import private-key --label hot --priva
 ```
 
 These examples assume the shell variables are populated securely and are not exported. Only one `*-stdin` flag may consume stdin in each invocation. Use an interactive terminal when one operation requires two secrets.
+
+### Source secrets from a password manager
+
+Because secrets are read from stdin, you can pipe them straight from a password manager. The secret is never written to argv, an environment variable, a temp file, or shell history — the manager keeps it encrypted at rest, and the CLI consumes it once and discards it. This pairs well with the no-`MASTER_PASSWORD`-env design: the password manager is where the secret lives, the pipe is how it travels.
+
+**1Password (`op read`):**
+
+```bash
+# 1. Store the master password once (op stores it encrypted).
+op item create --category=password --title='wallet-cli master' password='<master-password>'
+
+# 2. Use it via pipe — nothing sensitive touches argv or history.
+op read 'op://Private/wallet-cli master/password' | \
+  wallet-cli create --label main --password-stdin
+```
+
+**macOS Keychain (`security`):**
+
+```bash
+# 1. Store the master password once (omit the value after -w to be prompted, so it stays out of history).
+security add-generic-password -s wallet-cli-master -a "$USER" -w
+
+# 2. Use it via pipe.
+security find-generic-password -s wallet-cli-master -w | \
+  wallet-cli create --label main --password-stdin
+```
+
+Only one `*-stdin` flag may consume stdin per invocation, so commands that need two secrets at once (for example `import mnemonic`, which needs both a mnemonic and a password) can pipe one secret and must supply the other interactively.
 
 Use `WALLET_CLI_HOME` to isolate test or automation data. The default data directory is `~/.wallet-cli`:
 
