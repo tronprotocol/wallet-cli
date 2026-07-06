@@ -34,7 +34,7 @@ An agent-first TypeScript CLI wallet for TRON, with deterministic commands, stru
 Node.js 20 or later is required.
 
 ```bash
-npm install -g walletcli
+npm install -g @tron-walletcli/wallet-cli
 ```
 
 Verify the installation:
