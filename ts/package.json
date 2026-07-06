@@ -1,10 +1,10 @@
 {
-  "name": "walletcli",
+  "name": "@tron-walletcli/wallet-cli",
   "version": "0.1.0",
   "description": "Agent-first TypeScript CLI wallet for TRON — deterministic commands, JSON output, and discoverable schemas",
   "type": "module",
   "bin": {
-    "wallet-cli": "./dist/index.js"
+    "wallet-cli": "dist/index.js"
   },
   "files": [
     "dist",
