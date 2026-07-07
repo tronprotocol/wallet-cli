@@ -262,7 +262,7 @@ interface FamilyPlugin<F extends ChainFamily> {
 }
 ```
 
-`bootstrap/families/tron.ts` is TRON's concrete composition: it builds the `TronRpcClient`, the TronGrid history reader, the TRON use cases, and the `TronModule`. Application and adapters must not import the family registry in reverse.
+`bootstrap/families/tron.ts` is TRON's concrete composition: it builds the `TronRpcClient`, the TronGrid history reader, the TRON use cases, and registers each command via `registerTronChainCommands`, which `addChain`s the neutral `ChainSpec` for each command together with its TRON `FamilyBinding`. Application and adapters must not import the family registry in reverse.
 
 ---
 
@@ -288,23 +288,25 @@ interface FamilyPlugin<F extends ChainFamily> {
 | `run` | Translates CLI input/context into a use-case call and returns structured data. |
 | `formatText` | Optional text renderer; JSON does not use it. |
 
-The stable command id is derived from metadata: a neutral command is `path.join(".")`, e.g. `import.mnemonic`; a chain command is `family.path`, e.g. `tron.tx.send`.
+The stable command id is derived from metadata as `path.join(".")` for every command — a neutral command is e.g. `import.mnemonic`, and a chain command is e.g. `tx.send` (no family prefix). The family is not encoded in the id; it travels in the envelope's `chain` view (`chain.family`), so the id matches what the user types and is redundancy-free.
 
 ### 4.2 The Two Command Classes and Routing
+
+A chain command is one `ChainCommandDefinition` — a service-free `ChainSpec` plus a `families` table of per-family `FamilyBinding`s (`run` + optional option delta). The registry keys it by logical path; dispatch resolves the network, then selects the binding by `network.family`.
 
 ```mermaid
 flowchart LR
     PATH[Parsed path] --> KIND{neutral exact match?}
     KIND -->|yes| NEUTRAL[resolveNeutral]
-    KIND -->|no| CAND[resolveCandidates]
-    CAND --> NET[resolve explicit/default network]
-    NET --> FAMILY[choose candidate by network.family]
-    NEUTRAL --> EXEC[common executeCommand]
-    FAMILY --> EXEC
+    KIND -->|no| CHAIN[resolveChain by logical path]
+    CHAIN --> NET[resolve explicit/default network]
+    NET --> BIND[select families network.family binding]
+    NEUTRAL --> EXEC[executeCommand]
+    BIND --> XEXEC[executeChainCommand: merge base+delta, run, spec.formatText]
 ```
 
 - `tron` is not a public prefix for ordinary execution commands; `--network` decides the family.
-- Help/JSON Schema may use the family prefix to address a concrete implementation precisely.
+- Help/JSON Schema may accept a leading family token (e.g. `tron block --json-schema`) as an addressing convenience, but the emitted id stays unqualified and the catalog entry lists `families: [...]`.
 - An unknown top-level/subcommand/flag must return `unknown_command` or `invalid_option`; yargs must not silently succeed.
 
 ### 4.3 The Fixed Dispatch Order
@@ -668,7 +670,7 @@ flowchart LR
     PLUGIN --> TEST[7 routing/output/contract tests]
 ```
 
-Adding a family must extend `ChainFamily`/`FAMILIES`, the discriminated network/address types, `ChainGatewayMap`, the sign strategy, the gateway, use cases, commands, the family plugin, and networks/render/tests. Only a genuinely identical intent and I/O shape may be factored into a shared port; the TRON resource model and the EVM gas/nonce must remain separate.
+Adding a family must extend `ChainFamily`/`FAMILIES`, the discriminated network/address types, `ChainGatewayMap`, the sign strategy, the gateway, and use cases; add a `FamilyBinding` for that family to each shared command's `ChainSpec.families` table (with its option delta in `binding.fields` and family-shaped rows in `FAMILY_RENDER[family]`) rather than defining new command objects; and extend networks/render/tests. Only a genuinely identical intent and I/O shape may be factored into a shared port; the TRON resource model and the EVM gas/nonce must remain separate.
 
 ### 14.3 Adding a Wallet Source
 

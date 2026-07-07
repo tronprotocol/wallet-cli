@@ -14,7 +14,7 @@ function capture(output: "text" | "json") {
   return { sm, out, err };
 }
 
-const cmd = { family: "tron", path: ["account", "balance"] } as unknown as CommandDefinition;
+const cmd = { path: ["account", "balance"] } as unknown as CommandDefinition;
 const net: NetworkDescriptor = {
   id: "tron:nile", family: "tron", chainId: "nile", aliases: ["nile"], capabilities: [],
 };
@@ -23,9 +23,9 @@ describe("createOutputFormatter (json)", () => {
   it("success returns a single parseable envelope", () => {
     const { sm } = capture("json");
     const f = createOutputFormatter("json", sm, 0);
-    const env = JSON.parse(f.success(cmd, net, { balance: "1" }));
+    const env = JSON.parse(f.success(commandId(cmd), net, { balance: "1" }));
     expect(env.success).toBe(true);
-    expect(env.command).toBe("tron.account.balance");
+    expect(env.command).toBe("account.balance");
     expect(env.chain).toMatchObject({ network: "tron:nile", chainId: "nile" });
     expect(env.data).toEqual({ balance: "1" });
     expect(env.meta).toMatchObject({ warnings: [] });
@@ -59,8 +59,8 @@ describe("createOutputFormatter (text)", () => {
   it("success returns human lines naming the command", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);
-    const text = f.success(cmd, net, { balance: "1" });
-    expect(text).toContain("tron.account.balance");
+    const text = f.success(commandId(cmd), net, { balance: "1" });
+    expect(text).toContain("account.balance");
     expect(text).toContain("balance");
   });
 
@@ -90,14 +90,14 @@ describe("createOutputFormatter (text)", () => {
         "Run `backup` soon and store the file offline.",
       ]),
     } as unknown as CommandDefinition;
-    const text = f.success(walletCmd, undefined, {
+    const text = f.success(commandId(walletCmd), undefined, {
       status: "created",
       accountId: "wlt_abc.0",
       label: "main",
       type: "seed",
       active: true,
       addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
-    });
+    }, walletCmd.formatText);
     expect(text).toContain("Created wallet");
     expect(text).toContain("main");
     expect(text).toContain("Run `backup`");
@@ -112,13 +112,13 @@ describe("createOutputFormatter (text)", () => {
         "Private key was read from hidden input and was not printed.",
       ]),
     } as unknown as CommandDefinition;
-    const text = f.success(walletCmd, undefined, {
+    const text = f.success(commandId(walletCmd), undefined, {
       status: "existing",
       accountId: "wlt_abc.0",
       label: "main",
       type: "seed",
       addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
-    });
+    }, walletCmd.formatText);
     // icon and label live in separate ANSI spans, so assert on the pieces (not a fused substring).
     expect(text).toContain("⚠");
     expect(text).toContain("Existing wallet");
@@ -129,7 +129,7 @@ describe("createOutputFormatter (text)", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);
     // a hostile label / remote metadata value carrying ANSI CSI, OSC, and a bare C1 CSI byte.
-    const text = f.success(cmd, net, { balance: "1\x1b[31mHACKED\x1b]0;pwn\x07\x9bK" });
+    const text = f.success(commandId(cmd), net, { balance: "1\x1b[31mHACKED\x1b]0;pwn\x07\x9bK" });
     expect(text).not.toContain("\x1b");
     expect(text).not.toContain("\x9b");
     expect(text).not.toContain("\x07");
@@ -139,7 +139,7 @@ describe("createOutputFormatter (text)", () => {
   it("preserves newlines while stripping control bytes", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);
-    const text = f.success(cmd, net, { balance: "1" });
+    const text = f.success(commandId(cmd), net, { balance: "1" });
     expect(text).toContain("\n"); // layout line breaks must remain intact
   });
 
@@ -157,7 +157,7 @@ describe("createOutputFormatter (text)", () => {
   it("json mode keeps data raw (no sanitization)", () => {
     const { sm } = capture("json");
     const f = createOutputFormatter("json", sm, 0);
-    const env = JSON.parse(f.success(cmd, net, { balance: "1\x1b[31m" }));
+    const env = JSON.parse(f.success(commandId(cmd), net, { balance: "1\x1b[31m" }));
     expect(env.data.balance).toBe("1\x1b[31m"); // machine-parseable output stays byte-exact
   });
 
@@ -165,7 +165,7 @@ describe("createOutputFormatter (text)", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);
     const backupCmd = { path: ["backup"], formatText: TextFormatters.walletBackup } as unknown as CommandDefinition;
-    const text = f.success(backupCmd, undefined, {
+    const text = f.success(commandId(backupCmd), undefined, {
       accountId: "wlt_abc.0",
       secretType: "mnemonic",
       out: "/tmp/main-backup.json",
@@ -173,7 +173,7 @@ describe("createOutputFormatter (text)", () => {
       bytes: 512,
       mnemonic: "test test test test test test test test test test test junk",
       privateKey: "00".repeat(32),
-    });
+    }, backupCmd.formatText);
     expect(text).toContain("/tmp/main-backup.json");
     expect(text).not.toContain("test test");
     expect(text).not.toContain("000000");

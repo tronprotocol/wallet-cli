@@ -6,9 +6,10 @@
  * Two command kinds, discriminated by `family`: neutral (full path) and chain (logical path,
  * per-family impls). A leading family token (e.g. tron) is an optional addressing prefix here.
  */
-import { z } from "zod"
+import { z, type ZodObject, type ZodRawShape } from "zod"
 import type { ChainFamily, ExitCode } from "../../../../domain/types/index.js"
-import type { CommandDefinition, StreamManager } from "../contracts/index.js"
+import { isChainCommand } from "../contracts/index.js"
+import type { ChainCommandDefinition, ChainSpec, CommandDefinition, StoredCommand, StreamManager } from "../contracts/index.js"
 import { CommandRegistry } from "../registry/index.js"
 import { introspectFields, type FieldInfo } from "../arity/index.js"
 import { GLOBAL_FLAGS, type GlobalFlag, inputFlagsFor, buildCatalog } from "./catalog.js"
@@ -31,13 +32,14 @@ export class HelpService {
       this.streams.result(this.version)
       return 0
     }
-    const positionals = tokens.filter((t) => !t.startsWith("-"))
+    const positionals = metaPositionals(tokens)
     const { family, path } = this.#split(positionals)
     const concrete = this.#resolveConcrete(family, path)
 
     if (tokens.includes("--json-schema")) {
       if (concrete) {
-        this.streams.result(JSON.stringify(z.toJSONSchema(concrete.input)))
+        const input = isChainCommand(concrete) ? mergedFields(concrete) : concrete.input
+        this.streams.result(JSON.stringify(z.toJSONSchema(input)))
         return 0
       }
       // no concrete command → machine catalog (every command + flags), optionally scoped to a
@@ -47,20 +49,12 @@ export class HelpService {
     }
 
     if (concrete) {
-      this.streams.result(this.#renderCommand(concrete))
+      this.streams.result(isChainCommand(concrete) ? this.#renderChainCommand(concrete) : this.#renderCommand(concrete))
       return 0
     }
     if (!family && path.length === 1 && this.#isNeutralGroup(path[0]!)) {
       this.streams.result(this.#renderNeutralGroup(path[0]!))
       return 0
-    }
-    if (path.length > 1 && this.#isChainGroup(path[0]!)) {
-      let candidates = this.registry.resolveCandidates(path)
-      if (family) candidates = candidates.filter((c) => c.family === family)
-      if (candidates.length > 0) {
-        this.streams.result(this.#renderLogicalCommand(path, candidates))
-        return 0
-      }
     }
     this.streams.result(this.#renderTree(path[0]))
     return 0
@@ -76,22 +70,15 @@ export class HelpService {
   }
 
   /** resolve to a single command: a neutral command by full path, or a family-pinned chain command. */
-  #resolveConcrete(family: ChainFamily | undefined, path: string[]): CommandDefinition | null {
+  #resolveConcrete(family: ChainFamily | undefined, path: string[]): StoredCommand | null {
     if (path.length === 0) return null
-    if (family) return this.registry.resolveForFamily(path, family)
+    const chain = this.registry.resolveChain(path)
+    if (chain && (!family || chain.families[family])) return chain
+    const chainHeadLeaf = this.registry.resolveChain([path[0]!])
+    if (chainHeadLeaf && (!family || chainHeadLeaf.families[family])) return chainHeadLeaf
+    if (family) return null
     const neutral = this.registry.resolveNeutral(path)
     if (neutral) return neutral
-    // unique chain leaf: if the full logical path has exactly one impl (single family), render/emit
-    // that command directly — so `block` and `tx info` behave alike without a family prefix. Once a
-    // path has multiple families (e.g. tron + evm), it's ambiguous → fall through to the family-scoped
-    // catalog instead.
-    const exact = this.registry.resolveCandidates(path)
-    if (exact.length === 1) return exact[0]!
-    // single-segment chain leaf (e.g. `block`): resolve by its HEAD so `block 123` and even
-    // `block <typo>` still render the leaf help instead of a phantom `block COMMAND` group. Group heads
-    // like `account` have no command at the bare path, so they stay groups (headLeaf is undefined).
-    const headLeaf = this.registry.resolveCandidates([path[0]!])[0]
-    if (headLeaf && headLeaf.path.length === 1) return headLeaf
     return null
   }
 
@@ -201,28 +188,6 @@ export class HelpService {
     return lines.join("\n")
   }
 
-  /** logical leaf (`account balance --help`): merge per-family flags; addressing/auth taken from the first impl. */
-  #renderLogicalCommand(path: string[], candidates: CommandDefinition[]): string {
-    const fields = new Map<string, FieldInfo>()
-    for (const cmd of candidates) {
-      for (const f of introspectFields(cmd.fields)) fields.set(f.name, f)
-    }
-    const base = candidates[0]!
-    return this.#renderLeaf({
-      path,
-      summary: base.summary,
-      network: base.network,
-      auth: base.auth,
-      wallet: base.wallet,
-      broadcasts: base.broadcasts,
-      fields: [...fields.values()],
-      inputFlags: inputFlagsFor(base),
-      examples: base.examples,
-      requires: base.requires,
-      positionals: base.positionals,
-    })
-  }
-
   #renderCommand(cmd: CommandDefinition): string {
     return this.#renderLeaf({
       path: cmd.path,
@@ -239,11 +204,28 @@ export class HelpService {
     })
   }
 
+  #renderChainCommand(def: ChainCommandDefinition): string {
+    const { spec } = def
+    return this.#renderLeaf({
+      path: spec.path,
+      summary: spec.summary,
+      network: spec.network,
+      auth: spec.auth,
+      wallet: spec.wallet,
+      broadcasts: spec.broadcasts,
+      fields: introspectFields(mergedFields(def)),
+      inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
+      examples: spec.examples,
+      requires: spec.requires,
+      positionals: spec.positionals,
+    })
+  }
+
   /** shared leaf skeleton (叶子层): Usage → description → Requires → Options (incl. stdin channel) → Global options → Examples. */
   #renderLeaf(c: {
     path: string[]
     summary?: string
-    network: CommandDefinition["network"]
+    network: ChainSpec["network"] | "none"
     auth: CommandDefinition["auth"]
     wallet: CommandDefinition["wallet"]
     broadcasts?: boolean
@@ -307,13 +289,12 @@ export class HelpService {
     return lines.join("\n")
   }
 
-  /** chain groups = first path segment of every family-bound command. */
+  /** chain groups = first path segment of every assembled chain command. */
   #chainGroups(): string[] {
     const seen = new Set<string>()
     const out: string[] = []
     for (const c of this.registry.all()) {
-      if (!c.family) continue
-      const group = c.path[0]
+      const group = isChainCommand(c) ? c.spec.path[0] : undefined
       if (group && !seen.has(group)) (seen.add(group), out.push(group))
     }
     return out
@@ -323,21 +304,22 @@ export class HelpService {
     return this.#chainGroups().includes(group)
   }
 
-  /** chain group sub-commands, deduped across families by logical path. */
+  /** chain group sub-commands, one row per logical chain definition. */
   #chainGroupCommands(group: string): Array<{ path: string[]; summary?: string }> {
-    const seen = new Set<string>()
     const out: Array<{ path: string[]; summary?: string }> = []
     for (const c of this.registry.all()) {
-      if (!c.family || c.path[0] !== group) continue
-      const key = c.path.join(".")
-      if (!seen.has(key)) (seen.add(key), out.push({ path: c.path, summary: c.summary }))
+      if (isChainCommand(c) && c.spec.path[0] === group) {
+        out.push({ path: c.spec.path, summary: c.spec.summary })
+      }
     }
     return out
   }
 
   /** neutral groups = heads of neutral commands that have sub-verbs (e.g. import). */
   #neutralGroupCommands(head: string): CommandDefinition[] {
-    return this.registry.all().filter((c) => !c.family && c.path[0] === head && c.path.length > 1)
+    return this.registry.all().filter((c): c is CommandDefinition =>
+      !isChainCommand(c) && c.path[0] === head && c.path.length > 1,
+    )
   }
 
   #isNeutralGroup(head: string): boolean {
@@ -348,6 +330,30 @@ export class HelpService {
   #catalog(familyFilter?: ChainFamily): string {
     return buildCatalog(this.registry, this.version, familyFilter)
   }
+}
+
+function mergedFields(def: ChainCommandDefinition): ZodObject<ZodRawShape> {
+  let shape = { ...def.spec.baseFields.shape }
+  for (const b of Object.values(def.families)) if (b?.fields) shape = { ...shape, ...b.fields.shape }
+  return z.object(shape)
+}
+
+function metaPositionals(tokens: string[]): string[] {
+  const valueFlags = new Set(
+    GLOBAL_FLAGS
+      .filter((flag) => flag.type !== "boolean")
+      .flatMap((flag) => [flag.flag, flag.alias].filter((name): name is string => name !== undefined)),
+  )
+  const positionals: string[] = []
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i]!
+    if (token.startsWith("-")) {
+      if (valueFlags.has(token)) i += 1
+      continue
+    }
+    positionals.push(token)
+  }
+  return positionals
 }
 
 /** "--flag <type>" header for a command flag — enum fields list their choices instead of <enum>. */
@@ -373,7 +379,7 @@ function formatDefault(v: unknown): string {
 // only for ✍️ broadcast commands; --account only when the command acts as an account (also surfaced,
 // with fuller semantics, under Requires). The full GLOBAL_FLAGS array still backs the --json-schema catalog.
 function globalFlagsForText(
-  network: CommandDefinition["network"],
+  network: ChainSpec["network"] | "none",
   auth: CommandDefinition["auth"],
   wallet: CommandDefinition["wallet"],
   broadcasts: boolean,

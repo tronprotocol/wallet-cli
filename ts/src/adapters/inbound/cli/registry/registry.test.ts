@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import type { ChainFamily } from "../../../../domain/types/index.js";
 import type { CommandDefinition } from "../contracts/index.js";
 import { CommandRegistry } from "./index.js";
-import { commandId } from "../command-id.js";
 
-function command(family: ChainFamily, path: string[]): CommandDefinition {
+function command(path: string[]): CommandDefinition {
   const fields = z.object({});
   return {
-    family,
     path,
-    network: "optional",
-    wallet: "optional",
+    network: "none",
+    wallet: "none",
     auth: "none",
     fields,
     input: fields,
@@ -20,42 +17,17 @@ function command(family: ChainFamily, path: string[]): CommandDefinition {
   };
 }
 
-describe("CommandRegistry logical resolution", () => {
-  it("rejects a family command that cannot resolve a network", () => {
+describe("CommandRegistry neutral resolution", () => {
+  it("resolves a neutral command by its full path", () => {
     const reg = new CommandRegistry();
-    const fields = z.object({});
-    expect(() => reg.add({
-      family: "tron",
-      path: ["invalid"],
-      network: "none",
-      wallet: "none",
-      auth: "none",
-      fields,
-      input: fields,
-      examples: [],
-      run: async () => ({}),
-    })).toThrow("family command must resolve a network: tron.invalid");
+    reg.add(command(["import", "mnemonic"]));
+    expect(reg.resolveNeutral(["import", "mnemonic"])?.path).toEqual(["import", "mnemonic"]);
+    expect(reg.resolveNeutral(["import", "missing"])).toBeNull();
   });
 
-  it("returns every implementation for a logical path", () => {
+  it("rejects a duplicate path", () => {
     const reg = new CommandRegistry();
-    // synthetic second family via cast: only tron ships, but the registry keys on the family
-    // string, so this still exercises multi-implementation logical resolution.
-    reg.add(command("tron", ["account", "balance"]));
-    reg.add(command("evm" as any, ["account", "balance"]));
-
-    expect(reg.resolveCandidates(["account", "balance"]).map((c) => commandId(c))).toEqual([
-      "tron.account.balance",
-      "evm.account.balance",
-    ]);
-  });
-
-  it("selects one implementation by family", () => {
-    const reg = new CommandRegistry();
-    reg.add(command("tron", ["account", "balance"]));
-    reg.add(command("evm" as any, ["account", "balance"]));
-
-    expect(commandId(reg.resolveForFamily(["account", "balance"], "evm" as any)!)).toBe("evm.account.balance");
-    expect(reg.resolveForFamily(["account", "missing"], "evm" as any)).toBeNull();
+    reg.add(command(["create"]));
+    expect(() => reg.add(command(["create"]))).toThrow("duplicate command create");
   });
 });

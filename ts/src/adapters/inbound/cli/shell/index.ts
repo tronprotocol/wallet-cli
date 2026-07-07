@@ -5,9 +5,10 @@
  */
 import yargs, { type Argv } from "yargs"
 import { randomBytes } from "node:crypto"
-import { z } from "zod"
+import { z, type RefinementCtx, type ZodObject, type ZodRawShape, type ZodType } from "zod"
 import type { AccountDescriptor, NetworkDescriptor } from "../../../../domain/types/index.js";
-import type { CommandDefinition, ExecutionContext, Globals, SessionRef, StreamManager } from "../contracts/index.js";
+import { isChainCommand } from "../contracts/index.js";
+import type { ChainCommandDefinition, ChainSpec, CommandDefinition, CommandExecutionSpec, ExecutionContext, Globals, SessionRef, StreamManager } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js"
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js"
 import { buildExecutionContext, type RuntimeDeps } from "../context/index.js"
@@ -37,7 +38,7 @@ const GLOBAL_OPTS = globalYargsOptions()
 // Interactivity (password/secret prompts, gap-fill, account select, delete confirm) is declared
 // per command via `interactive`. Every other command runs as if non-TTY: missing input fails fast
 // rather than prompting — safer for scripts/agents.
-export function isInteractiveCommand(cmd: CommandDefinition): boolean {
+export function isInteractiveCommand(cmd: Pick<CommandExecutionSpec, "interactive">): boolean {
   return cmd.interactive === true
 }
 
@@ -53,9 +54,9 @@ export function buildCli(opts: ShellOptions): Argv {
     .options(GLOBAL_OPTS as any)
 
   const all = opts.registry.all()
-  // Two kinds, discriminated by family: neutral (full path) vs chain (logical path + --network).
+  // Two kinds: neutral (full path) vs chain (logical path + family binding chosen by --network).
   const neutralByHead = new Map<string, CommandDefinition[]>()
-  for (const c of all.filter((c) => !c.family)) {
+  for (const c of all.filter((c): c is CommandDefinition => !isChainCommand(c))) {
     const head = c.path[0]!
     const bucket = neutralByHead.get(head) ?? []
     bucket.push(c)
@@ -86,16 +87,22 @@ export function buildCli(opts: ShellOptions): Argv {
     }
   }
 
-  const chainCommands = all.filter((c) => c.family)
-  const chainGroups = [...new Set(chainCommands.map((c) => c.path[0]).filter(Boolean) as string[])]
-  const fieldsOfLogicalGroup = (group: string) => chainCommands.filter((c) => c.path[0] === group).map((c) => c.fields)
+  const assembledChainCommands = all.filter(isChainCommand)
+  const chainGroups = [...new Set(assembledChainCommands.map((c) => c.spec.path[0]).filter(Boolean) as string[])]
+  const fieldsOfLogicalGroup = (group: string) => [
+    ...assembledChainCommands.filter((c) => c.spec.path[0] === group).flatMap((c) => [
+      c.spec.baseFields,
+      ...Object.values(c.families).flatMap((binding) => binding?.fields ? [binding.fields] : []),
+    ]),
+  ]
   for (const group of chainGroups) {
-    const leaves = chainCommands.filter((c) => c.path[0] === group)
-    if (leaves.every((c) => c.path.length === 1)) {
+    const assembledLeaves = assembledChainCommands.filter((c) => c.spec.path[0] === group)
+    const paths = assembledLeaves.map((c) => c.spec.path)
+    if (paths.every((path) => path.length === 1)) {
       // single-segment chain leaf (e.g. `block [<number>]`): no sub-verb; bind its own positional.
       cli.command(
         `${group} [number]`,
-        leaves[0]?.summary ?? "",
+        assembledLeaves[0]?.spec.summary ?? "",
         (y) => applyCommands(y, fieldsOfLogicalGroup(group)),
         (argv) => {
           // a non-numeric positional (e.g. `block get`) is a mistyped subcommand, not a block height:
@@ -141,22 +148,49 @@ async function dispatchNeutral(opts: ShellOptions, path: string[], argv: any): P
 }
 
 async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): Promise<void> {
-  const { registry, globals, targetResolver } = opts
-  const candidates = registry.resolveCandidates(path)
-  if (candidates.length === 0) {
-    throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`)
-  }
+  const chain = opts.registry.resolveChain(path)
+  if (chain) return executeChainCommand(opts, chain, argv)
+  throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`)
+}
 
-  const { network } = targetResolver.resolveNetwork(globals)
-  const cmd = candidates.find((c) => c.family === network.family)
-  if (!cmd) {
-    const families = [...new Set(candidates.map((c) => c.family).filter(Boolean))].join(", ")
+async function executeChainCommand(opts: ShellOptions, def: ChainCommandDefinition, argv: any): Promise<void> {
+  const { globals, deps, targetResolver, caps, streams, formatter, session } = opts
+  const { spec } = def
+  const id = commandId({ path: spec.path })
+  session.current = { commandId: id }
+
+  const target = targetResolver.resolve(spec, globals)
+  const net = requireResolvedNetwork(spec, target.network)
+  const binding = def.families[net.family]
+  if (!binding) {
+    const families = Object.keys(def.families).join(", ")
     throw new UsageError(
       "network_family_mismatch",
-      `command ${path.join(" ")} supports ${families || "no chain"} but selected network ${network.id} is ${network.family}`,
+      `command ${spec.path.join(" ")} supports ${families} but selected network ${net.id} is ${net.family}`,
     )
   }
-  await executeCommand(opts, cmd, argv)
+  session.current = { commandId: id, net }
+
+  const effectiveFields = binding.fields ? spec.baseFields.extend(binding.fields.shape) : spec.baseFields
+  const effectiveInput = composeRefines(effectiveFields, spec.baseRefine, binding.refine)
+  const executionSpec = withFields(spec, effectiveFields)
+  assertKnownFlags(executionSpec, argv)
+  deps.prompter.setInteractive(isInteractiveCommand(spec))
+  caps.check(spec, net)
+
+  if (spec.passwordMode) {
+    const initialized = deps.keystore.isInitialized()
+    const mode = spec.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify"
+    await deps.secrets.primePassword({ mode, verify: (pw) => deps.keystore.verifyPassword(pw) })
+  }
+
+  await gapFillRequiredFields(executionSpec, argv, deps.prompter, () => deps.keystore.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })))
+  const input = parseInputSchema(effectiveInput, argv)
+
+  const ctx = buildExecutionContext(globals, deps)
+  if (spec.wallet !== "none") void ctx.activeAccount
+  const data = await binding.run(ctx, net, input)
+  streams.result(formatter.success(id, net, data, spec.formatText, activeAccountLabel(spec, ctx, deps)))
 }
 
 async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: any): Promise<void> {
@@ -192,15 +226,13 @@ async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: 
   const ctx = buildExecutionContext(globals, deps)
   if (cmd.wallet !== "none") void ctx.activeAccount // resolve account (default active) up front; throws missing_wallet_address if none exists
 
-  const data = cmd.network === "none"
-    ? await cmd.run(ctx, undefined, input)
-    : await cmd.run(ctx, requireResolvedNetwork(cmd, net), input)
-  streams.result(formatter.success(cmd, net, data, activeAccountLabel(cmd, ctx, deps)))
+  const data = await cmd.run(ctx, undefined, input)
+  streams.result(formatter.success(commandId(cmd), net, data, cmd.formatText, activeAccountLabel(cmd, ctx, deps)))
 }
 
 /** Runtime counterpart to CommandDefinition's network-policy discrimination. */
 function requireResolvedNetwork(
-  cmd: CommandDefinition,
+  cmd: Pick<CommandExecutionSpec, "path">,
   net: NetworkDescriptor | undefined,
 ): NetworkDescriptor {
   if (net) return net
@@ -210,7 +242,7 @@ function requireResolvedNetwork(
 /** Central account-label resolution for text receipts: the user's --account label (or active
  *  account's label) so command formatters can show "main" instead of a shortened address.
  *  Best-effort — wallet:"none" commands have no account, and resolution never fails the command. */
-function activeAccountLabel(cmd: CommandDefinition, ctx: ExecutionContext, deps: RuntimeDeps): string | undefined {
+function activeAccountLabel(cmd: Pick<CommandExecutionSpec, "wallet">, ctx: ExecutionContext, deps: RuntimeDeps): string | undefined {
   if (cmd.wallet === "none") return undefined
   try {
     return deps.keystore.describe(ctx.activeAccount).label
@@ -237,7 +269,7 @@ function accountChoiceLabel(d: AccountDescriptor): string {
  * zod.
  */
 export async function gapFillRequiredFields(
-  cmd: CommandDefinition,
+  cmd: Pick<CommandExecutionSpec, "fields" | "promptHints">,
   argv: any,
   prompter: Pick<import("../input/prompt/index.js").Prompter, "isTTY" | "text" | "select">,
   accountChoices?: () => Array<{ value: string; label: string }>,
@@ -291,7 +323,7 @@ function randomWalletLabel(): string {
  * and zod would silently strip them). Allowed = positionals + globals + THIS command's fields
  * (a sibling command's flag in the same namespace is unknown here). → invalid_option, exit 2.
  */
-function assertKnownFlags(cmd: CommandDefinition, argv: any): void {
+function assertKnownFlags(cmd: Pick<CommandExecutionSpec, "path" | "fields">, argv: any): void {
   const allowed = new Set<string>(["_", "$0", "group", "verb", "source", "key", "value"])
   const add = (name: string) => {
     allowed.add(name)
@@ -309,7 +341,11 @@ function assertKnownFlags(cmd: CommandDefinition, argv: any): void {
 }
 
 function parseInput(cmd: CommandDefinition, argv: any): unknown {
-  const result = (cmd.input as z.ZodType).safeParse(argv)
+  return parseInputSchema(cmd.input, argv)
+}
+
+function parseInputSchema(schema: ZodType, argv: any): unknown {
+  const result = schema.safeParse(argv)
   if (result.success) return result.data
   const issue = result.error.issues[0]!
   const key = issue.path[0]
@@ -319,4 +355,19 @@ function parseInput(cmd: CommandDefinition, argv: any): unknown {
     throw new UsageError("missing_option", `missing required option --${camelToKebab(String(key))}`)
   }
   throw new UsageError("invalid_value", `invalid --${camelToKebab(field)}: ${issue.message}`)
+}
+
+function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExecutionSpec {
+  return { ...spec, fields }
+}
+
+function composeRefines(
+  fields: ZodObject<ZodRawShape>,
+  baseRefine?: (value: any, ctx: RefinementCtx) => void,
+  familyRefine?: (value: any, ctx: RefinementCtx) => void,
+): ZodType {
+  let schema: ZodType = fields
+  if (baseRefine) schema = schema.superRefine(baseRefine)
+  if (familyRefine) schema = schema.superRefine(familyRefine)
+  return schema
 }

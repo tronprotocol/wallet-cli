@@ -118,13 +118,13 @@ describe("golden CLI — meta & introspection", () => {
     expect(globalFlags).toContain("--password-stdin");
     expect(globalFlags).not.toContain("--mnemonic-stdin");
     expect(r.json.aliases).toBeUndefined();
-    const cmd = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.send");
+    const cmd = r.json.commands.find((c: { id: string }) => c.id === "tx.send");
     expect(cmd.usage).toBe("wallet-cli tx send [options]");
     expect(cmd.requires).toMatchObject({ network: "optional", auth: "required", wallet: "optional" });
     expect(cmd.inputSchema.properties.to).toBeDefined();
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic");
     expect(importMnemonic.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--mnemonic-stdin");
-    const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.broadcast");
+    const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tx.broadcast");
     expect(broadcast.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--tx-stdin");
     const importWatch = r.json.commands.find((c: { id: string }) => c.id === "import.watch");
     expect(importWatch.usage).toBe("wallet-cli import watch [options]");
@@ -134,7 +134,7 @@ describe("golden CLI — meta & introspection", () => {
     const r = run(["tron", "--json-schema"], { password: null });
     expect(r.status).toBe(0);
     expect(r.json.commands.length).toBeGreaterThan(0);
-    expect(r.json.commands.every((c: { kind: string; family: string }) => c.kind === "chain" && c.family === "tron")).toBe(true);
+    expect(r.json.commands.every((c: { kind: string; family?: string; families?: string[] }) => c.kind === "chain" && (c.family === "tron" || (c.families?.includes("tron") ?? false)))).toBe(true);
   });
 
   it("config shorthand shows, reads, and writes defaultNetwork", () => {
@@ -175,7 +175,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     seedWallet();
     const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hello world"]);
     expect(r.status).toBe(0);
-    expect(r.json.command).toBe("tron.message.sign");
+    expect(r.json.command).toBe("message.sign");
     expect(r.json.chain.network).toBe("tron:nile");
   });
 
@@ -183,7 +183,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     seedWallet();
     const r = run(["--output", "json", "tx", "send", "--network", "tron:nile", "--to", TRON1, "--amount", "0.0000000000000000001", "--dry-run"]);
     expect(r.status).toBe(2);
-    expect(r.json.command).toBe("tron.tx.send");
+    expect(r.json.command).toBe("tx.send");
     expect(r.json.error.code).toBe("invalid_amount");
   });
 
@@ -194,7 +194,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
       "--token", "USDT", "--amount", "0.0000001", "--dry-run",
     ]);
     expect(r.status).toBe(2);
-    expect(r.json.command).toBe("tron.tx.send");
+    expect(r.json.command).toBe("tx.send");
     expect(r.json.error.code).toBe("invalid_amount");
   });
 
@@ -401,7 +401,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     seedWallet();
     const r = run(["--output", "json", "token", "list"]);
     expect(r.status).toBe(0);
-    expect(r.json.command).toBe("tron.token.list");
+    expect(r.json.command).toBe("token.list");
     expect(r.json.chain.network).toBe("tron:mainnet");
   });
 
