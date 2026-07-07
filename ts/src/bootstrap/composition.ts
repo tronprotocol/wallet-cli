@@ -1,5 +1,5 @@
 import type { OutputMode } from "../domain/types/index.js";
-import type { ChainModule, Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
+import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
 import { ConfigLoader, NetworkRegistry } from "../adapters/outbound/config/index.js";
 import { YamlConfigDocument } from "../adapters/outbound/config/yaml-config-document.js";
 import {
@@ -28,6 +28,7 @@ import { TxPipeline } from "../application/services/pipeline/index.js";
 import { ConfigService } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
 import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
+import { registerTronChainCommands } from "./families/tron.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -77,17 +78,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerWalletCommands(registry, { walletService, ledger });
   registerConfigCommands(registry, configService);
   registerNetworkCommands(registry);
-  const chainModules: ChainModule[] = FAMILY_REGISTRY.map((definition) =>
-    definition.createModule({
-      gateways: gatewayProvider,
-      tokens: tokenBook,
-      prices: priceProvider,
-      signers: signerResolver,
-      transactions: txPipeline,
-      timeoutMs,
-    }),
-  );
-  for (const module of chainModules) module.registerCommands(registry);
+  registerTronChainCommands(registry, {
+    gateways: gatewayProvider,
+    tokens: tokenBook,
+    prices: priceProvider,
+    signers: signerResolver,
+    transactions: txPipeline,
+    timeoutMs,
+  });
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();
   for (const network of Object.values(config.networks)) {

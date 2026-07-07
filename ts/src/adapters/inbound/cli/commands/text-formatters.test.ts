@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { TronUseCases } from "./tron/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { registerWalletCommands } from "./wallet.js";
 import { registerConfigCommands } from "./config.js";
 import { registerNetworkCommands } from "./network.js";
-import { TronModule } from "./tron/index.js";
+import { registerTronChainCommands, type TronChainCommandDependencies } from "../../../../bootstrap/families/tron.js";
 import { commandId } from "../command-id.js";
 import { TextFormatters } from "../render/index.js";
+import { isChainCommand } from "../contracts/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import type { ConfigService } from "../../../../application/use-cases/config-service.js";
 
@@ -14,16 +14,15 @@ const ctx = (over: Partial<TextRenderContext> = {}): TextRenderContext => ({ com
 
 describe("text formatters", () => {
   it("every registered command has a command-owned text formatter", () => {
-    const services = {} as TronUseCases;
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
     registerConfigCommands(registry, {} as ConfigService);
     registerNetworkCommands(registry);
-    new TronModule(services).registerCommands(registry);
+    registerTronChainCommands(registry, {} as TronChainCommandDependencies);
 
     const missing = registry.all()
-      .filter((cmd) => typeof cmd.formatText !== "function")
-      .map(commandId)
+      .filter((cmd) => typeof (isChainCommand(cmd) ? cmd.spec.formatText : cmd.formatText) !== "function")
+      .map((cmd) => commandId(isChainCommand(cmd) ? { path: cmd.spec.path } : cmd))
       .sort();
 
     expect(missing).toEqual([]);

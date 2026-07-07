@@ -4,8 +4,7 @@
  * Pure (no I/O); the formatter turns the envelope into strings.
  */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import type { ChainView, CommandDefinition, ErrorEnvelope, Meta, ResultEnvelope } from "../contracts/index.js";
-import { commandId } from "../command-id.js";
+import type { ChainView, ErrorEnvelope, Meta, ResultEnvelope } from "../contracts/index.js";
 
 type CliErrorEnvelopeShape = { code: string; message: string; details?: object };
 
@@ -34,7 +33,7 @@ function meta(durationMs: number, warnings: string[]): Meta {
 
 export const OutputEnvelope = {
   success(
-    cmd: CommandDefinition,
+    command: string,
     net: NetworkDescriptor | undefined,
     data: unknown,
     m: { durationMs: number; warnings: string[] },
@@ -42,7 +41,7 @@ export const OutputEnvelope = {
     const env: ResultEnvelope = {
       schema: SCHEMA_VERSION,
       success: true,
-      command: commandId(cmd),
+      command,
       data: data ?? {},
       meta: meta(m.durationMs, m.warnings),
     };
@@ -51,7 +50,7 @@ export const OutputEnvelope = {
   },
 
   error(
-    commandId: string,
+    command: string,
     net: NetworkDescriptor | undefined,
     err: CliErrorEnvelopeShape,
     m: { durationMs: number; warnings: string[] },
@@ -59,7 +58,7 @@ export const OutputEnvelope = {
     const env: ErrorEnvelope = {
       schema: SCHEMA_VERSION,
       success: false,
-      command: commandId,
+      command,
       error: err,
       meta: meta(m.durationMs, m.warnings),
     };

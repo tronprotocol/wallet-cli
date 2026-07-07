@@ -30,12 +30,9 @@ export interface TextRenderContext {
 export type TextFormatter<O = unknown> = (data: O, ctx: TextRenderContext) => string | null;
 
 interface CommandDefinitionBase<I, O> {
-  /** full typed path. Neutral commands carry their complete path (e.g. ["import","mnemonic"],
-   *  ["config","get"], ["create"]); chain commands carry the logical path (e.g. ["tx","send"])
-   *  shared across families. The only routing discriminator is `family` present/absent.
+  /** full typed path (e.g. ["import","mnemonic"], ["config","get"], ["create"]).
    * The stable identity (envelope `command` field) is derived from command metadata, not stored. */
   path: string[];
-  family?: ChainFamily;
   /** declares the command reads from a *-stdin channel; drives help/catalog input-flag docs. */
   stdin?: StdinChannel;
   wallet: WalletRequirement;
@@ -66,31 +63,74 @@ interface CommandDefinitionBase<I, O> {
   formatText?: TextFormatter<O>;
 }
 
-/** A networkless command never receives a chain target. */
-export interface NetworklessCommandDefinition<I = any, O = any>
-  extends CommandDefinitionBase<I, O> {
+/** A neutral (family-less) command — wallet/config/meta operations that never receive a
+ *  chain target. Networked commands are ChainCommandDefinitions. */
+export interface CommandDefinition<I = any, O = any> extends CommandDefinitionBase<I, O> {
   network: "none";
   run(ctx: ExecutionContext, net: undefined, input: I): Promise<O>;
 }
 
-/** Both policies resolve a concrete network; "optional" only means the CLI flag may be omitted. */
-export interface NetworkedCommandDefinition<I = any, O = any>
-  extends CommandDefinitionBase<I, O> {
-  network: Exclude<NetworkRequirement, "none">;
+/** One family's slice of a chain command: how it runs + its extra flags/validation.
+ *  It does NOT render — rendering is shared on the spec (Model P). O is the shared View type. */
+export interface FamilyBinding<I = any, O = any> {
   run(ctx: ExecutionContext, net: NetworkDescriptor, input: I): Promise<O>;
+  /** family-specific extra flags merged onto ChainSpec.baseFields; omit when none. */
+  fields?: ZodObject<ZodRawShape>;
+  /** family-specific cross-field validation; composed after ChainSpec.baseRefine. */
+  refine?: (value: any, ctx: import("zod").RefinementCtx) => void;
 }
 
-/** Network policy discriminates the run signature, preventing unsafe `network!` assertions. */
-export type CommandDefinition<I = any, O = any> =
-  | NetworklessCommandDefinition<I, O>
-  | NetworkedCommandDefinition<I, O>;
-
-export interface ChainModule {
-  family: ChainFamily;
-  registerCommands(reg: CommandRegistryLike): void;
+/** Neutral, service-free declaration of a logical chain command. Generic over O, the single
+ *  family-agnostic View every family's run returns. */
+export interface ChainSpec<I = any, O = any> {
+  path: string[];
+  network: Exclude<NetworkRequirement, "none">;
+  wallet: WalletRequirement;
+  auth: AuthRequirement;
+  broadcasts?: boolean;
+  capability?: string;
+  stdin?: StdinChannel;
+  interactive?: boolean;
+  passwordMode?: "establish" | "verify";
+  positionals?: { field: string; placeholder?: string }[];
+  promptHints?: Record<string, "skip" | "default-label">;
+  requires?: string[];
+  summary?: string;
+  examples: Example[];
+  baseFields: ZodObject<ZodRawShape>;
+  baseRefine?: (value: any, ctx: import("zod").RefinementCtx) => void;
+  /** shared text renderer; uses FAMILY_RENDER[net.family] for family-shaped rows. */
+  formatText?: TextFormatter<O>;
 }
 
-/** structural view of CommandRegistry needed by ChainModule.registerCommands. */
-export interface CommandRegistryLike {
-  add(cmd: CommandDefinition): void;
+/** Assembled command held by the registry: one spec + a family→binding table. */
+export interface ChainCommandDefinition<I = any, O = any> {
+  spec: ChainSpec<I, O>;
+  families: Partial<Record<ChainFamily, FamilyBinding<I, O>>>;
+}
+
+/** Narrow structural command view shared by legacy definitions and assembled chain specs. */
+export type CommandExecutionSpec = Pick<
+  ChainSpec,
+  | "path"
+  | "network"
+  | "wallet"
+  | "auth"
+  | "broadcasts"
+  | "capability"
+  | "interactive"
+  | "passwordMode"
+  | "positionals"
+  | "promptHints"
+  | "requires"
+> & {
+  fields: ZodObject<ZodRawShape>;
+};
+
+/** The registry stores either the legacy per-family CommandDefinition or the new one. */
+export type StoredCommand = CommandDefinition | ChainCommandDefinition;
+
+/** discriminates the two stored shapes. */
+export function isChainCommand(c: StoredCommand): c is ChainCommandDefinition {
+  return (c as ChainCommandDefinition).families !== undefined;
 }
