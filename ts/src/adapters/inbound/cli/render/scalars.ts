@@ -58,6 +58,11 @@ export function quote(s: string): string {
   return `"${s}"`;
 }
 
+/** contract method display name: strip the signature's parameter list, e.g. "transfer(address,uint256)" -> "transfer". */
+export function methodName(sig: string): string {
+  return sig.replace(/\(.*/, "") || sig;
+}
+
 // Neutralize terminal control-sequence injection from untrusted labels / remote metadata.
 // Strips C0 (except the newline layout uses for line breaks), DEL, and C1 bytes: removing the
 // ESC (0x1B) and C1 introducers degrades any ANSI CSI / OSC payload to harmless literal text.
