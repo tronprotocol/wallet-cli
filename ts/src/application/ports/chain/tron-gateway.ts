@@ -30,6 +30,14 @@ export interface TronFrozenBalance {
   [key: string]: unknown;
 }
 
+export interface TronVoteAllocation {
+  vote_address?: unknown;
+  voteAddress?: unknown;
+  vote_count?: unknown;
+  voteCount?: unknown;
+  [key: string]: unknown;
+}
+
 /** Account payload normalized at the adapter boundary; all SUN/token quantities are strings. */
 export interface TronAccount {
   balance?: string;
@@ -39,7 +47,25 @@ export interface TronAccount {
   frozen?: TronFrozenBalance[];
   frozenV2?: TronFrozenBalance[];
   unfrozenV2?: TronFrozenBalance[];
+  votes?: TronVoteAllocation[];
   [key: string]: unknown;
+}
+
+export interface TronWitness {
+  address: string;
+  voteCount: string;
+  url?: string;
+  totalProduced?: number;
+  totalMissed?: number;
+  latestBlockNum?: number;
+  latestSlotNum?: number;
+  isJobs?: boolean;
+  [key: string]: unknown;
+}
+
+export interface TronVote {
+  witness: string;
+  count: string;
 }
 
 export interface TronTokenInfo {
@@ -145,6 +171,11 @@ export interface TronGateway extends Broadcaster {
     resource: RpcResourceCode,
     receiver: string,
   ): Promise<UnsignedTx>;
+  buildVoteWitness(owner: string, votes: TronVote[]): Promise<UnsignedTx>;
+  buildWithdrawBalance(owner: string): Promise<UnsignedTx>;
+  getWitnesses(limit: number): Promise<TronWitness[]>;
+  getBrokerage(address: string): Promise<number>;
+  getReward(address: string): Promise<string>;
   triggerConstantContract(
     contract: string,
     method: string,

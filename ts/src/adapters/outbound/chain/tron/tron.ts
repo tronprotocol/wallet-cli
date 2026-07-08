@@ -18,6 +18,8 @@ import type {
   TronTokenInfo,
   TronTx,
   TronTxInfo,
+  TronVote,
+  TronWitness,
 } from "../../../../application/ports/chain/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
@@ -268,6 +270,64 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     );
   }
 
+  // ── voting / witnesses ─────────────────────────────────────────────────────
+  async buildVoteWitness(owner: string, votes: TronVote[]): Promise<Types.Transaction> {
+    const voteInfo = Object.fromEntries(
+      votes.map((vote) => [vote.witness, this.#safeNumber(vote.count, "vote count")]),
+    );
+    return this.#wrap("voteWitness", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.vote(voteInfo, owner), "VoteWitnessContract"),
+    );
+  }
+  async buildWithdrawBalance(owner: string): Promise<Types.Transaction> {
+    return this.#wrap("withdrawBlockRewards", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.withdrawBlockRewards(owner), "WithdrawBalanceContract"),
+    );
+  }
+  async getWitnesses(limit: number): Promise<TronWitness[]> {
+    const capped = Math.min(Math.max(Math.trunc(limit), 1), 127);
+    return this.#wrap("getNowWitnessList", async () => {
+      const response = await fetch(`${this.#fullHost}/walletsolidity/getpaginatednowwitnesslist`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ offset: 0, limit: capped, visible: true }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<string, unknown>;
+      const witnesses = Array.isArray(raw.witnesses) ? raw.witnesses : [];
+      return witnesses.map(normalizeWitness).filter((w): w is TronWitness => w !== null);
+    });
+  }
+  async getBrokerage(address: string): Promise<number> {
+    return this.#wrap("getBrokerage", async () => {
+      const response = await fetch(`${this.#fullHost}/walletsolidity/getBrokerage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<string, unknown>;
+      if (raw.brokerage === undefined) throw new Error("brokerage not found");
+      const brokerage = Number(raw.brokerage);
+      return Number.isFinite(brokerage) ? brokerage : 0;
+    });
+  }
+  async getReward(address: string): Promise<string> {
+    return this.#wrap("getReward", async () => {
+      const response = await fetch(`${this.#fullHost}/walletsolidity/getReward`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<string, unknown>;
+      return quantityString(raw.reward);
+    });
+  }
+
   // ── prices ─────────────────────────────────────────────────────────────────────
   async getEnergyPrices(): Promise<string> {
     return this.#wrap("getEnergyPrices", () => this.#tw.trx.getEnergyPrices());
@@ -350,10 +410,55 @@ const ACCOUNT_QUANTITY_KEYS = new Set([
   "balance",
   "frozen_amount",
   "frozen_balance",
+  "latest_withdraw_time",
+  "reward",
   "total_supply",
   "unfreeze_amount",
   "value",
+  "vote_count",
+  "voteCount",
 ]);
+
+function quantityString(value: unknown): string {
+  if (typeof value === "bigint") return value >= 0n ? value.toString() : "0";
+  if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0 ? String(value) : "0";
+  if (typeof value === "string" && /^\d+$/.test(value)) return value;
+  return "0";
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function decodeAsciiHex(value: unknown): string | undefined {
+  const raw = String(value ?? "");
+  const hex = raw.replace(/^0x/, "");
+  if (!hex || !/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0) return raw || undefined;
+  try {
+    const text = Buffer.from(hex, "hex").toString("utf8").replace(/\0+$/, "");
+    return text || undefined;
+  } catch {
+    return raw || undefined;
+  }
+}
+
+function normalizeWitness(value: unknown): TronWitness | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const address = hexToBase58(raw.address);
+  if (!address) return null;
+  return {
+    address,
+    voteCount: quantityString(raw.voteCount ?? raw.vote_count),
+    url: decodeAsciiHex(raw.url),
+    totalProduced: optionalNumber(raw.totalProduced),
+    totalMissed: optionalNumber(raw.totalMissed),
+    latestBlockNum: optionalNumber(raw.latestBlockNum),
+    latestSlotNum: optionalNumber(raw.latestSlotNum),
+    isJobs: typeof raw.isJobs === "boolean" ? raw.isJobs : undefined,
+  };
+}
 
 /** Parse node account JSON without first coercing 64-bit quantities through JS number. */
 export function parseTronAccountResponse(text: string): TronAccount {

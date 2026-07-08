@@ -17,6 +17,8 @@ import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
 
+const COMMAND_WARNINGS_KEY = "__walletCliWarnings";
+
 export interface OutputFormatter {
   /** the single result frame for the caller to hand to streams.result. */
   success(command: string, net: NetworkDescriptor | undefined, data: unknown, formatText?: TextFormatter, accountLabel?: string): string;
@@ -32,15 +34,16 @@ abstract class BaseOutputFormatter {
     protected readonly startedAt: number,
   ) {}
 
-  protected meta() {
-    return { durationMs: Date.now() - this.startedAt, warnings: this.streams.warnings() };
+  protected meta(extraWarnings: string[] = []) {
+    return { durationMs: Date.now() - this.startedAt, warnings: [...this.streams.warnings(), ...extraWarnings] };
   }
 }
 
 class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
   success(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
     // JSON mode always uses the envelope; the account label is a text-mode display nicety.
-    return toJson(OutputEnvelope.success(command, net, data, this.meta()));
+    const unwrapped = unwrapCommandWarnings(data);
+    return toJson(OutputEnvelope.success(command, net, unwrapped.data, this.meta(unwrapped.warnings)));
   }
 
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void {
@@ -57,8 +60,9 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   // Text mode: strip terminal control bytes from every frame so a hostile wallet label or remote
   // token/RPC metadata value cannot inject ANSI/OSC sequences (CLI-OUT-001). JSON mode stays raw.
   success(command: string, net: NetworkDescriptor | undefined, data: unknown, formatText?: TextFormatter, accountLabel?: string): string {
-    const env = OutputEnvelope.success(command, net, data, this.meta());
-    const custom = formatText?.(env.data, { command: env.command, net, accountLabel });
+    const unwrapped = unwrapCommandWarnings(data);
+    const env = OutputEnvelope.success(command, net, unwrapped.data, this.meta(unwrapped.warnings));
+    const custom = formatText?.(env.data, { command: env.command, net, accountLabel, warnings: env.meta.warnings });
     return sanitizeText(custom ?? renderGenericText(env.command, net, env.data));
   }
 
@@ -69,6 +73,16 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   event(e: ProgressEvent): string {
     return sanitizeText(renderEvent(e));
   }
+}
+
+function unwrapCommandWarnings(data: unknown): { data: unknown; warnings: string[] } {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return { data, warnings: [] };
+  const record = data as Record<string, unknown>;
+  const raw = record[COMMAND_WARNINGS_KEY];
+  if (!Array.isArray(raw)) return { data, warnings: [] };
+  const warnings = raw.filter((item): item is string => typeof item === "string");
+  const { [COMMAND_WARNINGS_KEY]: _warnings, ...publicData } = record;
+  return { data: publicData, warnings };
 }
 
 export function createOutputFormatter(
