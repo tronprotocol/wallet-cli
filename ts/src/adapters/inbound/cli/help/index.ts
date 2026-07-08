@@ -103,6 +103,8 @@ export class HelpService {
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
       ["contract", "Call, send, deploy, and inspect smart contracts", ""],
       ["stake", "Stake / delegate resources", "tron"],
+      ["vote", "Vote for super representatives", "tron"],
+      ["reward", "Query / withdraw voting rewards", "tron"],
       ["message", "Sign arbitrary messages", ""],
       ["block", "Get a block (latest if omitted)", ""],
     ] as const
@@ -358,7 +360,8 @@ function metaPositionals(tokens: string[]): string[] {
 
 /** "--flag <type>" header for a command flag — enum fields list their choices instead of <enum>. */
 function flagHead(f: FieldInfo): string {
-  const typ = f.choices ? ` <${f.choices.join("|")}>` : f.baseType === "boolean" ? "" : ` <${f.baseType}>`
+  const typeName = f.baseType === "pipe" ? "string" : f.baseType
+  const typ = f.choices ? ` <${f.choices.join("|")}>` : typeName === "boolean" ? "" : ` <${typeName}>`
   return `--${f.kebab}${typ}`
 }
 
@@ -408,6 +411,8 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   tx: "Build, send, broadcast, and inspect transactions.",
   contract: "Call, send, deploy, and inspect smart contracts.",
   stake: "Stake / delegate resources (TRON Stake 2.0).",
+  vote: "Vote for super representatives (SR).",
+  reward: "Query and withdraw voting/block rewards.",
   message: "Sign arbitrary messages.",
   block: "Get a block (latest if omitted).",
 }

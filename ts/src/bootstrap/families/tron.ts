@@ -38,6 +38,20 @@ import {
 } from "../../adapters/inbound/cli/commands/tx.js";
 import { stakeDefinitions } from "../../adapters/inbound/cli/commands/stake.js";
 import {
+  voteCastSpec,
+  voteCastTronBinding,
+  voteListSpec,
+  voteListTronBinding,
+  voteStatusSpec,
+  voteStatusTronBinding,
+} from "../../adapters/inbound/cli/commands/vote.js";
+import {
+  rewardBalanceSpec,
+  rewardBalanceTronBinding,
+  rewardWithdrawSpec,
+  rewardWithdrawTronBinding,
+} from "../../adapters/inbound/cli/commands/reward.js";
+import {
   contractCallSpec,
   contractCallTronBinding,
   contractDeploySpec,
@@ -53,6 +67,8 @@ import { TronTokenService } from "../../application/use-cases/tron/token-service
 import { TronTransactionService } from "../../application/use-cases/tron/transaction-service.js";
 import { TronContractService } from "../../application/use-cases/tron/contract-service.js";
 import { TronStakeService } from "../../application/use-cases/tron/stake-service.js";
+import { TronVoteService } from "../../application/use-cases/tron/vote-service.js";
+import { TronRewardService } from "../../application/use-cases/tron/reward-service.js";
 import { TronBlockService } from "../../application/use-cases/tron/block-service.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
@@ -88,6 +104,8 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const message = new MessageService(deps.signers);
   const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
+  const vote = new TronVoteService(deps.gateways, deps.transactions);
+  const reward = new TronRewardService(deps.gateways, deps.transactions);
   const contract = new TronContractService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
@@ -108,6 +126,11 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   for (const definition of stakeDefinitions(stake)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }
+  reg.addChain(voteCastSpec, "tron", voteCastTronBinding(vote));
+  reg.addChain(voteListSpec, "tron", voteListTronBinding(vote));
+  reg.addChain(voteStatusSpec, "tron", voteStatusTronBinding(vote));
+  reg.addChain(rewardBalanceSpec, "tron", rewardBalanceTronBinding(reward));
+  reg.addChain(rewardWithdrawSpec, "tron", rewardWithdrawTronBinding(reward));
   reg.addChain(contractCallSpec, "tron", contractCallTronBinding(contract));
   reg.addChain(contractSendSpec, "tron", contractSendTronBinding(contract));
   reg.addChain(contractDeploySpec, "tron", contractDeployTronBinding(contract));

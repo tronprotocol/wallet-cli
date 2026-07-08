@@ -52,7 +52,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
 
   // submitted (default, non-blocking): txid only, no fee/energy yet — those need confirmation.
   if (stage === "submitted") {
-    pairs.push(["Status", "pending — not yet on-chain"])
+    pairs.push(["Status", submittedStatus(r.kind)])
     const body = receipt(pending(), summary, pairs)
     const networkFlag = ctx?.net ? ` --network ${ctx.net.id}` : ""
     return txid ? `${body}\n! Track it: wallet-cli tx info${networkFlag} --txid ${txid}` : body
@@ -68,8 +68,30 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     if (r.result) pairs.push(["Reason", String(r.result)])
     return receipt(fail(), summary, pairs)
   }
-  pairs.push(["Status", "success"])
+  pairs.push(["Status", successStatus(r.kind)])
   return receipt(ok(), summary, pairs)
+}
+
+function submittedStatus(kind: TxReceiptKind): string {
+  switch (kind) {
+    case "vote-cast":
+      return "pending — tallied at next maintenance cycle (~6h)"
+    case "reward-withdraw":
+      return "pending — next withdrawal available in ~24h"
+    default:
+      return "pending — not yet on-chain"
+  }
+}
+
+function successStatus(kind: TxReceiptKind): string {
+  switch (kind) {
+    case "vote-cast":
+      return "success — tallied at next maintenance cycle (~6h)"
+    case "reward-withdraw":
+      return "success — next withdrawal available in ~24h"
+    default:
+      return "success"
+  }
 }
 
 /** the verb-phrase summary for a broadcast receipt, by action kind. */
@@ -93,6 +115,13 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
       return `Called ${methodName(String(r.method ?? ""))}`
     case "contract-deploy":
       return "Contract deployed"
+    case "vote-cast": {
+      const total = r.totalVotes === undefined ? "" : `${formatInt(r.totalVotes)} TP`
+      const count = Array.isArray(r.votes) ? r.votes.length : 0
+      return `Voted ${total || "TP"} across ${formatInt(count)} witness${count === 1 ? "" : "es"}`
+    }
+    case "reward-withdraw":
+      return "Withdrew voting/block rewards"
     case "send": {
       const amount = receiptAmount(r, family)
       return amount ? `Sent ${amount}` : "Sent"
@@ -108,6 +137,8 @@ function receiptRows(r: TxReceiptView): Pair[] {
   if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
   else if (r.kind === "stake-undelegate") rows.push(["From", String(r.receiver ?? "")])
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])
+  else if (r.kind === "vote-cast" && Array.isArray(r.votes)) rows.push(["Votes", r.votes.map((vote) => `${vote.witness}=${formatInt(vote.count)}`).join(", ")])
+  else if (r.kind === "reward-withdraw") rows.push(["Amount", `${formatSun(r.rewardSun ?? r.withdrawnSun ?? 0)} TRX`])
   else if (r.to ?? r.receiver) rows.push(["To", String(r.to ?? r.receiver)])
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")])
   return rows
@@ -153,6 +184,10 @@ function actionLabel(kind: TxReceiptKind): string {
       return "contract send"
     case "contract-deploy":
       return "contract deploy"
+    case "vote-cast":
+      return "vote cast"
+    case "reward-withdraw":
+      return "reward withdraw"
   }
 }
 

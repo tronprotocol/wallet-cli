@@ -25,6 +25,8 @@ export interface TextRenderContext {
   net?: NetworkDescriptor;
   /** label of the resolved active account, injected centrally; absent for wallet:"none" commands. */
   accountLabel?: string;
+  /** command-supplied non-fatal warnings, already captured in the result envelope meta. */
+  warnings?: string[];
 }
 
 export type TextFormatter<O = unknown> = (data: O, ctx: TextRenderContext) => string | null;

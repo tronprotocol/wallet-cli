@@ -4,6 +4,8 @@
  *   wallet.ts  — wallet create/import/list/… receipts
  *   account.ts — account/token queries (balance, info, history, portfolio, token book)
  *   tx.ts      — tx/stake/contract signing receipts + tx status/info
+ *   vote.ts    — SR voting list/status views
+ *   reward.ts  — voting/block reward views
  *   misc.ts    — config, networks, contract call/info, message sign, block
  * This barrel reassembles the one TextFormatters table command specs import.
  */
@@ -13,6 +15,8 @@ import { type Obj, ok } from "./layout.js"
 import { WalletFormatters } from "./wallet.js"
 import { AccountFormatters } from "./account.js"
 import { TxFormatters } from "./tx.js"
+import { VoteFormatters } from "./vote.js"
+import { RewardFormatters } from "./reward.js"
 import { MiscFormatters } from "./misc.js"
 
 export { FAMILY_RENDER, renderFamily } from "./family.js"
@@ -21,6 +25,8 @@ export const TextFormatters = {
   ...WalletFormatters,
   ...AccountFormatters,
   ...TxFormatters,
+  ...VoteFormatters,
+  ...RewardFormatters,
   ...MiscFormatters,
 }
 
