@@ -46,6 +46,23 @@ describe("accountBalance formatter", () => {
   });
 });
 
+describe("stake/chain TRX amount formatting", () => {
+  it("groups the integer part without truncating fractional TRX", () => {
+    const stake = TextFormatters.stakeDelegated({
+      direction: "out",
+      canDelegateMaxSun: { energy: "1234456789", bandwidth: "0" },
+      delegations: [],
+    }, ctx());
+    const chain = TextFormatters.chainPrices({
+      energy: { currentSunPerUnit: 210 },
+      bandwidth: { currentSunPerUnit: 1000 },
+      memoFeeSun: "1234456789",
+    });
+    expect(stake).toContain("1,234.456789 TRX");
+    expect(chain).toContain("1,234.456789 TRX");
+  });
+});
+
 describe("tokenBalance formatter", () => {
   it("formats balance with decimals and symbol when metadata is present", () => {
     const out = TextFormatters.tokenBalance({ address: "TXaddress", token: "TR7token", balance: "1204560000", symbol: "USDT", decimals: 6 }, ctx());

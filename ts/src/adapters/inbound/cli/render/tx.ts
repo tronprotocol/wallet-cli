@@ -116,9 +116,9 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
     case "contract-deploy":
       return "Contract deployed"
     case "vote-cast": {
-      const total = r.totalVotes === undefined ? "" : `${formatInt(r.totalVotes)} TP`
       const count = Array.isArray(r.votes) ? r.votes.length : 0
-      return `Voted ${total || "TP"} across ${formatInt(count)} witness${count === 1 ? "" : "es"}`
+      const across = `across ${formatInt(count)} witness${count === 1 ? "" : "es"}`
+      return r.totalVotes === undefined ? `Voted ${across}` : `Voted ${formatInt(r.totalVotes)} TP ${across}`
     }
     case "reward-withdraw":
       return "Withdrew voting/block rewards"

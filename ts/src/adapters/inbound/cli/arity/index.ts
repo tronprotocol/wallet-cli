@@ -34,6 +34,8 @@ export interface FieldInfo {
   name: string;
   kebab: string;
   baseType: string;
+  /** the field collects a repeated flag into an array (`--for a --for b`) — drives yargs `array`. */
+  isArray: boolean;
   optional: boolean;
   hasDefault: boolean;
   /** the default value (when hasDefault) — surfaced verbatim in --help. */
@@ -66,6 +68,23 @@ function unwrap(schema: ZodType): { base: ZodType; optional: boolean; hasDefault
   return { base: s, optional, hasDefault, defaultValue, description };
 }
 
+/** the type name shown as `<...>` in --help. Descends a preprocess pipe (ciEnum) to its output
+ *  and an array to its per-entry element, so a repeatable `z.array(z.string())` reads as
+ *  `<string>` — never the internal "pipe"/"array". */
+function displayBaseType(base: ZodType): string {
+  let def: any = (base as any)?.def;
+  if (def?.type === "pipe") def = def.out?.def;
+  if (def?.type === "array") def = def.element?.def;
+  return def?.type ?? "unknown";
+}
+
+/** true when the field collects a repeated flag into an array (after unwrapping optional/default). */
+function isArrayField(base: ZodType): boolean {
+  let def: any = (base as any)?.def;
+  if (def?.type === "pipe") def = def.out?.def;
+  return def?.type === "array";
+}
+
 export function introspectFields(fields: ZodObject<ZodRawShape>): FieldInfo[] {
   const shape = fields.shape;
   return Object.entries(shape).map(([name, schema]) => {
@@ -73,7 +92,8 @@ export function introspectFields(fields: ZodObject<ZodRawShape>): FieldInfo[] {
     return {
       name,
       kebab: camelToKebab(name),
-      baseType: (base as any)?.def?.type ?? "unknown",
+      baseType: displayBaseType(base),
+      isArray: isArrayField(base),
       optional,
       hasDefault,
       defaultValue,
@@ -98,6 +118,7 @@ function applyArity(y: Argv, fields: ZodObject<ZodRawShape>): Argv {
   for (const f of introspectFields(fields)) {
     y.option(f.kebab, {
       type: f.baseType === "boolean" ? "boolean" : "string",
+      ...(f.isArray ? { array: true } : {}), // repeatable flag → yargs collects into an array
       describe: f.description,
       demandOption: false, // requiredness is enforced by zod, not yargs
     });

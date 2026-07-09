@@ -17,6 +17,15 @@ export function formatInt(v: unknown): string {
   return Number.isFinite(n) ? Math.trunc(n).toLocaleString("en-US") : String(v ?? "");
 }
 
+/** Group a decimal string's integer part without coercing or dropping fractional digits. */
+export function formatDecimal(v: unknown): string {
+  const raw = String(v ?? "");
+  const match = /^(-?)(\d+)(\.\d+)?$/.exec(raw);
+  if (!match) return raw;
+  const [, sign, integer, fraction = ""] = match;
+  return `${sign}${integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction}`;
+}
+
 export function formatUsd(v: unknown): string {
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v ?? "");
@@ -35,6 +44,23 @@ export function formatTime(v: unknown): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
   return `${mm}-${dd} ${hh}:${mi}`;
+}
+
+/** epoch-ms → "YYYY-MM-DD HH:MM (in ~3 days)" / "(~2h ago)" — local time + a coarse relative hint.
+ *  Shared by the reward / stake / delegated views so time reads consistently across the CLI.
+ *  `now` is injectable for deterministic tests. Empty string for a missing/non-positive value. */
+export function formatAtWithRelative(v: unknown, now: number = Date.now()): string {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const d = new Date(n);
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const at = `${date} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const delta = n - now;
+  const mag = Math.abs(delta);
+  const unit = mag >= 86_400_000
+    ? `${Math.round(mag / 86_400_000)} day(s)`
+    : mag >= 3_600_000 ? `${Math.round(mag / 3_600_000)}h` : `${Math.max(1, Math.round(mag / 60_000))}m`;
+  return `${at} (${delta >= 0 ? `in ~${unit}` : `~${unit} ago`})`;
 }
 
 /** block timestamp -> "YYYY-MM-DD HH:MM:SS UTC". */

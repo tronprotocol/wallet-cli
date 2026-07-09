@@ -208,6 +208,18 @@ async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: 
 
   caps.check(cmd, net)
 
+  // secretsTtyOnly (import mnemonic/private-key, change-password): the most sensitive setup ops
+  // read every secret interactively only. Reject any stdin password source and require a real TTY
+  // BEFORE priming, so no secret is ever taken from a pipe and the error is honest.
+  if (cmd.secretsTtyOnly) {
+    if (deps.secrets.has("password")) {
+      throw new UsageError("invalid_option", `${commandId(cmd)} reads the master password interactively only; --password-stdin is not accepted`)
+    }
+    if (!deps.prompter.isTTY()) {
+      throw new UsageError("tty_required", `${commandId(cmd)} reads secrets interactively; run in a terminal`)
+    }
+  }
+
   // auth: opt-in interactive password priming via passwordMode. Commands without passwordMode
   // (tx/contract/stake/message/derive) demand the password LAZILY — the keystore throws
   // auth_required only when a sign/decrypt actually happens, so read-only paths like

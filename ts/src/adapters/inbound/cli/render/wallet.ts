@@ -62,6 +62,14 @@ export const WalletFormatters = {
       `${warn()} Secret material was written only to the backup file, never to stdout.`,
     ].join("\n")
   }) satisfies TextFormatter,
+  passwordChanged: ((data) => {
+    const d = asObj(data)
+    const list = Array.isArray(d.wallets) ? d.wallets.map(String).join(", ") : ""
+    return receipt(ok(), `Master password changed — re-encrypted ${String(d.count ?? 0)} software wallet(s)`, [
+      ["Wallets", list],
+      ["Note", "Ledger / watch-only accounts are unaffected"],
+    ])
+  }) satisfies TextFormatter,
 }
 
 function renderWalletCreated(verb: "Created" | "Imported", d: Obj, notes: string[]): string {

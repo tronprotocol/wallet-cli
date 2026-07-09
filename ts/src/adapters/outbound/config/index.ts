@@ -33,6 +33,7 @@ export class ConfigLoader {
     let defaultNetwork: string | undefined = DEFAULT_CONFIG.defaultNetwork;
     let defaultOutput: OutputMode = DEFAULT_CONFIG.defaultOutput;
     let timeoutMs = DEFAULT_CONFIG.timeoutMs;
+    let waitTimeoutMs = DEFAULT_CONFIG.waitTimeoutMs;
     let price: Config["price"];
 
     const path = ConfigLoader.configPath(env);
@@ -43,6 +44,7 @@ export class ConfigLoader {
       }
       if (raw.defaultOutput === "json" || raw.defaultOutput === "text") defaultOutput = raw.defaultOutput;
       if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
+      if (typeof raw.waitTimeoutMs === "number") waitTimeoutMs = raw.waitTimeoutMs;
       if (raw.price && typeof raw.price === "object") {
         const p = raw.price as Record<string, unknown>;
         const provider = p.provider === "none" ? "none" : "coingecko";
@@ -55,7 +57,7 @@ export class ConfigLoader {
         }
       }
     }
-    return { defaultNetwork, defaultOutput, timeoutMs, networks, price };
+    return { defaultNetwork, defaultOutput, timeoutMs, waitTimeoutMs, networks, price };
   }
 }
 

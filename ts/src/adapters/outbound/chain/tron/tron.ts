@@ -14,7 +14,9 @@ import type {
   TronContractParameter,
   TronContractMetadata,
   TronAccount,
+  TronDelegatedResource,
   TronGateway,
+  TronNodeInfo,
   TronTokenInfo,
   TronTx,
   TronTxInfo,
@@ -105,7 +107,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   // ── account / query ──────────────────────────────────────────────────────────
   async getAccount(address: string): Promise<TronAccount> {
     return this.#wrap("getAccount", async () => {
-      const response = await fetch(`${this.#fullHost}/walletsolidity/getaccount`, {
+      const response = await fetch(`${this.#fullHost}/wallet/getaccount`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
@@ -129,7 +131,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return this.#wrap("getTransaction", async () => parseTronTx(await this.#tw.trx.getTransaction(txid)));
   }
   async getTransactionInfoById(txid: string): Promise<TronTxInfo> {
-    return this.#wrap("getTransactionInfo", async () => parseTronTxInfo(await this.#tw.trx.getTransactionInfo(txid)));
+    // Full-node (unconfirmed) info: available ~one block after inclusion (~3s), not after
+    // solidification (~19 blocks / ~60s). So `--wait` confirms at "mined in a block" rather than
+    // "irreversible" — the receipt (fee/energy/result) is already final by then. Same response shape.
+    return this.#wrap("getTransactionInfo", async () => parseTronTxInfo(await this.#tw.trx.getUnconfirmedTransactionInfo(txid)));
   }
   decodeTransaction(transaction: TronTx): DecodedTronTransaction {
     return decodeTronTransaction(transaction);
@@ -287,7 +292,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getWitnesses(limit: number): Promise<TronWitness[]> {
     const capped = Math.min(Math.max(Math.trunc(limit), 1), 127);
     return this.#wrap("getNowWitnessList", async () => {
-      const response = await fetch(`${this.#fullHost}/walletsolidity/getpaginatednowwitnesslist`, {
+      const response = await fetch(`${this.#fullHost}/wallet/getpaginatednowwitnesslist`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ offset: 0, limit: capped, visible: true }),
@@ -301,7 +306,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getBrokerage(address: string): Promise<number> {
     return this.#wrap("getBrokerage", async () => {
-      const response = await fetch(`${this.#fullHost}/walletsolidity/getBrokerage`, {
+      const response = await fetch(`${this.#fullHost}/wallet/getBrokerage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
@@ -316,7 +321,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getReward(address: string): Promise<string> {
     return this.#wrap("getReward", async () => {
-      const response = await fetch(`${this.#fullHost}/walletsolidity/getReward`, {
+      const response = await fetch(`${this.#fullHost}/wallet/getReward`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
@@ -334,6 +339,53 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getBandwidthPrices(): Promise<string> {
     return this.#wrap("getBandwidthPrices", () => this.#tw.trx.getBandwidthPrices());
+  }
+
+  // ── chain info ────────────────────────────────────────────────────────────────
+  async getChainParameters(): Promise<Array<{ key: string; value?: number }>> {
+    return this.#wrap("getChainParameters", () => this.#tw.trx.getChainParameters());
+  }
+  async getNodeInfo(): Promise<TronNodeInfo> {
+    return this.#wrap("getNodeInfo", () => this.#tw.trx.getNodeInfo() as Promise<TronNodeInfo>);
+  }
+
+  // ── staking queries (Stake 2.0) ───────────────────────────────────────────────
+  async getDelegatedResourceV2(from: string, to: string): Promise<TronDelegatedResource[]> {
+    return this.#wrap("getDelegatedResourceV2", async () => {
+      const res = await this.#tw.trx.getDelegatedResourceV2(from, to);
+      return (res.delegatedResource ?? []).map((d) => ({
+        from: tronHexToBase58(d.from),
+        to: tronHexToBase58(d.to),
+        balanceForEnergySun: String(d.frozen_balance_for_energy ?? 0),
+        balanceForBandwidthSun: String(d.frozen_balance_for_bandwidth ?? 0),
+        expireTimeForEnergy: d.expire_time_for_energy ? Number(d.expire_time_for_energy) : null,
+        expireTimeForBandwidth: d.expire_time_for_bandwidth ? Number(d.expire_time_for_bandwidth) : null,
+      }));
+    });
+  }
+  async getDelegatedIndexV2(address: string): Promise<{ fromAccounts: string[]; toAccounts: string[] }> {
+    return this.#wrap("getDelegatedResourceAccountIndexV2", async () => {
+      const res = await this.#tw.trx.getDelegatedResourceAccountIndexV2(address);
+      return {
+        fromAccounts: (res.fromAccounts ?? []).map((a) => tronHexToBase58(a)),
+        toAccounts: (res.toAccounts ?? []).map((a) => tronHexToBase58(a)),
+      };
+    });
+  }
+  async getCanDelegatedMaxSize(address: string, resource: RpcResourceCode): Promise<string> {
+    return this.#wrap("getCanDelegatedMaxSize", async () =>
+      String((await this.#tw.trx.getCanDelegatedMaxSize(address, resource)).max_size ?? 0),
+    );
+  }
+  async getCanWithdrawUnfreezeAmount(address: string): Promise<string> {
+    return this.#wrap("getCanWithdrawUnfreezeAmount", async () =>
+      String((await this.#tw.trx.getCanWithdrawUnfreezeAmount(address)).amount ?? 0),
+    );
+  }
+  async getAvailableUnfreezeCount(address: string): Promise<number> {
+    return this.#wrap("getAvailableUnfreezeCount", async () =>
+      Number((await this.#tw.trx.getAvailableUnfreezeCount(address)).count ?? 0),
+    );
   }
 
   // ── contract ──────────────────────────────────────────────────────────────────

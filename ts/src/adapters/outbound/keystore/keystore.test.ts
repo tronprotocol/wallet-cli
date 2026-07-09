@@ -341,3 +341,54 @@ describe("password sentinel queries", () => {
     expect(ks.verifyPassword("wrong")).toBe(false);
   });
 });
+
+describe("changePassword", () => {
+  it("re-encrypts every software blob and the verifier with the new password", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "OldPw1!aa");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "seed" });
+    const keyRef = ks.import({
+      secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+      type: "privateKey",
+      label: "hot",
+    }).accountId;
+    const source = ks.resolveAccount(keyRef).wallet.source;
+    const keyId = source.type === "privateKey" ? source.keyId : "";
+
+    const receipt = ks.changePassword("OldPw1!aa", "NewPw2@bb");
+    expect(receipt.count).toBe(2);
+    expect(receipt.wallets).toHaveLength(2);
+    expect(ks.verifyPassword("OldPw1!aa")).toBe(false);
+    expect(ks.verifyPassword("NewPw2@bb")).toBe(true);
+    const ks2 = new Keystore(root, store, () => "NewPw2@bb");
+    expect(() => ks2.decryptKey(keyId)).not.toThrow();
+  }, 15_000);
+
+  it("rejects a wrong old password without touching any file", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
+    ks.import({ secret: MNEMONIC, type: "seed" });
+    expect(() => ks.changePassword("WrongPw1!x", "NewPw2@bb")).toThrow(/incorrect master password/);
+    expect(ks.verifyPassword("OldPw1!aa")).toBe(true);
+  });
+
+  it("throws no_software_wallet when only watch/ledger wallets exist", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const ksWatchOnly = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
+    ksWatchOnly.registerWatch({ family: "tron", address: "Twatch-only" });
+    expect(() => ksWatchOnly.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow(/no software wallet/);
+  });
+
+  it("maps a write failure to io_error and leaves the keystore usable under the old password", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "OldPw1!aa");
+    ks.import({ secret: MNEMONIC, type: "seed" });
+    store.writeJsonAll = () => { throw new Error("disk full"); };
+    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrowError(
+      expect.objectContaining({ code: "io_error" }),
+    );
+    expect(ks.verifyPassword("OldPw1!aa")).toBe(true);
+  }, 15_000);
+});

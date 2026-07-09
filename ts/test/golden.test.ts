@@ -123,7 +123,8 @@ describe("golden CLI — meta & introspection", () => {
     expect(cmd.requires).toMatchObject({ network: "optional", auth: "required", wallet: "optional" });
     expect(cmd.inputSchema.properties.to).toBeDefined();
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic");
-    expect(importMnemonic.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--mnemonic-stdin");
+    // TTY-only setup op: the mnemonic is entered interactively, so there is no --*-stdin input flag.
+    expect(importMnemonic.inputFlags).toBeUndefined();
     const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tx.broadcast");
     expect(broadcast.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--tx-stdin");
     const importWatch = r.json.commands.find((c: { id: string }) => c.id === "import.watch");
@@ -381,6 +382,29 @@ describe("golden CLI — error contract (exit codes)", () => {
     const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"], { password: null });
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("auth_required");
+  });
+
+  it("vote cast collects a repeated --for into an array (same SR twice → duplicate, exit 2)", () => {
+    seedWallet();
+    // Proves the CLI collects a repeated flag into an array. If --for were last-wins, only one
+    // entry would reach the service and there'd be no duplicate; the duplicate error confirms both
+    // repeated flags arrived. `parseVoteInputs` runs before any RPC, so this needs no network.
+    const r = run(["--output", "json", "vote", "cast", "--network", "tron:nile",
+      "--for", `${TRON1}=5`, "--for", `${TRON1}=5`, "--dry-run"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+    expect(r.json.error.message).toMatch(/duplicate/i);
+  });
+
+  it("vote cast delivers a SINGLE --for as a one-element array, not a split string", () => {
+    seedWallet();
+    // A lone `--for foo` (no '='): as a one-element array the whole "foo" is one bad entry; as a
+    // bare string the service would iterate its characters and complain about 'f'. An error naming
+    // the whole 'foo' proves yargs `array: true` delivered [ "foo" ]. No RPC (parse fails first).
+    const r = run(["--output", "json", "vote", "cast", "--network", "tron:nile", "--for", "foo", "--dry-run"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+    expect(r.json.error.message).toContain("'foo'");
   });
 });
 

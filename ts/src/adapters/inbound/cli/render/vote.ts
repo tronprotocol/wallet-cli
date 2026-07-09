@@ -36,9 +36,11 @@ function renderVoteStatus(data: Obj, ctx: TextRenderContext): string {
       String(vote.witness ?? ""),
     ])),
   ]
-  for (const warning of ctx.warnings ?? []) {
-    if (warning.startsWith("zero_reward_ratio:")) {
-      lines.push(`! ${warning.replace(/^zero_reward_ratio:\s*/, "")}`)
+  // votes on a 0%-reward-ratio SR earn nothing — surface a `!` line straight from the data
+  // (same style as tx.ts's `! Track it:`); the json warning is emitted separately via scope.warn.
+  for (const vote of votes) {
+    if (vote.rewardRatioPct === 0) {
+      lines.push(`! ${formatInt(vote.count)} votes on ${String(vote.name ?? vote.witness ?? "")} earn nothing — 0% reward ratio`)
     }
   }
   return lines.join("\n")
@@ -49,8 +51,8 @@ function rowsOf(value: unknown): Obj[] {
 }
 
 function pct(value: unknown): string {
-  if (value === null || value === undefined) return "-"
+  if (value === null || value === undefined) return "—"
   const n = Number(value)
-  if (!Number.isFinite(n)) return "-"
-  return `${Number.isInteger(n) ? String(n) : String(n)}%`
+  if (!Number.isFinite(n)) return "—"
+  return `${String(n)}%`
 }

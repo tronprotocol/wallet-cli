@@ -102,9 +102,10 @@ export class HelpService {
       ["token", "Manage the token address book and query tokens", ""],
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
       ["contract", "Call, send, deploy, and inspect smart contracts", ""],
-      ["stake", "Stake / delegate resources", "tron"],
+      ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
+      ["chain", "Query chain params, prices & node info", ""],
       ["message", "Sign arbitrary messages", ""],
       ["block", "Get a block (latest if omitted)", ""],
     ] as const
@@ -117,6 +118,7 @@ export class HelpService {
       ["delete", "Delete a wallet / account", ""],
       ["config", "Show / get / set configuration values", ""],
       ["networks", "List known networks", ""],
+      ["change-password", "Change the master password (re-encrypt keystores)", ""],
     ] as const
     const sections = [common, management, commands] as const
     const nameWidth = Math.max(...sections.flat().map(([name]) => name.length)) + 2
@@ -203,6 +205,7 @@ export class HelpService {
       examples: cmd.examples,
       requires: cmd.requires,
       positionals: cmd.positionals,
+      secretsTtyOnly: cmd.secretsTtyOnly,
     })
   }
 
@@ -236,6 +239,7 @@ export class HelpService {
     examples: CommandDefinition["examples"]
     requires?: string[]
     positionals?: { field: string; placeholder?: string }[]
+    secretsTtyOnly?: boolean
   }): string {
     const positionals = (c.positionals ?? []).map((p) => {
       const field = c.fields.find((f) => f.name === p.field)
@@ -255,7 +259,9 @@ export class HelpService {
 
     const requires: string[] = [...(c.requires ?? [])]
     if (c.network === "required") requires.push("--network <id>")
-    if (c.auth === "required") requires.push("master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY")
+    if (c.auth === "required") requires.push(c.secretsTtyOnly
+      ? "the master password — entered interactively in a TTY"
+      : "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY")
     if (c.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or run `wallet-cli use <account>` to change the active account)")
     if (requires.length) {
       lines.push("", "Requires:")
@@ -282,7 +288,7 @@ export class HelpService {
     lines.push("", "Global options:")
     // curated per command: --network only when the command selects a network; --password-stdin
     // only when it requires unlock; --account only when the command acts as an account.
-    for (const g of globalFlagsForText(c.network, c.auth, c.wallet, c.broadcasts ?? false)) lines.push(globalFlagLine(g))
+    for (const g of globalFlagsForText(c.network, c.auth, c.wallet, c.broadcasts ?? false, c.secretsTtyOnly ?? false)) lines.push(globalFlagLine(g))
 
     if (c.examples.length) {
       lines.push("", "Examples:")
@@ -360,8 +366,7 @@ function metaPositionals(tokens: string[]): string[] {
 
 /** "--flag <type>" header for a command flag — enum fields list their choices instead of <enum>. */
 function flagHead(f: FieldInfo): string {
-  const typeName = f.baseType === "pipe" ? "string" : f.baseType
-  const typ = f.choices ? ` <${f.choices.join("|")}>` : typeName === "boolean" ? "" : ` <${typeName}>`
+  const typ = f.choices ? ` <${f.choices.join("|")}>` : f.baseType === "boolean" ? "" : ` <${f.baseType}>`
   return `--${f.kebab}${typ}`
 }
 
@@ -386,11 +391,12 @@ function globalFlagsForText(
   auth: CommandDefinition["auth"],
   wallet: CommandDefinition["wallet"],
   broadcasts: boolean,
+  secretsTtyOnly: boolean,
 ): GlobalFlag[] {
   return GLOBAL_FLAGS.filter((g) => {
     if (g.flag === "--account") return wallet !== "none"
     if (g.flag === "--network") return network !== "none"
-    if (g.flag === "--password-stdin") return auth === "required"
+    if (g.flag === "--password-stdin") return auth === "required" && !secretsTtyOnly
     if (g.flag === "--wait" || g.flag === "--wait-timeout") return broadcasts
     return true
   })
@@ -410,9 +416,10 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   token: "Manage the token address book and query tokens.",
   tx: "Build, send, broadcast, and inspect transactions.",
   contract: "Call, send, deploy, and inspect smart contracts.",
-  stake: "Stake / delegate resources (TRON Stake 2.0).",
+  stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).",
   reward: "Query and withdraw voting/block rewards.",
+  chain: "Query on-chain parameters, resource prices, and node status.",
   message: "Sign arbitrary messages.",
   block: "Get a block (latest if omitted).",
 }

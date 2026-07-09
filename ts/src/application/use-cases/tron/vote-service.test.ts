@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TronVoteService } from "./vote-service.js";
+import { TronStakeService } from "./stake-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -23,16 +24,16 @@ const scope: TransactionScope = {
 
 function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) {
   const g = gateway as TronGateway;
-  return new TronVoteService(
-    { get: () => g } as unknown as ChainGatewayProvider,
-    { run: async () => ({ stage: "submitted", txId: "txid" }), ...pipeline } as unknown as TxPipeline,
-  );
+  const gateways = { get: () => g } as unknown as ChainGatewayProvider;
+  const pipe = { run: async () => ({ stage: "submitted", txId: "txid" }), ...pipeline } as unknown as TxPipeline;
+  // voting power now comes from the injected stake service (reads getAccountResources).
+  return new TronVoteService(gateways, pipe, new TronStakeService(gateways, pipe));
 }
 
 describe("TronVoteService.cast", () => {
   it("rejects a full vote allocation above voting power", async () => {
     const svc = service({
-      getAccount: async () => ({ frozenV2: [{ amount: "100000000" }] }),
+      getAccountResources: async () => ({ tronPowerLimit: 100, tronPowerUsed: 0 } as never),
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=101`] })).rejects.toMatchObject({
       code: "insufficient_voting_power",
@@ -41,7 +42,7 @@ describe("TronVoteService.cast", () => {
 
   it("echoes parsed votes and total votes after pipeline submission", async () => {
     const svc = service({
-      getAccount: async () => ({ frozenV2: [{ amount: "1000000000" }] }),
+      getAccountResources: async () => ({ tronPowerLimit: 1000, tronPowerUsed: 0 } as never),
       buildVoteWitness: async () => ({}),
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=6`, `${SR2}=4`] })).resolves.toMatchObject({
@@ -74,22 +75,25 @@ describe("TronVoteService.list/status", () => {
     });
   });
 
-  it("reports current voting power, reward, votes, and zero-ratio warning", async () => {
+  it("reports current voting power, reward, votes, and warns via scope.warn on a zero reward ratio", async () => {
+    const warnings: string[] = [];
+    const warnScope = { ...scope, warn: (m: string) => warnings.push(m) };
     const svc = service({
-      getAccount: async () => ({
-        frozenV2: [{ amount: "1500000000" }],
-        votes: [{ vote_address: SR2, vote_count: "400" }],
-      }),
+      getAccount: async () => ({ votes: [{ vote_address: SR2, vote_count: "400" }] }),
+      getAccountResources: async () => ({ tronPowerLimit: 1500, tronPowerUsed: 400 } as never),
       getReward: async () => "12345678",
       getWitnesses: async () => [{ address: SR2, voteCount: "200", url: "https://beta.example" }],
       getBrokerage: async () => 100,
     });
-    await expect(svc.status(scope, NET)).resolves.toMatchObject({
+    const result = await svc.status(warnScope, NET);
+    expect(result).toMatchObject({
       address: OWNER,
       votingPower: { total: 1500, used: 400, available: 1100 },
       claimableRewardSun: "12345678",
       votes: [{ witness: SR2, name: "beta.example", count: 400, rewardRatioPct: 0, brokeragePct: 100, aprPct: null }],
-      __walletCliWarnings: [`zero_reward_ratio: 400 votes on ${SR2} (beta.example) earn nothing: reward ratio is 0%`],
     });
+    // zero-ratio warning now goes through the standard warn channel, not a data key.
+    expect(result).not.toHaveProperty("__walletCliWarnings");
+    expect(warnings).toEqual([`400 votes on ${SR2} (beta.example) earn nothing: reward ratio is 0%`]);
   });
 });

@@ -51,6 +51,24 @@ export class AtomicFileStore {
     renameSync(tmp, path); // atomic replace on same filesystem
   }
 
+  /** transactional-ish multi-file write: stage every temp first, then rename all into place.
+   *  A failure while staging unlinks the temps and leaves every target untouched. */
+  writeJsonAll(entries: Array<{ path: string; value: unknown }>): void {
+    const staged: Array<{ tmp: string; path: string }> = [];
+    try {
+      for (const { path, value } of entries) {
+        mkdirSync(dirname(path), { recursive: true });
+        const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
+        staged.push({ tmp, path });
+        writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
+      }
+    } catch (e) {
+      for (const { tmp } of staged) { try { unlinkSync(tmp); } catch { /* best-effort */ } }
+      throw e;
+    }
+    for (const { tmp, path } of staged) renameSync(tmp, path); // atomic per file
+  }
+
   writeText(path: string, text: string): void {
     mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;

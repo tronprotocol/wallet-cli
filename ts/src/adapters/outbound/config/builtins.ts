@@ -67,4 +67,5 @@ export const DEFAULT_CONFIG = {
   defaultNetwork: "tron:mainnet",
   defaultOutput: "text" as const,
   timeoutMs: 60000,
+  waitTimeoutMs: 60000,
 }

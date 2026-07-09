@@ -6,7 +6,6 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type {
   TronAccount,
-  TronFrozenBalance,
   TronGateway,
   TronVote,
   TronVoteAllocation,
@@ -15,12 +14,13 @@ import type {
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { TronStakeService } from "./stake-service.js";
 
 const MAX_VOTE_ITEMS = 30;
 const MAX_REWARDED_RANK = 127;
 const ELECTED_SR_COUNT = 27;
-const SUN_PER_TP = 1_000_000n;
-const COMMAND_WARNINGS_KEY = "__walletCliWarnings";
+/** cap on concurrent getBrokerage RPCs so `vote list --limit 127` doesn't open 127 sockets at once. */
+const BROKERAGE_CONCURRENCY = 8;
 
 export interface VoteCastInput extends TransactionModeInput {
   for: string[];
@@ -34,7 +34,12 @@ export interface VoteListInput {
 interface VoteReadScope {
   readonly activeAccount: TransactionScope["activeAccount"];
   resolveAddress(family: "tron"): string;
+  /** surface a non-fatal warning (→ meta.warnings + stderr), same channel as --wait warnings. */
+  warn(message: string): void;
 }
+
+/** per-request brokerage cache: dedupes repeat addresses (a current vote's SR also in the list). */
+type BrokerageCache = Map<string, Promise<number | null>>;
 
 interface WitnessView {
   rank: number;
@@ -59,6 +64,9 @@ export class TronVoteService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    /** voting power (TP) is read authoritatively from the node via the stake service —
+     *  the same source `stake info` uses — rather than recomputed from raw account balances. */
+    private readonly stake: TronStakeService,
   ) {}
 
   async cast(scope: TransactionScope, network: NetworkDescriptor, input: VoteCastInput) {
@@ -69,12 +77,11 @@ export class TronVoteService {
       throw new UsageError("invalid_value", "total votes exceed the safe-integer limit for this client");
     }
     const owner = scope.resolveAddress("tron");
-    const account = await gateway.getAccount(owner);
-    const votingPower = votingPowerOf(account);
-    if (totalVotes > votingPower.total) {
+    const votingPower = await this.stake.votingPower(network, owner);
+    if (totalVotes > BigInt(votingPower.total)) {
       throw new UsageError(
         "insufficient_voting_power",
-        `total votes ${totalVotes.toString()} exceed voting power ${votingPower.total.toString()} TP`,
+        `total votes ${totalVotes.toString()} exceed voting power ${votingPower.total} TP`,
       );
     }
     const outcome = await this.pipeline.run({
@@ -101,28 +108,29 @@ export class TronVoteService {
     const witnesses = (await gateway.getWitnesses(limit))
       .sort((a, b) => compareUnsigned(b.voteCount, a.voteCount))
       .slice(0, limit);
+    const cache: BrokerageCache = new Map();
     return {
-      witnesses: await Promise.all(witnesses.map((witness, index) =>
-        this.witnessView(gateway, witness, index + 1),
-      )),
+      witnesses: await mapWithLimit(witnesses, BROKERAGE_CONCURRENCY, (witness, index) =>
+        this.witnessView(gateway, witness, index + 1, cache),
+      ),
     };
   }
 
   async status(scope: VoteReadScope, network: NetworkDescriptor) {
     const gateway = this.gateways.get(network, "tron");
     const address = scope.resolveAddress("tron");
-    const [account, claimableRewardSun, witnesses] = await Promise.all([
+    const [account, claimableRewardSun, witnesses, votingPower] = await Promise.all([
       gateway.getAccount(address),
       gateway.getReward(address),
       gateway.getWitnesses(MAX_REWARDED_RANK).catch((): TronWitness[] => []),
+      this.stake.votingPower(network, address),
     ]);
     const witnessMap = new Map(witnesses.map((witness, index) => [witness.address, { witness, rank: index + 1 }]));
     const currentVotes = normalizeAccountVotes(account);
-    const votingPower = votingPowerOf(account);
-    const used = currentVotes.reduce((sum, vote) => sum + BigInt(vote.count), 0n);
-    const votes = await Promise.all(currentVotes.map(async (vote): Promise<CurrentVoteView> => {
+    const cache: BrokerageCache = new Map();
+    const votes = await mapWithLimit(currentVotes, BROKERAGE_CONCURRENCY, async (vote): Promise<CurrentVoteView> => {
       const known = witnessMap.get(vote.witness);
-      const brokeragePct = await gateway.getBrokerage(vote.witness).catch(() => null);
+      const brokeragePct = await brokerageOf(gateway, vote.witness, cache);
       return {
         witness: vote.witness,
         name: known ? witnessName(known.witness) : vote.witness,
@@ -131,23 +139,21 @@ export class TronVoteService {
         rewardRatioPct: rewardRatioOf(brokeragePct),
         aprPct: null,
       };
-    }));
-    const warnings = zeroRewardWarnings(votes);
+    });
+    // zero-reward-ratio votes earn nothing: warn via the standard channel (→ meta.warnings + stderr).
+    for (const vote of votes) {
+      if (vote.rewardRatioPct === 0) scope.warn(zeroRatioWarning(vote));
+    }
     return {
       address,
-      votingPower: {
-        total: Number(votingPower.total),
-        used: Number(used),
-        available: Number(votingPower.total > used ? votingPower.total - used : 0n),
-      },
+      votingPower,
       claimableRewardSun,
       votes,
-      ...(warnings.length ? { [COMMAND_WARNINGS_KEY]: warnings } : {}),
     };
   }
 
-  private async witnessView(gateway: TronGateway, witness: TronWitness, rank: number): Promise<WitnessView> {
-    const brokeragePct = await gateway.getBrokerage(witness.address).catch(() => null);
+  private async witnessView(gateway: TronGateway, witness: TronWitness, rank: number, cache: BrokerageCache): Promise<WitnessView> {
+    const brokeragePct = await brokerageOf(gateway, witness.address, cache);
     return {
       rank,
       name: witnessName(witness),
@@ -185,26 +191,6 @@ function parseVoteInputs(values: string[]): TronVote[] {
   });
 }
 
-function votingPowerOf(account: TronAccount): { total: bigint } {
-  let totalSun = 0n;
-  for (const frozen of account.frozen ?? []) totalSun += quantity(frozen.frozen_balance);
-  const resource = objectOf(account.account_resource);
-  totalSun += nestedQuantity(resource.frozen_balance_for_energy, "frozen_balance");
-  totalSun += quantity(account.delegated_frozen_balance_for_bandwidth);
-  totalSun += quantity(resource.delegated_frozen_balance_for_energy);
-  for (const frozen of account.frozenV2 ?? []) {
-    if (!isTronPowerOnlyStake(frozen)) totalSun += quantity(frozen.amount);
-  }
-  totalSun += quantity(account.delegated_frozenV2_balance_for_bandwidth);
-  totalSun += quantity(resource.delegated_frozenV2_balance_for_energy);
-  return { total: totalSun / SUN_PER_TP };
-}
-
-function isTronPowerOnlyStake(frozen: TronFrozenBalance): boolean {
-  const type = String(frozen.type ?? "").toUpperCase();
-  return type === "TRON_POWER" || type === "2";
-}
-
 function normalizeAccountVotes(account: TronAccount): TronVote[] {
   return (account.votes ?? [])
     .map(normalizeAccountVote)
@@ -218,10 +204,34 @@ function normalizeAccountVote(vote: TronVoteAllocation): TronVote | null {
   return { witness, count };
 }
 
-function zeroRewardWarnings(votes: CurrentVoteView[]): string[] {
-  return votes
-    .filter((vote) => vote.rewardRatioPct === 0)
-    .map((vote) => `zero_reward_ratio: ${vote.count} votes on ${vote.witness} (${vote.name}) earn nothing: reward ratio is 0%`);
+function zeroRatioWarning(vote: CurrentVoteView): string {
+  return `${vote.count} votes on ${vote.witness} (${vote.name}) earn nothing: reward ratio is 0%`;
+}
+
+/** getBrokerage with a per-request cache — a given SR is fetched at most once, and failures
+ *  degrade to null (unknown reward ratio). */
+function brokerageOf(gateway: TronGateway, address: string, cache: BrokerageCache): Promise<number | null> {
+  let pending = cache.get(address);
+  if (!pending) {
+    pending = gateway.getBrokerage(address).catch(() => null);
+    cache.set(address, pending);
+  }
+  return pending;
+}
+
+/** map with bounded concurrency (results keep input order), so a large witness list doesn't
+ *  fan out one socket per item. */
+async function mapWithLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]!, index);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }
 
 function rewardRatioOf(brokeragePct: number | null): number | null {
@@ -257,12 +267,4 @@ function quantity(value: unknown): bigint {
   if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
   if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
   return 0n;
-}
-
-function nestedQuantity(value: unknown, key: string): bigint {
-  return quantity(objectOf(value)[key]);
-}
-
-function objectOf(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? value as Record<string, unknown> : {};
 }

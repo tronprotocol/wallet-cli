@@ -53,13 +53,11 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
   { name: "wait", kind: "boolean",
     description: "after broadcast, poll until the tx is confirmed/failed before returning; default returns the submitted txid without blocking", defaultValue: false },
   { name: "wait-timeout", kind: "value", valueType: "number", field: "waitTimeoutMs",
-    description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt", defaultValue: 60000 },
+    description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt", defaultValue: "config.waitTimeoutMs (built-in: 60000)" },
   { name: "password-stdin", kind: "secret-stdin", secretKey: "password",
     description: "read the master password from stdin (fd 0); only one *-stdin flag can consume stdin per run" },
-  { name: "private-key-stdin", kind: "secret-stdin", secretKey: "privateKey", commandScoped: true,
-    description: "read the private key from stdin (fd 0)" },
-  { name: "mnemonic-stdin", kind: "secret-stdin", secretKey: "mnemonic", commandScoped: true,
-    description: "read the BIP39 mnemonic from stdin (fd 0)" },
+  // NB: mnemonic / private-key / new-password have NO stdin flag — those secrets are TTY-only
+  // (import mnemonic/private-key, change-password are interactive setup ops; see secretsTtyOnly).
   { name: "tx-stdin", kind: "secret-stdin", secretKey: "tx", commandScoped: true,
     description: "read the signed transaction JSON from stdin (fd 0)" },
   { name: "message-stdin", kind: "secret-stdin", secretKey: "message", commandScoped: true,

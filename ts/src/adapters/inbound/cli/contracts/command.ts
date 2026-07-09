@@ -17,16 +17,16 @@ export interface Example {
 // "none" = never unlocks. (No middle state — a command either needs the password or it doesn't.)
 export type AuthRequirement = "none" | "required";
 
-/** secret/payload channel a command reads from stdin; documents the matching --*-stdin flag. */
-export type StdinChannel = "privateKey" | "mnemonic" | "tx" | "message";
+/** secret/payload channel a command reads from stdin; documents the matching --*-stdin flag.
+ *  (Wallet-secret entry — mnemonic/private-key/master-password — is TTY-only, so those never
+ *  appear here; see `secretsTtyOnly`.) */
+export type StdinChannel = "tx" | "message";
 
 export interface TextRenderContext {
   command: string;
   net?: NetworkDescriptor;
   /** label of the resolved active account, injected centrally; absent for wallet:"none" commands. */
   accountLabel?: string;
-  /** command-supplied non-fatal warnings, already captured in the result envelope meta. */
-  warnings?: string[];
 }
 
 export type TextFormatter<O = unknown> = (data: O, ctx: TextRenderContext) => string | null;
@@ -49,6 +49,11 @@ interface CommandDefinitionBase<I, O> {
   positionals?: { field: string; placeholder?: string }[];
   /** allow interactive TTY prompts (master password, secret, gap-fill, confirm). Absent ⇒ fail fast — safer for scripts/agents. */
   interactive?: boolean;
+  /** secrets are entered interactively ONLY (no stdin source): every `--*-stdin` secret flag,
+   *  including the global `--password-stdin`, is rejected for this command and hidden from its help.
+   *  Set on the ultra-sensitive setup ops (import mnemonic/private-key, change-password) — a human
+   *  moment, no agent/CI path. Does NOT affect create/backup/signing commands. */
+  secretsTtyOnly?: boolean;
   /** gap-fill prompt hints, by field name: "skip" = never prompt this optional field; "default-label" = offer a generated default. */
   promptHints?: Record<string, "skip" | "default-label">;
   capability?: string;

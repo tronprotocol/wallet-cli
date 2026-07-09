@@ -129,5 +129,43 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
       },
       { capability: "staking.delegate" },
     ),
+    {
+      spec: {
+        path: ["stake", "info"],
+        network: "optional", wallet: "optional", auth: "none",
+        summary: "Staking & resource overview (staked / voting power / resource / unfreezing / withdrawable)",
+        baseFields: z.object({}),
+        examples: [{ cmd: "wallet-cli stake info" }, { cmd: "wallet-cli stake info --account main -o json" }],
+        formatText: TextFormatters.stakeInfo,
+      },
+      binding: { run: async (ctx, net) => service.info(ctx, net) },
+    },
+    {
+      spec: {
+        path: ["stake", "delegated"],
+        network: "optional", wallet: "optional", auth: "none",
+        summary: "Delegation details and max delegatable size",
+        baseFields: z.object({
+          direction: ciEnum(["out", "in"]).default("out")
+            .describe("out = delegated to others; in = delegated to me"),
+          resource: ciEnum(RESOURCES).optional()
+            .describe("filter to a single resource type; omit to show both"),
+          to: Schemas.addressFor("tron").optional()
+            .describe("only show delegation to this receiver (out only)"),
+        }),
+        baseRefine: (value, context) => {
+          if (value.to !== undefined && value.direction === "in") {
+            context.addIssue({ code: "custom", path: ["to"], message: "--to only applies to --direction out" });
+          }
+        },
+        examples: [
+          { cmd: "wallet-cli stake delegated" },
+          { cmd: "wallet-cli stake delegated --direction in" },
+          { cmd: "wallet-cli stake delegated --to TBy..." },
+        ],
+        formatText: TextFormatters.stakeDelegated,
+      },
+      binding: { run: async (ctx, net, input) => service.delegated(ctx, net, input) },
+    },
   ];
 }

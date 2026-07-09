@@ -14,7 +14,7 @@ import { Derivation } from "../../../domain/derivation/index.js";
 import { familyOf, CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { SOURCE_KINDS, sourceFamily } from "../../../domain/sources/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
-import { UsageError, WalletError } from "../../../domain/errors/index.js";
+import { ExecutionError, UsageError, WalletError } from "../../../domain/errors/index.js";
 import {
   accountIndices,
   accountRefOf,
@@ -368,6 +368,53 @@ export class Keystore {
     } catch {
       return false;
     }
+  }
+
+  /** verify old → decrypt every software blob → re-encrypt with new → staged write incl. verifier.
+   *  Ledger/watch wallets hold no blob and are untouched. */
+  changePassword(oldPassword: string, newPassword: string): { wallets: string[]; count: number } {
+    return this.store.withLock(this.walletsPath, () => {
+      const verifier = this.store.readJson<KeystoreBlob>(this.#verifierPath());
+      if (!verifier) {
+        throw new WalletError("no_software_wallet", "no software wallet; no master password set; nothing to change");
+      }
+      CryptoEnvelope.decrypt(verifier, oldPassword); // MAC mismatch → auth_failed (wrong old password)
+
+      const file = this.#read();
+      const entries: Array<{ path: string; value: unknown }> = [];
+      const labels: string[] = [];
+      for (const w of file.wallets) {
+        const s = w.source;
+        if (s.type !== "seed" && s.type !== "privateKey") continue;
+        const dir = s.type === "seed" ? "vaults" as const : "keys" as const;
+        const id = s.type === "seed" ? s.vaultId : s.keyId;
+        const path = this.#blobPath(dir, id);
+        const blob = this.store.readJson<KeystoreBlob>(path);
+        if (!blob) {
+          throw new WalletError(
+            "invalid_value",
+            `missing ${dir === "vaults" ? "vault" : "key"} blob ${id}`,
+          );
+        }
+        const plaintext = CryptoEnvelope.decrypt(blob, oldPassword);
+        entries.push({ path, value: CryptoEnvelope.encrypt(plaintext, newPassword, id, blob.type) });
+        labels.push(file.labels[accountRefOf(w, s.type === "seed" ? 0 : null)] ?? w.id);
+      }
+      if (entries.length === 0) {
+        throw new WalletError("no_software_wallet", "no software wallet keystore to re-encrypt");
+      }
+      entries.push({
+        path: this.#verifierPath(),
+        value: CryptoEnvelope.encrypt(randomBytes(32), newPassword, "verifier", "verifier"),
+      });
+      try {
+        this.store.writeJsonAll(entries);
+      } catch {
+        // staged temps were unlinked by writeJsonAll; every keystore file is unchanged.
+        throw new ExecutionError("io_error", "failed to write re-encrypted keystores; rolled back, the old password remains in effect");
+      }
+      return { wallets: labels, count: labels.length };
+    });
   }
 
   // ── secrets ────────────────────────────────────────────────────────────────

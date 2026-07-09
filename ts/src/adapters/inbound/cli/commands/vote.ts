@@ -4,14 +4,10 @@ import type { TronVoteService } from "../../../../application/use-cases/tron/vot
 import { txModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
-const voteForField = z.preprocess(
-  (value) => Array.isArray(value)
-    ? value.map(String)
-    : value === undefined
-      ? undefined
-      : [String(value)],
-  z.array(z.string().min(1)).min(1).max(30),
-).describe("witness address = vote count, as SR=votes; repeatable; replaces all prior votes");
+// repeatable flag: the arity layer sets yargs `array: true`, so `--for` always arrives as a
+// string[] (single or repeated) — no preprocess needed to normalize.
+const voteForField = z.array(z.string().min(1)).min(1).max(30)
+  .describe("witness address = vote count, as SR=votes; repeatable; replaces all prior votes");
 
 export const voteCastSpec: ChainSpec = {
   path: ["vote", "cast"],

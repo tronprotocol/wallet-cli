@@ -87,14 +87,10 @@ export class SecretResolver implements ISecretResolver {
     throw new UsageError("missing_option", `--${inlineFlag} or --${flagOf(kind)}-stdin is required`);
   }
 
+  /** Wallet secrets (mnemonic / private key) are TTY-only: a hidden interactive prompt, or fail.
+   *  There is no `--*-stdin` source for them — importing an existing secret is a human moment. */
   async resolveSecret(kind: "mnemonic" | "privateKey"): Promise<string> {
     const validate = kind === "mnemonic" ? isValidMnemonic : isValidPrivateKeyHex;
-    if (this.has(kind)) {
-      const v = this.read(kind).trim();
-      if (!validate(v)) throw new UsageError("invalid_secret", `--${flagOf(kind)}-stdin is not a valid ${kind}`);
-      this.streams.diagnostic("info", `${flagOf(kind)} ✓ via pipe`);
-      return v;
-    }
     if (this.prompter?.isTTY()) {
       const label = kind === "mnemonic"
         ? "Paste recovery phrase (hidden)"
@@ -107,7 +103,7 @@ export class SecretResolver implements ISecretResolver {
       this.#primed.set(kind, trimmed);
       return trimmed;
     }
-    throw new UsageError("missing_option", `--${flagOf(kind)}-stdin is required (or run in a terminal)`);
+    throw new UsageError("tty_required", `${kind} entry is interactive; run in a terminal`);
   }
 
   async primePassword(plan: { mode: "set" | "verify"; verify?: (pw: string) => boolean }): Promise<void> {
