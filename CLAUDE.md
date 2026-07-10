@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Repository Layout
+
+The repository holds two independent implementations:
+
+- `java/` — the Java implementation, described by the rest of this file.
+- `ts/` — the TypeScript implementation, a self-contained npm package with its own `README.md`.
+
+Everything below refers to the Java implementation. **All paths are relative to `java/`, and all
+commands are run from that directory** (`cd java` first).
+
 ## Build & Run
 
 ```bash
@@ -59,7 +69,7 @@ The standard CLI suppresses all stray stdout/stderr in JSON mode to ensure machi
 Before changing parser behavior, auth flow, JSON output, command success/failure semantics, or `qa/` expectations for
 the standard CLI, read:
 
-- `docs/standard-cli-contract-spec.md`
+- `java/docs/standard-cli-contract-spec.md`
 
 Treat that file as the source of truth for the standard CLI contract unless the repository owner explicitly decides to
 revise it.

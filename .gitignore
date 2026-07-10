@@ -1,43 +1,20 @@
-.claude/settings.local.json 
+# Per-implementation ignores live in java/.gitignore and ts/.gitignore.
+# Only repo-wide patterns belong here.
+
+# OS / editor / IDE
 .DS_Store
-build
-out
 .idea
-.gradle
+.vscode/
+# Eclipse JDT / VS Code Java language server output
+/bin/
+
+# Tooling
 node_modules
-src/main/genjs/api
-src/main/genjs/core
-src/genjs
-src/gen
 tools
-src/main/resources/static/js/tronjs/tron-protoc.js
-logs
-docs
-!docs/
-!docs/standard-cli-contract-spec.md
-FileTest
-bin
+graphify-out/
 
-# Wallet keystore files created at runtime
-/Wallet/
-/Mnemonic/
-/wallet_data/
-
-# QA runtime output
-qa/results/
-qa/runtime/
-qa/report.txt
-qa/.verify.lock/
-
-# claude
+# Claude
 .claude/
+.claude/settings.local.json
 
 .private/
-
-# graphify 
-graphify-out/
-.vscode/
-docs/superpowers
-
-
-/ts-deprecated/
