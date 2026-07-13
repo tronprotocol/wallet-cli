@@ -15,7 +15,7 @@ The recovery object is the BIP39 mnemonic, but `create` never prints it — the 
 Anything in a command's arguments or environment leaks into shell history, `ps` output, and CI logs. wallet-cli therefore refuses secrets there — they enter only via:
 
 - interactive TTY prompts, or
-- explicit stdin flags: `--password-stdin`, `--tx-stdin` — **one `*-stdin` flag per run**, so a pipeline can never silently feed the wrong secret to the wrong prompt. The highest-value secrets go further: since v0.1.1, mnemonics and private keys are accepted **only** via hidden TTY input (`import mnemonic` / `import private-key` / `change-password` have no stdin path at all).
+- explicit stdin flags: `--password-stdin`, `--tx-stdin` — **one `*-stdin` flag per run**, so a pipeline can never silently feed the wrong secret to the wrong prompt. The highest-value secrets go further: mnemonics and private keys are accepted **only** via hidden TTY input (`import mnemonic` / `import private-key` / `change-password` have no stdin path at all).
 
 Corollary for scripts: source the piped secret from a secret store, not from a tracked file. See [machine-interface → Secret handling](../machine-interface.md#secret-handling).
 

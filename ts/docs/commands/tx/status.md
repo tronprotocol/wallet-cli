@@ -10,7 +10,7 @@ wallet-cli tx status --txid <id> [options]
 
 ## Description
 
-Reports where a transaction stands using a **four-state model**. This is the command scripts and agents poll after a send; the state machine is part of the v1 contract.
+Reports which step a transaction is at, using **four states**. After sending, scripts and agents poll it to learn whether the tx made it on-chain and succeeded. These four state values are **stable — they won't be renamed or dropped across versions** — so you can program against them (see the `wallet-cli.result.v1` output contract in [machine-interface](../../machine-interface.md)).
 
 | `data.state` | Meaning | Terminal? |
 |---|---|---|

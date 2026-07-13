@@ -2,7 +2,7 @@
 
 Import a BIP39 mnemonic phrase. **Interactive-only.**
 
-> **Changed in v0.1.1**: the `--mnemonic-stdin` / `--password-stdin` flags were removed. The mnemonic and master password are now entered **only** via hidden TTY prompts — a mnemonic can recover all funds, and stdin paths leak too easily into pipes, shell history, and process lists. Importing is rare enough that forcing human input costs little.
+> **Note**: there are no `--mnemonic-stdin` / `--password-stdin` flags. The mnemonic and master password are entered **only** via hidden TTY prompts — a mnemonic can recover all funds, and stdin paths leak too easily into pipes, shell history, and process lists. Importing is rare enough that forcing human input costs little.
 
 ## Synopsis
 
@@ -35,33 +35,44 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ```console
 $ wallet-cli import mnemonic --label restored
-? Master password (hidden):
+? Set master password (hidden):
+? Confirm master password:
 ? Paste recovery phrase (hidden):
-✓ Imported wallet "restored"
-  Account ID     wlt_d66fvems.0
-  Type           HD wallet (encrypted recovery phrase)
-  TRON address   TNmoJ3Be59...iL3G8HVB
-  EVM address    0xe4aAd117...7c952961
+✅ Imported wallet "restored"
+  Account ID    wlt_d66fvems.0
+  Type          HD
+  TRON address  TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH
+  Active        yes
 
-! Recovery phrase was read from hidden input and was not printed.
+⚠️ Recovery phrase was read from hidden input and was not printed.
+```
+
+```console
+$ wallet-cli import mnemonic --label restored -o json
+? Set master password (hidden):
+? Confirm master password:
+? Paste recovery phrase (hidden):
+{"schema":"wallet-cli.result.v1","success":true,"command":"import.mnemonic","data":{"status":"created","accountId":"wlt_d66fvems.0","label":"restored","type":"seed","index":0,"active":true,"addresses":{"tron":"TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH"},"seedId":"wlt_d66fvems"},"meta":{"durationMs":38,"warnings":[]}}
 ```
 
 ## Output
 
-`data` carries the imported account (same shape as [`list`](../list.md) entries) — addresses only, never any secret. Local command — no `chain` block.
+`data` carries the imported account — addresses only, never any secret. Local command — no `chain` block.
 
 | Field | Type | Meaning |
 |---|---|---|
+| `status` | string | `"created"` |
 | `accountId` | string | Stable id `<seedId>.<index>` |
 | `label` | string | Account label |
-| `type` | string | `seed` (HD wallet) |
+| `type` | string | `"seed"` (HD-derived) |
+| `index` | number | HD derivation index (0 for the first account) |
 | `active` | boolean | Became the active account |
 | `addresses.tron` | string | Base58 TRON address |
-| `addresses.evm` | string | EVM address (0x) |
+| `seedId` | string | Owning seed wallet id |
 
 ## Exit status
 
-`0` imported · `1` execution failure (`tty_required` — no TTY for interactive input; `wrong_password`; `password_mismatch`; `io_error`) · `2` usage error (invalid mnemonic, duplicate label).
+`0` imported · `1` execution failure (`tty_required` — no TTY for interactive input; `auth_failed`; `password_mismatch`; `io_error`) · `2` usage error (invalid mnemonic, duplicate label).
 
 ## See also
 

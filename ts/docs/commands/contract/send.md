@@ -38,13 +38,12 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — broadcasts and returns the **submitted** receipt:
 
 ```console
-$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf \
-    --method "transfer(address,uint256)" \
-    --params '[{"type":"address","value":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"},{"type":"uint256","value":"1000000"}]' \
-    --network tron:nile --password-stdin
+$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[{"type":"address","value":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"},{"type":"uint256","value":"1000000"}]' --network tron:nile --password-stdin
 ⏳ Called transfer
   TxID    c8d...
   Status  pending — not yet on-chain
@@ -52,16 +51,27 @@ $ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5V
 ```
 
 ```console
-$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf \
-    --method "transfer(address,uint256)" --params '[...]' --network tron:nile --password-stdin -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.contract.send","data":{"kind":"contract-send","stage":"submitted","txId":"c8d...","method":"transfer(address,uint256)"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:nile --password-stdin -o json
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.contract.send","data":{"kind":"contract-send","stage":"submitted","txId":"c8d...","method":"transfer(address,uint256)","contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
-With `--wait`, an on-chain failure (e.g. out of energy) returns `stage: "failed"`:
+With `--wait`, blocks until confirmed — on success:
 
 ```console
-$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf \
-    --method "transfer(address,uint256)" --params '[...]' --network tron:nile --wait --password-stdin
+$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:nile --wait --password-stdin
+✅ Called transfer
+  Contract  TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf
+  TxID      0adc5737b724d35c486a05a169b64a01ad311ed27f79d308f245b00c69b3bc42
+  Block     #69,095,391
+  Energy    14,584
+  Fee       0.345 TRX
+  Status    success
+```
+
+An on-chain failure (e.g. out of energy) returns `stage: "failed"`:
+
+```console
+$ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:nile --wait --password-stdin
 ❌ Called transfer
   TxID    c8d...
   Block   #66,000,123
@@ -74,14 +84,16 @@ $ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5V
 
 `data` varies by stage:
 
-| Stage | Fields |
+| Mode | Fields |
 |---|---|
-| default (submit) | `kind: "contract-send"`, `stage: "submitted"`, `txId`, `method` |
-| `--wait` (confirmed/failed) | above, plus `confirmed`, `blockNumber`, `energyUsed`, `result` (e.g. `OUT_OF_ENERGY`), `failed` |
+| default (submit) | `kind: "contract-send"`, `stage: "submitted"`, `txId`, `method`, `contract` |
+| `--wait` (confirmed/failed) | above, but `stage: "confirmed"` or `"failed"`, plus `confirmed`, `blockNumber`, `feeSun`, `energyUsed`, `result` (`SUCCESS` / `OUT_OF_ENERGY`, etc.), `failed` |
+| `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, estimated `energy`, `availableEnergy`), unsigned `tx` |
+| `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (feed to `tx broadcast`), `fee`, `method`, `contract` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value`, conflicting modes).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value`, conflicting modes).
 
 ## See also
 

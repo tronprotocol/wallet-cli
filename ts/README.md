@@ -1,6 +1,25 @@
 # wallet-cli
 
-A CLI wallet for TRON. Agent-first: deterministic exit codes, stable JSON output, encrypted local storage, software and Ledger signing.
+A CLI wallet for TRON — the **TypeScript version** of wallet-cli, an agent-first rewrite built for automation. Compared to the original [Java version](../java/README.md), it centers on programmatic integration: every command has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts are kept only for secret input (import / backup / delete).
+
+## Key features
+
+- **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
+- **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
+- **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
+- **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, message signing, and on-chain queries.
+
+## Supported chains
+
+Three TRON networks are supported today. Networks are identified by a canonical `family:chain` id (all `tron` today):
+
+| Network id | What it is | TRX value |
+|---|---|---|
+| `tron:mainnet` | Production mainnet | **Real funds** |
+| `tron:nile` | Primary testnet (faucet at nileex.io) | None — use freely |
+| `tron:shasta` | Alternate testnet | None |
+
+Your address is the same on every network, but balances, tokens, and transactions are isolated per network. Fees use TRON's `tron-resource` model (bandwidth + energy) rather than EVM gas — see [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
 ## Install
 
@@ -16,7 +35,7 @@ Verify:
 
 ```console
 $ wallet-cli --version
-0.1.1
+<version>          # shows the installed version
 ```
 
 Upgrade with `npm update -g @tron-walletcli/wallet-cli`; uninstall with `npm uninstall -g @tron-walletcli/wallet-cli`.
@@ -56,26 +75,26 @@ Next: fund it on a testnet, check the balance, and send TRX → [Getting started
 
 ## The contract, in one paragraph
 
-Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; since v0.1.1 mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Details: [machine-interface.md](docs/machine-interface.md).
+Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Details: [machine-interface.md](docs/machine-interface.md).
 
 ## Commands
 
-Every command — including every subcommand — has a reference page; run `wallet-cli <command> --help` for the built-in equivalent. Commands marked *(v0.1.1)* are new in this release.
+Every command — including every subcommand — has a reference page; run `wallet-cli <command> --help` for the built-in equivalent.
 
 ### Wallets and accounts
 
 | Command | Description |
 |---|---|
 | [`create`](docs/commands/create.md) | Create a new HD wallet (BIP39 seed) |
-| [`import mnemonic`](docs/commands/import/mnemonic.md) | Import a BIP39 mnemonic phrase (interactive-only since v0.1.1) |
-| [`import private-key`](docs/commands/import/private-key.md) | Import a raw private key (interactive-only since v0.1.1) |
+| [`import mnemonic`](docs/commands/import/mnemonic.md) | Import a BIP39 mnemonic phrase (interactive-only) |
+| [`import private-key`](docs/commands/import/private-key.md) | Import a raw private key (interactive-only) |
 | [`import ledger`](docs/commands/import/ledger.md) | Register a Ledger account (watch-only; signs on device) |
 | [`import watch`](docs/commands/import/watch.md) | Register a watch-only address (no secret) |
 | [`list`](docs/commands/list.md) | List wallets / accounts |
 | [`use`](docs/commands/use.md) / [`current`](docs/commands/current.md) | Set / show the active account |
 | [`derive`](docs/commands/derive.md) | Derive the next HD account from a seed wallet |
 | [`rename`](docs/commands/rename.md) / [`backup`](docs/commands/backup.md) / [`delete`](docs/commands/delete.md) | Manage accounts (backup writes secret + metadata, mode 0600) |
-| [`change-password`](docs/commands/change-password.md) *(v0.1.1)* | Change the master password (re-encrypt all software keystores) |
+| [`change-password`](docs/commands/change-password.md) | Change the master password (re-encrypt all software keystores) |
 
 ### Transactions
 
@@ -90,14 +109,14 @@ Every command — including every subcommand — has a reference page; run `wall
 
 | Command | Description |
 |---|---|
-| [`account balance`](docs/commands/account/balance.md) | Show native balance (TRX/SUN) |
+| [`account balance`](docs/commands/account/balance.md) | Show the native TRX balance |
 | [`account info`](docs/commands/account/info.md) | Show raw account data incl. resources |
 | [`account history`](docs/commands/account/history.md) | Show transaction history (requires TronGrid) |
 | [`account portfolio`](docs/commands/account/portfolio.md) | Native + token balances with best-effort USD value |
 | [`block`](docs/commands/block.md) | Get a block (latest if omitted) |
-| [`chain params`](docs/commands/chain/params.md) *(v0.1.1)* | On-chain governance parameters |
-| [`chain prices`](docs/commands/chain/prices.md) *(v0.1.1)* | Energy/bandwidth unit price and memo fee |
-| [`chain node`](docs/commands/chain/node.md) *(v0.1.1)* | Connected node status (version / sync / peers) |
+| [`chain params`](docs/commands/chain/params.md) | On-chain governance parameters |
+| [`chain prices`](docs/commands/chain/prices.md) | Energy/bandwidth unit price and memo fee |
+| [`chain node`](docs/commands/chain/node.md) | Connected node status (version / sync / peers) |
 
 ### Tokens, contracts, staking, signing
 
@@ -105,16 +124,16 @@ Every command — including every subcommand — has a reference page; run `wall
 |---|---|
 | [`token`](docs/commands/token/index.md) | Manage the token address book and query tokens ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
 | [`contract`](docs/commands/contract/index.md) | Call, send, deploy, and inspect smart contracts ([call](docs/commands/contract/call.md) · [send](docs/commands/contract/send.md) · [deploy](docs/commands/contract/deploy.md) · [info](docs/commands/contract/info.md)) |
-| [`stake`](docs/commands/stake/index.md) | Stake / delegate resources & query state ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [withdraw](docs/commands/stake/withdraw.md) · [cancel-unfreeze](docs/commands/stake/cancel-unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [undelegate](docs/commands/stake/undelegate.md) · [info](docs/commands/stake/info.md) *(v0.1.1)* · [delegated](docs/commands/stake/delegated.md) *(v0.1.1)*) |
-| [`vote`](docs/commands/vote/index.md) *(v0.1.1)* | Vote for super representatives ([cast](docs/commands/vote/cast.md) · [list](docs/commands/vote/list.md) · [status](docs/commands/vote/status.md)) |
-| [`reward`](docs/commands/reward/index.md) *(v0.1.1)* | Query / withdraw voting rewards ([balance](docs/commands/reward/balance.md) · [withdraw](docs/commands/reward/withdraw.md)) |
+| [`stake`](docs/commands/stake/index.md) | Stake / delegate resources & query state ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [withdraw](docs/commands/stake/withdraw.md) · [cancel-unfreeze](docs/commands/stake/cancel-unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [undelegate](docs/commands/stake/undelegate.md) · [info](docs/commands/stake/info.md) · [delegated](docs/commands/stake/delegated.md)) |
+| [`vote`](docs/commands/vote/index.md) | Vote for super representatives ([cast](docs/commands/vote/cast.md) · [list](docs/commands/vote/list.md) · [status](docs/commands/vote/status.md)) |
+| [`reward`](docs/commands/reward/index.md) | Query / withdraw voting rewards ([balance](docs/commands/reward/balance.md) · [withdraw](docs/commands/reward/withdraw.md)) |
 | [`message`](docs/commands/message/index.md) | Sign arbitrary messages ([sign](docs/commands/message/sign.md)) |
 
 ### Local configuration
 
 | Command | Description |
 |---|---|
-| [`config`](docs/commands/config.md) | Show / get / set configuration values (new `waitTimeoutMs` key in v0.1.1) |
+| [`config`](docs/commands/config.md) | Show / get / set configuration values |
 | [`networks`](docs/commands/networks.md) | List known networks (`tron:mainnet`, `tron:nile`, `tron:shasta`) |
 
 ## Documentation map
@@ -126,6 +145,5 @@ Every command — including every subcommand — has a reference page; run `wall
 | Integrate programmatically | [machine-interface.md](docs/machine-interface.md) |
 | Understand TRON mechanics | [concepts/](docs/concepts/index.md) — [networks](docs/concepts/networks.md) · [accounts & HD](docs/concepts/accounts-and-hd.md) · [energy & bandwidth](docs/concepts/energy-bandwidth.md) · [security](docs/concepts/security.md) |
 | Fix an error | [troubleshooting.md](docs/troubleshooting.md) |
-| Contribute | `docs/dev/` — architecture and development plans (populated when the existing developer docs are migrated in) |
 
 > All copy-pasteable examples in this documentation run against the **Nile testnet** (`--network tron:nile`). Mainnet commands move real funds; they appear only as annotated, non-copyable descriptions.

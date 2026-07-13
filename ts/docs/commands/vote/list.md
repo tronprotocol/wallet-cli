@@ -12,7 +12,7 @@ wallet-cli vote list [--limit <n>] [--candidates] [options]
 
 Lists SRs (the 27 elected, by default) with votes, estimated APR, and reward ratio — the numbers you need before a [`vote cast`](cast.md). Read-only, no account needed.
 
-Column semantics (names match TronLink):
+Column semantics:
 
 - **APR** — the voter's estimated annual return, already adjusted for the SR's reward ratio. **Best-effort**: not from chain RPC but from explorer/TronGrid data; when unavailable the column shows `—` (json `null`).
 - **Reward ratio** — the share of rewards the SR passes to voters (on-chain, reliable). 80% means voters split 80% of the rewards; **0% means your votes earn nothing**. json also carries the chain-native `brokeragePct` (= 100 − rewardRatioPct).
@@ -22,8 +22,8 @@ Column semantics (names match TronLink):
 
 | Option | Description |
 |---|---|
-| `--limit <number>` | Number of ranks to return (default 27, max 127) |
-| `--candidates` | Include non-elected candidates |
+| `--limit <number>` | Max ranks to return (default 27, max 127). By default only the 27 elected SRs are listed, so a higher limit has no effect unless you also pass `--candidates` |
+| `--candidates` | Also list non-elected candidates (ranks 28+), so `--limit` can reach beyond 27 up to 127 |
 
 Plus the [global options](../index.md#global-options-every-command).
 

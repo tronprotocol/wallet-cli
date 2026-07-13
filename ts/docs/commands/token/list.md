@@ -20,14 +20,16 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ```console
 $ wallet-cli token list --network tron:nile
-Symbol  Name        Source    Contract / ID
-USDT    Tether USD  official  TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf
-SUN     SunToken    user      TSSMHYeV2uE9qYH95DqyoCuNCzEL1NUU3S
+| Symbol | Name       | Source | Contract / ID                      |
+| ------ | ---------- | ------ | ---------------------------------- |
+| USDT   | Tether USD | user   | TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf |
 ```
+
+> The `official` layer is only bundled on **mainnet** (e.g. USDT, USDC); testnets have no official layer, so everything listed is a `user` entry you added with `token add`.
 
 ```console
 $ wallet-cli token list --network tron:nile -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.list","data":{"network":"tron:nile","account":"wlt_b2.0","tokens":[{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD","source":"official"},{"kind":"trc20","id":"TSSMHYeV2uE9qYH95DqyoCuNCzEL1NUU3S","symbol":"SUN","decimals":18,"name":"SunToken","source":"user"}]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.list","data":{"network":"tron:nile","account":"wlt_b2.0","tokens":[{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD","source":"user"}]},"meta":{"durationMs":13,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

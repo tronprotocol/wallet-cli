@@ -27,20 +27,14 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```console
-$ wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf \
-    --method "balanceOf(address)" \
-    --params '[{"type":"address","value":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"}]' \
-    --network tron:nile
+$ wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:nile
 Method  balanceOf
-Result  1204560000 (raw)
+Result  0000000000000000000000000000000000000000000000000000000000000000 (raw)
 ```
 
 ```console
-$ wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf \
-    --method "balanceOf(address)" \
-    --params '[{"type":"address","value":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"}]' \
-    --network tron:nile -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.contract.call","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","method":"balanceOf(address)","result":["0000000000000000000000000000000000000000000000000000000047d1cb00"]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+$ wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:nile -o json
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.contract.call","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","method":"balanceOf(address)","result":["0000000000000000000000000000000000000000000000000000000000000000"]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

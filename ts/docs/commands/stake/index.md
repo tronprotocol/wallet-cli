@@ -2,7 +2,7 @@
 
 Stake / delegate resources, and inspect staking state.
 
-Staking lifecycle: `freeze ──► unfreeze ──(waiting period)──► withdraw`; `cancel-unfreeze` rolls all pending unstakes back to frozen; `delegate` / `undelegate` lend resource to others / take it back. `info` and `delegated` *(new in v0.1.1)* are the read-only queries to run before operating.
+Staking lifecycle: `freeze ──► unfreeze ──(waiting period)──► withdraw`; `cancel-unfreeze` rolls all pending unstakes back to frozen; `delegate` / `undelegate` lend resource to others / take it back. `info` and `delegated` are the read-only queries to run before operating.
 
 ## Synopsis
 
@@ -14,14 +14,14 @@ wallet-cli stake COMMAND
 
 | Command | Page | Description |
 |---|---|---|
-| `stake freeze` | [freeze.md](freeze.md) | Stake TRX for energy/bandwidth (FreezeBalanceV2) |
-| `stake unfreeze` | [unfreeze.md](unfreeze.md) | Unstake TRX (UnfreezeBalanceV2) |
-| `stake withdraw` | [withdraw.md](withdraw.md) | Withdraw expired unfrozen TRX (WithdrawExpireUnfreeze) |
+| `stake freeze` | [freeze.md](freeze.md) | Stake TRX for energy/bandwidth |
+| `stake unfreeze` | [unfreeze.md](unfreeze.md) | Unstake TRX |
+| `stake withdraw` | [withdraw.md](withdraw.md) | Withdraw expired unfrozen TRX |
 | `stake cancel-unfreeze` | [cancel-unfreeze.md](cancel-unfreeze.md) | Cancel all pending unstakes |
-| `stake delegate` | [delegate.md](delegate.md) | Delegate resource to another address (DelegateResourceV2) |
-| `stake undelegate` | [undelegate.md](undelegate.md) | Reclaim delegated resource (UnDelegateResourceV2) |
-| `stake info` | [info.md](info.md) | Staking & resource overview *(new in v0.1.1)* |
-| `stake delegated` | [delegated.md](delegated.md) | Delegation details and max delegatable size *(new in v0.1.1)* |
+| `stake delegate` | [delegate.md](delegate.md) | Delegate resource to another address |
+| `stake undelegate` | [undelegate.md](undelegate.md) | Reclaim delegated resource |
+| `stake info` | [info.md](info.md) | Staking & resource overview |
+| `stake delegated` | [delegated.md](delegated.md) | Delegation details and max delegatable size |
 
 ## See also
 

@@ -109,7 +109,7 @@ Unexpected exceptions are **redacted** to `internal_error` with a generic messag
 
 Secrets never travel via argv or environment variables — they would leak into shell history and process listings. Two channels only:
 
-1. **stdin flags** — `--password-stdin`, `--tx-stdin`, `--message-stdin`. **Only one `*-stdin` flag can consume stdin per run.** (Since v0.1.1, mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
+1. **stdin flags** — `--password-stdin`, `--tx-stdin`, `--message-stdin`. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
 2. **Interactive TTY prompt** — when running with a terminal attached.
 
 ```bash

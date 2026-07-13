@@ -1,6 +1,6 @@
 # wallet-cli stake delegate
 
-Delegate resource to another address (DelegateResourceV2).
+Delegate resource to another address.
 
 ## Synopsis
 
@@ -38,11 +38,12 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — returns the **submitted** receipt:
 
 ```console
-$ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx \
-    --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+$ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
 ⏳ Delegated 1,000 TRX of energy
   To      TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx
   TxID    b7c...
@@ -51,8 +52,7 @@ $ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDK
 ```
 
 ```console
-$ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx \
-    --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+$ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.delegate","data":{"kind":"stake-delegate","stage":"submitted","txId":"b7c...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
@@ -67,7 +67,7 @@ $ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDK
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — receiver = owner, `--lock-period` without `--lock`).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — receiver = owner, `--lock-period` without `--lock`).
 
 ## See also
 

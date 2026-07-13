@@ -12,7 +12,7 @@ wallet-cli token add (--contract <address> | --asset-id <id>) [options]
 
 Fetches the token's symbol and decimals from the chain and adds it to the local token address book. The book is scoped to **network + account**: a token added on `tron:nile` for one account does not appear for other networks or accounts.
 
-Once added, the token can be used by symbol elsewhere — e.g. `tx send --token SUN`. The book has two layers: **official** (bundled, read-only) and **user** (yours). Adding a token that is already in the official layer fails with `token_already_listed`; re-adding one in your user layer is idempotent and refreshes its metadata.
+Once added, the token can be used by symbol elsewhere — e.g. `tx send --token USDT`. The book has two layers: **official** (bundled, read-only) and **user** (the ones you add). If the token is already bundled in the official layer, it fails with `token_already_listed` (no need to add it again); if you have already added it before, adding it again does not error — it re-fetches the token's metadata (symbol/decimals/name) and updates it, returning `action: refreshed`.
 
 ## Options
 
@@ -26,16 +26,16 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```console
-$ wallet-cli token add --contract TSSMHYeV2uE9qYH95DqyoCuNCzEL1NUU3S --network tron:nile
+$ wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile
 ✅ Added to token book
-  Name      SunToken
-  Symbol    SUN
-  Decimals  18
+  Name      Tether USD
+  Symbol    USDT
+  Decimals  6
 ```
 
 ```console
-$ wallet-cli token add --contract TSSMHYeV2uE9qYH95DqyoCuNCzEL1NUU3S --network tron:nile -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.add","data":{"network":"tron:nile","account":"wlt_b2.0","action":"added","token":{"kind":"trc20","id":"TSSMHYeV2uE9qYH95DqyoCuNCzEL1NUU3S","symbol":"SUN","decimals":18,"name":"SunToken"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+$ wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile -o json
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.add","data":{"network":"tron:nile","account":"wlt_b2.0","action":"added","token":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -44,7 +44,7 @@ $ wallet-cli token add --contract TSSMHYeV2uE9qYH95DqyoCuNCzEL1NUU3S --network t
 |---|---|---|
 | `network` | string | Network the entry is scoped to |
 | `account` | string | Account the entry is scoped to |
-| `action` | string | `"added"` |
+| `action` | string | `"added"` (first time) / `"refreshed"` (already in user layer, metadata refreshed) |
 | `token.kind` | string | `trc20` / `trc10` |
 | `token.id` | string | Contract address or asset id |
 | `token.symbol` | string | Fetched symbol |

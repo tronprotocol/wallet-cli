@@ -29,6 +29,8 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — broadcasts and returns the **submitted** receipt:
 
 ```console
@@ -68,7 +70,7 @@ $ echo "$PW" | wallet-cli reward withdraw --network tron:nile --wait --password-
 
 ## Exit status
 
-`0` submitted · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `withdraw_too_frequent` — < 24 h since last withdrawal, `no_reward` — nothing to claim) · `2` usage error.
+`0` submitted · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `withdraw_too_frequent` — < 24 h since last withdrawal, `no_reward` — nothing to claim) · `2` usage error.
 
 ## See also
 

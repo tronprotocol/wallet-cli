@@ -1,6 +1,6 @@
 # wallet-cli stake undelegate
 
-Reclaim delegated resource (UnDelegateResourceV2).
+Reclaim delegated resource.
 
 ## Synopsis
 
@@ -34,11 +34,12 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — returns the **submitted** receipt:
 
 ```console
-$ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx \
-    --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+$ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
 ⏳ Reclaimed 1,000 TRX of energy
   From    TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx
   TxID    c8d...
@@ -47,8 +48,7 @@ $ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwj
 ```
 
 ```console
-$ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx \
-    --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+$ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.undelegate","data":{"kind":"stake-undelegate","stage":"submitted","txId":"c8d...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
@@ -63,7 +63,7 @@ $ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwj
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`).
 
 ## See also
 

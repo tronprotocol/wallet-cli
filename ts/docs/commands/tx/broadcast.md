@@ -12,7 +12,7 @@ wallet-cli tx broadcast (--transaction <json> | --tx-stdin) --network <id> [opti
 
 Submits a transaction that was signed elsewhere — typically the `data.signed` object from [`tx send --sign-only`](send.md) on an offline or key-holding machine. No wallet unlock is needed; the transaction is already signed.
 
-Requires `--network` explicitly. Exactly one of `--transaction` / `--tx-stdin`.
+A presigned transaction carries no network of its own, so pass `--network` to say which network to broadcast to (falls back to the config default network when omitted). Exactly one of `--transaction` / `--tx-stdin`.
 
 ## Options
 
@@ -26,12 +26,30 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-```bash
-# two-machine flow
-wallet-cli tx send --to T... --amount 1 --network tron:nile --sign-only -o json \
-  | jq -c '.data.signed' > signed.json                       # signer
+Two-machine flow:
 
-wallet-cli tx broadcast --tx-stdin --network tron:nile -o json < signed.json   # broadcaster
+```bash
+# Signer (offline / key-holding): --sign-only emits the signed tx under data.signed
+wallet-cli tx send --to T... --amount 1 --network tron:nile --sign-only -o json
+
+# Take the data.signed object from that output, save it as signed.json, copy to the broadcaster
+
+# Broadcaster: read from stdin and broadcast
+wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
+```
+
+Broadcast receipt (text and json):
+
+```console
+$ wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
+⏳ Broadcast
+  TxID    72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
+  Status  pending — not yet on-chain
+! Track it: wallet-cli tx info --network tron:nile --txid 72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.tx.broadcast","data":{"kind":"broadcast","stage":"submitted","txId":"72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5"},"meta":{"durationMs":926,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -47,7 +65,7 @@ As with `tx send`, the default return point is **submission** — confirm via `-
 
 ## Exit status
 
-`0` submitted · `1` execution failure (node rejected the tx, timeout) · `2` usage error (both/neither transaction sources, missing `--network`).
+`0` submitted · `1` execution failure (node rejected the tx, timeout) · `2` usage error (both/neither transaction sources).
 
 ## See also
 

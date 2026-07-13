@@ -1,6 +1,6 @@
 # wallet-cli stake unfreeze
 
-Unstake TRX (UnfreezeBalanceV2).
+Unstake TRX.
 
 ## Synopsis
 
@@ -32,6 +32,8 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — returns the **submitted** receipt:
 
 ```console
@@ -54,7 +56,6 @@ $ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource ener
 ✅ Unstaked 1,000 TRX
   TxID    d4e...
   Block   #68,763,004
-  Fee     0 TRX
   Status  success — withdrawable after the waiting period
 ```
 
@@ -69,7 +70,7 @@ $ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource ener
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

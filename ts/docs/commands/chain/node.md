@@ -22,16 +22,16 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ```console
 $ wallet-cli chain node --network tron:nile
-Endpoint     https://api.trongrid.io
+Endpoint     https://nile.trongrid.io
 Version      java-tron 4.7.7
-Head block   84,120,345  2026-07-05 15:47:33 (~2s ago — in sync)
-Solid block  84,120,326  (19 blocks behind head)
+Head block   69,093,315  2026-07-11 15:29:21 (~2s ago — in sync)
+Solid block  69,093,296  (19 blocks behind head)
 Peers        30 connected / 27 active
 ```
 
 ```console
 $ wallet-cli chain node --network tron:nile -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.node","data":{"endpoint":"https://api.trongrid.io","version":"java-tron 4.7.7","p2pVersion":"11111","headBlock":{"number":84120345,"timestamp":1783237653000},"solidBlock":{"number":84120326},"lagBlocks":19,"inSync":true,"peers":{"connected":30,"active":27}},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.node","data":{"endpoint":"https://nile.trongrid.io","version":"java-tron 4.7.7","p2pVersion":"11111","headBlock":{"number":69093315,"timestamp":1783783761000},"solidBlock":{"number":69093296},"lagBlocks":19,"inSync":true,"peers":{"connected":30,"active":27}},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

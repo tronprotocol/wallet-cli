@@ -47,6 +47,8 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+> **Password**: except for `--dry-run`, the examples below omit the password to keep the focus on the selector flags. A real send needs the master password on stdin — prefix with `printf '%s' "$PW" |` and append `--password-stdin` (see the description above).
+
 ```bash
 # 1 TRX on Nile
 wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile
@@ -59,10 +61,19 @@ wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network t
 wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --dry-run -o json
 ```
 
-Submitted result (default mode):
+Submit receipt (default mode, text and json):
+
+```console
+$ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network tron:nile --password-stdin
+⏳ Sent 1 TRX
+  To      TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH
+  TxID    4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
+  Status  pending — not yet on-chain
+! Track it: wallet-cli tx info --network tron:nile --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
+```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.tx.send","data":{"kind":"send","stage":"submitted","txId":"7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364","rawAmount":"1000000","to":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"},"meta":{"durationMs":2254,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.tx.send","data":{"kind":"send","stage":"submitted","txId":"4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4","rawAmount":"1000000","to":"TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH"},"meta":{"durationMs":2172,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -72,6 +83,7 @@ Submitted result (default mode):
 | Mode | Fields |
 |---|---|
 | default (submit) | `kind: "send"`, `stage: "submitted"`, `txId`, `rawAmount` (string), `to` |
+| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `netUsed` (bandwidth used) or `feeSun` (fee burned), `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, e.g. `bandwidthBurnSunIfNoFreeze`), unsigned `tx` (TRON tx object incl. `txID`, `raw_data`), `rawAmount`, `to` |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (full signed TRON tx incl. `signature[]` — feed to `tx broadcast`), `fee`, `rawAmount`, `to` |
 

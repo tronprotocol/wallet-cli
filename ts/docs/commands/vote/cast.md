@@ -18,7 +18,7 @@ Two hard rules from the chain:
 - **Total votes ≥ 1** — you cannot vote everything down to zero. To stop voting entirely, unstake the backing TRX ([`stake unfreeze`](../stake/unfreeze.md)); TP falls and the votes lapse.
 - **At most 30 entries per transaction** (java-tron `MAX_VOTE_NUMBER`). Since a cast is the full distribution, an account holds votes on at most 30 SRs — only 27 are ever elected, so normal voting never hits this.
 
-Votes take effect at the next maintenance cycle (~6 h). 1 vote costs 1 TP; available TP = staked TRX minus votes already placed ([`vote status`](status.md)).
+Votes take effect at the next maintenance cycle (~6 h). Each vote uses 1 TP (it is allocated, not spent — re-casting or unstaking frees it); available TP = staked TRX minus votes already placed ([`vote status`](status.md)).
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
 
@@ -36,11 +36,13 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — broadcasts and returns the **submitted** receipt without waiting:
 
 ```console
 $ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin
-⏳ Submitted — vote 1,000 TP across 2 witnesses
+⏳ Submitted — vote 1,000 TP across 2 SRs
   TxID     e5f...
   Votes    TZ4...=600, TT5...=400
   Status   pending — tallied at next maintenance cycle (~6h)
@@ -56,7 +58,7 @@ Add `--wait` to block until the vote is confirmed on chain (adds real block / fe
 
 ```console
 $ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --wait --password-stdin
-✅ Voted 1,000 TP across 2 witnesses
+✅ Voted 1,000 TP across 2 SRs
   TxID     f8a...
   Votes    TZ4...=600, TT5...=400
   Block    84,121,055
@@ -75,7 +77,7 @@ $ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network 
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `insufficient_voting_power` — total exceeds available TP) · `2` usage error (`invalid_value` — bad SR address, non-positive count, > 30 entries).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `insufficient_voting_power` — total exceeds available TP) · `2` usage error (`invalid_value` — bad SR address, non-positive count, > 30 entries).
 
 ## See also
 

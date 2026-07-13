@@ -25,21 +25,29 @@ Plus the [global options](index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Interactive — prompts for the master password, then shows the new account:
 
 ```console
 $ wallet-cli create --label main
+? Set master password (hidden):
+? Confirm master password:
 ✅ Created wallet "main"
   Account ID    wlt_2dbv24de.0
+  Type          HD
   TRON address  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ
   Active        yes
+
+⚠️ Recovery phrase is encrypted locally and was not printed.
+⚠️ Run `backup` soon and store the file offline.
 ```
 
-Non-interactive (password from your secret store):
+Non-interactive (password piped from stdin):
 
 ```console
 $ printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_2dbv24de.0","label":"main","type":"seed","index":0,"active":true,"seedId":"wlt_2dbv24de","addresses":{"tron":"TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ"}},"meta":{"durationMs":38,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_2dbv24de.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ"},"seedId":"wlt_2dbv24de"},"meta":{"durationMs":38,"warnings":[]}}
 ```
 
 ## Output
@@ -54,8 +62,8 @@ $ printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
 | `type` | string | `"seed"` (HD-derived) |
 | `index` | number | HD derivation index (0 for the first account) |
 | `active` | boolean | Whether it became the active account |
-| `seedId` | string | Owning seed wallet id |
 | `addresses.tron` | string | Base58 TRON address |
+| `seedId` | string | Owning seed wallet id |
 
 ## Exit status
 

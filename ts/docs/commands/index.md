@@ -1,14 +1,14 @@
 # Command Reference
 
-Every command — including every subcommand — has its own page, following a fixed layout (Synopsis · Description · Options · Examples · Output · Exit status · See also). Command-group pages list and link their subcommands. Commands marked *(v0.1.1)* are new in this release.
+Every command — including every subcommand — has its own page, following a fixed layout (Synopsis · Description · Options · Examples · Output · Exit status · See also). Command-group pages list and link their subcommands.
 
 ## Wallets and accounts
 
 | Command | Page |
 |---|---|
 | `create` | [create.md](create.md) |
-| `import mnemonic` | [import/mnemonic.md](import/mnemonic.md) *(interactive-only since v0.1.1)* |
-| `import private-key` | [import/private-key.md](import/private-key.md) *(interactive-only since v0.1.1)* |
+| `import mnemonic` | [import/mnemonic.md](import/mnemonic.md) *(interactive-only)* |
+| `import private-key` | [import/private-key.md](import/private-key.md) *(interactive-only)* |
 | `import ledger` | [import/ledger.md](import/ledger.md) |
 | `import watch` | [import/watch.md](import/watch.md) |
 | `list` | [list.md](list.md) |
@@ -18,7 +18,7 @@ Every command — including every subcommand — has its own page, following a f
 | `rename` | [rename.md](rename.md) |
 | `backup` | [backup.md](backup.md) |
 | `delete` | [delete.md](delete.md) |
-| `change-password` *(v0.1.1)* | [change-password.md](change-password.md) |
+| `change-password` | [change-password.md](change-password.md) |
 
 ## Transactions
 
@@ -40,10 +40,10 @@ Every command — including every subcommand — has its own page, following a f
 | `account history` | [account/history.md](account/history.md) |
 | `account portfolio` | [account/portfolio.md](account/portfolio.md) |
 | `block` | [block.md](block.md) |
-| `chain` (group) *(v0.1.1)* | [chain/index.md](chain/index.md) |
-| `chain params` *(v0.1.1)* | [chain/params.md](chain/params.md) |
-| `chain prices` *(v0.1.1)* | [chain/prices.md](chain/prices.md) |
-| `chain node` *(v0.1.1)* | [chain/node.md](chain/node.md) |
+| `chain` (group) | [chain/index.md](chain/index.md) |
+| `chain params` | [chain/params.md](chain/params.md) |
+| `chain prices` | [chain/prices.md](chain/prices.md) |
+| `chain node` | [chain/node.md](chain/node.md) |
 
 ## Tokens and contracts
 
@@ -72,15 +72,15 @@ Every command — including every subcommand — has its own page, following a f
 | `stake cancel-unfreeze` | [stake/cancel-unfreeze.md](stake/cancel-unfreeze.md) |
 | `stake delegate` | [stake/delegate.md](stake/delegate.md) |
 | `stake undelegate` | [stake/undelegate.md](stake/undelegate.md) |
-| `stake info` *(v0.1.1)* | [stake/info.md](stake/info.md) |
-| `stake delegated` *(v0.1.1)* | [stake/delegated.md](stake/delegated.md) |
-| `vote` (group) *(v0.1.1)* | [vote/index.md](vote/index.md) |
-| `vote cast` *(v0.1.1)* | [vote/cast.md](vote/cast.md) |
-| `vote list` *(v0.1.1)* | [vote/list.md](vote/list.md) |
-| `vote status` *(v0.1.1)* | [vote/status.md](vote/status.md) |
-| `reward` (group) *(v0.1.1)* | [reward/index.md](reward/index.md) |
-| `reward balance` *(v0.1.1)* | [reward/balance.md](reward/balance.md) |
-| `reward withdraw` *(v0.1.1)* | [reward/withdraw.md](reward/withdraw.md) |
+| `stake info` | [stake/info.md](stake/info.md) |
+| `stake delegated` | [stake/delegated.md](stake/delegated.md) |
+| `vote` (group) | [vote/index.md](vote/index.md) |
+| `vote cast` | [vote/cast.md](vote/cast.md) |
+| `vote list` | [vote/list.md](vote/list.md) |
+| `vote status` | [vote/status.md](vote/status.md) |
+| `reward` (group) | [reward/index.md](reward/index.md) |
+| `reward balance` | [reward/balance.md](reward/balance.md) |
+| `reward withdraw` | [reward/withdraw.md](reward/withdraw.md) |
 
 ## Signing
 
@@ -93,7 +93,7 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
-| `config` | [config.md](config.md) *(new `waitTimeoutMs` key in v0.1.1)* |
+| `config` | [config.md](config.md) |
 | `networks` | [networks.md](networks.md) |
 
 ## Global options (every command)

@@ -1,6 +1,6 @@
 # wallet-cli stake freeze
 
-Stake TRX for energy/bandwidth (FreezeBalanceV2).
+Stake TRX for energy/bandwidth.
 
 ## Synopsis
 
@@ -32,6 +32,8 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — stake 1,000 TRX for energy, returns the **submitted** receipt:
 
 ```console
@@ -54,7 +56,6 @@ $ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy
 ✅ Staked 1,000 TRX for energy
   TxID    c3d...
   Block   #68,762,990
-  Fee     0 TRX
   Status  success
 ```
 
@@ -69,7 +70,7 @@ $ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

@@ -31,6 +31,8 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Software account — password via stdin, message inline:
 
 ```console
@@ -61,7 +63,7 @@ $ cat challenge.txt | wallet-cli message sign --message-stdin --network tron:nil
 
 ## Exit status
 
-`0` signed · `1` execution failure (`watch_only_no_signer`, `wrong_password`) · `2` usage error (both or neither message source; two stdin flags → `secret_source_error`).
+`0` signed · `1` execution failure (`watch_only_no_signer`, `auth_failed`; two stdin flags → `secret_source_error`) · `2` usage error (both or neither message source → `invalid_option` / `missing_option`).
 
 ## See also
 

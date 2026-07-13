@@ -36,10 +36,10 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 ```console
-$ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" \
-    --bytecode "$(cat MyToken.bin)" --fee-limit 1000000000 \
-    --network tron:nile --password-stdin
+$ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" --bytecode "$(cat MyToken.bin)" --fee-limit 1000000000 --network tron:nile --password-stdin
 ⏳ Contract deployed
   Address  TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU
   TxID     b7c...
@@ -48,8 +48,7 @@ $ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" \
 ```
 
 ```console
-$ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" \
-    --bytecode "$(cat MyToken.bin)" --fee-limit 1000000000 --network tron:nile --password-stdin -o json
+$ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" --bytecode "$(cat MyToken.bin)" --fee-limit 1000000000 --network tron:nile --password-stdin -o json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.contract.deploy","data":{"kind":"contract-deploy","contractAddress":"TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU","stage":"submitted","txId":"b7c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
@@ -64,7 +63,7 @@ $ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" \
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — bad ABI/bytecode/params, missing `--fee-limit`).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — bad ABI/bytecode/params, missing `--fee-limit`).
 
 ## See also
 

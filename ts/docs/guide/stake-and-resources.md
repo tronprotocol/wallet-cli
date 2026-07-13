@@ -6,7 +6,7 @@ Stake TRX to earn **resources** — energy and bandwidth — instead of burning 
 
 ## 1. See what you have
 
-`account info` shows your resources directly, in `used / limit` form:
+Run a read-only query first. [`stake info`](../commands/stake/info.md) gives a staking-focused overview (staked amount, per-resource limits, pending unstakes, TRON Power); for the `used / limit` breakdown of your resources, use `account info`:
 
 ```console
 $ wallet-cli account info --network tron:nile
@@ -46,7 +46,7 @@ Lend the resource your stake produces — for example, to a hot operations accou
 wallet-cli stake delegate --amount-sun 50000000 --resource energy --receiver TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network tron:nile
 ```
 
-By default you can reclaim a delegation at any time. Adding `--lock` blocks that until a lock period passes — set its length with `--lock-period <blocks>` (each block is ~3 seconds). To reclaim the resource later, run the opposite command, `stake undelegate`, with the same amount, receiver, and resource:
+By default you can reclaim a delegation at any time. Adding `--lock` blocks that until a lock period passes — set its length with `--lock-period <blocks>` (each block is ~3 seconds). Once delegated, use [`stake delegated`](../commands/stake/delegated.md) any time to inspect your current delegations and the maximum you can delegate. To reclaim the resource later, run the opposite command, `stake undelegate`, with the same amount, receiver, and resource:
 
 ```bash
 wallet-cli stake undelegate --amount-sun 50000000 --resource energy --receiver TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network tron:nile
@@ -71,4 +71,4 @@ Note `cancel-unfreeze` is all-or-nothing across pending unstakes, and `withdraw`
 
 ## See also
 
-[Energy & bandwidth](../concepts/energy-bandwidth.md) — the model behind these commands · [`account info`](../commands/account/info.md) · `stake <cmd> --help` for full flag reference (command pages follow the freeze schedule)
+[Energy & bandwidth](../concepts/energy-bandwidth.md) — the model behind these commands · [`account info`](../commands/account/info.md) · full flag reference for each `stake` subcommand: [`freeze`](../commands/stake/freeze.md) · [`unfreeze`](../commands/stake/unfreeze.md) · [`withdraw`](../commands/stake/withdraw.md) · [`cancel-unfreeze`](../commands/stake/cancel-unfreeze.md) · [`delegate`](../commands/stake/delegate.md) · [`undelegate`](../commands/stake/undelegate.md) · [`info`](../commands/stake/info.md) · [`delegated`](../commands/stake/delegated.md)

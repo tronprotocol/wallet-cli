@@ -14,7 +14,7 @@ If `wallet-cli` is not on PATH: `npm install -g @tron-walletcli/wallet-cli` (req
 1. Always pass `-o json`. Parse stdout as a single JSON object, schema `wallet-cli.result.v1`.
 2. Branch on exit code first (`0` ok, `1` execution failure, `2` your call was malformed), then on `error.code`. Never parse `error.message`.
 3. Always pass `--network tron:nile` for tests; `tron:mainnet` moves real funds.
-4. Secrets go through stdin flags (`--password-stdin`), never argv/env. Only one `*-stdin` flag per run. Mnemonic/private-key import and `change-password` are interactive-only (hidden TTY input) since v0.1.1 — hand those to the human; an agent cannot drive them.
+4. Secrets go through stdin flags (`--password-stdin`), never argv/env. Only one `*-stdin` flag per run. Mnemonic/private-key import and `change-password` are interactive-only (hidden TTY input) — hand those to the human; an agent cannot drive them.
 5. All on-chain amounts in JSON are decimal strings — do not treat as numbers.
 6. `--timeout <ms>` bounds every RPC/device call (default 60000).
 

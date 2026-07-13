@@ -22,7 +22,37 @@ Plus [global options](index.md).
 
 ## Notes
 
-The stable handle is always the `accountId`; only the label changes.
+The stable handle is always the `accountId`; only the label changes. Metadata-only — no master password needed.
+
+## Examples
+
+```console
+$ wallet-cli rename main --label primary
+✅ Renamed account
+  Old label  main
+  New label  primary
+```
+
+```console
+$ wallet-cli rename main-1 --label hot-hd -o json
+{"schema":"wallet-cli.result.v1","success":true,"command":"rename","data":{"previousLabel":"main-1","accountId":"wlt_0y2z0gvr.1","label":"hot-hd","type":"seed","index":1,"active":true,"addresses":{"tron":"TRzaAZWRvPCcmqNETTWvmMLDi6cKwM3gbR"},"seedId":"wlt_0y2z0gvr"},"meta":{"durationMs":14,"warnings":[]}}
+```
+
+## Output
+
+`data` is the renamed account, plus `previousLabel`. Local command — no `chain` block.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `previousLabel` | string | The old label before renaming |
+| `accountId` | string | Stable account id (unchanged by rename) |
+| `label` | string | The new label |
+| `type` | string | `seed` / `privateKey` / `watch` / `ledger` |
+| `index` | number \| null | HD derivation index; `null` for non-HD accounts |
+| `active` | boolean | Whether it is the active account |
+| `addresses.tron` | string | Base58 TRON address |
+| `seedId` | string | Owning seed wallet id (`seed` accounts only) |
+| `family` | string | Chain family, e.g. `tron` (`watch` accounts only) |
 
 ## Exit status
 

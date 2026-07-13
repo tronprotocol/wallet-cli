@@ -82,6 +82,7 @@ $ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --networ
 
 - Send TRC20/TRC10 tokens (e.g. USDT): [Sending tokens](send-tokens.md)
 - Stop burning TRX on fees: [Staking and resources](stake-and-resources.md)
+- Vote for super representatives and claim voting rewards after staking: [`vote`](../commands/vote/index.md), [`reward`](../commands/reward/index.md)
 - Hardware-wallet signing: [Ledger guide](ledger.md)
 - Full transaction detail and receipts: [`tx info`](../commands/tx/info.md)
 - Your history and holdings: [`account history`](../commands/account/history.md), [`account portfolio`](../commands/account/portfolio.md)

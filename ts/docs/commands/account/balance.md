@@ -1,6 +1,6 @@
 # wallet-cli account balance
 
-Show native balance (TRX/SUN).
+Show the native TRX balance.
 
 ## Synopsis
 

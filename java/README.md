@@ -1,23 +1,39 @@
 # Wallet-cli
 
-Welcome to use the Wallet-cli.  
+Wallet-cli is the official command-line wallet for the [TRON](https://tron.network) network. It manages accounts and keystores, sends TRX / TRC10 / TRC20 transfers, stakes resources, votes for super representatives, deploys and calls smart contracts, and supports Ledger hardware signing and [GasFree](https://gasfree.io) gas-less transfers. All gRPC calls run on the [Trident SDK](https://github.com/tronprotocol/trident).
 
-Wallet-cli now supports [GasFree](https://gasfree.io) addresses, enable users to transfer tokens without paying gas fees. For more details, please check the [GasFree](#Gas-Free-Support) section below.
+> **Looking for a scriptable, JSON-first build?** A TypeScript rewrite designed for automation and AI agents lives in [`ts/`](../ts/README.md) — stable JSON output, deterministic exit codes, and encrypted local storage. This page documents the original Java CLI.
 
-The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
+**Quick links:** [Setup](#setup) · [Quickstart](#quickstart) · [Contents](#contents) · [Commands](#commands) · [Configuration](#configuration) · [GasFree](#gasfree)
 
-If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
+Need help? Join the [Telegram developer group](https://t.me/TronOfficialDevelopersGroupEn).
 
-## Get started
+## Setup
 
 ### Download Wallet-cli
 
     git clone https://github.com/tronprotocol/wallet-cli.git
-    cd wallet-cli/java
 
-All commands below are run from the `java` directory.
+### Configuration
 
-### Edit config.conf in src/main/resources
+A minimal `config.conf` only needs a network type and a full node to talk to:
+
+```
+net {
+  type = mainnet
+}
+
+fullnode = {
+  ip.list = [
+    "fullnode ip : port"
+  ]
+}
+```
+
+You can also switch networks at runtime with the `SwitchNetwork` command — see [Switch network](#switch-network) — so editing `config.conf` is only needed for a custom node or the advanced features below.
+
+<details>
+<summary><b>Full annotated config</b> — optional Solidity node, Ledger debug, account lock, GasFree, TronGrid API key, TronLink multi-sig, and record limits</summary>
 
 ```
 net {
@@ -92,7 +108,9 @@ tronlink = {
 }
 ```
 
-### Run a web wallet
+</details>
+
+### Build and run
 
 - connect to fullNode
 
@@ -102,7 +120,7 @@ tronlink = {
 - compile and run web wallet
 
     ```console
-    $ cd wallet-cli/java
+    $ cd wallet-cli
     $ ./gradlew build
     $ cd build/libs
     $ java -jar wallet-cli.jar
@@ -110,14 +128,51 @@ tronlink = {
 
 ### Connect to Java-tron
 
-Wallet-cli connects to Java-tron via the gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
+Wallet-cli connects to Java-tron via the gRPC protocol, which can be deployed locally or remotely. Check the **Build and run** section.
 We can configure Java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 Besides that, you can simply use `SwitchNetwork` command to switch among the mainnet, testnets(Nile and Shasta) and custom networks. Please refer to the Switch Network section.
 
-## Wallet-cli supported command list
+## Quickstart
 
-Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command in the terminal when you start your Wallet.
+Build, create an account, and send your first transfer — all from the interactive prompt:
+
+```console
+# 1. Build
+$ git clone https://github.com/tronprotocol/wallet-cli.git
+$ cd wallet-cli && ./gradlew build && cd build/libs
+
+# 2. Start the interactive wallet
+$ java -jar wallet-cli.jar
+
+# 3. In the wallet prompt: create an account (or ImportWallet), unlock, and inspect it
+> RegisterWallet 123456      # create a keystore with password 123456
+> Login                      # unlock the account
+> GetAddress                 # show your address
+> GetBalance                 # TRX balance
+
+# 4. Send 1 TRX (amounts are in SUN; 1 TRX = 1,000,000 SUN)
+> SendCoin <toAddress> 1000000
+```
+
+> On mainnet these commands move **real funds**. While learning, switch to a testnet with `SwitchNetwork` (Nile or Shasta) and top up from that network's faucet.
+
+## Contents
+
+Grouped by task — see the [alphabetical command index](#commands) below for a full A–Z list.
+
+- **Setup** — [Setup](#setup) · [Quickstart](#quickstart) · [Build and run](#build-and-run) · [Switch network](#switch-network) · [Current network](#current-network)
+- **Wallets & accounts** — [Create account](#how-to-create-account) · [Wallet commands](#wallet-related-commands) · [Account commands](#account-related-commands) · [Sub accounts](#generate-sub-account) · [Import/export mnemonic](#import-and-export-mnemonic) · [Import/export keystore](#export-import-wallet-keystore) · [Import by Ledger](#import-wallet-by-ledger) · [Login all](#login-all) / [Logout](#logout) · [Lock](#lock) / [Unlock](#unlock)
+- **Transfers & tokens** — [Issue a TRC10 token](#how-to-issue-a-trc10-token) · [TRC10 token info](#how-to-obtain-trc10-token-information) · [Get USDT balance](#get-usdt-balance) · [Transfer USDT](#transfer-usdt) · [Address book](#address-book)
+- **Staking & resources** — [FreezeV2 (Stake 2.0)](#how-to-freezev2) · [Delegate resource](#how-to-delegate-resource) · [Freeze/unfreeze (Stake 1.0, legacy)](#how-to-freezeunfreeze-balance) · [Bandwidth](#how-to-calculate-bandwidth) · [Resource prices & memo fee](#get-resource-prices-and-memo-fee) · [Withdraw balance](#how-to-withdraw-balance)
+- **Voting & rewards** — [Vote](#how-to-vote) · [Brokerage & rewards](#brokerage) · [Create witness](#how-to-create-witness)
+- **Smart contracts** — [Use smart contracts](#how-to-use-smart-contract)
+- **Governance & exchange** — [Proposals](#how-to-operate-with-proposal) · [On-chain exchange](#how-to-trade-on-the-exchange) · [TRON-DEX (market)](#how-to-use-tron-dex-to-sell-asset) · [Multi-signature](#how-to-use-the-multi-signature-feature-of-wallet-cli)
+- **GasFree** — [GasFree support](#gasfree)
+- **Chain data** — [Transaction info](#how-to-get-transaction-information) · [Block info](#how-to-get-block-information) · [Chain parameters](#get-chain-parameters)
+
+## Commands
+
+The alphabetical index below links every command to its section. For usage of a specific command, just type it in the terminal after you start the wallet.
 
 |   [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)    |                           [AddressBook](#address-book)                            |                 [ApproveProposal](#Approve--disapprove-a-proposal)                  |
 |:--------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------:|
@@ -208,7 +263,7 @@ After the freezing time expires, funds can be unfroze.
 **Unfreeze operation is as follows:**
 
 ```console
-> unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 ENERGY) [receiverAddress]
+> unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 CPU) [receiverAddress]
 ```
 
 ## How to vote
@@ -345,7 +400,7 @@ Creating an account through the CreateAccount command will still burn **1TRX**.
 ## Command line operation flow example
 
 ```console
-$ cd wallet-cli/java
+$ cd wallet-cli
 $ ./gradlew build
 $ ./gradlew run
 > RegisterWallet 123456      (password = 123456)
@@ -1248,14 +1303,14 @@ frozen_duration
 > frezen duration, 3 days
 
 ResourceCode
-> 0 BANDWIDTH;1 ENERGY (TRON_POWER is not delegatable)
+> 0 BANDWIDTH;1 ENERGY
 
 receiverAddress
 > target account address
 
 ### unfreeze delegated resource
 
-    > unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 ENERGY) [receiverAddress]
+    > unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 CPU) [receiverAddress]
 
 The latter two parameters are optional. If they are not set, the BANDWIDTH resource is unfreeze
 by default; when the receiverAddress is set, the delegate resources are unfreezed.
@@ -1282,7 +1337,7 @@ frozen_balance
 > The amount of frozen, the unit is the smallest unit (Sun), the minimum is 1000000sun.
 
 ResourceCode
-> 0 BANDWIDTH;1 ENERGY;2 TRON_POWER (only when getAllowNewResourceModel is enabled)
+> 0 BANDWIDTH;1 ENERGY
 
 Example:
 ```console
@@ -1330,7 +1385,7 @@ unfreezeBalance
 > The amount of unfreeze, the unit is the smallest unit (Sun)
 
 ResourceCode
-> 0 BANDWIDTH;1 ENERGY;2 TRON_POWER (only when getAllowNewResourceModel is enabled)
+> 0 BANDWIDTH;1 ENERGY
 
 Example:
 ```console
@@ -1915,7 +1970,7 @@ wallet> currentnetwork
 current network: CUSTOM
 fullNode: EMPTY, solidityNode: localhost:50052
 ```
-## Gas Free Support
+## GasFree
 
 Wallet-cli now supports GasFree integration. This guide explains the new commands and provides instructions on how to use them.
 

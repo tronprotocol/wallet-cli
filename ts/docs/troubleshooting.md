@@ -8,7 +8,7 @@ The command was malformed — a flag is unknown, missing, conflicting, or has a 
 
 - Re-run with `--help` on the exact subcommand: `wallet-cli tx send --help`.
 - Common conflicts: `--amount` vs `--raw-amount`; `--token` vs `--contract` vs `--asset-id`; `--dry-run` vs `--sign-only`; two `*-stdin` flags in one run.
-- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `networks`) and values (`defaultOutput` is `text` or `json`).
+- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks`) and values (`defaultOutput` is `text` or `json`).
 
 ## `weak_password` (exit 2)
 
@@ -18,7 +18,7 @@ The command was malformed — a flag is unknown, missing, conflicting, or has a 
 
 A secret was needed but none could be read.
 
-- `tty_required` — no terminal is attached (CI, pipes). For commands with a stdin path, provide the matching `*-stdin` flag (`--password-stdin`, `--tx-stdin`). `import mnemonic`, `import private-key`, and `change-password` are interactive-only since v0.1.1 — they must run in a real TTY; there is no non-interactive alternative.
+- `tty_required` — no terminal is attached (CI, pipes). For commands with a stdin path, provide the matching `*-stdin` flag (`--password-stdin`, `--tx-stdin`). `import mnemonic`, `import private-key`, and `change-password` are interactive-only — they must run in a real TTY; there is no non-interactive alternative.
 - `auth_required` — the command needs the master password; pass `--password-stdin` or run it interactively.
 - `auth_failed` — the password was wrong (decryption failed); re-enter it.
 

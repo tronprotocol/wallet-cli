@@ -10,7 +10,7 @@ wallet-cli stake cancel-unfreeze [--dry-run | --sign-only] [--wait [--wait-timeo
 
 ## Description
 
-Cancels **every** unstake still in its waiting period and rolls those amounts back to staked (CancelAllUnfreezeV2) — resource allowance and voting power return accordingly. It is all-or-nothing: TRON has no per-entry cancel. Any entries that have already expired are withdrawn to balance as part of the same transaction.
+Cancels **every** unstake still in its waiting period and rolls those amounts back to staked — resource allowance and voting power return accordingly. It is all-or-nothing: TRON has no per-entry cancel. Any entries that have already expired are withdrawn to balance as part of the same transaction.
 
 **By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
 
@@ -27,6 +27,8 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
 Default — returns the **submitted** receipt:
 
 ```console
@@ -39,7 +41,7 @@ $ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --password-s
 
 ```console
 $ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --password-stdin -o json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.cancel-unfreeze","data":{"kind":"stake-cancel-unfreeze","stage":"submitted","txId":"9ec..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.cancel-unfreeze","data":{"kind":"stake-cancel","stage":"submitted","txId":"9ec..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed:
@@ -59,12 +61,12 @@ $ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --wait --pas
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "stake-cancel-unfreeze"`, `stage: "submitted"`, `txId` |
+| default (submit) | `kind: "stake-cancel"`, `stage: "submitted"`, `txId` |
 | `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `wrong_password`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

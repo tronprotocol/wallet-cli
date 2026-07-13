@@ -10,13 +10,22 @@ wallet-cli account portfolio [options]
 
 ## Description
 
-Aggregates the account's native TRX and address-book token balances into one view, attaching USD prices from an external source (CoinGecko) **best-effort**: when a price is unavailable (typical on testnets), `priceUsd` / `valueUsd` are `null` and the command still succeeds. Expect this to be the slowest `account` query — it fans out to the price source.
+Aggregates the account's native TRX and address-book token balances into one view, attaching USD prices from an external price source **best-effort**: when a price is unavailable (typical on testnets), `priceUsd` / `valueUsd` are `null` and the command still succeeds. Expect this to be the slowest `account` query — it fans out to the price source.
 
 ## Options
 
 Only the [global options](../index.md#global-options-every-command).
 
 ## Examples
+
+```console
+$ wallet-cli account portfolio --network tron:nile
+"main" Portfolio
+| Token | Balance  | Price (USD) | Value (USD) |
+| ----- | -------- | ----------- | ----------- |
+| TRX   | 1969.421 | -           | -           |
+Total ≈ -
+```
 
 ```console
 $ wallet-cli account portfolio --network tron:nile -o json
@@ -33,7 +42,7 @@ $ wallet-cli account portfolio --network tron:nile -o json
 | `holdings[].symbol` / `decimals` | — | Token identity |
 | `holdings[].rawBalance` | string | Base units |
 | `holdings[].balance` | string | Human units |
-| `holdings[].priceUsd` / `valueUsd` | number\|null | **Best-effort — excluded from the v1 stability promise**; `null` when unpriced |
+| `holdings[].priceUsd` / `valueUsd` | number\|null | **Best-effort estimate**; `null` when unpriced |
 | `totalValueUsd` | number\|null | Sum of priced holdings, `null` if none priced |
 
 ## Exit status
