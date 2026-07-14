@@ -36,6 +36,35 @@ describe("TronChainService.prices", () => {
       memoFeeSun: "1000000",
     });
   });
+
+  it("drops malformed segments so NaN never reaches the output", async () => {
+    const gateway = {
+      // energy: middle segment is non-numeric; bandwidth: entirely malformed; both must exclude NaN.
+      getEnergyPrices: async () => "0:100,1670515200000:oops,1670515300000:230",
+      getBandwidthPrices: async () => "abc:def,x:y",
+      getChainParameters: async () => [{ key: "getMemoFee", value: 1000000 }],
+    };
+    const view = await svc(gateway).prices(net);
+    expect(view.energy).toEqual({
+      currentSunPerUnit: 230,
+      history: [{ since: 0, price: 100 }, { since: 1670515300000, price: 230 }],
+    });
+    // all-invalid → empty history, current falls back to 0 (no NaN)
+    expect(view.bandwidth).toEqual({ currentSunPerUnit: 0, history: [] });
+    expect(Number.isNaN(view.energy.currentSunPerUnit)).toBe(false);
+    expect(view.energy.history.every((h) => Number.isFinite(h.since) && Number.isFinite(h.price))).toBe(true);
+  });
+
+  it("handles an empty price string without producing NaN", async () => {
+    const gateway = {
+      getEnergyPrices: async () => "",
+      getBandwidthPrices: async () => "",
+      getChainParameters: async () => [],
+    };
+    const view = await svc(gateway).prices(net);
+    expect(view.energy).toEqual({ currentSunPerUnit: 0, history: [] });
+    expect(view.bandwidth).toEqual({ currentSunPerUnit: 0, history: [] });
+  });
 });
 
 describe("TronChainService.node", () => {

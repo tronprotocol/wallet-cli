@@ -11,7 +11,10 @@ function parsePriceTimeline(raw: string): { currentSunPerUnit: number; history: 
     .split(",")
     .map((seg) => seg.split(":"))
     .filter((p) => p.length === 2)
-    .map(([since, price]) => ({ since: Number(since), price: Number(price) }));
+    .map(([since, price]) => ({ since: Number(since), price: Number(price) }))
+    // Drop malformed segments so a bad node fragment can't leak NaN into the output; `?? 0`
+    // only guards `undefined`, not NaN.
+    .filter((p) => Number.isFinite(p.since) && Number.isFinite(p.price));
   return { currentSunPerUnit: history.at(-1)?.price ?? 0, history };
 }
 

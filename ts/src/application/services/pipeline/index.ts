@@ -32,8 +32,8 @@ export class TxPipeline {
 
   /** Pre-flight capability gate for write commands: fail fast (before any RPC) when the active
    *  account can't sign. Delegates to the resolver so the watch-only rule lives in one place. */
-  assertCanSign(account: AccountRef, family: ChainFamily): void {
-    this.signers.assertCanSign(account, family);
+  assertCanSign(account: AccountRef, family: ChainFamily, opts?: { requireSoftware?: boolean }): void {
+    this.signers.assertCanSign(account, family, opts);
   }
 
   async run(p: TxPipelineParams): Promise<TxOutcome> {

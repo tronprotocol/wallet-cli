@@ -24,13 +24,19 @@ export class SignerResolver {
    * account cannot produce a signature (watch-only). Write commands call this FIRST so a
    * "can't sign" failure wins over business-rule errors (e.g. insufficient voting power) — and so
    * even --dry-run refuses a watch-only account rather than simulating a tx it could never send.
+   *
+   * `requireSoftware` additionally rejects Ledger accounts before any device interaction, for tx
+   * types the Ledger TRON app firmware cannot sign (e.g. contract deploy, cancel-all-unfreeze).
    */
-  assertCanSign(refOrLabel: string, family: ChainFamily): void {
+  assertCanSign(refOrLabel: string, family: ChainFamily, opts?: { requireSoftware?: boolean }): void {
     const { wallet, index } = this.keystore.resolveAccount(refOrLabel);
     const address = walletAddress(wallet, family, index);
     if (!address) throw new WalletError("missing_wallet_address", `account has no ${family} address`);
     if (wallet.source.type === "watch") {
       throw new WalletError("watch_only_no_signer", "watch-only account cannot sign; import its secret to sign");
+    }
+    if (opts?.requireSoftware && wallet.source.type === "ledger") {
+      throw new WalletError("ledger_unsupported", "this transaction type cannot be signed by the Ledger TRON app; use a software account");
     }
   }
 

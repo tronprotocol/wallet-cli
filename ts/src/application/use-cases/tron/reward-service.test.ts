@@ -62,7 +62,7 @@ describe("TronRewardService.withdraw", () => {
       getReward: async () => "0",
       getAccount: async () => ({}),
     });
-    await expect(svc.withdraw(scope, NET, {})).rejects.toMatchObject({ code: "no_reward" });
+    await expect(svc.withdraw(scope, NET, {})).rejects.toMatchObject({ code: "no_reward", kind: "execution" });
   });
 
   it("rejects inside the 24h withdraw interval", async () => {
@@ -71,7 +71,7 @@ describe("TronRewardService.withdraw", () => {
       getReward: async () => "10",
       getAccount: async () => ({ latest_withdraw_time: String(now - 1_000) }),
     }, undefined, now);
-    await expect(svc.withdraw(scope, NET, {})).rejects.toMatchObject({ code: "withdraw_too_frequent" });
+    await expect(svc.withdraw(scope, NET, {})).rejects.toMatchObject({ code: "withdraw_too_frequent", kind: "execution" });
   });
 
   it("echoes submitted rewardSun and confirmed withdrawnSun as rewardSun", async () => {

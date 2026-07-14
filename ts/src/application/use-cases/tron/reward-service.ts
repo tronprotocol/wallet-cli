@@ -1,5 +1,5 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAccount } from "../../ports/chain/tron-gateway.js";
@@ -39,11 +39,11 @@ export class TronRewardService {
       gateway.getAccount(address),
     ]);
     if (toUnsignedBigInt(rewardSun) === 0n) {
-      throw new UsageError("no_reward", "no voting/block reward is currently claimable");
+      throw new ChainError("no_reward", "no voting/block reward is currently claimable");
     }
     const status = withdrawStatus(account, this.now());
     if (!status.withdrawableNow) {
-      throw new UsageError("withdraw_too_frequent", `reward can be withdrawn after ${new Date(status.withdrawableAt!).toISOString()}`);
+      throw new ChainError("withdraw_too_frequent", `reward can be withdrawn after ${new Date(status.withdrawableAt!).toISOString()}`);
     }
     const outcome = await this.pipeline.run({
       ctx: scope,

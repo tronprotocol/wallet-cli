@@ -151,8 +151,10 @@ export class TronStakeService {
   }
 
   cancelUnfreeze(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
+    // Ledger TRON app firmware cannot sign CancelAllUnfreezeV2 — reject before any device I/O.
     return this.transact("stake-cancel", scope, network, input,
-      (gateway, owner) => gateway.buildCancelAllUnfreezeV2(owner));
+      (gateway, owner) => gateway.buildCancelAllUnfreezeV2(owner),
+      { requireSoftware: true });
   }
 
   delegate(scope: TransactionScope, network: NetworkDescriptor, input: StakeDelegateInput) {
@@ -191,8 +193,9 @@ export class TronStakeService {
     network: NetworkDescriptor,
     input: TransactionModeInput & Partial<StakeAmountInput & StakeDelegateInput>,
     build: (gateway: TronGateway, owner: string) => Promise<UnsignedTx>,
+    opts?: { requireSoftware?: boolean },
   ) {
-    this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    this.pipeline.assertCanSign(scope.activeAccount, "tron", opts);
     const gateway = this.gateways.get(network, "tron");
     const outcome = await this.pipeline.run({
       ctx: scope,

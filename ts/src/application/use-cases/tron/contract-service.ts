@@ -79,7 +79,8 @@ export class TronContractService {
       parameters: unknown[];
     },
   ) {
-    this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    // Ledger TRON app firmware cannot sign a CreateSmartContract tx — reject before any device I/O.
+    this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     const gateway = this.gateways.get(network, "tron");
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.run({

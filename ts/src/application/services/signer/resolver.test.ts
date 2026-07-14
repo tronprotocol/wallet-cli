@@ -49,4 +49,20 @@ describe("SignerResolver — watch accounts", () => {
     const ref = ks.import({ type: "privateKey", secret: "0x".padEnd(66, "1") }).accountId;
     expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
   });
+
+  it("assertCanSign with requireSoftware rejects a Ledger account (ledger_unsupported)", () => {
+    const ref = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: "Tledger1" }).accountId;
+    let err: { code?: string } | undefined;
+    try {
+      resolver.assertCanSign(ref, "tron", { requireSoftware: true });
+    } catch (e) {
+      err = e as { code?: string };
+    }
+    expect(err?.code).toBe("ledger_unsupported");
+  });
+
+  it("assertCanSign without requireSoftware still allows a Ledger account", () => {
+    const ref = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: "Tledger2" }).accountId;
+    expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
+  });
 });

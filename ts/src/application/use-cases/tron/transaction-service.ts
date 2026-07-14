@@ -82,8 +82,8 @@ export class TronTransactionService {
     // Two endpoints, in parallel, because getTransactionInfo alone can't tell "unconfirmed" from
     // "never existed" — it returns {} for both. getTransactionById distinguishes them: it knows a
     // broadcast tx immediately (mempool), and throws "Transaction not found" for an unknown hash.
-    // getTransactionInfo only fills in once the tx is in a (solidified) block — that's what promotes
-    // pending → confirmed/failed.
+    // getTransactionInfo (full-node unconfirmed view) fills in ~one block after inclusion (~3s),
+    // not after solidification — that's what promotes pending → confirmed/failed.
     const [exists, info] = await Promise.all([
       gateway.getTransactionById(txid).then((tx) => tx?.txID !== undefined, () => false),
       gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),

@@ -276,7 +276,7 @@ interface FamilyPlugin<F extends ChainFamily> {
 | --- | --- |
 | `path` | Neutral commands use the full path; chain commands use a cross-family logical path. |
 | `family` | Omitted for neutral commands; when present, the resolved network selects the family implementation. |
-| `stdin` | A dedicated stdin channel, one of `tx` or `message` (signed-tx JSON / message to sign). Wallet secrets (`mnemonic`, `privateKey`) and the master password are **not** stdin-backed — see `secretsTtyOnly`. |
+| `stdin` | A dedicated **command-scoped** stdin channel, one of `tx` or `message` (signed-tx JSON / message to sign). This field does not cover the master password, which is fed by the **global** `--password-stdin` (see the CLI surface section). Wallet secrets (`mnemonic`, `privateKey`) and the master-password *change* are TTY-only and have no stdin flag — see `secretsTtyOnly`. |
 | `network` | `none`, `optional`, `required`; today both optional/required can fall back to the default network. |
 | `wallet` | `none` or `optional`; optional can override the active account with `--account`. |
 | `auth` | An unlock declaration for help/catalog; actual software signing uses lazy decrypt. |
