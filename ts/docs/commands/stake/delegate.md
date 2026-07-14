@@ -42,8 +42,11 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — returns the **submitted** receipt:
 
+```bash
+echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
 ⏳ Delegated 1,000 TRX of energy
   To      TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx
   TxID    b7c...
@@ -51,8 +54,11 @@ $ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDK
 ! Track it: wallet-cli tx info --network tron:nile --txid b7c...
 ```
 
-```console
-$ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.delegate","data":{"kind":"stake-delegate","stage":"submitted","txId":"b7c...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

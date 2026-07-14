@@ -1,6 +1,6 @@
-# wallet-cli
+# wallet-cli — TypeScript implementation
 
-A CLI wallet for TRON — the **TypeScript version** of wallet-cli, an agent-first rewrite built for automation. Compared to the original [Java version](../java/README.md), it centers on programmatic integration: every command has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts are kept only for secret input (import / backup / delete).
+The agent-first implementation of wallet-cli, built for automation: every command has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts are kept only for secret input (import / backup / delete). For what wallet-cli is and how the two implementations compare, see the [repository overview](../README.md); for the original, see the [Java implementation](../java/README.md).
 
 ## Key features
 
@@ -33,8 +33,11 @@ Note the scope: the package is `@tron-walletcli/wallet-cli`, not the bare `walle
 
 Verify:
 
+```bash
+wallet-cli --version
+```
+
 ```console
-$ wallet-cli --version
 <version>          # shows the installed version
 ```
 
@@ -51,14 +54,22 @@ npm link             # puts `wallet-cli` on your PATH (or run: node dist/index.j
 
 **Create your first wallet.** `create` prompts for a master password, then shows the new account:
 
+```bash
+wallet-cli create --label main
+```
+
 ```console
-$ wallet-cli create --label main
 ✅ Created wallet "main"
   Account ID    wlt_2dbv24de.0
   TRON address  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ
   Active        yes
+```
 
-$ wallet-cli list
+```bash
+wallet-cli list
+```
+
+```console
 HD  wlt_2dbv24de
 └─ [0] main  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ  (active)
 ```

@@ -34,8 +34,11 @@ Plus the [global options](../index.md#global-options-every-command).
 
 Outbound (default) — includes **Max delegatable**:
 
+```bash
+wallet-cli stake delegated --direction out --account main --network tron:nile
+```
+
 ```console
-$ wallet-cli stake delegated --direction out --account main --network tron:nile
 Label        main
 Direction    out (delegated to others)
 
@@ -49,15 +52,21 @@ Delegations (2)
   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  bandwidth  100 TRX  not locked
 ```
 
-```console
-$ wallet-cli stake delegated --direction out --account main --network tron:nile -o json
+```bash
+wallet-cli stake delegated --direction out --account main --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.delegated","data":{"address":"TQk...","direction":"out","canDelegateMaxSun":{"energy":"900000000","bandwidth":"300000000"},"delegations":[{"receiver":"TBy6...","resource":"energy","amountSun":"500000000","lockedUntil":1783468800000},{"receiver":"TXe4...","resource":"bandwidth","amountSun":"100000000","lockedUntil":null}]},"meta":{"durationMs":28,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Inbound (`--direction in`) — the lock column becomes `Guaranteed until`, no Max delegatable:
 
+```bash
+wallet-cli stake delegated --direction in --account main --network tron:nile
+```
+
 ```console
-$ wallet-cli stake delegated --direction in --account main --network tron:nile
 Label        main
 Direction    in (delegated to me)
 

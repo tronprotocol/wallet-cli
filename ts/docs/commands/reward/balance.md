@@ -22,8 +22,11 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 Claimable right now:
 
+```bash
+wallet-cli reward balance --account main --network tron:nile
+```
+
 ```console
-$ wallet-cli reward balance --account main --network tron:nile
 Label            main
 Claimable        123.456789 TRX
 Withdraw status  available now
@@ -31,15 +34,21 @@ Withdraw status  available now
 
 Within 24 h of the last withdrawal:
 
+```bash
+wallet-cli reward balance --account main --network tron:nile
+```
+
 ```console
-$ wallet-cli reward balance --account main --network tron:nile
 Label            main
 Claimable        5.678901 TRX
 Withdraw status  available from 2026-07-06 09:30 (~18h)
 ```
 
-```console
-$ wallet-cli reward balance --account main --network tron:nile -o json
+```bash
+wallet-cli reward balance --account main --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.reward.balance","data":{"address":"TQk...","rewardSun":"123456789","withdrawableNow":true,"withdrawableAt":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

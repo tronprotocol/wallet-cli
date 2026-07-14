@@ -40,8 +40,11 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — broadcasts and returns the **submitted** receipt without waiting:
 
+```bash
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin
 ⏳ Submitted — vote 1,000 TP across 2 SRs
   TxID     e5f...
   Votes    TZ4...=600, TT5...=400
@@ -49,15 +52,21 @@ $ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network 
 ! Track it: wallet-cli tx info --network tron:nile --txid e5f...
 ```
 
-```console
-$ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until the vote is confirmed on chain (adds real block / fee):
 
+```bash
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --wait --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --wait --password-stdin
 ✅ Voted 1,000 TP across 2 SRs
   TxID     f8a...
   Votes    TZ4...=600, TT5...=400

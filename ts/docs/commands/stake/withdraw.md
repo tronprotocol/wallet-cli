@@ -33,23 +33,32 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — returns the **submitted** receipt:
 
+```bash
+echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin
 ⏳ Withdrew expired TRX to balance
   TxID    e5f...
   Status  pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:nile --txid e5f...
 ```
 
-```console
-$ echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.withdraw","data":{"kind":"stake-withdraw","stage":"submitted","txId":"e5f..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed:
 
+```bash
+echo "$PW" | wallet-cli stake withdraw --network tron:nile --wait --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake withdraw --network tron:nile --wait --password-stdin
 ✅ Withdrew expired TRX to balance
   TxID    e5f...
   Block   #68,763,120

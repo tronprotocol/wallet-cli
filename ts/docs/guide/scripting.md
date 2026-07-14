@@ -6,8 +6,11 @@ How to call wallet-cli from shell scripts and CI. This is the gentle version; th
 
 **1. Always `-o json`.** Text output is for eyeballs and may change; JSON is the contract. stdout carries exactly one JSON object per run:
 
-```console
-$ wallet-cli account balance --network tron:nile -o json
+```bash
+wallet-cli account balance --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

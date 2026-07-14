@@ -23,15 +23,21 @@ Cannot sign — queries only. Useful for monitoring cold-storage balances.
 
 ## Examples
 
+```bash
+wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label cold
+```
+
 ```console
-$ wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label cold
 ✅ Added watch-only account "cold"
   Address  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
   Note     read-only; signing operations will be rejected
 ```
 
-```console
-$ wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label cold -o json
+```bash
+wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label cold -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"import.watch","data":{"status":"created","accountId":"wlt_jsyq8fxe","label":"cold","type":"watch","index":null,"active":true,"addresses":{"tron":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"},"family":"tron"},"meta":{"durationMs":36,"warnings":[]}}
 ```
 

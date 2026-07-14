@@ -26,8 +26,11 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli import private-key --label hot
+```
+
 ```console
-$ wallet-cli import private-key --label hot
 ? Set master password (hidden):
 ? Confirm master password:
 ? Paste private key (hidden):
@@ -40,8 +43,11 @@ $ wallet-cli import private-key --label hot
 ⚠️ Private key was read from hidden input and was not printed.
 ```
 
+```bash
+wallet-cli import private-key --label hot -o json
+```
+
 ```console
-$ wallet-cli import private-key --label hot -o json
 ? Set master password (hidden):
 ? Confirm master password:
 ? Paste private key (hidden):

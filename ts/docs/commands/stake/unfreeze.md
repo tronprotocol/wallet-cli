@@ -36,23 +36,32 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — returns the **submitted** receipt:
 
+```bash
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
 ⏳ Unstaked 1,000 TRX
   TxID    d4e...
   Status  pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:nile --txid d4e...
 ```
 
-```console
-$ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.unfreeze","data":{"kind":"stake-unfreeze","stage":"submitted","txId":"d4e...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed:
 
+```bash
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --wait --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --wait --password-stdin
 ✅ Unstaked 1,000 TRX
   TxID    d4e...
   Block   #68,763,004

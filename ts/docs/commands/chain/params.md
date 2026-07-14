@@ -36,16 +36,22 @@ Plus the [global options](../index.md#global-options-every-command).
 
 A single parameter with `--key`:
 
+```bash
+wallet-cli chain params --key getEnergyFee --network tron:nile
+```
+
 ```console
-$ wallet-cli chain params --key getEnergyFee --network tron:nile
 Key    getEnergyFee
 Value  210 SUN
 ```
 
 All parameters (excerpt):
 
+```bash
+wallet-cli chain params --network tron:nile
+```
+
 ```console
-$ wallet-cli chain params --network tron:nile
 Key                          Value
 getEnergyFee                 210 SUN
 getTransactionFee            1,000 SUN
@@ -54,8 +60,11 @@ getWitnessPayPerBlock        16,000,000 SUN
 getMaintenanceTimeInterval   21,600,000 ms
 ```
 
-```console
-$ wallet-cli chain params --network tron:nile -o json
+```bash
+wallet-cli chain params --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.params","data":{"params":[{"key":"getEnergyFee","value":210},{"key":"getTransactionFee","value":1000},{"key":"getCreateAccountFee","value":100000}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

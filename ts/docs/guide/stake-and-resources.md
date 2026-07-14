@@ -8,8 +8,11 @@ Stake TRX to earn **resources** — energy and bandwidth — instead of burning 
 
 Run a read-only query first. [`stake info`](../commands/stake/info.md) gives a staking-focused overview (staked amount, per-resource limits, pending unstakes, TRON Power); for the `used / limit` breakdown of your resources, use `account info`:
 
+```bash
+wallet-cli account info --network tron:nile
+```
+
 ```console
-$ wallet-cli account info --network tron:nile
 Label        main
 Address      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
 Balance      1976.489 TRX

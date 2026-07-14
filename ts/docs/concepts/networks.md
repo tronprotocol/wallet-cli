@@ -2,8 +2,11 @@
 
 wallet-cli addresses networks by **canonical id** — `family:chain`:
 
+```bash
+wallet-cli networks -o json
+```
+
 ```console
-$ wallet-cli networks -o json
 {"schema":"wallet-cli.result.v1","success":true,"command":"networks","data":[
   {"id":"tron:mainnet","family":"tron","chainId":"mainnet","feeModel":"tron-resource"},
   {"id":"tron:nile","family":"tron","chainId":"nile","feeModel":"tron-resource"},

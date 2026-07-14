@@ -29,8 +29,11 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Interactive — prompts for the master password, then shows the new account:
 
+```bash
+wallet-cli create --label main
+```
+
 ```console
-$ wallet-cli create --label main
 ? Set master password (hidden):
 ? Confirm master password:
 ✅ Created wallet "main"
@@ -45,8 +48,11 @@ $ wallet-cli create --label main
 
 Non-interactive (password piped from stdin):
 
-```console
-$ printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
+```bash
+printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_2dbv24de.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ"},"seedId":"wlt_2dbv24de"},"meta":{"durationMs":38,"warnings":[]}}
 ```
 

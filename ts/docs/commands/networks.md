@@ -14,8 +14,11 @@ wallet-cli networks [options]
 
 ## Examples
 
+```bash
+wallet-cli networks
+```
+
 ```console
-$ wallet-cli networks
 | Network      | Family | Chain   | Fee model     |
 | ------------ | ------ | ------- | ------------- |
 | tron:mainnet | tron   | mainnet | tron-resource |
@@ -23,8 +26,11 @@ $ wallet-cli networks
 | tron:shasta  | tron   | shasta  | tron-resource |
 ```
 
-```console
-$ wallet-cli networks -o json
+```bash
+wallet-cli networks -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"networks","data":[{"id":"tron:mainnet","family":"tron","chainId":"mainnet","feeModel":"tron-resource"},{"id":"tron:nile","family":"tron","chainId":"nile","feeModel":"tron-resource"},{"id":"tron:shasta","family":"tron","chainId":"shasta","feeModel":"tron-resource"}],"meta":{"durationMs":2,"warnings":[]}}
 ```
 

@@ -14,21 +14,30 @@ wallet-cli current [options]
 
 ## Examples
 
+```bash
+wallet-cli current
+```
+
 ```console
-$ wallet-cli current
 Active account: main-1
   TRON address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
 ```
 
-```console
-$ wallet-cli current -o json
+```bash
+wallet-cli current -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_758891fa.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax"},"seedId":"wlt_758891fa"},"meta":{"durationMs":13,"warnings":[]}}
 ```
 
 With no active account yet, it fails with `missing_wallet_address` (exit 1):
 
+```bash
+wallet-cli current
+```
+
 ```console
-$ wallet-cli current
 error [missing_wallet_address]: no active account; import one first
 ```
 

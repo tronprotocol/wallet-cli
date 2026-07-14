@@ -22,15 +22,21 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
+```bash
+wallet-cli chain prices --network tron:nile
+```
+
 ```console
-$ wallet-cli chain prices --network tron:nile
 Energy price      210 SUN / unit    (current)
 Bandwidth price   1,000 SUN / unit  (current)
 Memo fee          1 TRX
 ```
 
-```console
-$ wallet-cli chain prices --network tron:nile -o json
+```bash
+wallet-cli chain prices --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.prices","data":{"energy":{"currentSunPerUnit":210,"history":[{"since":1542607200000,"price":100},{"since":1670515200000,"price":210}]},"bandwidth":{"currentSunPerUnit":1000,"history":[{"since":1542607200000,"price":10},{"since":1614456000000,"price":1000}]},"memoFeeSun":"1000000"},"meta":{"durationMs":21,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

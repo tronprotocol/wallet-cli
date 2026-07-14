@@ -27,16 +27,22 @@ Private-key and Ledger accounts have no seed and cannot derive. See [Accounts & 
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
+```bash
+printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin
+```
+
 ```console
-$ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin
 ✅ Derived sub-account "main-1"
   Address  TWCa1W6BkcXZnRGxeZZw9jh8eNgULDVGzj
   Active   yes
   Note     shares master mnemonic; no separate backup needed
 ```
 
-```console
-$ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o json
+```bash
+printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"derive","data":{"status":"created","accountId":"wlt_y8cz6xda.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TWCa1W6BkcXZnRGxeZZw9jh8eNgULDVGzj"},"seedId":"wlt_y8cz6xda"},"meta":{"durationMs":1013,"warnings":[]}}
 ```
 

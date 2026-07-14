@@ -29,8 +29,11 @@ The file contains recoverable secret material — move it to secure storage and 
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
+```bash
+printf '%s' "$PW" | wallet-cli backup main --password-stdin
+```
+
 ```console
-$ printf '%s' "$PW" | wallet-cli backup main --password-stdin
 ⚠️ Backup written <root>/backups/wlt_d1qbj2fb.0-1783751611076.json
   Account ID  wlt_d1qbj2fb.0
   Secret      recovery phrase
@@ -40,8 +43,11 @@ $ printf '%s' "$PW" | wallet-cli backup main --password-stdin
 ⚠️ Secret material was written only to the backup file, never to stdout.
 ```
 
-```console
-$ printf '%s' "$PW" | wallet-cli backup main --out ./main-backup.json --password-stdin -o json
+```bash
+printf '%s' "$PW" | wallet-cli backup main --out ./main-backup.json --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TJToBi4Ngr6JT3HqZHfCkKvuQTvqm73HHp"},"seedId":"wlt_d1qbj2fb","secretType":"mnemonic","out":"./main-backup.json","fileMode":"0600","bytes":277},"meta":{"durationMs":1387,"warnings":[]}}
 ```
 

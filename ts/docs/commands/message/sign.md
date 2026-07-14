@@ -35,22 +35,28 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Software account — password via stdin, message inline:
 
+```bash
+echo "$PW" | wallet-cli message sign --message "hello" --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli message sign --message "hello" --password-stdin
 ✅ Signed
   Address    TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
   Signature  0x9f3c...
 ```
 
-```console
-$ echo "$PW" | wallet-cli message sign --message "hello" --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli message sign --message "hello" --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.message.sign","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","message":"hello","signature":"0x9f3c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Ledger account — message via stdin, confirm on device:
 
-```console
-$ cat challenge.txt | wallet-cli message sign --message-stdin --network tron:nile
+```bash
+cat challenge.txt | wallet-cli message sign --message-stdin --network tron:nile
 ```
 
 ## Output

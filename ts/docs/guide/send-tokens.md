@@ -33,8 +33,11 @@ TRC20 transfers execute contract code, so they consume **energy**; `--fee-limit`
 - **official** — built in for well-known tokens. On **mainnet**, `USDT` and `USDC` are preloaded; the **testnets** (Nile, Shasta) ship with none.
 - **user** — tokens you add yourself.
 
+```bash
+wallet-cli token list --network tron:mainnet
+```
+
 ```console
-$ wallet-cli token list --network tron:mainnet
 | Symbol | Name       | Source   | Contract / ID                      |
 | ------ | ---------- | -------- | ---------------------------------- |
 | USDT   | Tether USD | official | TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t |

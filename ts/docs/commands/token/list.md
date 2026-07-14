@@ -18,8 +18,11 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
+```bash
+wallet-cli token list --network tron:nile
+```
+
 ```console
-$ wallet-cli token list --network tron:nile
 | Symbol | Name       | Source | Contract / ID                      |
 | ------ | ---------- | ------ | ---------------------------------- |
 | USDT   | Tether USD | user   | TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf |
@@ -27,8 +30,11 @@ $ wallet-cli token list --network tron:nile
 
 > The `official` layer is only bundled on **mainnet** (e.g. USDT, USDC); testnets have no official layer, so everything listed is a `user` entry you added with `token add`.
 
-```console
-$ wallet-cli token list --network tron:nile -o json
+```bash
+wallet-cli token list --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.list","data":{"network":"tron:nile","account":"wlt_b2.0","tokens":[{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD","source":"user"}]},"meta":{"durationMs":13,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

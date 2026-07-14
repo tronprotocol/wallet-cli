@@ -1,8 +1,8 @@
-# Wallet-cli
+# wallet-cli — Java implementation
 
-Wallet-cli is the official command-line wallet for the [TRON](https://tron.network) network. It manages accounts and keystores, sends TRX / TRC10 / TRC20 transfers, stakes resources, votes for super representatives, deploys and calls smart contracts, and supports Ledger hardware signing and [GasFree](https://gasfree.io) gas-less transfers. All gRPC calls run on the [Trident SDK](https://github.com/tronprotocol/trident).
+The original, full-featured implementation of wallet-cli: an interactive prompt (REPL) covering the complete TRON feature surface — managing accounts and keystores, TRX / TRC10 / TRC20 transfers, staking resources, voting for super representatives, deploying and calling smart contracts, Ledger hardware signing, and [GasFree](https://gasfree.io) gas-less transfers. All gRPC calls run on the [Trident SDK](https://github.com/tronprotocol/trident).
 
-> **Looking for a scriptable, JSON-first build?** A TypeScript rewrite designed for automation and AI agents lives in [`ts/`](../ts/README.md) — stable JSON output, deterministic exit codes, and encrypted local storage. This page documents the original Java CLI.
+> For what wallet-cli is and how this compares to the scriptable, JSON-first [TypeScript implementation](../ts/README.md), see the [repository overview](../README.md).
 
 **Quick links:** [Setup](#setup) · [Quickstart](#quickstart) · [Contents](#contents) · [Commands](#commands) · [Configuration](#configuration) · [GasFree](#gasfree)
 

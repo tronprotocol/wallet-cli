@@ -13,8 +13,11 @@ When a transaction needs more than you have, the node **burns TRX** from your ba
 
 Check your standing anytime:
 
-```console
-$ wallet-cli account info --network tron:nile -o json | jq '.data.resources'
+```bash
+wallet-cli account info --network tron:nile -o json | jq '.data.resources'
+```
+
+```json
 { "bandwidth": { "used": 0, "limit": 600 }, "energy": { "used": 0, "limit": 888 } }
 ```
 

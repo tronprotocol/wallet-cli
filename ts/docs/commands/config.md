@@ -37,8 +37,11 @@ An invalid value returns `invalid_value` (exit 2).
 
 Show the whole effective config:
 
+```bash
+wallet-cli config
+```
+
 ```console
-$ wallet-cli config
 defaultNetwork  tron:mainnet
 defaultOutput   text
 timeoutMs       60000
@@ -48,18 +51,29 @@ networks        tron:mainnet, tron:nile, tron:shasta
 
 Read one key, then set it:
 
-```console
-$ wallet-cli config timeoutMs
-timeoutMs  60000
+```bash
+wallet-cli config timeoutMs
+```
 
-$ wallet-cli config timeoutMs 120000
+```console
+timeoutMs  60000
+```
+
+```bash
+wallet-cli config timeoutMs 120000
+```
+
+```console
 ✅ Set config
   Key    timeoutMs
   Value  120000
 ```
 
-```console
-$ wallet-cli config timeoutMs 120000 -o json
+```bash
+wallet-cli config timeoutMs 120000 -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"config","data":{"key":"timeoutMs","value":120000,"input":"120000"},"meta":{"durationMs":3,"warnings":[]}}
 ```
 

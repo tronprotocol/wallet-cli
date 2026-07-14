@@ -40,8 +40,11 @@ wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
 
 Broadcast receipt (text and json):
 
+```bash
+wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
+```
+
 ```console
-$ wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
 ⏳ Broadcast
   TxID    72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
   Status  pending — not yet on-chain

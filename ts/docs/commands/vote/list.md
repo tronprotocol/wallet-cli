@@ -29,16 +29,22 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli vote list --limit 3 --network tron:nile
+```
+
 ```console
-$ wallet-cli vote list --limit 3 --network tron:nile
 Rank  Name             Votes          APR   Reward ratio  Address
    1  TRONSCAN         1,203,456,789  4.8%  80%           TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g
    2  Binance Staking    998,765,432  0%    0%            TT5W8MPbYJih9R586kTszb4LoybzUvCYm2
    3  JustLend           876,543,210  4.9%  80%           TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN
 ```
 
-```console
-$ wallet-cli vote list --limit 3 --network tron:nile -o json
+```bash
+wallet-cli vote list --limit 3 --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.vote.list","data":{"witnesses":[{"rank":1,"name":"TRONSCAN","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

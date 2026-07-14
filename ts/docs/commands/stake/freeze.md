@@ -36,23 +36,32 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — stake 1,000 TRX for energy, returns the **submitted** receipt:
 
+```bash
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
 ⏳ Staked 1,000 TRX for energy
   TxID    c3d...
   Status  pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:nile --txid c3d...
 ```
 
-```console
-$ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.freeze","data":{"kind":"stake-freeze","stage":"submitted","txId":"c3d...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed:
 
+```bash
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:nile --wait --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:nile --wait --password-stdin
 ✅ Staked 1,000 TRX for energy
   TxID    c3d...
   Block   #68,762,990

@@ -33,8 +33,11 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli import mnemonic --label restored
+```
+
 ```console
-$ wallet-cli import mnemonic --label restored
 ? Set master password (hidden):
 ? Confirm master password:
 ? Paste recovery phrase (hidden):
@@ -47,8 +50,11 @@ $ wallet-cli import mnemonic --label restored
 ⚠️ Recovery phrase was read from hidden input and was not printed.
 ```
 
+```bash
+wallet-cli import mnemonic --label restored -o json
+```
+
 ```console
-$ wallet-cli import mnemonic --label restored -o json
 ? Set master password (hidden):
 ? Confirm master password:
 ? Paste recovery phrase (hidden):

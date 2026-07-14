@@ -25,8 +25,11 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
+```bash
+wallet-cli stake info --account main --network tron:nile
+```
+
 ```console
-$ wallet-cli stake info --account main --network tron:nile
 Label            main
 Staked           1,500 TRX  (for energy 1,000 TRX + for bandwidth 500 TRX)
 Voting power     1,500 TP  (used 1,000 / available 500)
@@ -38,8 +41,11 @@ Unfreezing       2 pending  (max 32 at a time, 30 more allowed)
 Withdrawable     0 TRX now
 ```
 
-```console
-$ wallet-cli stake info --account main --network tron:nile -o json
+```bash
+wallet-cli stake info --account main --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.info","data":{"address":"TQk...","staked":{"energySun":"1000000000","bandwidthSun":"500000000"},"votingPower":{"total":1500,"used":1000,"available":500},"resource":{"energy":{"used":12000,"limit":65000},"bandwidth":{"used":600,"limit":1500}},"unfreezing":[{"amountSun":"500000000","withdrawableAt":1784073600000},{"amountSun":"300000000","withdrawableAt":1784160000000}],"withdrawableSun":"0","unfreeze":{"used":2,"max":32,"remaining":30}},"meta":{"durationMs":22,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

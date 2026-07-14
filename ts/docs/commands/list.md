@@ -18,8 +18,11 @@ Only the [global options](index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli list
+```
+
 ```console
-$ wallet-cli list
 HD  wlt_jj2vgz7m
 ├─ [0] main    TJxvjVUpQ2sVqW4WYN7iX96qWDLFoUU9NN  (active)
 └─ [1] main-1  TJ4Pa3iF6ppS13RkeL8GHxNyaUfuyncqgS
@@ -33,8 +36,11 @@ watch-only
 
 HD accounts are grouped by seed and carry an `[index]`; non-HD entries (private key / watch-only / Ledger) are grouped by type and have no `[index]`.
 
-```console
-$ wallet-cli list -o json
+```bash
+wallet-cli list -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"list","data":[{"accountId":"wlt_jj2vgz7m.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TJxvjVUpQ2sVqW4WYN7iX96qWDLFoUU9NN"},"seedId":"wlt_jj2vgz7m"},{"accountId":"wlt_jj2vgz7m.1","label":"main-1","type":"seed","index":1,"active":false,"addresses":{"tron":"TJ4Pa3iF6ppS13RkeL8GHxNyaUfuyncqgS"},"seedId":"wlt_jj2vgz7m"},{"accountId":"wlt_w64e61jy","label":"hot","type":"privateKey","index":null,"active":false,"addresses":{"tron":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC"}},{"accountId":"wlt_bnd7sz5e","label":"cold","type":"watch","index":null,"active":false,"addresses":{"tron":"TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH"},"family":"tron"}],"meta":{"durationMs":13,"warnings":[]}}
 ```
 

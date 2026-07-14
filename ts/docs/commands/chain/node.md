@@ -20,8 +20,11 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
+```bash
+wallet-cli chain node --network tron:nile
+```
+
 ```console
-$ wallet-cli chain node --network tron:nile
 Endpoint     https://nile.trongrid.io
 Version      java-tron 4.7.7
 Head block   69,093,315  2026-07-11 15:29:21 (~2s ago — in sync)
@@ -29,8 +32,11 @@ Solid block  69,093,296  (19 blocks behind head)
 Peers        30 connected / 27 active
 ```
 
-```console
-$ wallet-cli chain node --network tron:nile -o json
+```bash
+wallet-cli chain node --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.node","data":{"endpoint":"https://nile.trongrid.io","version":"java-tron 4.7.7","p2pVersion":"11111","headBlock":{"number":69093315,"timestamp":1783783761000},"solidBlock":{"number":69093296},"lagBlocks":19,"inSync":true,"peers":{"connected":30,"active":27}},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

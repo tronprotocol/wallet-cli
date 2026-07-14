@@ -33,8 +33,11 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — broadcasts and returns the **submitted** receipt:
 
+```bash
+echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin
 ⏳ Submitted — withdraw voting/block rewards
   TxID     a1b...
   Amount   123.456789 TRX
@@ -42,15 +45,21 @@ $ echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin
 ! Track it: wallet-cli tx info --network tron:nile --txid a1b...
 ```
 
-```console
-$ echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed (adds real block / fee):
 
+```bash
+echo "$PW" | wallet-cli reward withdraw --network tron:nile --wait --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli reward withdraw --network tron:nile --wait --password-stdin
 ✅ Withdrew voting/block rewards
   TxID     c7d...
   Amount   123.456789 TRX

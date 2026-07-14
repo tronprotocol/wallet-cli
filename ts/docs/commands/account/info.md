@@ -18,8 +18,11 @@ Only the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli account info --network tron:nile
+```
+
 ```console
-$ wallet-cli account info --network tron:nile
 Label        main
 Address      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
 Balance      1969.421 TRX
@@ -30,8 +33,11 @@ Created      2026-06-30
 Permissions  owner 1-of-1, 1 active group
 ```
 
-```console
-$ wallet-cli account info --network tron:nile -o json
+```bash
+wallet-cli account info --network tron:nile -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.account.info","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","account":{"balance":"1976489000","create_time":1782787719000,"owner_permission":{…},"active_permission":[…],"frozenV2":[{},{"type":"ENERGY","amount":"12000000"},{"type":"TRON_POWER"}],…},"resources":{"bandwidth":{"used":0,"limit":600},"energy":{"used":0,"limit":888}}},"meta":{"durationMs":1914,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 

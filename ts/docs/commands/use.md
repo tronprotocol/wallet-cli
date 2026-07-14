@@ -18,16 +18,22 @@ wallet-cli use <account> [options]
 
 ## Examples
 
+```bash
+wallet-cli use main-1
+```
+
 ```console
-$ wallet-cli use main-1
 ✅ Active account: main-1
   TRON address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
 ```
 
 You can also select by accountId or address: `wallet-cli use wlt_758891fa.1` / `wallet-cli use TRs9Hg…`.
 
-```console
-$ wallet-cli use main-1 -o json
+```bash
+wallet-cli use main-1 -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"use","data":{"previous":"wlt_758891fa.0","accountId":"wlt_758891fa.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax"},"seedId":"wlt_758891fa"},"meta":{"durationMs":14,"warnings":[]}}
 ```
 

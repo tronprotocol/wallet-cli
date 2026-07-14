@@ -24,8 +24,11 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli tx info --txid 52332505ab6b605aff626aaef2b07f3718d4bac8f45cdab1c0ea9465eb98e065 --network tron:nile
+```
+
 ```console
-$ wallet-cli tx info --txid 52332505ab6b605aff626aaef2b07f3718d4bac8f45cdab1c0ea9465eb98e065 --network tron:nile
 TxID    52332505ab6b605aff626aaef2b07f3718d4bac8f45cdab1c0ea9465eb98e065
 From    TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
 To      TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH

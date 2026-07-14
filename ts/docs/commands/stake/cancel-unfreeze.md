@@ -31,23 +31,32 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 
 Default — returns the **submitted** receipt:
 
+```bash
+echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --password-stdin
 ⏳ Cancelled pending unstakes
   TxID    9ec...
   Status  pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:nile --txid 9ec...
 ```
 
-```console
-$ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --password-stdin -o json
+```bash
+echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --password-stdin -o json
+```
+
+```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.cancel-unfreeze","data":{"kind":"stake-cancel","stage":"submitted","txId":"9ec..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed:
 
+```bash
+echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --wait --password-stdin
+```
+
 ```console
-$ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --wait --password-stdin
 ✅ Cancelled pending unstakes
   TxID    d3b...
   Block   #68,762,990

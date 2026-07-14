@@ -6,16 +6,16 @@ Prerequisite: wallet-cli is installed — `wallet-cli --version` prints a versio
 
 ## 1. Create a wallet
 
-```console
-$ wallet-cli create --label main
+```bash
+wallet-cli create --label main
 ```
 
 You will be prompted for a **master password** — it encrypts all local secrets and cannot be recovered if you lose it. It must be at least 8 characters and include an uppercase letter, a lowercase letter, a digit, and a special character.
 
 **Tip — a password manager is preferable.** It generates a strong, unique password and keeps it out of your shell history, process list, and plaintext files. Any password manager with a command-line tool works — the examples here use 1Password's `op` purely as an illustration (install and sign in — [docs](https://developer.1password.com/docs/cli/)). Save your chosen master password as an item, then create the wallet by reading it back:
 
-```console
-$ op read "op://Private/wallet-cli/password" | wallet-cli create --label main --password-stdin
+```bash
+op read "op://Private/wallet-cli/password" | wallet-cli create --label main --password-stdin
 ```
 
 `create` does **not** print your recovery phrase — the seed is encrypted locally. To get a written backup, run [`backup`](../commands/backup.md), which writes a `0600` file containing the plaintext BIP39 mnemonic; store that file offline. It is the only way to restore the wallet on another machine.
@@ -24,8 +24,11 @@ Already have a mnemonic or private key? Use [`import mnemonic`](../commands/impo
 
 Confirm the new account exists:
 
+```bash
+wallet-cli list
+```
+
 ```console
-$ wallet-cli list
 HD  wlt_4473p34m
 └─ [0] main        TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ  (active)
 ```
@@ -36,36 +39,42 @@ The `T…` string is your TRON address, same on every network. `(active)` marks 
 
 Open the Nile faucet at [nileex.io/join/getJoinPage](https://nileex.io/join/getJoinPage), find the "Get 2000 test coins" section, paste your `T…` address, pass the captcha, and submit (once per day; arrives in under a minute). Then verify it arrived:
 
+```bash
+wallet-cli account balance --network tron:nile
+```
+
 ```console
-$ wallet-cli account balance --network tron:nile
 Label    main
 Balance  1976.489 TRX
 ```
 
 Tip: set Nile as your default so you can drop `--network` while learning:
 
-```console
-$ wallet-cli config defaultNetwork tron:nile
+```bash
+wallet-cli config defaultNetwork tron:nile
 ```
 
 ## 3. Send your first transaction
 
 Sending a transaction takes your master password on stdin via `--password-stdin`:
 
-```console
-$ printf '%s' "$MY_PASSWORD" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --password-stdin
+```bash
+printf '%s' "$MY_PASSWORD" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --password-stdin
 ```
 
 **Tip — a password manager is preferable** (setup in step 1). Pipe the password straight from it:
 
-```console
-$ op read "op://Private/wallet-cli/password" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --password-stdin
+```bash
+op read "op://Private/wallet-cli/password" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --password-stdin
 ```
 
 The transaction is signed and **submitted**. Submission is not confirmation — check where it landed:
 
+```bash
+wallet-cli tx status --txid <the txid you got back> --network tron:nile
+```
+
 ```console
-$ wallet-cli tx status --txid <the txid you got back> --network tron:nile
 TxID    7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364
 Status  confirmed ✅
 ```
@@ -74,8 +83,8 @@ Status  confirmed ✅
 
 Not sure about a transaction? Rehearse it first — `--dry-run` builds and estimates without signing or broadcasting:
 
-```console
-$ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --dry-run
+```bash
+wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --dry-run
 ```
 
 ## 4. Where to go next

@@ -31,8 +31,11 @@ Plus the [global options](index.md#global-options-every-command).
 
 ## Examples
 
+```bash
+wallet-cli change-password
+```
+
 ```console
-$ wallet-cli change-password
 ? Current master password (hidden):
 ? New master password (hidden):
 ? Confirm new password (hidden):
