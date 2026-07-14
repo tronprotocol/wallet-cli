@@ -22,6 +22,7 @@ function service(opts: { deployTx: Record<string, unknown>; outcome: Record<stri
   } as unknown as TronGateway;
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   const pipeline = {
+    assertCanSign() {},
     async run(p: { build: (from: string) => Promise<unknown> }) {
       await p.build("Towner");
       return opts.outcome;

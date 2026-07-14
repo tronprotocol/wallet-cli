@@ -27,6 +27,7 @@ export class TronTransactionService {
   ) {}
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: TronSendInput) {
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const resolved = await this.resolveTransfer(
       gateway,

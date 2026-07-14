@@ -192,6 +192,7 @@ export class TronStakeService {
     input: TransactionModeInput & Partial<StakeAmountInput & StakeDelegateInput>,
     build: (gateway: TronGateway, owner: string) => Promise<UnsignedTx>,
   ) {
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const outcome = await this.pipeline.run({
       ctx: scope,

@@ -38,6 +38,7 @@ export class TronContractService {
       feeLimit: string;
     },
   ) {
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -78,6 +79,7 @@ export class TronContractService {
       parameters: unknown[];
     },
   ) {
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.run({

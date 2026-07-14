@@ -70,6 +70,7 @@ export class TronVoteService {
   ) {}
 
   async cast(scope: TransactionScope, network: NetworkDescriptor, input: VoteCastInput) {
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const votes = parseVoteInputs(input.for);
     const totalVotes = votes.reduce((sum, vote) => sum + BigInt(vote.count), 0n);

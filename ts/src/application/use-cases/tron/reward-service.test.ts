@@ -23,7 +23,7 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>, 
   const g = gateway as TronGateway;
   return new TronRewardService(
     { get: () => g } as unknown as ChainGatewayProvider,
-    { run: async () => ({ stage: "submitted", txId: "txid" }), ...pipeline } as unknown as TxPipeline,
+    { assertCanSign: () => {}, run: async () => ({ stage: "submitted", txId: "txid" }), ...pipeline } as unknown as TxPipeline,
     () => now,
   );
 }

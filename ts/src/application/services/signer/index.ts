@@ -19,6 +19,21 @@ export class SignerResolver {
     private readonly signStrategies: Record<ChainFamily, SignStrategy>,
   ) {}
 
+  /**
+   * Cheap pre-flight capability gate: throws before any RPC or keystore decrypt when the active
+   * account cannot produce a signature (watch-only). Write commands call this FIRST so a
+   * "can't sign" failure wins over business-rule errors (e.g. insufficient voting power) — and so
+   * even --dry-run refuses a watch-only account rather than simulating a tx it could never send.
+   */
+  assertCanSign(refOrLabel: string, family: ChainFamily): void {
+    const { wallet, index } = this.keystore.resolveAccount(refOrLabel);
+    const address = walletAddress(wallet, family, index);
+    if (!address) throw new WalletError("missing_wallet_address", `account has no ${family} address`);
+    if (wallet.source.type === "watch") {
+      throw new WalletError("watch_only_no_signer", "watch-only account cannot sign; import its secret to sign");
+    }
+  }
+
   resolve(refOrLabel: string, family: ChainFamily): Signer {
     const { wallet, index } = this.keystore.resolveAccount(refOrLabel);
     const address = walletAddress(wallet, family, index);

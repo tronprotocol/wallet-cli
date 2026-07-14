@@ -31,6 +31,7 @@ export class TronRewardService {
   }
 
   async withdraw(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([

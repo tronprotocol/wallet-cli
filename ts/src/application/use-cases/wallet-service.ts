@@ -127,7 +127,7 @@ export class WalletService {
       };
     } else {
       throw new WalletError(
-        "watch_only_no_signer",
+        "not_exportable",
         `${source.type} accounts hold no exportable secret`,
       );
     }

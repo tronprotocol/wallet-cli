@@ -6,6 +6,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import { WalletError } from "../../../domain/errors/index.js";
 
 const NET: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -25,7 +26,7 @@ const scope: TransactionScope = {
 function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) {
   const g = gateway as TronGateway;
   const gateways = { get: () => g } as unknown as ChainGatewayProvider;
-  const pipe = { run: async () => ({ stage: "submitted", txId: "txid" }), ...pipeline } as unknown as TxPipeline;
+  const pipe = { assertCanSign: () => {}, run: async () => ({ stage: "submitted", txId: "txid" }), ...pipeline } as unknown as TxPipeline;
   // voting power now comes from the injected stake service (reads getAccountResources).
   return new TronVoteService(gateways, pipe, new TronStakeService(gateways, pipe));
 }
@@ -37,6 +38,19 @@ describe("TronVoteService.cast", () => {
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=101`] })).rejects.toMatchObject({
       code: "insufficient_voting_power",
+    });
+  });
+
+  it("capability gate wins over the voting-power rule: watch-only fails before any RPC", async () => {
+    const svc = service(
+      {
+        // must never be reached — a watch-only account can't sign, so no voting-power lookup runs.
+        getAccountResources: async () => { throw new Error("voting power must not be read for a watch-only account"); },
+      },
+      { assertCanSign: () => { throw new WalletError("watch_only_no_signer", "watch-only account cannot sign; import its secret to sign"); } },
+    );
+    await expect(svc.cast(scope, NET, { for: [`${SR1}=1`] })).rejects.toMatchObject({
+      code: "watch_only_no_signer",
     });
   });
 
