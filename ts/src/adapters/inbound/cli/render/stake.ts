@@ -21,7 +21,15 @@ export const StakeFormatters = {
       ["Unfreezing", `${unfreezing.length} pending  (max ${formatInt(unfreeze.max)} at a time, ${formatInt(unfreeze.remaining)} more allowed)`],
     ]
     const body = query(lines)
-    const pendings = unfreezing.map((u, i) => `  ${i + 1}) ${trx(u.amountSun)}     withdrawable ${formatAtWithRelative(u.withdrawableAt)}`)
+    // Tree-style unstake list, indented to the value column (label width + 2) and branched
+    // ├─ / └─; amounts are padded so the withdrawable column lines up across rows.
+    const branchPad = " ".repeat(Math.max(...lines.map(([l]) => l.length)) + 2)
+    const amounts = unfreezing.map((u) => trx(u.amountSun))
+    const amtWidth = Math.max(0, ...amounts.map((a) => a.length))
+    const pendings = unfreezing.map((u, i) => {
+      const branch = i === unfreezing.length - 1 ? "└─" : "├─"
+      return `${branchPad}${branch} ${amounts[i]!.padEnd(amtWidth)}  withdrawable ${formatAtWithRelative(u.withdrawableAt)}`
+    })
     const tail = kv([["Withdrawable", `${trx(d.withdrawableSun)} now`]], "")
     return [body, ...pendings, tail].join("\n")
   }) satisfies TextFormatter,

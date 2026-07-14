@@ -134,6 +134,9 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
         path: ["stake", "info"],
         network: "optional", wallet: "optional", auth: "none",
         summary: "Staking & resource overview (staked / voting power / resource / unfreezing / withdrawable)",
+        description:
+          "Staking & resource overview: staked amounts, voting power (TP), energy/bandwidth\n" +
+          "usage, pending unstakes, currently withdrawable TRX, and available unfreeze slots.",
         baseFields: z.object({}),
         examples: [{ cmd: "wallet-cli stake info" }, { cmd: "wallet-cli stake info --account main -o json" }],
         formatText: TextFormatters.stakeInfo,
@@ -145,6 +148,10 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
         path: ["stake", "delegated"],
         network: "optional", wallet: "optional", auth: "none",
         summary: "Delegation details and max delegatable size",
+        description:
+          "Delegation details (outbound/inbound) plus the maximum size you can still delegate.\n" +
+          "Outbound shows \"Locked until\" (you cannot reclaim before then); inbound shows\n" +
+          "\"Guaranteed until\" (the delegator cannot reclaim before then).",
         baseFields: z.object({
           direction: ciEnum(["out", "in"]).default("out")
             .describe("out = delegated to others; in = delegated to me"),

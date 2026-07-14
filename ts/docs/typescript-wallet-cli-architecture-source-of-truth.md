@@ -653,6 +653,8 @@ flowchart LR
 
 Arity is derived from the field's Zod type: a `z.array(...)` field projects to a first-class repeatable yargs flag (`array: true`), so `--for a --for b` arrives as a `string[]` with no preprocess/pipe patch, and its help renders the element type (`<string>`), not the container. A hand-maintained command flag table must not be created separately. The public help/output is a stable contract; when it changes, automated tests must verify root, group, leaf, JSON Schema, and functional scenarios.
 
+Leaf-help description text: a command's `summary` is the one-line row shown in its parent group's listing and must stay a single terse line. Leaf help (`<cmd> --help`) renders `description ?? summary`: a command whose behavior needs more than a headline (overwrite semantics, per-call limits, warnings, frequency caps) SHOULD declare a fuller multi-line `description`; there is no requirement that leaf help collapse to one line. Group descriptions (`GROUP_DESCRIPTIONS`) may likewise span multiple lines. Keep the wording in sync with the product command doc, the source of truth for the exact copy.
+
 ---
 
 ## 14. Rules for Adding Features

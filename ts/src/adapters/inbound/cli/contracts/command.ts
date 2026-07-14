@@ -57,7 +57,12 @@ interface CommandDefinitionBase<I, O> {
   /** gap-fill prompt hints, by field name: "skip" = never prompt this optional field; "default-label" = offer a generated default. */
   promptHints?: Record<string, "skip" | "default-label">;
   capability?: string;
+  /** one-line command listing text (parent group's verb list). Keep it terse — a single line. */
   summary?: string;
+  /** optional fuller leaf-help description (may span multiple lines); shown on `<cmd> --help`
+   *  instead of `summary` when present. Use it for commands whose behavior needs more than a
+   *  headline (semantics, limits, warnings). Absent ⇒ leaf help falls back to `summary`. */
+  description?: string;
   /** extra command-specific preconditions rendered in the help "Requires:" block, ahead of the
    *  auto-derived network/auth/account lines (e.g. a connected Ledger for `import ledger`). */
   requires?: string[];
@@ -102,7 +107,11 @@ export interface ChainSpec<I = any, O = any> {
   positionals?: { field: string; placeholder?: string }[];
   promptHints?: Record<string, "skip" | "default-label">;
   requires?: string[];
+  /** one-line command listing text (parent group's verb list). Keep it terse — a single line. */
   summary?: string;
+  /** optional fuller leaf-help description (may span multiple lines); shown on `<cmd> --help`
+   *  instead of `summary` when present. Absent ⇒ leaf help falls back to `summary`. */
+  description?: string;
   examples: Example[];
   baseFields: ZodObject<ZodRawShape>;
   baseRefine?: (value: any, ctx: import("zod").RefinementCtx) => void;

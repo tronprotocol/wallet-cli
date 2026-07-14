@@ -406,6 +406,79 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.json.error.code).toBe("invalid_value");
     expect(r.json.error.message).toContain("'foo'");
   });
+
+  // Leaf/group help must carry the doc's user-value semantics, not a compressed one-liner: overwrite
+  // semantics + TP math (vote cast), the 30-entry cap on --for, the 24h withdraw cap (reward
+  // withdraw), the 0% reward-ratio warning (vote status), and the reward pointer (vote group).
+  it("vote --help keeps the reward pointer (group 2nd line)", () => {
+    const r = run(["vote", "--help"], { password: null });
+    expect(r.stdout).toContain("Vote for super representatives (SR).");
+    expect(r.stdout).toContain("Voting accrues rewards — query and claim them with 'wallet-cli reward'.");
+  });
+
+  it("vote cast --help spells out overwrite semantics, the 30-entry cap, and TP math", () => {
+    const r = run(["vote", "cast", "--help"], { password: null });
+    expect(r.stdout).toContain("any previous SR not listed is set to zero");
+    expect(r.stdout).toContain("1 vote = 1 Tron Power (TP) = 1 staked TRX");
+    expect(r.stdout).toContain("at least 1, at most 30 entries");
+  });
+
+  it("vote status --help warns about the 0% reward-ratio case", () => {
+    const r = run(["vote", "status", "--help"], { password: null });
+    expect(r.stdout).toContain("0% reward ratio");
+  });
+
+  it("reward withdraw --help states the 24h withdrawal cap", () => {
+    const r = run(["reward", "withdraw", "--help"], { password: null });
+    expect(r.stdout).toContain("at most once every 24 hours");
+  });
+
+  // stake-query / chain / interactive-import leaf help must also carry the doc's fuller description,
+  // not the compressed one-line summary (same fix as vote/reward above).
+  it("stake info --help lists the overview fields", () => {
+    const r = run(["stake", "info", "--help"], { password: null });
+    expect(r.stdout).toContain("pending unstakes, currently withdrawable TRX, and available unfreeze slots");
+  });
+
+  it("stake delegated --help explains outbound/inbound lock semantics", () => {
+    const r = run(["stake", "delegated", "--help"], { password: null });
+    expect(r.stdout).toContain('Outbound shows "Locked until"');
+    expect(r.stdout).toContain('inbound shows');
+    expect(r.stdout).toContain('"Guaranteed until"');
+  });
+
+  it("chain params --help mentions --key for a single value", () => {
+    const r = run(["chain", "params", "--help"], { password: null });
+    expect(r.stdout).toContain("Use --key for one value");
+  });
+
+  it("chain prices --help states the SUN unit basis", () => {
+    const r = run(["chain", "prices", "--help"], { password: null });
+    expect(r.stdout).toContain("in SUN; 1 TRX = 1,000,000 SUN");
+  });
+
+  it("chain node --help explains the sync-vs-tx diagnostic use", () => {
+    const r = run(["chain", "node", "--help"], { password: null });
+    expect(r.stdout).toContain('node out of sync');
+  });
+
+  it("change-password --help notes Ledger/watch are unaffected and TTY-only secrets", () => {
+    const r = run(["change-password", "--help"], { password: null });
+    expect(r.stdout).toContain("Ledger / watch-only accounts are unaffected");
+    expect(r.stdout).toContain("they never touch argv or stdin");
+  });
+
+  it("import mnemonic --help documents hidden TTY-only entry", () => {
+    const r = run(["import", "mnemonic", "--help"], { password: null });
+    expect(r.stdout).toContain("The recovery phrase and master password are read");
+    expect(r.stdout).toContain("they never touch argv or stdin");
+  });
+
+  it("import private-key --help documents hidden TTY-only entry", () => {
+    const r = run(["import", "private-key", "--help"], { password: null });
+    expect(r.stdout).toContain("The private key and master password are read");
+    expect(r.stdout).toContain("they never touch argv or stdin");
+  });
 });
 
 describe("golden CLI — token address-book (local, no RPC)", () => {

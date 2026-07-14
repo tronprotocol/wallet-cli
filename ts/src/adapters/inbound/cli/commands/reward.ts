@@ -9,6 +9,10 @@ export const rewardBalanceSpec: ChainSpec = {
   network: "optional", wallet: "optional", auth: "none",
   capability: "reward.balance",
   summary: "Show claimable voting/block reward and withdraw status",
+  description:
+    "Show the currently claimable voting/block reward and whether it can be\n" +
+    "withdrawn now (rewards accrue continuously but can be withdrawn at most\n" +
+    "once every 24 hours).",
   baseFields: z.object({}),
   examples: [{ cmd: "wallet-cli reward balance" }],
   formatText: TextFormatters.rewardBalance,
@@ -24,6 +28,9 @@ export const rewardWithdrawSpec: ChainSpec = {
   broadcasts: true,
   capability: "reward.withdraw",
   summary: "Withdraw accrued voting/block rewards",
+  description:
+    "Withdraw accrued voting/block rewards into your available balance.\n" +
+    "Rewards can be withdrawn at most once every 24 hours.",
   baseFields: z.object({ ...txModeFields }),
   examples: [
     { cmd: "wallet-cli reward withdraw" },

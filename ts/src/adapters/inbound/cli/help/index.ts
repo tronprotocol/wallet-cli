@@ -196,6 +196,7 @@ export class HelpService {
     return this.#renderLeaf({
       path: cmd.path,
       summary: cmd.summary,
+      description: cmd.description,
       network: cmd.network,
       auth: cmd.auth,
       wallet: cmd.wallet,
@@ -214,6 +215,7 @@ export class HelpService {
     return this.#renderLeaf({
       path: spec.path,
       summary: spec.summary,
+      description: spec.description,
       network: spec.network,
       auth: spec.auth,
       wallet: spec.wallet,
@@ -230,6 +232,7 @@ export class HelpService {
   #renderLeaf(c: {
     path: string[]
     summary?: string
+    description?: string
     network: ChainSpec["network"] | "none"
     auth: CommandDefinition["auth"]
     wallet: CommandDefinition["wallet"]
@@ -249,7 +252,10 @@ export class HelpService {
     })
     const usagePositional = positionals.map((p) => (p.required ? ` <${p.name}>` : ` [<${p.name}>]`)).join("")
     const lines = ["Usage:", `  wallet-cli ${c.path.join(" ")}${usagePositional} [options]`]
-    if (c.summary) lines.push("", c.summary)
+    // leaf description: prefer the fuller multi-line `description` when a command declares one,
+    // else fall back to the one-line `summary` used in the parent group's listing.
+    const description = c.description ?? c.summary
+    if (description) lines.push("", description)
 
     if (positionals.length) {
       lines.push("", "Args:")
@@ -408,7 +414,8 @@ function globalFlagLine(g: GlobalFlag): string {
   return `  ${globalFlagHead(g).padEnd(26)} ${g.description}${g.description && tag ? "  " : ""}${tag}`.trimEnd()
 }
 
-// Group (群组层) one-line descriptions, keyed by the registry group head. Only groups that surface a
+// Group (群组层) descriptions, keyed by the registry group head. Usually one line; a group whose
+// behavior warrants it may span multiple lines (embed "\n"). Only groups that surface a
 // `<group> --help` page need an entry; absent → the description line is omitted.
 const GROUP_DESCRIPTIONS: Record<string, string> = {
   import: "Import a wallet from an existing secret or device.",
@@ -417,7 +424,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   tx: "Build, send, broadcast, and inspect transactions.",
   contract: "Call, send, deploy, and inspect smart contracts.",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
-  vote: "Vote for super representatives (SR).",
+  vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",
   reward: "Query and withdraw voting/block rewards.",
   chain: "Query on-chain parameters, resource prices, and node status.",
   message: "Sign arbitrary messages.",

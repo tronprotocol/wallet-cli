@@ -83,6 +83,9 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
     secretsTtyOnly: true,
     promptHints: { label: "default-label" },
     summary: "Import a BIP39 mnemonic phrase",
+    description:
+      "Import a BIP39 mnemonic phrase. The recovery phrase and master password are read\n" +
+      "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: importMnemonicFields,
     input: importMnemonicFields,
     examples: [{ cmd: "wallet-cli import mnemonic --label main" }],
@@ -109,6 +112,9 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
     secretsTtyOnly: true,
     promptHints: { label: "default-label" },
     summary: "Import a raw private key",
+    description:
+      "Import a raw private key. The private key and master password are read\n" +
+      "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: importPrivateKeyFields,
     input: importPrivateKeyFields,
     examples: [{ cmd: "wallet-cli import private-key --label hot" }],
@@ -333,6 +339,10 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
     secretsTtyOnly: true,
     requires: ["the new master password — entered interactively in a TTY"],
     summary: "Change the master password (re-encrypt keystores)",
+    description:
+      "Change the master password. Re-encrypts every software wallet keystore with the\n" +
+      "new password (Ledger / watch-only accounts are unaffected). Passwords are read\n" +
+      "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: changePasswordFields,
     input: changePasswordFields,
     examples: [{ cmd: "wallet-cli change-password" }],

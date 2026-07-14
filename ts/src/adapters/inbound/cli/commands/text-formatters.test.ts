@@ -63,6 +63,39 @@ describe("stake/chain TRX amount formatting", () => {
   });
 });
 
+describe("stakeInfo unfreezing list", () => {
+  const data = {
+    staked: { energySun: "1000000000", bandwidthSun: "500000000" },
+    votingPower: { total: 1500, used: 1000, available: 500 },
+    resource: { energy: { used: 12000, limit: 65000 }, bandwidth: { used: 600, limit: 1500 } },
+    unfreezing: [
+      { amountSun: "500000000", withdrawableAt: 1784073600000 },
+      { amountSun: "300000000", withdrawableAt: 1784160000000 },
+    ],
+    withdrawableSun: "0",
+    unfreeze: { used: 2, max: 32, remaining: 30 },
+  };
+
+  it("renders each pending unstake as a tree branch (├─ / └─), last one └─", () => {
+    const out = TextFormatters.stakeInfo(data, ctx({ accountLabel: "main" }));
+    const lines = out.split("\n");
+    const branch = lines.filter((l) => l.includes("─"));
+    expect(branch).toHaveLength(2);
+    expect(branch[0]).toContain("├─ 500 TRX  withdrawable");
+    expect(branch[1]).toContain("└─ 300 TRX  withdrawable");
+    // no legacy "  1) "/"  2) " line-leading numbering survives
+    expect(out).not.toMatch(/^\s*\d+\)\s/m);
+  });
+
+  it("aligns the branch under the value column", () => {
+    const out = TextFormatters.stakeInfo(data, ctx({ accountLabel: "main" }));
+    const lines = out.split("\n");
+    const valueCol = lines.find((l) => l.startsWith("Unfreezing"))!.indexOf("2 pending");
+    const branchLine = lines.find((l) => l.includes("├─"))!;
+    expect(branchLine.indexOf("├─")).toBe(valueCol);
+  });
+});
+
 describe("tokenBalance formatter", () => {
   it("formats balance with decimals and symbol when metadata is present", () => {
     const out = TextFormatters.tokenBalance({ address: "TXaddress", token: "TR7token", balance: "1204560000", symbol: "USDT", decimals: 6 }, ctx());
