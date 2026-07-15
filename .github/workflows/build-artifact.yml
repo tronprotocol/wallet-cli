@@ -26,6 +26,7 @@ jobs:
           cache: gradle
 
       - name: Build
+        working-directory: java
         run: ./gradlew clean build shadowJar shadowDistZip
 
       - name: Package artifacts
@@ -43,8 +44,8 @@ jobs:
           artifact_name="wallet-cli-artifact-${GITHUB_REF_NAME}"
 
           mkdir -p "$artifact_dir"
-          cp build/libs/wallet-cli.jar "$artifact_dir/${artifact_base}.jar"
-          cp build/distributions/*shadow*.zip "$artifact_dir/${artifact_base}.zip"
+          cp java/build/libs/wallet-cli.jar "$artifact_dir/${artifact_base}.jar"
+          cp java/build/distributions/*shadow*.zip "$artifact_dir/${artifact_base}.zip"
           git rev-parse HEAD > "$artifact_dir/git-sha.txt"
           echo "ARTIFACT_NAME=${artifact_name}" >> "$GITHUB_ENV"
 

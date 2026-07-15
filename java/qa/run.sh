@@ -277,7 +277,7 @@ if [ "$NO_BUILD" -eq 1 ]; then
   echo "Skipping build (--no-build)."
 elif build_required; then
   echo "Building wallet-cli..."
-  ./gradlew shadowJar qaJar -q
+  (cd "$PROJECT_DIR" && ./gradlew shadowJar qaJar -q)
   echo "Build complete."
 else
   echo "Build skipped (wallet-cli.jar is up to date)."
