@@ -3,7 +3,8 @@
  * Writes go to a temp file then rename into place; concurrent processes coordinate
  * via an O_EXCL lockfile so they don't clobber each other (wallets.json/config.yaml).
  */
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { dirname } from "node:path";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 
@@ -48,7 +49,9 @@ export class AtomicFileStore {
     mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
     writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
+    this.fsyncFile(tmp); // durably land the content before the rename that publishes it
     renameSync(tmp, path); // atomic replace on same filesystem
+    this.fsyncDir(dirname(path)); // durably land the rename (the directory entry)
   }
 
   /** transactional multi-file write: stage every temp first, then commit each into place while
@@ -64,6 +67,7 @@ export class AtomicFileStore {
         const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
         staged.push({ tmp, path });
         writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
+        this.fsyncFile(tmp); // land every staged blob before any commit rename runs
       }
     } catch (e) {
       for (const { tmp } of staged) { try { unlinkSync(tmp); } catch { /* best-effort */ } }
@@ -74,8 +78,13 @@ export class AtomicFileStore {
     const committed: Array<{ path: string; bak: string | null }> = [];
     try {
       for (const { tmp, path } of staged) {
-        const bak = existsSync(path) ? `${path}.${process.pid}.${this.#counter++}.bak` : null;
-        if (bak) this.commitRename(path, bak); // set aside the old blob
+        // high-entropy backup name: a 128-bit random suffix can't collide with a leftover .bak
+        // from a prior crashed run, so the commit never overwrites an existing recovery copy.
+        const bak = existsSync(path) ? `${path}.${randomBytes(16).toString("hex")}.bak` : null;
+        if (bak) {
+          if (existsSync(bak)) throw new ExecutionError("io_error", `backup path already exists, refusing to overwrite: ${bak}`);
+          this.commitRename(path, bak); // set aside the old blob
+        }
         committed.push({ path, bak }); // record BEFORE the tmp rename so restore covers this file
         this.commitRename(tmp, path); // install the new blob
       }
@@ -97,6 +106,9 @@ export class AtomicFileStore {
       }
       throw e; // clean rollback: every target restored to its prior state
     }
+    // durably land every committed rename before reporting success (still not multi-file atomic —
+    // that needs the journal in CP-01 — but each installed blob now survives power loss).
+    for (const dir of new Set(staged.map((s) => dirname(s.path)))) this.fsyncDir(dir);
     for (const { bak } of committed) { if (bak) { try { unlinkSync(bak); } catch { /* ignore */ } } }
   }
 
@@ -106,11 +118,33 @@ export class AtomicFileStore {
     renameSync(from, to);
   }
 
+  /** fsync a file's bytes to stable storage. Separate seam so tests can observe the barrier. */
+  fsyncFile(path: string): void {
+    const fd = openSync(path, "r");
+    try { fsyncSync(fd); } finally { closeSync(fd); }
+  }
+
+  /** fsync a directory so a rename into it survives power loss. Best-effort: some platforms
+   *  (e.g. Windows) reject a directory fsync — there durability falls back to the OS. */
+  fsyncDir(dir: string): void {
+    let fd: number | undefined;
+    try {
+      fd = openSync(dir, "r");
+      fsyncSync(fd);
+    } catch {
+      /* directory fsync unsupported — best-effort */
+    } finally {
+      if (fd !== undefined) closeSync(fd);
+    }
+  }
+
   writeText(path: string, text: string): void {
     mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
     writeFileSync(tmp, text, { mode: 0o600 });
+    this.fsyncFile(tmp);
     renameSync(tmp, path);
+    this.fsyncDir(dirname(path));
   }
 
   withLock<T>(path: string, fn: () => T, opts: { timeoutMs?: number; staleMs?: number } = {}): T {

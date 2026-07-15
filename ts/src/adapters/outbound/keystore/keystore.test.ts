@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readdirSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -390,5 +390,80 @@ describe("changePassword", () => {
       expect.objectContaining({ code: "io_error" }),
     );
     expect(ks.verifyPassword("OldPw1!aa")).toBe(true);
+  }, 15_000);
+
+  // ── production crash-safety: the real backup/rollback/fsync commit loop ──────
+  // Unlike the mock above (which throws before any file moves), these drive the ACTUAL
+  // AtomicFileStore commit path a rotation uses — the code touched by the CP-03/CP-04 change.
+
+  function residue(root: string): string[] {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (p.endsWith(".tmp") || p.includes(".bak")) out.push(p);
+      }
+    };
+    walk(root);
+    return out;
+  }
+
+  it("a partial mid-commit crash rolls back: every secret still opens with the OLD password, none with the new", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "OldPw1!aa");
+    const seedRef = ks.import({ secret: MNEMONIC, type: "seed", label: "seed" }).accountId;
+    const keyRef = ks.import({
+      secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+      type: "privateKey",
+      label: "hot",
+    }).accountId;
+    const vaultId = (ks.resolveAccount(seedRef).wallet.source as any).vaultId;
+    const keyId = (ks.resolveAccount(keyRef).wallet.source as any).keyId;
+
+    // simulate a crash partway through the commit: let the first blob install, fail the next
+    let installs = 0;
+    store.commitRename = (from: string, to: string) => {
+      if (from.includes(".tmp")) {
+        installs++;
+        if (installs === 2) throw Object.assign(new Error("EIO"), { code: "EIO" });
+      }
+      renameSync(from, to);
+    };
+
+    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow();
+
+    // rollback must leave a consistent OLD-password keystore — never a mixed set
+    expect(ks.verifyPassword("OldPw1!aa")).toBe(true);
+    expect(ks.verifyPassword("NewPw2@bb")).toBe(false);
+    // both secrets must still decrypt under the old password via a fresh keystore reading from disk
+    const reopened = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
+    expect(() => reopened.decryptSeed(vaultId)).not.toThrow();
+    expect(() => reopened.decryptKey(keyId)).not.toThrow();
+    // clean rollback leaves no half-written temps or stray backups
+    expect(residue(root)).toEqual([]);
+  }, 15_000);
+
+  it("a successful rotation lands durably with no .tmp/.bak residue (fsync + backup cleanup)", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "OldPw1!aa");
+    const seedRef = ks.import({ secret: MNEMONIC, type: "seed", label: "seed" }).accountId;
+    const keyRef = ks.import({
+      secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+      type: "privateKey",
+      label: "hot",
+    }).accountId;
+    const vaultId = (ks.resolveAccount(seedRef).wallet.source as any).vaultId;
+    const keyId = (ks.resolveAccount(keyRef).wallet.source as any).keyId;
+
+    ks.changePassword("OldPw1!aa", "NewPw2@bb");
+
+    // new password opens every blob through a fresh on-disk read; the backups are gone
+    const reopened = new Keystore(root, new AtomicFileStore(), () => "NewPw2@bb");
+    expect(() => reopened.decryptSeed(vaultId)).not.toThrow();
+    expect(() => reopened.decryptKey(keyId)).not.toThrow();
+    expect(residue(root)).toEqual([]);
   }, 15_000);
 });

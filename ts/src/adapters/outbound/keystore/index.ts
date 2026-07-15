@@ -397,7 +397,11 @@ export class Keystore {
           );
         }
         const plaintext = CryptoEnvelope.decrypt(blob, oldPassword);
-        entries.push({ path, value: CryptoEnvelope.encrypt(plaintext, newPassword, id, blob.type) });
+        try {
+          entries.push({ path, value: CryptoEnvelope.encrypt(plaintext, newPassword, id, blob.type) });
+        } finally {
+          plaintext.fill(0); // scrub the decrypted secret from memory as soon as it is re-wrapped
+        }
         labels.push(file.labels[accountRefOf(w, s.type === "seed" ? 0 : null)] ?? w.id);
       }
       if (entries.length === 0) {

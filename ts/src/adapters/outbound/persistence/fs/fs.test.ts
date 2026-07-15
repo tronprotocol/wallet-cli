@@ -85,4 +85,42 @@ describe("AtomicFileStore.writeJsonAll", () => {
     expect(readdirSync(root).some((f) => f.includes(".bak"))).toBe(true);
     expect(existsSync(a)).toBe(true);
   });
+
+  it("fsyncs every staged temp before commit and the target directory after (CP-03)", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const a = join(root, "a.json");
+    const b = join(root, "b.json");
+
+    const store = new AtomicFileStore();
+    const calls: string[] = [];
+    store.fsyncFile = (p: string) => calls.push(`file:${p.endsWith(".tmp") ? "tmp" : "other"}`);
+    store.fsyncDir = (d: string) => calls.push(`dir:${d === root ? "root" : "other"}`);
+
+    store.writeJsonAll([
+      { path: a, value: "A" },
+      { path: b, value: "B" },
+    ]);
+
+    // both temps land before the single directory barrier that publishes the renames
+    expect(calls).toEqual(["file:tmp", "file:tmp", "dir:root"]);
+  });
+
+  it("backs up an existing target under a high-entropy name, never a resettable counter (CP-04)", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const a = join(root, "a.json");
+    writeFileSync(a, '"old-A"\n');
+
+    const store = new AtomicFileStore();
+    const bakTargets: string[] = [];
+    store.commitRename = (from: string, to: string) => {
+      if (to.endsWith(".bak")) bakTargets.push(to);
+      renameSync(from, to);
+    };
+
+    store.writeJsonAll([{ path: a, value: "new-A" }]);
+
+    expect(bakTargets).toHaveLength(1);
+    // 128-bit hex suffix, not `<pid>.<counter>.bak` — so a leftover .bak can never be reused/overwritten
+    expect(bakTargets[0]).toMatch(/\.[0-9a-f]{32}\.bak$/);
+  });
 });

@@ -77,3 +77,17 @@ describe("hasMasterPassword", () => {
     expect(r.hasMasterPassword()).toBe(false);
   });
 });
+
+describe("clearPrimed (CP-08)", () => {
+  it("drops the cached password so it is no longer readable", async () => {
+    // prime via TTY (no --password source), so a cleared cache leaves nothing behind
+    const r = new SecretResolver(streams(), {}, new Prompter(new Backend([PW, PW])));
+    await r.primePassword({ mode: "set" });
+    expect(r.masterPassword()).toBe(PW);
+
+    r.clearPrimed();
+
+    expect(r.hasMasterPassword()).toBe(false);
+    expect(() => r.masterPassword()).toThrow(); // cache gone, no source → auth_required
+  });
+});

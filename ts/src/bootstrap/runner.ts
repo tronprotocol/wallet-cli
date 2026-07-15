@@ -44,6 +44,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
     });
     return normalized.exitCode();
   } finally {
+    runtime.deps.secrets.clearPrimed(); // release cached secrets at end of the invocation
     runtime.prompter.close();
   }
 }

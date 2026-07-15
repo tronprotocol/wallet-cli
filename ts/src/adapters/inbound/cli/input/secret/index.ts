@@ -30,6 +30,17 @@ export class SecretResolver implements ISecretResolver {
     private readonly prompter?: Prompter,
   ) {}
 
+  /**
+   * Drop every cached secret once the command is done (called from the runner's finally).
+   * NOTE: JavaScript strings are immutable and cannot be overwritten, so this only releases the
+   * references for GC — it is not a guaranteed memory wipe (see the CP-08 caveat in the docs).
+   */
+  clearPrimed(): void {
+    this.#primed.clear();
+    this.#byPath.clear();
+    this.#stdinUsedBy = undefined;
+  }
+
   /** whether a master-password source is configured, WITHOUT consuming it. */
   hasMasterPassword(): boolean {
     return this.paths.password !== undefined || this.#primed.has("password");
