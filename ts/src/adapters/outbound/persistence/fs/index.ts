@@ -51,8 +51,11 @@ export class AtomicFileStore {
     renameSync(tmp, path); // atomic replace on same filesystem
   }
 
-  /** transactional-ish multi-file write: stage every temp first, then rename all into place.
-   *  A failure while staging unlinks the temps and leaves every target untouched. */
+  /** transactional multi-file write: stage every temp first, then commit each into place while
+   *  backing up the prior blob. A failure while staging unlinks the temps and leaves every target
+   *  untouched. A failure mid-commit restores every already-committed target from its backup, so
+   *  callers are never left with a half-migrated set; if that automatic restore itself fails, an
+   *  ExecutionError("io_error") is thrown and the backups are left on disk for manual recovery. */
   writeJsonAll(entries: Array<{ path: string; value: unknown }>): void {
     const staged: Array<{ tmp: string; path: string }> = [];
     try {
@@ -66,7 +69,41 @@ export class AtomicFileStore {
       for (const { tmp } of staged) { try { unlinkSync(tmp); } catch { /* best-effort */ } }
       throw e;
     }
-    for (const { tmp, path } of staged) renameSync(tmp, path); // atomic per file
+
+    // commit phase: back up each existing target, then move its temp into place.
+    const committed: Array<{ path: string; bak: string | null }> = [];
+    try {
+      for (const { tmp, path } of staged) {
+        const bak = existsSync(path) ? `${path}.${process.pid}.${this.#counter++}.bak` : null;
+        if (bak) this.commitRename(path, bak); // set aside the old blob
+        committed.push({ path, bak }); // record BEFORE the tmp rename so restore covers this file
+        this.commitRename(tmp, path); // install the new blob
+      }
+    } catch (e) {
+      let restoreFailed = false;
+      for (const { path, bak } of committed.reverse()) {
+        try {
+          if (bak) this.commitRename(bak, path); // put the old blob back (replaces new if present)
+          else { try { unlinkSync(path); } catch { /* ignore */ } } // was a newly created file
+        } catch { restoreFailed = true; }
+      }
+      for (const { tmp } of staged) { try { unlinkSync(tmp); } catch { /* best-effort */ } }
+      if (restoreFailed) {
+        throw new ExecutionError(
+          "io_error",
+          "partial keystore write; automatic rollback FAILED — manual recovery needed",
+          { error: String(e), files: committed.map((c) => c.path).join(", ") },
+        );
+      }
+      throw e; // clean rollback: every target restored to its prior state
+    }
+    for (const { bak } of committed) { if (bak) { try { unlinkSync(bak); } catch { /* ignore */ } } }
+  }
+
+  /** rename seam used by the commit/restore phase of writeJsonAll — overridable in tests to
+   *  inject a mid-commit failure. */
+  commitRename(from: string, to: string): void {
+    renameSync(from, to);
   }
 
   writeText(path: string, text: string): void {

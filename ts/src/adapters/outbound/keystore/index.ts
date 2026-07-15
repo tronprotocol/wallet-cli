@@ -409,9 +409,12 @@ export class Keystore {
       });
       try {
         this.store.writeJsonAll(entries);
-      } catch {
-        // staged temps were unlinked by writeJsonAll; every keystore file is unchanged.
-        throw new ExecutionError("io_error", "failed to write re-encrypted keystores; rolled back, the old password remains in effect");
+      } catch (e) {
+        // An explicit ExecutionError (e.g. automatic rollback failed → manual recovery needed)
+        // is already accurate; let it through unmasked.
+        if (e instanceof ExecutionError) throw e;
+        // Otherwise writeJsonAll rolled back cleanly: every keystore file is unchanged.
+        throw new ExecutionError("io_error", "failed to write re-encrypted keystores; rolled back, the old password remains in effect", { error: String(e) });
       }
       return { wallets: labels, count: labels.length };
     });

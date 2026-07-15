@@ -44,7 +44,9 @@ export class ConfigLoader {
       }
       if (raw.defaultOutput === "json" || raw.defaultOutput === "text") defaultOutput = raw.defaultOutput;
       if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
-      if (typeof raw.waitTimeoutMs === "number") waitTimeoutMs = raw.waitTimeoutMs;
+      // Same rule ConfigService enforces on write — a hand-edited file must not slip through
+      // negative or fractional values into the effective config.
+      if (Number.isInteger(raw.waitTimeoutMs) && raw.waitTimeoutMs >= 0) waitTimeoutMs = raw.waitTimeoutMs;
       if (raw.price && typeof raw.price === "object") {
         const p = raw.price as Record<string, unknown>;
         const provider = p.provider === "none" ? "none" : "coingecko";

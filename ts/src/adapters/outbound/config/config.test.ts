@@ -28,6 +28,19 @@ describe("ConfigLoader defaultNetwork", () => {
   });
 });
 
+describe("ConfigLoader waitTimeoutMs validation", () => {
+  it("accepts a valid non-negative integer", () => {
+    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 5000\n")).waitTimeoutMs).toBe(5000);
+    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 0\n")).waitTimeoutMs).toBe(0);
+  });
+
+  it("ignores negative or fractional waitTimeoutMs and keeps the default", () => {
+    // ConfigService rejects these on write; the loader must not accept them from a hand-edited file.
+    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: -1\n")).waitTimeoutMs).toBe(60000);
+    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 1.5\n")).waitTimeoutMs).toBe(60000);
+  });
+});
+
 describe("NetworkRegistry.resolve case-insensitivity", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
