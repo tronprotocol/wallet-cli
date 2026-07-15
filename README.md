@@ -1,6 +1,18 @@
-# wallet-cli
+<h1 align="center">wallet-cli</h1>
 
-A command-line wallet for the [TRON](https://tron.network) network. This repository holds **two independent implementations** that share the same purpose but target different users:
+<h4 align="center">
+  A command-line wallet for the TRON network — interactive in Java, agent-first in TypeScript
+</h4>
+
+<p align="center">
+  <a href="https://github.com/tronprotocol/wallet-cli/issues"><img src="https://img.shields.io/github/issues/tronprotocol/wallet-cli.svg"></a>
+  <a href="https://github.com/tronprotocol/wallet-cli/pulls"><img src="https://img.shields.io/github/issues-pr/tronprotocol/wallet-cli.svg"></a>
+  <a href="https://github.com/tronprotocol/wallet-cli/graphs/contributors"><img src="https://img.shields.io/github/contributors/tronprotocol/wallet-cli.svg"></a>
+  <a href="https://www.npmjs.com/package/@tron-walletcli/wallet-cli"><img src="https://img.shields.io/npm/v/@tron-walletcli/wallet-cli.svg"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/tronprotocol/wallet-cli.svg"></a>
+</p>
+
+This repository holds **two independent implementations** that share the same purpose but target different users:
 
 - **[Java](java/README.md)** — the original, full-featured reference CLI. An interactive prompt (REPL) for people who want the complete TRON feature surface.
 - **[TypeScript](ts/README.md)** — an agent-first rewrite for automation. Standard subcommands with a stable JSON envelope, built for scripts, CI, and AI agents.

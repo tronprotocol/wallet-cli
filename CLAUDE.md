@@ -6,11 +6,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The repository holds two independent implementations:
 
-- `java/` — the Java implementation, described by the rest of this file.
-- `ts/` — the TypeScript implementation, a self-contained npm package with its own `README.md`.
+- `java/` — the original REPL-first implementation, described by the rest of this file.
+- `ts/` — the agent-first TypeScript rewrite (npm package `@tron-walletcli/wallet-cli`). See the
+  **TypeScript Implementation** section below and `ts/README.md`.
 
-Everything below refers to the Java implementation. **All paths are relative to `java/`, and all
-commands are run from that directory** (`cd java` first).
+Everything below (except the TypeScript Implementation section) refers to the Java implementation.
+**All Java paths are relative to `java/`, and all Java commands are run from that directory**
+(`cd java` first).
+
+## TypeScript Implementation
+
+The `ts/` package is a self-contained, agent-first CLI (Node.js 20+, ESM, TypeScript). Every command
+has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts
+are used only for secret input (create / import / backup / delete). **All `ts/` commands run from the
+`ts/` directory.**
+
+```bash
+cd ts
+npm ci                 # install
+npm run build          # bundle to dist/ via tsup (bin: wallet-cli -> dist/index.js)
+npm run dev -- <args>  # run from source via tsx (e.g. npm run dev -- create --label main)
+npm test               # vitest (tests are co-located as *.test.ts)
+npm run typecheck      # tsc --noEmit
+npm run depcruise      # dependency-cruiser — enforces the architecture rules below
+```
+
+### Architecture (hexagonal / ports & adapters)
+
+Dependencies point inward. The source of truth is
+`ts/docs/typescript-wallet-cli-architecture-source-of-truth.md` — read it before changing
+boundaries, ports, command routing, or the JSON contract. `depcruise` enforces these rules in CI.
+
+| Area (`ts/src/…`) | Role | May depend on | Must NOT depend on |
+|---|---|---|---|
+| `domain` | Pure rules & values, zero I/O (address, amounts, derivation, wallet, family, errors) | Node / pure libs only | application, adapters, bootstrap |
+| `application` | Use cases, services, contracts, and **ports** (interfaces it owns) | `domain` | adapters, bootstrap |
+| `adapters/inbound` | CLI driving side — parse argv, route to use cases, render output | application, domain | adapters/outbound, bootstrap |
+| `adapters/outbound` | Implements application ports — keystore, TronWeb/Tron gateway, Ledger, price, config, persistence | application ports, domain | adapters/inbound, bootstrap |
+| `bootstrap` | Composition root + process lifecycle (`runner.ts`, `composition.ts`, `argv.ts`, `families/`) | all areas | — (assembly only) |
+
+Key points:
+- **Ports live in `application/ports/`** (e.g. `wallet-repository`, `tron-gateway`, `ledger-device`,
+  `price-provider`); outbound adapters implement them (dependency inversion).
+- **Chain-family differences** are isolated in the `tron` family — `application/use-cases/tron/`,
+  `adapters/outbound/chain/tron/`, and the family plugin under `bootstrap/families/`. EVM is planned,
+  not yet public.
+- **A single Zod schema per command** drives validation, yargs arity, help text, and JSON Schema.
+- **Secrets** (private keys, mnemonics, BIP39 passphrases) are encrypted at rest and never accepted
+  from argv or env — only a dedicated stdin channel or hidden TTY prompt.
+
+### Adding a TypeScript command
+
+1. Add the command module under `adapters/inbound/cli/commands/` with its Zod schema.
+2. Route it to an application use case (`application/use-cases/…`, e.g. `tron/transaction-service.ts`);
+   do not put I/O or chain logic in the inbound layer.
+3. If it needs new I/O, define a **port** in `application/ports/` and implement it in
+   `adapters/outbound/`. Wire it in `bootstrap/composition.ts`.
+4. Add co-located `*.test.ts` and run `npm run depcruise && npm run typecheck && npm test`.
 
 ## Build & Run
 
@@ -59,7 +111,7 @@ This is a **TRON blockchain CLI wallet** built on the [Trident SDK](https://gith
 
 ### Two CLI Modes
 
-1. **REPL 交互模式** (human-friendly) — `Client` class with JCommander `@Parameters` inner classes. Entry point: `org.tron.walletcli.Client`. Features tab completion, interactive prompts, and conversational output. This is the largest file (~4700 lines). Best for manual exploration and day-to-day wallet management by humans.
+1. **REPL 交互模式** (human-friendly) — `Client` class with JCommander `@Parameters` inner classes. Entry point: `org.tron.walletcli.Client`. Features tab completion, interactive prompts, and conversational output. This is the largest file (~4900 lines). Best for manual exploration and day-to-day wallet management by humans.
 2. **Standard CLI 模式** (AI-agent-friendly) — `StandardCliRunner` with `CommandRegistry`/`CommandDefinition` pattern in `org.tron.walletcli.cli.*`. Supports `--output json`, `--network`, `--quiet` flags. Commands are registered in `cli/commands/` classes (e.g., `WalletCommands`, `TransactionCommands`, `QueryCommands`). Designed for automation: deterministic exit codes, structured JSON output, no interactive prompts, and env-var-based authentication — ideal for AI agents, scripts, and CI/CD pipelines.
 
 The standard CLI suppresses all stray stdout/stderr in JSON mode to ensure machine-parseable output. Authentication is automatic via `MASTER_PASSWORD` env var + keystore files in `Wallet/`.
@@ -126,9 +178,9 @@ User Input → Client (JCommander) → WalletApiWrapper → WalletApi → Triden
 
 ### Key Frameworks & Libraries
 
-- **Trident SDK 0.10.0** — All gRPC API calls to TRON nodes
+- **Trident SDK 0.11.0** — All gRPC API calls to TRON nodes
 - **JCommander 1.82** — CLI argument parsing (REPL 交互模式)
 - **JLine 3.25.0** — Interactive terminal/readline
 - **BouncyCastle** — Cryptographic operations
-- **Protobuf 3.25.5 / gRPC 1.60.0** — Protocol definitions and transport
+- **Protobuf 3.25.8 / gRPC 1.75.0** — Protocol definitions and transport
 - **Lombok** — `@Getter`, `@Setter`, `@Slf4j` etc. (annotation processing)
