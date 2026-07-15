@@ -105,6 +105,24 @@ describe("AtomicFileStore.writeJsonAll", () => {
     expect(calls).toEqual(["file:tmp", "file:tmp", "dir:root"]);
   });
 
+  it("keeps committed data and retains backups when the post-commit dir fsync fails (not a rollback)", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const a = join(root, "a.json");
+    writeFileSync(a, '"old-A"\n');
+
+    const store = new AtomicFileStore();
+    store.fsyncDir = () => { throw EIO(); }; // the post-commit durability barrier fails
+
+    // the commit already succeeded, so this must NOT be masked as a clean rollback
+    expect(() => store.writeJsonAll([{ path: a, value: "new-A" }]))
+      .toThrowError(expect.objectContaining({ code: "io_error" }));
+
+    // new blob is installed and readable — the state was NOT reverted
+    expect(JSON.parse(readFileSync(a, "utf8"))).toBe("new-A");
+    // the old blob is retained as a .bak for recovery instead of being cleaned up
+    expect(readdirSync(root).some((f) => f.includes(".bak"))).toBe(true);
+  });
+
   it("fsyncs the affected directory during a clean rollback, before rethrowing", () => {
     const root = mkdtempSync(join(tmpdir(), "fs-"));
     const a = join(root, "a.json");
@@ -133,6 +151,34 @@ describe("AtomicFileStore.writeJsonAll", () => {
 
     // the restore renames must be durably landed (dir fsynced) before the error surfaces
     expect(dirSyncs).toContain(root);
+    expect(JSON.parse(readFileSync(a, "utf8"))).toBe("old-A");
+  });
+
+  it("reports rollback-durability-uncertain (not a bare error) when the rollback fsync fails", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const a = join(root, "a.json");
+    const b = join(root, "b.json");
+    writeFileSync(a, '"old-A"\n');
+    writeFileSync(b, '"old-B"\n');
+
+    const store = new AtomicFileStore();
+    store.fsyncDir = () => { throw EIO(); }; // durability barrier fails on the rollback path too
+    let installs = 0;
+    store.commitRename = (from: string, to: string) => {
+      if (from.includes(".tmp")) {
+        installs++;
+        if (installs === 2) throw EIO(); // A commits, then B install fails → clean rollback
+      }
+      renameSync(from, to);
+    };
+
+    // rollback succeeded (A restored) but its fsync failed → a precise io_error, not a bare EIO
+    expect(() =>
+      store.writeJsonAll([
+        { path: a, value: "new-A" },
+        { path: b, value: "new-B" },
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "io_error" }));
     expect(JSON.parse(readFileSync(a, "utf8"))).toBe("old-A");
   });
 

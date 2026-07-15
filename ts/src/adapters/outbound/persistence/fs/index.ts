@@ -111,12 +111,35 @@ export class AtomicFileStore {
       }
       // durably land the restore renames before surfacing the failure, so a power loss right
       // after a clean rollback can't resurrect a half-committed state on restart.
-      for (const dir of new Set(committed.map((c) => dirname(c.path)))) this.fsyncDir(dir);
+      try {
+        for (const dir of new Set(committed.map((c) => dirname(c.path)))) this.fsyncDir(dir);
+      } catch (fsyncErr) {
+        // Restores already succeeded (prior state is readable), but their durability is unconfirmed.
+        // Surface that precisely and keep the original write failure as the cause, instead of
+        // letting a bare fsync error escape and masking why we rolled back in the first place.
+        throw new ExecutionError(
+          "io_error",
+          "keystore write failed and was rolled back, but the rollback's durability could not be confirmed; the prior state is in effect — verify and retry.",
+          { error: String(e), fsyncError: String(fsyncErr), files: committed.map((c) => c.path).join(", ") },
+        );
+      }
       throw e; // clean rollback: every target restored to its prior state
     }
     // durably land every committed rename before reporting success (still not multi-file atomic —
     // that needs the journal in CP-01 — but each installed blob now survives power loss).
-    for (const dir of new Set(staged.map((s) => dirname(s.path)))) this.fsyncDir(dir);
+    try {
+      for (const dir of new Set(staged.map((s) => dirname(s.path)))) this.fsyncDir(dir);
+    } catch (e) {
+      // The commit already succeeded here: every new blob is installed and readable. This is NOT a
+      // rollback — the new state is in effect — so DON'T undo it (a rollback rename would need the
+      // very dir fsync that just failed). Surface a distinct, accurate error and KEEP the backups
+      // for recovery rather than cleaning them up. Callers must not report this as "rolled back".
+      throw new ExecutionError(
+        "io_error",
+        "keystore write committed but durability could not be confirmed; the new state is in effect — verify and retry. Backups retained.",
+        { error: String(e), files: committed.map((c) => c.path).join(", ") },
+      );
+    }
     for (const { bak } of committed) { if (bak) { try { unlinkSync(bak); } catch { /* ignore */ } } }
   }
 
