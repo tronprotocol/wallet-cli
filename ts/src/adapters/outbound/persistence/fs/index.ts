@@ -33,6 +33,11 @@ function isStaleLock(lock: string, staleMs: number): boolean {
   return Date.now() - st.mtimeMs > staleMs; // no readable owner → fall back to age
 }
 
+/** Whether this platform can fsync a directory handle at all. Windows cannot open a directory as a
+ *  file handle, so directory fsync is skipped there entirely and rename durability falls back to
+ *  the OS. On POSIX we attempt it and only tolerate "not applicable" errors (see fsyncDir). */
+const DIR_FSYNC_SUPPORTED = process.platform !== "win32";
+
 export class AtomicFileStore {
   readJson<T>(path: string): T | null {
     if (!existsSync(path)) return null;
@@ -104,6 +109,9 @@ export class AtomicFileStore {
           { error: String(e), files: committed.map((c) => c.path).join(", ") },
         );
       }
+      // durably land the restore renames before surfacing the failure, so a power loss right
+      // after a clean rollback can't resurrect a half-committed state on restart.
+      for (const dir of new Set(committed.map((c) => dirname(c.path)))) this.fsyncDir(dir);
       throw e; // clean rollback: every target restored to its prior state
     }
     // durably land every committed rename before reporting success (still not multi-file atomic —
@@ -124,17 +132,25 @@ export class AtomicFileStore {
     try { fsyncSync(fd); } finally { closeSync(fd); }
   }
 
-  /** fsync a directory so a rename into it survives power loss. Best-effort: some platforms
-   *  (e.g. Windows) reject a directory fsync — there durability falls back to the OS. */
+  /** raw directory fsync syscall — overridable seam so tests can inject a failure. */
+  rawFsyncDir(dir: string): void {
+    const fd = openSync(dir, "r");
+    try { fsyncSync(fd); } finally { closeSync(fd); }
+  }
+
+  /** fsync a directory so a rename into it survives power loss. Skipped on platforms that can't
+   *  fsync a directory handle (Windows). On POSIX only "not applicable" errors are tolerated; a
+   *  real I/O/permission fault propagates rather than being reported as a durable write. */
   fsyncDir(dir: string): void {
-    let fd: number | undefined;
+    if (!DIR_FSYNC_SUPPORTED) return; // Windows: can't open a dir as a handle; OS handles metadata durability
     try {
-      fd = openSync(dir, "r");
-      fsyncSync(fd);
-    } catch {
-      /* directory fsync unsupported — best-effort */
-    } finally {
-      if (fd !== undefined) closeSync(fd);
+      this.rawFsyncDir(dir);
+    } catch (e) {
+      // some POSIX filesystems (FAT, network/FUSE mounts) reject fsync on a directory fd — tolerate
+      // only those "not applicable" codes; EIO/ENOSPC/EACCES/EBADF stay real faults and propagate.
+      const code = (e as NodeJS.ErrnoException)?.code;
+      if (code === "EINVAL" || code === "ENOTSUP" || code === "EOPNOTSUPP" || code === "ENOSYS") return;
+      throw e;
     }
   }
 

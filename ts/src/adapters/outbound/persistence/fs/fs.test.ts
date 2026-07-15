@@ -105,6 +105,37 @@ describe("AtomicFileStore.writeJsonAll", () => {
     expect(calls).toEqual(["file:tmp", "file:tmp", "dir:root"]);
   });
 
+  it("fsyncs the affected directory during a clean rollback, before rethrowing", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const a = join(root, "a.json");
+    const b = join(root, "b.json");
+    writeFileSync(a, '"old-A"\n');
+    writeFileSync(b, '"old-B"\n');
+
+    const store = new AtomicFileStore();
+    const dirSyncs: string[] = [];
+    store.fsyncDir = (d: string) => dirSyncs.push(d);
+    let installs = 0;
+    store.commitRename = (from: string, to: string) => {
+      if (from.includes(".tmp")) {
+        installs++;
+        if (installs === 2) throw EIO(); // A commits, then B install fails → clean rollback
+      }
+      renameSync(from, to);
+    };
+
+    expect(() =>
+      store.writeJsonAll([
+        { path: a, value: "new-A" },
+        { path: b, value: "new-B" },
+      ]),
+    ).toThrow();
+
+    // the restore renames must be durably landed (dir fsynced) before the error surfaces
+    expect(dirSyncs).toContain(root);
+    expect(JSON.parse(readFileSync(a, "utf8"))).toBe("old-A");
+  });
+
   it("backs up an existing target under a high-entropy name, never a resettable counter (CP-04)", () => {
     const root = mkdtempSync(join(tmpdir(), "fs-"));
     const a = join(root, "a.json");
@@ -122,5 +153,19 @@ describe("AtomicFileStore.writeJsonAll", () => {
     expect(bakTargets).toHaveLength(1);
     // 128-bit hex suffix, not `<pid>.<counter>.bak` — so a leftover .bak can never be reused/overwritten
     expect(bakTargets[0]).toMatch(/\.[0-9a-f]{32}\.bak$/);
+  });
+});
+
+describe("AtomicFileStore.fsyncDir", () => {
+  it("propagates a real I/O error instead of silently reporting a durable write", () => {
+    const store = new AtomicFileStore();
+    store.rawFsyncDir = () => { throw EIO(); };
+    expect(() => store.fsyncDir("/anything")).toThrowError(expect.objectContaining({ code: "EIO" }));
+  });
+
+  it("swallows an unsupported-directory-fsync error (best-effort)", () => {
+    const store = new AtomicFileStore();
+    store.rawFsyncDir = () => { throw Object.assign(new Error("EINVAL"), { code: "EINVAL" }); };
+    expect(() => store.fsyncDir("/anything")).not.toThrow();
   });
 });
