@@ -60,3 +60,33 @@ describe("introspectFields — defaults & choices", () => {
     expect(by("to").choices).toBeUndefined();
   });
 });
+
+describe("introspectFields — baseType & array fields", () => {
+  const fields = introspectFields(
+    z.object({
+      to: z.string().describe("a string"),
+      flag: z.boolean().describe("a switch"),
+      resource: ciEnum(["energy", "bandwidth"]).describe("an enum via ciEnum's preprocess pipe"),
+      for: z.array(z.string().min(1)).min(1).max(30).describe("a repeatable string flag"),
+    }),
+  );
+  const by = (name: string) => fields.find((f) => f.name === name)!;
+
+  it("reports a repeatable array field as its per-entry element type, and marks isArray", () => {
+    expect(by("for").baseType).toBe("string");
+    expect(by("for").isArray).toBe(true);
+  });
+
+  it("reports scalars as their own type and not an array", () => {
+    expect(by("to").baseType).toBe("string");
+    expect(by("to").isArray).toBe(false);
+    expect(by("flag").baseType).toBe("boolean");
+    expect(by("flag").isArray).toBe(false);
+  });
+
+  it("never leaks the internal 'pipe' type — a ciEnum resolves past the preprocess pipe", () => {
+    expect(by("resource").baseType).not.toBe("pipe");
+    expect(by("resource").isArray).toBe(false);
+    expect(by("resource").choices).toEqual(["energy", "bandwidth"]);
+  });
+});

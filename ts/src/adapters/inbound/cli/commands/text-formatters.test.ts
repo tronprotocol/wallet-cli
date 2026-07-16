@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { TronUseCases } from "./tron/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { registerWalletCommands } from "./wallet.js";
 import { registerConfigCommands } from "./config.js";
 import { registerNetworkCommands } from "./network.js";
-import { TronModule } from "./tron/index.js";
+import { registerTronChainCommands, type TronChainCommandDependencies } from "../../../../bootstrap/families/tron.js";
 import { commandId } from "../command-id.js";
 import { TextFormatters } from "../render/index.js";
+import { isChainCommand } from "../contracts/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import type { ConfigService } from "../../../../application/use-cases/config-service.js";
 
@@ -14,16 +14,15 @@ const ctx = (over: Partial<TextRenderContext> = {}): TextRenderContext => ({ com
 
 describe("text formatters", () => {
   it("every registered command has a command-owned text formatter", () => {
-    const services = {} as TronUseCases;
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
     registerConfigCommands(registry, {} as ConfigService);
     registerNetworkCommands(registry);
-    new TronModule(services).registerCommands(registry);
+    registerTronChainCommands(registry, {} as TronChainCommandDependencies);
 
     const missing = registry.all()
-      .filter((cmd) => typeof cmd.formatText !== "function")
-      .map(commandId)
+      .filter((cmd) => typeof (isChainCommand(cmd) ? cmd.spec.formatText : cmd.formatText) !== "function")
+      .map((cmd) => commandId(isChainCommand(cmd) ? { path: cmd.spec.path } : cmd))
       .sort();
 
     expect(missing).toEqual([]);
@@ -44,6 +43,56 @@ describe("accountBalance formatter", () => {
     const out = TextFormatters.accountBalance({ address: "TXaddress", balance: "1", decimals: 6, symbol: "TRX" }, ctx({ accountLabel: "main" }));
     expect(out).toContain("main");
     expect(out).not.toContain("TXaddress");
+  });
+});
+
+describe("stake/chain TRX amount formatting", () => {
+  it("groups the integer part without truncating fractional TRX", () => {
+    const stake = TextFormatters.stakeDelegated({
+      direction: "out",
+      canDelegateMaxSun: { energy: "1234456789", bandwidth: "0" },
+      delegations: [],
+    }, ctx());
+    const chain = TextFormatters.chainPrices({
+      energy: { currentSunPerUnit: 210 },
+      bandwidth: { currentSunPerUnit: 1000 },
+      memoFeeSun: "1234456789",
+    });
+    expect(stake).toContain("1,234.456789 TRX");
+    expect(chain).toContain("1,234.456789 TRX");
+  });
+});
+
+describe("stakeInfo unfreezing list", () => {
+  const data = {
+    staked: { energySun: "1000000000", bandwidthSun: "500000000" },
+    votingPower: { total: 1500, used: 1000, available: 500 },
+    resource: { energy: { used: 12000, limit: 65000 }, bandwidth: { used: 600, limit: 1500 } },
+    unfreezing: [
+      { amountSun: "500000000", withdrawableAt: 1784073600000 },
+      { amountSun: "300000000", withdrawableAt: 1784160000000 },
+    ],
+    withdrawableSun: "0",
+    unfreeze: { used: 2, max: 32, remaining: 30 },
+  };
+
+  it("renders each pending unstake as a tree branch (├─ / └─), last one └─", () => {
+    const out = TextFormatters.stakeInfo(data, ctx({ accountLabel: "main" }));
+    const lines = out.split("\n");
+    const branch = lines.filter((l) => l.includes("─"));
+    expect(branch).toHaveLength(2);
+    expect(branch[0]).toContain("├─ 500 TRX  withdrawable");
+    expect(branch[1]).toContain("└─ 300 TRX  withdrawable");
+    // no legacy "  1) "/"  2) " line-leading numbering survives
+    expect(out).not.toMatch(/^\s*\d+\)\s/m);
+  });
+
+  it("aligns the branch under the value column", () => {
+    const out = TextFormatters.stakeInfo(data, ctx({ accountLabel: "main" }));
+    const lines = out.split("\n");
+    const valueCol = lines.find((l) => l.startsWith("Unfreezing"))!.indexOf("2 pending");
+    const branchLine = lines.find((l) => l.includes("├─"))!;
+    expect(branchLine.indexOf("├─")).toBe(valueCol);
   });
 });
 

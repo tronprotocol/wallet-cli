@@ -32,4 +32,37 @@ describe("SignerResolver — watch accounts", () => {
     }
     expect(err?.code).toBe("watch_only_no_signer");
   });
+
+  it("assertCanSign rejects a watch-only account before any RPC/decrypt", () => {
+    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
+    let err: { code?: string } | undefined;
+    try {
+      resolver.assertCanSign(ref, "tron");
+    } catch (e) {
+      err = e as { code?: string };
+    }
+    expect(err?.code).toBe("watch_only_no_signer");
+  });
+
+  it("assertCanSign passes for a signable (private-key) account", () => {
+    // 32-byte test key → deterministic tron address; assertCanSign must not throw.
+    const ref = ks.import({ type: "privateKey", secret: "0x".padEnd(66, "1") }).accountId;
+    expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
+  });
+
+  it("assertCanSign with requireSoftware rejects a Ledger account (ledger_unsupported)", () => {
+    const ref = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: "Tledger1" }).accountId;
+    let err: { code?: string } | undefined;
+    try {
+      resolver.assertCanSign(ref, "tron", { requireSoftware: true });
+    } catch (e) {
+      err = e as { code?: string };
+    }
+    expect(err?.code).toBe("ledger_unsupported");
+  });
+
+  it("assertCanSign without requireSoftware still allows a Ledger account", () => {
+    const ref = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: "Tledger2" }).accountId;
+    expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
+  });
 });

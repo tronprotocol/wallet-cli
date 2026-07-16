@@ -4,7 +4,7 @@ import type { ConfigDocumentRepository } from "../ports/config-document-reposito
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import type { Config } from "../../domain/types/index.js";
 
-const effective = { timeoutMs: 60_000, networks: {} } as unknown as Config;
+const effective = { timeoutMs: 60_000, waitTimeoutMs: 60_000, networks: {} } as unknown as Config;
 const networks = {} as NetworkRegistry;
 
 function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
@@ -27,5 +27,31 @@ describe("ConfigService timeoutMs validation", () => {
       key: "timeoutMs",
       value: 5000,
     });
+  });
+});
+
+describe("ConfigService waitTimeoutMs", () => {
+  it("shows waitTimeoutMs in the full view and single-key read", () => {
+    const { svc } = service();
+    expect(svc.execute({}, effective, networks)).toMatchObject({ waitTimeoutMs: 60_000 });
+    expect(svc.execute({ key: "waitTimeoutMs" }, effective, networks)).toMatchObject({
+      key: "waitTimeoutMs",
+      value: 60_000,
+    });
+  });
+
+  it("accepts 0 and positive integers, rejects negatives and non-numbers", () => {
+    const { svc, update } = service();
+    expect(svc.execute({ key: "waitTimeoutMs", value: "0" }, effective, networks)).toMatchObject({
+      key: "waitTimeoutMs",
+      value: 0,
+    });
+    expect(svc.execute({ key: "waitTimeoutMs", value: "120000" }, effective, networks)).toMatchObject({
+      key: "waitTimeoutMs",
+      value: 120000,
+    });
+    expect(() => svc.execute({ key: "waitTimeoutMs", value: "-1" }, effective, networks)).toThrow(/non-negative/);
+    expect(() => svc.execute({ key: "waitTimeoutMs", value: "abc" }, effective, networks)).toThrow(/non-negative/);
+    expect(update).toHaveBeenCalledTimes(2);
   });
 });

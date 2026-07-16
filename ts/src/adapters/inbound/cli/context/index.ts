@@ -38,7 +38,7 @@ class ExecutionContextImpl implements ExecutionContext {
     this.output = globals.output ?? deps.config.defaultOutput;
     this.timeoutMs = globals.timeoutMs ?? deps.config.timeoutMs;
     this.wait = globals.wait ?? false;
-    this.waitTimeoutMs = globals.waitTimeoutMs ?? 60_000;
+    this.waitTimeoutMs = globals.waitTimeoutMs ?? deps.config.waitTimeoutMs;
   }
 
   get config(): Config {

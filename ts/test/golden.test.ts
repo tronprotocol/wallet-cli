@@ -60,7 +60,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe("0.1.0");
+    expect(r.stdout.trim()).toBe("0.1.1");
   });
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -118,13 +118,14 @@ describe("golden CLI — meta & introspection", () => {
     expect(globalFlags).toContain("--password-stdin");
     expect(globalFlags).not.toContain("--mnemonic-stdin");
     expect(r.json.aliases).toBeUndefined();
-    const cmd = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.send");
+    const cmd = r.json.commands.find((c: { id: string }) => c.id === "tx.send");
     expect(cmd.usage).toBe("wallet-cli tx send [options]");
     expect(cmd.requires).toMatchObject({ network: "optional", auth: "required", wallet: "optional" });
     expect(cmd.inputSchema.properties.to).toBeDefined();
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic");
-    expect(importMnemonic.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--mnemonic-stdin");
-    const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.broadcast");
+    // TTY-only setup op: the mnemonic is entered interactively, so there is no --*-stdin input flag.
+    expect(importMnemonic.inputFlags).toBeUndefined();
+    const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tx.broadcast");
     expect(broadcast.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--tx-stdin");
     const importWatch = r.json.commands.find((c: { id: string }) => c.id === "import.watch");
     expect(importWatch.usage).toBe("wallet-cli import watch [options]");
@@ -134,7 +135,7 @@ describe("golden CLI — meta & introspection", () => {
     const r = run(["tron", "--json-schema"], { password: null });
     expect(r.status).toBe(0);
     expect(r.json.commands.length).toBeGreaterThan(0);
-    expect(r.json.commands.every((c: { kind: string; family: string }) => c.kind === "chain" && c.family === "tron")).toBe(true);
+    expect(r.json.commands.every((c: { kind: string; family?: string; families?: string[] }) => c.kind === "chain" && (c.family === "tron" || (c.families?.includes("tron") ?? false)))).toBe(true);
   });
 
   it("config shorthand shows, reads, and writes defaultNetwork", () => {
@@ -175,7 +176,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     seedWallet();
     const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hello world"]);
     expect(r.status).toBe(0);
-    expect(r.json.command).toBe("tron.message.sign");
+    expect(r.json.command).toBe("message.sign");
     expect(r.json.chain.network).toBe("tron:nile");
   });
 
@@ -183,7 +184,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     seedWallet();
     const r = run(["--output", "json", "tx", "send", "--network", "tron:nile", "--to", TRON1, "--amount", "0.0000000000000000001", "--dry-run"]);
     expect(r.status).toBe(2);
-    expect(r.json.command).toBe("tron.tx.send");
+    expect(r.json.command).toBe("tx.send");
     expect(r.json.error.code).toBe("invalid_amount");
   });
 
@@ -194,7 +195,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
       "--token", "USDT", "--amount", "0.0000001", "--dry-run",
     ]);
     expect(r.status).toBe(2);
-    expect(r.json.command).toBe("tron.tx.send");
+    expect(r.json.command).toBe("tx.send");
     expect(r.json.error.code).toBe("invalid_amount");
   });
 
@@ -382,6 +383,102 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("auth_required");
   });
+
+  it("vote cast collects a repeated --for into an array (same SR twice → duplicate, exit 2)", () => {
+    seedWallet();
+    // Proves the CLI collects a repeated flag into an array. If --for were last-wins, only one
+    // entry would reach the service and there'd be no duplicate; the duplicate error confirms both
+    // repeated flags arrived. `parseVoteInputs` runs before any RPC, so this needs no network.
+    const r = run(["--output", "json", "vote", "cast", "--network", "tron:nile",
+      "--for", `${TRON1}=5`, "--for", `${TRON1}=5`, "--dry-run"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+    expect(r.json.error.message).toMatch(/duplicate/i);
+  });
+
+  it("vote cast delivers a SINGLE --for as a one-element array, not a split string", () => {
+    seedWallet();
+    // A lone `--for foo` (no '='): as a one-element array the whole "foo" is one bad entry; as a
+    // bare string the service would iterate its characters and complain about 'f'. An error naming
+    // the whole 'foo' proves yargs `array: true` delivered [ "foo" ]. No RPC (parse fails first).
+    const r = run(["--output", "json", "vote", "cast", "--network", "tron:nile", "--for", "foo", "--dry-run"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_value");
+    expect(r.json.error.message).toContain("'foo'");
+  });
+
+  // Leaf/group help must carry the doc's user-value semantics, not a compressed one-liner: overwrite
+  // semantics + TP math (vote cast), the 30-entry cap on --for, the 24h withdraw cap (reward
+  // withdraw), the 0% reward-ratio warning (vote status), and the reward pointer (vote group).
+  it("vote --help keeps the reward pointer (group 2nd line)", () => {
+    const r = run(["vote", "--help"], { password: null });
+    expect(r.stdout).toContain("Vote for super representatives (SR).");
+    expect(r.stdout).toContain("Voting accrues rewards — query and claim them with 'wallet-cli reward'.");
+  });
+
+  it("vote cast --help spells out overwrite semantics, the 30-entry cap, and TP math", () => {
+    const r = run(["vote", "cast", "--help"], { password: null });
+    expect(r.stdout).toContain("any previous SR not listed is set to zero");
+    expect(r.stdout).toContain("1 vote = 1 Tron Power (TP) = 1 staked TRX");
+    expect(r.stdout).toContain("at least 1, at most 30 entries");
+  });
+
+  it("vote status --help warns about the 0% reward-ratio case", () => {
+    const r = run(["vote", "status", "--help"], { password: null });
+    expect(r.stdout).toContain("0% reward ratio");
+  });
+
+  it("reward withdraw --help states the 24h withdrawal cap", () => {
+    const r = run(["reward", "withdraw", "--help"], { password: null });
+    expect(r.stdout).toContain("at most once every 24 hours");
+  });
+
+  // stake-query / chain / interactive-import leaf help must also carry the doc's fuller description,
+  // not the compressed one-line summary (same fix as vote/reward above).
+  it("stake info --help lists the overview fields", () => {
+    const r = run(["stake", "info", "--help"], { password: null });
+    expect(r.stdout).toContain("pending unstakes, currently withdrawable TRX, and available unfreeze slots");
+  });
+
+  it("stake delegated --help explains outbound/inbound lock semantics", () => {
+    const r = run(["stake", "delegated", "--help"], { password: null });
+    expect(r.stdout).toContain('Outbound shows "Locked until"');
+    expect(r.stdout).toContain('inbound shows');
+    expect(r.stdout).toContain('"Guaranteed until"');
+  });
+
+  it("chain params --help mentions --key for a single value", () => {
+    const r = run(["chain", "params", "--help"], { password: null });
+    expect(r.stdout).toContain("Use --key for one value");
+  });
+
+  it("chain prices --help states the SUN unit basis", () => {
+    const r = run(["chain", "prices", "--help"], { password: null });
+    expect(r.stdout).toContain("in SUN; 1 TRX = 1,000,000 SUN");
+  });
+
+  it("chain node --help explains the sync-vs-tx diagnostic use", () => {
+    const r = run(["chain", "node", "--help"], { password: null });
+    expect(r.stdout).toContain('node out of sync');
+  });
+
+  it("change-password --help notes Ledger/watch are unaffected and TTY-only secrets", () => {
+    const r = run(["change-password", "--help"], { password: null });
+    expect(r.stdout).toContain("Ledger / watch-only accounts are unaffected");
+    expect(r.stdout).toContain("they never touch argv or stdin");
+  });
+
+  it("import mnemonic --help documents hidden TTY-only entry", () => {
+    const r = run(["import", "mnemonic", "--help"], { password: null });
+    expect(r.stdout).toContain("The recovery phrase and master password are read");
+    expect(r.stdout).toContain("they never touch argv or stdin");
+  });
+
+  it("import private-key --help documents hidden TTY-only entry", () => {
+    const r = run(["import", "private-key", "--help"], { password: null });
+    expect(r.stdout).toContain("The private key and master password are read");
+    expect(r.stdout).toContain("they never touch argv or stdin");
+  });
 });
 
 describe("golden CLI — token address-book (local, no RPC)", () => {
@@ -401,7 +498,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     seedWallet();
     const r = run(["--output", "json", "token", "list"]);
     expect(r.status).toBe(0);
-    expect(r.json.command).toBe("tron.token.list");
+    expect(r.json.command).toBe("token.list");
     expect(r.json.chain.network).toBe("tron:mainnet");
   });
 

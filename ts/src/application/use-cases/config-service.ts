@@ -3,8 +3,8 @@ import type { NetworkRegistry } from "../ports/network-registry.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
 
-export const CONFIG_KEYS = ["defaultNetwork", "defaultOutput", "timeoutMs", "networks"] as const;
-export const WRITABLE_CONFIG_KEYS = ["defaultNetwork", "defaultOutput", "timeoutMs"] as const;
+export const CONFIG_KEYS = ["defaultNetwork", "defaultOutput", "timeoutMs", "waitTimeoutMs", "networks"] as const;
+export const WRITABLE_CONFIG_KEYS = ["defaultNetwork", "defaultOutput", "timeoutMs", "waitTimeoutMs"] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
 
@@ -25,6 +25,7 @@ export class ConfigService {
       defaultNetwork: effective.defaultNetwork,
       defaultOutput: effective.defaultOutput,
       timeoutMs: effective.timeoutMs,
+      waitTimeoutMs: effective.waitTimeoutMs,
       networks: Object.keys(effective.networks),
     };
     if (input.key === undefined) return view;
@@ -50,6 +51,13 @@ export class ConfigService {
       const value = Number(raw);
       if (!Number.isFinite(value) || value <= 0) {
         throw new UsageError("invalid_value", "timeoutMs must be a positive number");
+      }
+      return value;
+    }
+    if (key === "waitTimeoutMs") {
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value < 0) {
+        throw new UsageError("invalid_value", "waitTimeoutMs must be a non-negative integer");
       }
       return value;
     }

@@ -30,6 +30,14 @@ export interface TronFrozenBalance {
   [key: string]: unknown;
 }
 
+export interface TronVoteAllocation {
+  vote_address?: unknown;
+  voteAddress?: unknown;
+  vote_count?: unknown;
+  voteCount?: unknown;
+  [key: string]: unknown;
+}
+
 /** Account payload normalized at the adapter boundary; all SUN/token quantities are strings. */
 export interface TronAccount {
   balance?: string;
@@ -39,7 +47,25 @@ export interface TronAccount {
   frozen?: TronFrozenBalance[];
   frozenV2?: TronFrozenBalance[];
   unfrozenV2?: TronFrozenBalance[];
+  votes?: TronVoteAllocation[];
   [key: string]: unknown;
+}
+
+export interface TronWitness {
+  address: string;
+  voteCount: string;
+  url?: string;
+  totalProduced?: number;
+  totalMissed?: number;
+  latestBlockNum?: number;
+  latestSlotNum?: number;
+  isJobs?: boolean;
+  [key: string]: unknown;
+}
+
+export interface TronVote {
+  witness: string;
+  count: string;
 }
 
 export interface TronTokenInfo {
@@ -94,6 +120,26 @@ export interface TronFeeEstimate extends FeeReport {
   energy: number;
 }
 
+/** one V2 delegation record; addresses base58, SUN quantities strings, expiry epoch-ms or null. */
+export interface TronDelegatedResource {
+  from: string;
+  to: string;
+  balanceForEnergySun: string;
+  balanceForBandwidthSun: string;
+  expireTimeForEnergy: number | null;
+  expireTimeForBandwidth: number | null;
+}
+
+/** getnodeinfo subset the CLI consumes; best-effort — public gateways may omit fields. */
+export interface TronNodeInfo {
+  block?: string;          // "Num:84120345,ID:…"
+  solidityBlock?: string;
+  currentConnectCount?: number;
+  activeConnectCount?: number;
+  configNodeInfo?: { codeVersion?: string; p2pVersion?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
 /** TRON-specific application boundary; chain-specific capabilities remain explicit. */
 export interface TronGateway extends Broadcaster {
   getNativeBalance(address: string): Promise<string>;
@@ -102,6 +148,15 @@ export interface TronGateway extends Broadcaster {
   getBlock(number?: string): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
+  getChainParameters(): Promise<Array<{ key: string; value?: number }>>;
+  getEnergyPrices(): Promise<string>;
+  getBandwidthPrices(): Promise<string>;
+  getNodeInfo(): Promise<TronNodeInfo>;
+  getDelegatedResourceV2(from: string, to: string): Promise<TronDelegatedResource[]>;
+  getDelegatedIndexV2(address: string): Promise<{ fromAccounts: string[]; toAccounts: string[] }>;
+  getCanDelegatedMaxSize(address: string, resource: RpcResourceCode): Promise<string>;
+  getCanWithdrawUnfreezeAmount(address: string): Promise<string>;
+  getAvailableUnfreezeCount(address: string): Promise<number>;
   decodeTransaction(transaction: TronTx): DecodedTronTransaction;
   getTrc20Balance(contract: string, address: string): Promise<string>;
   getTokenInfo(contract: string): Promise<TronTokenInfo>;
@@ -145,6 +200,11 @@ export interface TronGateway extends Broadcaster {
     resource: RpcResourceCode,
     receiver: string,
   ): Promise<UnsignedTx>;
+  buildVoteWitness(owner: string, votes: TronVote[]): Promise<UnsignedTx>;
+  buildWithdrawBalance(owner: string): Promise<UnsignedTx>;
+  getWitnesses(limit: number): Promise<TronWitness[]>;
+  getBrokerage(address: string): Promise<number>;
+  getReward(address: string): Promise<string>;
   triggerConstantContract(
     contract: string,
     method: string,

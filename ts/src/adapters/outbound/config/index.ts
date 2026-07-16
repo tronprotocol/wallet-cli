@@ -33,6 +33,7 @@ export class ConfigLoader {
     let defaultNetwork: string | undefined = DEFAULT_CONFIG.defaultNetwork;
     let defaultOutput: OutputMode = DEFAULT_CONFIG.defaultOutput;
     let timeoutMs = DEFAULT_CONFIG.timeoutMs;
+    let waitTimeoutMs = DEFAULT_CONFIG.waitTimeoutMs;
     let price: Config["price"];
 
     const path = ConfigLoader.configPath(env);
@@ -43,6 +44,9 @@ export class ConfigLoader {
       }
       if (raw.defaultOutput === "json" || raw.defaultOutput === "text") defaultOutput = raw.defaultOutput;
       if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
+      // Same rule ConfigService enforces on write — a hand-edited file must not slip through
+      // negative or fractional values into the effective config.
+      if (Number.isInteger(raw.waitTimeoutMs) && raw.waitTimeoutMs >= 0) waitTimeoutMs = raw.waitTimeoutMs;
       if (raw.price && typeof raw.price === "object") {
         const p = raw.price as Record<string, unknown>;
         const provider = p.provider === "none" ? "none" : "coingecko";
@@ -55,7 +59,7 @@ export class ConfigLoader {
         }
       }
     }
-    return { defaultNetwork, defaultOutput, timeoutMs, networks, price };
+    return { defaultNetwork, defaultOutput, timeoutMs, waitTimeoutMs, networks, price };
   }
 }
 

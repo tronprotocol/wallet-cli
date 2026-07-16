@@ -38,6 +38,8 @@ export interface Config {
   defaultNetwork?: string;
   defaultOutput: OutputMode;
   timeoutMs: number;
+  /** default polling cap for broadcast commands' --wait, in ms (overridden by --wait-timeout). */
+  waitTimeoutMs: number;
   networks: Record<NetworkId, NetworkDescriptor>;
   /** USD-valuation source for `account portfolio`. Missing → builtin CoinGecko. */
   price?: PriceConfig;

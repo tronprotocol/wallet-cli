@@ -12,6 +12,7 @@ import type { WalletService } from "../../../../application/use-cases/wallet-ser
 import { resolveLedgerPath, selectLedgerPath } from "../../../../application/services/ledger-account.js"
 import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js"
 import { UsageError } from "../../../../domain/errors/index.js"
+import { passwordPolicyErrors } from "../input/prompt/validators.js"
 import { TextFormatters } from "../render/index.js"
 
 // ── wallet import-ledger contract (module scope so it can be unit-tested) ───────
@@ -70,18 +71,21 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
   const importMnemonicFields = z.object({
     label: Schemas.label()
       .optional()
-      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; mnemonic comes from --mnemonic-stdin or interactive prompt"),
+      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; the mnemonic is entered interactively (hidden)"),
   })
   reg.add({
     path: ["import", "mnemonic"],
-    stdin: "mnemonic",
     network: "none",
     wallet: "none",
     auth: "required",
     passwordMode: "establish",
     interactive: true,
+    secretsTtyOnly: true,
     promptHints: { label: "default-label" },
     summary: "Import a BIP39 mnemonic phrase",
+    description:
+      "Import a BIP39 mnemonic phrase. The recovery phrase and master password are read\n" +
+      "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: importMnemonicFields,
     input: importMnemonicFields,
     examples: [{ cmd: "wallet-cli import mnemonic --label main" }],
@@ -96,18 +100,21 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
   const importPrivateKeyFields = z.object({
     label: Schemas.label()
       .optional()
-      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; private key comes from --private-key-stdin or interactive prompt"),
+      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; the private key is entered interactively (hidden)"),
   })
   reg.add({
     path: ["import", "private-key"],
-    stdin: "privateKey",
     network: "none",
     wallet: "none",
     auth: "required",
     passwordMode: "establish",
     interactive: true,
+    secretsTtyOnly: true,
     promptHints: { label: "default-label" },
     summary: "Import a raw private key",
+    description:
+      "Import a raw private key. The private key and master password are read\n" +
+      "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: importPrivateKeyFields,
     input: importPrivateKeyFields,
     examples: [{ cmd: "wallet-cli import private-key --label hot" }],
@@ -313,4 +320,67 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
     formatText: TextFormatters.walletBackup,
     run: async (_ctx, _net, input) => wallets.backup(input.account, input.out),
   } satisfies CommandDefinition)
+
+  // ── change-password ───────────────────────────────────────────────────────
+  // Verify old, prompt for the new one, confirm, then re-encrypt every software wallet keystore.
+  // TTY-only (secretsTtyOnly): both passwords are entered interactively — no stdin source, no argv.
+  // Sibling of `backup` — both are password-gated keystore secret operations.
+  const changePasswordFields = z.object({
+    yes: z.boolean().default(false)
+      .describe("skip the confirmation prompt; required in non-TTY use"),
+  })
+  reg.add({
+    path: ["change-password"],
+    network: "none",
+    wallet: "none",
+    auth: "required",
+    passwordMode: "verify",
+    interactive: true,
+    secretsTtyOnly: true,
+    requires: ["the new master password — entered interactively in a TTY"],
+    summary: "Change the master password (re-encrypt keystores)",
+    description:
+      "Change the master password. Re-encrypts every software wallet keystore with the\n" +
+      "new password (Ledger / watch-only accounts are unaffected). Passwords are read\n" +
+      "interactively from the TTY (hidden input); they never touch argv or stdin.",
+    fields: changePasswordFields,
+    input: changePasswordFields,
+    examples: [{ cmd: "wallet-cli change-password" }],
+    formatText: TextFormatters.passwordChanged,
+    run: async (ctx, _net, input) => {
+      // old password: already verified and primed by dispatch (passwordMode: "verify"), from the TTY.
+      // secretsTtyOnly guarantees a TTY here (dispatch rejects --password-stdin / fails fast otherwise).
+      const oldPassword = ctx.secrets.read("password")
+
+      const newPassword = await ctx.prompt.hidden({
+        label: "New master password (hidden)",
+        confirm: true,
+        confirmLabel: "Confirm new password",
+        validate: (s) => { const e = passwordPolicyErrors(s); return e.length ? e.join("; ") : null },
+      })
+      if (newPassword === oldPassword) {
+        throw new UsageError("invalid_value", "the new password must differ from the current one")
+      }
+
+      if (!input.yes) {
+        if (!ctx.prompt.isTTY()) {
+          throw new UsageError("tty_required", "password change needs confirmation: pass --yes or run in a terminal")
+        }
+        const count = countSoftwareWallets(wallets)
+        const ok = await ctx.prompt.confirm({ label: `Re-encrypt ${count} software wallet(s) with the new password?` })
+        if (!ok) throw new UsageError("aborted", "password change not confirmed")
+      }
+      return wallets.changePassword(oldPassword, newPassword)
+    },
+  } satisfies CommandDefinition)
+}
+
+/** distinct software (seed/privateKey) wallets — the N in the change-password confirm prompt. */
+function countSoftwareWallets(wallets: WalletService): number {
+  const ids = new Set(
+    wallets.list()
+      .filter((a) => a.type === "seed" || a.type === "privateKey")
+      .map((a) => a.accountId.split(".")[0]),
+  )
+  return ids.size
 }

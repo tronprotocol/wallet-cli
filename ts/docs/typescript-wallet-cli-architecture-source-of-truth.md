@@ -262,7 +262,7 @@ interface FamilyPlugin<F extends ChainFamily> {
 }
 ```
 
-`bootstrap/families/tron.ts` is TRON's concrete composition: it builds the `TronRpcClient`, the TronGrid history reader, the TRON use cases, and the `TronModule`. Application and adapters must not import the family registry in reverse.
+`bootstrap/families/tron.ts` is TRON's concrete composition: it builds the `TronRpcClient`, the TronGrid history reader, the TRON use cases, and registers each command via `registerTronChainCommands`, which `addChain`s the neutral `ChainSpec` for each command together with its TRON `FamilyBinding`. Application and adapters must not import the family registry in reverse.
 
 ---
 
@@ -276,35 +276,38 @@ interface FamilyPlugin<F extends ChainFamily> {
 | --- | --- |
 | `path` | Neutral commands use the full path; chain commands use a cross-family logical path. |
 | `family` | Omitted for neutral commands; when present, the resolved network selects the family implementation. |
-| `stdin` | A dedicated stdin channel for `privateKey`, `mnemonic`, `tx`, `message`. |
+| `stdin` | A dedicated **command-scoped** stdin channel, one of `tx` or `message` (signed-tx JSON / message to sign). This field does not cover the master password, which is fed by the **global** `--password-stdin` (see the CLI surface section). Wallet secrets (`mnemonic`, `privateKey`) and the master-password *change* are TTY-only and have no stdin flag — see `secretsTtyOnly`. |
 | `network` | `none`, `optional`, `required`; today both optional/required can fall back to the default network. |
 | `wallet` | `none` or `optional`; optional can override the active account with `--account`. |
 | `auth` | An unlock declaration for help/catalog; actual software signing uses lazy decrypt. |
 | `broadcasts` | Controls whether help reveals `--wait`. |
 | `passwordMode` | `establish` or `verify`, controls interactive master-password priming. |
 | `interactive` | Only commands that explicitly opt in may open a TTY prompt. |
+| `secretsTtyOnly` | The command's secrets (import mnemonic/private-key, `change-password`) are TTY-only; no `--*-stdin` source exists, and dispatch fails fast when not on a TTY. |
 | `capability` | A per-network capability that must pass before execution. |
 | `fields` / `input` | Zod field metadata and the complete validation schema. |
 | `run` | Translates CLI input/context into a use-case call and returns structured data. |
 | `formatText` | Optional text renderer; JSON does not use it. |
 
-The stable command id is derived from metadata: a neutral command is `path.join(".")`, e.g. `import.mnemonic`; a chain command is `family.path`, e.g. `tron.tx.send`.
+The stable command id is derived from metadata as `path.join(".")` for every command — a neutral command is e.g. `import.mnemonic`, and a chain command is e.g. `tx.send` (no family prefix). The family is not encoded in the id; it travels in the envelope's `chain` view (`chain.family`), so the id matches what the user types and is redundancy-free.
 
 ### 4.2 The Two Command Classes and Routing
+
+A chain command is one `ChainCommandDefinition` — a service-free `ChainSpec` plus a `families` table of per-family `FamilyBinding`s (`run` + optional `fields`/`refine` delta). The registry keys it by logical path; dispatch resolves the network, then selects the binding by `network.family`. When the resolved network's family has no binding for that command, dispatch returns `network_family_mismatch`. The merged input schema is `baseFields` plus each binding's `fields`, and validation composes `baseRefine` then each binding's `refine`. `isChainCommand` (presence of `families`) is the discriminator between the two command kinds.
 
 ```mermaid
 flowchart LR
     PATH[Parsed path] --> KIND{neutral exact match?}
     KIND -->|yes| NEUTRAL[resolveNeutral]
-    KIND -->|no| CAND[resolveCandidates]
-    CAND --> NET[resolve explicit/default network]
-    NET --> FAMILY[choose candidate by network.family]
-    NEUTRAL --> EXEC[common executeCommand]
-    FAMILY --> EXEC
+    KIND -->|no| CHAIN[resolveChain by logical path]
+    CHAIN --> NET[resolve explicit/default network]
+    NET --> BIND[select families network.family binding]
+    NEUTRAL --> EXEC[executeCommand]
+    BIND --> XEXEC[executeChainCommand: merge base+delta, run, spec.formatText]
 ```
 
 - `tron` is not a public prefix for ordinary execution commands; `--network` decides the family.
-- Help/JSON Schema may use the family prefix to address a concrete implementation precisely.
+- Help/JSON Schema may accept a leading family token (e.g. `tron block --json-schema`) as an addressing convenience, but the emitted id stays unqualified and the catalog entry lists `families: [...]`.
 - An unknown top-level/subcommand/flag must return `unknown_command` or `invalid_option`; yargs must not silently succeed.
 
 ### 4.3 The Fixed Dispatch Order
@@ -335,15 +338,21 @@ wallet-cli
 ├── create
 ├── import mnemonic | private-key | ledger | watch
 ├── list | use | current | rename | derive | backup | delete
+├── change-password
 ├── config | networks
 ├── account balance | info | history | portfolio
 ├── token balance | info | add | list | remove
 ├── tx send | broadcast | status | info
 ├── contract call | send | deploy | info
-├── stake freeze | unfreeze | withdraw | cancel-unfreeze | delegate | undelegate
+├── stake freeze | unfreeze | withdraw | cancel-unfreeze | delegate | undelegate | info | delegated
+├── vote cast | list | status
+├── reward balance | withdraw
+├── chain params | prices | node
 ├── message sign
 └── block [number]
 ```
+
+`create`, `import`, `list`, `use`, `current`, `rename`, `derive`, `backup`, `delete`, `change-password`, `config`, and `networks` are neutral. `change-password` re-encrypts every software keystore under a new master password; both the old and new passwords are entered interactively (TTY-only). `stake info`/`delegated`, `vote status`, `reward balance`, and `chain *` are read-only chain queries; `vote cast` and `reward withdraw` are transaction-creating.
 
 Neutral commands do not touch a chain. Chain commands are currently all provided by the TRON plugin. All transaction-creating commands jointly support:
 
@@ -362,7 +371,7 @@ Neutral commands do not touch a chain. Chain commands are currently all provided
 | `--timeout` | Timeout for a single RPC/device operation. |
 | `--verbose` / `-v` | Additional diagnostics. |
 | `--wait` | Poll for confirmation after broadcast. |
-| `--wait-timeout` | Upper bound for confirmation polling, default 60000 ms. |
+| `--wait-timeout` | Upper bound for confirmation polling; defaults to `config.waitTimeoutMs` (built-in 60000 ms). |
 | `--password-stdin` | Read the master password from fd 0. |
 | `--help` / `--version` / `--json-schema` | Meta requests. |
 
@@ -434,7 +443,7 @@ Application defines capabilities, not concrete technologies:
 | `NetworkRegistry` | canonical network id/default resolution | outbound config registry |
 | `LedgerDevice` | address, tx/message signing, app config | `Ledger` |
 | `ChainGatewayProvider` | obtain a gateway by network/family | `ChainGatewayRegistry` |
-| `TronGateway` | TRON reads/build/estimate/broadcast | `TronRpcClient` |
+| `TronGateway` | TRON reads/build/estimate/broadcast, plus stake/delegation/vote/reward and chain (params/prices/node) queries | `TronRpcClient` |
 | `TronHistoryReader` | TronGrid transaction history | `TronGridHistoryReader` |
 | `TokenRepository` | official/user token book | `TokenBook` |
 | `PriceProvider` | best-effort USD price | CoinGecko/Null provider |
@@ -444,10 +453,10 @@ Application defines capabilities, not concrete technologies:
 
 ### 7.2 Use Cases
 
-- `WalletService`: create/import/list/use/current/rename/derive/delete/backup, with no knowledge of JSON/Zod/yargs.
-- `ConfigService`: effective config view, key validation, canonical network normalization, and document update.
+- `WalletService`: create/import/list/use/current/rename/derive/delete/backup/change-password, with no knowledge of JSON/Zod/yargs. `changePassword` re-encrypts every software keystore under a new master password.
+- `ConfigService`: effective config view, key validation, canonical network normalization, and document update. Writable keys are `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`.
 - `MessageService`: sign a message via the signer port.
-- TRON use cases: account, token, transaction, contract, stake, block; they use only the TRON gateway and the necessary shared ports.
+- TRON use cases: account, token, transaction, contract, stake, vote, reward, chain, block; they use only the TRON gateway and the necessary shared ports. `TronVoteService` reads voting power authoritatively from `TronStakeService.votingPower` (injected), not from raw balances; its witness/brokerage fan-out is bounded and per-request cached. `TronChainService` exposes governance params, energy/bandwidth prices, and node sync status.
 
 An inbound command's responsibility is to turn argv/Zod input and `ExecutionContext` into use-case input and then choose a stable output view; it must not do persistence or provider transport itself.
 
@@ -488,7 +497,9 @@ Canonical-id resolution is case-insensitive. Aliases remain descriptor metadata 
 
 `ChainGatewayRegistry` is injected with the family factory by Bootstrap and caches the client by network id. Its generic `client()` may only use the truly common minimal capabilities; a family use case obtains the `TronGateway` via the guarded `get(net, "tron")`. TRON staking and the future EVM gas/nonce must not be forced into a universal gateway.
 
-Capabilities consist of two parts: the command-backed keys declared by registered commands, plus the network traits in `NetworkDescriptor.capabilities`. The gate must happen before the use case.
+Capabilities consist of two parts: the command-backed keys declared by registered commands (e.g. `vote.cast`, `vote.list`, `vote.status`, `reward.balance`, `reward.withdraw`, `staking.freeze`, `staking.delegate`), plus the network traits in `NetworkDescriptor.capabilities`. The gate must happen before the use case.
+
+The TRON gateway reads account/resource/stake/vote/reward state and confirms transactions against the **full node's unconfirmed view** (`getUnconfirmedTransactionInfo`, `/wallet/getaccount`, `/wallet/getReward`, `/wallet/getBrokerage`, etc.), not the solidified node. Unconfirmed info is available roughly one block after inclusion (~3s) rather than after solidification (~19 blocks / ~60s), so `--wait` confirms at "mined in a block" quickly and all reads are fresh and mutually consistent.
 
 ---
 
@@ -527,7 +538,7 @@ flowchart LR
     CONFIRM --> FINAL[confirmed / failed<br/>or timeout → submitted]
 ```
 
-The pipeline knows only the signer and the `Broadcaster` port; the family use case provides build, estimate, and confirm callbacks. `timeoutMs` limits a single operation; `waitTimeoutMs` limits confirmation polling. Once a transaction has been broadcast, a polling error/timeout must not reclassify the command as not-broadcast — it returns `submitted`.
+The pipeline knows only the signer and the `Broadcaster` port; the family use case provides build, estimate, and confirm callbacks. `timeoutMs` limits a single operation; `waitTimeoutMs` (from `config.waitTimeoutMs`, overridable by `--wait-timeout`) limits confirmation polling. TRON's `tronConfirmation` polls the full node's unconfirmed transaction info, so confirmation resolves in a few seconds rather than after solidification. Once a transaction has been broadcast, a polling error/timeout must not reclassify the command as not-broadcast — it returns `submitted`.
 
 ### 9.3 Ledger
 
@@ -581,7 +592,7 @@ IDs are random 5-byte Crockford base32 lowercase strings. Labels are case-insens
 
 The user entries in `tokens.json` are partitioned by `<networkId>|<accountRef>`; the effective list is official first, then user-only, deduplicated by `(kind,id)`. Official entries cannot be deleted/overwritten.
 
-`config.yaml` is shallow-merged with the builtin config. The only writable keys are `defaultNetwork`, `defaultOutput`, `timeoutMs`; `networks` is a CLI read-only view. Runtime globals are not written back to config.
+`config.yaml` is shallow-merged with the builtin config. The only writable keys are `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`; `networks` is a CLI read-only view. `waitTimeoutMs` must be a non-negative integer and supplies the default confirmation-polling cap (built-in 60000 ms). Runtime globals are not written back to config.
 
 ### 10.4 Encrypted Blobs
 
@@ -603,9 +614,10 @@ flowchart LR
 
 - A handler must not read `process.stdin` directly; `StreamManager.readStdinOnce()` reads at most once per execution.
 - A single invocation may use fd 0 through only one `--*-stdin` channel.
+- Only `password` (`--password-stdin`, a global) and the command-scoped `tx` / `message` channels are stdin-backed. Wallet secrets (`mnemonic`, `privateKey`) and the master-password change have **no** stdin flag — they are TTY-only (`secretsTtyOnly`): a hidden interactive prompt, or fail fast with `tty_required` off a TTY. Importing an existing secret and re-keying the vault are deliberately human moments.
 - Secret argv, `MASTER_PASSWORD`, `--*-file`, and ordinary env secrets are not supported.
 - A secret must not enter logs, diagnostics, error details, or the result envelope.
-- Interactive allowlist: create, the four imports, delete, backup; the order is password → field gap-fill/account selection → command confirm.
+- Interactive allowlist: create, the four imports, delete, backup, change-password; the order is password → field gap-fill/account selection → command confirm.
 
 ---
 
@@ -639,7 +651,9 @@ flowchart LR
     GLOBAL[GLOBAL_FLAG_SPECS] --> ARITY & HELP & CATALOG
 ```
 
-A hand-maintained command flag table must not be created separately. The public help/output is a stable contract; when it changes, automated tests must verify root, group, leaf, JSON Schema, and functional scenarios.
+Arity is derived from the field's Zod type: a `z.array(...)` field projects to a first-class repeatable yargs flag (`array: true`), so `--for a --for b` arrives as a `string[]` with no preprocess/pipe patch, and its help renders the element type (`<string>`), not the container. A hand-maintained command flag table must not be created separately. The public help/output is a stable contract; when it changes, automated tests must verify root, group, leaf, JSON Schema, and functional scenarios.
+
+Leaf-help description text: a command's `summary` is the one-line row shown in its parent group's listing and must stay a single terse line. Leaf help (`<cmd> --help`) renders `description ?? summary`: a command whose behavior needs more than a headline (overwrite semantics, per-call limits, warnings, frequency caps) SHOULD declare a fuller multi-line `description`; there is no requirement that leaf help collapse to one line. Group descriptions (`GROUP_DESCRIPTIONS`) may likewise span multiple lines. Keep the wording in sync with the product command doc, the source of truth for the exact copy.
 
 ---
 
@@ -668,7 +682,7 @@ flowchart LR
     PLUGIN --> TEST[7 routing/output/contract tests]
 ```
 
-Adding a family must extend `ChainFamily`/`FAMILIES`, the discriminated network/address types, `ChainGatewayMap`, the sign strategy, the gateway, use cases, commands, the family plugin, and networks/render/tests. Only a genuinely identical intent and I/O shape may be factored into a shared port; the TRON resource model and the EVM gas/nonce must remain separate.
+Adding a family must extend `ChainFamily`/`FAMILIES`, the discriminated network/address types, `ChainGatewayMap`, the sign strategy, the gateway, and use cases; add a `FamilyBinding` for that family to each shared command's `ChainSpec.families` table (with its option delta in `binding.fields` and family-shaped rows in `FAMILY_RENDER[family]`) rather than defining new command objects; and extend networks/render/tests. Only a genuinely identical intent and I/O shape may be factored into a shared port; the TRON resource model and the EVM gas/nonce must remain separate.
 
 ### 14.3 Adding a Wallet Source
 
