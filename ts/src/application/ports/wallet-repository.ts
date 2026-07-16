@@ -29,6 +29,7 @@ export interface WalletRepository extends AccountStore {
     label: string;
   };
   setActive(refOrLabel: string): { accountId: AccountRef; previous: AccountRef | null };
+  changePassword(oldPassword: string, newPassword: string): { wallets: string[]; count: number };
   delete(refOrWallet: string): {
     accountId: AccountRef;
     scope: "account" | "wallet";
@@ -37,4 +38,3 @@ export interface WalletRepository extends AccountStore {
   };
   revealMnemonic(vaultId: string): { mnemonic: string; passphraseSet: boolean };
 }
-

@@ -63,6 +63,10 @@ export class WalletService {
     return { previousLabel: result.previousLabel, ...this.wallets.describe(result.accountId) };
   }
 
+  changePassword(oldPassword: string, newPassword: string) {
+    return this.wallets.changePassword(oldPassword, newPassword);
+  }
+
   derive(seedId: string, index?: number, label?: string) {
     // --seed-id is strictly the seed id (wlt_…) — the HD group header in `list`. No labels, no
     // sub-account refs: labels/refs point at an account, and the seed (not an account) is the root.
@@ -123,7 +127,7 @@ export class WalletService {
       };
     } else {
       throw new WalletError(
-        "watch_only_no_signer",
+        "not_exportable",
         `${source.type} accounts hold no exportable secret`,
       );
     }

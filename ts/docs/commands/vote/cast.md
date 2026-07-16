@@ -57,7 +57,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until the vote is confirmed on chain (adds real block / fee):

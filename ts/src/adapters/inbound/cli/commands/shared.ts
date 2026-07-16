@@ -4,8 +4,7 @@
  * with chain-specific amount units + build/estimate) live explicitly in each chain module.
  */
 import { z } from "zod";
-import type { ChainFamily } from "../../../../domain/types/index.js";
-import type { CommandDefinition } from "../contracts/index.js";
+import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
@@ -38,28 +37,26 @@ export function amountSelector(v: { amount?: string; rawAmount?: string }, ctx: 
   if (n !== 1) ctx.addIssue({ code: "custom", path: ["amount"], message: "provide exactly one of --amount or --raw-amount" });
 }
 
-/** message sign — direct SignerResolver path (no node, no TxPipeline). */
-export function messageSignCommand(family: ChainFamily, service: MessageService): CommandDefinition {
-  // --message OR --message-stdin (the latter is a global data channel via SecretResolver).
-  const fields = z.object({
-    message: z.string().min(1).optional().describe("message text to sign; provide this OR --message-stdin; exactly one is required"),
-  });
-  return {
-    path: ["message", "sign"],
-    stdin: "message",
-    family,
-    network: "optional",
-    wallet: "optional",
-    auth: "required",
-    capability: "message.sign",
-    summary: "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
-    fields,
-    input: fields,
-    examples: [{ cmd: `wallet-cli message sign --message "hello"` }],
-    formatText: TextFormatters.messageSign,
-    run: async (ctx, _net, input) => {
-      const message = ctx.secrets.pick(input.message, "message", "message");
-      return service.sign(ctx, family, ctx.activeAccount, message);
-    },
-  };
-}
+const messageSignFields = z.object({
+  message: z.string().min(1).optional().describe("message text to sign; provide this OR --message-stdin; exactly one is required"),
+});
+
+export const messageSignSpec: ChainSpec = {
+  path: ["message", "sign"],
+  stdin: "message",
+  network: "optional",
+  wallet: "optional",
+  auth: "required",
+  capability: "message.sign",
+  summary: "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
+  baseFields: messageSignFields,
+  examples: [{ cmd: `wallet-cli message sign --message "hello"` }],
+  formatText: TextFormatters.messageSign,
+};
+
+export const messageSignBinding = (service: MessageService): FamilyBinding => ({
+  run: async (ctx, net, input) => {
+    const message = ctx.secrets.pick(input.message, "message", "message");
+    return service.sign(ctx, net.family, ctx.activeAccount, message);
+  },
+});

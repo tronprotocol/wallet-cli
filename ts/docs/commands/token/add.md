@@ -41,7 +41,7 @@ wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tro
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.add","data":{"network":"tron:nile","account":"wlt_b2.0","action":"added","token":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"token.add","data":{"network":"tron:nile","account":"wlt_b2.0","action":"added","token":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

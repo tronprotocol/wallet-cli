@@ -55,7 +55,7 @@ echo "$PW" | wallet-cli stake undelegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDK
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.undelegate","data":{"kind":"stake-undelegate","stage":"submitted","txId":"c8d...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.undelegate","data":{"kind":"stake-undelegate","stage":"submitted","txId":"c8d...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

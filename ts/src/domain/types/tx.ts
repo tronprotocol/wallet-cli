@@ -54,7 +54,8 @@ export interface TxParties { from?: string; to?: string; amount?: string; symbol
 export type TxReceiptKind =
   | "send" | "broadcast"
   | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
-  | "contract-send" | "contract-deploy";
+  | "contract-send" | "contract-deploy"
+  | "vote-cast" | "reward-withdraw";
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
@@ -82,6 +83,9 @@ export interface TxReceiptView {
   to?: string;
   receiver?: string;
   resource?: string;
+  votes?: Array<{ witness: string; count: number }>;
+  totalVotes?: number;
+  rewardSun?: string | number;
   // contract
   method?: string;
   contractAddress?: string;

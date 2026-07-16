@@ -11,7 +11,7 @@
  */
 import type { NetworkDescriptor, OutputMode } from "../../../../domain/types/index.js";
 import type { ProgressEvent } from "../../../../application/contracts/index.js";
-import type { CommandDefinition, StreamManager } from "../contracts/index.js";
+import type { StreamManager, TextFormatter } from "../contracts/index.js";
 import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderGenericText } from "../render/index.js";
@@ -19,7 +19,7 @@ import { sanitizeText } from "../render/scalars.js";
 
 export interface OutputFormatter {
   /** the single result frame for the caller to hand to streams.result. */
-  success(cmd: CommandDefinition, net: NetworkDescriptor | undefined, data: unknown, accountLabel?: string): string;
+  success(command: string, net: NetworkDescriptor | undefined, data: unknown, formatText?: TextFormatter, accountLabel?: string): string;
   /** terminal error output (JSON envelope to stdout, or short line to stderr). */
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void;
   /** intermediate progress frame for streams.event; null = this mode does not show it. */
@@ -38,9 +38,9 @@ abstract class BaseOutputFormatter {
 }
 
 class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
-  success(cmd: CommandDefinition, net: NetworkDescriptor | undefined, data: unknown): string {
+  success(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
     // JSON mode always uses the envelope; the account label is a text-mode display nicety.
-    return toJson(OutputEnvelope.success(cmd, net, data, this.meta()));
+    return toJson(OutputEnvelope.success(command, net, data, this.meta()));
   }
 
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void {
@@ -56,9 +56,9 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
 class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
   // Text mode: strip terminal control bytes from every frame so a hostile wallet label or remote
   // token/RPC metadata value cannot inject ANSI/OSC sequences (CLI-OUT-001). JSON mode stays raw.
-  success(cmd: CommandDefinition, net: NetworkDescriptor | undefined, data: unknown, accountLabel?: string): string {
-    const env = OutputEnvelope.success(cmd, net, data, this.meta());
-    const custom = cmd.formatText?.(env.data, { command: env.command, net, accountLabel });
+  success(command: string, net: NetworkDescriptor | undefined, data: unknown, formatText?: TextFormatter, accountLabel?: string): string {
+    const env = OutputEnvelope.success(command, net, data, this.meta());
+    const custom = formatText?.(env.data, { command: env.command, net, accountLabel });
     return sanitizeText(custom ?? renderGenericText(env.command, net, env.data));
   }
 

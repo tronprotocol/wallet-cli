@@ -49,7 +49,7 @@ wallet-cli reward balance --account main --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.reward.balance","data":{"address":"TQk...","rewardSun":"123456789","withdrawableNow":true,"withdrawableAt":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"reward.balance","data":{"address":"TQk...","rewardSun":"123456789","withdrawableNow":true,"withdrawableAt":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

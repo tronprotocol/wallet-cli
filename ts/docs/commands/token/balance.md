@@ -38,7 +38,7 @@ wallet-cli token balance --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.token.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","token":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","balance":"1204560000","symbol":"USDT","decimals":6},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"token.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","token":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","balance":"1204560000","symbol":"USDT","decimals":6},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

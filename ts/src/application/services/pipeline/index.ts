@@ -4,7 +4,7 @@
  * Ledger wait, timeout, and abort behavior lives here, not in each command.
  * Chain-specific build/estimate come in as callbacks.
  */
-import type { AccountRef, FeeReport, NetworkDescriptor, SignedTx, TxOutcome, UnsignedTx } from "../../../domain/types/index.js";
+import type { AccountRef, ChainFamily, FeeReport, NetworkDescriptor, SignedTx, TxOutcome, UnsignedTx } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
@@ -29,6 +29,12 @@ export interface TxPipelineParams {
 
 export class TxPipeline {
   constructor(private readonly signers: SignerResolver) {}
+
+  /** Pre-flight capability gate for write commands: fail fast (before any RPC) when the active
+   *  account can't sign. Delegates to the resolver so the watch-only rule lives in one place. */
+  assertCanSign(account: AccountRef, family: ChainFamily, opts?: { requireSoftware?: boolean }): void {
+    this.signers.assertCanSign(account, family, opts);
+  }
 
   async run(p: TxPipelineParams): Promise<TxOutcome> {
     const { timeoutMs } = p.ctx;

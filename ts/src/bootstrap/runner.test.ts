@@ -47,10 +47,9 @@ describe("parseGlobals", () => {
   });
 
   it("maps --<kind>-stdin to a '-' path (the only secret source)", () => {
-    const { secretPaths } = parseGlobals(["import", "mnemonic", "--mnemonic-stdin"]);
-    expect(secretPaths.mnemonic).toBe("-");
+    const { secretPaths } = parseGlobals(["tx", "broadcast", "--tx-stdin"]);
+    expect(secretPaths.tx).toBe("-");
     expect(secretPaths.password).toBeUndefined();
-    expect(secretPaths.privateKey).toBeUndefined();
   });
 
   it("ignores a value flag with no following token at end of argv", () => {

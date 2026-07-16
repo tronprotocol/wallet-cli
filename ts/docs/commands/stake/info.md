@@ -46,7 +46,7 @@ wallet-cli stake info --account main --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.info","data":{"address":"TQk...","staked":{"energySun":"1000000000","bandwidthSun":"500000000"},"votingPower":{"total":1500,"used":1000,"available":500},"resource":{"energy":{"used":12000,"limit":65000},"bandwidth":{"used":600,"limit":1500}},"unfreezing":[{"amountSun":"500000000","withdrawableAt":1784073600000},{"amountSun":"300000000","withdrawableAt":1784160000000}],"withdrawableSun":"0","unfreeze":{"used":2,"max":32,"remaining":30}},"meta":{"durationMs":22,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.info","data":{"address":"TQk...","staked":{"energySun":"1000000000","bandwidthSun":"500000000"},"votingPower":{"total":1500,"used":1000,"available":500},"resource":{"energy":{"used":12000,"limit":65000},"bandwidth":{"used":600,"limit":1500}},"unfreezing":[{"amountSun":"500000000","withdrawableAt":1784073600000},{"amountSun":"300000000","withdrawableAt":1784160000000}],"withdrawableSun":"0","unfreeze":{"used":2,"max":32,"remaining":30}},"meta":{"durationMs":22,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

@@ -39,13 +39,13 @@ Status  confirmed ✅
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.tx.status","data":{"txid":"7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364","state":"confirmed","confirmed":true,"failed":false,"blockNumber":68822193},"meta":{"durationMs":1006,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364","state":"confirmed","confirmed":true,"failed":false,"blockNumber":68822193},"meta":{"durationMs":1006,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 An unknown txid is a **success** with `state: "not_found"` (exit 0) — the query worked; the answer is "not there":
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.tx.status","data":{"txid":"0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":1022,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":1022,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

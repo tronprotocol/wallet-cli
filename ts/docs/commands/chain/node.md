@@ -37,7 +37,7 @@ wallet-cli chain node --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.node","data":{"endpoint":"https://nile.trongrid.io","version":"java-tron 4.7.7","p2pVersion":"11111","headBlock":{"number":69093315,"timestamp":1783783761000},"solidBlock":{"number":69093296},"lagBlocks":19,"inSync":true,"peers":{"connected":30,"active":27}},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.node","data":{"endpoint":"https://nile.trongrid.io","version":"java-tron 4.7.7","p2pVersion":"11111","headBlock":{"number":69093315,"timestamp":1783783761000},"solidBlock":{"number":69093296},"lagBlocks":19,"inSync":true,"peers":{"connected":30,"active":27}},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

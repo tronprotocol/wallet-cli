@@ -22,24 +22,22 @@ class Backend implements PromptBackend {
 
 const PW = "Abcdef1!";
 
-describe("resolveSecret", () => {
-  it("prompts (hidden) when no stdin source and validates mnemonic", async () => {
+describe("resolveSecret (TTY-only)", () => {
+  // mnemonic / private key have NO --*-stdin source; they are entered via a hidden TTY prompt,
+  // which re-prompts until the value validates.
+  it("prompts (hidden) and validates the mnemonic, retrying until valid", async () => {
     const valid = "legal winner thank year wave sausage worth useful legal winner thank yellow";
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend(["bad phrase", valid])));
     expect(await r.resolveSecret("mnemonic")).toBe(valid);
   });
-  it("uses the stdin source when present", async () => {
+  it("prompts (hidden) and validates a private key, retrying until valid", async () => {
     const k = "a".repeat(64);
-    const r = new SecretResolver(streams(k + "\n"), { privateKey: "-" }, new Prompter(new Backend([])));
+    const r = new SecretResolver(streams(), {}, new Prompter(new Backend(["zzz", k])));
     expect(await r.resolveSecret("privateKey")).toBe(k);
   });
-  it("rejects a malformed stdin secret with invalid_secret", async () => {
-    const r = new SecretResolver(streams("zzz\n"), { privateKey: "-" }, new Prompter(new Backend([])));
-    await expect(r.resolveSecret("privateKey")).rejects.toMatchObject({ code: "invalid_secret" });
-  });
-  it("errors when missing and no TTY", async () => {
+  it("errors with tty_required when there is no terminal", async () => {
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], false)));
-    await expect(r.resolveSecret("mnemonic")).rejects.toMatchObject({ code: "missing_option" });
+    await expect(r.resolveSecret("mnemonic")).rejects.toMatchObject({ code: "tty_required" });
   });
 });
 
@@ -77,5 +75,19 @@ describe("hasMasterPassword", () => {
   it("hasMasterPassword is false with no source/primed even under a TTY (lazy guard must fail fast)", () => {
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], /* tty */ true)));
     expect(r.hasMasterPassword()).toBe(false);
+  });
+});
+
+describe("clearPrimed (CP-08)", () => {
+  it("drops the cached password so it is no longer readable", async () => {
+    // prime via TTY (no --password source), so a cleared cache leaves nothing behind
+    const r = new SecretResolver(streams(), {}, new Prompter(new Backend([PW, PW])));
+    await r.primePassword({ mode: "set" });
+    expect(r.masterPassword()).toBe(PW);
+
+    r.clearPrimed();
+
+    expect(r.hasMasterPassword()).toBe(false);
+    expect(() => r.masterPassword()).toThrow(); // cache gone, no source → auth_required
   });
 });

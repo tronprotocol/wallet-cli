@@ -65,7 +65,7 @@ wallet-cli chain params --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.chain.params","data":{"params":[{"key":"getEnergyFee","value":210},{"key":"getTransactionFee","value":1000},{"key":"getCreateAccountFee","value":100000}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":210},{"key":"getTransactionFee","value":1000},{"key":"getCreateAccountFee","value":100000}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

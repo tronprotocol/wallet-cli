@@ -35,7 +35,7 @@ wallet-cli account portfolio --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.account.portfolio","data":{"network":"tron:nile","account":"wlt_4473p34m.0","address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"TRX","decimals":6,"rawBalance":"1976489000","balance":"1976.489","priceUsd":null,"valueUsd":null}],"totalValueUsd":null},"meta":{"durationMs":11031,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"tron:nile","account":"wlt_4473p34m.0","address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"TRX","decimals":6,"rawBalance":"1976489000","balance":"1976.489","priceUsd":null,"valueUsd":null}],"totalValueUsd":null},"meta":{"durationMs":11031,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

@@ -26,6 +26,11 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "contract.deploy": "deploy a smart contract",
   "staking.freeze": "freeze/unfreeze (Stake 2.0)",
   "staking.delegate": "delegate/undelegate resource (Stake 2.0)",
+  "vote.cast": "cast/replace SR votes",
+  "vote.list": "list super representatives",
+  "vote.status": "current SR votes and voting power",
+  "reward.balance": "claimable voting/block reward",
+  "reward.withdraw": "withdraw voting/block rewards",
 }
 
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
@@ -62,4 +67,5 @@ export const DEFAULT_CONFIG = {
   defaultNetwork: "tron:mainnet",
   defaultOutput: "text" as const,
   timeoutMs: 60000,
+  waitTimeoutMs: 60000,
 }

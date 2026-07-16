@@ -52,7 +52,7 @@ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.stake.unfreeze","data":{"kind":"stake-unfreeze","stage":"submitted","txId":"d4e...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.unfreeze","data":{"kind":"stake-unfreeze","stage":"submitted","txId":"d4e...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to block until confirmed:

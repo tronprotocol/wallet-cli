@@ -45,7 +45,7 @@ wallet-cli vote list --limit 3 --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.vote.list","data":{"witnesses":[{"rank":1,"name":"TRONSCAN","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.list","data":{"witnesses":[{"rank":1,"name":"TRONSCAN","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

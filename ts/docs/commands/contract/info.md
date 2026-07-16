@@ -37,7 +37,7 @@ wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tron.contract.info","data":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"TetherToken","functionCount":33,"methods":["name","deprecate","approve","deprecated","addBlackList","totalSupply","transferFrom","…"],"contract":{"origin_address":"41…","contract_address":"41…","abi":{},"bytecode":"…","name":"TetherToken"},"info":{"smart_contract":{},"runtimecode":"…","contract_state":{}}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.info","data":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"TetherToken","functionCount":33,"methods":["name","deprecate","approve","deprecated","addBlackList","totalSupply","transferFrom","…"],"contract":{"origin_address":"41…","contract_address":"41…","abi":{},"bytecode":"…","name":"TetherToken"},"info":{"smart_contract":{},"runtimecode":"…","contract_state":{}}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

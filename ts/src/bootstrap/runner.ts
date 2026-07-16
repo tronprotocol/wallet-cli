@@ -6,7 +6,7 @@ import { buildCli } from "../adapters/inbound/cli/shell/index.js";
 import { hasCommand, parseGlobals } from "./argv.js";
 import { composeCliRuntime } from "./composition.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 /** Execute one CLI invocation. Dependency construction is delegated to the composition root. */
 export async function main(argv: string[]): Promise<ExitCode> {
@@ -44,6 +44,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
     });
     return normalized.exitCode();
   } finally {
+    runtime.deps.secrets.clearPrimed(); // release cached secrets at end of the invocation
     runtime.prompter.close();
   }
 }
