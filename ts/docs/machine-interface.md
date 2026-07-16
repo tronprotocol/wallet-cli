@@ -32,7 +32,7 @@ Schema id: `wallet-cli.result.v1`.
 {
   "schema": "wallet-cli.result.v1",
   "success": true,
-  "command": "tron.account.balance",
+  "command": "account.balance",
   "data": { "address": "TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ", "balance": "1976489000", "decimals": 6, "symbol": "TRX" },
   "meta": { "durationMs": 1114, "warnings": [] },
   "chain": { "family": "tron", "network": "tron:nile", "chainId": "nile" }
@@ -45,7 +45,7 @@ Schema id: `wallet-cli.result.v1`.
 {
   "schema": "wallet-cli.result.v1",
   "success": false,
-  "command": "tron.tx.info",
+  "command": "tx.info",
   "error": { "code": "rpc_error", "message": "TRON getTransaction failed: Transaction not found" },
   "meta": { "durationMs": 1033, "warnings": [] },
   "chain": { "family": "tron", "network": "tron:nile", "chainId": "nile" }
@@ -56,7 +56,7 @@ Schema id: `wallet-cli.result.v1`.
 |---|---|---|---|
 | `schema` | `"wallet-cli.result.v1"` | always | Version gate; dispatch on this |
 | `success` | boolean | always | Mirrors the exit code (`true` ⇔ 0) |
-| `command` | string | always | Canonical command id, e.g. `tron.tx.send`, `list` |
+| `command` | string | always | Canonical command id, e.g. `tx.send`, `list` |
 | `data` | object/array | success only | Command-specific payload; see each command's reference page |
 | `error.code` | string | error only | Machine-readable; see [error codes](#error-codes) |
 | `error.message` | string | error only | Human-readable; **not** stable — never parse it |
