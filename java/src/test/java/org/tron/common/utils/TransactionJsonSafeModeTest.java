@@ -6,8 +6,12 @@ import com.google.protobuf.ByteString;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.protos.Protocol;
 import org.tron.protos.contract.BalanceContract.TransferContract;
+import org.tron.trident.proto.Chain;
+import org.tron.trident.proto.Response;
 import org.tron.walletcli.Client;
 
 /**
@@ -51,6 +55,32 @@ public class TransactionJsonSafeModeTest {
   @Test
   public void printsTransactionStringUnderSafeMode() {
     String text = Utils.printTransaction(transferTransaction());
+
+    Assert.assertNotNull(text);
+    Assert.assertFalse(text.contains("@type"));
+  }
+
+  @Test
+  public void printsTransactionSignWeightUnderSafeMode() {
+    TransactionSignWeight signWeight = TransactionSignWeight.newBuilder()
+        .setTransaction(TransactionExtention.newBuilder()
+            .setTransaction(transferTransaction()))
+        .build();
+
+    String text = Utils.printTransactionSignWeight(signWeight);
+
+    Assert.assertNotNull(text);
+    Assert.assertFalse(text.contains("@type"));
+  }
+
+  @Test
+  public void printsTransactionApprovedListUnderSafeMode() throws Exception {
+    Response.TransactionApprovedList approved = Response.TransactionApprovedList.newBuilder()
+        .setTransaction(Response.TransactionExtention.newBuilder()
+            .setTransaction(Chain.Transaction.parseFrom(transferTransaction().toByteArray())))
+        .build();
+
+    String text = Utils.printTransactionApprovedList(approved);
 
     Assert.assertNotNull(text);
     Assert.assertFalse(text.contains("@type"));
