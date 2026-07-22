@@ -38,6 +38,7 @@ import org.tron.walletcli.cli.StandardCliRunner;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.ParserConfig;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.primitives.Longs;
@@ -124,6 +125,14 @@ import org.tron.trident.proto.Response;
 import org.tron.walletserver.WalletApi;
 
 public class Client {
+
+  static {
+    // fastjson 1.x honors the "@type" hint in JSON.parseObject/parseArray even when the target is a
+    // JSONObject, which is the entry point for autoType deserialization gadgets. wallet-cli feeds
+    // remote HTTP/WebSocket payloads (GasFree, multi-sign) into those calls and never relies on
+    // "@type" itself, so safe mode rejects the hint outright and removes the gadget surface.
+    ParserConfig.getGlobalInstance().setSafeMode(true);
+  }
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
   private static int retryTime = 3;
