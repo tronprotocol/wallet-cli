@@ -52,8 +52,8 @@ export class WalletService {
     return { previous: result.previous, ...this.wallets.describe(result.accountId) };
   }
 
-  current() {
-    const account = this.wallets.activeAccount();
+  current(requestedAccount?: string) {
+    const account = requestedAccount ?? this.wallets.activeAccount();
     if (!account) throw new WalletError("missing_wallet_address", "no active account; import one first");
     return this.wallets.describe(account);
   }

@@ -40,6 +40,7 @@ import { AddressService } from "../application/use-cases/address-service.js";
 import { SecureKeypairWriter } from "../adapters/outbound/persistence/keypair-writer.js";
 import { registerEncodingCommands } from "../adapters/inbound/cli/commands/encoding.js";
 import { registerAddressCommands } from "../adapters/inbound/cli/commands/address.js";
+import { TerminalQrEncoder } from "../adapters/outbound/qr/index.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -88,7 +89,11 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const txPipeline = new TxPipeline(signerResolver);
 
   const registry = new CommandRegistry();
-  registerWalletCommands(registry, { walletService, ledger });
+  registerWalletCommands(registry, {
+    walletService,
+    ledger,
+    qr: new TerminalQrEncoder(),
+  });
   registerConfigCommands(registry, configService);
   registerNetworkCommands(registry);
   registerContactCommands(registry, new ContactService(contactBook));
