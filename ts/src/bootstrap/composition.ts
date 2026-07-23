@@ -30,6 +30,7 @@ import { WalletService } from "../application/use-cases/wallet-service.js";
 import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
 import { registerTronChainCommands } from "./families/tron.js";
 import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
+import { GasFreeClient } from "../adapters/outbound/gasfree/client.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -88,12 +89,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
     accounts: keystore,
     timeoutMs,
     tronlink: new TronLinkClient(config, timeoutMs),
+    gasfree: new GasFreeClient(config, timeoutMs),
   });
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();
   for (const network of Object.values(config.networks)) {
     const commandCapabilities = (capabilitiesByFamily.get(network.family) ?? [])
       .filter((key) => key !== "tx.multisig.tronlink" || Boolean(network.tronlinkHttpEndpoint))
+      .filter((key) => !key.startsWith("gasfree.") || Boolean(network.gasfree))
       .map((key) => ({
         key,
         summary: CAP_SUMMARIES[key] ?? key,
