@@ -124,3 +124,14 @@ export async function assertTronSignerAuthorized(
     throw new ChainError("already_signed", "selected signer has already approved this transaction");
   }
 }
+
+/** Shared TRON transaction hooks for permission binding, protobuf artifacts, and signer preflight. */
+export function tronTransactionHooks(gateway: TronGateway) {
+  return {
+    prepare: (transaction: UnsignedTx, options: { permissionId: number; expiration?: number }) =>
+      gateway.prepareTransaction(transaction, options),
+    artifact: (transaction: UnsignedTx) => gateway.encodeTransactionHex(transaction),
+    preflight: (transaction: UnsignedTx, signerAddress: string) =>
+      assertTronSignerAuthorized(gateway, transaction, signerAddress),
+  };
+}

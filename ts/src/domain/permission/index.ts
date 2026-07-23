@@ -325,3 +325,7 @@ export function permissionSafetyWarnings(
   }
   return warnings;
 }
+
+export function operationForContractType(contractType: string): TronOperation | undefined {
+  return operationByType.get(contractType);
+}
