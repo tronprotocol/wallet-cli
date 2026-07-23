@@ -31,6 +31,10 @@ import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
 import { registerTronChainCommands } from "./families/tron.js";
 import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
 import { GasFreeClient } from "../adapters/outbound/gasfree/client.js";
+import { ContactBook } from "../adapters/outbound/contactbook/index.js";
+import { ContactService } from "../application/use-cases/contact-service.js";
+import { RecipientResolver } from "../application/services/recipient-resolver.js";
+import { registerContactCommands } from "../adapters/inbound/cli/commands/contact.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -63,6 +67,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
     new SecureBackupWriter(root),
   );
   const tokenBook = new TokenBook(root, store);
+  const contactBook = new ContactBook(root, store);
+  const recipientResolver = new RecipientResolver(contactBook);
   const priceProvider = createPriceProvider(config.price, timeoutMs);
   const gatewayProvider = new ChainGatewayRegistry(
     familyMap((plugin) => plugin.createGateway),
@@ -80,6 +86,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerWalletCommands(registry, { walletService, ledger });
   registerConfigCommands(registry, configService);
   registerNetworkCommands(registry);
+  registerContactCommands(registry, new ContactService(contactBook));
   registerTronChainCommands(registry, {
     gateways: gatewayProvider,
     tokens: tokenBook,
@@ -90,6 +97,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     timeoutMs,
     tronlink: new TronLinkClient(config, timeoutMs),
     gasfree: new GasFreeClient(config, timeoutMs),
+    recipients: recipientResolver,
   });
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();

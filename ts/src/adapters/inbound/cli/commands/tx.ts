@@ -17,7 +17,8 @@ import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 // baseFields today (single family). When EVM lands, move feeLimit/assetId/contract into the TRON
 // binding.fields and put gasPrice/gasLimit/nonce into the EVM binding.fields (spec §4 base/delta).
 const sendFields = z.object({
-  to: Schemas.addressFor("tron").describe("recipient TRON base58 address"),
+  to: z.string().trim().min(1).max(128)
+    .describe("recipient TRON base58 address or local contact name"),
   token: z.string().min(1).optional()
     .describe("token symbol from the address book; mutually exclusive with --contract and --asset-id"),
   contract: Schemas.addressFor("tron").optional()

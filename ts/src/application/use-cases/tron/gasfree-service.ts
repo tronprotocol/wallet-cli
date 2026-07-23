@@ -22,12 +22,11 @@ import {
   recoverGasFreeSigner,
 } from "../../../domain/gasfree/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
-import { TronAddress } from "../../../domain/address/index.js";
 import { obtainSignature } from "../../services/signing/obtain-signature.js";
+import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
 const MAX_DEADLINE_SECONDS = 86_400n;
 const POLL_MS = 1_000;
-const ADDRESS = new TronAddress();
 
 export interface GasFreeTransferInput {
   to: string;
@@ -46,6 +45,7 @@ export class GasFreeService {
     private readonly provider: GasFreeProvider,
     private readonly gateways: ChainGatewayProvider,
     private readonly signers: SignerResolver,
+    private readonly recipients: RecipientResolver,
     private readonly clock: () => number = () => Date.now(),
     private readonly sleep: (milliseconds: number) => Promise<void> = (
       milliseconds,
@@ -117,6 +117,9 @@ export class GasFreeService {
         "--wait cannot be used with --dry-run",
       );
     }
+    if (!input.dryRun) {
+      this.signers.assertCanSign(scope.activeAccount, "tron");
+    }
     const metadata = network.gasfree;
     if (!metadata) {
       throw new UsageError(
@@ -125,12 +128,7 @@ export class GasFreeService {
       );
     }
     const owner = scope.resolveAddress("tron");
-    if (!ADDRESS.validate(input.to)) {
-      throw new UsageError(
-        "invalid_value",
-        "--to must be a valid TRON address or contact name",
-      );
-    }
+    const recipient = this.recipients.resolve("tron", input.to);
     const [addressInfo, tokens, providers] = await Promise.all([
       this.provider.getAddress(network, owner),
       this.#tokens(network),
@@ -179,21 +177,26 @@ export class GasFreeService {
       token: token.tokenAddress,
       serviceProvider: provider.address,
       user: owner,
-      receiver: input.to,
+      receiver: recipient.address,
       value,
       maxFee: authorizedMaxFee,
       deadline: String(BigInt(Math.floor(this.clock() / 1000)) + duration),
       version: "1",
       nonce: addressInfo.nonce,
     };
-    const base = transferView(
-      "dry-run",
-      authorization,
-      token,
-      addressInfo,
-      activateFee,
-      totalDeducted,
-    );
+    const base: GasFreeTransferView = {
+      ...transferView(
+        "dry-run",
+        authorization,
+        token,
+        addressInfo,
+        activateFee,
+        totalDeducted,
+      ),
+      ...(recipient.contactName
+        ? { toContact: recipient.contactName }
+        : {}),
+    };
     if (input.dryRun) return base;
     if (addressInfo.allowSubmit === false) {
       throw new ChainError(
@@ -202,7 +205,6 @@ export class GasFreeService {
       );
     }
 
-    this.signers.assertCanSign(scope.activeAccount, "tron");
     const signer = this.signers.resolve(scope.activeAccount, "tron");
     if (signer.address !== owner) {
       throw new UsageError(
