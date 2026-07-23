@@ -60,7 +60,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe("0.1.1");
+    expect(r.stdout.trim()).toBe("0.1.2");
   });
 
   it("root --help shows the TRON first-release command surface", () => {
