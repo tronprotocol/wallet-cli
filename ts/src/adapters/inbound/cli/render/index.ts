@@ -22,6 +22,7 @@ import { VoteFormatters } from "./vote.js"
 import { RewardFormatters } from "./reward.js"
 import { ChainFormatters } from "./chain.js"
 import { MiscFormatters } from "./misc.js"
+import { PermissionFormatters } from "./permission.js"
 
 export { FAMILY_RENDER, renderFamily } from "./family.js"
 
@@ -34,6 +35,7 @@ export const TextFormatters = {
   ...RewardFormatters,
   ...ChainFormatters,
   ...MiscFormatters,
+  ...PermissionFormatters,
 }
 
 export function renderGenericText(command: string, net: NetworkDescriptor | undefined, data: unknown): string {

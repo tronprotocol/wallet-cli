@@ -31,6 +31,8 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "vote.status": "current SR votes and voting power",
   "reward.balance": "claimable voting/block reward",
   "reward.withdraw": "withdraw voting/block rewards",
+  "permission.read": "read account multi-sign permissions",
+  "permission.update": "replace account multi-sign permissions",
 }
 
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {

@@ -52,6 +52,13 @@ describe("TargetResolver", () => {
     expect(target.network?.id).toBe("evm:1");
   });
 
+  it("detects a direct on-chain address without resolving it from the keystore", () => {
+    const target = resolver("tron:mainnet").resolve(policy("tron"), {
+      account: "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+    });
+    expect(target.network?.id).toBe("tron:mainnet");
+  });
+
   it("rejects a command implementation that does not support the selected network family", () => {
     expect(() =>
       resolver("tron:mainnet").resolve(policy("evm" as any), {}),
