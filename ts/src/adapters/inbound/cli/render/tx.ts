@@ -34,6 +34,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx)
   if (r.mode === "dry-run") {
     return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
+      ...receiptRows(r),
       ["Fee", r.multiSignFeeSun === undefined
         ? formatFee(r.fee, family)
         : `${formatSun(r.multiSignFeeSun)} TRX multi-sign fee`],
@@ -146,6 +147,10 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
       return "Signed"
     case "permission-update":
       return "Permissions updated"
+    case "account-activate":
+      return "Account activated"
+    case "account-set":
+      return `On-chain ${r.field ?? "account field"} set`
   }
 }
 
@@ -158,6 +163,13 @@ function receiptRows(r: TxReceiptView): Pair[] {
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])
   else if (r.kind === "vote-cast" && Array.isArray(r.votes)) rows.push(["Votes", r.votes.map((vote) => `${vote.witness}=${formatInt(vote.count)}`).join(", ")])
   else if (r.kind === "reward-withdraw") rows.push(["Amount", `${formatSun(r.rewardSun ?? r.withdrawnSun ?? 0)} TRX`])
+  else if (r.kind === "account-activate") {
+    rows.push(["Address", String(r.address ?? "")])
+    rows.push(["Payer", String(r.payer ?? "")])
+  } else if (r.kind === "account-set") {
+    rows.push(["Address", String(r.address ?? "")])
+    rows.push([r.field === "id" ? "ID" : "Name", String(r.value ?? "")])
+  }
   else if (r.to ?? r.receiver) rows.push(["To", String(r.to ?? r.receiver)])
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")])
   return rows
@@ -212,6 +224,10 @@ function actionLabel(kind: TxReceiptKind): string {
       return "reward withdraw"
     case "permission-update":
       return "permission update"
+    case "account-activate":
+      return "account activate"
+    case "account-set":
+      return "account set"
   }
 }
 

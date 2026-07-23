@@ -18,6 +18,8 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "account.balance.native": "native balance",
   "account.balance.token": "token balance",
   "account.portfolio": "holdings with USD valuation",
+  "account.activate": "activate a new TRON account",
+  "account.set": "set one-time on-chain account name or ID",
   "token.tokenbook": "token address-book (add/list/remove)",
   "tx.send": "transfer native / token",
   "tx.broadcast": "broadcast a presigned transaction",
