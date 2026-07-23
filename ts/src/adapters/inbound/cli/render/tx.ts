@@ -38,6 +38,12 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
       ["Tx", summarizeTx(r.tx)],
     ])
   }
+  if (r.mode === "build-only") {
+    return r.hex ?? receipt(pending(), `Built ${actionLabel(r.kind)}`, [
+      ["Fee", formatFee(r.fee, family)],
+      ["Tx", summarizeTx(r.tx)],
+    ])
+  }
   if (r.mode === "sign-only") {
     // kv() drops empty rows, so a fee-less signature (tx sign estimates nothing) omits the Fee line.
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
@@ -135,6 +141,8 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
     // switch total over TxReceiptKind.
     case "sign":
       return "Signed"
+    case "permission-update":
+      return "Permissions updated"
   }
 }
 
@@ -198,6 +206,8 @@ function actionLabel(kind: TxReceiptKind): string {
       return "vote cast"
     case "reward-withdraw":
       return "reward withdraw"
+    case "permission-update":
+      return "permission update"
   }
 }
 

@@ -27,4 +27,5 @@ export * from "./wallet.js";
 export * from "./token.js";
 export * from "./keystore.js";
 export * from "./tx.js";
+export * from "./permission.js";
 export * from "./primitives.js";

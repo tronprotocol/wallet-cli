@@ -6,7 +6,15 @@
 import { TronWeb } from "tronweb";
 import type { Types } from "tronweb";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
-import type { BroadcastResult, SignedTx } from "../../../../domain/types/index.js";
+import type {
+  AccountPermissionsView,
+  ActivePermissionView,
+  BroadcastResult,
+  PermissionGroupView,
+  SignedTx,
+  TronTransactionArtifact,
+  UnsignedTx,
+} from "../../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../../domain/resources/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
 import type {
@@ -17,6 +25,7 @@ import type {
   TronDelegatedResource,
   TronGateway,
   TronNodeInfo,
+  TronSignWeight,
   TronTokenInfo,
   TronTx,
   TronTxInfo,
@@ -31,9 +40,18 @@ import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
 import { normalizeContractResponses } from "./contract-response.js";
+import {
+  decodeTransactionHex,
+  encodeTransactionHex,
+  normalizeTransactionHex,
+  refreshTransactionIdentity,
+} from "./transaction-codec.js";
+import { decodeOperations } from "../../../../domain/permission/index.js";
+import { addressCodec } from "../../../../domain/family/index.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const DEFAULT_ACTIVE_OPERATIONS = "7fff1fc0033ef30f000000000000000000000000000000000000000000000000";
 
 /** 41-prefixed hex TRON address → base58; passes through values that are already base58/empty.
  *  TronGrid's native /transactions endpoint returns hex even with visible=true. */
@@ -80,6 +98,187 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return { txId: res.txid ?? res.transaction?.txID };
   }
 
+  prepareTransaction(
+    transaction: UnsignedTx,
+    options: { permissionId: number; expiration?: number },
+  ): TronTransactionArtifact {
+    if (!transaction || typeof transaction !== "object") {
+      throw new ChainError("invalid_transaction", "TRON builder returned a non-object transaction");
+    }
+    const prepared = structuredClone(transaction) as TronTransactionArtifact;
+    if (Array.isArray(prepared.signature) && prepared.signature.length > 0) {
+      throw new ChainError("invalid_transaction", "cannot prepare a transaction that is already signed");
+    }
+    const contracts = prepared.raw_data?.contract;
+    if (!Array.isArray(contracts) || contracts.length !== 1) {
+      throw new ChainError("invalid_transaction", "exactly one TRON contract is required");
+    }
+    if (options.permissionId === 0) delete contracts[0]!.Permission_id;
+    else contracts[0]!.Permission_id = options.permissionId;
+    if (options.expiration !== undefined) {
+      const timestamp = prepared.raw_data.timestamp;
+      if (!Number.isSafeInteger(timestamp)) {
+        throw new ChainError("invalid_transaction", "TRON transaction timestamp is missing or imprecise");
+      }
+      const expiration = timestamp! + options.expiration;
+      if (!Number.isSafeInteger(expiration)) {
+        throw new ChainError("invalid_transaction", "TRON transaction expiration is imprecise");
+      }
+      prepared.raw_data.expiration = expiration;
+    }
+    return refreshTransactionIdentity(prepared);
+  }
+
+  encodeTransactionHex(transaction: UnsignedTx): string {
+    return encodeTransactionHex(transaction);
+  }
+
+  decodeTransactionHex(hex: string): TronTransactionArtifact {
+    return decodeTransactionHex(hex);
+  }
+
+  async getAccountPermissions(address: string): Promise<AccountPermissionsView> {
+    const account = await this.getAccount(address);
+    const returnedAddress = hexToBase58(account.address);
+    if (!returnedAddress) {
+      throw new ChainError("not_found", `TRON account is not activated: ${address}`);
+    }
+    if (returnedAddress !== address) {
+      throw new ChainError("provider_error", "TRON node returned permissions for a different account");
+    }
+    const ownerRaw = account.owner_permission;
+    const activeRaw = account.active_permission;
+    if (!ownerRaw && activeRaw === undefined) {
+      const decoded = decodeOperations(DEFAULT_ACTIVE_OPERATIONS);
+      const defaultGroup = (id: number, name: string): PermissionGroupView => ({
+        id,
+        name,
+        threshold: 1,
+        keys: [{ address, weight: 1, local: null }],
+      });
+      const isWitness = account.is_witness === true || account.isWitness === true;
+      return {
+        address,
+        owner: defaultGroup(0, "owner"),
+        witness: isWitness ? defaultGroup(1, "witness") : null,
+        actives: [{
+          ...defaultGroup(2, "active"),
+          operations: decoded.operations,
+          operationLabels: decoded.labels,
+          operationsHex: decoded.operationsHex,
+          unknownOperationIds: decoded.unknownOperationIds,
+        }],
+      };
+    }
+    if (!ownerRaw) {
+      throw new ChainError("provider_error", "TRON node response is missing owner_permission");
+    }
+    if (activeRaw !== undefined && !Array.isArray(activeRaw)) {
+      throw new ChainError("provider_error", "TRON node returned malformed active_permission data");
+    }
+    if ((activeRaw?.length ?? 0) > 8) {
+      throw new ChainError("provider_error", "TRON node returned more than 8 active permissions");
+    }
+    const owner = permissionGroupFromNode(ownerRaw, "owner", 0, { expectedId: 0 });
+    const witness = account.witness_permission
+      ? permissionGroupFromNode(account.witness_permission, "witness", 1, { expectedId: 1, exactKeys: 1 })
+      : null;
+    const actives = (activeRaw ?? []).map((permission, index) => activePermissionFromNode(permission, index));
+    if (new Set(actives.map((permission) => permission.id)).size !== actives.length) {
+      throw new ChainError("provider_error", "TRON node returned duplicate active permission ids");
+    }
+    return { address, owner, witness, actives };
+  }
+
+  async buildAccountPermissionUpdate(owner: string, permissions: AccountPermissionsView): Promise<UnsignedTx> {
+    const toPermission = (permission: PermissionGroupView, type: number): Types.Permission => ({
+      type,
+      id: permission.id,
+      permission_name: permission.name,
+      threshold: permission.threshold,
+      keys: permission.keys.map((key) => ({ address: key.address, weight: key.weight })),
+    });
+    const ownerPermission = toPermission(permissions.owner, 0);
+    const witnessPermission = permissions.witness ? toPermission(permissions.witness, 1) : null;
+    const actives = permissions.actives.map((permission): Types.Permission => ({
+      ...toPermission(permission, 2),
+      operations: permission.operationsHex,
+    }));
+    return this.#wrap("update account permissions", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.updateAccountPermissions(
+          owner,
+          ownerPermission,
+          witnessPermission,
+          actives,
+        ),
+        "AccountPermissionUpdateContract",
+      ),
+    );
+  }
+
+  async getSignWeight(transaction: UnsignedTx): Promise<TronSignWeight> {
+    return this.#wrap("getSignWeight", async () => {
+      // TronWeb mutates Permission_id when absent; never expose the caller's artifact by reference.
+      const response = await this.#tw.trx.getSignWeight(structuredClone(transaction) as Types.Transaction);
+      const permission = response.permission
+        ? permissionGroupFromNode(response.permission, "permission", Number(response.permission.id ?? 0))
+        : null;
+      return {
+        permission: permission ? {
+          id: permission.id,
+          name: permission.name,
+          threshold: permission.threshold,
+          operationsHex: typeof response.permission.operations === "string"
+            ? response.permission.operations.toLowerCase()
+            : undefined,
+          keys: permission.keys.map(({ address: keyAddress, weight }) => ({ address: keyAddress, weight })),
+        } : null,
+        approvedList: (response.approved_list ?? []).map(hexToBase58),
+        currentWeight: safeNodeInteger(response.current_weight, "current_weight"),
+        resultCode: String(response.result?.code ?? ""),
+        message: decodeTronMessage(response.result?.message),
+      };
+    });
+  }
+
+  async getApprovedList(transaction: UnsignedTx): Promise<string[]> {
+    return this.#wrap("getApprovedList", async () => {
+      const response = await this.#tw.trx.getApprovedList(structuredClone(transaction) as Types.Transaction);
+      return (response.approved_list ?? []).map(hexToBase58);
+    });
+  }
+
+  async broadcastHex(input: string): Promise<BroadcastResult> {
+    const hex = normalizeTransactionHex(input);
+    decodeTransactionHex(hex);
+    const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));
+    if (response.result === false) {
+      const reason = decodeTronMessage(response.message) || response.code || "rejected by node";
+      throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`);
+    }
+    const returnedTxId = response.transaction && typeof response.transaction === "object"
+      ? response.transaction.txID
+      : undefined;
+    return { txId: response.txid ?? returnedTxId };
+  }
+
+  async getUpdateAccountPermissionFee(): Promise<number> {
+    return this.#chainParameter("getUpdateAccountPermissionFee");
+  }
+
+  async getMultiSignFee(): Promise<number> {
+    return this.#chainParameter("getMultiSignFee");
+  }
+
+  async #chainParameter(key: string): Promise<number> {
+    const parameter = (await this.getChainParameters()).find((entry) => entry.key === key);
+    if (parameter?.value === undefined) {
+      throw new ChainError("provider_error", `TRON chain parameter is unavailable: ${key}`);
+    }
+    return safeNodeInteger(parameter.value, key);
+  }
+
   /** build an unsigned TRX transfer (tronweb fills ref block etc.). */
   async buildNativeTransfer(from: string, to: string, amountSun: string): Promise<Types.Transaction> {
     // tronweb's sendTrx amount param is a JS number; guard before #wrap so a precision-losing
@@ -100,6 +299,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     try {
       return await fn();
     } catch (e) {
+      if (e instanceof ChainError || e instanceof UsageError || e instanceof TransportError) throw e;
       throw new TransportError("rpc_error", `TRON ${label} failed: ${redactErrorMessage((e as Error).message?.split("\n")[0] ?? "")}`);
     }
   }
@@ -515,6 +715,99 @@ function normalizeWitness(value: unknown): TronWitness | null {
 /** Parse node account JSON without first coercing 64-bit quantities through JS number. */
 export function parseTronAccountResponse(text: string): TronAccount {
   return normalizeAccountValue(parseLosslessJson(text)) as TronAccount;
+}
+
+function safeNodeInteger(value: unknown, field: string): number {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    const parsed = Number(value);
+    if (Number.isSafeInteger(parsed)) return parsed;
+  }
+  throw new ChainError("provider_error", `TRON node returned an imprecise or invalid ${field}`);
+}
+
+function safePermissionName(value: unknown, fallback: string, field: string): string {
+  const name = value === undefined ? fallback : value;
+  if (typeof name !== "string"
+    || name.length === 0
+    || Buffer.byteLength(name, "utf8") > 32
+    || /\p{Cc}/u.test(name)) {
+    throw new ChainError("provider_error", `TRON node returned an invalid ${field}`);
+  }
+  return name;
+}
+
+function permissionGroupFromNode(
+  value: unknown,
+  kind: string,
+  fallbackId: number,
+  constraints: { expectedId?: number; exactKeys?: number } = {},
+): PermissionGroupView {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ChainError("provider_error", `TRON node returned malformed ${kind} permission data`);
+  }
+  const raw = value as Record<string, unknown>;
+  if (!Array.isArray(raw.keys)
+    || raw.keys.length === 0
+    || raw.keys.length > 5
+    || (constraints.exactKeys !== undefined && raw.keys.length !== constraints.exactKeys)) {
+    throw new ChainError("provider_error", `TRON node returned an invalid ${kind} key count`);
+  }
+  const threshold = safeNodeInteger(raw.threshold, `${kind}.threshold`);
+  if (threshold === 0) throw new ChainError("provider_error", `TRON node returned zero ${kind} threshold`);
+  const seen = new Set<string>();
+  let totalWeight = 0n;
+  const keys = raw.keys.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new ChainError("provider_error", `TRON node returned malformed ${kind}.keys[${index}]`);
+    }
+    const key = entry as Record<string, unknown>;
+    const address = hexToBase58(key.address);
+    const weight = safeNodeInteger(key.weight, `${kind}.keys[${index}].weight`);
+    if (!addressCodec("tron").validate(address) || weight === 0 || seen.has(address)) {
+      throw new ChainError("provider_error", `TRON node returned invalid ${kind}.keys[${index}]`);
+    }
+    seen.add(address);
+    totalWeight += BigInt(weight);
+    return { address, weight, local: null };
+  });
+  if (BigInt(threshold) > totalWeight) {
+    throw new ChainError("provider_error", `TRON node returned ${kind} threshold above total key weight`);
+  }
+  const id = raw.id === undefined ? fallbackId : safeNodeInteger(raw.id, `${kind}.id`);
+  if (constraints.expectedId !== undefined && id !== constraints.expectedId) {
+    throw new ChainError("provider_error", `TRON node returned invalid ${kind} permission id`);
+  }
+  return {
+    id,
+    name: safePermissionName(raw.permission_name, kind, `${kind}.permission_name`),
+    threshold,
+    keys,
+  };
+}
+
+function activePermissionFromNode(value: unknown, index: number): ActivePermissionView {
+  const group = permissionGroupFromNode(value, `active[${index}]`, index + 2);
+  if (group.id < 2 || group.id > 9) {
+    throw new ChainError("provider_error", `TRON node returned invalid active[${index}] permission id`);
+  }
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.operations !== "string") {
+    throw new ChainError("provider_error", `TRON node returned active[${index}] without operations`);
+  }
+  let operations: ReturnType<typeof decodeOperations>;
+  try {
+    operations = decodeOperations(raw.operations);
+  } catch {
+    throw new ChainError("provider_error", `TRON node returned malformed active[${index}] operations`);
+  }
+  return {
+    ...group,
+    operations: operations.operations,
+    operationLabels: operations.labels,
+    operationsHex: operations.operationsHex,
+    unknownOperationIds: operations.unknownOperationIds,
+  };
 }
 
 function normalizeAccountValue(value: unknown, key?: string): unknown {

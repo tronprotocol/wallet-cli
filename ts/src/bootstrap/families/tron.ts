@@ -28,6 +28,12 @@ import {
 import { messageSignSpec, messageSignBinding } from "../../adapters/inbound/cli/commands/shared.js";
 import { typedDataSignSpec, typedDataSignBinding } from "../../adapters/inbound/cli/commands/typed-data.js";
 import {
+  permissionShowSpec,
+  permissionShowTronBinding,
+  permissionUpdateSpec,
+  permissionUpdateTronBinding,
+} from "../../adapters/inbound/cli/commands/permission.js";
+import {
   txBroadcastSpec,
   txBroadcastTronBinding,
   txInfoSpec,
@@ -77,11 +83,13 @@ import { TronChainService } from "../../application/use-cases/tron/chain-service
 import { TronBlockService } from "../../application/use-cases/tron/block-service.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
+import { TronPermissionService } from "../../application/use-cases/tron/permission-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
+import type { AccountStore } from "../../application/ports/account-store.js";
 import type { FamilyPlugin } from "./types.js";
 
 export const tronFamily: FamilyPlugin<"tron"> = {
@@ -96,6 +104,7 @@ export interface TronChainCommandDependencies {
   prices: PriceProvider;
   signers: SignerResolver;
   transactions: TxPipeline;
+  accounts: AccountStore;
   timeoutMs: number;
 }
 
@@ -110,6 +119,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const message = new MessageService(deps.signers);
   const typedData = new TypedDataService(deps.signers);
   const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
+  const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
   const reward = new TronRewardService(deps.gateways, deps.transactions);
@@ -133,6 +143,8 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(transaction));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
+  reg.addChain(permissionShowSpec, "tron", permissionShowTronBinding(permission));
+  reg.addChain(permissionUpdateSpec, "tron", permissionUpdateTronBinding(permission));
   for (const definition of stakeDefinitions(stake)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }

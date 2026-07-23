@@ -84,6 +84,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     prices: priceProvider,
     signers: signerResolver,
     transactions: txPipeline,
+    accounts: keystore,
     timeoutMs,
   });
 
