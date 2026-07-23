@@ -15,8 +15,8 @@ export const txModeFields = {
   dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast"),
   signOnly: z.boolean().default(false).describe("sign and output complete transaction hex without broadcasting"),
   buildOnly: z.boolean().default(false).describe("build and output unsigned complete transaction hex without unlocking"),
-  permissionId: z.number().int().min(0).max(9).default(0).describe("TRON permission group id used to authorize this transaction"),
-  expiration: z.number().int().min(1).max(86_400_000).optional().describe("expiration duration in milliseconds; only with --sign-only or --build-only"),
+  permissionId: z.coerce.number().int().min(0).max(9).default(0).describe("TRON permission group id used to authorize this transaction"),
+  expiration: z.coerce.number().int().min(1).max(86_400_000).optional().describe("expiration duration in milliseconds; only with --sign-only or --build-only"),
 };
 // ── unified --amount / --raw-amount selector (shared by every chain's `tx send`) ────
 // A transfer of 0 is meaningless on any chain — reject it here (exit 2) rather than let the node
