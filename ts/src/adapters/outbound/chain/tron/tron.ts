@@ -235,7 +235,9 @@ export class TronRpcClient implements TronGateway, Broadcaster {
           keys: permission.keys.map(({ address: keyAddress, weight }) => ({ address: keyAddress, weight })),
         } : null,
         approvedList: (response.approved_list ?? []).map(hexToBase58),
-        currentWeight: safeNodeInteger(response.current_weight, "current_weight"),
+        // Protobuf JSON omits scalar zero values. An unsigned transaction therefore has no
+        // current_weight field even though the protocol value is exactly 0.
+        currentWeight: safeNodeInteger(response.current_weight ?? 0, "current_weight"),
         resultCode: String(response.result?.code ?? ""),
         message: decodeTronMessage(response.result?.message),
       };
