@@ -76,6 +76,12 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toContain("  import");
     expect(r.stdout).toContain("  account");
     expect(r.stdout).toContain("  tx");
+    expect(r.stdout).toMatch(/^  permission\s/m);
+    expect(r.stdout).toMatch(/^  gasfree\s/m);
+    expect(r.stdout).toMatch(/^  encoding\s/m);
+    expect(r.stdout).toMatch(/^  address\s/m);
+    expect(r.stdout).toMatch(/^  contact\s/m);
+    expect(r.stdout).toContain("current account (--qr for a receive QR code)");
     expect(r.stdout).not.toContain("Learn more:");
     expect(r.stdout).not.toMatch(/^  import watch\s/m);
     expect(r.stdout).not.toMatch(/^  account balance\s/m);
