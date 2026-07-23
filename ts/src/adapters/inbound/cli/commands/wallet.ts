@@ -8,6 +8,7 @@ import { Schemas } from "../schemas/index.js"
 import { CommandRegistry } from "../registry/index.js"
 import { accountRef, ciEnum } from "../arity/index.js"
 import type { LedgerDevice } from "../../../../application/ports/ledger-device.js"
+import type { QrEncoder } from "../../../../application/ports/qr-encoder.js"
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js"
 import { resolveLedgerPath, selectLedgerPath } from "../../../../application/services/ledger-account.js"
 import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js"
@@ -40,7 +41,14 @@ export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, 
   if (locators > 1) c.addIssue({ code: "custom", path: ["index"], message: "--index, --path and --address are mutually exclusive" })
 })
 
-export function registerWalletCommands(reg: CommandRegistry, services: { walletService: WalletService; ledger: LedgerDevice }): void {
+export function registerWalletCommands(
+  reg: CommandRegistry,
+  services: {
+    walletService: WalletService;
+    ledger: LedgerDevice;
+    qr?: QrEncoder;
+  },
+): void {
   const wallets = services.walletService
   const empty = z.object({})
 
@@ -203,20 +211,49 @@ export function registerWalletCommands(reg: CommandRegistry, services: { walletS
   } satisfies CommandDefinition)
 
   // ── current ───────────────────────────────────────────────────────────────
-  // Read-only: always reports the persisted active account; ignores --account
-  // (use `use` to change it). wallet:"none" keeps help from
-  // advertising an --account override here.
+  const currentFields = z.object({
+    qr: z.boolean().default(false)
+      .describe("render a terminal receive QR containing exactly the selected TRON address; text TTY only"),
+  })
   reg.add({
     path: ["current"],
     network: "none",
-    wallet: "none",
+    wallet: "optional",
     auth: "none",
     summary: "Show the current active account",
-    fields: empty,
-    input: empty,
-    examples: [{ cmd: "wallet-cli current" }],
+    description:
+      "Show the selected account locally. --qr appends a scannable TRON receive-address QR in text mode without unlocking or accessing the network.",
+    fields: currentFields,
+    input: currentFields,
+    examples: [
+      { cmd: "wallet-cli current" },
+      { cmd: "wallet-cli current --qr" },
+      { cmd: "wallet-cli current --qr --account main" },
+    ],
     formatText: TextFormatters.walletCurrent,
-    run: async () => wallets.current(),
+    run: async (context, _network, input) => {
+      const descriptor = wallets.current(context.activeAccount)
+      if (!input.qr || context.output !== "text") return descriptor
+      const address = descriptor.addresses.tron
+      if (!address) {
+        throw new UsageError(
+          "invalid_value",
+          "selected account has no TRON receive address",
+        )
+      }
+      const qr = services.qr?.encode(address) ?? null
+      if (!qr) {
+        context.warn(
+          "terminal is non-interactive or too narrow for a complete QR code; showing the full address only",
+        )
+        return descriptor
+      }
+      return {
+        ...descriptor,
+        receiveQr: qr,
+        receiveAddress: address,
+      }
+    },
   } satisfies CommandDefinition)
 
   // ── rename ────────────────────────────────────────────────────────────────

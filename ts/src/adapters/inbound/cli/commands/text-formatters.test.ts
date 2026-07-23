@@ -52,6 +52,27 @@ describe("accountBalance formatter", () => {
   });
 });
 
+describe("walletCurrent formatter", () => {
+  it("renders a receive QR followed by the full address for manual verification", () => {
+    const out = TextFormatters.walletCurrent({
+      accountId: "wlt_selected",
+      label: "treasury",
+      active: false,
+      addresses: {
+        tron: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+      },
+      receiveQr: "█▀█\n▀▄▀",
+      receiveAddress: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    });
+
+    expect(out).toContain("Selected account: treasury");
+    expect(out).toContain("█▀█\n▀▄▀");
+    expect(out).toMatch(
+      /█▀█\n▀▄▀\nReceive address\s+TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC/,
+    );
+  });
+});
+
 describe("stake/chain TRX amount formatting", () => {
   it("groups the integer part without truncating fractional TRX", () => {
     const stake = TextFormatters.stakeDelegated({
