@@ -4,6 +4,7 @@ import type { NetworkRegistry } from "../../ports/network-registry.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { sourceFamily } from "../../../domain/sources/index.js";
 import type { AccountStore } from "../../ports/account-store.js";
+import { familyOf } from "../../../domain/family/index.js";
 
 export interface TargetResolverDeps {
   networkRegistry: NetworkRegistry;
@@ -54,6 +55,8 @@ export class TargetResolver {
   #singleFamilyAccount(selection: ExecutionSelection): ChainFamily | undefined {
     const ref = selection.account ?? this.deps.keystore.activeAccount() ?? undefined;
     if (!ref) return undefined;
+    const directFamily = familyOf(ref);
+    if (directFamily) return directFamily;
     const { wallet } = this.deps.keystore.resolveAccount(ref);
     return sourceFamily(wallet.source);
   }

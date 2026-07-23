@@ -22,6 +22,10 @@ interface NetworkBase {
 export interface TronNetworkDescriptor extends NetworkBase {
   family: "tron";
   httpEndpoint?: string;
+  /** Official walletadapter multi-sign service. Credentials are stored separately in Config. */
+  tronlinkHttpEndpoint?: string;
+  /** Official GasFree service plus the immutable TIP-712 controller domain. */
+  gasfree?: GasFreeNetworkConfig;
 }
 
 /** Single family today (TRON). Kept as a named alias so adding a family later means re-introducing
@@ -43,6 +47,22 @@ export interface Config {
   networks: Record<NetworkId, NetworkDescriptor>;
   /** USD-valuation source for `account portfolio`. Missing → builtin CoinGecko. */
   price?: PriceConfig;
+  /** TronLink collaboration credentials for the currently selected service environment. */
+  tronlinkSecretId?: string;
+  tronlinkSecretKey?: string;
+  tronlinkChannel?: string;
+  /** GasFree Open Platform credentials. The secret is never rendered in clear text. */
+  gasfreeApiKey?: string;
+  gasfreeApiSecret?: string;
+}
+
+export interface GasFreeNetworkConfig {
+  /** HTTPS origin only; request paths are appended by the GasFree adapter. */
+  baseUrl: string;
+  apiPrefix: string;
+  /** Decimal uint256 value to avoid passing chain identifiers through floating point. */
+  controllerChainId: string;
+  verifyingContract: string;
 }
 
 /** price service config ; best-effort — failures never fail a balance read. */

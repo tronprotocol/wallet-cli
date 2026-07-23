@@ -55,3 +55,65 @@ describe("ConfigService waitTimeoutMs", () => {
     expect(update).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("ConfigService TronLink credentials", () => {
+  it("validates the exact public config keys and masks the secret key", () => {
+    const { svc } = service();
+    expect(svc.execute(
+      { key: "tronlinkSecretId", value: "TEST" },
+      effective,
+      networks,
+    )).toMatchObject({ key: "tronlinkSecretId", value: "TEST" });
+    expect(svc.execute(
+      { key: "tronlinkSecretKey", value: "TESTTESTTEST" },
+      effective,
+      networks,
+    )).toMatchObject({ key: "tronlinkSecretKey", value: "********" });
+  });
+
+  it("never returns an effective secret key in config views", () => {
+    const configured = { ...effective, tronlinkSecretKey: "secret" };
+    const { svc } = service();
+    expect(svc.execute({}, configured, networks))
+      .toMatchObject({ tronlinkSecretKey: "********" });
+    expect(svc.execute({ key: "tronlinkSecretKey" }, configured, networks))
+      .toEqual({ key: "tronlinkSecretKey", value: "********" });
+  });
+
+  it("rejects empty, oversized, and control-character credentials", () => {
+    const { svc, update } = service();
+    for (const value of ["", "x".repeat(257), "bad\nvalue"]) {
+      expect(() => svc.execute(
+        { key: "tronlinkChannel", value },
+        effective,
+        networks,
+      )).toThrow();
+    }
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("ConfigService GasFree credentials", () => {
+  it("writes the documented flat keys and masks the API secret", () => {
+    const { svc } = service();
+    expect(svc.execute(
+      { key: "gasfreeApiKey", value: "TEST" },
+      effective,
+      networks,
+    )).toMatchObject({ key: "gasfreeApiKey", value: "TEST" });
+    expect(svc.execute(
+      { key: "gasfreeApiSecret", value: "TESTTESTTEST" },
+      effective,
+      networks,
+    )).toMatchObject({ key: "gasfreeApiSecret", value: "********" });
+  });
+
+  it("never returns an effective API secret in config views", () => {
+    const configured = { ...effective, gasfreeApiSecret: "secret" };
+    const { svc } = service();
+    expect(svc.execute({}, configured, networks))
+      .toMatchObject({ gasfreeApiSecret: "********" });
+    expect(svc.execute({ key: "gasfreeApiSecret" }, configured, networks))
+      .toEqual({ key: "gasfreeApiSecret", value: "********" });
+  });
+});

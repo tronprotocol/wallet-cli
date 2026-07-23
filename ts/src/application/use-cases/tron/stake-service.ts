@@ -5,8 +5,14 @@ import type { AccountScope, TransactionScope } from "../../contracts/execution-s
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
+import {
+  outcomeData,
+  transactionMode,
+  transactionRequiresSigner,
+  type TransactionModeInput,
+} from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export interface StakeAmountInput extends TransactionModeInput {
   amountSun: string;
@@ -195,7 +201,7 @@ export class TronStakeService {
     build: (gateway: TronGateway, owner: string) => Promise<UnsignedTx>,
     opts?: { requireSoftware?: boolean },
   ) {
-    this.pipeline.assertCanSign(scope.activeAccount, "tron", opts);
+    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron", opts);
     const gateway = this.gateways.get(network, "tron");
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -203,6 +209,8 @@ export class TronStakeService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
+      ...tronTransactionHooks(gateway),
+      signerOptions: opts,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => build(gateway, owner),
       estimate: async () => ({ feeModel: "tron-resource", note: "staking ops cost bandwidth" }),

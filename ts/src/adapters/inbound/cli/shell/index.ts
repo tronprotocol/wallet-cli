@@ -68,7 +68,7 @@ export function buildCli(opts: ShellOptions): Argv {
     if (hasVerbs) {
       // group with sub-verbs (e.g. import mnemonic|private-key|ledger|watch)
       cli.command(
-        `${head} [verb]`,
+        `${head} [verb] [args..]`,
         `${head} commands`,
         (y) => applyCommands(y, cmds.map((c) => c.fields)),
         (argv) => dispatchNeutral(opts, [head, typeof argv.verb === "string" ? argv.verb : undefined].filter(Boolean) as string[], argv),
@@ -117,7 +117,7 @@ export function buildCli(opts: ShellOptions): Argv {
       continue
     }
     cli.command(
-      `${group} [verb]`,
+      `${group} [verb] [args..]`,
       `${group} commands`,
       (y) => applyCommands(y, fieldsOfLogicalGroup(group)),
       (argv) => dispatchLogical(opts, [group, typeof argv.verb === "string" ? argv.verb : undefined].filter(Boolean) as string[], argv),
@@ -153,11 +153,45 @@ async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): P
   throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`)
 }
 
+/**
+ * A yargs group has one positional layout while each leaf can have a different one.
+ * Capture the group tail as args[], then bind it only after resolving the exact leaf.
+ */
+export function bindGroupedPositionals(
+  command: Pick<CommandExecutionSpec, "path" | "positionals">,
+  argv: Record<string, any>,
+): Record<string, any> {
+  if (!("args" in argv)) return argv
+  const bound = { ...argv }
+  const raw = bound.args
+  delete bound.args
+  const values = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]
+  const declared = command.positionals ?? []
+  if (values.length > declared.length) {
+    throw new UsageError(
+      "usage_error",
+      `too many positional arguments for ${command.path.join(" ")}: expected ${declared.length}, received ${values.length}`,
+    )
+  }
+  values.forEach((value, index) => {
+    const field = declared[index]!.field
+    if (bound[field] !== undefined) {
+      throw new UsageError(
+        "invalid_option",
+        `${field} was provided both positionally and as --${camelToKebab(field)}`,
+      )
+    }
+    bound[field] = value
+  })
+  return bound
+}
+
 async function executeChainCommand(opts: ShellOptions, def: ChainCommandDefinition, argv: any): Promise<void> {
   const { globals, deps, targetResolver, caps, streams, formatter, session } = opts
   const { spec } = def
   const id = commandId({ path: spec.path })
   session.current = { commandId: id }
+  argv = bindGroupedPositionals(spec, argv)
 
   const target = targetResolver.resolve(spec, globals)
   const net = requireResolvedNetwork(spec, target.network)
@@ -196,6 +230,7 @@ async function executeChainCommand(opts: ShellOptions, def: ChainCommandDefiniti
 async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: any): Promise<void> {
   const { globals, deps, targetResolver, caps, streams, formatter, session } = opts
   session.current = { commandId: commandId(cmd) }
+  argv = bindGroupedPositionals(cmd, argv)
   assertKnownFlags(cmd, argv)
 
   // Gate all interactive prompts (gap-fill, password, secret, account-select, delete confirm) on a

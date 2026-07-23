@@ -6,7 +6,7 @@ import { buildCli } from "../adapters/inbound/cli/shell/index.js";
 import { hasCommand, parseGlobals } from "./argv.js";
 import { composeCliRuntime } from "./composition.js";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.1.2";
 
 /** Execute one CLI invocation. Dependency construction is delegated to the composition root. */
 export async function main(argv: string[]): Promise<ExitCode> {

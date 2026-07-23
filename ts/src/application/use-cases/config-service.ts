@@ -3,8 +3,32 @@ import type { NetworkRegistry } from "../ports/network-registry.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
 
-export const CONFIG_KEYS = ["defaultNetwork", "defaultOutput", "timeoutMs", "waitTimeoutMs", "networks"] as const;
-export const WRITABLE_CONFIG_KEYS = ["defaultNetwork", "defaultOutput", "timeoutMs", "waitTimeoutMs"] as const;
+export const TRONLINK_CONFIG_KEYS = [
+  "tronlinkSecretId",
+  "tronlinkSecretKey",
+  "tronlinkChannel",
+] as const;
+export const GASFREE_CONFIG_KEYS = [
+  "gasfreeApiKey",
+  "gasfreeApiSecret",
+] as const;
+export const CONFIG_KEYS = [
+  "defaultNetwork",
+  "defaultOutput",
+  "timeoutMs",
+  "waitTimeoutMs",
+  "networks",
+  ...TRONLINK_CONFIG_KEYS,
+  ...GASFREE_CONFIG_KEYS,
+] as const;
+export const WRITABLE_CONFIG_KEYS = [
+  "defaultNetwork",
+  "defaultOutput",
+  "timeoutMs",
+  "waitTimeoutMs",
+  ...TRONLINK_CONFIG_KEYS,
+  ...GASFREE_CONFIG_KEYS,
+] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
 
@@ -27,6 +51,11 @@ export class ConfigService {
       timeoutMs: effective.timeoutMs,
       waitTimeoutMs: effective.waitTimeoutMs,
       networks: Object.keys(effective.networks),
+      tronlinkSecretId: effective.tronlinkSecretId,
+      tronlinkSecretKey: maskSecret(effective.tronlinkSecretKey),
+      tronlinkChannel: effective.tronlinkChannel,
+      gasfreeApiKey: effective.gasfreeApiKey,
+      gasfreeApiSecret: maskSecret(effective.gasfreeApiSecret),
     };
     if (input.key === undefined) return view;
     if (input.value === undefined) return { key: input.key, value: view[input.key] };
@@ -36,6 +65,12 @@ export class ConfigService {
 
     const key = input.key as WritableConfigKey;
     const value = this.normalize(key, input.value, networks);
+    if (key === "tronlinkSecretKey" || key === "gasfreeApiSecret") {
+      return this.documents.update((current) => ({
+        document: { ...current, [key]: value },
+        result: { key, value: maskSecret(String(value)), input: "********" },
+      }));
+    }
     return this.documents.update((current) => ({
       document: { ...current, [key]: value },
       result: { key, value, input: input.value! },
@@ -67,6 +102,19 @@ export class ConfigService {
       }
       return raw;
     }
+    if (
+      (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key)
+      || (GASFREE_CONFIG_KEYS as readonly string[]).includes(key)
+    ) {
+      if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
+        throw new UsageError("invalid_value", `${key} must be 1 to 256 characters without control characters`);
+      }
+      return raw;
+    }
     return networks.resolve(raw).id;
   }
+}
+
+function maskSecret(value: string | undefined): string | undefined {
+  return value ? "********" : undefined;
 }

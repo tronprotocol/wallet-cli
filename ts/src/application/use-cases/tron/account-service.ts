@@ -1,13 +1,26 @@
 import type { ChainFamily, EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits } from "../../../domain/amounts/index.js";
-import type { AccountScope } from "../../contracts/execution-scope.js";
+import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
+import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
+import type { TronAccount, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TronHistoryQuery, TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
+import type { TxPipeline } from "../../services/pipeline/index.js";
+import {
+  outcomeData,
+  transactionMode,
+  transactionRequiresSigner,
+  type TransactionModeInput,
+} from "../../services/transaction-mode.js";
+import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const round6 = (value: number): number => Math.round(value * 1e6) / 1e6;
+const ADDRESS = new TronAddress();
 
 function holding(
   kind: string,
@@ -58,7 +71,153 @@ export class TronAccountService {
     private readonly history: TronHistoryReader,
     private readonly tokens: TokenRepository,
     private readonly prices: PriceProvider,
+    private readonly pipeline: TxPipeline,
   ) {}
+
+  async activate(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: TransactionModeInput & { address: string },
+  ) {
+    if (!ADDRESS.validate(input.address)) {
+      throw new UsageError(
+        "invalid_value",
+        "--address must be a valid TRON address",
+      );
+    }
+    if (transactionRequiresSigner(input)) {
+      this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    }
+    const mode = transactionMode(input);
+    const gateway = this.gateways.get(network, "tron");
+    const existing = await gateway.getAccount(input.address);
+    if (accountExists(existing, input.address)) {
+      throw new ChainError(
+        "account_already_active",
+        `TRON account is already active: ${input.address}`,
+      );
+    }
+    const payer = scope.resolveAddress("tron");
+    const [fee, balanceSun] = await Promise.all([
+      accountCreateFee(gateway),
+      gateway.getNativeBalance(payer),
+    ]);
+    if (
+      (mode.mode === "dry-run" || mode.mode === "broadcast")
+      && BigInt(balanceSun) < BigInt(fee.minimumFeeSun)
+    ) {
+      throw new ChainError(
+        "insufficient_balance",
+        "payer balance is below the account creation fees",
+        { balance: balanceSun, required: fee.minimumFeeSun },
+      );
+    }
+    const outcome = await this.pipeline.run({
+      ctx: scope,
+      net: network,
+      account: scope.activeAccount,
+      broadcaster: gateway,
+      ...mode,
+      ...tronTransactionHooks(gateway),
+      confirm: tronConfirmation(gateway, scope),
+      build: (owner) => gateway.buildAccountCreate(owner, input.address),
+      estimate: async () => ({ ...fee, balanceSun }),
+    });
+    if (outcome.stage === "confirmed" && !outcome.failed) {
+      const activated = await gateway.getAccount(input.address);
+      if (!accountExists(activated, input.address)) {
+        throw new ChainError(
+          "provider_error",
+          "confirmed account activation is not visible from the selected node",
+        );
+      }
+    }
+    return {
+      kind: "account-activate" as const,
+      ...outcomeData(outcome),
+      address: input.address,
+      payer,
+    };
+  }
+
+  async setOnChain(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: TransactionModeInput & { name?: string; id?: string },
+  ) {
+    if ((input.name === undefined) === (input.id === undefined)) {
+      throw new UsageError(
+        "invalid_option",
+        "provide exactly one of --name or --id",
+      );
+    }
+    if (transactionRequiresSigner(input)) {
+      this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    }
+    const field = input.name !== undefined ? "name" as const : "id" as const;
+    const value = validateAccountText(field, input.name ?? input.id!);
+    const address = scope.resolveAddress("tron");
+    const gateway = this.gateways.get(network, "tron");
+    const account = await gateway.getAccount(address);
+    if (!accountExists(account, address)) {
+      throw new ChainError(
+        "not_found",
+        `TRON account is not activated: ${address}`,
+      );
+    }
+    const current =
+      field === "name" ? account.account_name : account.account_id;
+    if (accountTextIsSet(current, field)) {
+      throw new ChainError(
+        field === "name" ? "name_already_set" : "id_already_set",
+        `on-chain account ${field} is already set`,
+      );
+    }
+    if (field === "id") {
+      const taken = await gateway.getAccountById(value);
+      if (accountExists(taken)) {
+        throw new ChainError(
+          "id_taken",
+          `account id is already in use: ${value}`,
+        );
+      }
+    }
+    const outcome = await this.pipeline.run({
+      ctx: scope,
+      net: network,
+      account: scope.activeAccount,
+      broadcaster: gateway,
+      ...transactionMode(input),
+      ...tronTransactionHooks(gateway),
+      confirm: tronConfirmation(gateway, scope),
+      build: (owner) =>
+        field === "name"
+          ? gateway.buildAccountUpdate(owner, value)
+          : gateway.buildSetAccountId(owner, value),
+      estimate: async () => ({
+        feeModel: "tron-resource",
+        note: "account metadata update consumes bandwidth",
+      }),
+    });
+    if (outcome.stage === "confirmed" && !outcome.failed) {
+      const updated = await gateway.getAccount(address);
+      const raw =
+        field === "name" ? updated.account_name : updated.account_id;
+      if (decodeAccountText(raw, field) !== value) {
+        throw new ChainError(
+          "provider_error",
+          `confirmed account ${field} does not match the submitted value`,
+        );
+      }
+    }
+    return {
+      kind: "account-set" as const,
+      ...outcomeData(outcome),
+      field,
+      value,
+      address,
+    };
+  }
 
   async balance(scope: AccountScope, network: NetworkDescriptor, family: ChainFamily) {
     const address = scope.resolveAddress(family);
@@ -166,4 +325,109 @@ export class TronAccountService {
       totalValueUsd: values.length ? round6(values.reduce((sum, value) => sum + value, 0)) : null,
     };
   }
+}
+
+async function accountCreateFee(gateway: TronGateway) {
+  const parameters = await gateway.getChainParameters();
+  const find = (key: string): bigint => {
+    const value = parameters.find((entry) => entry.key === key)?.value;
+    if (!Number.isSafeInteger(value) || value! < 0) {
+      throw new ChainError(
+        "provider_error",
+        `chain parameter is unavailable: ${key}`,
+      );
+    }
+    return BigInt(value!);
+  };
+  const createAccountFeeSun = find("getCreateAccountFee");
+  const systemContractFeeSun = find(
+    "getCreateNewAccountFeeInSystemContract",
+  );
+  return {
+    feeModel: "tron-resource" as const,
+    createAccountFeeSun: createAccountFeeSun.toString(),
+    systemContractFeeSun: systemContractFeeSun.toString(),
+    minimumFeeSun: (createAccountFeeSun + systemContractFeeSun).toString(),
+  };
+}
+
+function validateAccountText(field: "name" | "id", input: string): string {
+  const bytes = Buffer.byteLength(input, "utf8");
+  const minimum = field === "id" ? 8 : 1;
+  if (
+    bytes < minimum
+    || bytes > 32
+    || /[\p{Cc}\p{Cf}]/u.test(input)
+  ) {
+    throw new UsageError(
+      "invalid_value",
+      field === "id"
+        ? "--id must be 8-32 safe UTF-8 bytes"
+        : "--name must be 1-32 safe UTF-8 bytes",
+    );
+  }
+  return input;
+}
+
+function accountExists(account: TronAccount, expected?: string): boolean {
+  const raw = account.address;
+  if (raw === undefined || raw === null || raw === "") return false;
+  if (typeof raw !== "string") {
+    throw new ChainError(
+      "provider_error",
+      "TRON node returned a malformed account address",
+    );
+  }
+  const normalized = tronHexToBase58(raw);
+  if (!ADDRESS.validate(normalized)) {
+    throw new ChainError(
+      "provider_error",
+      "TRON node returned an invalid account address",
+    );
+  }
+  if (expected !== undefined && normalized !== expected) {
+    throw new ChainError(
+      "provider_error",
+      "TRON node returned an account address different from the query",
+    );
+  }
+  return true;
+}
+
+function accountTextIsSet(
+  value: unknown,
+  field: "name" | "id",
+): boolean {
+  if (value === undefined || value === null || value === "") return false;
+  if (typeof value !== "string") {
+    throw new ChainError(
+      "provider_error",
+      `TRON node returned malformed account_${field}`,
+    );
+  }
+  return true;
+}
+
+function decodeAccountText(
+  value: unknown,
+  field: "name" | "id",
+): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (
+    typeof value !== "string"
+    || !/^(?:[0-9a-fA-F]{2})+$/.test(value)
+  ) {
+    throw new ChainError(
+      "provider_error",
+      `TRON node returned malformed account_${field}`,
+    );
+  }
+  const decoded = Buffer.from(value, "hex").toString("utf8");
+  if (Buffer.from(decoded, "utf8").toString("hex") !== value.toLowerCase()) {
+    throw new ChainError(
+      "provider_error",
+      `TRON node returned invalid UTF-8 account_${field}`,
+    );
+  }
+  return decoded;
 }

@@ -3,7 +3,7 @@
  * account-level: activeAccount is resolved lazily from --account/--wallet or wallets.json.
  * Build is side-effect-free; secrets never enter the serializable surface.
  */
-import type { AccountRef, ChainFamily, Config, OutputMode } from "../../../../domain/types/index.js";
+import type { AccountRef, ChainFamily, Config, OutputMode, WarningView } from "../../../../domain/types/index.js";
 import type { ProgressEvent } from "../../../../application/contracts/index.js";
 import type { NetworkRegistry } from "../../../../application/ports/network-registry.js";
 import type { ExecutionContext, Globals, SecretResolver, StreamManager } from "../contracts/index.js";
@@ -13,6 +13,7 @@ import type { AccountStore } from "../../../../application/ports/account-store.j
 import { accountRef, walletAddress } from "../../../../domain/wallet/index.js";
 import { WalletError } from "../../../../domain/errors/index.js";
 import { SOURCE_KINDS } from "../../../../domain/sources/index.js";
+import { addressCodec, familyOf } from "../../../../domain/family/index.js";
 
 export interface RuntimeDeps {
   config: Config;
@@ -65,6 +66,7 @@ class ExecutionContextImpl implements ExecutionContext {
     const ks = this.deps.keystore;
     let ref: AccountRef | null;
     if (this.globals.account) {
+      if (familyOf(this.globals.account)) return this.globals.account as AccountRef;
       const { wallet, index } = ks.resolveAccount(this.globals.account);
       ref = accountRef(wallet.id, SOURCE_KINDS[wallet.source.type].isHD ? index : null);
     } else {
@@ -78,6 +80,9 @@ class ExecutionContextImpl implements ExecutionContext {
   }
 
   resolveAddress(family: ChainFamily): string {
+    if (this.globals.account && addressCodec(family).validate(this.globals.account)) {
+      return this.globals.account;
+    }
     const { wallet, index } = this.deps.keystore.resolveAccount(this.activeAccount);
     const address = walletAddress(wallet, family, index);
     if (!address) throw new WalletError("missing_wallet_address", `active account has no ${family} address`);
@@ -88,7 +93,7 @@ class ExecutionContextImpl implements ExecutionContext {
     this.deps.streams.event(this.deps.formatter.event(e));
   }
 
-  warn(message: string): void {
+  warn(message: string | WarningView): void {
     this.deps.streams.diagnostic("warn", message);
   }
 }

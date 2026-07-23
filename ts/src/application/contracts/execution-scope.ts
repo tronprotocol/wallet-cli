@@ -1,4 +1,4 @@
-import type { AccountRef, ChainFamily } from "../../domain/types/index.js";
+import type { AccountRef, ChainFamily, WarningView } from "../../domain/types/index.js";
 import type { ProgressEvent } from "./progress.js";
 
 export interface AccountScope {
@@ -13,5 +13,5 @@ export interface TransactionScope extends AccountScope {
   emit(event: ProgressEvent): void;
   /** surface a non-fatal warning: captured into the JSON envelope's meta.warnings and, in text
    *  mode, printed to stderr. Use when an outcome silently degrades (e.g. --wait not confirmed). */
-  warn(message: string): void;
+  warn(message: string | WarningView): void;
 }
