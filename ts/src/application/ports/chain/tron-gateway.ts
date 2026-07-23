@@ -1,4 +1,10 @@
-import type { FeeReport, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  AccountPermissionsView,
+  BroadcastResult,
+  FeeReport,
+  TronTransactionArtifact,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../domain/resources/index.js";
 import type { Broadcaster } from "./broadcaster.js";
 
@@ -140,8 +146,35 @@ export interface TronNodeInfo {
   [key: string]: unknown;
 }
 
+export interface TronSignWeight {
+  permission: {
+    id: number;
+    name: string;
+    threshold: number;
+    operationsHex?: string;
+    keys: Array<{ address: string; weight: number }>;
+  } | null;
+  approvedList: string[];
+  currentWeight: number;
+  resultCode: string;
+  message?: string;
+}
+
 /** TRON-specific application boundary; chain-specific capabilities remain explicit. */
 export interface TronGateway extends Broadcaster {
+  prepareTransaction(
+    transaction: UnsignedTx,
+    options: { permissionId: number; expiration?: number },
+  ): UnsignedTx;
+  encodeTransactionHex(transaction: UnsignedTx): string;
+  decodeTransactionHex(hex: string): TronTransactionArtifact;
+  getAccountPermissions(address: string): Promise<AccountPermissionsView>;
+  buildAccountPermissionUpdate(owner: string, permissions: AccountPermissionsView): Promise<UnsignedTx>;
+  getSignWeight(transaction: UnsignedTx): Promise<TronSignWeight>;
+  getApprovedList(transaction: UnsignedTx): Promise<string[]>;
+  broadcastHex(hex: string): Promise<BroadcastResult>;
+  getUpdateAccountPermissionFee(): Promise<number>;
+  getMultiSignFee(): Promise<number>;
   getNativeBalance(address: string): Promise<string>;
   getAccount(address: string): Promise<TronAccount>;
   getAccountResources(address: string): Promise<TronAccountResources>;
