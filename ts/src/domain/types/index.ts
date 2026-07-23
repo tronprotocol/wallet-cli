@@ -29,4 +29,5 @@ export * from "./keystore.js";
 export * from "./tx.js";
 export * from "./permission.js";
 export * from "./multisig.js";
+export * from "./gasfree.js";
 export * from "./primitives.js";

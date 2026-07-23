@@ -38,11 +38,16 @@ export class ConfigLoader {
     let tronlinkSecretId: string | undefined;
     let tronlinkSecretKey: string | undefined;
     let tronlinkChannel: string | undefined;
+    let gasfreeApiKey: string | undefined;
+    let gasfreeApiSecret: string | undefined;
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
       const raw = parseYaml(readFileSync(path, "utf8")) ?? {};
-      if (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "") {
+      if (
+        (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "")
+        || (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "")
+      ) {
         assertSecretConfigPermissions(path);
       }
       if (typeof raw.defaultNetwork === "string" && raw.defaultNetwork.trim() !== "") {
@@ -62,6 +67,8 @@ export class ConfigLoader {
       if (validCredential(raw.tronlinkSecretId)) tronlinkSecretId = raw.tronlinkSecretId;
       if (validCredential(raw.tronlinkSecretKey)) tronlinkSecretKey = raw.tronlinkSecretKey;
       if (validCredential(raw.tronlinkChannel)) tronlinkChannel = raw.tronlinkChannel;
+      if (validCredential(raw.gasfreeApiKey)) gasfreeApiKey = raw.gasfreeApiKey;
+      if (validCredential(raw.gasfreeApiSecret)) gasfreeApiSecret = raw.gasfreeApiSecret;
       if (raw.networks && typeof raw.networks === "object") {
         for (const [id, d] of Object.entries(raw.networks as Record<string, Record<string, unknown>>)) {
           networks[id] = { ...(networks[id] ?? {}), ...d, id } as NetworkDescriptor;
@@ -78,6 +85,8 @@ export class ConfigLoader {
       tronlinkSecretId,
       tronlinkSecretKey,
       tronlinkChannel,
+      gasfreeApiKey,
+      gasfreeApiSecret,
     };
   }
 }

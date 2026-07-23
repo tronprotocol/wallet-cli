@@ -81,3 +81,26 @@ describe("ConfigLoader TronLink credentials", () => {
       .toThrow(/mode 0600/);
   });
 });
+
+describe("ConfigLoader GasFree credentials", () => {
+  const credentials = [
+    "gasfreeApiKey: TEST",
+    "gasfreeApiSecret: TESTTESTTEST",
+    "",
+  ].join("\n");
+
+  it("loads credentials only from a private config file", () => {
+    expect(ConfigLoader.load(envWithConfig(credentials, 0o600))).toMatchObject({
+      gasfreeApiKey: "TEST",
+      gasfreeApiSecret: "TESTTESTTEST",
+    });
+  });
+
+  it.runIf(process.platform !== "win32")(
+    "rejects credentials in a group/world-readable file",
+    () => {
+      expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644)))
+        .toThrow(/mode 0600/);
+    },
+  );
+});
