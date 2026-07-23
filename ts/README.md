@@ -7,7 +7,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
 - **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
-- **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, message signing, and on-chain queries.
+- **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, message and EIP-712/TIP-712 signing, and on-chain queries.
 
 ## Supported chains
 
@@ -112,6 +112,7 @@ Every command — including every subcommand — has a reference page; run `wall
 | Command | Description |
 |---|---|
 | [`tx send`](docs/commands/tx/send.md) | Send native TRX or TRC20/TRC10 tokens |
+| [`tx sign`](docs/commands/tx/sign.md) | Sign a transaction built elsewhere, without broadcasting |
 | [`tx broadcast`](docs/commands/tx/broadcast.md) | Broadcast a presigned transaction |
 | [`tx status`](docs/commands/tx/status.md) | Show confirmation status (confirmed / failed / pending / not_found) |
 | [`tx info`](docs/commands/tx/info.md) | Show full transaction detail + receipt |
@@ -139,6 +140,7 @@ Every command — including every subcommand — has a reference page; run `wall
 | [`vote`](docs/commands/vote/index.md) | Vote for super representatives ([cast](docs/commands/vote/cast.md) · [list](docs/commands/vote/list.md) · [status](docs/commands/vote/status.md)) |
 | [`reward`](docs/commands/reward/index.md) | Query / withdraw voting rewards ([balance](docs/commands/reward/balance.md) · [withdraw](docs/commands/reward/withdraw.md)) |
 | [`message`](docs/commands/message/index.md) | Sign arbitrary messages ([sign](docs/commands/message/sign.md)) |
+| [`typed-data`](docs/commands/typed-data/index.md) | Sign EIP-712 / TIP-712 structured data ([sign](docs/commands/typed-data/sign.md)) |
 
 ### Local configuration
 

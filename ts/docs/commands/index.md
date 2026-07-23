@@ -26,6 +26,7 @@ Every command — including every subcommand — has its own page, following a f
 |---|---|
 | `tx` (group) | [tx/index.md](tx/index.md) |
 | `tx send` | [tx/send.md](tx/send.md) |
+| `tx sign` | [tx/sign.md](tx/sign.md) |
 | `tx broadcast` | [tx/broadcast.md](tx/broadcast.md) |
 | `tx status` | [tx/status.md](tx/status.md) |
 | `tx info` | [tx/info.md](tx/info.md) |
@@ -88,6 +89,8 @@ Every command — including every subcommand — has its own page, following a f
 |---|---|
 | `message` (group) | [message/index.md](message/index.md) |
 | `message sign` | [message/sign.md](message/sign.md) |
+| `typed-data` (group) | [typed-data/index.md](typed-data/index.md) |
+| `typed-data sign` | [typed-data/sign.md](typed-data/sign.md) |
 
 ## Local
 

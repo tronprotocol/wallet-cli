@@ -107,6 +107,7 @@ export class HelpService {
       ["reward", "Query / withdraw voting rewards", "tron"],
       ["chain", "Query chain params, prices & node info", ""],
       ["message", "Sign arbitrary messages", ""],
+      ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
     ] as const
     const commands = [
@@ -207,6 +208,7 @@ export class HelpService {
       requires: cmd.requires,
       positionals: cmd.positionals,
       secretsTtyOnly: cmd.secretsTtyOnly,
+      interactive: cmd.interactive,
     })
   }
 
@@ -225,6 +227,7 @@ export class HelpService {
       examples: spec.examples,
       requires: spec.requires,
       positionals: spec.positionals,
+      interactive: spec.interactive,
     })
   }
 
@@ -243,6 +246,7 @@ export class HelpService {
     requires?: string[]
     positionals?: { field: string; placeholder?: string }[]
     secretsTtyOnly?: boolean
+    interactive?: boolean
   }): string {
     const positionals = (c.positionals ?? []).map((p) => {
       const field = c.fields.find((f) => f.name === p.field)
@@ -264,10 +268,16 @@ export class HelpService {
     }
 
     const requires: string[] = [...(c.requires ?? [])]
-    if (c.network === "required") requires.push("--network <id>")
-    if (c.auth === "required") requires.push(c.secretsTtyOnly
-      ? "the master password — entered interactively in a TTY"
-      : "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY")
+    // A command only prompts when it opts in (`interactive`); everything else fails fast so
+    // scripts and agents get a deterministic error instead of a hung prompt. Say which one this
+    // is — promising a TTY prompt that never comes sends the reader hunting for a broken terminal.
+    if (c.auth === "required") requires.push(
+      c.secretsTtyOnly
+        ? "the master password — entered interactively in a TTY"
+        : c.interactive
+          ? "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY"
+          : "master password — pass --password-stdin; this command never prompts",
+    )
     if (c.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or run `wallet-cli use <account>` to change the active account)")
     if (requires.length) {
       lines.push("", "Requires:")
@@ -428,6 +438,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   reward: "Query and withdraw voting/block rewards.",
   chain: "Query on-chain parameters, resource prices, and node status.",
   message: "Sign arbitrary messages.",
+  "typed-data": "Sign EIP-712 / TIP-712 structured data.",
   block: "Get a block (latest if omitted).",
 }
 

@@ -84,3 +84,29 @@ describe("HelpService ChainCommandDefinition", () => {
     expect(catalog.commands).toContainEqual(expect.objectContaining({ id: "block", families: ["tron"] }))
   })
 })
+
+describe("Requires: master password line", () => {
+  function renderAuthLine(spec: Partial<ChainSpec>): string {
+    const reg = new CommandRegistry()
+    reg.addChain(
+      { path: ["demo"], network: "none", wallet: "none", auth: "required", baseFields: z.object({}), examples: [], ...spec } as ChainSpec,
+      "tron",
+      { run: async () => ({}) },
+    )
+    const stream = makeStream()
+    new HelpService(reg, stream, "0.0.0").handleMeta(["demo", "--help"])
+    return (stream.last ?? "").split("\n").find((l) => l.includes("master password")) ?? ""
+  }
+
+  // Regression: the help used to promise "or enter it interactively in a TTY" for every command
+  // that needs the password. Chain commands never prompt — they fail fast with auth_required —
+  // so that sent readers looking for a broken terminal instead of adding --password-stdin.
+  it("says a non-interactive command never prompts", () => {
+    expect(renderAuthLine({})).toContain("never prompts")
+  })
+
+  it("offers the TTY route only when the command opts into prompting", () => {
+    expect(renderAuthLine({ interactive: true })).toContain("enter it interactively in a TTY")
+    expect(renderAuthLine({ interactive: true })).not.toContain("never prompts")
+  })
+})

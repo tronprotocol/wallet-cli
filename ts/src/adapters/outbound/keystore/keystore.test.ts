@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Swap real scrypt (n=2^18, hundreds of ms/call) for a cheap deterministic KDF: this suite
+// exercises keystore *logic* over dozens of encrypt/decrypt cycles, not the KDF, which
+// crypto.test.ts covers against the real implementation. Production is untouched.
+vi.mock("@noble/hashes/scrypt.js", async () =>
+  import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
+);
 import { mkdtempSync, readdirSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

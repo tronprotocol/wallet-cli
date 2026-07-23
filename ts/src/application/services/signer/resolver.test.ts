@@ -1,4 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
+vi.mock("@noble/hashes/scrypt.js", async () =>
+  import("../../../adapters/outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
+);
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

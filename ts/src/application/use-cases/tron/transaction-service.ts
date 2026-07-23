@@ -68,6 +68,21 @@ export class TronTransactionService {
     };
   }
 
+  /**
+   * Sign a transaction built elsewhere. Deliberately does not inspect ownership or contract type —
+   * the caller decides what to sign; the wallet holds the key, not the policy. Payload integrity
+   * (txID must hash raw_data_hex) is enforced by the TRON sign strategy.
+   */
+  async sign(scope: TransactionScope, network: NetworkDescriptor, tx: unknown) {
+    const outcome = await this.pipeline.signOnly({
+      ctx: scope,
+      net: network,
+      account: scope.activeAccount,
+      tx,
+    });
+    return { kind: "sign" as const, ...outcomeData(outcome) };
+  }
+
   async broadcast(scope: TransactionScope, network: NetworkDescriptor, signed: unknown) {
     const gateway = this.gateways.get(network, "tron");
     const result = await gateway.broadcast(signed);

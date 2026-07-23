@@ -2,12 +2,23 @@
  * SharedTypes — crypto / signing / tx / rpc (implementations live in upper layers)
  * plus the per-command typed text outputs the text formatter narrows on.
  */
+import type { TypedDataPayload } from "../typed-data/index.js";
+
 export type Bytes = Uint8Array;
 export type KeyPair = { privateKey: Bytes; publicKey: Bytes };
 
 export type UnsignedTx = unknown;
 export type SignedTx = unknown;
 export type FeeReport = Record<string, unknown>;
+
+/** result of signing structured data (EIP-712 / TIP-712). `digest` is the hash that was signed;
+ *  `primaryType` is echoed back (inferred when the caller omitted it) so a caller can assert what
+ *  was signed without re-deriving it. */
+export interface TypedDataSignature {
+  signature: string;
+  digest: string;
+  primaryType: string;
+}
 
 export interface BroadcastResult {
   txId?: string;
@@ -21,7 +32,8 @@ export type BroadcastStage = "submitted" | "confirmed" | "failed";
 
 export type TxOutcome =
   | { stage: "plan"; tx: UnsignedTx; fee: FeeReport }
-  | { stage: "signed"; signed: SignedTx; fee: FeeReport }
+  // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
+  | { stage: "signed"; signed: SignedTx; fee?: FeeReport; address?: string; txId?: string }
   | ({ stage: BroadcastStage } & BroadcastResult);
 
 // ════════════════════ per-command typed text outputs ══════════════════════
@@ -52,7 +64,7 @@ export interface TxParties { from?: string; to?: string; amount?: string; symbol
 /** which action a broadcast receipt describes — drives the summary verb + extra rows.
  *  A typed discriminant replaces matching on the stringly command id. */
 export type TxReceiptKind =
-  | "send" | "broadcast"
+  | "send" | "broadcast" | "sign"
   | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
   | "contract-send" | "contract-deploy"
   | "vote-cast" | "reward-withdraw";
@@ -70,6 +82,8 @@ export interface TxReceiptView {
   txId?: string;
   hash?: string;
   // plan / sign-only
+  /** address that produced the signature (sign-only outcomes). */
+  address?: string;
   fee?: FeeReport;
   tx?: UnsignedTx;
   signed?: SignedTx;
@@ -122,6 +136,9 @@ export interface Signer {
   sign(tx: UnsignedTx, opts: SignerSignOpts): Promise<SignedTx>;
   /** raw message signing (not via TxPipeline). */
   signMessage(message: string, opts: SignerSignOpts): Promise<string>;
+  /** structured-data signing (EIP-712 / TIP-712); hashing is family-specific and lives behind the
+   *  strategy (software) or the device port (Ledger). */
+  signTypedData(payload: TypedDataPayload, opts: SignerSignOpts): Promise<TypedDataSignature>;
 }
 
 /** per-family signing behaviour; SoftwareSigner delegates to this (no `if family`).
@@ -129,4 +146,5 @@ export interface Signer {
 export interface SignStrategy {
   sign(pkHex: string, tx: UnsignedTx): Promise<SignedTx>;
   signMessage(pkHex: string, message: string): Promise<string>;
+  signTypedData(pkHex: string, payload: TypedDataPayload): Promise<TypedDataSignature>;
 }

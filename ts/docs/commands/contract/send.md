@@ -101,7 +101,7 @@ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkA
 | default (submit) | `kind: "contract-send"`, `stage: "submitted"`, `txId`, `method`, `contract` |
 | `--wait` (confirmed/failed) | above, but `stage: "confirmed"` or `"failed"`, plus `confirmed`, `blockNumber`, `feeSun`, `energyUsed`, `result` (`SUCCESS` / `OUT_OF_ENERGY`, etc.), `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, estimated `energy`, `availableEnergy`), unsigned `tx` |
-| `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (feed to `tx broadcast`), `fee`, `method`, `contract` |
+| `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (feed to `tx broadcast`), `address` (signer), `txId`, `fee`, `method`, `contract` |
 
 ## Exit status
 
