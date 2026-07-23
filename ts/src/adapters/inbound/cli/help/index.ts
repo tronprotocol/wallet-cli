@@ -98,14 +98,15 @@ export class HelpService {
       ["list", "List wallets / accounts", ""],
     ] as const
     const management = [
-      ["account", "Query on-chain account state", ""],
+      ["account", "Query on-chain account state, activate & name accounts", ""],
+      ["permission", "View and update account multi-sign permissions", "tron"],
       ["token", "Manage the token address book and query tokens", ""],
       ["tx", "Build, send, broadcast, co-sign, and inspect transactions", ""],
+      ["gasfree", "Gas-free token transfers via the GasFree service", "tron"],
       ["contract", "Call, send, deploy, and inspect smart contracts", ""],
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
-      ["permission", "View and update account multi-sign permissions", "tron"],
       ["chain", "Query chain params, prices & node info", ""],
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
@@ -113,7 +114,7 @@ export class HelpService {
     ] as const
     const commands = [
       ["use", "Set the active account", ""],
-      ["current", "Show the current (active) account", ""],
+      ["current", "Show the current account (--qr for a receive QR code)", ""],
       ["rename", "Rename an account label", ""],
       ["derive", "Derive the next HD account from a seed wallet", ""],
       ["backup", "Export an account's secret + metadata (0600)", ""],
@@ -121,6 +122,9 @@ export class HelpService {
       ["config", "Show / get / set configuration values", ""],
       ["networks", "List known networks", ""],
       ["change-password", "Change the master password (re-encrypt keystores)", ""],
+      ["encoding", "Convert / validate addresses & encodings across formats", ""],
+      ["address", "Generate a random keypair (local, not stored)", ""],
+      ["contact", "Manage the recipient address book", ""],
     ] as const
     const sections = [common, management, commands] as const
     const nameWidth = Math.max(...sections.flat().map(([name]) => name.length)) + 2
@@ -430,9 +434,10 @@ function globalFlagLine(g: GlobalFlag): string {
 // `<group> --help` page need an entry; absent → the description line is omitted.
 const GROUP_DESCRIPTIONS: Record<string, string> = {
   import: "Import a wallet from an existing secret or device.",
-  account: "Query on-chain account state.",
+  account: "Query on-chain account state, activate accounts, and set on-chain identity fields.",
   token: "Manage the token address book and query tokens.",
   tx: "Build, send, broadcast, co-sign, and inspect transactions.",
+  gasfree: "Gas-free token transfers via the GasFree service (open.gasfree.io).\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
   contract: "Call, send, deploy, and inspect smart contracts.",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",
@@ -442,6 +447,9 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   message: "Sign arbitrary messages.",
   "typed-data": "Sign EIP-712 / TIP-712 structured data.",
   block: "Get a block (latest if omitted).",
+  encoding: "Convert and validate addresses and encodings across formats.",
+  address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
+  contact: "Manage the local recipient address book.\nNames can be used directly in 'tx send --to' and 'gasfree transfer --to'.",
 }
 
 /** "--output, -o <text|json>" style header for text help. */
