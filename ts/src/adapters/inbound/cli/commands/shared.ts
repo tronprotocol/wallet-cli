@@ -10,10 +10,13 @@ import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 
 // ── execution-mode flags shared by every signing command ─────────────────────────
-/** dry-run / sign-only fields; default (no flag) = sign AND broadcast on-chain. */
+/** Transaction execution fields; default (no mode flag) = sign and broadcast on-chain. */
 export const txModeFields = {
-  dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast; mutually exclusive with --sign-only"),
-  signOnly: z.boolean().default(false).describe("sign and output the transaction without broadcasting; mutually exclusive with --dry-run; broadcast later with tx broadcast"),
+  dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast"),
+  signOnly: z.boolean().default(false).describe("sign and output complete transaction hex without broadcasting"),
+  buildOnly: z.boolean().default(false).describe("build and output unsigned complete transaction hex without unlocking"),
+  permissionId: z.number().int().min(0).max(9).default(0).describe("TRON permission group id used to authorize this transaction"),
+  expiration: z.number().int().min(1).max(86_400_000).optional().describe("expiration duration in milliseconds; only with --sign-only or --build-only"),
 };
 // ── unified --amount / --raw-amount selector (shared by every chain's `tx send`) ────
 // A transfer of 0 is meaningless on any chain — reject it here (exit 2) rather than let the node

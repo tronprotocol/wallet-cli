@@ -109,6 +109,8 @@ export interface TxReceiptView {
   tx?: UnsignedTx;
   signed?: SignedTx;
   hex?: string;
+  transaction?: import("./multisig.js").TxApprovalView;
+  multiSignFeeSun?: number;
   // transfer / stake inputs
   rawAmount?: string;
   amountSun?: string | number;

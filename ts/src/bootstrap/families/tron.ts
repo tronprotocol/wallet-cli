@@ -36,6 +36,8 @@ import {
 import {
   txBroadcastSpec,
   txBroadcastTronBinding,
+  txApprovalsSpec,
+  txApprovalsTronBinding,
   txInfoSpec,
   txInfoTronBinding,
   txSendSpec,
@@ -84,12 +86,14 @@ import { TronBlockService } from "../../application/use-cases/tron/block-service
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
 import { TronPermissionService } from "../../application/use-cases/tron/permission-service.js";
+import { TronMultisigService } from "../../application/use-cases/tron/multisig-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
 import type { AccountStore } from "../../application/ports/account-store.js";
+import { TransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
 import type { FamilyPlugin } from "./types.js";
 
 export const tronFamily: FamilyPlugin<"tron"> = {
@@ -119,6 +123,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const message = new MessageService(deps.signers);
   const typedData = new TypedDataService(deps.signers);
   const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
+  const multisig = new TronMultisigService(deps.gateways, deps.signers);
   const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
@@ -139,8 +144,13 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
-  reg.addChain(txSignSpec, "tron", txSignTronBinding(transaction));
-  reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(transaction));
+  reg.addChain(txSignSpec, "tron", txSignTronBinding(
+    transaction,
+    multisig,
+    new TransactionArtifactWriter(),
+  ));
+  reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
+  reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
   reg.addChain(permissionShowSpec, "tron", permissionShowTronBinding(permission));

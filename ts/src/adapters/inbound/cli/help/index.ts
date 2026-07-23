@@ -100,7 +100,7 @@ export class HelpService {
     const management = [
       ["account", "Query on-chain account state", ""],
       ["token", "Manage the token address book and query tokens", ""],
-      ["tx", "Build, send, broadcast, and inspect transactions", ""],
+      ["tx", "Build, send, broadcast, co-sign, and inspect transactions", ""],
       ["contract", "Call, send, deploy, and inspect smart contracts", ""],
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
@@ -432,7 +432,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   import: "Import a wallet from an existing secret or device.",
   account: "Query on-chain account state.",
   token: "Manage the token address book and query tokens.",
-  tx: "Build, send, broadcast, and inspect transactions.",
+  tx: "Build, send, broadcast, co-sign, and inspect transactions.",
   contract: "Call, send, deploy, and inspect smart contracts.",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",

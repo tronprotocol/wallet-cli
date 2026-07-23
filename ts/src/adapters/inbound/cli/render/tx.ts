@@ -34,7 +34,9 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx)
   if (r.mode === "dry-run") {
     return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
-      ["Fee", formatFee(r.fee, family)],
+      ["Fee", r.multiSignFeeSun === undefined
+        ? formatFee(r.fee, family)
+        : `${formatSun(r.multiSignFeeSun)} TRX multi-sign fee`],
       ["Tx", summarizeTx(r.tx)],
     ])
   }
@@ -45,6 +47,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     ])
   }
   if (r.mode === "sign-only") {
+    if (r.hex) return r.hex
     // kv() drops empty rows, so a fee-less signature (tx sign estimates nothing) omits the Fee line.
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
       ["Address", r.address ?? ""],
@@ -149,6 +152,7 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
 /** action-specific extra rows (To/From/Address/Contract), by kind. */
 function receiptRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = []
+  if (r.multiSignFeeSun) rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`])
   if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
   else if (r.kind === "stake-undelegate") rows.push(["From", String(r.receiver ?? "")])
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])

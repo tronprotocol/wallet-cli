@@ -198,6 +198,59 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
 });
 
+describe("local multisig formatters", () => {
+  const approval = {
+    txId: "abc123",
+    contractType: "TransferContract",
+    operation: "TransferContract",
+    from: "Towner",
+    to: "Trecipient",
+    rawAmount: "1000000",
+    permission: { id: 2, name: "operations", threshold: 2 },
+    currentWeight: 1,
+    missingWeight: 1,
+    thresholdReached: false,
+    approved: [{ address: "Tsigner", weight: 1 }],
+    expiration: Date.now() + 60_000,
+    expired: false,
+    signatures: 1,
+  };
+
+  it("shows permission progress and approved signer weight", () => {
+    const out = TextFormatters.txApprovals(approval) as string;
+    expect(out).toContain('active "operations" (id 2)');
+    expect(out).toContain("Progress  1 / 2");
+    expect(out).toContain("1 more weight needed");
+    expect(out).toContain("Tsigner");
+  });
+
+  it("shows the next broadcast command only after threshold is reached", () => {
+    const pending = TextFormatters.txSign({
+      kind: "tx-sign",
+      signer: "Tsigner",
+      signerWeight: 1,
+      hex: "aabb",
+      transaction: approval,
+    }) as string;
+    expect(pending).not.toContain("wallet-cli tx broadcast");
+
+    const ready = TextFormatters.txSign({
+      kind: "tx-sign",
+      signer: "Tsigner2",
+      signerWeight: 1,
+      hex: "ccdd",
+      out: "signed.hex",
+      transaction: {
+        ...approval,
+        currentWeight: 2,
+        missingWeight: 0,
+        thresholdReached: true,
+      },
+    }) as string;
+    expect(ready).toContain("wallet-cli tx broadcast --file signed.hex");
+  });
+});
+
 describe("txStatus formatter (family-agnostic; command supplies `state`)", () => {
   it("tron: confirmed when not failed", () => {
     const out = TextFormatters.txStatus({ txid: "abc", state: "confirmed", confirmed: true, failed: false, blockNumber: 123 });
