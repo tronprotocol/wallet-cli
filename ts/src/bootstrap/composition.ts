@@ -29,6 +29,7 @@ import { ConfigService } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
 import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
 import { registerTronChainCommands } from "./families/tron.js";
+import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -86,14 +87,17 @@ export function composeCliRuntime(options: BootstrapOptions) {
     transactions: txPipeline,
     accounts: keystore,
     timeoutMs,
+    tronlink: new TronLinkClient(config, timeoutMs),
   });
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();
   for (const network of Object.values(config.networks)) {
-    const commandCapabilities = (capabilitiesByFamily.get(network.family) ?? []).map((key) => ({
-      key,
-      summary: CAP_SUMMARIES[key] ?? key,
-    }));
+    const commandCapabilities = (capabilitiesByFamily.get(network.family) ?? [])
+      .filter((key) => key !== "tx.multisig.tronlink" || Boolean(network.tronlinkHttpEndpoint))
+      .map((key) => ({
+        key,
+        summary: CAP_SUMMARIES[key] ?? key,
+      }));
     const traits = network.capabilities.map((key) => ({
       key,
       summary: TRAIT_SUMMARIES[key] ?? key,

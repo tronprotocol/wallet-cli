@@ -44,6 +44,8 @@ import {
   txSendTronBinding,
   txSignSpec,
   txSignTronBinding,
+  txTronLinkMultisigBinding,
+  txTronLinkMultisigSpec,
   txStatusSpec,
   txStatusTronBinding,
 } from "../../adapters/inbound/cli/commands/tx.js";
@@ -87,6 +89,7 @@ import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
 import { TronPermissionService } from "../../application/use-cases/tron/permission-service.js";
 import { TronMultisigService } from "../../application/use-cases/tron/multisig-service.js";
+import { TronLinkMultisigService } from "../../application/use-cases/tron/tronlink-multisig-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
@@ -95,6 +98,7 @@ import type { TxPipeline } from "../../application/services/pipeline/index.js";
 import type { AccountStore } from "../../application/ports/account-store.js";
 import { TransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
 import type { FamilyPlugin } from "./types.js";
+import type { TronLinkCollaborationPort } from "../../application/ports/tronlink-collaboration.js";
 
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
@@ -110,6 +114,7 @@ export interface TronChainCommandDependencies {
   transactions: TxPipeline;
   accounts: AccountStore;
   timeoutMs: number;
+  tronlink: TronLinkCollaborationPort;
 }
 
 export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainCommandDependencies): void {
@@ -124,6 +129,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const typedData = new TypedDataService(deps.signers);
   const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
   const multisig = new TronMultisigService(deps.gateways, deps.signers);
+  const tronlink = new TronLinkMultisigService(deps.tronlink, deps.gateways, multisig);
   const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
@@ -150,6 +156,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
     new TransactionArtifactWriter(),
   ));
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
+  reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(tronlink));
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
