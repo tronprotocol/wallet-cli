@@ -26,6 +26,7 @@ import { PermissionFormatters } from "./permission.js"
 import { MultisigFormatters } from "./multisig.js"
 import { GasFreeFormatters } from "./gasfree.js"
 import { ContactFormatters } from "./contact.js"
+import { EncodingFormatters } from "./encoding.js"
 
 export { FAMILY_RENDER, renderFamily } from "./family.js"
 
@@ -42,6 +43,7 @@ export const TextFormatters = {
   ...MultisigFormatters,
   ...GasFreeFormatters,
   ...ContactFormatters,
+  ...EncodingFormatters,
 }
 
 export function renderGenericText(command: string, net: NetworkDescriptor | undefined, data: unknown): string {

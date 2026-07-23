@@ -5,7 +5,7 @@
 import { keccak_256 } from "@noble/hashes/sha3.js"
 import { sha256 } from "@noble/hashes/sha2.js"
 import { createBase58check } from "@scure/base"
-import { hexToBytes } from "@noble/hashes/utils.js"
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js"
 import { secp256k1 } from "@noble/curves/secp256k1.js"
 import type { Bytes, ChainFamily } from "../types/index.js"
 
@@ -17,21 +17,63 @@ export interface AddressCodec {
 
 const b58c = createBase58check(sha256)
 
-/** uncompressed (65B, 0x04…) or compressed pubkey → last-20-bytes keccak hash. */
-function pubKeyHash20(pub: Bytes): Bytes {
-  let uncompressed = pub
-  if (pub.length === 33) {
-    try {
-      uncompressed = secp256k1.Point.fromBytes(pub).toBytes(false)
-    } catch {
-      throw new Error("invalid compressed secp256k1 public key")
-    }
+/** Valid SEC1 key → canonical uncompressed 65-byte representation. */
+export function uncompressedPublicKey(pub: Bytes): Bytes {
+  if (pub.length !== 33 && pub.length !== 65) {
+    throw new Error("public key must be 33 or 65 bytes")
   }
-  if (uncompressed.length !== 65 || uncompressed[0] !== 0x04) {
-    throw new Error("public key must be compressed or uncompressed secp256k1")
-  }
-  const body = uncompressed.slice(1)
+  // Point parsing validates prefix, coordinates, and secp256k1 curve membership.
+  return secp256k1.Point.fromBytes(pub).toBytes(false)
+}
+
+/** compressed/uncompressed public key → last-20-bytes keccak(x || y). */
+export function publicKeyHash20(pub: Bytes): Bytes {
+  const body = uncompressedPublicKey(pub).slice(1)
   return keccak_256(body).slice(-20)
+}
+
+/** Decode and validate a Base58Check TRON address payload. */
+export function tronAddressBytes(address: string): Bytes {
+  const decoded = b58c.decode(address)
+  if (decoded.length !== 21 || decoded[0] !== 0x41) {
+    throw new Error("invalid TRON address")
+  }
+  return decoded
+}
+
+export function tronAddressFromBytes(payload: Bytes): string {
+  if (payload.length !== 21 || payload[0] !== 0x41) {
+    throw new Error("TRON payload must be 0x41 + 20 bytes")
+  }
+  return b58c.encode(payload)
+}
+
+export function tronHexAddress(address: string): string {
+  return bytesToHex(tronAddressBytes(address))
+}
+
+export function evmChecksumAddress(hash20: Bytes): string {
+  if (hash20.length !== 20) {
+    throw new Error("EVM address payload must be 20 bytes")
+  }
+  const lower = bytesToHex(hash20)
+  const checksum = bytesToHex(
+    keccak_256(new TextEncoder().encode(lower)),
+  )
+  let result = "0x"
+  for (let index = 0; index < lower.length; index += 1) {
+    const char = lower[index]!
+    result +=
+      /[a-f]/.test(char)
+      && Number.parseInt(checksum[index]!, 16) >= 8
+        ? char.toUpperCase()
+        : char
+  }
+  return result
+}
+
+export function evmAddressFromPublicKey(pub: Bytes): string {
+  return evmChecksumAddress(publicKeyHash20(pub))
 }
 
 export class TronAddress implements AddressCodec {
@@ -39,24 +81,18 @@ export class TronAddress implements AddressCodec {
   fromPublicKey(pub: Bytes): string {
     const payload = new Uint8Array(21)
     payload[0] = 0x41
-    payload.set(pubKeyHash20(pub), 1)
+    payload.set(publicKeyHash20(pub), 1)
     return b58c.encode(payload)
   }
   validate(addr: string): boolean {
     if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr)) return false
     try {
-      const decoded = b58c.decode(addr)
-      return decoded.length === 21 && decoded[0] === 0x41
+      tronAddressBytes(addr)
+      return true
     } catch {
       return false
     }
   }
-}
-
-/** Decode and validate a Base58Check TRON address as its 21-byte 0x41-prefixed payload. */
-export function tronAddressBytes(address: string): Bytes {
-  if (!new TronAddress().validate(address)) throw new Error("invalid TRON address");
-  return b58c.decode(address);
 }
 
 /** Convert a 41-prefixed TRON hex address to base58; preserve non-hex values unchanged. */
