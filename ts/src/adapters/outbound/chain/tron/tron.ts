@@ -289,6 +289,65 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     );
   }
 
+  async buildAccountCreate(owner: string, target: string): Promise<UnsignedTx> {
+    return this.#localAccountTransaction("AccountCreateContract", owner, {
+      owner_address: this.#tw.address.toHex(owner),
+      account_address: this.#tw.address.toHex(target),
+    });
+  }
+
+  async buildAccountUpdate(owner: string, accountName: string): Promise<UnsignedTx> {
+    return this.#localAccountTransaction("AccountUpdateContract", owner, {
+      owner_address: this.#tw.address.toHex(owner),
+      account_name: Buffer.from(accountName, "utf8").toString("hex"),
+    });
+  }
+
+  async buildSetAccountId(owner: string, accountId: string): Promise<UnsignedTx> {
+    // TronWeb 6.4 applies the 8..32 bound to the encoded hex string length, not the decoded
+    // UTF-8 byte length. Build the identical protobuf locally so valid 17..32-byte ids survive.
+    return this.#localAccountTransaction("SetAccountIdContract", owner, {
+      owner_address: this.#tw.address.toHex(owner),
+      account_id: Buffer.from(accountId, "utf8").toString("hex"),
+    });
+  }
+
+  async #localAccountTransaction(
+    type: "AccountCreateContract" | "AccountUpdateContract" | "SetAccountIdContract",
+    owner: string,
+    value: Record<string, unknown>,
+  ): Promise<UnsignedTx> {
+    return this.#wrap(`build ${type}`, async () => {
+      const block = await this.#tw.trx.getCurrentRefBlockParams();
+      const transaction = refreshTransactionIdentity({
+        visible: false,
+        txID: "",
+        raw_data_hex: "",
+        raw_data: {
+          contract: [{
+            parameter: {
+              value,
+              type_url: `type.googleapis.com/protocol.${type}`,
+            },
+            type,
+          }],
+          ...block,
+        },
+      });
+      const contract = transaction.raw_data.contract[0]?.parameter?.value;
+      const matchesIntent = Object.entries(value).every(
+        ([key, expected]) => contract?.[key] === expected,
+      );
+      if (!matchesIntent) {
+        throw new ChainError(
+          "tx_integrity",
+          `locally built ${type} fields do not match the requested operation`,
+        );
+      }
+      return assertBuiltTx(transaction, type);
+    });
+  }
+
   // ── generic error wrapper for node reads/builds ──────────────────────────────
   // Timeout wraps the guard (not the reverse) so a timed-out call surfaces as ChainError("timeout")
   // rather than being remapped to a generic rpc_error by the catch below.
@@ -311,6 +370,20 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return parseTronAccountResponse(await response.text());
+    });
+  }
+  async getAccountById(accountId: string): Promise<TronAccount> {
+    return this.#wrap("getAccountById", async () => {
+      const response = await fetch(`${this.#fullHost}/wallet/getaccountbyid`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          account_id: Buffer.from(accountId, "utf8").toString("hex"),
+        }),
         signal: AbortSignal.timeout(this.#timeoutMs),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);

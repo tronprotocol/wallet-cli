@@ -4,6 +4,8 @@ import { TronRpcClient } from "../../adapters/outbound/chain/tron/tron.js";
 import { TronGridHistoryReader } from "../../adapters/outbound/chain/tron/history-reader.js";
 import { blockSpec, blockTronBinding } from "../../adapters/inbound/cli/commands/block.js";
 import {
+  accountActivateSpec,
+  accountActivateTronBinding,
   accountBalanceSpec,
   accountBalanceTronBinding,
   accountHistorySpec,
@@ -12,6 +14,8 @@ import {
   accountInfoTronBinding,
   accountPortfolioSpec,
   accountPortfolioTronBinding,
+  accountSetSpec,
+  accountSetTronBinding,
 } from "../../adapters/inbound/cli/commands/account.js";
 import {
   tokenAddSpec,
@@ -134,6 +138,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
     new TronGridHistoryReader(deps.timeoutMs),
     deps.tokens,
     deps.prices,
+    deps.transactions,
   );
   const token = new TronTokenService(deps.gateways, deps.tokens);
   const message = new MessageService(deps.signers);
@@ -150,10 +155,12 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const contract = new TronContractService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
+  reg.addChain(accountActivateSpec, "tron", accountActivateTronBinding(account));
   reg.addChain(accountBalanceSpec, "tron", accountBalanceTronBinding(account));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
   reg.addChain(accountHistorySpec, "tron", accountHistoryTronBinding(account));
   reg.addChain(accountPortfolioSpec, "tron", accountPortfolioTronBinding(account));
+  reg.addChain(accountSetSpec, "tron", accountSetTronBinding(account));
   reg.addChain(tokenBalanceSpec, "tron", tokenBalanceTronBinding(token));
   reg.addChain(tokenInfoSpec, "tron", tokenInfoTronBinding(token));
   reg.addChain(tokenAddSpec, "tron", tokenAddTronBinding(token));
