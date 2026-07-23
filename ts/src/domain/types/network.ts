@@ -22,6 +22,8 @@ interface NetworkBase {
 export interface TronNetworkDescriptor extends NetworkBase {
   family: "tron";
   httpEndpoint?: string;
+  /** Official walletadapter multi-sign service. Credentials are stored separately in Config. */
+  tronlinkHttpEndpoint?: string;
 }
 
 /** Single family today (TRON). Kept as a named alias so adding a family later means re-introducing
@@ -43,6 +45,10 @@ export interface Config {
   networks: Record<NetworkId, NetworkDescriptor>;
   /** USD-valuation source for `account portfolio`. Missing → builtin CoinGecko. */
   price?: PriceConfig;
+  /** TronLink collaboration credentials for the currently selected service environment. */
+  tronlinkSecretId?: string;
+  tronlinkSecretKey?: string;
+  tronlinkChannel?: string;
 }
 
 /** price service config ; best-effort — failures never fail a balance read. */

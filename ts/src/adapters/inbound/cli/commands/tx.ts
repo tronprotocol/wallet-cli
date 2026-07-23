@@ -3,6 +3,7 @@ import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronTransactionService } from "../../../../application/use-cases/tron/transaction-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
+import type { TronLinkMultisigService } from "../../../../application/use-cases/tron/tronlink-multisig-service.js";
 import type { TransactionArtifactWriter } from "../../../outbound/persistence/transaction-artifact-writer.js";
 import { Schemas } from "../schemas/index.js";
 import {
@@ -197,6 +198,65 @@ export const txSignTronBinding = (
   },
 });
 
+const tronLinkMultisigFields = z.object({
+  create: z.boolean().default(false)
+    .describe("upload one unsigned transaction and open a TronLink signature collection"),
+  hex: z.string().min(2).optional().describe("unsigned protocol.Transaction hex used with --create"),
+  file: z.string().min(1).optional().describe("file containing unsigned transaction hex used with --create"),
+  sign: z.string().regex(/^(?:0x)?[0-9a-fA-F]{64}$/).optional()
+    .describe("fetch and co-sign one pending TronLink transaction by txId"),
+  watch: z.boolean().default(false)
+    .describe("keep a WebSocket open and report only the count of transactions awaiting this account"),
+});
+
+export const txTronLinkMultisigSpec: ChainSpec = {
+  path: ["tx", "multisig"],
+  network: "optional", wallet: "optional", auth: "required",
+  capability: "tx.multisig.tronlink",
+  summary: "Coordinate multi-signature collection through the TronLink service",
+  description:
+    "With no mode flag, list service-managed transactions for the selected account. --create\n" +
+    "uploads an UNSIGNED transaction; --sign fetches the accumulated transaction, signs locally,\n" +
+    "and submits it; --watch opens the official WebSocket count-only notification channel.",
+  requires: [
+    "TronLink service credentials — config tronlinkSecretId / tronlinkSecretKey / tronlinkChannel",
+  ],
+  baseFields: tronLinkMultisigFields,
+  baseRefine: tronLinkMultisigRefine,
+  examples: [
+    { cmd: "wallet-cli tx multisig" },
+    { cmd: "wallet-cli tx multisig --create --file tx.unsigned.hex" },
+    { cmd: "wallet-cli tx multisig --sign 9c1... --password-stdin" },
+    { cmd: "wallet-cli tx multisig --watch" },
+  ],
+  formatText: TextFormatters.txTronLinkMultisig,
+};
+
+export const txTronLinkMultisigBinding = (service: TronLinkMultisigService): FamilyBinding => ({
+  run: async (ctx, network, input) => {
+    const address = ctx.resolveAddress("tron");
+    if (input.create) return service.create(network, address, hexInput(input));
+    if (input.sign) return service.sign(ctx, network, input.sign);
+    if (!input.watch) return service.list(network, address);
+
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+    ctx.streams.event(`Watching TronLink multi-sig service for ${network.id} … (Ctrl-C to stop)`);
+    try {
+      return await service.watch(network, address, controller.signal, (count) => {
+        ctx.streams.event(
+          `🔔 You have ${count} transaction(s) to sign — view them with: wallet-cli tx multisig`,
+        );
+      });
+    } finally {
+      process.off("SIGINT", stop);
+      process.off("SIGTERM", stop);
+    }
+  },
+});
+
 const statusFields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
 
 export const txStatusSpec: ChainSpec = {
@@ -251,4 +311,33 @@ function hexOrFileRefine(value: { hex?: string; file?: string }, context: z.Refi
 function hexInput(input: { hex?: string; file?: string }): string {
   exactlyOne([input.hex, input.file], "provide exactly one of --hex or --file");
   return input.hex ?? readBoundedTextFile(input.file!, 1024 * 1024 + 4096, "transaction hex file");
+}
+
+function tronLinkMultisigRefine(
+  value: z.infer<typeof tronLinkMultisigFields>,
+  context: z.RefinementCtx,
+): void {
+  const modes = [value.create, value.sign !== undefined, value.watch].filter(Boolean).length;
+  if (modes > 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["create"],
+      message: "--create, --sign, and --watch are mutually exclusive",
+    });
+  }
+  const artifacts = [value.hex, value.file].filter((entry) => entry !== undefined).length;
+  if (value.create && artifacts !== 1) {
+    context.addIssue({
+      code: "custom",
+      path: ["hex"],
+      message: "--create requires exactly one of --hex or --file",
+    });
+  }
+  if (!value.create && artifacts !== 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["hex"],
+      message: "--hex/--file are only valid with --create",
+    });
+  }
 }

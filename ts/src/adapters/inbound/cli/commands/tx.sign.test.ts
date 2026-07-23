@@ -4,6 +4,7 @@ import {
   txBroadcastTronBinding,
   txSignSpec,
   txSignTronBinding,
+  txTronLinkMultisigSpec,
 } from "./tx.js";
 
 const ctx = { activeAccount: "main" } as never;
@@ -116,5 +117,20 @@ describe("tx broadcast binding", () => {
     await expect(txBroadcastTronBinding(service as never)
       .run(broadcastContext(undefined, true), net, { hex: "aabb", dryRun: true }))
       .rejects.toMatchObject({ code: "invalid_option" });
+  });
+});
+
+describe("tx multisig spec", () => {
+  it("supports list, unsigned create, sign, and WebSocket watch modes", () => {
+    expect(txTronLinkMultisigSpec.baseFields.safeParse({}).success).toBe(true);
+    expect(txTronLinkMultisigSpec.baseFields.safeParse({ create: true, hex: "aabb" }).success).toBe(true);
+    expect(txTronLinkMultisigSpec.baseFields.safeParse({ sign: "ab".repeat(32) }).success).toBe(true);
+    expect(txTronLinkMultisigSpec.baseFields.safeParse({ watch: true }).success).toBe(true);
+  });
+
+  it("declares no broadcast and uses lazy signing authentication", () => {
+    expect(txTronLinkMultisigSpec.broadcasts).toBeFalsy();
+    expect(txTronLinkMultisigSpec.auth).toBe("required");
+    expect(txTronLinkMultisigSpec.passwordMode).toBeUndefined();
   });
 });

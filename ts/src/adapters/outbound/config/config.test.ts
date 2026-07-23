@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
 
-function envWithConfig(yaml: string): NodeJS.ProcessEnv {
+function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
-  writeFileSync(join(root, "config.yaml"), yaml);
+  const path = join(root, "config.yaml");
+  writeFileSync(path, yaml);
+  if (mode !== undefined) chmodSync(path, mode);
   return { ...process.env, WALLET_CLI_HOME: root };
 }
 
@@ -55,5 +57,27 @@ describe("NetworkRegistry.resolve case-insensitivity", () => {
 
   it("still rejects genuinely unknown networks", () => {
     expect(() => registry().resolve("dogechain")).toThrow(/unknown network/);
+  });
+});
+
+describe("ConfigLoader TronLink credentials", () => {
+  const credentials = [
+    "tronlinkSecretId: TEST",
+    "tronlinkSecretKey: TESTTESTTEST",
+    "tronlinkChannel: test",
+    "",
+  ].join("\n");
+
+  it("loads credentials only from a private config file", () => {
+    expect(ConfigLoader.load(envWithConfig(credentials, 0o600))).toMatchObject({
+      tronlinkSecretId: "TEST",
+      tronlinkSecretKey: "TESTTESTTEST",
+      tronlinkChannel: "test",
+    });
+  });
+
+  it.runIf(process.platform !== "win32")("rejects credentials in a group/world-readable file", () => {
+    expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644)))
+      .toThrow(/mode 0600/);
   });
 });
