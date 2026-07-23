@@ -30,8 +30,8 @@ const updateFields = z.object({
   dryRun: z.boolean().default(false).describe("validate, build, and estimate without signing or broadcasting"),
   signOnly: z.boolean().default(false).describe("build and sign, then output complete transaction hex"),
   buildOnly: z.boolean().default(false).describe("build and output unsigned complete transaction hex without unlocking"),
-  permissionId: z.number().int().min(0).max(9).default(0).describe("TRON permission group id used to authorize this transaction"),
-  expiration: z.number().int().min(1).max(86_400_000).optional().describe("expiration duration in milliseconds; only with --sign-only or --build-only"),
+  permissionId: z.coerce.number().int().min(0).max(9).default(0).describe("TRON permission group id used to authorize this transaction"),
+  expiration: z.coerce.number().int().min(1).max(86_400_000).optional().describe("expiration duration in milliseconds; only with --sign-only or --build-only"),
 });
 
 export const permissionUpdateSpec: ChainSpec = {
