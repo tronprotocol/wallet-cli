@@ -6,6 +6,7 @@ import { keccak_256 } from "@noble/hashes/sha3.js"
 import { sha256 } from "@noble/hashes/sha2.js"
 import { createBase58check } from "@scure/base"
 import { hexToBytes } from "@noble/hashes/utils.js"
+import { secp256k1 } from "@noble/curves/secp256k1.js"
 import type { Bytes, ChainFamily } from "../types/index.js"
 
 export interface AddressCodec {
@@ -18,7 +19,18 @@ const b58c = createBase58check(sha256)
 
 /** uncompressed (65B, 0x04…) or compressed pubkey → last-20-bytes keccak hash. */
 function pubKeyHash20(pub: Bytes): Bytes {
-  const body = pub.length === 65 ? pub.slice(1) : pub // strip 0x04 prefix
+  let uncompressed = pub
+  if (pub.length === 33) {
+    try {
+      uncompressed = secp256k1.Point.fromBytes(pub).toBytes(false)
+    } catch {
+      throw new Error("invalid compressed secp256k1 public key")
+    }
+  }
+  if (uncompressed.length !== 65 || uncompressed[0] !== 0x04) {
+    throw new Error("public key must be compressed or uncompressed secp256k1")
+  }
+  const body = uncompressed.slice(1)
   return keccak_256(body).slice(-20)
 }
 
@@ -39,6 +51,12 @@ export class TronAddress implements AddressCodec {
       return false
     }
   }
+}
+
+/** Decode and validate a Base58Check TRON address as its 21-byte 0x41-prefixed payload. */
+export function tronAddressBytes(address: string): Bytes {
+  if (!new TronAddress().validate(address)) throw new Error("invalid TRON address");
+  return b58c.decode(address);
 }
 
 /** Convert a 41-prefixed TRON hex address to base58; preserve non-hex values unchanged. */

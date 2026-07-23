@@ -24,6 +24,7 @@ import { ChainFormatters } from "./chain.js"
 import { MiscFormatters } from "./misc.js"
 import { PermissionFormatters } from "./permission.js"
 import { MultisigFormatters } from "./multisig.js"
+import { GasFreeFormatters } from "./gasfree.js"
 
 export { FAMILY_RENDER, renderFamily } from "./family.js"
 
@@ -38,6 +39,7 @@ export const TextFormatters = {
   ...MiscFormatters,
   ...PermissionFormatters,
   ...MultisigFormatters,
+  ...GasFreeFormatters,
 }
 
 export function renderGenericText(command: string, net: NetworkDescriptor | undefined, data: unknown): string {

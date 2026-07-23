@@ -92,3 +92,28 @@ describe("ConfigService TronLink credentials", () => {
     expect(update).not.toHaveBeenCalled();
   });
 });
+
+describe("ConfigService GasFree credentials", () => {
+  it("writes the documented flat keys and masks the API secret", () => {
+    const { svc } = service();
+    expect(svc.execute(
+      { key: "gasfreeApiKey", value: "TEST" },
+      effective,
+      networks,
+    )).toMatchObject({ key: "gasfreeApiKey", value: "TEST" });
+    expect(svc.execute(
+      { key: "gasfreeApiSecret", value: "TESTTESTTEST" },
+      effective,
+      networks,
+    )).toMatchObject({ key: "gasfreeApiSecret", value: "********" });
+  });
+
+  it("never returns an effective API secret in config views", () => {
+    const configured = { ...effective, gasfreeApiSecret: "secret" };
+    const { svc } = service();
+    expect(svc.execute({}, configured, networks))
+      .toMatchObject({ gasfreeApiSecret: "********" });
+    expect(svc.execute({ key: "gasfreeApiSecret" }, configured, networks))
+      .toEqual({ key: "gasfreeApiSecret", value: "********" });
+  });
+});

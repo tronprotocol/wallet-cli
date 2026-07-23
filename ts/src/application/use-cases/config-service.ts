@@ -8,6 +8,10 @@ export const TRONLINK_CONFIG_KEYS = [
   "tronlinkSecretKey",
   "tronlinkChannel",
 ] as const;
+export const GASFREE_CONFIG_KEYS = [
+  "gasfreeApiKey",
+  "gasfreeApiSecret",
+] as const;
 export const CONFIG_KEYS = [
   "defaultNetwork",
   "defaultOutput",
@@ -15,6 +19,7 @@ export const CONFIG_KEYS = [
   "waitTimeoutMs",
   "networks",
   ...TRONLINK_CONFIG_KEYS,
+  ...GASFREE_CONFIG_KEYS,
 ] as const;
 export const WRITABLE_CONFIG_KEYS = [
   "defaultNetwork",
@@ -22,6 +27,7 @@ export const WRITABLE_CONFIG_KEYS = [
   "timeoutMs",
   "waitTimeoutMs",
   ...TRONLINK_CONFIG_KEYS,
+  ...GASFREE_CONFIG_KEYS,
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
@@ -48,6 +54,8 @@ export class ConfigService {
       tronlinkSecretId: effective.tronlinkSecretId,
       tronlinkSecretKey: maskSecret(effective.tronlinkSecretKey),
       tronlinkChannel: effective.tronlinkChannel,
+      gasfreeApiKey: effective.gasfreeApiKey,
+      gasfreeApiSecret: maskSecret(effective.gasfreeApiSecret),
     };
     if (input.key === undefined) return view;
     if (input.value === undefined) return { key: input.key, value: view[input.key] };
@@ -57,7 +65,7 @@ export class ConfigService {
 
     const key = input.key as WritableConfigKey;
     const value = this.normalize(key, input.value, networks);
-    if (key === "tronlinkSecretKey") {
+    if (key === "tronlinkSecretKey" || key === "gasfreeApiSecret") {
       return this.documents.update((current) => ({
         document: { ...current, [key]: value },
         result: { key, value: maskSecret(String(value)), input: "********" },
@@ -94,7 +102,10 @@ export class ConfigService {
       }
       return raw;
     }
-    if ((TRONLINK_CONFIG_KEYS as readonly string[]).includes(key)) {
+    if (
+      (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key)
+      || (GASFREE_CONFIG_KEYS as readonly string[]).includes(key)
+    ) {
       if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
         throw new UsageError("invalid_value", `${key} must be 1 to 256 characters without control characters`);
       }

@@ -35,6 +35,9 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "reward.withdraw": "withdraw voting/block rewards",
   "permission.read": "read account multi-sign permissions",
   "permission.update": "replace account multi-sign permissions",
+  "gasfree.info": "GasFree account, fee and nonce information",
+  "gasfree.transfer": "TIP-712 gas-free token transfer",
+  "gasfree.trace": "track a GasFree transfer",
 }
 
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
@@ -45,6 +48,12 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     aliases: ["tron"],
     httpEndpoint: "https://api.trongrid.io",
     tronlinkHttpEndpoint: "https://api.walletadapter.org",
+    gasfree: {
+      baseUrl: "https://open.gasfree.io",
+      apiPrefix: "/tron",
+      controllerChainId: "728126428",
+      verifyingContract: "TFFAMQLZybALaLb4uxHA9RBE7pxhUAjF3U",
+    },
     feeModel: "tron-resource",
     capabilities: [],
   },
@@ -55,6 +64,12 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     aliases: ["nile"],
     httpEndpoint: "https://nile.trongrid.io",
     tronlinkHttpEndpoint: "https://apinile.walletadapter.org",
+    gasfree: {
+      baseUrl: "https://open-test.gasfree.io",
+      apiPrefix: "/nile",
+      controllerChainId: "3448148188",
+      verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
+    },
     feeModel: "tron-resource",
     capabilities: [],
   },
