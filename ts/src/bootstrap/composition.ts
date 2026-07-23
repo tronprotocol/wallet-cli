@@ -35,6 +35,11 @@ import { ContactBook } from "../adapters/outbound/contactbook/index.js";
 import { ContactService } from "../application/use-cases/contact-service.js";
 import { RecipientResolver } from "../application/services/recipient-resolver.js";
 import { registerContactCommands } from "../adapters/inbound/cli/commands/contact.js";
+import { EncodingService } from "../application/use-cases/encoding-service.js";
+import { AddressService } from "../application/use-cases/address-service.js";
+import { SecureKeypairWriter } from "../adapters/outbound/persistence/keypair-writer.js";
+import { registerEncodingCommands } from "../adapters/inbound/cli/commands/encoding.js";
+import { registerAddressCommands } from "../adapters/inbound/cli/commands/address.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -87,6 +92,11 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerConfigCommands(registry, configService);
   registerNetworkCommands(registry);
   registerContactCommands(registry, new ContactService(contactBook));
+  registerEncodingCommands(registry, new EncodingService());
+  registerAddressCommands(
+    registry,
+    new AddressService(root, new SecureKeypairWriter()),
+  );
   registerTronChainCommands(registry, {
     gateways: gatewayProvider,
     tokens: tokenBook,
