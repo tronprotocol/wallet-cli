@@ -6,8 +6,14 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { DecodedTronTransaction, TronGateway, TronTxInfo } from "../../ports/chain/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
+import {
+  outcomeData,
+  transactionMode,
+  transactionRequiresSigner,
+  type TransactionModeInput,
+} from "../../services/transaction-mode.js";
 import { stageTronBroadcast, tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export interface TronSendInput extends TransactionModeInput {
   to: string;
@@ -27,7 +33,7 @@ export class TronTransactionService {
   ) {}
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: TronSendInput) {
-    this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const resolved = await this.resolveTransfer(
       gateway,
@@ -41,6 +47,7 @@ export class TronTransactionService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
+      ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (from) => resolved.contract
         ? gateway.buildTrc20Transfer(from, input.to, resolved.contract, resolved.rawAmount, input.feeLimit)

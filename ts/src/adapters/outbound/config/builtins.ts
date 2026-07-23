@@ -21,6 +21,7 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "token.tokenbook": "token address-book (add/list/remove)",
   "tx.send": "transfer native / token",
   "tx.broadcast": "broadcast a presigned transaction",
+  "tx.multisig.local": "inspect and append local multi-sign approvals",
   "message.sign": "sign a message",
   "contract.call": "constant + state-changing contract calls",
   "contract.deploy": "deploy a smart contract",
