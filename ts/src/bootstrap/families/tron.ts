@@ -104,6 +104,7 @@ import { TransactionArtifactWriter } from "../../adapters/outbound/persistence/t
 import type { FamilyPlugin } from "./types.js";
 import type { TronLinkCollaborationPort } from "../../application/ports/tronlink-collaboration.js";
 import type { GasFreeProvider } from "../../application/ports/gasfree-provider.js";
+import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
 import { GasFreeService } from "../../application/use-cases/tron/gasfree-service.js";
 import {
   gasFreeInfoSpec,
@@ -130,6 +131,7 @@ export interface TronChainCommandDependencies {
   timeoutMs: number;
   tronlink: TronLinkCollaborationPort;
   gasfree: GasFreeProvider;
+  recipients: RecipientResolver;
 }
 
 export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainCommandDependencies): void {
@@ -143,10 +145,20 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const token = new TronTokenService(deps.gateways, deps.tokens);
   const message = new MessageService(deps.signers);
   const typedData = new TypedDataService(deps.signers);
-  const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
+  const transaction = new TronTransactionService(
+    deps.gateways,
+    deps.tokens,
+    deps.transactions,
+    deps.recipients,
+  );
   const multisig = new TronMultisigService(deps.gateways, deps.signers);
   const tronlink = new TronLinkMultisigService(deps.tronlink, deps.gateways, multisig);
-  const gasfree = new GasFreeService(deps.gasfree, deps.gateways, deps.signers);
+  const gasfree = new GasFreeService(
+    deps.gasfree,
+    deps.gateways,
+    deps.signers,
+    deps.recipients,
+  );
   const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);

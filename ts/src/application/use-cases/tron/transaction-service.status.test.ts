@@ -19,7 +19,12 @@ function service(opts: { tx?: TronTx | Error; info?: TronTxInfo }) {
     },
   } as unknown as TronGateway;
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
-  return new TronTransactionService(gateways, {} as never, {} as never);
+  return new TronTransactionService(
+    gateways,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
 }
 
 describe("TronTransactionService.status — four-state", () => {

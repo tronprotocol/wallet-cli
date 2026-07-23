@@ -158,17 +158,32 @@ function fixture(options: {
     assertCanSign: vi.fn(),
     resolve: vi.fn(() => signer),
   } as unknown as SignerResolver;
+  const recipients = {
+    resolve: vi.fn((_family: string, input: string) =>
+      input === "alice"
+        ? { address: RECEIVER, contactName: "Alice" }
+        : { address: input }
+    ),
+  };
   let now = 1_700_000_000_000;
   const service = new GasFreeService(
     provider,
     gateways,
     signers,
+    recipients as never,
     () => now,
-    async (milliseconds) => {
+    async (milliseconds: number) => {
       now += milliseconds;
     },
   );
-  return { service, provider, submitTransfer, signer, signers };
+  return {
+    service,
+    provider,
+    submitTransfer,
+    signer,
+    signers,
+    recipients,
+  };
 }
 
 describe("GasFreeService", () => {
@@ -193,6 +208,25 @@ describe("GasFreeService", () => {
     expect(fixtureValue.signers.assertCanSign).not.toHaveBeenCalled();
     expect(fixtureValue.signer.signTypedData).not.toHaveBeenCalled();
     expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
+  });
+
+  it("resolves a contact before signing and binds its address into TIP-712", async () => {
+    const fixtureValue = fixture({ active: true });
+    const result = await fixtureValue.service.transfer(scope(), NETWORK, {
+      to: "alice",
+      amount: "25",
+      token: "USDT",
+      dryRun: false,
+    });
+
+    expect(result).toMatchObject({
+      to: RECEIVER,
+      toContact: "Alice",
+    });
+    expect(fixtureValue.submitTransfer).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({ receiver: RECEIVER }),
+    );
   });
 
   it("signs the exact TIP-712 digest and accepts Java millisecond expiry", async () => {

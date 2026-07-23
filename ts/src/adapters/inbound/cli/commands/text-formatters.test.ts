@@ -9,6 +9,7 @@ import { TextFormatters } from "../render/index.js";
 import { isChainCommand } from "../contracts/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import type { ConfigService } from "../../../../application/use-cases/config-service.js";
+import { registerContactCommands } from "./contact.js";
 
 const ctx = (over: Partial<TextRenderContext> = {}): TextRenderContext => ({ command: "x", ...over });
 
@@ -18,6 +19,7 @@ describe("text formatters", () => {
     registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
     registerConfigCommands(registry, {} as ConfigService);
     registerNetworkCommands(registry);
+    registerContactCommands(registry, {} as never);
     registerTronChainCommands(registry, {} as TronChainCommandDependencies);
 
     const missing = registry.all()
