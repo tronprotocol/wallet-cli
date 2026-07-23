@@ -272,3 +272,35 @@ describe("accountHistory formatter", () => {
     expect(out).toContain("Tother");
   });
 });
+
+describe("sign-only receipt", () => {
+  const base = { kind: "sign" as const, mode: "sign-only" as const, address: "TSigner", txId: "abc123" };
+  const ctx = { command: "tx sign", net: { family: "tron", id: "nile" } } as never;
+
+  // The signature is the product of a signing command and has to be copied somewhere, so it must
+  // never be shortened. Before this it showed a truncated txID — redundant with the TxID row and
+  // useless as output.
+  it("prints the signature in full", () => {
+    const sig = "16a2ec10".repeat(16) + "1C";
+    const out = TextFormatters.txReceipt({ ...base, signed: { txID: "abc123", signature: [sig] } }, ctx) as string;
+    expect(out).toContain(sig);
+    expect(out).not.toMatch(/\.\.\./);
+    expect(out).toContain("Signature");
+  });
+
+  it("numbers the signatures when a multi-sig transaction carries several", () => {
+    const out = TextFormatters.txReceipt(
+      { ...base, signed: { txID: "abc123", signature: ["aa".repeat(65), "bb".repeat(65)] } },
+      ctx,
+    ) as string;
+    expect(out).toContain("Signature 1");
+    expect(out).toContain("Signature 2");
+  });
+
+  // tx sign estimates nothing, so there is no fee to report and the row is dropped entirely
+  // rather than rendered as "unknown".
+  it("omits the fee row when nothing was estimated", () => {
+    const out = TextFormatters.txReceipt({ ...base, signed: { signature: ["aa".repeat(65)] } }, ctx) as string;
+    expect(out).not.toContain("Fee");
+  });
+});

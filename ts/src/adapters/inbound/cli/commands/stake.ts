@@ -38,7 +38,7 @@ function stakeCommand(
   return {
     spec: {
       path: ["stake", action],
-      network: "required", wallet: "optional", auth: "required",
+      network: "optional", wallet: "optional", auth: "required",
       broadcasts: true,
       capability: options.capability ?? "staking.freeze",
       summary,

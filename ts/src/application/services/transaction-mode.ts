@@ -21,7 +21,15 @@ export function transactionMode(input: TransactionModeInput): {
 export function outcomeData(outcome: TxOutcome): Record<string, unknown> {
   if (outcome.stage === "plan") return { mode: "dry-run", fee: outcome.fee, tx: outcome.tx };
   if (outcome.stage === "signed") {
-    return { mode: "sign-only", signed: outcome.signed, fee: outcome.fee };
+    // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
+    // Omit rather than emit undefined — kv() drops empty rows and JSON stays additive.
+    return {
+      mode: "sign-only",
+      signed: outcome.signed,
+      ...(outcome.fee === undefined ? {} : { fee: outcome.fee }),
+      ...(outcome.address === undefined ? {} : { address: outcome.address }),
+      ...(outcome.txId === undefined ? {} : { txId: outcome.txId }),
+    };
   }
   return outcome as unknown as Record<string, unknown>;
 }

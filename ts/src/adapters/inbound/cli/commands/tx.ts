@@ -59,7 +59,7 @@ const broadcastFields = z.object({
 export const txBroadcastSpec: ChainSpec = {
   path: ["tx", "broadcast"],
   stdin: "tx",
-  network: "required", wallet: "none", auth: "none",
+  network: "optional", wallet: "none", auth: "none",
   broadcasts: true,
   capability: "tx.broadcast",
   summary: "Broadcast a presigned transaction",
@@ -79,6 +79,41 @@ export const txBroadcastTronBinding = (svc: TronTransactionService): FamilyBindi
       }
       throw error;
     }
+  },
+});
+
+const signFields = z.object({
+  transaction: z.string().min(1)
+    .describe("unsigned TRON transaction JSON, as built (raw_data, raw_data_hex and txID must agree)"),
+});
+
+export const txSignSpec: ChainSpec = {
+  path: ["tx", "sign"],
+  network: "optional", wallet: "optional", auth: "required",
+  broadcasts: false,
+  capability: "tx.sign",
+  summary: "Sign a transaction built elsewhere, without broadcasting",
+  description:
+    "Sign a transaction built outside this CLI and output the signed result; broadcast it later\n" +
+    "with `tx broadcast`. Signs any well-formed transaction without inspecting its contents, but\n" +
+    "rejects a payload whose txID does not match its raw_data — the signature always covers the\n" +
+    "exact bytes you passed.",
+  baseFields: signFields,
+  examples: [
+    { cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'` },
+  ],
+  formatText: TextFormatters.txReceipt,
+};
+
+export const txSignTronBinding = (svc: TronTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => {
+    let tx: unknown;
+    try {
+      tx = JSON.parse(input.transaction);
+    } catch {
+      throw new UsageError("invalid_value", "TRON transaction must be JSON");
+    }
+    return svc.sign(ctx, net, tx);
   },
 });
 
