@@ -74,6 +74,51 @@ describe("TronRpcClient account permission boundary", () => {
     });
   });
 
+  it("materializes the omitted protobuf current_weight default as zero", async () => {
+    const client = new TronRpcClient("https://node.invalid", 100);
+    vi.spyOn(client.tronweb.trx, "getSignWeight").mockResolvedValue({
+      result: { code: "NOT_ENOUGH_PERMISSION" },
+      permission: {
+        permission_name: "owner",
+        threshold: 1,
+        keys: [{ address: A_HEX, weight: 1 }],
+      },
+    } as never);
+    const transaction = decodeTransactionHex(encodeTransactionHex({
+      visible: false,
+      raw_data: {
+        contract: [{
+          type: "TransferContract",
+          parameter: {
+            type_url: "type.googleapis.com/protocol.TransferContract",
+            value: {
+              owner_address: A_HEX,
+              to_address: B_HEX,
+              amount: 1,
+            },
+          },
+        }],
+        ref_block_bytes: "1234",
+        ref_block_hash: "0011223344556677",
+        timestamp: 1_900_000_000_000,
+        expiration: 1_900_000_060_000,
+      },
+    }));
+
+    await expect(
+      client.getSignWeight(transaction),
+    ).resolves.toMatchObject({
+      permission: {
+        id: 0,
+        threshold: 1,
+        keys: [{ address: A, weight: 1 }],
+      },
+      approvedList: [],
+      currentWeight: 0,
+      resultCode: "NOT_ENOUGH_PERMISSION",
+    });
+  });
+
   it("maps an empty account response to not_found", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
     await expect(new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A))
