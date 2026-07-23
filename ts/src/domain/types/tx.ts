@@ -123,6 +123,7 @@ export interface TxReceiptView {
   assetId?: string;
   decimals?: number;
   to?: string;
+  toContact?: string;
   receiver?: string;
   resource?: string;
   votes?: Array<{ witness: string; count: number }>;

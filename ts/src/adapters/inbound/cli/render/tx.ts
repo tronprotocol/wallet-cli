@@ -170,7 +170,10 @@ function receiptRows(r: TxReceiptView): Pair[] {
     rows.push(["Address", String(r.address ?? "")])
     rows.push([r.field === "id" ? "ID" : "Name", String(r.value ?? "")])
   }
-  else if (r.to ?? r.receiver) rows.push(["To", String(r.to ?? r.receiver)])
+  else if (r.to ?? r.receiver) {
+    const address = String(r.to ?? r.receiver)
+    rows.push(["To", r.toContact ? `${r.toContact} (${address})` : address])
+  }
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")])
   return rows
 }
