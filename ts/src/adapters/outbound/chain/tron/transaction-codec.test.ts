@@ -31,6 +31,9 @@ function fixture(type: string, value: Record<string, unknown>) {
 }
 
 const CASES: Array<[string, Record<string, unknown>]> = [
+  ["AccountCreateContract", { owner_address: OWNER, account_address: OTHER }],
+  ["AccountUpdateContract", { owner_address: OWNER, account_name: "41636d65205472656173757279" }],
+  ["SetAccountIdContract", { owner_address: OWNER, account_id: "61636d652d74726561737572792d3031" }],
   ["TransferContract", { owner_address: OWNER, to_address: OTHER, amount: 123 }],
   ["TransferAssetContract", { owner_address: OWNER, to_address: OTHER, asset_name: "31303030303031", amount: 456 }],
   ["TriggerSmartContract", { owner_address: OWNER, contract_address: OTHER, data: "a9059cbb", call_value: 0 }],

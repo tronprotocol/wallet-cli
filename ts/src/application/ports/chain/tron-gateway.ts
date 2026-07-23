@@ -177,6 +177,7 @@ export interface TronGateway extends Broadcaster {
   getMultiSignFee(): Promise<number>;
   getNativeBalance(address: string): Promise<string>;
   getAccount(address: string): Promise<TronAccount>;
+  getAccountById(accountId: string): Promise<TronAccount>;
   getAccountResources(address: string): Promise<TronAccountResources>;
   getBlock(number?: string): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
@@ -196,6 +197,9 @@ export interface TronGateway extends Broadcaster {
   getTrc10Balance(assetId: string, address: string): Promise<string>;
   getTrc10Info(assetId: string): Promise<TronTokenInfo>;
   buildNativeTransfer(from: string, to: string, amountSun: string): Promise<UnsignedTx>;
+  buildAccountCreate(owner: string, target: string): Promise<UnsignedTx>;
+  buildAccountUpdate(owner: string, accountName: string): Promise<UnsignedTx>;
+  buildSetAccountId(owner: string, accountId: string): Promise<UnsignedTx>;
   buildTrc20Transfer(
     from: string,
     to: string,

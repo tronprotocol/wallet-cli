@@ -88,7 +88,8 @@ export type TxReceiptKind =
   | "send" | "broadcast" | "sign"
   | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
   | "contract-send" | "contract-deploy"
-  | "vote-cast" | "reward-withdraw" | "permission-update";
+  | "vote-cast" | "reward-withdraw" | "permission-update"
+  | "account-activate" | "account-set";
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
@@ -105,6 +106,9 @@ export interface TxReceiptView {
   // plan / sign-only
   /** address that produced the signature (sign-only outcomes). */
   address?: string;
+  payer?: string;
+  field?: "name" | "id";
+  value?: string;
   fee?: FeeReport;
   tx?: UnsignedTx;
   signed?: SignedTx;
