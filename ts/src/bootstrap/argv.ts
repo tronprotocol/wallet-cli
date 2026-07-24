@@ -11,10 +11,20 @@ const {
   secretStdinFlags: SECRET_STDIN_FLAGS,
 } = globalTokenMaps();
 
+/** A value flag whose supplied value failed coercion — surfaced by the runner as invalid_value. */
+export interface InvalidGlobal {
+  flag: string;
+  value: string;
+  reason: string;
+}
+
 /** Pre-yargs scan needed to select output and secret channels before the CLI adapter is built. */
-export function parseGlobals(tokens: string[]): { globals: Globals; secretPaths: SecretPaths } {
+export function parseGlobals(
+  tokens: string[],
+): { globals: Globals; secretPaths: SecretPaths; invalid: InvalidGlobal[] } {
   const globals = { verbose: false } as Globals;
   const secretPaths: SecretPaths = {};
+  const invalid: InvalidGlobal[] = [];
   for (let i = 0; i < tokens.length; i++) {
     let token = tokens[i]!;
     let inlineValue: string | undefined;
@@ -28,7 +38,9 @@ export function parseGlobals(tokens: string[]): { globals: Globals; secretPaths:
     if (valueKey) {
       const value = inlineValue ?? tokens[++i];
       if (value !== undefined) {
-        (globals as unknown as Record<string, unknown>)[valueKey] = coerceGlobalValue(valueKey, value);
+        const coerced = coerceGlobalValue(valueKey, value);
+        if (coerced.ok) (globals as unknown as Record<string, unknown>)[valueKey] = coerced.value;
+        else invalid.push({ flag: token, value, reason: coerced.reason });
       }
       continue;
     }
@@ -42,7 +54,7 @@ export function parseGlobals(tokens: string[]): { globals: Globals; secretPaths:
     const booleanField = BOOLEAN_FLAGS[token];
     if (booleanField) (globals as unknown as Record<string, unknown>)[booleanField] = true;
   }
-  return { globals, secretPaths };
+  return { globals, secretPaths, invalid };
 }
 
 /** True when argv contains a command token rather than only global flags and their values. */

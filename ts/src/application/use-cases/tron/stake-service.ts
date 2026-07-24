@@ -1,5 +1,5 @@
 import type { NetworkDescriptor, TxReceiptKind, UnsignedTx } from "../../../domain/types/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { toRpcCode, type Resource } from "../../../domain/resources/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -147,7 +147,15 @@ export class TronStakeService {
 
   withdraw(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
     return this.transact("stake-withdraw", scope, network, input,
-      (gateway, owner) => gateway.buildWithdrawExpireUnfreeze(owner));
+      async (gateway, owner) => {
+        // WithdrawExpireUnfreeze with nothing withdrawable passes the node's broadcast-time checks
+        // but never confirms, leaving a phantom txid. Reject up front (dry-run too) — the amount is
+        // a cheap, authoritative query, unlike duplicating the node's full validation rules.
+        if (BigInt(await gateway.getCanWithdrawUnfreezeAmount(owner)) <= 0n) {
+          throw new ChainError("nothing_to_withdraw", "no expired unfrozen TRX available to withdraw");
+        }
+        return gateway.buildWithdrawExpireUnfreeze(owner);
+      });
   }
 
   cancelUnfreeze(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {

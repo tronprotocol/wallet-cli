@@ -30,19 +30,27 @@ describe("parseGlobals", () => {
     expect(globals.output).toBe("json");
   });
 
-  it("drops an invalid --timeout to undefined (falls back to config) instead of NaN", () => {
-    expect(parseGlobals(["--timeout", "abc"]).globals.timeoutMs).toBeUndefined();
-    expect(parseGlobals(["--timeout", "-5"]).globals.timeoutMs).toBeUndefined();
-    expect(parseGlobals(["--timeout", "0"]).globals.timeoutMs).toBeUndefined(); // 0ms = instant-abort, not a usable bound
-    expect(parseGlobals(["--timeout", "2000"]).globals.timeoutMs).toBe(2000);
+  it("rejects an invalid --timeout as invalid (never falls back to the default)", () => {
+    for (const raw of ["abc", "-5", "0"]) { // 0ms = instant-abort, not a usable bound
+      const { globals, invalid } = parseGlobals(["--timeout", raw]);
+      expect(globals.timeoutMs).toBeUndefined();
+      expect(invalid).toEqual([{ flag: "--timeout", value: raw, reason: "must be a number >= 1" }]);
+    }
+    const ok = parseGlobals(["--timeout", "2000"]);
+    expect(ok.globals.timeoutMs).toBe(2000);
+    expect(ok.invalid).toEqual([]);
   });
 
   it("accepts --wait-timeout 0 (poll cap of 0 = give up after one poll)", () => {
-    expect(parseGlobals(["--wait-timeout", "0"]).globals.waitTimeoutMs).toBe(0);
+    const { globals, invalid } = parseGlobals(["--wait-timeout", "0"]);
+    expect(globals.waitTimeoutMs).toBe(0);
+    expect(invalid).toEqual([]);
   });
 
-  it("leaves an invalid --output undefined (yargs choices reports it) rather than silently 'text'", () => {
-    expect(parseGlobals(["--output", "xml"]).globals.output).toBeUndefined();
+  it("rejects an invalid --output instead of silently defaulting to 'text'", () => {
+    const bad = parseGlobals(["--output", "xml"]);
+    expect(bad.globals.output).toBeUndefined();
+    expect(bad.invalid).toEqual([{ flag: "--output", value: "xml", reason: "must be one of: text, json" }]);
     expect(parseGlobals(["--output", "json"]).globals.output).toBe("json");
   });
 

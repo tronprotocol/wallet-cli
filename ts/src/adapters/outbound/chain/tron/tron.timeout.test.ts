@@ -15,6 +15,14 @@ describe("TronRpcClient timeout", () => {
     await expect(client.getContract(ADDR)).rejects.toMatchObject({ code: "timeout" });
   });
 
+  it("getContractMetadata fails not_found when no contract is deployed at the address", async () => {
+    const client = new TronRpcClient("http://localhost:1", 20);
+    // tronweb returns {} for an address with no contract (e.g. a plain account).
+    client.tronweb.trx.getContract = (() => Promise.resolve({})) as never;
+    client.tronweb.trx.getContractInfo = (() => Promise.resolve({})) as never;
+    await expect(client.getContractMetadata(ADDR)).rejects.toMatchObject({ code: "not_found" });
+  });
+
   it("getAccount aborts its fetch at timeoutMs (best-effort, does not hang)", async () => {
     // fetch that only settles when its abort signal fires — proves the signal is wired to timeoutMs.
     // hangs unless an abort signal is wired — a missing signal must fail the test, not pass it.
