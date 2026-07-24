@@ -171,6 +171,33 @@ describe("Ledger app-setting errors", () => {
   });
 });
 
+describe("Ledger unsupported instruction (0x6d00)", () => {
+  // 0x6d00 (INS_NOT_SUPPORTED) is a standard Ledger/ISO status word shared by every app, not
+  // TRON-specific: the installed app version does not implement the instruction, or the wrong app is
+  // open. It must map to a generic hint, not the opaque "auth_required / …(0x6d00)".
+  it("maps INS_NOT_SUPPORTED to a generic, chain-agnostic ledger_unsupported error", async () => {
+    const apdu = Object.assign(new Error("Ledger device: INS_NOT_SUPPORTED (0x6d00)"), { statusCode: 0x6d00 });
+    failures.tip712 = apdu;
+    let err: unknown;
+    try {
+      await new Ledger(2000).signTypedData("tron", PATH, {
+        domain: { name: "X", version: "1", chainId: 1 },
+        types: { A: [{ name: "x", type: "uint256" }] },
+        message: { x: "1" },
+      });
+    } catch (e) {
+      err = e;
+    } finally {
+      failures.tip712 = undefined;
+    }
+    const m = err as { code?: string; message: string };
+    expect(m.code).toBe("ledger_unsupported");
+    expect(m.message).toMatch(/does not support this operation/i);
+    // The message must not leak a chain or operation name — it fires for any app and any call.
+    expect(m.message).not.toMatch(/tip-?712|tron|typed[- ]?data|eip-?712/i);
+  });
+});
+
 describe("Ledger TIP-712", () => {
   const domain = { name: "SunPerp", version: "1", chainId: 728126428 };
   const types = { Order: [{ name: "trader", type: "address" }, { name: "size", type: "uint256" }] };

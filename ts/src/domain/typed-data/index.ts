@@ -22,6 +22,16 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** Whether `name` appears as a field type (bare or as an array element) of any struct in `types`. */
+function isReferencedType(types: Record<string, TypedDataField[]>, name: string): boolean {
+  for (const fields of Object.values(types)) {
+    for (const f of fields) {
+      if (f.type.replace(/(\[\d*\])+$/, "") === name) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Validate and canonicalize a caller-supplied typed-data payload.
  * - `EIP712Domain` is dropped from `types`: it describes `domain`, it is not a struct to hash,
@@ -58,6 +68,12 @@ export function normalizeTypedData(raw: unknown): TypedDataPayload {
   }
   if (typeof primaryType === "string" && !(primaryType in structs)) {
     throw new UsageError("invalid_value", `typed data \`primaryType\` "${primaryType}" is not declared in types`);
+  }
+  // The signed message is always the root struct — the one no other struct references. A supplied
+  // primaryType that IS referenced (directly or through an array field) is nested, so it can never be
+  // what gets signed; reject it rather than sign the root while echoing the caller's nested type.
+  if (typeof primaryType === "string" && isReferencedType(structs, primaryType)) {
+    throw new UsageError("invalid_value", `typed data \`primaryType\` "${primaryType}" is not a root type; it is referenced as a field type, so it cannot be the message root`);
   }
 
   return { domain, types: structs, ...(primaryType === undefined ? {} : { primaryType }), message };

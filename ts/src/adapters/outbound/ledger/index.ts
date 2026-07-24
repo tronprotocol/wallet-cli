@@ -88,6 +88,15 @@ function classifyDeviceError(e: unknown): CliError {
   // hw-transport surfaces APDU status as statusCode; 0x6985 = user declined on the device.
   const status = (e as { statusCode?: number }).statusCode;
   if (status === 0x6985) return new ChainError("signing_rejected", "the operation was rejected on the device");
+  // 0x6d00 (INS_NOT_SUPPORTED) is a standard status word every Ledger app shares — the app version
+  // does not implement this instruction, or the wrong app is open. Kept chain- and operation-agnostic
+  // on purpose: classifyDeviceError fires for any family and any call.
+  if (status === 0x6d00) {
+    return new WalletError(
+      "ledger_unsupported",
+      "the Ledger app does not support this operation — make sure the correct app is open on the device and updated to its latest version",
+    );
+  }
   const setting = status === undefined ? undefined : APP_SETTING_REQUIRED[status];
   if (setting) return new WalletError("ledger_setting_required", setting);
   return new ExecutionError("auth_required", `Ledger device error: ${errMessage(e)}`);
