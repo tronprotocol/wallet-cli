@@ -26,6 +26,7 @@ import {
   tokenRemoveTronBinding,
 } from "../../adapters/inbound/cli/commands/token.js";
 import { messageSignSpec, messageSignBinding } from "../../adapters/inbound/cli/commands/shared.js";
+import { typedDataSignSpec, typedDataSignBinding } from "../../adapters/inbound/cli/commands/typed-data.js";
 import {
   txBroadcastSpec,
   txBroadcastTronBinding,
@@ -33,6 +34,8 @@ import {
   txInfoTronBinding,
   txSendSpec,
   txSendTronBinding,
+  txSignSpec,
+  txSignTronBinding,
   txStatusSpec,
   txStatusTronBinding,
 } from "../../adapters/inbound/cli/commands/tx.js";
@@ -73,6 +76,7 @@ import { TronRewardService } from "../../application/use-cases/tron/reward-servi
 import { TronChainService } from "../../application/use-cases/tron/chain-service.js";
 import { TronBlockService } from "../../application/use-cases/tron/block-service.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
+import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
@@ -104,6 +108,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   );
   const token = new TronTokenService(deps.gateways, deps.tokens);
   const message = new MessageService(deps.signers);
+  const typedData = new TypedDataService(deps.signers);
   const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
@@ -122,7 +127,9 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(tokenListSpec, "tron", tokenListTronBinding(token));
   reg.addChain(tokenRemoveSpec, "tron", tokenRemoveTronBinding(token));
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
+  reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
+  reg.addChain(txSignSpec, "tron", txSignTronBinding(transaction));
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(transaction));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));

@@ -127,7 +127,7 @@ function loadTestPrivateKey(): string | undefined {
     if (!existsSync(path)) continue;
     for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
       const m = line.match(/^\s*TEST_TRON_PRIVATE_KEY\s*=\s*(.+?)\s*$/);
-      if (m) return m[1].replace(/^(['"])(.*)\1$/, "$2");
+      if (m) return m[1]!.replace(/^(['"])(.*)\1$/, "$2");
     }
   }
   return undefined;

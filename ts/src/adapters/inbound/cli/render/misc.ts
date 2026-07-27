@@ -26,6 +26,15 @@ export const MiscFormatters = {
       ["Signature", String(d.signature ?? "")],
     ])
   }) satisfies TextFormatter,
+  typedDataSign: ((data) => {
+    const d = asObj(data)
+    return receipt(ok(), "Signed typed data", [
+      ["Address", String(d.address ?? "")],
+      ["Type", String(d.primaryType ?? "")],
+      ["Digest", String(d.digest ?? "")],
+      ["Signature", String(d.signature ?? "")],
+    ])
+  }) satisfies TextFormatter,
   block: ((data) => {
     const block = asObj(asObj(data).block)
     const header = asObj(asObj(block.block_header).raw_data)

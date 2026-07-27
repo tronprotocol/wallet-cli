@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect , vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,6 +18,11 @@ import { isChainCommand } from "../contracts/index.js";
 import type { CommandDefinition, Globals } from "../contracts/index.js";
 import { Derivation } from "../../../../domain/derivation/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
+
+// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
+vi.mock("@noble/hashes/scrypt.js", async () =>
+  import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
+);
 
 // ── test constants ─────────────────────────────────────────────────────────────
 const VALID_MNEMONIC = "test test test test test test test test test test test junk";
