@@ -4,12 +4,12 @@ import { StreamManager } from "../stream/index.js";
 import { createOutputFormatter } from "../output/index.js";
 import type { Globals } from "../contracts/index.js";
 
-function ctxWith(output: "text" | "json") {
+function ctxWith(output: "text" | "json", overrides: Partial<Globals> = {}) {
   const out: string[] = [];
   const err: string[] = [];
   const sm = new StreamManager(output, false, (s) => out.push(s), (s) => err.push(s));
   const formatter = createOutputFormatter(output, sm, 0);
-  const globals = { output, verbose: false } as Globals;
+  const globals = { output, verbose: false, ...overrides } as Globals;
   // only streams + formatter are exercised by emit(); the rest is lazily used elsewhere.
   const deps = { config: { timeoutMs: 1 }, streams: sm, formatter } as unknown as RuntimeDeps;
   return { ctx: buildExecutionContext(globals, deps), out, err };
@@ -27,5 +27,14 @@ describe("ExecutionContext.emit (progress events)", () => {
     const { ctx, err } = ctxWith("text");
     ctx.emit({ type: "broadcasting" });
     expect(err[0]).toContain("broadcasting");
+  });
+});
+
+describe("ExecutionContext direct address target", () => {
+  it("resolves a valid --account address without requiring a local wallet record", () => {
+    const address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
+    const { ctx } = ctxWith("json", { account: address });
+    expect(ctx.activeAccount).toBe(address);
+    expect(ctx.resolveAddress("tron")).toBe(address);
   });
 });
