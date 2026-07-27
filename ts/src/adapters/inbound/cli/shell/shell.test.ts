@@ -1,9 +1,45 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import { gapFillRequiredFields, isInteractiveCommand } from "./index.js";
+import {
+  bindGroupedPositionals,
+  gapFillRequiredFields,
+  isInteractiveCommand,
+} from "./index.js";
 import { accountRef } from "../arity/index.js";
 import type { CommandDefinition } from "../contracts/index.js";
 import type { Prompter as PrompterType } from "../input/prompt/index.js";
+
+describe("grouped leaf positionals", () => {
+  const command = {
+    path: ["contact", "add"],
+    positionals: [{ field: "name" }, { field: "address" }],
+  };
+
+  it("binds args to the resolved leaf's declared fields", () => {
+    expect(bindGroupedPositionals(command, {
+      verb: "add",
+      args: ["alice", "Taddress"],
+    })).toMatchObject({
+      verb: "add",
+      name: "alice",
+      address: "Taddress",
+    });
+  });
+
+  it("rejects too many or ambiguously duplicated arguments", () => {
+    expect(() =>
+      bindGroupedPositionals(command, {
+        args: ["alice", "Taddress", "extra"],
+      })
+    ).toThrow(/too many positional/);
+    expect(() =>
+      bindGroupedPositionals(command, {
+        args: ["alice"],
+        name: "bob",
+      })
+    ).toThrow(/both positionally/);
+  });
+});
 
 // ── fake prompter ─────────────────────────────────────────────────────────────
 

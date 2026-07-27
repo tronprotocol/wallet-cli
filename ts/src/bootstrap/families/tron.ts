@@ -4,6 +4,8 @@ import { TronRpcClient } from "../../adapters/outbound/chain/tron/tron.js";
 import { TronGridHistoryReader } from "../../adapters/outbound/chain/tron/history-reader.js";
 import { blockSpec, blockTronBinding } from "../../adapters/inbound/cli/commands/block.js";
 import {
+  accountActivateSpec,
+  accountActivateTronBinding,
   accountBalanceSpec,
   accountBalanceTronBinding,
   accountHistorySpec,
@@ -12,6 +14,8 @@ import {
   accountInfoTronBinding,
   accountPortfolioSpec,
   accountPortfolioTronBinding,
+  accountSetSpec,
+  accountSetTronBinding,
 } from "../../adapters/inbound/cli/commands/account.js";
 import {
   tokenAddSpec,
@@ -28,14 +32,24 @@ import {
 import { messageSignSpec, messageSignBinding } from "../../adapters/inbound/cli/commands/shared.js";
 import { typedDataSignSpec, typedDataSignBinding } from "../../adapters/inbound/cli/commands/typed-data.js";
 import {
+  permissionShowSpec,
+  permissionShowTronBinding,
+  permissionUpdateSpec,
+  permissionUpdateTronBinding,
+} from "../../adapters/inbound/cli/commands/permission.js";
+import {
   txBroadcastSpec,
   txBroadcastTronBinding,
+  txApprovalsSpec,
+  txApprovalsTronBinding,
   txInfoSpec,
   txInfoTronBinding,
   txSendSpec,
   txSendTronBinding,
   txSignSpec,
   txSignTronBinding,
+  txTronLinkMultisigBinding,
+  txTronLinkMultisigSpec,
   txStatusSpec,
   txStatusTronBinding,
 } from "../../adapters/inbound/cli/commands/tx.js";
@@ -77,12 +91,29 @@ import { TronChainService } from "../../application/use-cases/tron/chain-service
 import { TronBlockService } from "../../application/use-cases/tron/block-service.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
+import { TronPermissionService } from "../../application/use-cases/tron/permission-service.js";
+import { TronMultisigService } from "../../application/use-cases/tron/multisig-service.js";
+import { TronLinkMultisigService } from "../../application/use-cases/tron/tronlink-multisig-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
+import type { AccountStore } from "../../application/ports/account-store.js";
+import { TransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
 import type { FamilyPlugin } from "./types.js";
+import type { TronLinkCollaborationPort } from "../../application/ports/tronlink-collaboration.js";
+import type { GasFreeProvider } from "../../application/ports/gasfree-provider.js";
+import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
+import { GasFreeService } from "../../application/use-cases/tron/gasfree-service.js";
+import {
+  gasFreeInfoSpec,
+  gasFreeInfoTronBinding,
+  gasFreeTraceSpec,
+  gasFreeTraceTronBinding,
+  gasFreeTransferSpec,
+  gasFreeTransferTronBinding,
+} from "../../adapters/inbound/cli/commands/gasfree.js";
 
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
@@ -96,7 +127,11 @@ export interface TronChainCommandDependencies {
   prices: PriceProvider;
   signers: SignerResolver;
   transactions: TxPipeline;
+  accounts: AccountStore;
   timeoutMs: number;
+  tronlink: TronLinkCollaborationPort;
+  gasfree: GasFreeProvider;
+  recipients: RecipientResolver;
 }
 
 export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainCommandDependencies): void {
@@ -105,11 +140,26 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
     new TronGridHistoryReader(deps.timeoutMs),
     deps.tokens,
     deps.prices,
+    deps.transactions,
   );
   const token = new TronTokenService(deps.gateways, deps.tokens);
   const message = new MessageService(deps.signers);
   const typedData = new TypedDataService(deps.signers);
-  const transaction = new TronTransactionService(deps.gateways, deps.tokens, deps.transactions);
+  const transaction = new TronTransactionService(
+    deps.gateways,
+    deps.tokens,
+    deps.transactions,
+    deps.recipients,
+  );
+  const multisig = new TronMultisigService(deps.gateways, deps.signers);
+  const tronlink = new TronLinkMultisigService(deps.tronlink, deps.gateways, multisig);
+  const gasfree = new GasFreeService(
+    deps.gasfree,
+    deps.gateways,
+    deps.signers,
+    deps.recipients,
+  );
+  const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
   const reward = new TronRewardService(deps.gateways, deps.transactions);
@@ -117,10 +167,12 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const contract = new TronContractService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
+  reg.addChain(accountActivateSpec, "tron", accountActivateTronBinding(account));
   reg.addChain(accountBalanceSpec, "tron", accountBalanceTronBinding(account));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
   reg.addChain(accountHistorySpec, "tron", accountHistoryTronBinding(account));
   reg.addChain(accountPortfolioSpec, "tron", accountPortfolioTronBinding(account));
+  reg.addChain(accountSetSpec, "tron", accountSetTronBinding(account));
   reg.addChain(tokenBalanceSpec, "tron", tokenBalanceTronBinding(token));
   reg.addChain(tokenInfoSpec, "tron", tokenInfoTronBinding(token));
   reg.addChain(tokenAddSpec, "tron", tokenAddTronBinding(token));
@@ -129,10 +181,21 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
-  reg.addChain(txSignSpec, "tron", txSignTronBinding(transaction));
-  reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(transaction));
+  reg.addChain(txSignSpec, "tron", txSignTronBinding(
+    transaction,
+    multisig,
+    new TransactionArtifactWriter(),
+  ));
+  reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
+  reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(tronlink));
+  reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
+  reg.addChain(gasFreeTransferSpec, "tron", gasFreeTransferTronBinding(gasfree));
+  reg.addChain(gasFreeTraceSpec, "tron", gasFreeTraceTronBinding(gasfree));
+  reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
+  reg.addChain(permissionShowSpec, "tron", permissionShowTronBinding(permission));
+  reg.addChain(permissionUpdateSpec, "tron", permissionUpdateTronBinding(permission));
   for (const definition of stakeDefinitions(stake)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }

@@ -9,6 +9,9 @@ import { TextFormatters } from "../render/index.js";
 import { isChainCommand } from "../contracts/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import type { ConfigService } from "../../../../application/use-cases/config-service.js";
+import { registerContactCommands } from "./contact.js";
+import { registerAddressCommands } from "./address.js";
+import { registerEncodingCommands } from "./encoding.js";
 
 const ctx = (over: Partial<TextRenderContext> = {}): TextRenderContext => ({ command: "x", ...over });
 
@@ -18,6 +21,9 @@ describe("text formatters", () => {
     registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
     registerConfigCommands(registry, {} as ConfigService);
     registerNetworkCommands(registry);
+    registerContactCommands(registry, {} as never);
+    registerAddressCommands(registry, {} as never);
+    registerEncodingCommands(registry, {} as never);
     registerTronChainCommands(registry, {} as TronChainCommandDependencies);
 
     const missing = registry.all()
@@ -43,6 +49,27 @@ describe("accountBalance formatter", () => {
     const out = TextFormatters.accountBalance({ address: "TXaddress", balance: "1", decimals: 6, symbol: "TRX" }, ctx({ accountLabel: "main" }));
     expect(out).toContain("main");
     expect(out).not.toContain("TXaddress");
+  });
+});
+
+describe("walletCurrent formatter", () => {
+  it("renders a receive QR followed by the full address for manual verification", () => {
+    const out = TextFormatters.walletCurrent({
+      accountId: "wlt_selected",
+      label: "treasury",
+      active: false,
+      addresses: {
+        tron: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+      },
+      receiveQr: "█▀█\n▀▄▀",
+      receiveAddress: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    });
+
+    expect(out).toContain("Selected account: treasury");
+    expect(out).toContain("█▀█\n▀▄▀");
+    expect(out).toMatch(
+      /█▀█\n▀▄▀\nReceive address\s+TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC/,
+    );
   });
 });
 
@@ -195,6 +222,59 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("Staked");
     expect(out).toContain("2 TRX");
     expect(out).toContain("energy");
+  });
+});
+
+describe("local multisig formatters", () => {
+  const approval = {
+    txId: "abc123",
+    contractType: "TransferContract",
+    operation: "TransferContract",
+    from: "Towner",
+    to: "Trecipient",
+    rawAmount: "1000000",
+    permission: { id: 2, name: "operations", threshold: 2 },
+    currentWeight: 1,
+    missingWeight: 1,
+    thresholdReached: false,
+    approved: [{ address: "Tsigner", weight: 1 }],
+    expiration: Date.now() + 60_000,
+    expired: false,
+    signatures: 1,
+  };
+
+  it("shows permission progress and approved signer weight", () => {
+    const out = TextFormatters.txApprovals(approval) as string;
+    expect(out).toContain('active "operations" (id 2)');
+    expect(out).toContain("Progress  1 / 2");
+    expect(out).toContain("1 more weight needed");
+    expect(out).toContain("Tsigner");
+  });
+
+  it("shows the next broadcast command only after threshold is reached", () => {
+    const pending = TextFormatters.txSign({
+      kind: "tx-sign",
+      signer: "Tsigner",
+      signerWeight: 1,
+      hex: "aabb",
+      transaction: approval,
+    }) as string;
+    expect(pending).not.toContain("wallet-cli tx broadcast");
+
+    const ready = TextFormatters.txSign({
+      kind: "tx-sign",
+      signer: "Tsigner2",
+      signerWeight: 1,
+      hex: "ccdd",
+      out: "signed.hex",
+      transaction: {
+        ...approval,
+        currentWeight: 2,
+        missingWeight: 0,
+        thresholdReached: true,
+      },
+    }) as string;
+    expect(ready).toContain("wallet-cli tx broadcast --file signed.hex");
   });
 });
 

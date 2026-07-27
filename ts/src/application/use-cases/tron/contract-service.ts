@@ -3,9 +3,15 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronContractParameter } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
+import {
+  outcomeData,
+  transactionMode,
+  transactionRequiresSigner,
+  type TransactionModeInput,
+} from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
+import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronContractService {
   constructor(
@@ -38,7 +44,7 @@ export class TronContractService {
       feeLimit: string;
     },
   ) {
-    this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -46,6 +52,7 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
+      ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (from) => gateway.triggerSmartContract(
         from,
@@ -80,7 +87,9 @@ export class TronContractService {
     },
   ) {
     // Ledger TRON app firmware cannot sign a CreateSmartContract tx — reject before any device I/O.
-    this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
+    if (transactionRequiresSigner(input)) {
+      this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
+    }
     const gateway = this.gateways.get(network, "tron");
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.run({
@@ -89,6 +98,8 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
+      ...tronTransactionHooks(gateway),
+      signerOptions: { requireSoftware: true },
       confirm: tronConfirmation(gateway, scope),
       build: async (from) => {
         const tx = await gateway.deployContract(from, input);
