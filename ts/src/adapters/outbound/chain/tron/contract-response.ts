@@ -18,6 +18,18 @@ const ContractResponseSchema = z.preprocess(
   }),
 );
 
+/**
+ * Whether a `trx.getContract` response describes a deployed contract. TronWeb returns an empty
+ * object `{}` for an address with no contract (e.g. a plain account); a real contract carries a
+ * `contract_address`/`bytecode` identity. Used to fail `contract info` as not_found rather than
+ * normalize the empty response into a valid-but-empty contract.
+ */
+export function isDeployedContract(contract: unknown): boolean {
+  if (!contract || typeof contract !== "object") return false;
+  const c = contract as Record<string, unknown>;
+  return Boolean(c.contract_address || c.bytecode);
+}
+
 export function normalizeContractResponses(contract: unknown, info: unknown): TronContractMetadata {
   const contractView = ContractResponseSchema.parse(contract);
   const infoView = ContractResponseSchema.parse(info);

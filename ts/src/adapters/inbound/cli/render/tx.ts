@@ -39,9 +39,12 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     ])
   }
   if (r.mode === "sign-only") {
+    // kv() drops empty rows, so a fee-less signature (tx sign estimates nothing) omits the Fee line.
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
-      ["Fee", formatFee(r.fee, family)],
-      ["Signed", summarizeTx(r.signed)],
+      ["Address", r.address ?? ""],
+      ["TxID", String(r.txId ?? "")],
+      ["Fee", r.fee ? formatFee(r.fee, family) : ""],
+      ...signatureRows(r.signed),
     ])
   }
   const txid = String(r.txId ?? r.hash ?? "")
@@ -128,6 +131,10 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
     }
     case "broadcast":
       return "Broadcast"
+    // `tx sign` never broadcasts, so it never reaches a broadcast summary; the case keeps the
+    // switch total over TxReceiptKind.
+    case "sign":
+      return "Signed"
   }
 }
 
@@ -168,6 +175,9 @@ function actionLabel(kind: TxReceiptKind): string {
       return "tx send"
     case "broadcast":
       return "tx broadcast"
+    // reads as "Signed transaction"; "tx sign" would render as "Signed tx sign".
+    case "sign":
+      return "transaction"
     case "stake-freeze":
       return "stake freeze"
     case "stake-unfreeze":
@@ -208,6 +218,19 @@ function formatFee(fee: unknown, family: ChainFamily): string {
     if (f.note) return String(f.note)
   }
   return FAMILY_RENDER[family].feeFallback(fee)
+}
+
+/** Signatures are the whole point of a sign-only receipt and the user has to copy them somewhere,
+ *  so they are never shortened — unlike the dry-run `Tx` row, which only identifies a blob the
+ *  command did not produce. TRON carries `signature[]` (several when co-signing a multi-sig
+ *  transaction); a family whose signed form is one opaque string shows that string instead. */
+function signatureRows(signed: unknown): Pair[] {
+  if (typeof signed === "string") return [["Signed", signed]]
+  const sigs = (signed as { signature?: unknown } | null)?.signature
+  if (Array.isArray(sigs) && sigs.length > 0) {
+    return sigs.map((s, i): Pair => [sigs.length === 1 ? "Signature" : `Signature ${i + 1}`, String(s)])
+  }
+  return [["Signed", summarizeTx(signed)]]
 }
 
 function summarizeTx(tx: unknown): string {

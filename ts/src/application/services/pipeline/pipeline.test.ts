@@ -45,6 +45,7 @@ describe("TxPipeline device-sign timeout", () => {
         return new Promise(() => {});
       },
       signMessage: async () => "",
+      signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
     const signers = { resolve: () => signer } as unknown as SignerResolver;
 

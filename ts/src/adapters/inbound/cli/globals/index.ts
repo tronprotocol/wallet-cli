@@ -73,21 +73,34 @@ const VALUE_SPEC_BY_FIELD: Record<string, GlobalFlagSpec> = Object.fromEntries(
   GLOBAL_FLAG_SPECS.filter((f) => f.kind === "value").map((f) => [specField(f), f]),
 );
 
+/** Result of coercing a value flag: a validated value, or the reason it was rejected. */
+export type GlobalCoercion =
+  | { ok: true; value: string | number }
+  | { ok: false; reason: string };
+
 /**
- * Coerce a raw value-flag string per its spec; `undefined` = invalid (caller falls back to default).
- * Derives entirely from valueType/choices: number flags accept a finite value at or above the spec's
- * `min` (default 0; --timeout sets min 1 since a 0ms bound aborts instantly), choice flags must match,
- * everything else passes through as a string.
+ * Coerce a raw value-flag string per its spec. A rejected value is `{ ok:false, reason }`, NOT a
+ * silent fallback — an out-of-range/non-matching flag is a usage error, never the default. Derives
+ * entirely from valueType/choices: number flags accept a finite value at or above the spec's `min`
+ * (default 0; --timeout sets min 1 since a 0ms bound aborts instantly), choice flags must match one
+ * of `choices`, everything else passes through as a string.
  */
-export function coerceGlobalValue(field: string, raw: string): string | number | undefined {
+export function coerceGlobalValue(field: string, raw: string): GlobalCoercion {
   const spec = VALUE_SPEC_BY_FIELD[field];
-  if (!spec) return raw;
+  if (!spec) return { ok: true, value: raw };
   if (spec.valueType === "number") {
     const n = Number(raw);
-    return Number.isFinite(n) && n >= (spec.min ?? 0) ? n : undefined;
+    const min = spec.min ?? 0;
+    return Number.isFinite(n) && n >= min
+      ? { ok: true, value: n }
+      : { ok: false, reason: `must be a number >= ${min}` };
   }
-  if (spec.choices) return spec.choices.includes(raw) ? raw : undefined;
-  return raw;
+  if (spec.choices) {
+    return spec.choices.includes(raw)
+      ? { ok: true, value: raw }
+      : { ok: false, reason: `must be one of: ${spec.choices.join(", ")}` };
+  }
+  return { ok: true, value: raw };
 }
 
 interface YargsOption {

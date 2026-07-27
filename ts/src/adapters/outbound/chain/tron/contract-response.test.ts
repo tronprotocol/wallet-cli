@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeContractResponses } from "./contract-response.js";
+import { isDeployedContract, normalizeContractResponses } from "./contract-response.js";
 
 describe("normalizeContractResponses", () => {
   it("normalizes name and ABI entry variants", () => {
@@ -19,5 +19,18 @@ describe("normalizeContractResponses", () => {
       name: "Fallback",
       methods: ["owner"],
     });
+  });
+});
+
+describe("isDeployedContract", () => {
+  it("is false for the empty response of a non-contract address", () => {
+    expect(isDeployedContract({})).toBe(false);
+    expect(isDeployedContract(undefined)).toBe(false);
+    expect(isDeployedContract(null)).toBe(false);
+  });
+
+  it("is true when the response carries a contract identity", () => {
+    expect(isDeployedContract({ contract_address: "41abc" })).toBe(true);
+    expect(isDeployedContract({ bytecode: "60806040" })).toBe(true);
   });
 });

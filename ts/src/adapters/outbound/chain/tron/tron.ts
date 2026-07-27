@@ -30,7 +30,7 @@ import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
-import { normalizeContractResponses } from "./contract-response.js";
+import { isDeployedContract, normalizeContractResponses } from "./contract-response.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -442,6 +442,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       this.getContract(address),
       this.getContractInfo(address).catch(() => undefined),
     ]);
+    // getContract is authoritative for existence: an empty response means no contract is deployed
+    // here (e.g. a plain account). Fail as not_found rather than normalize {} into an empty contract.
+    if (!isDeployedContract(contract)) {
+      throw new ChainError("not_found", `no contract deployed at ${address}`);
+    }
     return normalizeContractResponses(contract, info);
   }
 

@@ -8,7 +8,7 @@ import type { AccountRef, ChainFamily, FeeReport, NetworkDescriptor, SignedTx, T
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
-import { withTimeout } from "../../../domain/async/index.js";
+import { obtainSignature } from "../signing/obtain-signature.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 
 export interface TxPipelineParams {
@@ -36,8 +36,24 @@ export class TxPipeline {
     this.signers.assertCanSign(account, family, opts);
   }
 
+  /**
+   * Sign a transaction the caller built elsewhere. Shares signer resolution and the device
+   * preliminaries with `run`, but has no build/estimate/broadcast phase — there is nothing to estimate
+   * for a transaction we did not construct, and nothing to broadcast here.
+   */
+  async signOnly(p: {
+    ctx: TransactionScope;
+    net: NetworkDescriptor;
+    account: AccountRef;
+    tx: UnsignedTx;
+  }): Promise<TxOutcome> {
+    this.assertCanSign(p.account, p.net.family);
+    const signer = this.signers.resolve(p.account, p.net.family);
+    const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(p.tx, opts));
+    return { stage: "signed", signed, address: signer.address, txId: txIdOf(signed) };
+  }
+
   async run(p: TxPipelineParams): Promise<TxOutcome> {
-    const { timeoutMs } = p.ctx;
     // --wait only makes sense when we actually broadcast (dry-run/sign-only never reach the chain).
     if (p.ctx.wait && !p.broadcast) {
       throw new UsageError("invalid_option", "--wait has nothing to wait for with --dry-run/--sign-only (neither broadcasts)");
@@ -45,23 +61,15 @@ export class TxPipeline {
     const signer = this.signers.resolve(p.account, p.net.family);
 
     // RPC steps (build/estimate/broadcast) are bounded by the adapter's own --timeout, so they
-    // aren't wrapped here. The one thing no RPC timeout covers is a Ledger tap that never comes:
-    // bound the device signature and abort its prompt on timeout.
+    // aren't wrapped here. The one thing no RPC timeout covers is a Ledger tap that never comes;
+    // obtainSignature bounds the device signature and aborts its prompt on timeout.
     const tx = await p.build(signer.address);
     const fee = await p.estimate(tx);
     if (p.dryRun) return { stage: "plan", tx, fee };
 
-    let signed: SignedTx;
-    if (signer.kind === "device") {
-      await signer.precheck?.();
-      p.ctx.emit({ type: "awaiting_device", reason: "sign" });
-      const ac = new AbortController();
-      signed = await withTimeout(signer.sign(tx, { signal: ac.signal }), timeoutMs, () => ac.abort());
-    } else {
-      signed = await signer.sign(tx, {});
-    }
+    const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(tx, opts));
 
-    if (!p.broadcast) return { stage: "signed", signed, fee };
+    if (!p.broadcast) return { stage: "signed", signed, fee, address: signer.address, txId: txIdOf(signed) };
     const result = await p.broadcaster.broadcast(signed);
     const txId = String(result.txId ?? result.hash ?? "");
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).
@@ -89,4 +97,11 @@ export class TxPipeline {
     }
     return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
   }
+}
+
+/** best-effort transaction id of a signed tx, for the sign-only receipt (TRON: txID). */
+function txIdOf(signed: SignedTx): string | undefined {
+  const s = signed as { txID?: unknown; hash?: unknown } | null;
+  const id = s?.txID ?? s?.hash;
+  return typeof id === "string" ? id : undefined;
 }

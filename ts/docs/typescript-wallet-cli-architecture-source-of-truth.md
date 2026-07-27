@@ -277,7 +277,7 @@ interface FamilyPlugin<F extends ChainFamily> {
 | `path` | Neutral commands use the full path; chain commands use a cross-family logical path. |
 | `family` | Omitted for neutral commands; when present, the resolved network selects the family implementation. |
 | `stdin` | A dedicated **command-scoped** stdin channel, one of `tx` or `message` (signed-tx JSON / message to sign). This field does not cover the master password, which is fed by the **global** `--password-stdin` (see the CLI surface section). Wallet secrets (`mnemonic`, `privateKey`) and the master-password *change* are TTY-only and have no stdin flag — see `secretsTtyOnly`. |
-| `network` | `none`, `optional`, `required`; today both optional/required can fall back to the default network. |
+| `network` | `none` (never touches a chain) or `optional` (resolves `--network`, else `config.defaultNetwork`). There is no `required`: the default-network fallback always applies, so nothing can demand an explicit `--network`. |
 | `wallet` | `none` or `optional`; optional can override the active account with `--account`. |
 | `auth` | An unlock declaration for help/catalog; actual software signing uses lazy decrypt. |
 | `broadcasts` | Controls whether help reveals `--wait`. |
@@ -493,7 +493,7 @@ interface TronNetworkDescriptor {
 | `tron:nile` | `nile` | `https://nile.trongrid.io` |
 | `tron:shasta` | `shasta` | `https://api.shasta.trongrid.io` |
 
-Canonical-id resolution is case-insensitive. Aliases remain descriptor metadata but are not accepted as network selectors. Both `network: optional/required` adopt `config.defaultNetwork` when not specified, and that value must be a canonical id. Ledger/watch pin a single family, and a family mismatch must fail before any RPC.
+Canonical-id resolution is case-insensitive. Aliases remain descriptor metadata but are not accepted as network selectors. `network: optional` adopts `config.defaultNetwork` when `--network` is not specified, and that value must be a canonical id. Ledger/watch pin a single family, and a family mismatch must fail before any RPC.
 
 `ChainGatewayRegistry` is injected with the family factory by Bootstrap and caches the client by network id. Its generic `client()` may only use the truly common minimal capabilities; a family use case obtains the `TronGateway` via the guarded `get(net, "tron")`. TRON staking and the future EVM gas/nonce must not be forced into a universal gateway.
 
