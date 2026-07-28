@@ -42,7 +42,7 @@ export const gasFreeTransferSpec: ChainSpec = {
   path: ["gasfree", "transfer"],
   network: "optional",
   wallet: "optional",
-  auth: "required",
+  auth: "conditional",
   broadcasts: true,
   capability: "gasfree.transfer",
   requires: [

@@ -38,7 +38,7 @@ export const permissionUpdateSpec: ChainSpec = {
   path: ["permission", "update"],
   network: "optional",
   wallet: "optional",
-  auth: "required",
+  auth: "conditional",
   broadcasts: true,
   capability: "permission.update",
   summary: "Replace the complete account permission structure",
