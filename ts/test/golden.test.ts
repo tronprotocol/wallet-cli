@@ -60,7 +60,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"])
     expect(r.status).toBe(0)
-    expect(r.stdout.trim()).toBe("4.10.1")
+    expect(r.stdout.trim()).toBe("4.11.0")
   })
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -529,7 +529,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     const r = run(["--output", "json", "token", "list"])
     expect(r.status).toBe(0)
     expect(r.json.data.network).toBe("tron:mainnet")
-    expect(r.json.data.tokens.map((t: { symbol: string }) => t.symbol)).toEqual(["USDT", "USDC"])
+    expect(r.json.data.tokens.map((t: { symbol: string }) => t.symbol)).toEqual(["USDT", "USDC", "USDD"])
     expect(r.json.data.tokens.every((t: { source: string }) => t.source === "official")).toBe(true)
   })
 
@@ -541,13 +541,12 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     expect(r.json.chain.network).toBe("tron:mainnet")
   })
 
-  it("token list shows a user-added token tagged user (nile, empty official layer)", () => {
+  it("token list lists nile's official tokens first, then a user-added token tagged user", () => {
     const ref = seedWallet()
     seedToken("tron:nile", ref, CUSTOM)
     const r = run(["--output", "json", "token", "list", "--network", "tron:nile"])
     expect(r.status).toBe(0)
-    expect(r.json.data.tokens).toHaveLength(1)
-    expect(r.json.data.tokens[0]).toMatchObject({ symbol: "CUS", source: "user" })
+    expect(r.json.data.tokens.map((t: { source: string; symbol: string }) => `${t.source}:${t.symbol}`)).toEqual(["official:USDT", "official:USDD", "user:CUS"])
   })
 
   it("token remove of an official token → token_is_official, exit 2", () => {

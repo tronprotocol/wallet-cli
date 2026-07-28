@@ -107,6 +107,27 @@ describe("TRON permission service", () => {
     });
   });
 
+  // The validator preserving unnamed bits is worthless if the builder re-derives the bitmap from
+  // the named operations — that is where the original round-trip loss happened.
+  it("hands the builder the full bitmap, unnamed bits included, and warns about them", async () => {
+    const { service, gateway } = setup();
+    const requested = permissions();
+    requested.actives[0]!.operationsHex = "82" + "00".repeat(31);
+    requested.actives[0]!.unknownOperationIds = [7];
+    const ctx = scope();
+    await service.update(ctx, NETWORK, { dryRun: true }, requested);
+    expect(gateway.buildAccountPermissionUpdate).toHaveBeenCalledWith(
+      A,
+      expect.objectContaining({
+        actives: [expect.objectContaining({
+          operationsHex: "82" + "00".repeat(31),
+          unknownOperationIds: [7],
+        })],
+      }),
+    );
+    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({ code: "active_unknown_operations" }));
+  });
+
   it("allows an offline build even when balance is currently low", async () => {
     const { service, pipeline } = setup("0");
     await expect(service.update(scope(), NETWORK, { buildOnly: true }, permissions())).resolves.toBeDefined();

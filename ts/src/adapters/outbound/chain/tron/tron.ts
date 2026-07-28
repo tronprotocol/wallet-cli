@@ -436,19 +436,20 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async getTokenInfo(contract: string): Promise<TronTokenInfo> {
     return this.#wrap("trc20 tokenInfo", async () => {
-      const c = await this.#tw.contract().at(contract);
+      // Read the view methods by selector rather than via contract().at(): tokens deployed without a
+      // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
+      const read = async (fn: string): Promise<string | undefined> =>
+        this.#constant(contract, fn, []).then(([hex]) => hex).catch(() => undefined);
       const [name, symbol, decimals, totalSupply] = await Promise.all([
-        c.name().call().catch(() => undefined),
-        c.symbol().call().catch(() => undefined),
-        c.decimals().call().catch(() => undefined),
-        c.totalSupply().call().catch(() => undefined),
+        read("name()"), read("symbol()"), read("decimals()"), read("totalSupply()"),
       ]);
+      const scale = decodeAbiUint(decimals);
       return {
         contract,
-        name: name?.toString?.() ?? name,
-        symbol: symbol?.toString?.() ?? symbol,
-        decimals: decimals !== undefined ? Number(decimals) : undefined,
-        totalSupply: totalSupply !== undefined ? BigInt(totalSupply.toString()).toString() : undefined,
+        name: decodeAbiString(name),
+        symbol: decodeAbiString(symbol),
+        decimals: scale !== undefined && scale <= 255n ? Number(scale) : undefined,
+        totalSupply: decodeAbiUint(totalSupply)?.toString(),
       };
     });
   }
@@ -912,6 +913,25 @@ export interface FeeEstimate extends Record<string, unknown> {
 }
 
 /** TRC20 metadata read via the contract's view methods; each field absent when the call reverts. */
+/** Decode an ABI-encoded return word as an unsigned integer. */
+function decodeAbiUint(hex?: string): bigint | undefined {
+  if (!hex || !/^[0-9a-fA-F]+$/.test(hex)) return undefined;
+  return BigInt("0x" + hex);
+}
+
+/** Decode an ABI-encoded return value as text; handles both dynamic `string` and legacy `bytes32`. */
+function decodeAbiString(hex?: string): string | undefined {
+  if (!hex || !/^[0-9a-fA-F]+$/.test(hex)) return undefined;
+  const buf = Buffer.from(hex, "hex");
+  if (buf.length === 32) return buf.toString("utf8").replace(/\0[\s\S]*$/, "") || undefined;
+  if (buf.length < 64) return undefined;
+  const offset = Number(BigInt("0x" + buf.subarray(0, 32).toString("hex")));
+  if (!Number.isSafeInteger(offset) || offset + 32 > buf.length) return undefined;
+  const length = Number(BigInt("0x" + buf.subarray(offset, offset + 32).toString("hex")));
+  if (!Number.isSafeInteger(length) || offset + 32 + length > buf.length) return undefined;
+  return buf.subarray(offset + 32, offset + 32 + length).toString("utf8") || undefined;
+}
+
 /** tronweb error messages are often hex-encoded ASCII; decode best-effort. */
 function decodeTronMessage(message?: string): string {
   if (!message) return "";
