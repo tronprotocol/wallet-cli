@@ -126,7 +126,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.aliases).toBeUndefined()
     const cmd = r.json.commands.find((c: { id: string }) => c.id === "tx.send")
     expect(cmd.usage).toBe("wallet-cli tx send [options]")
-    expect(cmd.requires).toMatchObject({ network: "optional", auth: "required", wallet: "optional" })
+    expect(cmd.requires).toMatchObject({ network: "optional", auth: "conditional", wallet: "optional" })
     expect(cmd.inputSchema.properties.to).toBeDefined()
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic")
     // TTY-only setup op: the mnemonic is entered interactively, so there is no --*-stdin input flag.

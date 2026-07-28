@@ -92,8 +92,9 @@ import { TronBlockService } from "../../application/use-cases/tron/block-service
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
 import { TronPermissionService } from "../../application/use-cases/tron/permission-service.js";
+import { TronSigService } from "../../application/use-cases/tron/sig-service.js";
 import { TronMultisigService } from "../../application/use-cases/tron/multisig-service.js";
-import { TronLinkMultisigService } from "../../application/use-cases/tron/tronlink-multisig-service.js";
+import { TronMultisigCollaborationService } from "../../application/use-cases/tron/multisig-collaboration-service.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
@@ -151,8 +152,13 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
     deps.transactions,
     deps.recipients,
   );
-  const multisig = new TronMultisigService(deps.gateways, deps.signers);
-  const tronlink = new TronLinkMultisigService(deps.tronlink, deps.gateways, multisig);
+  const signing = new TronSigService(deps.gateways, deps.signers);
+  const multisig = new TronMultisigService(deps.gateways, signing);
+  const multisigCollaboration = new TronMultisigCollaborationService(
+    deps.tronlink,
+    deps.gateways,
+    multisig,
+  );
   const gasfree = new GasFreeService(
     deps.gasfree,
     deps.gateways,
@@ -183,11 +189,16 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
   reg.addChain(txSignSpec, "tron", txSignTronBinding(
     transaction,
+    signing,
     multisig,
     new TransactionArtifactWriter(),
   ));
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
-  reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(tronlink));
+  reg.addChain(
+    txTronLinkMultisigSpec,
+    "tron",
+    txTronLinkMultisigBinding(multisigCollaboration),
+  );
   reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
   reg.addChain(gasFreeTransferSpec, "tron", gasFreeTransferTronBinding(gasfree));
   reg.addChain(gasFreeTraceSpec, "tron", gasFreeTraceTronBinding(gasfree));

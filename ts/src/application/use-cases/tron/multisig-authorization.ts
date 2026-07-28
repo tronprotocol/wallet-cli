@@ -3,29 +3,7 @@ import { ChainError } from "../../../domain/errors/index.js";
 import { decodeOperations } from "../../../domain/permission/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
-
-export function transactionContract(transaction: TronTransactionArtifact) {
-  const contracts = transaction.raw_data?.contract;
-  if (!Array.isArray(contracts) || contracts.length !== 1) {
-    throw new ChainError("invalid_transaction", "transaction must contain exactly one contract");
-  }
-  return contracts[0]!;
-}
-
-export function expirationOf(transaction: TronTransactionArtifact): number {
-  const expiration = transaction.raw_data.expiration;
-  if (!Number.isSafeInteger(expiration) || expiration! <= 0) {
-    throw new ChainError("invalid_transaction", "transaction expiration is missing or imprecise");
-  }
-  return expiration!;
-}
-
-export function assertNotExpired(transaction: TronTransactionArtifact, now = Date.now()): void {
-  const expiration = expirationOf(transaction);
-  if (expiration <= now) {
-    throw new ChainError("tx_expired", `transaction expired at ${new Date(expiration).toISOString()}`);
-  }
-}
+import { assertNotExpired, transactionContract } from "./transaction-artifact.js";
 
 function uniqueAddresses(addresses: readonly string[], field: string): Set<string> {
   const set = new Set(addresses);
@@ -125,13 +103,14 @@ export async function assertTronSignerAuthorized(
   }
 }
 
-/** Shared TRON transaction hooks for permission binding, protobuf artifacts, and signer preflight. */
+/**
+ * Shared transaction-construction hooks. Permission approval checks belong to explicit
+ * multi-signature workflows so ordinary signing does not depend on online approval endpoints.
+ */
 export function tronTransactionHooks(gateway: TronGateway) {
   return {
     prepare: (transaction: UnsignedTx, options: { permissionId: number; expiration?: number }) =>
       gateway.prepareTransaction(transaction, options),
     artifact: (transaction: UnsignedTx) => gateway.encodeTransactionHex(transaction),
-    preflight: (transaction: UnsignedTx, signerAddress: string) =>
-      assertTronSignerAuthorized(gateway, transaction, signerAddress),
   };
 }

@@ -252,22 +252,38 @@ describe("local multisig formatters", () => {
   });
 
   it("shows the next broadcast command only after threshold is reached", () => {
+    const transaction = {
+      txId: approval.txId,
+      contractType: approval.contractType,
+      operation: approval.operation,
+      from: approval.from,
+      to: approval.to,
+      rawAmount: approval.rawAmount,
+      permissionId: approval.permission.id,
+      expiration: approval.expiration,
+      expired: approval.expired,
+      signatures: approval.signatures,
+    };
     const pending = TextFormatters.txSign({
       kind: "tx-sign",
       signer: "Tsigner",
+      checked: true,
       signerWeight: 1,
       hex: "aabb",
-      transaction: approval,
+      transaction,
+      approval,
     }) as string;
     expect(pending).not.toContain("wallet-cli tx broadcast");
 
     const ready = TextFormatters.txSign({
       kind: "tx-sign",
       signer: "Tsigner2",
+      checked: true,
       signerWeight: 1,
       hex: "ccdd",
       out: "signed.hex",
-      transaction: {
+      transaction: { ...transaction, signatures: 2 },
+      approval: {
         ...approval,
         currentWeight: 2,
         missingWeight: 0,
@@ -275,6 +291,26 @@ describe("local multisig formatters", () => {
       },
     }) as string;
     expect(ready).toContain("wallet-cli tx broadcast --file signed.hex");
+  });
+
+  it("labels offline signing and points to the explicit approval check", () => {
+    const out = TextFormatters.txSign({
+      kind: "tx-sign",
+      signer: "Tsigner",
+      checked: false,
+      hex: "aabb",
+      transaction: {
+        txId: approval.txId,
+        contractType: approval.contractType,
+        permissionId: approval.permission.id,
+        expiration: approval.expiration,
+        expired: false,
+        signatures: 1,
+      },
+    }) as string;
+    expect(out).toContain("Approval state was not checked online");
+    expect(out).toContain("wallet-cli tx approvals --hex <hex-above>");
+    expect(out).not.toContain("weight");
   });
 });
 

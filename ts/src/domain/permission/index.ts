@@ -213,11 +213,21 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
   if (!Array.isArray(input.operations)) {
     return invalidPermission(`actives[${index}].operations must be an array`);
   }
-  const operationsHex = encodeOperations(input.operations as string[]);
+  const encodedKnownOperations = encodeOperations(input.operations as string[]);
+  let operationsHex = encodedKnownOperations;
   if (input.operationsHex !== undefined) {
-    if (typeof input.operationsHex !== "string" || decodeOperations(input.operationsHex).operationsHex !== operationsHex) {
+    if (typeof input.operationsHex !== "string") {
       return invalidPermission(`actives[${index}].operationsHex does not match operations`);
     }
+    const supplied = decodeOperations(input.operationsHex);
+    const known = decodeOperations(encodedKnownOperations);
+    if (
+      supplied.operations.length !== known.operations.length
+      || supplied.operations.some((operation, operationIndex) => operation !== known.operations[operationIndex])
+    ) {
+      return invalidPermission(`actives[${index}].operationsHex does not match operations`);
+    }
+    operationsHex = supplied.operationsHex;
   }
   const decoded = decodeOperations(operationsHex);
   const parsedKeys = keys(input.keys, `actives[${index}].keys`);
@@ -234,7 +244,7 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
     operations: decoded.operations,
     operationLabels: decoded.labels,
     operationsHex,
-    unknownOperationIds: [],
+    unknownOperationIds: decoded.unknownOperationIds,
   };
 }
 

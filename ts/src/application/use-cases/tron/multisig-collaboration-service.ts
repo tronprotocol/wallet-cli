@@ -27,14 +27,17 @@ interface ValidatedRemoteRecord {
   hex: string;
 }
 
-/** Secure collaboration workflow: the remote coordinator is never treated as a trust root. */
-export class TronLinkMultisigService {
+/**
+ * Multi-signature collaboration use case. TronLink is an external coordination port,
+ * never the source of truth for transaction bytes or on-chain approval state.
+ */
+export class TronMultisigCollaborationService {
   readonly #address = new TronAddress();
 
   constructor(
     private readonly collaboration: TronLinkCollaborationPort,
     private readonly gateways: ChainGatewayProvider,
-    private readonly local: TronMultisigService,
+    private readonly multisig: TronMultisigService,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
@@ -64,7 +67,7 @@ export class TronLinkMultisigService {
     if ((transaction.signature?.length ?? 0) !== 0) {
       throw new UsageError("invalid_value", "TronLink --create requires an unsigned transaction");
     }
-    const approval = await this.local.approvals(network, unsignedHex);
+    const approval = await this.multisig.approvals(network, unsignedHex);
     if (approval.expired) throw new ChainError("tx_expired", "transaction has expired");
 
     const weight = await gateway.getSignWeight(transaction);
@@ -105,7 +108,7 @@ export class TronLinkMultisigService {
     }
     if (remote.view.expired) throw new ChainError("tx_expired", "transaction has expired");
 
-    const signed = await this.local.sign(scope, network, remote.hex);
+    const signed = await this.multisig.signChecked(scope, network, remote.hex);
     const gateway = this.gateways.get(network, "tron");
     await this.collaboration.submit(network, signed.signer, visibleTransaction(gateway, signed.hex));
     return {
@@ -114,7 +117,7 @@ export class TronLinkMultisigService {
       signer: signed.signer,
       signerWeight: signed.signerWeight,
       hex: signed.hex,
-      transaction: signed.transaction,
+      transaction: signed.approval,
     };
   }
 
@@ -272,7 +275,7 @@ export class TronLinkMultisigService {
   }
 
   async #verifyOnChain(network: NetworkDescriptor, remote: ValidatedRemoteRecord): Promise<void> {
-    const approval = await this.local.approvals(network, remote.hex);
+    const approval = await this.multisig.approvals(network, remote.hex);
     const signedProgress = remote.view.signatureProgress
       .filter((entry) => entry.signed)
       .map((entry) => entry.address);

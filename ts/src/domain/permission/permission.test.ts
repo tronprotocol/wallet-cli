@@ -64,6 +64,17 @@ describe("permission replacement validation", () => {
     expect(parsed.actives[0]?.operationLabels).toContain("Transfer TRX");
   });
 
+  it("round-trips unknown operation bits when the known operation list matches", () => {
+    const input = structure();
+    input.actives[0]!.operationsHex = "0e000080" + "00".repeat(28);
+    const parsed = validatePermissionStructure(input);
+    expect(parsed.actives[0]).toMatchObject({
+      operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
+      operationsHex: input.actives[0]!.operationsHex,
+      unknownOperationIds: [3],
+    });
+  });
+
   it("rejects unsafe thresholds, duplicate ids/addresses, unknown operations, and control names", () => {
     const high = structure();
     high.owner.threshold = 3;

@@ -11,7 +11,7 @@ const voteForField = z.array(z.string().min(1)).min(1).max(30)
 
 export const voteCastSpec: ChainSpec = {
   path: ["vote", "cast"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional", wallet: "optional", auth: "conditional",
   broadcasts: true,
   capability: "vote.cast",
   summary: "Cast or replace your full SR vote allocation",
