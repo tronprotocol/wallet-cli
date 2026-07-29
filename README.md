@@ -24,8 +24,8 @@ Both manage the same kind of wallet on the same networks — your address is ide
 |                        | [**Java**](java/README.md) — the original                                                                                                  | [**TypeScript**](ts/README.md) — agent-first rewrite                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **What it is**         | The mature, full-feature reference CLI.                                                                                                    | A newer rewrite focused on programmatic integration.                                                                                                              |
-| **Runtime**            | JVM — built with Gradle, run as a `.jar`. Uses the [Trident](https://github.com/tronprotocol/trident) SDK.                                 | [Node.js](https://nodejs.org) **20+**.                                                                                                                            |
-| **Install**            | `git clone` + `./gradlew build` (see [Setup](java/README.md#setup))                                                                        | `npm install -g @tron-walletcli/wallet-cli`                                                                                                                       |
+| **Runtime**            | JVM — built with Gradle, run as a `.jar`. Uses the [Trident](https://github.com/tronprotocol/trident) SDK.                                 | Standalone executable, or [Node.js](https://nodejs.org) **20+** for the npm package.                                                                              |
+| **Install**            | `git clone` + `./gradlew build` (see [Setup](java/README.md#setup))                                                                        | Download from [GitHub Releases](https://github.com/tronprotocol/wallet-cli/releases), or `npm install -g @tron-walletcli/wallet-cli`.                              |
 | **How you drive it**   | An **interactive prompt only** — start it, then type commands at `>`.                                                                      | **One-shot subcommands** — `wallet-cli <command>` from your shell. Interactive prompts only for secret input.                                                     |
 | **Command style**      | PascalCase verbs: `RegisterWallet`, `SendCoin`, `GetBalance`. Amounts in **SUN** (1 TRX = 1,000,000 SUN).                                  | Noun-verb subcommands: `create`, `tx send`, `account balance`, with `--flags`.                                                                                    |
 | **Output for scripts** | Human-readable text.                                                                                                                       | Stable JSON via `-o json` ([`wallet-cli.result.v1`](ts/docs/machine-interface.md)) + fixed exit codes (`0`/`1`/`2`).                                              |
@@ -53,7 +53,7 @@ Full setup (config.conf, connecting to a node), the complete A–Z command list,
 
 ## TypeScript — get a taste
 
-Install from npm, then run subcommands directly from your shell:
+Download the standalone executable from [GitHub Releases](https://github.com/tronprotocol/wallet-cli/releases), or install from npm when Node.js 20+ is already available. Then run subcommands directly from your shell:
 
 ```console
 $ npm install -g @tron-walletcli/wallet-cli
@@ -73,4 +73,4 @@ Every command has a reference page, and the JSON contract, exit codes, and agent
 
 - **Scripting, CI, or building an AI agent?** → the [TypeScript version](ts/README.md) — the JSON envelope and deterministic exit codes exist for exactly this.
 - **Working interactively and want the complete TRON toolkit** — GasFree, TRC10 issuance, on-chain DEX/governance, or multi-sig? → the [Java version](java/README.md).
-- **Just sending TRX/tokens or staking from your own machine?** → either works; the TypeScript CLI is the lighter install (`npm install -g`, no build step).
+- **Just sending TRX/tokens or staking from your own machine?** → either works; the TypeScript CLI can run from a downloaded executable with no runtime installation.

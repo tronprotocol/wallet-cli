@@ -23,27 +23,48 @@ Your address is the same on every network, but balances, tokens, and transaction
 
 ## Install
 
-**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON app installed — see the [Ledger guide](docs/guide/ledger.md).
+### Standalone executable
+
+Download the archive for your machine from [GitHub Releases](https://github.com/tronprotocol/wallet-cli/releases). The executable contains the runtime and JavaScript dependencies, including Ledger HID support; Node.js, Bun, and npm are not required.
+
+| System | Release archive |
+|---|---|
+| macOS Apple Silicon | `wallet-cli-<version>-macos-arm64.tar.gz` |
+| macOS Intel | `wallet-cli-<version>-macos-x64.tar.gz` |
+| Linux glibc ARM64 | `wallet-cli-<version>-linux-arm64.tar.gz` |
+| Linux glibc x64 | `wallet-cli-<version>-linux-x64.tar.gz` |
+| Windows x64 | `wallet-cli-<version>-windows-x64.zip` |
+
+Example for Linux x64:
+
+```bash
+version=0.2.0
+curl -LO "https://github.com/tronprotocol/wallet-cli/releases/download/ts-v${version}/wallet-cli-${version}-linux-x64.tar.gz"
+curl -LO "https://github.com/tronprotocol/wallet-cli/releases/download/ts-v${version}/SHA256SUMS.txt"
+sha256sum --check --ignore-missing SHA256SUMS.txt
+gh attestation verify "wallet-cli-${version}-linux-x64.tar.gz" --repo tronprotocol/wallet-cli
+tar -xzf "wallet-cli-${version}-linux-x64.tar.gz"
+sudo install -m 0755 "wallet-cli-${version}-linux-x64/wallet-cli" /usr/local/bin/wallet-cli
+wallet-cli --version
+```
+
+On Windows, extract the zip and put its directory on `PATH`. On macOS, use the matching archive and install the same way; release binaries carry an ad-hoc code signature, not Apple notarization. If Gatekeeper quarantines a checksum-verified download, remove the quarantine attribute from that executable with `xattr -d com.apple.quarantine /path/to/wallet-cli`.
+
+Every TypeScript release also publishes `SHA256SUMS.txt` and GitHub/Sigstore build provenance for each archive. `gh attestation verify` is optional, but the checksum must be verified before installation.
+
+### npm
+
+The npm package remains available when Node.js **20 or later** is already installed:
 
 ```bash
 npm install -g @tron-walletcli/wallet-cli
 ```
 
-Note the scope: the package is `@tron-walletcli/wallet-cli`, not the bare `wallet-cli` name (which is an unrelated third-party package).
+The package is `@tron-walletcli/wallet-cli`, not the unrelated bare `wallet-cli` package. Upgrade with `npm update -g @tron-walletcli/wallet-cli`; uninstall with `npm uninstall -g @tron-walletcli/wallet-cli`.
 
-Verify:
+Ledger signing additionally needs a supported Ledger device with the TRON app installed — see the [Ledger guide](docs/guide/ledger.md).
 
-```bash
-wallet-cli --version
-```
-
-```console
-<version>          # shows the installed version
-```
-
-Upgrade with `npm update -g @tron-walletcli/wallet-cli`; uninstall with `npm uninstall -g @tron-walletcli/wallet-cli`.
-
-**From source** (contributors, or to run unreleased changes) — additionally requires Git:
+**From source** (contributors, or to run unreleased changes) requires Node.js 20+, npm, and Git:
 
 ```bash
 git clone https://github.com/tronprotocol/wallet-cli.git
@@ -51,6 +72,11 @@ cd wallet-cli/ts
 npm ci && npm run build
 npm link             # puts `wallet-cli` on your PATH (or run: node dist/index.js)
 ```
+
+`npm ci` also installs the exact Bun version pinned in `devDependencies`, so contributors can run
+`npm run build:standalone` without a global Bun installation.
+
+Maintainers publish standalone binaries by pushing a `ts-v<version>` tag that exactly matches `package.json`, for example `ts-v0.2.0`. The release workflow builds each executable on a runner with the same OS and CPU architecture, exercises the embedded Ledger addon, and publishes the five archives plus `SHA256SUMS.txt`. A manual workflow run builds the same archives as Actions artifacts without creating a GitHub Release.
 
 **Create your first wallet.** `create` prompts for a master password, then shows the new account:
 

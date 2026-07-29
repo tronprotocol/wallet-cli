@@ -25,6 +25,8 @@ are used only for secret input (create / import / backup / delete). **All `ts/` 
 cd ts
 npm ci                 # install
 npm run build          # bundle to dist/ via tsup (bin: wallet-cli -> dist/index.js)
+npm run build:standalone -- --outfile standalone/wallet-cli
+                       # Bun (pinned devDependency) standalone executable for the native OS/CPU
 npm run dev -- <args>  # run from source via tsx (e.g. npm run dev -- create --label main)
 npm test               # vitest (tests are co-located as *.test.ts)
 npm run typecheck      # tsc --noEmit
