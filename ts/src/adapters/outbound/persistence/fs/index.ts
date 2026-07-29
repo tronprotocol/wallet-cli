@@ -51,12 +51,7 @@ export class AtomicFileStore {
   }
 
   writeJson(path: string, value: unknown): void {
-    mkdirSync(dirname(path), { recursive: true });
-    const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
-    writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
-    this.fsyncFile(tmp); // durably land the content before the rename that publishes it
-    renameSync(tmp, path); // atomic replace on same filesystem
-    this.fsyncDir(dirname(path)); // durably land the rename (the directory entry)
+    this.#writeAtomically(path, JSON.stringify(value, null, 2) + "\n");
   }
 
   /** transactional multi-file write: stage every temp first, then commit each into place while
@@ -149,10 +144,16 @@ export class AtomicFileStore {
     renameSync(from, to);
   }
 
-  /** fsync a file's bytes to stable storage. Separate seam so tests can observe the barrier. */
+  /** Raw file fsync syscall — overridable seam so tests can assert handle capabilities. */
+  rawFsyncFile(fd: number): void {
+    fsyncSync(fd);
+  }
+
+  /** fsync a file's bytes to stable storage. Windows FlushFileBuffers requires a handle opened
+   *  with GENERIC_WRITE, so use r+ (read/write, no truncation) rather than a read-only r handle. */
   fsyncFile(path: string): void {
-    const fd = openSync(path, "r");
-    try { fsyncSync(fd); } finally { closeSync(fd); }
+    const fd = openSync(path, "r+");
+    try { this.rawFsyncFile(fd); } finally { closeSync(fd); }
   }
 
   /** raw directory fsync syscall — overridable seam so tests can inject a failure. */
@@ -178,12 +179,23 @@ export class AtomicFileStore {
   }
 
   writeText(path: string, text: string): void {
+    this.#writeAtomically(path, text);
+  }
+
+  #writeAtomically(path: string, text: string): void {
     mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
-    writeFileSync(tmp, text, { mode: 0o600 });
-    this.fsyncFile(tmp);
-    renameSync(tmp, path);
-    this.fsyncDir(dirname(path));
+    try {
+      writeFileSync(tmp, text, { mode: 0o600 });
+      this.fsyncFile(tmp);
+      renameSync(tmp, path);
+      this.fsyncDir(dirname(path));
+    } catch (e) {
+      // A failed fsync/rename must not leave a plausible-looking keystore cache behind. Only remove
+      // this invocation's high-specificity temp path; an already-published target is never touched.
+      try { unlinkSync(tmp); } catch { /* absent after a successful rename, otherwise best-effort */ }
+      throw e;
+    }
   }
 
   withLock<T>(path: string, fn: () => T, opts: { timeoutMs?: number; staleMs?: number } = {}): T {
