@@ -1,6 +1,6 @@
 # 跨平台 Ledger 本地测试方案
 
-文档版本：1.2
+文档版本：1.3
 制定日期：2026-07-29
 被测版本：`wallet-cli 0.2.0` / Git tag `ts-v0.2.0`
 测试结论口径：macOS、Linux、Windows 三个平台全部通过后，`ts-v0.2.0` 才可作为支持物理 Ledger 的社区版本发布。
@@ -147,7 +147,7 @@ docker run --rm -it \
 |---|---|---|---|---|---|
 | `MAC-A64` | macOS 15.7 Sequoia | Apple Silicon arm64 | zsh 5.9 | `macos-arm64.tar.gz` | Darwin 24.x、系统 HID、`codesign` |
 | `LINUX-X64` | Ubuntu Desktop 22.04.5 LTS | x86_64 | Bash 5.1.16 | `linux-x64.tar.gz` | glibc 2.35、Linux 6.8.x、Ledger udev rule |
-| `WIN-X64` | Windows 11 Pro 24H2，OS Build 26100 | x86_64 | Windows PowerShell 5.1 | `windows-x64.zip` | Windows HID、PnP |
+| `WIN-X64` | Windows 11 Pro 24H2，OS Build 26100 | x86_64 | PowerShell 5.1 主门禁；另测 cmd、PowerShell 7、Windows Terminal、Git Bash | `windows-x64.zip` | Windows HID、PnP、Console/ConPTY |
 
 测试辅助工具固定为：
 
@@ -350,13 +350,32 @@ ldd "${WCLI}" | tee "${RESULTS}/ldd.txt"
 
 ### 4.3 Windows 11 24H2 / x86_64
 
-使用 Windows PowerShell 5.1，不使用 WSL。记录环境：
+发布门禁的脚本化用例使用 Windows PowerShell 5.1，不使用 WSL。交互账户选择还必须完成下表的 shell 兼容测试：
+
+| ID | Shell / 终端 | 最低记录版本 | 交互命令 |
+|---|---|---|---|
+| `WIN-CMD` | Command Prompt (`cmd.exe`) | Windows 11 24H2 系统版本 | `wallet-cli.exe import ledger --app tron` |
+| `WIN-PS51` | Windows PowerShell | 5.1 | `.\wallet-cli.exe import ledger --app tron` |
+| `WIN-PS7` | PowerShell (`pwsh`) | 7.6.3 | `.\wallet-cli.exe import ledger --app tron` |
+| `WIN-WT-PS7` | Windows Terminal + PowerShell 7 profile | Windows Terminal 1.24.11321.0、PowerShell 7.6.3 | `.\wallet-cli.exe import ledger --app tron` |
+| `WIN-GITBASH` | Git Bash / MinTTY + ConPTY | Git for Windows 2.55.0(3) | `./wallet-cli.exe import ledger --app tron` |
+
+Windows Terminal 是终端宿主，不是独立 shell；`WIN-WT-PS7` 用例验证 ConPTY 路径，不能代替
+`WIN-PS7` 的传统控制台用例。Git for Windows 2.55.0(3) 使用直接 ConPTY 路径；旧版本若不能提供
+raw TTY，可用 `winpty` 定位兼容问题，但回退结果不能替代主门禁。WSL 应运行 Linux x64 Release，
+不执行 `wallet-cli.exe`，也不计入 `WIN-X64`。
+
+记录环境：
 
 ```powershell
 $Os = Get-CimInstance Win32_OperatingSystem
 $Os | Select-Object Caption, Version, BuildNumber, OSArchitecture |
   Format-List | Out-File -Encoding utf8 windows-version.txt
 $PSVersionTable | Out-File -Encoding utf8 powershell-version.txt
+pwsh --version | Out-File -Encoding utf8 pwsh-version.txt
+cmd /c ver | Out-File -Encoding utf8 cmd-version.txt
+(Get-AppxPackage Microsoft.WindowsTerminal).Version | Out-File -Encoding utf8 windows-terminal-version.txt
+git --version | Out-File -Encoding utf8 git-for-windows-version.txt
 gh --version | Out-File -Encoding utf8 gh-version.txt
 Get-PnpDevice -PresentOnly |
   Where-Object { $_.InstanceId -match 'VID_2C97' } |
@@ -369,6 +388,9 @@ Get-PnpDevice -PresentOnly |
 - `Version` 为 `10.0.26100`，`BuildNumber` 为 `26100`；
 - `OSArchitecture` 为 `64-bit`；
 - PowerShell `PSVersion` 以 `5.1` 开头；
+- `pwsh --version` 严格为 `PowerShell 7.6.3`；
+- Windows Terminal 版本严格为 `1.24.11321.0`；
+- `git --version` 严格为 `git version 2.55.0.windows.3`；
 - GitHub CLI 第一行是 `gh version 2.76.2`；
 - 连接设备后存在 `VID_2C97` 且 `Status` 为 `OK`。
 
@@ -598,6 +620,58 @@ if (
 - 地址为 34 位 TRON Base58 地址；
 - 本地目录中没有助记词或私钥字段；
 - 三个平台最终记录的地址逐字符相同。
+
+### T02-WIN：Windows 多 shell 交互账户选择
+
+目的：验证 Windows executable 在不同控制台宿主中都能进入 Ledger account selector，不会静默
+回退到 index `0`。保持 Ledger 已解锁并打开 TRON app，分别打开全新的 shell 窗口执行以下单行命令：
+
+Command Prompt：
+
+```bat
+set "WALLET_CLI_HOME=%CD%\test-home\WIN-CMD" && wallet-cli.exe import ledger --app tron
+```
+
+Windows PowerShell 5.1：
+
+```powershell
+$env:WALLET_CLI_HOME="$PWD\test-home\WIN-PS51"; .\wallet-cli.exe import ledger --app tron
+```
+
+PowerShell 7：
+
+```powershell
+$env:WALLET_CLI_HOME="$PWD\test-home\WIN-PS7"; .\wallet-cli.exe import ledger --app tron
+```
+
+Windows Terminal 的 PowerShell 7 profile：
+
+```powershell
+$env:WALLET_CLI_HOME="$PWD\test-home\WIN-WT-PS7"; .\wallet-cli.exe import ledger --app tron
+```
+
+Git Bash：
+
+```bash
+WALLET_CLI_HOME="$PWD/test-home/WIN-GITBASH" ./wallet-cli.exe import ledger --app tron
+```
+
+仅当直接命令不能获得 raw TTY 时，额外执行
+`WALLET_CLI_HOME="$PWD/test-home/WIN-GITBASH-WINPTY" winpty ./wallet-cli.exe import ledger --app tron`
+并记录 Git for Windows、MinTTY 和 `winpty --version`；该结果用于诊断，不替代直接 ConPTY 用例。
+
+每个 shell 都执行相同操作：确认首屏出现 `[0]` 至 `[4]` 五个地址，按一次向下键并按 Enter
+选择 index `1`。随后执行该 shell 对应的 `wallet-cli list` 命令，核对保存路径严格为
+`m/44'/195'/1'/0/0`，地址与其他 shell 的 index `1` 地址逐字符相同。每轮使用独立
+`WALLET_CLI_HOME`，不得复用已有账户掩盖选择器失败。
+
+通过标准：
+
+- 五个用例都显示 `Select tron account (Up/Down, Enter)`；
+- 首屏均显示 index `0` 至 `4`，向下越过末项时能继续加载下一页；
+- 选择 index `1` 后保存的 path 和 address 完全一致；
+- 不出现 `tty_required`，也不能在没有选择动作时直接导入 index `0`；
+- pipe 和 stdin 重定向不计入交互测试；脚本使用场景必须显式传 `--index`、`--path` 或 `--address`。
 
 ### T03：TIP-191 消息签名成功与拒签
 
@@ -968,6 +1042,7 @@ Release 放行必须同时满足：
 8. 测试结束后 `Sign by Hash` 已恢复为 `Not Allowed`。
 9. 测试证据中没有助记词、PIN、私钥或主网账户数据。
 10. `MAC-A64`、`LINUX-X64`、`WIN-X64` 均来自原生实体机；Docker、Whisky、WSL、虚拟机和 USB/IP 结果不计入三平台通过数。
+11. `WIN-CMD`、`WIN-PS51`、`WIN-PS7`、`WIN-WT-PS7`、`WIN-GITBASH` 的交互账户选择全部通过。
 
 任一平台出现以下情况，发布状态为 `BLOCKED`：
 
@@ -981,6 +1056,7 @@ Release 放行必须同时满足：
 | 三平台地址或确定性签名不同 | native addon、编码、app 或设备状态存在跨平台差异 |
 | `T06` 出现 `stage=submitted` | 交易模式错误，有误广播风险 |
 | Windows DLL、Linux shared object 或 macOS loader 缺失 | 独立执行文件未闭包运行依赖 |
+| 任一 Windows shell 不显示账户选择器或静默选择 index 0 | Windows TTY/ConPTY 兼容回归 |
 | 只有 Docker/Whisky 结果，没有对应原生实体机结果 | 目标平台 HID/驱动未经验证 |
 
 ## 7. 测试证据与报告
@@ -1063,6 +1139,11 @@ JSON 中的 Ledger 地址和签名不包含私钥，但会形成可关联的公�
 - 发布矩阵、Bun 版本、归档、checksum 与 attestation：[`TypeScript Standalone Release`](.github/workflows/ts-standalone-release.yml)
 - Ledger HID transport、错误分类和 handle 释放：[`ts/src/adapters/outbound/ledger/index.ts`](ts/src/adapters/outbound/ledger/index.ts)
 - Ledger 导入输出：[`ts/docs/commands/import/ledger.md`](ts/docs/commands/import/ledger.md)
+- Node.js TTY 能力判定与 `setRawMode`：[Node.js TTY](https://nodejs.org/api/tty.html)
+- Windows Terminal/ConPTY 输入输出模型：[Microsoft Windows Pseudoconsoles](https://learn.microsoft.com/en-us/windows/console/pseudoconsoles)
+- Git Bash/MinTTY 版本与 ConPTY 变更：[Git for Windows release notes](https://github.com/git-for-windows/build-extra/blob/main/ReleaseNotes.md)
+- PowerShell 7.6.3：[PowerShell releases](https://github.com/PowerShell/PowerShell/releases)
+- Windows Terminal 1.24.11321.0：[Windows Terminal releases](https://github.com/microsoft/terminal/releases)
 - TIP-191 消息签名：[`ts/docs/commands/message/sign.md`](ts/docs/commands/message/sign.md)
 - TIP-712 设置与 digest：[`ts/docs/commands/typed-data/sign.md`](ts/docs/commands/typed-data/sign.md)
 - 交易 `sign-only` 输出：[`ts/docs/commands/tx/send.md`](ts/docs/commands/tx/send.md)

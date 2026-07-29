@@ -6,12 +6,28 @@ Keep keys on the device; wallet-cli builds transactions and the Ledger signs the
 
 - Ledger connected, **unlocked**, with the **TRON app open** on the device;
 - the TRON app installed via Ledger Live beforehand.
+- On Windows, use one of the interactive invocations below. Do not pipe or redirect stdin.
 
 ## 1. Register the Ledger account
 
 ```bash
 wallet-cli import ledger --app tron --index 0 --label cold
 ```
+
+To choose an account interactively, omit the locator:
+
+| Windows shell / host | Command |
+|---|---|
+| Command Prompt (`cmd.exe`) | `wallet-cli.exe import ledger --app tron` |
+| Windows PowerShell 5.1 | `.\wallet-cli.exe import ledger --app tron` |
+| PowerShell 7 (`pwsh`) | `.\wallet-cli.exe import ledger --app tron` |
+| Windows Terminal | Use the command for its active PowerShell or Command Prompt profile |
+| Git Bash / MSYS2 with ConPTY | `./wallet-cli.exe import ledger --app tron` |
+| WSL | Run the Linux x64 release as `./wallet-cli import ledger --app tron`; do not use the Windows executable |
+
+If an older Git Bash/MSYS2 build does not expose raw TTY input, use
+`winpty ./wallet-cli.exe import ledger --app tron`. Current Git for Windows releases use the direct
+ConPTY form in release testing.
 
 Locally this creates a **watch-only** entry — no secret is stored; signing happens on the device. Three ways to pick the account (mutually exclusive):
 
