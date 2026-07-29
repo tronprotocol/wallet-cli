@@ -5,7 +5,7 @@
  */
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type {
   Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
@@ -15,10 +15,17 @@ import { BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
 
 export class ConfigLoader {
   /** bootstrap: must run before locating config.yaml. */
-  static resolveRoot(env: NodeJS.ProcessEnv = process.env): string {
-    return env.WALLET_CLI_HOME && env.WALLET_CLI_HOME.trim() !== ""
-      ? env.WALLET_CLI_HOME
-      : join(homedir(), ".wallet-cli");
+  static resolveRoot(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string {
+    const configured = env.WALLET_CLI_HOME?.trim();
+    if (configured) return platform === "win32" ? normalizeWindowsRoot(configured) : configured;
+
+    // USERPROFILE is the Windows account identity shared by cmd, PowerShell and Git Bash. Resolve
+    // it explicitly instead of delegating to runtime-specific HOME/homedir precedence.
+    if (platform === "win32") {
+      const profile = env.USERPROFILE?.trim() || homedir();
+      return win32.join(profile, ".wallet-cli");
+    }
+    return join(homedir(), ".wallet-cli");
   }
 
   static configPath(env: NodeJS.ProcessEnv = process.env): string {
@@ -89,6 +96,17 @@ export class ConfigLoader {
       gasfreeApiSecret,
     };
   }
+}
+
+/** Convert Git Bash/MSYS/Cygwin drive paths before the native Windows executable touches disk. */
+function normalizeWindowsRoot(input: string): string {
+  const slashPath = input.replaceAll("\\", "/");
+  const msys = /^\/([a-zA-Z])(?:\/(.*))?$/.exec(slashPath);
+  if (msys) return win32.normalize(`${msys[1]!.toUpperCase()}:\\${msys[2] ?? ""}`);
+  const cygwin = /^\/cygdrive\/([a-zA-Z])(?:\/(.*))?$/.exec(slashPath);
+  if (cygwin) return win32.normalize(`${cygwin[1]!.toUpperCase()}:\\${cygwin[2] ?? ""}`);
+  const resolved = win32.resolve(input);
+  return resolved.replace(/^([a-z]):/, (_match, drive: string) => `${drive.toUpperCase()}:`);
 }
 
 function validCredential(value: unknown): value is string {

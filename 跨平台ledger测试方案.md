@@ -352,13 +352,13 @@ ldd "${WCLI}" | tee "${RESULTS}/ldd.txt"
 
 发布门禁的脚本化用例使用 Windows PowerShell 5.1，不使用 WSL。交互账户选择还必须完成下表的 shell 兼容测试：
 
-| ID | Shell / 终端 | 最低记录版本 | 交互命令 |
-|---|---|---|---|
-| `WIN-CMD` | Command Prompt (`cmd.exe`) | Windows 11 24H2 系统版本 | `wallet-cli.exe import ledger --app tron` |
-| `WIN-PS51` | Windows PowerShell | 5.1 | `.\wallet-cli.exe import ledger --app tron` |
-| `WIN-PS7` | PowerShell (`pwsh`) | 7.6.3 | `.\wallet-cli.exe import ledger --app tron` |
-| `WIN-WT-PS7` | Windows Terminal + PowerShell 7 profile | Windows Terminal 1.24.11321.0、PowerShell 7.6.3 | `.\wallet-cli.exe import ledger --app tron` |
-| `WIN-GITBASH` | Git Bash / MinTTY + ConPTY | Git for Windows 2.55.0(3) | `./wallet-cli.exe import ledger --app tron` |
+| ID | Shell / 终端 | 最低记录版本 | 选择 index | 交互命令 |
+|---|---|---|---:|---|
+| `WIN-CMD` | Command Prompt (`cmd.exe`) | Windows 11 24H2 系统版本 | 0 | `wallet-cli.exe import ledger --app tron` |
+| `WIN-PS51` | Windows PowerShell | 5.1 | 1 | `.\wallet-cli.exe import ledger --app tron` |
+| `WIN-PS7` | PowerShell (`pwsh`) | 7.6.3 | 2 | `.\wallet-cli.exe import ledger --app tron` |
+| `WIN-WT-PS7` | Windows Terminal + PowerShell 7 profile | Windows Terminal 1.24.11321.0、PowerShell 7.6.3 | 3 | `.\wallet-cli.exe import ledger --app tron` |
+| `WIN-GITBASH` | Git Bash / MinTTY + ConPTY | Git for Windows 2.55.0(3) | 4 | `./wallet-cli.exe import ledger --app tron` |
 
 Windows Terminal 是终端宿主，不是独立 shell；`WIN-WT-PS7` 用例验证 ConPTY 路径，不能代替
 `WIN-PS7` 的传统控制台用例。Git for Windows 2.55.0(3) 使用直接 ConPTY 路径；旧版本若不能提供
@@ -629,47 +629,49 @@ if (
 Command Prompt：
 
 ```bat
-set "WALLET_CLI_HOME=%CD%\test-home\WIN-CMD" && wallet-cli.exe import ledger --app tron
+set "WALLET_CLI_HOME=%USERPROFILE%\.wallet-cli-ledger-e2e\WIN-SHELLS" && wallet-cli.exe import ledger --app tron
 ```
 
 Windows PowerShell 5.1：
 
 ```powershell
-$env:WALLET_CLI_HOME="$PWD\test-home\WIN-PS51"; .\wallet-cli.exe import ledger --app tron
+$env:WALLET_CLI_HOME="$env:USERPROFILE\.wallet-cli-ledger-e2e\WIN-SHELLS"; .\wallet-cli.exe import ledger --app tron
 ```
 
 PowerShell 7：
 
 ```powershell
-$env:WALLET_CLI_HOME="$PWD\test-home\WIN-PS7"; .\wallet-cli.exe import ledger --app tron
+$env:WALLET_CLI_HOME="$env:USERPROFILE\.wallet-cli-ledger-e2e\WIN-SHELLS"; .\wallet-cli.exe import ledger --app tron
 ```
 
 Windows Terminal 的 PowerShell 7 profile：
 
 ```powershell
-$env:WALLET_CLI_HOME="$PWD\test-home\WIN-WT-PS7"; .\wallet-cli.exe import ledger --app tron
+$env:WALLET_CLI_HOME="$env:USERPROFILE\.wallet-cli-ledger-e2e\WIN-SHELLS"; .\wallet-cli.exe import ledger --app tron
 ```
 
 Git Bash：
 
 ```bash
-WALLET_CLI_HOME="$PWD/test-home/WIN-GITBASH" ./wallet-cli.exe import ledger --app tron
+WALLET_CLI_HOME="$USERPROFILE\\.wallet-cli-ledger-e2e\\WIN-SHELLS" ./wallet-cli.exe import ledger --app tron
 ```
 
 仅当直接命令不能获得 raw TTY 时，额外执行
-`WALLET_CLI_HOME="$PWD/test-home/WIN-GITBASH-WINPTY" winpty ./wallet-cli.exe import ledger --app tron`
+`WALLET_CLI_HOME="$USERPROFILE\\.wallet-cli-ledger-e2e\\WIN-SHELLS" winpty ./wallet-cli.exe import ledger --app tron`
 并记录 Git for Windows、MinTTY 和 `winpty --version`；该结果用于诊断，不替代直接 ConPTY 用例。
 
-每个 shell 都执行相同操作：确认首屏出现 `[0]` 至 `[4]` 五个地址，按一次向下键并按 Enter
-选择 index `1`。随后执行该 shell 对应的 `wallet-cli list` 命令，核对保存路径严格为
-`m/44'/195'/1'/0/0`，地址与其他 shell 的 index `1` 地址逐字符相同。每轮使用独立
-`WALLET_CLI_HOME`，不得复用已有账户掩盖选择器失败。
+五个 shell 必须使用同一个绝对 `WALLET_CLI_HOME`，按矩阵分别选择 index `0` 至 `4`。每次
+导入后立即在当前 shell 执行 `wallet-cli list`；最后再回到五个 shell 各执行一次 `list`，
+确认它们读取的是同一个 `wallets.json`，且都能看到五个 Ledger 账户。禁止使用相对路径或
+按 shell 拆分根目录，否则只能验证选择器，不能验证跨 shell 账户合并。
 
 通过标准：
 
 - 五个用例都显示 `Select tron account (Up/Down, Enter)`；
 - 首屏均显示 index `0` 至 `4`，向下越过末项时能继续加载下一页；
-- 选择 index `1` 后保存的 path 和 address 完全一致；
+- 最终 `list` 在五个 shell 中均显示 index `0` 至 `4` 的五条 Ledger 记录；
+- 五个 shell 输出的账户 ID、path 和 address 集合逐字符一致；
+- 本地只存在一个共享的 `wallets.json`，路径为 `%USERPROFILE%\.wallet-cli-ledger-e2e\WIN-SHELLS\wallets.json`；
 - 不出现 `tty_required`，也不能在没有选择动作时直接导入 index `0`；
 - pipe 和 stdin 重定向不计入交互测试；脚本使用场景必须显式传 `--index`、`--path` 或 `--address`。
 

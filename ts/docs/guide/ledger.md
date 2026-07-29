@@ -29,6 +29,10 @@ If an older Git Bash/MSYS2 build does not expose raw TTY input, use
 `winpty ./wallet-cli.exe import ledger --app tron`. Current Git for Windows releases use the direct
 ConPTY form in release testing.
 
+All Windows shells use `%USERPROFILE%\.wallet-cli` by default, so an account imported in one shell
+appears in `list` from the others. If `WALLET_CLI_HOME` is set, every shell must receive the same
+absolute path; different values intentionally create isolated wallet stores.
+
 Locally this creates a **watch-only** entry — no secret is stored; signing happens on the device. Three ways to pick the account (mutually exclusive):
 
 | Flag | Use when |

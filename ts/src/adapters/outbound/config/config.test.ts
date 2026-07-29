@@ -30,6 +30,28 @@ describe("ConfigLoader defaultNetwork", () => {
   });
 });
 
+describe("ConfigLoader Windows wallet root", () => {
+  const profile = "C:\\Users\\alice";
+  const expected = "C:\\Users\\alice\\.wallet-cli";
+
+  it("uses USERPROFILE for the same default root in PowerShell and Git Bash", () => {
+    const powerShell = ConfigLoader.resolveRoot({ USERPROFILE: profile }, "win32");
+    const gitBash = ConfigLoader.resolveRoot({ USERPROFILE: profile, HOME: "/c/Users/alice" }, "win32");
+
+    expect(powerShell).toBe(expected);
+    expect(gitBash).toBe(expected);
+  });
+
+  it.each([
+    "C:\\Users\\alice\\.wallet-cli",
+    "C:/Users/alice/.wallet-cli",
+    "/c/Users/alice/.wallet-cli",
+    "/cygdrive/c/Users/alice/.wallet-cli",
+  ])("normalizes the explicit Windows/MSYS root %s", (root) => {
+    expect(ConfigLoader.resolveRoot({ WALLET_CLI_HOME: root }, "win32")).toBe(expected);
+  });
+});
+
 describe("ConfigLoader waitTimeoutMs validation", () => {
   it("accepts a valid non-negative integer", () => {
     expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 5000\n")).waitTimeoutMs).toBe(5000);
