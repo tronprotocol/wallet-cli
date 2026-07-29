@@ -58,6 +58,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const formatter = createOutputFormatter(output, streams, options.startedAt);
 
   const root = ConfigLoader.resolveRoot();
+  streams.diagnostic("debug", `wallet root: ${root}`);
   const store = new AtomicFileStore();
   const configService = new ConfigService(
     new YamlConfigDocument(ConfigLoader.configPath(), store),

@@ -36,10 +36,14 @@ describe("ConfigLoader Windows wallet root", () => {
 
   it("uses USERPROFILE for the same default root in PowerShell and Git Bash", () => {
     const powerShell = ConfigLoader.resolveRoot({ USERPROFILE: profile }, "win32");
-    const gitBash = ConfigLoader.resolveRoot({ USERPROFILE: profile, HOME: "/c/Users/alice" }, "win32");
+    const gitBash = ConfigLoader.resolveRoot({ USERPROFILE: "/c/Users/alice", HOME: "/c/Users/alice" }, "win32");
 
     expect(powerShell).toBe(expected);
     expect(gitBash).toBe(expected);
+  });
+
+  it("normalizes a Cygwin-style USERPROFILE to the same native root", () => {
+    expect(ConfigLoader.resolveRoot({ USERPROFILE: "/cygdrive/c/Users/alice" }, "win32")).toBe(expected);
   });
 
   it.each([

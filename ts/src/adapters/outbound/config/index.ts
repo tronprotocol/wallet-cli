@@ -23,7 +23,7 @@ export class ConfigLoader {
     // it explicitly instead of delegating to runtime-specific HOME/homedir precedence.
     if (platform === "win32") {
       const profile = env.USERPROFILE?.trim() || homedir();
-      return win32.join(profile, ".wallet-cli");
+      return win32.join(normalizeWindowsRoot(profile), ".wallet-cli");
     }
     return join(homedir(), ".wallet-cli");
   }
