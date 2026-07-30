@@ -8,6 +8,8 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 - **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
 - **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, message and EIP-712/TIP-712 signing, and on-chain queries.
+- **Multi-signature end to end** — inspect and replace [account permissions](docs/commands/permission/index.md), then collect signatures either offline by passing a transaction artifact between signers or through the TronLink service, with approval weight and threshold visible at every step.
+- **Gas-free transfers** — move USDT and other supported tokens with [no TRX at all](docs/commands/gasfree/index.md), paying the fee in the token itself via the GasFree Open Platform.
 
 ## Supported chains
 
@@ -132,16 +134,36 @@ Every command — including every subcommand — has a reference page; run `wall
 | [`derive`](docs/commands/derive.md) | Derive the next HD account from a seed wallet |
 | [`rename`](docs/commands/rename.md) / [`backup`](docs/commands/backup.md) / [`delete`](docs/commands/delete.md) | Manage accounts (backup writes secret + metadata, mode 0600) |
 | [`change-password`](docs/commands/change-password.md) | Change the master password (re-encrypt all software keystores) |
+| [`address generate`](docs/commands/address/generate.md) | Generate a keypair locally, without adding it to the wallet |
 
 ### Transactions
 
 | Command | Description |
 |---|---|
 | [`tx send`](docs/commands/tx/send.md) | Send native TRX or TRC20/TRC10 tokens |
-| [`tx sign`](docs/commands/tx/sign.md) | Sign a transaction built elsewhere, without broadcasting |
-| [`tx broadcast`](docs/commands/tx/broadcast.md) | Broadcast a presigned transaction |
+| [`tx sign`](docs/commands/tx/sign.md) | Sign transaction JSON, or append a signature to transaction hex, offline |
+| [`tx broadcast`](docs/commands/tx/broadcast.md) | Validate and broadcast a presigned JSON or protobuf-hex transaction |
+| [`tx approvals`](docs/commands/tx/approvals.md) | Show permission, approvals, accumulated weight, and expiration |
+| [`tx multisig`](docs/commands/tx/multisig.md) | Coordinate signature collection through the TronLink service |
 | [`tx status`](docs/commands/tx/status.md) | Show confirmation status (confirmed / failed / pending / not_found) |
 | [`tx info`](docs/commands/tx/info.md) | Show full transaction detail + receipt |
+
+### Multi-signature permissions
+
+| Command | Description |
+|---|---|
+| [`permission show`](docs/commands/permission/show.md) | Show owner, witness, and active permission groups with decoded operations |
+| [`permission update`](docs/commands/permission/update.md) | Replace the complete permission structure — **can permanently lock the account** |
+
+### Gas-free transfers
+
+Send tokens with no TRX: sign a TIP-712 authorization and let the GasFree provider broadcast, taking its fee in the transferred token. Needs credentials via [`config`](docs/commands/config.md); unavailable on `tron:shasta`.
+
+| Command | Description |
+|---|---|
+| [`gasfree info`](docs/commands/gasfree/info.md) | GasFree address, activation status, nonce, balances, and fees |
+| [`gasfree transfer`](docs/commands/gasfree/transfer.md) | Sign and submit a TIP-712 GasFree token transfer |
+| [`gasfree trace`](docs/commands/gasfree/trace.md) | Track a submitted transfer to its terminal state |
 
 ### On-chain queries
 
@@ -151,6 +173,8 @@ Every command — including every subcommand — has a reference page; run `wall
 | [`account info`](docs/commands/account/info.md) | Show raw account data incl. resources |
 | [`account history`](docs/commands/account/history.md) | Show transaction history (requires TronGrid) |
 | [`account portfolio`](docs/commands/account/portfolio.md) | Native + token balances with best-effort USD value |
+| [`account activate`](docs/commands/account/activate.md) | Activate a new TRON account, paid for by the active account |
+| [`account set`](docs/commands/account/set.md) | Set the one-time on-chain account name or ID |
 | [`block`](docs/commands/block.md) | Get a block (latest if omitted) |
 | [`chain params`](docs/commands/chain/params.md) | On-chain governance parameters |
 | [`chain prices`](docs/commands/chain/prices.md) | Energy/bandwidth unit price and memo fee |
@@ -172,8 +196,10 @@ Every command — including every subcommand — has a reference page; run `wall
 
 | Command | Description |
 |---|---|
-| [`config`](docs/commands/config.md) | Show / get / set configuration values |
+| [`config`](docs/commands/config.md) | Show / get / set configuration values, including TronLink and GasFree credentials (secrets masked) |
 | [`networks`](docs/commands/networks.md) | List known networks (`tron:mainnet`, `tron:nile`, `tron:shasta`) |
+| [`contact`](docs/commands/contact/index.md) | Local recipient address book, usable as `--to <name>` ([add](docs/commands/contact/add.md) · [list](docs/commands/contact/list.md) · [remove](docs/commands/contact/remove.md)) |
+| [`encoding convert`](docs/commands/encoding/convert.md) | Convert and validate address, hex, Base64, and Base58Check encodings |
 
 ## Documentation map
 

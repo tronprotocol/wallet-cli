@@ -25,14 +25,39 @@ export interface TxApprovalView {
   signatures: number;
 }
 
-export interface TxSignView {
+export interface TxSignTransactionView {
+  txId: string;
+  contractType: string;
+  operation?: string;
+  from?: string;
+  to?: string;
+  rawAmount?: string;
+  tokenContract?: string;
+  permissionId: number;
+  expiration: number;
+  expired: boolean;
+  signatures: number;
+}
+
+interface TxSignViewBase {
   kind: "tx-sign";
   signer: string;
-  signerWeight: number;
   hex: string;
   out?: string;
-  transaction: TxApprovalView;
+  transaction: TxSignTransactionView;
 }
+
+export interface OfflineTxSignView extends TxSignViewBase {
+  checked: false;
+}
+
+export interface CheckedTxSignView extends TxSignViewBase {
+  checked: true;
+  signerWeight: number;
+  approval: TxApprovalView;
+}
+
+export type TxSignView = OfflineTxSignView | CheckedTxSignView;
 
 export type TronLinkMultisigState = "pending" | "signed" | "success" | "failed";
 

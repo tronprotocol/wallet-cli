@@ -276,13 +276,19 @@ export class HelpService {
     // A command only prompts when it opts in (`interactive`); everything else fails fast so
     // scripts and agents get a deterministic error instead of a hung prompt. Say which one this
     // is — promising a TTY prompt that never comes sends the reader hunting for a broken terminal.
-    if (c.auth === "required") requires.push(
-      c.secretsTtyOnly
-        ? "the master password — entered interactively in a TTY"
-        : c.interactive
-          ? "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY"
-          : "master password — pass --password-stdin; this command never prompts",
-    )
+    if (c.auth === "required") {
+      requires.push(
+        c.secretsTtyOnly
+          ? "the master password — entered interactively in a TTY"
+          : c.interactive
+            ? "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY"
+            : "master password — pass --password-stdin; this command never prompts",
+      )
+    } else if (c.auth === "conditional") {
+      requires.push(
+        "the master password only when the selected mode signs — pass --password-stdin then; other modes need no password",
+      )
+    }
     if (c.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or run `wallet-cli use <account>` to change the active account)")
     if (requires.length) {
       lines.push("", "Requires:")
@@ -404,7 +410,7 @@ function formatDefault(v: unknown): string {
 }
 
 // Per-command "Global options" projection: output/timeout/verbose always; --network only when the
-// command selects a network; --password-stdin only when it requires unlock; --wait/--wait-timeout
+// command selects a network; --password-stdin when it may unlock; --wait/--wait-timeout
 // only for ✍️ broadcast commands; --account only when the command acts as an account (also surfaced,
 // with fuller semantics, under Requires). The full GLOBAL_FLAGS array still backs the --json-schema catalog.
 function globalFlagsForText(
@@ -417,7 +423,7 @@ function globalFlagsForText(
   return GLOBAL_FLAGS.filter((g) => {
     if (g.flag === "--account") return wallet !== "none"
     if (g.flag === "--network") return network !== "none"
-    if (g.flag === "--password-stdin") return auth === "required" && !secretsTtyOnly
+    if (g.flag === "--password-stdin") return auth !== "none" && !secretsTtyOnly
     if (g.flag === "--wait" || g.flag === "--wait-timeout") return broadcasts
     return true
   })

@@ -21,6 +21,7 @@ describe("tx sign spec", () => {
     expect(txSignSpec.baseFields.safeParse({ transaction: "{}" }).success).toBe(true);
     expect(txSignSpec.baseFields.safeParse({ hex: "abcd" }).success).toBe(true);
     expect(txSignSpec.baseFields.safeParse({ file: "tx.hex" }).success).toBe(true);
+    expect(txSignSpec.baseFields.safeParse({ hex: "abcd", check: true }).success).toBe(true);
   });
 
   // the payload is not a secret, so argv is the only channel — no --tx-stdin on this command.
@@ -38,28 +39,46 @@ describe("tx sign binding", () => {
         return { kind: "sign" };
       },
     };
-    await txSignTronBinding(svc as never, {} as never, {} as never)
+    await txSignTronBinding(svc as never, {} as never, {} as never, {} as never)
       .run(ctx, net, { transaction: '{"txID":"abc"}' });
     expect(received).toEqual({ txID: "abc" });
   });
 
   it("rejects malformed JSON with invalid_value", async () => {
     const svc = { sign: async () => ({}) };
-    await expect(txSignTronBinding(svc as never, {} as never, {} as never)
+    await expect(txSignTronBinding(svc as never, {} as never, {} as never, {} as never)
       .run(ctx, net, { transaction: "not json" }))
       .rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  it("routes hex co-signing through the multisig service and writes --out", async () => {
-    const multisig = {
-      sign: async () => ({ kind: "tx-sign", hex: "beef", signer: "T1", signerWeight: 1, transaction: {} }),
+  it("routes hex signing through the offline signing service and writes --out", async () => {
+    const signing = {
+      sign: async () => ({ kind: "tx-sign", hex: "beef", signer: "T1", checked: false, transaction: {} }),
     };
     let written: unknown;
     const writer = { write: (path: string, hex: string) => { written = { path, hex }; } };
-    const result = await txSignTronBinding({} as never, multisig as never, writer as never)
+    const result = await txSignTronBinding({} as never, signing as never, {} as never, writer as never)
       .run(ctx, net, { hex: "abcd", out: "signed.hex" });
     expect(written).toEqual({ path: "signed.hex", hex: "beef" });
     expect(result).toMatchObject({ out: "signed.hex", hex: "beef" });
+  });
+
+  it("routes --check through the multisig authorization service", async () => {
+    const signing = { sign: async () => { throw new Error("unexpected offline route"); } };
+    const multisig = {
+      signChecked: async () => ({
+        kind: "tx-sign",
+        hex: "beef",
+        signer: "T1",
+        checked: true,
+        signerWeight: 1,
+        transaction: {},
+        approval: {},
+      }),
+    };
+    await expect(txSignTronBinding({} as never, signing as never, multisig as never, {} as never)
+      .run(ctx, net, { hex: "abcd", check: true }))
+      .resolves.toMatchObject({ checked: true, signerWeight: 1 });
   });
 });
 
@@ -128,9 +147,9 @@ describe("tx multisig spec", () => {
     expect(txTronLinkMultisigSpec.baseFields.safeParse({ watch: true }).success).toBe(true);
   });
 
-  it("declares no broadcast and uses lazy signing authentication", () => {
+  it("declares no broadcast and only requires auth for --sign", () => {
     expect(txTronLinkMultisigSpec.broadcasts).toBeFalsy();
-    expect(txTronLinkMultisigSpec.auth).toBe("required");
+    expect(txTronLinkMultisigSpec.auth).toBe("conditional");
     expect(txTronLinkMultisigSpec.passwordMode).toBeUndefined();
   });
 });

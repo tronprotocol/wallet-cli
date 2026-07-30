@@ -22,6 +22,7 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "account.set": "set one-time on-chain account name or ID",
   "token.tokenbook": "token address-book (add/list/remove)",
   "tx.send": "transfer native / token",
+  "tx.sign": "sign transaction artifacts without broadcasting",
   "tx.broadcast": "broadcast a presigned transaction",
   "tx.multisig.local": "inspect and append local multi-sign approvals",
   "tx.multisig.tronlink": "coordinate multi-sign approvals through TronLink",

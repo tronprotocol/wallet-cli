@@ -5,13 +5,14 @@ Sign a transaction built elsewhere, without broadcasting.
 ## Synopsis
 
 ```
-wallet-cli tx sign --transaction <json> [options]
+wallet-cli tx sign (--transaction <json> | --hex <hex> | --file <path>) [options]
 ```
 
 ## Description
 
 Signs a transaction that was constructed outside this CLI with the active account's key (or
-`--account`) and prints the signed result. Nothing is broadcast — pass the signed payload to
+`--account`) and prints the signed result. JSON input retains the original direct-signing response.
+Hex/file input produces a portable protobuf transaction artifact for multi-party signing. Nothing is broadcast — pass the signed payload to
 [`tx broadcast`](broadcast.md) when you are ready. `--network` is optional: signing itself is
 offline for software accounts.
 
@@ -42,14 +43,20 @@ Watch-only accounts cannot sign (`watch_only_no_signer`). Ledger accounts sign o
 
 ### Multi-sig co-signing
 
-If the transaction you pass already carries a `signature` array, this command **appends** its
+With `--hex` or `--file`, the command decodes the complete protobuf transaction and **appends** its
 signature rather than replacing what is there. That is what TRON multi-sig requires — each
 permitted key signs the same transaction in turn — so a partially signed transaction can be passed
 from signer to signer and broadcast once the permission threshold is met.
 
-The consequence worth knowing: `data.signed.signature` may contain signatures this wallet did not
-produce. `data.address` always tells you which key *this* invocation used, and the text receipt
-numbers them so you can tell them apart:
+This path is offline by default: it verifies transaction integrity, expiration, and append-only
+signature behavior locally, but does not claim that the signer belongs to the selected permission
+or that the threshold has been reached. Use `--check` when connected to a node to verify those
+facts through `getsignweight` and `getapprovedlist`, or inspect the result later with
+`wallet-cli tx approvals`.
+
+The JSON compatibility path also preserves existing signatures. `data.signed.signature` may
+therefore contain signatures this wallet did not produce. `data.address` always tells you which key
+this invocation used, and the text receipt numbers them so you can tell them apart:
 
 ```console
 ✅ Signed transaction
@@ -64,6 +71,10 @@ numbers them so you can tell them apart:
 | Option | Description |
 |---|---|
 | `--transaction <string>` | Unsigned transaction JSON (`raw_data`, `raw_data_hex` and `txID` must agree) |
+| `--hex <string>` | Complete protobuf `protocol.Transaction` hex |
+| `--file <path>` | Read complete transaction hex from a file |
+| `--out <path>` | Atomically write the resulting signed hex to a file |
+| `--check` | Verify signer permission and resulting approval weight online |
 | `--password-stdin` | Master password from stdin (software accounts) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -98,6 +109,21 @@ echo "$PW" | wallet-cli tx sign --transaction "$TX" --password-stdin -o json \
 wallet-cli tx broadcast --network tron:nile --tx-stdin < signed.json
 ```
 
+Append a signature without an approval RPC dependency, then check it from an online machine:
+
+```bash
+echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
+  --out signed.hex --password-stdin
+wallet-cli tx approvals --file signed.hex
+```
+
+To check permission membership and approval progress during signing:
+
+```bash
+echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
+  --check --out signed.hex --password-stdin
+```
+
 A transaction whose fields disagree is refused rather than signed:
 
 ```console
@@ -105,6 +131,8 @@ A transaction whose fields disagree is refused rather than signed:
 ```
 
 ## Output
+
+`--transaction` retains the original direct-signing shape:
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -116,9 +144,22 @@ A transaction whose fields disagree is refused rather than signed:
 
 No `fee` is reported: nothing was estimated, because the transaction was not built here.
 
+`--hex` and `--file` return the artifact-signing shape:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | string | `"tx-sign"` |
+| `signer` | string | Address that appended this signature |
+| `hex` | string | Complete transaction hex including all signatures |
+| `checked` | boolean | Whether online permission/approval verification ran |
+| `transaction` | object | Locally decoded transaction summary |
+| `signerWeight` | number | Present only when `checked` is true |
+| `approval` | object | Present only when `checked` is true; authoritative online approval state |
+
 ## Exit status
 
-`0` signed · `1` execution failure (`tx_integrity`, `watch_only_no_signer`, `auth_failed`,
+`0` signed · `1` execution failure (`tx_integrity`, `tx_expired`, `not_authorized`,
+`already_signed`, `watch_only_no_signer`, `auth_failed`,
 `signing_rejected`) · `2` usage error (missing or malformed `--transaction` → `missing_option` /
 `invalid_value`).
 

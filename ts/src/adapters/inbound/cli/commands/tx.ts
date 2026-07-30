@@ -2,8 +2,9 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronTransactionService } from "../../../../application/use-cases/tron/transaction-service.js";
+import type { TronSigService } from "../../../../application/use-cases/tron/sig-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
-import type { TronLinkMultisigService } from "../../../../application/use-cases/tron/tronlink-multisig-service.js";
+import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
 import type { TransactionArtifactWriter } from "../../../outbound/persistence/transaction-artifact-writer.js";
 import { Schemas } from "../schemas/index.js";
 import {
@@ -36,7 +37,7 @@ const sendFields = z.object({
 
 export const txSendSpec: ChainSpec = {
   path: ["tx", "send"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional", wallet: "optional", auth: "conditional",
   broadcasts: true,
   capability: "tx.send",
   summary: "Send native TRX or TRC20/TRC10 tokens with human --amount",
@@ -142,6 +143,8 @@ const signFields = z.object({
   transaction: z.string().min(1).optional()
     .describe("unsigned TRON transaction JSON; retained for direct single-signature compatibility"),
   ...artifactFields,
+  check: z.boolean().default(false)
+    .describe("verify signer permission and resulting approval weight online"),
   out: z.string().min(1).optional().describe("atomically write co-signed transaction hex to this file"),
 });
 
@@ -149,12 +152,12 @@ export const txSignSpec: ChainSpec = {
   path: ["tx", "sign"],
   network: "optional", wallet: "optional", auth: "required",
   broadcasts: false,
-  capability: "tx.multisig.local",
-  summary: "Sign transaction JSON or append a signature to transaction hex",
+  capability: "tx.sign",
+  summary: "Sign transaction JSON or append a signature to transaction hex offline",
   description:
-    "With --transaction, preserve the direct JSON signing flow. With --hex/--file, validate the\n" +
-    "selected permission, append exactly one signature, preserve prior signatures, and report\n" +
-    "the new approval weight. This command never broadcasts.",
+    "With --transaction, preserve the direct JSON signing flow. With --hex/--file, append exactly\n" +
+    "one signature while preserving prior signatures without requiring a node. Add --check to\n" +
+    "verify permission membership and approval weight online. This command never broadcasts.",
   baseFields: signFields,
   baseRefine: (input, context) => {
     if ([input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1) {
@@ -167,28 +170,37 @@ export const txSignSpec: ChainSpec = {
     if (input.out && input.transaction) {
       context.addIssue({ code: "custom", path: ["out"], message: "--out is only valid with --hex or --file" });
     }
+    if (input.check && input.transaction) {
+      context.addIssue({ code: "custom", path: ["check"], message: "--check is only valid with --hex or --file" });
+    }
   },
   examples: [
     { cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'` },
     { cmd: "wallet-cli tx sign --file partially-signed.hex --out signed.hex --password-stdin" },
+    { cmd: "wallet-cli tx sign --file partially-signed.hex --check --password-stdin" },
   ],
   formatText: TextFormatters.txSign,
 };
 
 export const txSignTronBinding = (
   transactionService: TronTransactionService,
+  signingService: TronSigService,
   multisigService: TronMultisigService,
   writer: TransactionArtifactWriter,
 ): FamilyBinding => ({
   run: async (ctx, net, input) => {
     exactlyOne([input.transaction, input.hex, input.file], "provide exactly one of --transaction, --hex, or --file");
     if (!input.transaction) {
-      const result = await multisigService.sign(ctx, net, hexInput(input));
+      const hex = hexInput(input);
+      const result = input.check
+        ? await multisigService.signChecked(ctx, net, hex)
+        : await signingService.sign(ctx, net, hex);
       if (!input.out) return result;
       writer.write(input.out, result.hex);
       return { ...result, out: input.out };
     }
     if (input.out) throw new UsageError("invalid_option", "--out is only valid with --hex or --file");
+    if (input.check) throw new UsageError("invalid_option", "--check is only valid with --hex or --file");
     let tx: unknown;
     try {
       tx = JSON.parse(input.transaction);
@@ -212,7 +224,7 @@ const tronLinkMultisigFields = z.object({
 
 export const txTronLinkMultisigSpec: ChainSpec = {
   path: ["tx", "multisig"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional", wallet: "optional", auth: "conditional",
   capability: "tx.multisig.tronlink",
   summary: "Coordinate multi-signature collection through the TronLink service",
   description:
@@ -233,7 +245,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   formatText: TextFormatters.txTronLinkMultisig,
 };
 
-export const txTronLinkMultisigBinding = (service: TronLinkMultisigService): FamilyBinding => ({
+export const txTronLinkMultisigBinding = (service: TronMultisigCollaborationService): FamilyBinding => ({
   run: async (ctx, network, input) => {
     const address = ctx.resolveAddress("tron");
     if (input.create) return service.create(network, address, hexInput(input));

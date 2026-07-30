@@ -10,6 +10,7 @@ import {
   encodeTransactionHex,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
 import { TronMultisigService } from "./multisig-service.js";
+import { TronSigService } from "./sig-service.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -97,7 +98,8 @@ function service(gateway: TronGateway, signer?: Signer) {
     resolve: vi.fn(() => actualSigner),
   } as unknown as SignerResolver;
   const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
-  return new TronMultisigService(provider, signers, () => NOW);
+  const signing = new TronSigService(provider, signers, () => NOW);
+  return new TronMultisigService(provider, signing, () => NOW);
 }
 
 const NETWORK = { id: "tron:nile", family: "tron" } as never;
@@ -118,7 +120,7 @@ describe("local TRON multi-signature workflow", () => {
 
   it("appends exactly one signature while preserving txID/raw_data and verifies its weight", async () => {
     const before = decodeTransactionHex(unsignedHex());
-    const signed = await service(fakeGateway()).sign(scope(), NETWORK, unsignedHex());
+    const signed = await service(fakeGateway()).signChecked(scope(), NETWORK, unsignedHex());
     const after = decodeTransactionHex(signed.hex);
     expect(after.txID).toBe(before.txID);
     expect(after.raw_data_hex).toBe(before.raw_data_hex);
@@ -126,7 +128,8 @@ describe("local TRON multi-signature workflow", () => {
     expect(signed).toMatchObject({
       signer: A,
       signerWeight: 1,
-      transaction: { currentWeight: 1, missingWeight: 1 },
+      checked: true,
+      approval: { currentWeight: 1, missingWeight: 1 },
     });
   });
 
@@ -138,8 +141,21 @@ describe("local TRON multi-signature workflow", () => {
       signMessage: async () => "",
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
-    await expect(service(fakeGateway(), signer).sign(scope(), NETWORK, unsignedHex(NOW)))
+    await expect(service(fakeGateway(), signer).signChecked(scope(), NETWORK, unsignedHex(NOW)))
       .rejects.toMatchObject({ code: "tx_expired" });
+    expect(signer.sign).not.toHaveBeenCalled();
+  });
+
+  it("does not sign when the authorized account and resolved signer diverge", async () => {
+    const signer: Signer = {
+      kind: "software",
+      address: B,
+      sign: vi.fn(async (transaction) => transaction),
+      signMessage: async () => "",
+      signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+    };
+    await expect(service(fakeGateway(), signer).signChecked(scope(), NETWORK, unsignedHex()))
+      .rejects.toMatchObject({ code: "signing_rejected" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 

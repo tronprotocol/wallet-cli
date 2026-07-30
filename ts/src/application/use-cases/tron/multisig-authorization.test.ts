@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import { assertTronSignerAuthorized, authorizationState } from "./multisig-authorization.js";
+import {
+  assertTronSignerAuthorized,
+  authorizationState,
+  tronTransactionHooks,
+} from "./multisig-authorization.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -37,6 +41,14 @@ function gateway(over: Partial<TronGateway> = {}): TronGateway {
 }
 
 describe("TRON multisig authorization preflight", () => {
+  it("does not attach approval RPC checks to ordinary transaction commands", () => {
+    const hooks = tronTransactionHooks({
+      prepareTransaction: vi.fn((value) => value),
+      encodeTransactionHex: vi.fn(() => "abcd"),
+    } as unknown as TronGateway);
+    expect("preflight" in hooks).toBe(false);
+  });
+
   it("accepts an unused key whose active bitmap allows the transaction contract", async () => {
     await expect(assertTronSignerAuthorized(gateway(), transaction(), A, 1_900_000_000_000))
       .resolves.toBeUndefined();

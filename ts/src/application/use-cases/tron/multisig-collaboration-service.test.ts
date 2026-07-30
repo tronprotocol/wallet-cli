@@ -11,7 +11,7 @@ import {
   encodeTransactionHex,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
 import type { TronMultisigService } from "./multisig-service.js";
-import { TronLinkMultisigService } from "./tronlink-multisig-service.js";
+import { TronMultisigCollaborationService } from "./multisig-collaboration-service.js";
 
 const A = "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -124,16 +124,25 @@ function setup(record = remote()) {
   const signedHex = encodeTransactionHex({ ...decodeTransactionHex(unsignedHex()), signature: [SIG] });
   const local = {
     approvals: vi.fn(async (_network, hex: string) => approval(hex)),
-    sign: vi.fn(async () => ({
+    signChecked: vi.fn(async () => ({
       kind: "tx-sign",
       signer: A,
       signerWeight: 1,
       hex: signedHex,
-      transaction: approval(signedHex),
+      checked: true,
+      transaction: {
+        txId: decodeTransactionHex(signedHex).txID,
+        contractType: "TransferContract",
+        permissionId: 2,
+        expiration: NOW + 86_400_000,
+        expired: false,
+        signatures: 1,
+      },
+      approval: approval(signedHex),
     })),
   } as unknown as TronMultisigService;
   return {
-    service: new TronLinkMultisigService(collaboration, provider, local, () => NOW),
+    service: new TronMultisigCollaborationService(collaboration, provider, local, () => NOW),
     collaboration,
     local,
     signedHex,
@@ -168,7 +177,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
     const { service, collaboration, local } = setup();
     const result = await service.create(NETWORK, A, unsignedHex());
     expect(result).toMatchObject({ action: "create", accepted: true, transaction: { currentWeight: 0 } });
-    expect(local.sign).not.toHaveBeenCalled();
+    expect(local.signChecked).not.toHaveBeenCalled();
     const request = vi.mocked(collaboration.create).mock.calls[0]![2];
     expect(request).toMatchObject({
       permissionName: "finance",
@@ -184,7 +193,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
     const { service, collaboration, local, signedHex } = setup();
     await expect(service.create(NETWORK, A, signedHex))
       .rejects.toMatchObject({ code: "invalid_value" });
-    expect(local.sign).not.toHaveBeenCalled();
+    expect(local.signChecked).not.toHaveBeenCalled();
     expect(collaboration.create).not.toHaveBeenCalled();
   });
 
@@ -194,7 +203,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
     const context = scope();
     const result = await service.sign(context, NETWORK, txId);
     expect(result).toMatchObject({ action: "sign", accepted: true, hex: signedHex });
-    expect(local.sign).toHaveBeenCalledWith(context, NETWORK, unsignedHex());
+    expect(local.signChecked).toHaveBeenCalledWith(context, NETWORK, unsignedHex());
     expect(collaboration.submit).toHaveBeenCalledTimes(1);
   });
 

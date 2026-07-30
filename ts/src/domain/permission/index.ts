@@ -26,6 +26,7 @@ export const TRON_OPERATIONS: readonly TronOperation[] = Object.freeze([
   { contractTypeId: 0, contractType: "AccountCreateContract", label: "Activate Account" },
   { contractTypeId: 1, contractType: "TransferContract", label: "Transfer TRX" },
   { contractTypeId: 2, contractType: "TransferAssetContract", label: "Transfer TRC10" },
+  { contractTypeId: 3, contractType: "VoteAssetContract", label: "Vote for TRC10 [unused]" },
   { contractTypeId: 4, contractType: "VoteWitnessContract", label: "Vote" },
   { contractTypeId: 5, contractType: "WitnessCreateContract", label: "Apply to Become a SR Candidate" },
   { contractTypeId: 6, contractType: "AssetIssueContract", label: "Issue TRC10" },
@@ -41,8 +42,10 @@ export const TRON_OPERATIONS: readonly TronOperation[] = Object.freeze([
   { contractTypeId: 17, contractType: "ProposalApproveContract", label: "Approve Proposal" },
   { contractTypeId: 18, contractType: "ProposalDeleteContract", label: "Cancel Proposal" },
   { contractTypeId: 19, contractType: "SetAccountIdContract", label: "Set Account Id" },
+  { contractTypeId: 20, contractType: "CustomContract", label: "Custom Contract" },
   { contractTypeId: 30, contractType: "CreateSmartContract", label: "Create Smart Contract" },
   { contractTypeId: 31, contractType: "TriggerSmartContract", label: "Trigger Smart Contract" },
+  { contractTypeId: 32, contractType: "GetContract", label: "Get Contract" },
   { contractTypeId: 33, contractType: "UpdateSettingContract", label: "Update Contract Parameters" },
   { contractTypeId: 41, contractType: "ExchangeCreateContract", label: "Create Bancor Transaction" },
   { contractTypeId: 42, contractType: "ExchangeInjectContract", label: "Inject Assets into Bancor Transaction" },
@@ -52,6 +55,7 @@ export const TRON_OPERATIONS: readonly TronOperation[] = Object.freeze([
   { contractTypeId: 46, contractType: "AccountPermissionUpdateContract", label: "Update Account Permissions" },
   { contractTypeId: 48, contractType: "ClearABIContract", label: "Clear Contract ABI" },
   { contractTypeId: 49, contractType: "UpdateBrokerageContract", label: "Update SR Commission Ratio" },
+  { contractTypeId: 51, contractType: "ShieldedTransferContract", label: "Shielded Transfer" },
   { contractTypeId: 52, contractType: "MarketSellAssetContract", label: "Market Sell Asset" },
   { contractTypeId: 53, contractType: "MarketCancelOrderContract", label: "Market Cancel Order" },
   { contractTypeId: 54, contractType: "FreezeBalanceV2Contract", label: "TRX Stake (2.0)" },
@@ -205,6 +209,30 @@ export function encodeOperations(contractTypes: readonly string[]): string {
   return bytes.toString("hex");
 }
 
+/** Require unnamed bitmap bits to be declared verbatim, so no set bit escapes human review. */
+function assertDeclaredUnknownOperations(value: unknown, actual: readonly number[], index: number): void {
+  const field = `actives[${index}].unknownOperationIds`;
+  if (value === undefined) {
+    if (actual.length === 0) return;
+    return invalidPermission(
+      `${field} must declare the unnamed contract types set in operationsHex: ${actual.join(", ")}`,
+    );
+  }
+  if (!Array.isArray(value) || value.some((id) => typeof id !== "number" || !Number.isSafeInteger(id))) {
+    return invalidPermission(`${field} must be an array of integers`);
+  }
+  const declaredIds = value as number[];
+  if (new Set(declaredIds).size !== declaredIds.length) {
+    return invalidPermission(`${field} must not contain duplicate contract type ids`);
+  }
+  const declared = [...declaredIds].sort((a, b) => a - b);
+  if (declared.length !== actual.length || declared.some((id, position) => id !== actual[position])) {
+    return invalidPermission(
+      `${field} does not match operationsHex: declared ${declared.join(", ") || "none"}, bitmap sets ${actual.join(", ") || "none"}`,
+    );
+  }
+}
+
 function activeGroup(value: unknown, index: number): ActivePermissionView {
   const input = ownRecord(value, `actives[${index}]`);
   if (typeof input.id !== "number" || !Number.isSafeInteger(input.id) || input.id < 2 || input.id > 9) {
@@ -213,13 +241,39 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
   if (!Array.isArray(input.operations)) {
     return invalidPermission(`actives[${index}].operations must be an array`);
   }
-  const operationsHex = encodeOperations(input.operations as string[]);
+  const declaredOperations = input.operations as string[];
+  // A node may set bits for contract types this build has no name for. Those bits are real
+  // permission scope, so `operations` alone cannot describe the bitmap — hence the empty-list case.
+  const encodedKnownOperations = declaredOperations.length === 0
+    ? "00".repeat(OPERATIONS_BYTES)
+    : encodeOperations(declaredOperations);
+  let operationsHex = encodedKnownOperations;
   if (input.operationsHex !== undefined) {
-    if (typeof input.operationsHex !== "string" || decodeOperations(input.operationsHex).operationsHex !== operationsHex) {
+    if (typeof input.operationsHex !== "string") {
       return invalidPermission(`actives[${index}].operationsHex does not match operations`);
     }
+    const supplied = decodeOperations(input.operationsHex);
+    const known = decodeOperations(encodedKnownOperations);
+    if (
+      supplied.operations.length !== known.operations.length
+      || supplied.operations.some((operation, operationIndex) => operation !== known.operations[operationIndex])
+    ) {
+      return invalidPermission(`actives[${index}].operationsHex does not match operations`);
+    }
+    // Every set bit must be declared somewhere a reviewer can read: named types in `operations`,
+    // unnamed ones in `unknownOperationIds`. Without this, a bitmap can widen the permission
+    // while the human-readable fields stay unchanged — the failure this whole field pair prevents.
+    assertDeclaredUnknownOperations(input.unknownOperationIds, supplied.unknownOperationIds, index);
+    operationsHex = supplied.operationsHex;
+  } else if (input.unknownOperationIds !== undefined) {
+    return invalidPermission(
+      `actives[${index}].unknownOperationIds requires operationsHex — operations cannot express unnamed contract types`,
+    );
   }
   const decoded = decodeOperations(operationsHex);
+  if (decoded.operations.length === 0 && decoded.unknownOperationIds.length === 0) {
+    return invalidPermission("active.operations must contain at least one contract type");
+  }
   const parsedKeys = keys(input.keys, `actives[${index}].keys`);
   const threshold = safePositiveInteger(input.threshold, `actives[${index}].threshold`);
   const total = parsedKeys.reduce((sum, key) => sum + BigInt(key.weight), 0n);
@@ -234,7 +288,7 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
     operations: decoded.operations,
     operationLabels: decoded.labels,
     operationsHex,
-    unknownOperationIds: [],
+    unknownOperationIds: decoded.unknownOperationIds,
   };
 }
 
@@ -320,6 +374,12 @@ export function permissionSafetyWarnings(
       warnings.push({
         code: "active_can_update_permission",
         message: `active permission ${active.name} (id ${active.id}) can replace the account permission structure`,
+      });
+    }
+    if (active.unknownOperationIds.length > 0) {
+      warnings.push({
+        code: "active_unknown_operations",
+        message: `active permission ${active.name} (id ${active.id}) grants contract types this build cannot name: ${active.unknownOperationIds.join(", ")}; their bitmap scope is preserved`,
       });
     }
   }

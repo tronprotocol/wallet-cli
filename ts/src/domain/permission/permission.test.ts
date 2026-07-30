@@ -28,6 +28,7 @@ function structure() {
       threshold: 1,
       operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
       operationsHex: "0600008000000000000000000000000000000000000000000000000000000000",
+      unknownOperationIds: [] as number[],
       keys: [{ address: A, weight: 1 }],
     }],
   };
@@ -44,10 +45,24 @@ describe("TRON permission operations", () => {
     });
   });
 
-  it("preserves unknown set bits when reading node state", () => {
-    const decoded = decodeOperations("08" + "00".repeat(31));
+  it("names every operation enabled by the protocol default bitmap", () => {
+    const decoded = decodeOperations("7fff1fc0033ef30f" + "00".repeat(24));
+    expect(decoded.operations).toContain("VoteAssetContract");
+    expect(decoded.operations).toContain("CustomContract");
+    expect(decoded.operations).toContain("GetContract");
+    expect(decoded.unknownOperationIds).toEqual([]);
+  });
+
+  it("recognizes shielded transfer even though the current default bitmap excludes it", () => {
+    const decoded = decodeOperations("00".repeat(6) + "08" + "00".repeat(25));
+    expect(decoded.operations).toEqual(["ShieldedTransferContract"]);
+    expect(decoded.unknownOperationIds).toEqual([]);
+  });
+
+  it("preserves genuinely unknown set bits when reading node state", () => {
+    const decoded = decodeOperations("80" + "00".repeat(31));
     expect(decoded.operations).toEqual([]);
-    expect(decoded.unknownOperationIds).toEqual([3]);
+    expect(decoded.unknownOperationIds).toEqual([7]);
   });
 
   it("rejects unknown contract names and malformed bitmaps", () => {
@@ -62,6 +77,84 @@ describe("permission replacement validation", () => {
     expect(parsed.owner.keys[0]?.local).toBeNull();
     expect(parsed.owner.name).toBe("owner");
     expect(parsed.actives[0]?.operationLabels).toContain("Transfer TRX");
+  });
+
+  it("round-trips unknown operation bits when the known operation list matches", () => {
+    const input = structure();
+    input.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
+    input.actives[0]!.unknownOperationIds = [7];
+    const parsed = validatePermissionStructure(input);
+    expect(parsed.actives[0]).toMatchObject({
+      operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
+      operationsHex: input.actives[0]!.operationsHex,
+      unknownOperationIds: [7],
+    });
+  });
+
+  // The bitmap is what the chain enforces; `operations` and `unknownOperationIds` are what a human
+  // reviews. A bit set in the bitmap but absent from both lists would widen the permission with
+  // nothing in the file to show for it — exactly how the original round-trip bug hid its damage.
+  it("rejects unnamed operation bits that the file does not declare", () => {
+    const omitted = structure();
+    omitted.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
+    delete (omitted.actives[0] as Record<string, unknown>).unknownOperationIds;
+    expect(() => validatePermissionStructure(omitted)).toThrowError(/must declare the unnamed contract types.*7/);
+
+    const emptied = structure();
+    emptied.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
+    expect(() => validatePermissionStructure(emptied)).toThrowError(/declared none, bitmap sets 7/);
+  });
+
+  it("rejects unknownOperationIds that disagree with the bitmap", () => {
+    const understated = structure();
+    understated.actives[0]!.operationsHex = "86000088" + "00".repeat(28);
+    understated.actives[0]!.unknownOperationIds = [7];
+    expect(() => validatePermissionStructure(understated)).toThrowError(/does not match operationsHex/);
+
+    const overstated = structure();
+    overstated.actives[0]!.unknownOperationIds = [7];
+    expect(() => validatePermissionStructure(overstated)).toThrowError(/does not match operationsHex/);
+  });
+
+  it("rejects duplicate unknownOperationIds", () => {
+    const input = structure();
+    input.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
+    input.actives[0]!.unknownOperationIds = [7, 7];
+    expect(() => validatePermissionStructure(input)).toThrowError(/must not contain duplicate/);
+  });
+
+  it("rejects unknownOperationIds without a bitmap to justify them", () => {
+    const input = structure();
+    delete (input.actives[0] as Record<string, unknown>).operationsHex;
+    input.actives[0]!.unknownOperationIds = [7];
+    expect(() => validatePermissionStructure(input)).toThrowError(/requires operationsHex/);
+
+    const malformed = structure();
+    delete (malformed.actives[0] as Record<string, unknown>).operationsHex;
+    (malformed.actives[0] as Record<string, unknown>).unknownOperationIds = "3";
+    expect(() => validatePermissionStructure(malformed)).toThrowError(/requires operationsHex/);
+  });
+
+  // A node permission may set only bits this build cannot name; `permission show` then emits
+  // operations: []. Rejecting that would leave such an account unable to restore its own backup.
+  it("accepts an active whose bitmap holds only unnamed contract types", () => {
+    const input = structure();
+    input.actives[0]!.operations = [];
+    input.actives[0]!.operationsHex = "80" + "00".repeat(31);
+    input.actives[0]!.unknownOperationIds = [7];
+    const parsed = validatePermissionStructure(input);
+    expect(parsed.actives[0]).toMatchObject({
+      operations: [],
+      operationsHex: "80" + "00".repeat(31),
+      unknownOperationIds: [7],
+    });
+  });
+
+  it("still rejects an active that authorizes nothing at all", () => {
+    const input = structure();
+    input.actives[0]!.operations = [];
+    input.actives[0]!.operationsHex = "00".repeat(32);
+    expect(() => validatePermissionStructure(input)).toThrowError(/at least one contract type/);
   });
 
   it("rejects unsafe thresholds, duplicate ids/addresses, unknown operations, and control names", () => {
@@ -137,5 +230,19 @@ describe("local key inventory and lockout warnings", () => {
       "owner_lockout",
       "active_can_update_permission",
     ]);
+  });
+
+  // Preserving bits we cannot name is the safe default, but it is still scope the user cannot see
+  // in the operation list — --dry-run has to say so rather than render an empty warnings array.
+  it("warns that preserved unnamed operations are scope the reader cannot inspect", () => {
+    const input = structure();
+    input.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
+    input.actives[0]!.unknownOperationIds = [7];
+    const inventory = new Map([[A, "main"]]);
+    const warnings = permissionSafetyWarnings(validatePermissionStructure(input), inventory);
+    expect(warnings).toContainEqual(expect.objectContaining({
+      code: "active_unknown_operations",
+      message: expect.stringContaining("7"),
+    }));
   });
 });

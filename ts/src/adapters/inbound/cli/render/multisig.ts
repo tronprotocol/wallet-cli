@@ -1,6 +1,7 @@
 import type {
   TronLinkMultisigView,
   TxApprovalView,
+  TxSignTransactionView,
   TxSignView,
 } from "../../../../domain/types/index.js";
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
@@ -91,14 +92,42 @@ function renderTronLink(value: TronLinkMultisigView): string {
 
 function renderSign(value: TxSignView): string {
   const artifact = value.out ? `written to ${value.out}` : value.hex;
+  const signer = value.checked
+    ? `${value.signer}  (weight ${formatInt(value.signerWeight)})`
+    : value.signer;
   const action = receipt(ok(), "Signature added", [
-    ["Signer", `${value.signer}  (weight ${formatInt(value.signerWeight)})`],
+    ["Signer", signer],
     ["Hex", artifact],
   ]);
-  const next = value.transaction.thresholdReached
+  if (!value.checked || !value.approval) {
+    return `${action}\n\n${renderSignedTransaction(value.transaction)}\n` +
+      "! Approval state was not checked online. Inspect it with: " +
+      `wallet-cli tx approvals ${value.out ? `--file ${value.out}` : "--hex <hex-above>"}`;
+  }
+  const next = value.approval.thresholdReached
     ? `\n! Broadcast it: wallet-cli tx broadcast ${value.out ? `--file ${value.out}` : "--hex <hex-above>"}`
     : "";
-  return `${action}\n\n${renderApproval(value.transaction)}${next}`;
+  return `${action}\n\n${renderApproval(value.approval)}${next}`;
+}
+
+function renderSignedTransaction(value: TxSignTransactionView): string {
+  const permissionKind = value.permissionId === 0 ? "owner" : value.permissionId === 1 ? "witness" : "active";
+  const label = value.operation ? `${value.operation} (${value.contractType})` : value.contractType;
+  const type = !value.rawAmount
+    ? label
+    : value.contractType === "TransferContract"
+      ? `${label} — ${formatSun(value.rawAmount)} TRX`
+      : `${label} — ${value.rawAmount} base units`;
+  const transaction = query([
+    ["TxID", value.txId],
+    ["Type", type],
+    ["From", value.from ?? ""],
+    ["To", value.to ?? ""],
+    ["Permission", `${permissionKind} (id ${value.permissionId})`],
+    ["Signatures", formatInt(value.signatures)],
+    ["Expires", `${formatAtWithRelative(value.expiration)}${value.expired ? " [EXPIRED]" : ""}`],
+  ]);
+  return `Transaction (local inspection)\n${transaction.split("\n").map((line) => `  ${line}`).join("\n")}`;
 }
 
 export const MultisigFormatters = {
