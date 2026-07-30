@@ -1,0 +1,217 @@
+name: TypeScript Standalone Release
+
+on:
+  push:
+    tags:
+      - "ts-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  quality:
+    name: TypeScript quality gates
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/ts-v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(node -p "require('./package.json').version")"
+          test "${GITHUB_REF_NAME}" = "ts-v${package_version}"
+
+      - name: Check architecture boundaries
+        run: npm run depcruise
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build npm bundle
+        run: npm run build
+
+  binaries:
+    name: ${{ matrix.asset }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: bun-linux-x64-baseline
+            asset: linux-x64
+            executable: wallet-cli
+            archive: tar.gz
+          - os: ubuntu-24.04-arm
+            target: bun-linux-arm64
+            asset: linux-arm64
+            executable: wallet-cli
+            archive: tar.gz
+          - os: macos-15-intel
+            target: bun-darwin-x64
+            asset: macos-x64
+            executable: wallet-cli
+            archive: tar.gz
+          - os: macos-15
+            target: bun-darwin-arm64
+            asset: macos-arm64
+            executable: wallet-cli
+            archive: tar.gz
+          - os: windows-2022
+            target: bun-windows-x64-baseline
+            asset: windows-x64
+            executable: wallet-cli.exe
+            archive: zip
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build standalone executable
+        run: >-
+          npm run build:standalone --
+          --target ${{ matrix.target }}
+          --outfile standalone/${{ matrix.executable }}
+
+      - name: Verify executable and embedded Ledger addon
+        run: node scripts/verify-standalone.mjs standalone/${{ matrix.executable }}
+
+      - name: Verify macOS code signature
+        if: runner.os == 'macOS'
+        run: codesign --verify --verbose standalone/${{ matrix.executable }}
+
+      - name: Package Unix archive
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          package="wallet-cli-${version}-${{ matrix.asset }}"
+          mkdir -p "release-assets/${package}"
+          cp "standalone/${{ matrix.executable }}" "release-assets/${package}/wallet-cli"
+          cp LICENSE "release-assets/${package}/LICENSE"
+          tar -C release-assets -czf "release-assets/${package}.tar.gz" "${package}"
+          rm -r "release-assets/${package}"
+
+      - name: Package Windows archive
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = node -p "require('./package.json').version"
+          $package = "wallet-cli-$version-${{ matrix.asset }}"
+          New-Item -ItemType Directory -Force "release-assets/$package" | Out-Null
+          Copy-Item "standalone/${{ matrix.executable }}" "release-assets/$package/wallet-cli.exe"
+          Copy-Item "LICENSE" "release-assets/$package/LICENSE"
+          Compress-Archive -Path "release-assets/$package" -DestinationPath "release-assets/$package.zip"
+          Remove-Item -Recurse "release-assets/$package"
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-cli-${{ matrix.asset }}
+          path: ts/release-assets/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/ts-v')
+    needs: binaries
+    runs-on: ubuntu-24.04
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse an existing versioned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "::error::release ${GITHUB_REF_NAME} already exists; versioned assets are immutable"
+            exit 1
+          fi
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wallet-cli-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum wallet-cli-* > SHA256SUMS.txt
+
+      - name: Attest release archives
+        uses: actions/attest@v4
+        with:
+          subject-checksums: release-assets/SHA256SUMS.txt
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#ts-v}"
+          previous_tag="$(git tag --list 'ts-v*' --sort=-version:refname | grep -Fvx "${GITHUB_REF_NAME}" | head -n 1 || true)"
+          notes_args=(--generate-notes)
+          if [ -n "${previous_tag}" ]; then
+            notes_args+=(--notes-start-tag "${previous_tag}")
+          fi
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --verify-tag \
+            --latest=false \
+            "${notes_args[@]}" \
+            --title "wallet-cli TypeScript v${version}"

@@ -5,7 +5,7 @@ Send native TRX or TRC20/TRC10 tokens with human `--amount`.
 ## Synopsis
 
 ```
-wallet-cli tx send --to <address> (--amount <n> | --raw-amount <n>)
+wallet-cli tx send --to <address|contact> (--amount <n> | --raw-amount <n>)
                    [--token <symbol> | --contract <address> | --asset-id <id>]
                    [--dry-run | --sign-only] [--fee-limit <sun>] [options]
 ```
@@ -19,6 +19,10 @@ Builds, signs, and submits a transfer from the active account (or `--account`). 
 - `--contract <address>` → TRC20 by contract address;
 - `--asset-id <id>` → TRC10 by numeric asset id.
 
+`--to` accepts a TRON address or the name of a local [contact](../contact/index.md). When a contact
+name resolves, the receipt shows both — `To  alice (TR7NHq…)` — and `data.toContact` carries the
+name, so the resolution stays auditable rather than implicit.
+
 Amounts: `--amount` is human units (TRX, or token units respecting the token's decimals); `--raw-amount` is the raw integer (SUN or token base units). Exactly one of the two.
 
 Two early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the transaction for a later [`tx broadcast`](broadcast.md).
@@ -31,7 +35,7 @@ Requires an account and the master password via `--password-stdin` — signing c
 
 | Option | Description |
 |---|---|
-| `--to <string>` | **Required.** Recipient TRON base58 address |
+| `--to <string>` | **Required.** Recipient TRON base58 address, or a local [contact](../contact/index.md) name |
 | `--amount <string>` | Human amount; mutually exclusive with `--raw-amount` |
 | `--raw-amount <string>` | Raw integer amount in SUN / token base units |
 | `--token <string>` | Token symbol from the address book; excludes `--contract`, `--asset-id` |
@@ -85,7 +89,7 @@ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH -
 
 | Mode | Fields |
 |---|---|
-| default (submit) | `kind: "send"`, `stage: "submitted"`, `txId`, `rawAmount` (string), `to` |
+| default (submit) | `kind: "send"`, `stage: "submitted"`, `txId`, `rawAmount` (string), `to`, plus `toContact` when `--to` was a contact name |
 | `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `netUsed` (bandwidth used) or `feeSun` (fee burned), `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, e.g. `bandwidthBurnSunIfNoFreeze`), unsigned `tx` (TRON tx object incl. `txID`, `raw_data`), `rawAmount`, `to` |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (full signed TRON tx incl. `signature[]` — feed to `tx broadcast`), `address` (signer), `txId`, `fee`, `rawAmount`, `to` |

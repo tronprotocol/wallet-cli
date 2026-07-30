@@ -4,7 +4,7 @@
  * Transport is env-switchable so the same code path drives a real device or the Speculos
  * emulator (their only difference is the @ledgerhq transport; the hw-app-trx layer above is
  * identical). When SPECULOS_PORT is set we open the Speculos HTTP transport; otherwise we open
- * the USB/HID transport. Both @ledgerhq deps are imported lazily so the Speculos path works
+ * the HID transport. Both @ledgerhq deps are imported lazily so the Speculos path works
  * without node-hid's native build present, and so unit tests that mock these methods never load
  * a native module.
  *
@@ -61,7 +61,10 @@ async function openTransport(): Promise<{ transport: unknown; close: () => Promi
     });
     return { transport, close: () => transport.close() };
   }
-  const Hid = unwrap<any>(await import("@ledgerhq/hw-transport-node-hid"));
+  // The CLI opens one device for one operation and never subscribes to hot-plug events. The
+  // no-events transport avoids loading the separate `usb` native addon, which is both unnecessary
+  // here and would otherwise double the native surface of standalone release binaries.
+  const Hid = unwrap<any>(await import("@ledgerhq/hw-transport-node-hid-noevents"));
   const transport = await Hid.open("");
   return { transport, close: () => transport.close() };
 }

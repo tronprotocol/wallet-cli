@@ -60,7 +60,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"])
     expect(r.status).toBe(0)
-    expect(r.stdout.trim()).toBe("0.2.0")
+    expect(r.stdout.trim()).toBe("4.11.0")
   })
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -76,6 +76,12 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toContain("  import")
     expect(r.stdout).toContain("  account")
     expect(r.stdout).toContain("  tx")
+    expect(r.stdout).toMatch(/^  permission\s/m)
+    expect(r.stdout).toMatch(/^  gasfree\s/m)
+    expect(r.stdout).toMatch(/^  encoding\s/m)
+    expect(r.stdout).toMatch(/^  address\s/m)
+    expect(r.stdout).toMatch(/^  contact\s/m)
+    expect(r.stdout).toContain("current account (--qr for a receive QR code)")
     expect(r.stdout).not.toContain("Learn more:")
     expect(r.stdout).not.toMatch(/^  import watch\s/m)
     expect(r.stdout).not.toMatch(/^  account balance\s/m)
@@ -120,7 +126,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.aliases).toBeUndefined()
     const cmd = r.json.commands.find((c: { id: string }) => c.id === "tx.send")
     expect(cmd.usage).toBe("wallet-cli tx send [options]")
-    expect(cmd.requires).toMatchObject({ network: "optional", auth: "required", wallet: "optional" })
+    expect(cmd.requires).toMatchObject({ network: "optional", auth: "conditional", wallet: "optional" })
     expect(cmd.inputSchema.properties.to).toBeDefined()
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic")
     // TTY-only setup op: the mnemonic is entered interactively, so there is no --*-stdin input flag.
@@ -523,7 +529,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     const r = run(["--output", "json", "token", "list"])
     expect(r.status).toBe(0)
     expect(r.json.data.network).toBe("tron:mainnet")
-    expect(r.json.data.tokens.map((t: { symbol: string }) => t.symbol)).toEqual(["USDT", "USDC"])
+    expect(r.json.data.tokens.map((t: { symbol: string }) => t.symbol)).toEqual(["USDT", "USDC", "USDD"])
     expect(r.json.data.tokens.every((t: { source: string }) => t.source === "official")).toBe(true)
   })
 
@@ -535,13 +541,12 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     expect(r.json.chain.network).toBe("tron:mainnet")
   })
 
-  it("token list shows a user-added token tagged user (nile, empty official layer)", () => {
+  it("token list lists nile's official tokens first, then a user-added token tagged user", () => {
     const ref = seedWallet()
     seedToken("tron:nile", ref, CUSTOM)
     const r = run(["--output", "json", "token", "list", "--network", "tron:nile"])
     expect(r.status).toBe(0)
-    expect(r.json.data.tokens).toHaveLength(1)
-    expect(r.json.data.tokens[0]).toMatchObject({ symbol: "CUS", source: "user" })
+    expect(r.json.data.tokens.map((t: { source: string; symbol: string }) => `${t.source}:${t.symbol}`)).toEqual(["official:USDT", "official:USDD", "user:CUS"])
   })
 
   it("token remove of an official token → token_is_official, exit 2", () => {

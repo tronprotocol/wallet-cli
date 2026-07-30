@@ -13,9 +13,10 @@ export interface Example {
 // "optional" = the command operates on an account; --account is optional and falls back to the
 // active account (errors only if no account exists at all). "none" = never touches an account.
 // (No "required": no command forces --account — active is always a valid default. cf. network.)
-// "required" = unlocks the master password (sign / read secrets / encrypt);
-// "none" = never unlocks. (No middle state — a command either needs the password or it doesn't.)
-export type AuthRequirement = "none" | "required";
+// "required" = every execution needs the master password (sign / read secrets / encrypt);
+// "conditional" = only selected execution modes need it; other modes run without a password;
+// "none" = never needs it.
+export type AuthRequirement = "none" | "conditional" | "required";
 
 /** secret/payload channel a command reads from stdin; documents the matching --*-stdin flag.
  *  (Wallet-secret entry — mnemonic/private-key/master-password — is TTY-only, so those never

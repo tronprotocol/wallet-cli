@@ -48,6 +48,18 @@ describe("StreamManager", () => {
     expect(t.err).toEqual(["warning: careful\n"]);
   });
 
+  it("preserves structured warning codes in JSON and prints only the message in text mode", () => {
+    const warning = { code: "owner_lockout", message: "local owner key is unavailable" };
+    const j = capture("json");
+    j.sm.diagnostic("warn", warning);
+    expect(j.sm.warnings()).toEqual([warning]);
+    expect(j.err).toEqual([]);
+
+    const t = capture("text");
+    t.sm.diagnostic("warn", warning);
+    expect(t.err).toEqual(["warning: local owner key is unavailable\n"]);
+  });
+
   it("event writes an intermediate frame as a plain line to stderr, never stdout", () => {
     const { sm, out, err } = capture("json");
     sm.event('{"type":"signed"}');

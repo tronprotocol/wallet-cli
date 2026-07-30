@@ -34,11 +34,21 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx)
   if (r.mode === "dry-run") {
     return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
+      ...receiptRows(r),
+      ["Fee", r.multiSignFeeSun === undefined
+        ? formatFee(r.fee, family)
+        : `${formatSun(r.multiSignFeeSun)} TRX multi-sign fee`],
+      ["Tx", summarizeTx(r.tx)],
+    ])
+  }
+  if (r.mode === "build-only") {
+    return r.hex ?? receipt(pending(), `Built ${actionLabel(r.kind)}`, [
       ["Fee", formatFee(r.fee, family)],
       ["Tx", summarizeTx(r.tx)],
     ])
   }
   if (r.mode === "sign-only") {
+    if (r.hex) return r.hex
     // kv() drops empty rows, so a fee-less signature (tx sign estimates nothing) omits the Fee line.
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
       ["Address", r.address ?? ""],
@@ -135,18 +145,35 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
     // switch total over TxReceiptKind.
     case "sign":
       return "Signed"
+    case "permission-update":
+      return "Permissions updated"
+    case "account-activate":
+      return "Account activated"
+    case "account-set":
+      return `On-chain ${r.field ?? "account field"} set`
   }
 }
 
 /** action-specific extra rows (To/From/Address/Contract), by kind. */
 function receiptRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = []
+  if (r.multiSignFeeSun) rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`])
   if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
   else if (r.kind === "stake-undelegate") rows.push(["From", String(r.receiver ?? "")])
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])
   else if (r.kind === "vote-cast" && Array.isArray(r.votes)) rows.push(["Votes", r.votes.map((vote) => `${vote.witness}=${formatInt(vote.count)}`).join(", ")])
   else if (r.kind === "reward-withdraw") rows.push(["Amount", `${formatSun(r.rewardSun ?? r.withdrawnSun ?? 0)} TRX`])
-  else if (r.to ?? r.receiver) rows.push(["To", String(r.to ?? r.receiver)])
+  else if (r.kind === "account-activate") {
+    rows.push(["Address", String(r.address ?? "")])
+    rows.push(["Payer", String(r.payer ?? "")])
+  } else if (r.kind === "account-set") {
+    rows.push(["Address", String(r.address ?? "")])
+    rows.push([r.field === "id" ? "ID" : "Name", String(r.value ?? "")])
+  }
+  else if (r.to ?? r.receiver) {
+    const address = String(r.to ?? r.receiver)
+    rows.push(["To", r.toContact ? `${r.toContact} (${address})` : address])
+  }
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")])
   return rows
 }
@@ -198,6 +225,12 @@ function actionLabel(kind: TxReceiptKind): string {
       return "vote cast"
     case "reward-withdraw":
       return "reward withdraw"
+    case "permission-update":
+      return "permission update"
+    case "account-activate":
+      return "account activate"
+    case "account-set":
+      return "account set"
   }
 }
 
