@@ -9,14 +9,13 @@ import type { OutputMode } from "../../../../domain/types/index.js";
 import type {
   DiagnosticLevel,
   StreamManager as IStreamManager,
-  WarningItem,
 } from "../contracts/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 
 export class StreamManager implements IStreamManager {
   #resultWritten = false;
   #stdinRead = false;
-  #warnings: WarningItem[] = [];
+  #warnings: string[] = [];
 
   constructor(
     private readonly output: OutputMode,
@@ -33,14 +32,14 @@ export class StreamManager implements IStreamManager {
     this.out(text.endsWith("\n") ? text : text + "\n");
   }
 
-  diagnostic(level: DiagnosticLevel, msg: WarningItem): void {
+  diagnostic(level: DiagnosticLevel, msg: string): void {
     if (level === "warn") {
       this.#warnings.push(msg);
-      if (this.output === "text") this.err(`warning: ${typeof msg === "string" ? msg : msg.message}\n`);
+      if (this.output === "text") this.err(`warning: ${msg}\n`);
       return;
     }
     if (level === "debug" && !this.verbose) return;
-    this.err(`${typeof msg === "string" ? msg : msg.message}\n`);
+    this.err(`${msg}\n`);
   }
 
   errorLine(msg: string): void {
@@ -57,7 +56,7 @@ export class StreamManager implements IStreamManager {
     this.err(frame.endsWith("\n") ? frame : frame + "\n");
   }
 
-  warnings(): WarningItem[] {
+  warnings(): string[] {
     return this.#warnings;
   }
 

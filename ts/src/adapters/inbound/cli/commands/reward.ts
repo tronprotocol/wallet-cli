@@ -24,7 +24,7 @@ export const rewardBalanceTronBinding = (svc: TronRewardService): FamilyBinding 
 
 export const rewardWithdrawSpec: ChainSpec = {
   path: ["reward", "withdraw"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional", wallet: "optional", auth: "required",
   broadcasts: true,
   capability: "reward.withdraw",
   summary: "Withdraw accrued voting/block rewards",

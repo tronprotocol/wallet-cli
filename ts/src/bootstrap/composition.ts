@@ -29,18 +29,6 @@ import { ConfigService } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
 import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
 import { registerTronChainCommands } from "./families/tron.js";
-import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
-import { GasFreeClient } from "../adapters/outbound/gasfree/client.js";
-import { ContactBook } from "../adapters/outbound/contactbook/index.js";
-import { ContactService } from "../application/use-cases/contact-service.js";
-import { RecipientResolver } from "../application/services/recipient-resolver.js";
-import { registerContactCommands } from "../adapters/inbound/cli/commands/contact.js";
-import { EncodingService } from "../application/use-cases/encoding-service.js";
-import { AddressService } from "../application/use-cases/address-service.js";
-import { SecureKeypairWriter } from "../adapters/outbound/persistence/keypair-writer.js";
-import { registerEncodingCommands } from "../adapters/inbound/cli/commands/encoding.js";
-import { registerAddressCommands } from "../adapters/inbound/cli/commands/address.js";
-import { TerminalQrEncoder } from "../adapters/outbound/qr/index.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -58,7 +46,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const formatter = createOutputFormatter(output, streams, options.startedAt);
 
   const root = ConfigLoader.resolveRoot();
-  streams.diagnostic("debug", `wallet root: ${root}`);
   const store = new AtomicFileStore();
   const configService = new ConfigService(
     new YamlConfigDocument(ConfigLoader.configPath(), store),
@@ -74,8 +61,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     new SecureBackupWriter(root),
   );
   const tokenBook = new TokenBook(root, store);
-  const contactBook = new ContactBook(root, store);
-  const recipientResolver = new RecipientResolver(contactBook);
   const priceProvider = createPriceProvider(config.price, timeoutMs);
   const gatewayProvider = new ChainGatewayRegistry(
     familyMap((plugin) => plugin.createGateway),
@@ -90,41 +75,24 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const txPipeline = new TxPipeline(signerResolver);
 
   const registry = new CommandRegistry();
-  registerWalletCommands(registry, {
-    walletService,
-    ledger,
-    qr: new TerminalQrEncoder(),
-  });
+  registerWalletCommands(registry, { walletService, ledger });
   registerConfigCommands(registry, configService);
   registerNetworkCommands(registry);
-  registerContactCommands(registry, new ContactService(contactBook));
-  registerEncodingCommands(registry, new EncodingService());
-  registerAddressCommands(
-    registry,
-    new AddressService(root, new SecureKeypairWriter()),
-  );
   registerTronChainCommands(registry, {
     gateways: gatewayProvider,
     tokens: tokenBook,
     prices: priceProvider,
     signers: signerResolver,
     transactions: txPipeline,
-    accounts: keystore,
     timeoutMs,
-    tronlink: new TronLinkClient(config, timeoutMs),
-    gasfree: new GasFreeClient(config, timeoutMs),
-    recipients: recipientResolver,
   });
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();
   for (const network of Object.values(config.networks)) {
-    const commandCapabilities = (capabilitiesByFamily.get(network.family) ?? [])
-      .filter((key) => key !== "tx.multisig.tronlink" || Boolean(network.tronlinkHttpEndpoint))
-      .filter((key) => !key.startsWith("gasfree.") || Boolean(network.gasfree))
-      .map((key) => ({
-        key,
-        summary: CAP_SUMMARIES[key] ?? key,
-      }));
+    const commandCapabilities = (capabilitiesByFamily.get(network.family) ?? []).map((key) => ({
+      key,
+      summary: CAP_SUMMARIES[key] ?? key,
+    }));
     const traits = network.capabilities.map((key) => ({
       key,
       summary: TRAIT_SUMMARIES[key] ?? key,
