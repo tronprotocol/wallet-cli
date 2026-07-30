@@ -6,15 +6,8 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { DecodedTronTransaction, TronGateway, TronTxInfo } from "../../ports/chain/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import {
-  outcomeData,
-  transactionMode,
-  transactionRequiresSigner,
-  type TransactionModeInput,
-} from "../../services/transaction-mode.js";
+import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
 import { stageTronBroadcast, tronConfirmation } from "../../services/tron-confirmation.js";
-import { tronTransactionHooks } from "./multisig-authorization.js";
-import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
 export interface TronSendInput extends TransactionModeInput {
   to: string;
@@ -31,13 +24,11 @@ export class TronTransactionService {
     private readonly gateways: ChainGatewayProvider,
     private readonly tokens: TokenRepository,
     private readonly pipeline: TxPipeline,
-    private readonly recipients: RecipientResolver,
   ) {}
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: TronSendInput) {
-    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
-    const recipient = this.recipients.resolve("tron", input.to);
     const resolved = await this.resolveTransfer(
       gateway,
       network.id,
@@ -50,16 +41,15 @@ export class TronTransactionService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (from) => resolved.contract
-        ? gateway.buildTrc20Transfer(from, recipient.address, resolved.contract, resolved.rawAmount, input.feeLimit)
+        ? gateway.buildTrc20Transfer(from, input.to, resolved.contract, resolved.rawAmount, input.feeLimit)
         : resolved.assetId
-          ? gateway.buildTrc10Transfer(from, recipient.address, resolved.assetId, resolved.rawAmount)
-          : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount),
+          ? gateway.buildTrc10Transfer(from, input.to, resolved.assetId, resolved.rawAmount)
+          : gateway.buildNativeTransfer(from, input.to, resolved.rawAmount),
       estimate: () => resolved.contract
         ? gateway.estimateResources(scope.resolveAddress("tron"), resolved.contract, "transfer(address,uint256)", [
-            { type: "address", value: recipient.address },
+            { type: "address", value: input.to },
             { type: "uint256", value: resolved.rawAmount },
           ])
         : Promise.resolve(resolved.assetId
@@ -74,10 +64,7 @@ export class TronTransactionService {
       decimals: resolved.decimals,
       contract: resolved.contract,
       assetId: resolved.assetId,
-      to: recipient.address,
-      ...(recipient.contactName
-        ? { toContact: recipient.contactName }
-        : {}),
+      to: input.to,
     };
   }
 

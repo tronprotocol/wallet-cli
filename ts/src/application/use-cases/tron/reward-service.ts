@@ -4,14 +4,8 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAccount } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import {
-  outcomeData,
-  transactionMode,
-  transactionRequiresSigner,
-  type TransactionModeInput,
-} from "../../services/transaction-mode.js";
+import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
-import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const WITHDRAW_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -37,7 +31,7 @@ export class TronRewardService {
   }
 
   async withdraw(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
-    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
@@ -57,7 +51,6 @@ export class TronRewardService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => gateway.buildWithdrawBalance(owner),
       estimate: async () => ({ feeModel: "tron-resource", note: "reward withdrawal uses bandwidth only" }),

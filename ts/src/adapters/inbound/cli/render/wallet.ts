@@ -24,13 +24,7 @@ export const WalletFormatters = {
   }) satisfies TextFormatter,
   walletCurrent: ((data) => {
     const d = asObj(data)
-    const identity = titled(
-      `${d.active === true ? "Active" : "Selected"} account: ${displayName(d)}`,
-      addressPairs(d),
-    )
-    return d.receiveQr
-      ? `${identity}\n\n${String(d.receiveQr)}\nReceive address  ${String(d.receiveAddress ?? "")}`
-      : identity
+    return titled(`Active account: ${displayName(d)}`, addressPairs(d))
   }) satisfies TextFormatter,
   walletRename: ((data) => {
     const d = asObj(data)

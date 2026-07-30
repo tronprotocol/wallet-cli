@@ -12,15 +12,9 @@ import type {
   TronWitness,
 } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import {
-  outcomeData,
-  transactionMode,
-  transactionRequiresSigner,
-  type TransactionModeInput,
-} from "../../services/transaction-mode.js";
+import { outcomeData, transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { TronStakeService } from "./stake-service.js";
-import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const MAX_VOTE_ITEMS = 30;
 const MAX_REWARDED_RANK = 127;
@@ -76,7 +70,7 @@ export class TronVoteService {
   ) {}
 
   async cast(scope: TransactionScope, network: NetworkDescriptor, input: VoteCastInput) {
-    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
+    this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const votes = parseVoteInputs(input.for);
     const totalVotes = votes.reduce((sum, vote) => sum + BigInt(vote.count), 0n);
@@ -97,7 +91,6 @@ export class TronVoteService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (ownerAddress) => gateway.buildVoteWitness(ownerAddress, votes),
       estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "voting uses bandwidth only" }),

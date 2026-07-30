@@ -4,9 +4,6 @@
  */
 import type { ChainFamily } from "../../../../domain/family/index.js";
 import type { OutputMode } from "../../../../domain/types/primitives.js";
-import type { WarningView } from "../../../../domain/types/permission.js";
-
-export type WarningItem = string | WarningView;
 
 export interface ChainView {
   family: ChainFamily;
@@ -15,7 +12,7 @@ export interface ChainView {
 }
 export interface Meta {
   durationMs: number;
-  warnings: WarningItem[];
+  warnings: string[];
 }
 export interface ResultEnvelope {
   schema: "wallet-cli.result.v1";
