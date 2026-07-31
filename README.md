@@ -25,7 +25,7 @@ Both manage the same kind of wallet on the same networks — your address is ide
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **What it is**         | The mature, full-feature reference CLI.                                                                                                    | A newer rewrite focused on programmatic integration.                                                                                                              |
 | **Runtime**            | JVM — built with Gradle, run as a `.jar`. Uses the [Trident](https://github.com/tronprotocol/trident) SDK.                                 | Standalone executable, or [Node.js](https://nodejs.org) **20+** for the npm package.                                                                              |
-| **Install**            | `git clone` + `./gradlew build` (see [Setup](java/README.md#setup))                                                                        | Download from [GitHub Releases](https://github.com/tronprotocol/wallet-cli/releases), or `npm install -g @tron-walletcli/wallet-cli`.                              |
+| **Install**            | `git clone` + `./gradlew build` (see [Setup](java/README.md#setup))                                                                        | Download from [TypeScript Standalone Artifacts](https://github.com/tronprotocol/wallet-cli/actions/workflows/ts-standalone-release.yml), or `npm install -g @tron-walletcli/wallet-cli`.         |
 | **How you drive it**   | An **interactive prompt only** — start it, then type commands at `>`.                                                                      | **One-shot subcommands** — `wallet-cli <command>` from your shell. Interactive prompts only for secret input.                                                     |
 | **Command style**      | PascalCase verbs: `RegisterWallet`, `SendCoin`, `GetBalance`. Amounts in **SUN** (1 TRX = 1,000,000 SUN).                                  | Noun-verb subcommands: `create`, `tx send`, `account balance`, with `--flags`.                                                                                    |
 | **Output for scripts** | Human-readable text.                                                                                                                       | Stable JSON via `-o json` ([`wallet-cli.result.v1`](ts/docs/machine-interface.md)) + fixed exit codes (`0`/`1`/`2`).                                              |
@@ -53,7 +53,7 @@ Full setup (config.conf, connecting to a node), the complete A–Z command list,
 
 ## TypeScript — get a taste
 
-Download the standalone executable from [GitHub Releases](https://github.com/tronprotocol/wallet-cli/releases), or install from npm when Node.js 20+ is already available. Then run subcommands directly from your shell:
+Download the standalone executable from [TypeScript Standalone Artifacts](https://github.com/tronprotocol/wallet-cli/actions/workflows/ts-standalone-release.yml), or install from npm when Node.js 20+ is already available. Then run subcommands directly from your shell:
 
 ```console
 $ npm install -g @tron-walletcli/wallet-cli

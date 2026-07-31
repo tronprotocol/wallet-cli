@@ -27,9 +27,9 @@ Your address is the same on every network, but balances, tokens, and transaction
 
 ### Standalone executable
 
-Download the archive for your machine from [GitHub Releases](https://github.com/tronprotocol/wallet-cli/releases). The executable contains the runtime and JavaScript dependencies, including Ledger HID support; Node.js, Bun, and npm are not required.
+After a change lands on `develop`, download `wallet-cli-standalone-<commit>` from the successful [TypeScript Standalone Artifacts workflow](https://github.com/tronprotocol/wallet-cli/actions/workflows/ts-standalone-release.yml). GitHub wraps the artifact in a zip containing all five platform archives, `SHA256SUMS.txt`, and `BUILD_METADATA.txt`. The executables contain the runtime and JavaScript dependencies, including Ledger HID support; Node.js, Bun, and npm are not required.
 
-| System | Release archive |
+| System | Artifact archive |
 |---|---|
 | macOS Apple Silicon | `wallet-cli-<version>-macos-arm64.tar.gz` |
 | macOS Intel | `wallet-cli-<version>-macos-x64.tar.gz` |
@@ -40,19 +40,20 @@ Download the archive for your machine from [GitHub Releases](https://github.com/
 Example for Linux x64:
 
 ```bash
-version=0.2.0
-curl -LO "https://github.com/tronprotocol/wallet-cli/releases/download/ts-v${version}/wallet-cli-${version}-linux-x64.tar.gz"
-curl -LO "https://github.com/tronprotocol/wallet-cli/releases/download/ts-v${version}/SHA256SUMS.txt"
+unzip "wallet-cli-standalone-<commit>.zip" -d wallet-cli-artifacts
+cd wallet-cli-artifacts
 sha256sum --check --ignore-missing SHA256SUMS.txt
-gh attestation verify "wallet-cli-${version}-linux-x64.tar.gz" --repo tronprotocol/wallet-cli
-tar -xzf "wallet-cli-${version}-linux-x64.tar.gz"
-sudo install -m 0755 "wallet-cli-${version}-linux-x64/wallet-cli" /usr/local/bin/wallet-cli
+archive="$(find . -maxdepth 1 -name 'wallet-cli-*-linux-x64.tar.gz' -print -quit)"
+gh attestation verify "$archive" --repo tronprotocol/wallet-cli
+tar -xzf "$archive"
+package="${archive#./}"
+sudo install -m 0755 "${package%.tar.gz}/wallet-cli" /usr/local/bin/wallet-cli
 wallet-cli --version
 ```
 
 On Windows, extract the zip and put its directory on `PATH`. On macOS, use the matching archive and install the same way; release binaries carry an ad-hoc code signature, not Apple notarization. If Gatekeeper quarantines a checksum-verified download, remove the quarantine attribute from that executable with `xattr -d com.apple.quarantine /path/to/wallet-cli`.
 
-Every TypeScript release also publishes `SHA256SUMS.txt` and GitHub/Sigstore build provenance for each archive. `gh attestation verify` is optional, but the checksum must be verified before installation.
+Every successful standalone run includes `SHA256SUMS.txt` and GitHub/Sigstore build provenance for each archive. `gh attestation verify` is optional, but the checksum must be verified before installation. Actions retains the combined artifact for 30 days.
 
 ### npm
 
@@ -78,7 +79,7 @@ npm link             # puts `wallet-cli` on your PATH (or run: node dist/index.j
 `npm ci` also installs the exact Bun version pinned in `devDependencies`, so contributors can run
 `npm run build:standalone` without a global Bun installation.
 
-Maintainers publish standalone binaries by pushing a `ts-v<version>` tag that exactly matches `package.json`, for example `ts-v0.2.0`. The release workflow builds each executable on a runner with the same OS and CPU architecture, exercises the embedded Ledger addon, and publishes the five archives plus `SHA256SUMS.txt`. A manual workflow run builds the same archives as Actions artifacts without creating a GitHub Release.
+Every update to `develop`, including a merged pull request, runs the standalone workflow. It builds each executable on a runner with the same OS and CPU architecture, exercises the embedded Ledger addon, and stores the five archives plus checksums and build metadata as an Actions artifact. Tag and Release events do not trigger this workflow; maintainers can also start it manually from the Actions page.
 
 **Create your first wallet.** `create` prompts for a master password, then shows the new account:
 
