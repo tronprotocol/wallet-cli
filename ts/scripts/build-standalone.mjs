@@ -11,6 +11,12 @@ const targetByHost = {
   "win32-x64": "bun-windows-x64-baseline",
 };
 
+const pinnedCompilerByTarget = {
+  "bun-linux-x64-baseline": "node_modules/@oven/bun-linux-x64-baseline/bin/bun",
+  "bun-windows-x64-baseline":
+    "node_modules/@oven/bun-windows-x64-baseline/bin/bun.exe",
+};
+
 function option(name) {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
@@ -38,6 +44,7 @@ const outfile =
 const outfileExt = extname(outfile);
 const outfileStem = outfileExt ? outfile.slice(0, -outfileExt.length) : outfile;
 const stagedOutfile = `${outfileStem}.${process.pid}.${Date.now()}.building${outfileExt}`;
+const compileExecutable = resolveCompileExecutable(target);
 const nativeAddon =
   process.platform === "linux"
     ? "node_modules/node-hid/build/Release/HID_hidraw.node"
@@ -50,6 +57,17 @@ if (!existsSync(nativeAddon)) {
 
 mkdirSync(dirname(outfile), { recursive: true });
 
+const compile = {
+  target,
+  outfile: stagedOutfile,
+  autoloadDotenv: false,
+  autoloadBunfig: false,
+};
+if (compileExecutable) {
+  compile.executablePath = compileExecutable;
+  console.log(`using pinned Bun compiler executable ${compileExecutable}`);
+}
+
 const hidShim = resolve(
   process.platform === "linux"
     ? "scripts/standalone/node-hid-linux.ts"
@@ -59,12 +77,7 @@ const hidShim = resolve(
 try {
   const result = await Bun.build({
     entrypoints: [resolve("src/index.ts")],
-    compile: {
-      target,
-      outfile: stagedOutfile,
-      autoloadDotenv: false,
-      autoloadBunfig: false,
-    },
+    compile,
     minify: true,
     plugins: [
       {
@@ -102,6 +115,28 @@ try {
   } catch {
     // Preserve the primary build error; a stale, uniquely named staging file is safe to remove later.
   }
+}
+
+function resolveCompileExecutable(target) {
+  const configured = process.env.BUN_COMPILE_EXECUTABLE?.trim();
+  if (configured) {
+    const executable = resolve(configured);
+    if (!existsSync(executable)) {
+      throw new Error(`BUN_COMPILE_EXECUTABLE does not exist: ${executable}`);
+    }
+    return executable;
+  }
+
+  const pinnedCompiler = pinnedCompilerByTarget[target];
+  if (!pinnedCompiler) return undefined;
+
+  const executable = resolve(pinnedCompiler);
+  if (!existsSync(executable)) {
+    throw new Error(
+      `missing pinned compiler ${pinnedCompiler}; run npm ci without --omit=optional`,
+    );
+  }
+  return executable;
 }
 
 async function publishExecutable(staged, destination) {
