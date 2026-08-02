@@ -217,6 +217,65 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("29,650 energy");
     expect(out).not.toContain("covered by staked energy");
   });
+  // `account activate` estimates its fee from two chain parameters, so its fee object carries
+  // neither `feeSun` nor `energy`. Every such shape must still render as TRX — and no fee shape,
+  // known or not, may ever reach the user as a stringified object.
+  const activateFee = {
+    feeModel: "tron-resource",
+    createAccountFeeSun: "100000",
+    systemContractFeeSun: "1000000",
+    minimumFeeSun: "1100000",
+    balanceSun: "1862126000",
+  };
+  const dryRun = (fee: unknown) => TextFormatters.txReceipt({
+    kind: "account-activate", mode: "dry-run",
+    fee, tx: { txID: "cc0a6f68" }, address: "TEF2CvkixrkzwbreCRFCQ7sZGj9AVFAkQq", payer: "TMSgJxtPw29",
+  } as any) as string;
+
+  it("account activate dry-run: renders the total creation fee, not [object Object]", () => {
+    const out = dryRun(activateFee);
+    expect(out).not.toContain("[object Object]");
+    // doc §3.4.1 shows the confirmed receipt as `Fee 1.1 TRX`; dry-run must be comparable
+    expect(out).toContain("1.1 TRX");
+  });
+
+  it.each([
+    ["createAccountFeeSun alone", { minimumFeeSun: "100000" }, "0.1 TRX"],
+    ["a zero fee", { minimumFeeSun: "0" }, "0 TRX"],
+    // fees use fromBaseUnits (exact decimal, no thousands separators) like every other Fee row
+    ["a large fee", { minimumFeeSun: "9000000000" }, "9000 TRX"],
+  ])("account activate dry-run: %s", (_name, fee, expected) => {
+    expect(dryRun(fee)).toContain(expected);
+  });
+
+  it("prefers an explicit feeSun over the derived minimum when both are present", () => {
+    expect(dryRun({ feeSun: "2000000", minimumFeeSun: "1100000" })).toContain("2 TRX");
+  });
+
+  // The regression net: every fee shape the renderer already understood must keep working, so
+  // adding a branch cannot silently reorder or shadow an existing one.
+  it.each([
+    ["feeSun", { feeSun: "268000" }, "0.268 TRX"],
+    ["bandwidth burn", { bandwidthBurnSunIfNoFreeze: "1000000" }, "1 TRX"],
+    ["a note", { note: "no fee for this operation" }, "no fee for this operation"],
+    ["a bare sun scalar", "1100000", "1.1 TRX"],
+  ])("still renders %s", (_name, fee, expected) => {
+    expect(dryRun(fee)).toContain(expected);
+  });
+
+  // The root cause of the activate bug: an unrecognized fee object fell through to a fallback that
+  // stringified it. Failing honestly is required; leaking "[object Object]" is not acceptable for
+  // any shape, including ones added later.
+  it.each([
+    ["an unrecognized fee object", { someFutureFeeModel: "42" }],
+    ["an empty fee object", {}],
+    ["a nested fee object", { fee: { inner: "1" } }],
+  ])("never leaks a stringified object for %s", (_name, fee) => {
+    const out = dryRun(fee);
+    expect(out).not.toContain("[object Object]");
+    expect(out).toContain("unknown");
+  });
+
   it("stake freeze submitted: renders staked amount and resource", () => {
     const out = TextFormatters.txReceipt({ kind: "stake-freeze", stage: "submitted", txId: "abc", amountSun: "2000000", resource: "energy" });
     expect(out).toContain("Staked");
@@ -249,6 +308,35 @@ describe("local multisig formatters", () => {
     expect(out).toContain("Progress  1 / 2");
     expect(out).toContain("1 more weight needed");
     expect(out).toContain("Tsigner");
+  });
+
+  // Doc §3.2.1: the default `tx sign` receipt is the action block plus the same transaction and
+  // signature-progress block `tx approvals` prints — permission group name and threshold, a
+  // Progress line, and the per-signer weight table. The offline receipt cannot carry any of it.
+  it("prints the documented progress block on the default (checked) sign receipt", () => {
+    const out = TextFormatters.txSign({
+      kind: "tx-sign",
+      signer: "Tsigner",
+      checked: true,
+      signerWeight: 1,
+      hex: "aabb",
+      transaction: {
+        txId: approval.txId,
+        contractType: approval.contractType,
+        permissionId: approval.permission.id,
+        expiration: approval.expiration,
+        expired: false,
+        signatures: 1,
+      },
+      approval,
+    }) as string;
+    expect(out).toContain("Signature added");
+    expect(out).toContain("Tsigner  (weight 1)");        // signer weight on the action block
+    expect(out).toContain('Permission  active "operations" (id 2)  threshold 2');
+    expect(out).toContain("Progress  1 / 2");
+    expect(out).toContain("Approved signer");            // weight table header
+    expect(out).not.toContain("local inspection");
+    expect(out).not.toContain("was not checked online");
   });
 
   it("shows the next broadcast command only after threshold is reached", () => {

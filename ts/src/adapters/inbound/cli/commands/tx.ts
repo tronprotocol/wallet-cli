@@ -143,8 +143,8 @@ const signFields = z.object({
   transaction: z.string().min(1).optional()
     .describe("unsigned TRON transaction JSON; retained for direct single-signature compatibility"),
   ...artifactFields,
-  check: z.boolean().default(false)
-    .describe("verify signer permission and resulting approval weight online"),
+  offline: z.boolean().default(false)
+    .describe("sign locally without contacting a node; skips the signer-permission and approval-weight checks"),
   out: z.string().min(1).optional().describe("atomically write co-signed transaction hex to this file"),
 });
 
@@ -153,11 +153,13 @@ export const txSignSpec: ChainSpec = {
   network: "optional", wallet: "optional", auth: "required",
   broadcasts: false,
   capability: "tx.sign",
-  summary: "Sign transaction JSON or append a signature to transaction hex offline",
+  summary: "Sign transaction JSON or append a signature to transaction hex",
   description:
     "With --transaction, preserve the direct JSON signing flow. With --hex/--file, append exactly\n" +
-    "one signature while preserving prior signatures without requiring a node. Add --check to\n" +
-    "verify permission membership and approval weight online. This command never broadcasts.",
+    "one signature while preserving prior signatures, verifying online that this account is in the\n" +
+    "transaction's permission group and has not already signed, and reporting the resulting\n" +
+    "approval weight. Add --offline to sign without contacting a node, which skips those checks.\n" +
+    "This command never broadcasts.",
   baseFields: signFields,
   baseRefine: (input, context) => {
     if ([input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1) {
@@ -170,14 +172,14 @@ export const txSignSpec: ChainSpec = {
     if (input.out && input.transaction) {
       context.addIssue({ code: "custom", path: ["out"], message: "--out is only valid with --hex or --file" });
     }
-    if (input.check && input.transaction) {
-      context.addIssue({ code: "custom", path: ["check"], message: "--check is only valid with --hex or --file" });
+    if (input.offline && input.transaction) {
+      context.addIssue({ code: "custom", path: ["offline"], message: "--offline is only valid with --hex or --file" });
     }
   },
   examples: [
     { cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'` },
     { cmd: "wallet-cli tx sign --file partially-signed.hex --out signed.hex --password-stdin" },
-    { cmd: "wallet-cli tx sign --file partially-signed.hex --check --password-stdin" },
+    { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
   ],
   formatText: TextFormatters.txSign,
 };
@@ -192,15 +194,15 @@ export const txSignTronBinding = (
     exactlyOne([input.transaction, input.hex, input.file], "provide exactly one of --transaction, --hex, or --file");
     if (!input.transaction) {
       const hex = hexInput(input);
-      const result = input.check
-        ? await multisigService.signChecked(ctx, net, hex)
-        : await signingService.sign(ctx, net, hex);
+      const result = input.offline
+        ? await signingService.sign(ctx, net, hex)
+        : await multisigService.signChecked(ctx, net, hex);
       if (!input.out) return result;
       writer.write(input.out, result.hex);
       return { ...result, out: input.out };
     }
     if (input.out) throw new UsageError("invalid_option", "--out is only valid with --hex or --file");
-    if (input.check) throw new UsageError("invalid_option", "--check is only valid with --hex or --file");
+    if (input.offline) throw new UsageError("invalid_option", "--offline is only valid with --hex or --file");
     let tx: unknown;
     try {
       tx = JSON.parse(input.transaction);

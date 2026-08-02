@@ -240,6 +240,10 @@ function formatFee(fee: unknown, family: ChainFamily): string {
     const f = asObj(fee)
     if (f.feeSun) return `${formatSun(f.feeSun)} TRX`
     if (f.bandwidthBurnSunIfNoFreeze) return `${formatSun(f.bandwidthBurnSunIfNoFreeze)} TRX`
+    // account activate: the fee is derived from two chain parameters rather than quoted by the
+    // node, so it arrives as its components plus their sum. Show the sum — the same single total
+    // the confirmed receipt prints — and leave the breakdown to json.
+    if (f.minimumFeeSun !== undefined) return `${formatSun(f.minimumFeeSun)} TRX`
     // energy estimate (TRC20/contract via estimateResources): no sun figure — staked energy may
     // cover it. Report the estimated energy + whether the account's available energy covers it.
     if (f.energy !== undefined) {
@@ -249,6 +253,10 @@ function formatFee(fee: unknown, family: ChainFamily): string {
       return `~${energy.toLocaleString()} energy${covered}`
     }
     if (f.note) return String(f.note)
+    // An unrecognised fee object must not reach feeFallback: that formats a scalar sun amount and
+    // would stringify the object into "[object Object]". Saying "unknown" is honest, and it keeps
+    // a fee shape added later from silently rendering as garbage instead of failing visibly.
+    return "unknown"
   }
   return FAMILY_RENDER[family].feeFallback(fee)
 }

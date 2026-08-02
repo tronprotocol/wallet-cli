@@ -111,5 +111,5 @@ undecodable transaction) · `2` usage error (neither/both of `--hex` / `--file`)
 
 ## See also
 
-[`tx sign --check`](sign.md) · [`tx broadcast`](broadcast.md) ·
+[`tx sign`](sign.md) · [`tx broadcast`](broadcast.md) ·
 [`tx multisig`](multisig.md) · [`permission show`](../permission/show.md)

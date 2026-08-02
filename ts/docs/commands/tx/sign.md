@@ -48,11 +48,15 @@ signature rather than replacing what is there. That is what TRON multi-sig requi
 permitted key signs the same transaction in turn — so a partially signed transaction can be passed
 from signer to signer and broadcast once the permission threshold is met.
 
-This path is offline by default: it verifies transaction integrity, expiration, and append-only
-signature behavior locally, but does not claim that the signer belongs to the selected permission
-or that the threshold has been reached. Use `--check` when connected to a node to verify those
-facts through `getsignweight` and `getapprovedlist`, or inspect the result later with
-`wallet-cli tx approvals`.
+By default this path verifies online, through `getsignweight` and `getapprovedlist`, that this
+account is a key in the transaction's permission group and has not already signed, and it reports
+the resulting approval weight. Both checks run **before** a signature is produced, so a co-signer
+who is not permitted — or who is signing twice — fails immediately instead of emitting a hex that
+only `tx broadcast` would reject, after it has already been passed along.
+
+Add `--offline` to sign without contacting a node. Transaction integrity, expiration, and
+append-only signature behavior are still verified locally, but permission membership and approval
+weight are not — inspect those later with `wallet-cli tx approvals`.
 
 The JSON compatibility path also preserves existing signatures. `data.signed.signature` may
 therefore contain signatures this wallet did not produce. `data.address` always tells you which key
@@ -74,7 +78,7 @@ this invocation used, and the text receipt numbers them so you can tell them apa
 | `--hex <string>` | Complete protobuf `protocol.Transaction` hex |
 | `--file <path>` | Read complete transaction hex from a file |
 | `--out <path>` | Atomically write the resulting signed hex to a file |
-| `--check` | Verify signer permission and resulting approval weight online |
+| `--offline` | Sign locally without contacting a node; skips the signer-permission and approval-weight checks |
 | `--password-stdin` | Master password from stdin (software accounts) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -117,11 +121,11 @@ echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
 wallet-cli tx approvals --file signed.hex
 ```
 
-To check permission membership and approval progress during signing:
+To sign on a machine with no node access, skipping the online checks:
 
 ```bash
 echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
-  --check --out signed.hex --password-stdin
+  --offline --out signed.hex --password-stdin
 ```
 
 A transaction whose fields disagree is refused rather than signed:
