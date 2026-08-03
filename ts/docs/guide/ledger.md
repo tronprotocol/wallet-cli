@@ -12,6 +12,8 @@ Keep keys on the device; wallet-cli builds transactions and the Ledger signs the
 
 For Debian and Ubuntu, install the runtime library with `sudo apt-get install libudev1`. After installing or updating udev rules, reload the rules and reconnect the Ledger before retrying. Containers also need the relevant `/dev/hidraw*` device passed through from the host.
 
+For a reproducible Ubuntu 22.04 image and a device-scoped Docker launch command, see the [Ledger transaction test container](../../docker/ledger/README.md).
+
 ## 1. Register the Ledger account
 
 ```bash
