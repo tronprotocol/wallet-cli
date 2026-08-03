@@ -49,7 +49,19 @@ export class TronMultisigCollaborationService {
     });
     const gateway = this.gateways.get(network, "tron");
     const validated = page.records.map((record) => this.#validate(gateway, address, record));
-    await mapWithConcurrency(validated, 4, (transaction) => this.#verifyOnChain(network, address, transaction));
+    // A permission changed while an old transaction sat pending makes that record disagree with
+    // the chain for good. Listing is informational, so one such row is reported as unverified
+    // rather than costing the whole page — acting on it (--sign) still refuses.
+    await mapWithConcurrency(validated, 4, async (transaction) => {
+      try {
+        await this.#verifyOnChain(network, address, transaction);
+      } catch (error) {
+        if (!isChainDisagreement(error)) throw error;
+        transaction.view.unverifiedReason = error.message;
+        // Nothing here is substantiated, least of all a claim on this account's signature.
+        transaction.view.awaitingMySignature = false;
+      }
+    });
     return {
       address,
       total: page.total,
@@ -57,9 +69,13 @@ export class TronMultisigCollaborationService {
     };
   }
 
+  /**
+   * Opening a collection and casting its first signature are one act: the service has no empty
+   * collection, and derives the initial weight from the signature the transaction arrives with.
+   */
   async create(
+    scope: TransactionScope,
     network: NetworkDescriptor,
-    address: string,
     unsignedHex: string,
   ) {
     const gateway = this.gateways.get(network, "tron");
@@ -67,29 +83,18 @@ export class TronMultisigCollaborationService {
     if ((transaction.signature?.length ?? 0) !== 0) {
       throw new UsageError("invalid_value", "TronLink --create requires an unsigned transaction");
     }
-    const approval = await this.multisig.approvals(network, unsignedHex);
-    if (approval.expired) throw new ChainError("tx_expired", "transaction has expired");
 
-    const weight = await gateway.getSignWeight(transaction);
-    const permission = weight.permission;
-    if (!permission
-      || permission.id !== approval.permission.id
-      || !permission.keys.some((key) => key.address === address)) {
-      throw new ChainError("not_authorized", "selected account is not a key in the transaction permission");
-    }
-
-    const visible = visibleTransaction(gateway, unsignedHex);
-    await this.collaboration.create(network, address, {
-      permissionName: permission.name,
-      txId: approval.txId,
-      rawDataJson: JSON.stringify(visible.raw_data),
-      contractType: approval.contractType,
-    });
+    // signChecked rejects an expired transaction, a signer outside the permission group, and a
+    // repeat signature — the whole precondition set this collection needs.
+    const signed = await this.multisig.signChecked(scope, network, unsignedHex);
+    await this.collaboration.submit(network, signed.signer, visibleTransaction(gateway, signed.hex));
     return {
       action: "create" as const,
       accepted: true as const,
-      hex: unsignedHex.trim().replace(/^0x/i, "").toLowerCase(),
-      transaction: approval,
+      signer: signed.signer,
+      signerWeight: signed.signerWeight,
+      hex: signed.hex,
+      transaction: signed.approval,
     };
   }
 
@@ -247,6 +252,8 @@ export class TronMultisigCollaborationService {
     return {
       hex,
       view: {
+        // Byte-level checks only; #verifyOnChain is what earns this.
+        verified: false,
         txId: hash,
         state,
         contractType,
@@ -345,7 +352,17 @@ export class TronMultisigCollaborationService {
       );
     }
     remote.view.permission.name = approval.permission.name;
+    remote.view.verified = true;
   }
+}
+
+/**
+ * A verdict of "checked and disagreed", as opposed to "could not check". Only the former may be
+ * downgraded to an unverified row: a node outage must never read as a clean page.
+ */
+function isChainDisagreement(error: unknown): error is ChainError {
+  return error instanceof ChainError
+    && (error.code === "provider_error" || error.code === "not_authorized");
 }
 
 /** Convert address fields to visible=true JSON, then prove that protobuf bytes are unchanged. */

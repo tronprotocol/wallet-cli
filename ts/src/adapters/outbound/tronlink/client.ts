@@ -3,7 +3,6 @@ import WebSocket, { type ClientOptions, type RawData } from "ws";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type {
   TronLinkCollaborationPort,
-  TronLinkCreateRequest,
   TronLinkListFilter,
   TronLinkRemotePage,
   TronLinkRemoteRecord,
@@ -73,27 +72,6 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       sign,
     };
     return parsePage(await this.#request(network, path, parameters), filter.limit);
-  }
-
-  async create(
-    network: NetworkDescriptor,
-    address: string,
-    request: TronLinkCreateRequest,
-  ): Promise<void> {
-    const credentials = this.#credentials();
-    const path = "/multi/transaction";
-    const auth = tronLinkAuthParameters(credentials, this.clock, this.uuid);
-    const signed = {
-      ...auth,
-      address,
-      permission_name: request.permissionName,
-      tx_id: request.txId,
-    };
-    const sign = signTronLinkRequest("POST", path, signed, credentials.secretKey).signature;
-    await this.#request(network, path, { ...signed, sign }, {
-      raw_data: request.rawDataJson,
-      extra: { type: request.contractType },
-    });
   }
 
   async submit(
@@ -300,9 +278,21 @@ function unwrapBusinessResponse(value: unknown): unknown {
   const root = record(value, "response");
   const code = safeInteger(root.code, "code", 0);
   if (code !== 0) {
-    throw new ChainError("provider_error", "TronLink collaboration service rejected the request", { code });
+    // The code alone does not separate a rejected signature from a bad parameter or a stale one.
+    const providerMessage = boundedProviderMessage(root.message);
+    throw new ChainError("provider_error", "TronLink collaboration service rejected the request", {
+      code,
+      ...(providerMessage === undefined ? {} : { providerMessage }),
+    });
   }
   return root.data;
+}
+
+/** Provider-controlled text reaching our output: strip control characters and bound the length. */
+function boundedProviderMessage(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, "").trim();
+  return cleaned === "" ? undefined : cleaned.slice(0, 200);
 }
 
 function parsePage(value: unknown, requestedLimit: number): TronLinkRemotePage {

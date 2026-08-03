@@ -31,7 +31,7 @@ describe("SecureKeypairWriter", () => {
   it("creates a new durable 0600 JSON artifact", () => {
     const directory = root();
     const path = join(directory, "nested", "key.json");
-    expect(new SecureKeypairWriter().write(path, { privateKey: "secret" }))
+    expect(new SecureKeypairWriter(directory).write({ out: path }, { privateKey: "secret" }))
       .toBe(path);
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
       privateKey: "secret",
@@ -41,13 +41,26 @@ describe("SecureKeypairWriter", () => {
     }
   });
 
+  // The default location moved here from AddressService: a use case should not know that generated
+  // keypairs live under <root>/generated, nor how the filename is built.
+  it("derives the default location from the wallet root and the name", () => {
+    const directory = root();
+    const address = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
+
+    const written = new SecureKeypairWriter(directory)
+      .write({ name: address }, { privateKey: "secret" });
+
+    expect(written).toBe(join(directory, "generated", `keypair-${address}`));
+    expect(JSON.parse(readFileSync(written, "utf8"))).toEqual({ privateKey: "secret" });
+  });
+
   it("never overwrites an existing file", () => {
     const directory = root();
     const path = join(directory, "key.json");
     writeFileSync(path, "original", { mode: 0o600 });
 
     expect(() =>
-      new SecureKeypairWriter().write(path, { privateKey: "replacement" })
+      new SecureKeypairWriter(directory).write({ out: path }, { privateKey: "replacement" })
     ).toThrow(/refusing to overwrite/);
     expect(readFileSync(path, "utf8")).toBe("original");
   });
@@ -57,14 +70,14 @@ describe("SecureKeypairWriter", () => {
   it("removes its own unfinished file so the same path can be retried", () => {
     const directory = root();
     const path = join(directory, "key.json");
-    const writer = new SecureKeypairWriter();
+    const writer = new SecureKeypairWriter(directory);
 
     // fails inside the try, after the file exists: JSON.stringify cannot serialize a BigInt
-    expect(() => writer.write(path, { privateKey: 1n }))
+    expect(() => writer.write({ out: path }, { privateKey: 1n }))
       .toThrow(/could not write keypair file/);
     expect(existsSync(path)).toBe(false);
 
-    expect(writer.write(path, { privateKey: "secret" })).toBe(path);
+    expect(writer.write({ out: path }, { privateKey: "secret" })).toBe(path);
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ privateKey: "secret" });
   });
 
@@ -73,7 +86,7 @@ describe("SecureKeypairWriter", () => {
     const path = join(directory, "key.json");
     writeFileSync(path, "original", { mode: 0o600 });
 
-    expect(() => new SecureKeypairWriter().write(path, { privateKey: 1n }))
+    expect(() => new SecureKeypairWriter(directory).write({ out: path }, { privateKey: 1n }))
       .toThrow(/refusing to overwrite/);
     expect(readFileSync(path, "utf8")).toBe("original");
   });
@@ -86,7 +99,7 @@ describe("SecureKeypairWriter", () => {
     writeFileSync(path, "original", { mode: 0o600 });
 
     try {
-      new SecureKeypairWriter().write(path, { privateKey: "replacement" });
+      new SecureKeypairWriter(directory).write({ out: path }, { privateKey: "replacement" });
       expect.unreachable("expected the write to be refused");
     } catch (error) {
       expect(error).toMatchObject({ code: "output_exists", kind: "usage" });
@@ -102,7 +115,7 @@ describe("SecureKeypairWriter", () => {
     symlinkSync(external, path);
 
     expect(() =>
-      new SecureKeypairWriter().write(path, { privateKey: "replacement" })
+      new SecureKeypairWriter(directory).write({ out: path }, { privateKey: "replacement" })
     ).toThrow(/refusing to overwrite/);
     expect(readFileSync(external, "utf8")).toBe("original");
   });

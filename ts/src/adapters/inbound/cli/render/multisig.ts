@@ -20,7 +20,10 @@ function renderTronLink(value: TronLinkMultisigView): string {
           ? `${formatSun(transaction.rawAmount)} TRX`
           : `${transaction.rawAmount} base units`
         : "";
-      const state = transaction.awaitingMySignature ? "awaiting you" : transaction.state;
+      // An unverified row's service-claimed state is precisely what must not be acted on.
+      const state = !transaction.verified
+        ? "unverified"
+        : transaction.awaitingMySignature ? "awaiting you" : transaction.state;
       return [
         transaction.txId,
         transaction.contractType,
@@ -30,13 +33,17 @@ function renderTronLink(value: TronLinkMultisigView): string {
         formatAtWithRelative(transaction.expiration),
       ];
     });
-    const hint = value.transactions.some((transaction) => transaction.awaitingMySignature)
+    const hint = value.transactions.some((t) => t.verified && t.awaitingMySignature)
       ? "\n! Co-sign one with: wallet-cli tx multisig --sign <txId>"
       : "";
+    const unverified = value.transactions
+      .filter((transaction) => !transaction.verified)
+      .map((transaction) => `\n! ${transaction.txId} unverified — ${transaction.unverifiedReason ?? "chain check failed"}`)
+      .join("");
     return `${heading}\n${table(
       ["TxID", "Type", "Amount", "State", "Progress", "Expires"],
       rows,
-    )}${hint}`;
+    )}${unverified}${hint}`;
   }
   if (value.action === "watch") {
     return receipt(ok(), "Stopped watching TronLink multi-sig service", [
@@ -45,18 +52,29 @@ function renderTronLink(value: TronLinkMultisigView): string {
     ]);
   }
   if (value.action === "create") {
-    return `${receipt(ok(), "Created on TronLink multi-sig service", [
-      ["TxID", value.transaction.txId],
-    ])}\n\n${renderApproval(value.transaction)}\n! Each signer signs it with: wallet-cli tx multisig --sign ${value.transaction.txId}`;
+    const created = receipt(ok(), "Created on TronLink multi-sig service", [
+      ["Signer", `${value.signer}  (weight ${formatInt(value.signerWeight)})`],
+      ["Hex", value.hex],
+    ]);
+    const next = value.transaction.thresholdReached
+      ? thresholdHint(value.transaction.txId, value.hex)
+      : `\n! Each co-signer signs it with: wallet-cli tx multisig --sign ${value.transaction.txId}`;
+    return `${created}\n\n${renderApproval(value.transaction)}${next}`;
   }
   const signed = receipt(ok(), "Signed & submitted", [
     ["Signer", `${value.signer}  (weight ${formatInt(value.signerWeight)})`],
     ["Hex", value.hex],
   ]);
   const broadcast = value.transaction.thresholdReached
-    ? `\n! Broadcast it: wallet-cli tx broadcast --hex ${value.hex}`
+    ? thresholdHint(value.transaction.txId, value.hex)
     : "";
   return `${signed}\n\n${renderApproval(value.transaction)}${broadcast}`;
+}
+
+/** The service broadcasts on its own once the threshold is met, so confirm before broadcasting. */
+function thresholdHint(txId: string, hex: string): string {
+  return `\n! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid ${txId}` +
+    `\n  Not on chain: wallet-cli tx broadcast --hex ${hex}`;
 }
 
 function renderSign(value: TxSignView): string {

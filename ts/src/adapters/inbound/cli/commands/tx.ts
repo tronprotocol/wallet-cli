@@ -215,7 +215,7 @@ export const txSignTronBinding = (
 
 const tronLinkMultisigFields = z.object({
   create: z.boolean().default(false)
-    .describe("upload one unsigned transaction and open a TronLink signature collection"),
+    .describe("sign one unsigned transaction and open a TronLink signature collection with it"),
   hex: z.string().min(2).optional().describe("unsigned protocol.Transaction hex used with --create"),
   file: z.string().min(1).optional().describe("file containing unsigned transaction hex used with --create"),
   sign: z.string().regex(/^(?:0x)?[0-9a-fA-F]{64}$/).optional()
@@ -230,9 +230,10 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   capability: "tx.multisig.tronlink",
   summary: "Coordinate multi-signature collection through the TronLink service",
   description:
-    "With no mode flag, list service-managed transactions for the selected account. --create\n" +
-    "uploads an UNSIGNED transaction; --sign fetches the accumulated transaction, signs locally,\n" +
-    "and submits it; --watch opens the official WebSocket count-only notification channel.",
+    "With no mode flag, list service-managed transactions for the selected account. --create signs\n" +
+    "an UNSIGNED transaction locally and submits it, which opens the collection at the first\n" +
+    "signature; --sign fetches the accumulated transaction, signs locally, and submits it;\n" +
+    "--watch opens the official WebSocket count-only notification channel.",
   requires: [
     "TronLink service credentials — config tronlinkSecretId / tronlinkSecretKey / tronlinkChannel",
   ],
@@ -240,7 +241,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   baseRefine: tronLinkMultisigRefine,
   examples: [
     { cmd: "wallet-cli tx multisig" },
-    { cmd: "wallet-cli tx multisig --create --file tx.unsigned.hex" },
+    { cmd: "wallet-cli tx multisig --create --file tx.unsigned.hex --password-stdin" },
     { cmd: "wallet-cli tx multisig --sign 9c1... --password-stdin" },
     { cmd: "wallet-cli tx multisig --watch" },
   ],
@@ -250,7 +251,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
 export const txTronLinkMultisigBinding = (service: TronMultisigCollaborationService): FamilyBinding => ({
   run: async (ctx, network, input) => {
     const address = ctx.resolveAddress("tron");
-    if (input.create) return service.create(network, address, hexInput(input));
+    if (input.create) return service.create(ctx, network, hexInput(input));
     if (input.sign) return service.sign(ctx, network, input.sign);
     if (!input.watch) return service.list(network, address);
 

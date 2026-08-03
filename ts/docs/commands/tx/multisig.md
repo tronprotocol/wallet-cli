@@ -18,41 +18,54 @@ reach each co-signer, and someone has to know when enough weight has accumulated
 ([`tx sign --file`](sign.md) → hand the file on → [`tx approvals`](approvals.md)) solves it by
 passing an artifact around by hand.
 
-This command uses the official TronLink multi-sign service as a shared inbox instead: one signer
-uploads the unsigned transaction, the others fetch, sign, and submit it, and the service holds the
-accumulated signatures in between. TronLink wallet users see the same queue.
+This command uses the official TronLink multi-sign service as a shared inbox instead: the
+originator signs the transaction and submits it, which opens the collection; the others fetch, sign,
+and submit it in turn, and the service holds the accumulated signatures in between. TronLink wallet
+users see the same queue.
 
 The mode flags `--create`, `--sign`, and `--watch` are mutually exclusive; with none of them the
 command lists.
 
 **The service is a transport, not an authority.** Everything it returns is treated as untrusted:
-the CLI re-derives the transaction hash from the raw data, checks the reported contract type,
+the CLI re-derives the transaction hash from the raw data, and checks the reported contract type,
 owner, weights, and signature progress against the transaction itself **and against the on-chain
-permission**, and fails with `provider_error` on any disagreement — rather than showing you what the
-service claims. Signing still happens locally with your key.
+permission** — rather than showing you what the service claims. Signing still happens locally with
+your key.
+
+Byte-level lies are fatal: a record whose hash, contract type, or owner does not match its own
+`raw_data` fails the command with `provider_error`, because no passage of time can produce one.
+
+Disagreement with the *chain* is different, because permissions change while old transactions sit
+in the queue. Listing marks such a record **unverified**, states why, and shows the rest of the
+page — it is never presented as chain-validated, its state column reads `unverified` rather than
+what the service claimed, and `awaitingMySignature` is forced to `false` so it cannot be mistaken
+for work waiting on you. Acting on one still refuses: [`--sign`](#modes) re-runs the same check and
+fails with `provider_error` or `not_authorized`.
 
 Concretely, for the signer roster: every address the service reports must be a key in the
 transaction's on-chain permission, and each `weight` shown is read from the chain, never from the
-service — so a reported weight that has gone stale (the permission was updated while this
-transaction sat pending) is corrected rather than displayed. If the selected account is not itself a
-key in that permission, the command fails with `not_authorized` instead of reporting the transaction
-as awaiting your signature. A roster that omits a key is accepted: every figure you act on
-(`threshold`, `currentWeight`, `missingWeight`) is chain-derived regardless.
+service — so a reported weight that has gone stale is corrected rather than displayed. A roster that
+omits a key is accepted: every figure you act on (`threshold`, `currentWeight`, `missingWeight`) is
+chain-derived regardless.
 
 ### Modes
 
 **list** (no flag) — service-managed transactions for the selected account, with each one's state,
 accumulated weight against the threshold, and whether it is waiting on *you*.
 
-**`--create`** — upload one **unsigned** transaction and open a collection. Passing an
-already-signed transaction is refused (`invalid_value`), as is an expired one (`tx_expired`) or one
-whose permission does not include the selected account (`not_authorized`). Requires exactly one of
-`--hex` / `--file`, which are valid only with `--create`.
+**`--create`** — take one **unsigned** transaction, sign it with your key, and submit it. There is
+no empty collection: the service derives the starting weight from the signature the transaction
+arrives with, so opening a collection and casting its first signature are the same act — the
+originator does not sign again afterwards. Passing an already-signed transaction is refused
+(`invalid_value`), as is an expired one (`tx_expired`) or one whose permission does not include the
+selected account (`not_authorized`). Requires exactly one of `--hex` / `--file`, which are valid
+only with `--create`, and the master password.
 
 **`--sign <txId>`** — fetch the transaction with the signatures gathered so far, verify it locally,
 sign it with your key, and submit the result back. Fails with `already_signed` if this account has
 already contributed, `tx_expired` if it has lapsed, or `not_authorized` if the account is not one
-of its signers. Once the threshold is reached, the output tells you the broadcast command.
+of its signers. Once the threshold is reached the service broadcasts the transaction itself, so the
+output tells you how to confirm that before broadcasting it yourself.
 
 **`--watch`** — hold a WebSocket open and report when transactions are awaiting your signature.
 By design it receives **only a count**, never transaction content, so watching leaks nothing about
@@ -76,7 +89,7 @@ descriptor — `api.walletadapter.org` for mainnet, and the Nile and Shasta equi
 
 | Option | Description |
 |---|---|
-| `--create` | Upload one unsigned transaction and open a signature collection |
+| `--create` | Sign one unsigned transaction and open a signature collection with it |
 | `--hex <string>` | Unsigned `protocol.Transaction` hex — only with `--create` |
 | `--file <path>` | File containing the unsigned transaction hex — only with `--create` |
 | `--sign <txId>` | Fetch and co-sign one pending transaction by 32-byte hex txId |
@@ -87,15 +100,17 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-Open a collection from an unsigned transaction:
+Open a collection from an unsigned transaction — built by any broadcasting command with
+`--build-only`:
 
 ```bash
-wallet-cli tx multisig --create --file tx.unsigned.hex --network tron:nile
+echo "$PW" | wallet-cli tx multisig --create --file tx.unsigned.hex --network tron:nile --password-stdin
 ```
 
 ```console
 ✅ Created on TronLink multi-sig service
-  TxID  9c1f…
+  Signer  TMSg…ToHJ  (weight 1)
+  Hex     0a02…9f31
 
 Transaction
   TxID        9c1f…
@@ -103,9 +118,11 @@ Transaction
   Permission  active "operations" (id 2)  threshold 2
   Expires     2026-07-29 12:34:56 (in 58 minutes)
 
-Progress  0 / 2 — 2 more weight needed
-No approved signers.
-! Each signer signs it with: wallet-cli tx multisig --sign 9c1f…
+Progress  1 / 2 — 1 more weight needed
+| Approved signer                    | Weight |
+| ---------------------------------- | ------ |
+| TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ | 1      |
+! Each co-signer signs it with: wallet-cli tx multisig --sign 9c1f…
 ```
 
 See what is waiting on you:
@@ -115,12 +132,17 @@ wallet-cli tx multisig --network tron:nile
 ```
 
 ```console
-Multi-sig transactions — TronLink service (1 total)
+Multi-sig transactions — TronLink service (2 total)
 | TxID  | Type              | Amount | State        | Progress | Expires                       |
 | ----- | ----------------- | ------ | ------------ | -------- | ----------------------------- |
 | 9c1f… | TransferContract  | 1 TRX  | awaiting you | 1 / 2    | 2026-07-29 12:34:56 (in 58m)  |
+| 1a9b… | TransferContract  | 1 TRX  | unverified   | 1 / 1    | 2026-04-29 12:33 (~97d ago)   |
+! 1a9b… unverified — TronLink transaction metadata or signatures disagree with the selected network
 ! Co-sign one with: wallet-cli tx multisig --sign <txId>
 ```
+
+The second row is an old transaction whose permission has since been changed, so its numbers can no
+longer be reconciled with the chain. It stays visible and labelled; the page does not fail.
 
 Co-sign it:
 
@@ -128,11 +150,16 @@ Co-sign it:
 echo "$PW" | wallet-cli tx multisig --sign 9c1f… --network tron:nile --password-stdin
 ```
 
-When your signature completes the threshold, the receipt ends with the broadcast command:
+When your signature completes the threshold, the service broadcasts the transaction itself, so the
+receipt points you at the confirmation first:
 
 ```console
-! Broadcast it: wallet-cli tx broadcast --hex 0a02…
+! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid 9c1f…
+  Not on chain: wallet-cli tx broadcast --hex 0a02…
 ```
+
+Broadcasting one that is already on chain fails with `transaction_rejected`
+(`Transaction already exists.`) — harmless, but confirm rather than guess.
 
 Watch for work, count only:
 
@@ -155,6 +182,8 @@ Watching TronLink multi-sig service for tron:nile … (Ctrl-C to stop)
 |---|---|---|
 | `address` | string | Account the queue was read for |
 | `total` | number | Number of transactions |
+| `transactions[].verified` | boolean | Whether the record reconciled with the chain |
+| `transactions[].unverifiedReason` | string? | Present only when `verified` is `false` |
 | `transactions[].txId` | string | Transaction id |
 | `transactions[].state` | string | `pending` \| `signed` \| `success` \| `failed` |
 | `transactions[].contractType` | string | TRON contract type |
@@ -166,8 +195,8 @@ Watching TronLink multi-sig service for tron:nile … (Ctrl-C to stop)
 | `transactions[].signatureProgress[]` | array | Per signer: `address`, `weight`, `signed`, `signedAt` |
 | `transactions[].createdAt` / `expiration` / `expired` | — | Timing |
 
-**`--create`** — `action: "create"`, `accepted`, `hex`, and `transaction` (the same approval object
-[`tx approvals`](approvals.md) returns).
+**`--create`** — `action: "create"`, `accepted`, `signer`, `signerWeight`, `hex` (the signed
+transaction), and `transaction` (the same approval object [`tx approvals`](approvals.md) returns).
 
 **`--sign`** — `action: "sign"`, `accepted`, `signer`, `signerWeight`, `hex`, and `transaction`.
 
@@ -176,7 +205,8 @@ Watching TronLink multi-sig service for tron:nile … (Ctrl-C to stop)
 ## Exit status
 
 `0` · `1` execution failure — `not_authorized`, `already_signed`, `tx_expired`, `not_found`,
-`provider_error` (any inconsistency in what the service returned), `auth_failed` · `2` usage error —
+`provider_error` (a record inconsistent with its own bytes, or a rejection from the service — whose
+own wording is carried through as `error.details.providerMessage`), `auth_failed` · `2` usage error —
 conflicting mode flags, `--hex`/`--file` without `--create`, `--create` without exactly one of
 them, a malformed txId.
 

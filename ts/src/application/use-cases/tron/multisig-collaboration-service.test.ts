@@ -10,6 +10,7 @@ import {
   decodeTransactionHex,
   encodeTransactionHex,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { TronMultisigService } from "./multisig-service.js";
 import { TronMultisigCollaborationService } from "./multisig-collaboration-service.js";
 
@@ -110,10 +111,10 @@ function approval(hex: string) {
   };
 }
 
-function setup(record = remote()) {
+function setup(...given: TronLinkRemoteRecord[]) {
+  const records = given.length ? given : [remote()];
   const collaboration = {
-    list: vi.fn(async () => ({ total: 1, records: [record] })),
-    create: vi.fn(async () => {}),
+    list: vi.fn(async () => ({ total: records.length, records })),
     submit: vi.fn(async () => {}),
     watch: vi.fn(async (_network, _address, _signal, onMessage) => {
       onMessage([{ state: 0, is_sign: 0 }, { state: 0, is_sign: 1 }]);
@@ -164,6 +165,33 @@ describe("TronLink multi-sign collaboration workflow", () => {
     });
   });
 
+  // A permission updated while an old transaction sat pending makes that record disagree with the
+  // chain forever. Listing must survive it: one stale row cannot cost the user the whole queue.
+  it("lists a chain-disagreeing record as unverified instead of failing the whole page", async () => {
+    const stale = remote(unsignedHex(), { threshold: 1 });
+    const signedHex = encodeTransactionHex({ ...decodeTransactionHex(unsignedHex()), signature: [SIG] });
+    const result = await setup(stale, remote(signedHex)).service.list(NETWORK, A);
+
+    expect(result.transactions).toHaveLength(2);
+    expect(result.transactions[0]).toMatchObject({ verified: false });
+    expect(result.transactions[0]!.unverifiedReason).toMatch(/disagree/i);
+    expect(result.transactions[1]).toMatchObject({ verified: true });
+    expect(result.transactions[1]!.unverifiedReason).toBeUndefined();
+  });
+
+  // "Could not check" is not "checked and disagreed" — a node outage must not read as a clean page.
+  it("propagates a node failure rather than reporting every record as unverified", async () => {
+    const { service, local } = setup();
+    vi.mocked(local.approvals).mockRejectedValue(new ChainError("timeout", "node timed out"));
+    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "timeout" });
+  });
+
+  it("still refuses to co-sign a record that disagrees with the chain", async () => {
+    const { service } = setup(remote(unsignedHex(), { threshold: 1 }));
+    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID))
+      .rejects.toMatchObject({ code: "provider_error" });
+  });
+
   it("rejects hash, owner, and progress metadata tampering", async () => {
     await expect(setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NETWORK, A))
       .rejects.toMatchObject({ code: "provider_error" });
@@ -173,28 +201,33 @@ describe("TronLink multi-sign collaboration workflow", () => {
       .rejects.toMatchObject({ code: "provider_error" });
   });
 
-  it("creates by uploading unsigned raw_data without invoking a signer", async () => {
-    const { service, collaboration, local } = setup();
-    const result = await service.create(NETWORK, A, unsignedHex());
-    expect(result).toMatchObject({ action: "create", accepted: true, transaction: { currentWeight: 0 } });
-    expect(local.signChecked).not.toHaveBeenCalled();
-    const request = vi.mocked(collaboration.create).mock.calls[0]![2];
-    expect(request).toMatchObject({
-      permissionName: "finance",
-      txId: decodeTransactionHex(unsignedHex()).txID,
-      contractType: "TransferContract",
+  it("opens the collection with the originator's own signature", async () => {
+    const { service, collaboration, local, signedHex } = setup();
+    const context = scope();
+    const result = await service.create(context, NETWORK, unsignedHex());
+    expect(result).toMatchObject({
+      action: "create",
+      accepted: true,
+      signer: A,
+      signerWeight: 1,
+      hex: signedHex,
+      transaction: { currentWeight: 1 },
     });
-    expect(JSON.parse(request.rawDataJson)).toMatchObject({
-      contract: [{ parameter: { value: { owner_address: A, to_address: B } } }],
+    expect(local.signChecked).toHaveBeenCalledWith(context, NETWORK, unsignedHex());
+    const submitted = vi.mocked(collaboration.submit).mock.calls[0]!;
+    expect(submitted[1]).toBe(A);
+    expect(submitted[2]).toMatchObject({
+      visible: true,
+      raw_data: { contract: [{ parameter: { value: { owner_address: A, to_address: B } } }] },
     });
   });
 
   it("refuses create artifacts that already contain a signature", async () => {
     const { service, collaboration, local, signedHex } = setup();
-    await expect(service.create(NETWORK, A, signedHex))
+    await expect(service.create(scope(), NETWORK, signedHex))
       .rejects.toMatchObject({ code: "invalid_value" });
     expect(local.signChecked).not.toHaveBeenCalled();
-    expect(collaboration.create).not.toHaveBeenCalled();
+    expect(collaboration.submit).not.toHaveBeenCalled();
   });
 
   it("fetches the accumulated transaction, adds one signature, and submits it", async () => {
@@ -234,15 +267,22 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
     return setup(remote(unsignedHex(), { signature_progress: progress }));
   }
 
-  it("refuses a fabricated signer entry", async () => {
+  // Listing shows a fabricated roster as unverified rather than refusing the page, but it is never
+  // presented as chain-validated and never as work waiting on this account.
+  it("never presents a fabricated signer entry as verified", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
-    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "provider_error" });
+    const view = await service.list(NETWORK, A);
+    expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
+    expect(view.transactions[0]!.unverifiedReason).toMatch(/not a key in the on-chain permission/);
   });
 
   it("refuses to act for an account the permission does not contain", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
     // C passes every provider-side consistency check because the provider invented its own entry
-    await expect(service.list(NETWORK, C)).rejects.toMatchObject({ code: "not_authorized" });
+    const view = await service.list(NETWORK, C);
+    expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
+    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID))
+      .rejects.toMatchObject({ code: "provider_error" });
   });
 
   it("renders on-chain weights, not the ones the provider reported", async () => {

@@ -70,6 +70,9 @@ export interface TronLinkSignatureProgressView {
 
 /** Validated projection of an untrusted TronLink collaboration record. */
 export interface TronLinkMultisigTransactionView {
+  /** False when the record could not be reconciled with the chain; act on it at your own risk. */
+  verified: boolean;
+  unverifiedReason?: string;
   txId: string;
   state: TronLinkMultisigState;
   contractType: string;
@@ -104,6 +107,8 @@ export interface TronLinkMultisigListView {
 export interface TronLinkMultisigCreateView {
   action: "create";
   accepted: true;
+  signer: string;
+  signerWeight: number;
   hex: string;
   transaction: TxApprovalView;
 }

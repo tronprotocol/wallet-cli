@@ -8,13 +8,23 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
-import type { KeypairWriter } from "../../../application/ports/keypair-writer.js";
+import type { KeypairTarget, KeypairWriter } from "../../../application/ports/keypair-writer.js";
 
 /** Exclusive, no-follow writer for plaintext private-key artifacts. */
 export class SecureKeypairWriter implements KeypairWriter {
-  write(path: string, value: unknown): string {
+  constructor(private readonly root: string) {}
+
+  write(target: KeypairTarget, value: unknown): string {
+    // Default location is this adapter's business — the use case only supplies the name.
+    return this.#writeTo(
+      "out" in target ? target.out : join(this.root, "generated", `keypair-${target.name}`),
+      value,
+    );
+  }
+
+  #writeTo(path: string, value: unknown): string {
     const target = resolve(path);
     mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
     let descriptor: number | undefined;
