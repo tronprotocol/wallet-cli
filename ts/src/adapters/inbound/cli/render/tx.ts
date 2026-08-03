@@ -2,6 +2,8 @@ import type { TxInfoView, TxReceiptKind, TxReceiptView, TxStatusView } from "../
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js"
 import { ChainFamily } from "../../../../domain/family/index.js"
 import { fromBaseUnits } from "../../../../domain/amounts/index.js"
+import type { TxApprovalView } from "../../../../domain/types/index.js"
+import { renderApproval } from "./approval.js"
 import { formatScalar, formatInt, formatSun, num, shorten, methodName } from "./scalars.js"
 import { type Pair, asObj, query, receipt, ok, fail, pending, unknown } from "./layout.js"
 import { FAMILY_RENDER, renderFamily } from "./family.js"
@@ -33,13 +35,15 @@ export const TxFormatters = {
 function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx)
   if (r.mode === "dry-run") {
-    return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
+    // receiptRows already states a multi-sign fee; only estimated fees need their own row here.
+    const body = receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
       ...receiptRows(r),
-      ["Fee", r.multiSignFeeSun === undefined
-        ? formatFee(r.fee, family)
-        : `${formatSun(r.multiSignFeeSun)} TRX multi-sign fee`],
-      ["Tx", summarizeTx(r.tx)],
+      ...(r.multiSignFeeSun === undefined ? [["Fee", formatFee(r.fee, family)] as Pair] : []),
+      ["Tx", summarizeTx(r.tx ?? r.transaction)],
     ])
+    // `tx broadcast --dry-run` resolves the full approval state to decide broadcastability; show
+    // it rather than leaving text with a fee line while json carries permission and progress.
+    return r.transaction ? `${body}\n\n${renderApproval(r.transaction as TxApprovalView)}` : body
   }
   if (r.mode === "build-only") {
     return r.hex ?? receipt(pending(), `Built ${actionLabel(r.kind)}`, [
@@ -157,7 +161,9 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
 /** action-specific extra rows (To/From/Address/Contract), by kind. */
 function receiptRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = []
-  if (r.multiSignFeeSun) rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`])
+  // `undefined` means "not a multi-sig broadcast"; 0 is a real answer (single signature,
+  // no extra fee) and must still be stated rather than silently dropped as falsy.
+  if (r.multiSignFeeSun !== undefined) rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`])
   if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
   else if (r.kind === "stake-undelegate") rows.push(["From", String(r.receiver ?? "")])
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])
@@ -277,5 +283,5 @@ function signatureRows(signed: unknown): Pair[] {
 function summarizeTx(tx: unknown): string {
   if (!tx || typeof tx !== "object") return formatScalar(tx)
   const o = asObj(tx)
-  return shorten(String(o.txid ?? o.txID ?? o.hash ?? JSON.stringify(o)))
+  return shorten(String(o.txid ?? o.txID ?? o.txId ?? o.hash ?? JSON.stringify(o)))
 }

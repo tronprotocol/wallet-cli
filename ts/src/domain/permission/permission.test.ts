@@ -123,6 +123,48 @@ describe("permission replacement validation", () => {
     expect(() => validatePermissionStructure(input)).toThrowError(/must not contain duplicate/);
   });
 
+  // The documented workflow is `permission show -o json > f` → edit `operations` → `update --file`.
+  // show always emits unknownOperationIds, almost always `[]`. An empty list declares "no unnamed
+  // bits", which is exactly what regenerating the bitmap from `operations` produces — demanding
+  // operationsHex alongside it blocks the round trip without protecting anything.
+  it("accepts an empty unknownOperationIds without a bitmap, regenerating it from operations", () => {
+    const input = structure();
+    delete (input.actives[0] as Record<string, unknown>).operationsHex;
+    input.actives[0]!.unknownOperationIds = [];
+    const result = validatePermissionStructure(input);
+    expect(result.actives[0]).toMatchObject({
+      operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
+      operationsHex: encodeOperations(["TransferContract", "TransferAssetContract", "TriggerSmartContract"]),
+      unknownOperationIds: [],
+    });
+  });
+
+  it("accepts the edited round trip: operations changed, operationsHex dropped, empty unknown list kept", () => {
+    const input = structure();
+    delete (input.actives[0] as Record<string, unknown>).operationsHex;
+    input.actives[0]!.operations = ["TransferContract"]; // reviewer narrowed the permission
+    input.actives[0]!.unknownOperationIds = [];
+    expect(validatePermissionStructure(input).actives[0]).toMatchObject({
+      operations: ["TransferContract"],
+      operationsHex: encodeOperations(["TransferContract"]),
+    });
+  });
+
+  it("still refuses a non-empty unknownOperationIds without a bitmap", () => {
+    const input = structure();
+    delete (input.actives[0] as Record<string, unknown>).operationsHex;
+    input.actives[0]!.unknownOperationIds = [7];
+    expect(() => validatePermissionStructure(input)).toThrowError(/requires operationsHex/);
+  });
+
+  // The mismatch is reached by editing `operations` and leaving the exported bitmap behind. Saying
+  // only "does not match" leaves the reader to guess which side to change.
+  it("tells the reader how to resolve an operations/operationsHex mismatch", () => {
+    const input = structure();
+    input.actives[0]!.operations = ["TransferContract"]; // edited; operationsHex left stale
+    expect(() => validatePermissionStructure(input)).toThrowError(/remove operationsHex/);
+  });
+
   it("rejects unknownOperationIds without a bitmap to justify them", () => {
     const input = structure();
     delete (input.actives[0] as Record<string, unknown>).operationsHex;

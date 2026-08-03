@@ -6,6 +6,7 @@ import { registerNetworkCommands } from "./network.js";
 import { registerTronChainCommands, type TronChainCommandDependencies } from "../../../../bootstrap/families/tron.js";
 import { commandId } from "../command-id.js";
 import { TextFormatters } from "../render/index.js";
+import { introspectFields } from "../arity/index.js";
 import { isChainCommand } from "../contracts/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import type { ConfigService } from "../../../../application/use-cases/config-service.js";
@@ -32,6 +33,63 @@ describe("text formatters", () => {
       .sort();
 
     expect(missing).toEqual([]);
+  });
+
+  // Help renders a field's description for both flags and positionals (help/index.ts Args + Flags).
+  // A field without one prints a bare name and leaves the reader — often an agent — guessing what
+  // to pass. Registry-wide so a new command cannot quietly ship undocumented inputs.
+  it("every registered command field carries a help description", () => {
+    const registry = new CommandRegistry();
+    registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
+    registerConfigCommands(registry, {} as ConfigService);
+    registerNetworkCommands(registry);
+    registerContactCommands(registry, {} as never);
+    registerAddressCommands(registry, {} as never);
+    registerEncodingCommands(registry, {} as never);
+    registerTronChainCommands(registry, {} as TronChainCommandDependencies);
+
+    const missing: string[] = [];
+    for (const cmd of registry.all()) {
+      const spec = isChainCommand(cmd) ? cmd.spec : cmd;
+      const fields = isChainCommand(cmd) ? cmd.spec.baseFields : cmd.fields;
+      if (!fields) continue;
+      for (const field of introspectFields(fields)) {
+        if (!field.description) missing.push(`${spec.path.join(" ")} --${field.kebab}`);
+      }
+    }
+
+    expect(missing.sort()).toEqual([]);
+  });
+});
+
+describe("permissionShow formatter", () => {
+  const view = {
+    address: "Towner",
+    owner: { id: 0, name: "owner", threshold: 1, keys: [{ address: "Towner", weight: 1, local: "main" }] },
+    actives: [{
+      id: 2, name: "finance", threshold: 2,
+      keys: [{ address: "TQkX", weight: 1 }, { address: "TXe4", weight: 1, local: "cold" }],
+      operations: ["TransferContract"],
+      operationsHex: "7fff1fc0033e0100000000000000000000000000000000000000000000000000",
+      operationLabels: ["Transfer TRX"],
+      unknownOperationIds: [],
+    }],
+  } as any;
+
+  // Doc §3.1.1 keeps operationsHex in json — it is a machine value, and the human column already
+  // carries the decoded operation labels next to it.
+  it("does not print the operations bitmap in the text card", () => {
+    const out = TextFormatters.permissionShow(view, ctx()) as string;
+    expect(out).not.toContain("Operations Hex");
+    expect(out).not.toContain("7fff1fc0033e0100");
+  });
+
+  it("still prints the decoded operation labels, the total, and local key annotations", () => {
+    const out = TextFormatters.permissionShow(view, ctx()) as string;
+    expect(out).toContain("Transfer TRX");
+    expect(out).toContain("(1 total)");
+    expect(out).toContain("(this wallet: cold)");
+    expect(out).toContain('finance  (id 2, active)');
   });
 });
 
@@ -276,6 +334,59 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("unknown");
   });
 
+  // `tx broadcast` carries the full approval view in json, but text projected none of it: the
+  // dry-run receipt was a bare header plus a fee line, and the fee was printed twice whenever the
+  // multi-sign fee was non-zero (receiptRows pushed one row, the dry-run branch another). The QA
+  // pass missed the duplicate because its sample fee was 0, which is falsy.
+  const broadcastApproval = {
+    txId: "abc123", contractType: "TransferContract", operation: "Transfer TRX",
+    from: "Towner", to: "Trecipient", rawAmount: "1000000",
+    permission: { id: 2, name: "finance", threshold: 2 },
+    currentWeight: 2, missingWeight: 0, thresholdReached: true,
+    approved: [{ address: "TQkX", weight: 1 }, { address: "TXe4", weight: 1 }],
+    expiration: 1784388720000, expired: false, signatures: 2,
+  };
+
+  it("broadcast dry-run: projects the permission and approval block json already carries", () => {
+    const out = TextFormatters.txReceipt({
+      kind: "broadcast", mode: "dry-run", transaction: broadcastApproval, multiSignFeeSun: 1000000,
+    } as any) as string;
+    expect(out).toContain("Dry run tx broadcast");
+    expect(out).toContain('Permission  active "finance" (id 2)  threshold 2');
+    expect(out).toContain("Progress  2 / 2 — threshold reached");
+    expect(out).toContain("Approved signer");
+    expect(out).toContain("TQkX");
+  });
+
+  it("broadcast dry-run: identifies the transaction instead of leaving an empty Tx row", () => {
+    const out = TextFormatters.txReceipt({
+      kind: "broadcast", mode: "dry-run", transaction: broadcastApproval, multiSignFeeSun: 0,
+    } as any) as string;
+    expect(out).toContain("abc123");
+  });
+
+  it.each([
+    ["non-zero multi-sign fee", 1000000, "1 TRX"],
+    ["zero multi-sign fee", 0, "0 TRX"],
+  ])("broadcast dry-run: states the multi-sign fee exactly once (%s)", (_n, fee, expected) => {
+    const out = TextFormatters.txReceipt({
+      kind: "broadcast", mode: "dry-run", transaction: broadcastApproval, multiSignFeeSun: fee,
+    } as any) as string;
+    expect(out.match(/multi-sign fee/gi) ?? []).toHaveLength(1);
+    expect(out).toContain(expected);
+  });
+
+  it("broadcast submitted: keeps txid, status and the tracking hint, and does not duplicate the fee", () => {
+    const out = TextFormatters.txReceipt({
+      kind: "broadcast", stage: "submitted", txId: "abc123",
+      transaction: broadcastApproval, multiSignFeeSun: 1000000,
+    } as any) as string;
+    expect(out).toContain("abc123");
+    expect(out).toContain("pending — not yet on-chain");
+    expect(out).toContain("Track it:");
+    expect(out.match(/multi-sign fee/gi) ?? []).toHaveLength(1);
+  });
+
   it("stake freeze submitted: renders staked amount and resource", () => {
     const out = TextFormatters.txReceipt({ kind: "stake-freeze", stage: "submitted", txId: "abc", amountSun: "2000000", resource: "energy" });
     expect(out).toContain("Staked");
@@ -337,6 +448,32 @@ describe("local multisig formatters", () => {
     expect(out).toContain("Approved signer");            // weight table header
     expect(out).not.toContain("local inspection");
     expect(out).not.toContain("was not checked online");
+  });
+
+  // Doc §3.2: text gets the human operation name; the machine-readable contractType enum stays in
+  // json. Printing both put a machine value in a human column.
+  it("prints the human operation name without the contract-type enum", () => {
+    const out = TextFormatters.txApprovals({ ...approval, operation: "Transfer TRX" }) as string;
+    expect(out).toContain("Transfer TRX");
+    expect(out).not.toContain("(TransferContract)");
+  });
+
+  it("falls back to the raw contract type when no human name is known", () => {
+    const out = TextFormatters.txApprovals({ ...approval, operation: undefined }) as string;
+    expect(out).toContain("TransferContract");
+  });
+
+  it("prints the human operation name on the offline sign receipt too", () => {
+    const out = TextFormatters.txSign({
+      kind: "tx-sign", signer: "Tsigner", checked: false, hex: "aabb",
+      transaction: {
+        txId: approval.txId, contractType: "TransferContract", operation: "Transfer TRX",
+        rawAmount: "1000000", permissionId: 2, expiration: approval.expiration,
+        expired: false, signatures: 1,
+      },
+    } as any) as string;
+    expect(out).toContain("Transfer TRX");
+    expect(out).not.toContain("(TransferContract)");
   });
 
   it("shows the next broadcast command only after threshold is reached", () => {
