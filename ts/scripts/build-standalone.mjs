@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
+import { resolveNodeHidAddon } from "./standalone/resolve-node-hid-addon.js";
 
 const targetByHost = {
   "darwin-arm64": "bun-darwin-arm64",
@@ -45,15 +46,10 @@ const outfileExt = extname(outfile);
 const outfileStem = outfileExt ? outfile.slice(0, -outfileExt.length) : outfile;
 const stagedOutfile = `${outfileStem}.${process.pid}.${Date.now()}.building${outfileExt}`;
 const compileExecutable = resolveCompileExecutable(target);
-const nativeAddon =
-  process.platform === "linux"
-    ? "node_modules/node-hid/build/Release/HID_hidraw.node"
-    : "node_modules/node-hid/build/Release/HID.node";
-if (!existsSync(nativeAddon)) {
-  throw new Error(
-    `missing ${nativeAddon}; run npm ci on the target platform before building the executable`,
-  );
-}
+const { nativeAddon, nodeHidVersion, transportPackageJson } = resolveNodeHidAddon();
+console.log(
+  `using node-hid ${nodeHidVersion} resolved from ${transportPackageJson}: ${nativeAddon}`,
+);
 
 mkdirSync(dirname(outfile), { recursive: true });
 
@@ -68,11 +64,7 @@ if (compileExecutable) {
   console.log(`using pinned Bun compiler executable ${compileExecutable}`);
 }
 
-const hidShim = resolve(
-  process.platform === "linux"
-    ? "scripts/standalone/node-hid-linux.ts"
-    : "scripts/standalone/node-hid-default.ts",
-);
+const hidShim = resolve("scripts/standalone/node-hid.ts");
 
 try {
   const result = await Bun.build({
@@ -84,6 +76,9 @@ try {
         name: "standalone-node-hid",
         setup(build) {
           build.onResolve({ filter: /^node-hid$/ }, () => ({ path: hidShim }));
+          build.onResolve({ filter: /^wallet-cli-native-node-hid$/ }, () => ({
+            path: nativeAddon,
+          }));
         },
       },
     ],

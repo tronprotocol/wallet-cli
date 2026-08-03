@@ -14,9 +14,9 @@ interface NativeBinding {
  * Build the small JavaScript facade exposed by `node-hid`.
  *
  * `node-hid` normally locates its N-API addon through the dynamic `bindings()` helper. A Bun
- * executable has no package directory at runtime, so that lookup cannot work. The two platform
- * entry modules import the addon statically and pass it here; Bun can then embed and extract the
- * native file as part of the executable.
+ * executable has no package directory at runtime, so that lookup cannot work. The build plugin
+ * resolves the addon from Ledger transport's package location and redirects the shim's static
+ * native import to that exact file; Bun can then embed and extract it with the executable.
  */
 export function createNodeHid(binding: NativeBinding) {
   class HID extends EventEmitter {
