@@ -62,10 +62,24 @@ Schema id: `wallet-cli.result.v1`.
 | `error.message` | string | error only | Human-readable; **not** stable — never parse it |
 | `error.details` | object | optional | Structured extras when available |
 | `meta.durationMs` | number | always | Wall time |
-| `meta.warnings` | string[] | always | Non-fatal notices |
+| `meta.warnings` | `(string \| {code, message})[]` | always | Non-fatal notices; **elements are not uniformly typed** — see below |
 | `chain` | object | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
+
+### Reading `meta.warnings`
+
+An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md#safety-warnings) safety warnings and the post-confirmation checks; everything else is a bare string. Normalise before display, and never assume a uniform element type:
+
+```bash
+# text for humans — works for both forms
+jq -r '.meta.warnings[] | if type == "string" then . else .message end'
+
+# branch on a specific condition — objects only
+jq -e '.meta.warnings[] | select(type == "object" and .code == "owner_lockout")' >/dev/null && exit 1
+```
+
+`join`-style helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.join`) will fail or print `[object Object]` on the object form. Warning `code` values are stable and additive within v1 — new codes may appear, existing ones keep their meaning. Warning `message` text is **not** stable; treat it like `error.message` and never parse it.
 
 ## Error codes
 
@@ -85,7 +99,9 @@ Common codes at exit **2** (usage — fix the call):
 | `tty_required` | An interactive prompt is needed but no TTY is attached — pass the matching `*-stdin` flag |
 | `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id |
 | `unknown_command` | No such command |
-| `output_exists` | Target file already exists and is never overwritten (e.g. `backup --out`) |
+| `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
+| `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The underlying parser detail is withheld: it quotes the offending line, which may carry a credential |
+| `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
 | `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
 
 Common codes at exit **1** (execution — runtime failure):
@@ -130,6 +146,8 @@ This is a wallet; a wrong success check loses money. The rules:
    ```
 
 2. To block until the outcome is known, pass `--wait` (polls until confirmed/failed, capped by `--wait-timeout`, default 60000 ms; on cap it returns the submitted receipt).
+
+   **A `--wait` receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out your request, not whether the chain accepted the result — so after any `--wait`, branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done. This holds for every `--wait` receipt, including [`gasfree transfer`](commands/gasfree/transfer.md), which additionally mirrors the provider's terminal state in `data.state` (`SUCCEED` / `FAILED`) and explains it in `data.failureReason`.
 
 3. Or poll yourself with `tx status`, which has a **four-state model**:
 

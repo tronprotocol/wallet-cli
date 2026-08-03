@@ -64,6 +64,10 @@ token and address fee metadata disagree, if fee arithmetic does not add up, or i
 token outside the current configuration. Signing likewise fails (`signing_rejected`) unless the
 signed digest is exactly the expected `PermitTransfer` and recovers to the selected account.
 
+`gasfree_integrity` means the provider's answer is inconsistent — it is never raised because *your*
+node was unreachable. Cross-checking reads TRC20 metadata from the chain, and a failure there
+surfaces as `rpc_error` (retryable) instead, so the two causes stay distinguishable.
+
 ## See also
 
 [`tx send`](../tx/send.md) — the ordinary, TRX-paying transfer ·

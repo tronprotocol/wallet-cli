@@ -5,7 +5,7 @@ import type { TronTransactionService } from "../../../../application/use-cases/t
 import type { TronSigService } from "../../../../application/use-cases/tron/sig-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
-import type { TransactionArtifactWriter } from "../../../outbound/persistence/transaction-artifact-writer.js";
+import type { TransactionArtifactWriter } from "../../../../application/ports/transaction-artifact-writer.js";
 import { Schemas } from "../schemas/index.js";
 import {
   amountSelector,

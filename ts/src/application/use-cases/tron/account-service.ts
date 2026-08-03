@@ -17,6 +17,7 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { warnOnPostCheck } from "../../services/post-check.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const round6 = (value: number): number => Math.round(value * 1e6) / 1e6;
@@ -124,13 +125,12 @@ export class TronAccountService {
       estimate: async () => ({ ...fee, balanceSun }),
     });
     if (outcome.stage === "confirmed" && !outcome.failed) {
-      const activated = await gateway.getAccount(input.address);
-      if (!accountExists(activated, input.address)) {
-        throw new ChainError(
-          "provider_error",
-          "confirmed account activation is not visible from the selected node",
-        );
-      }
+      await warnOnPostCheck(scope, "account_activate_postcheck", async () => {
+        const activated = await gateway.getAccount(input.address);
+        return accountExists(activated, input.address)
+          ? undefined
+          : "confirmed account activation is not visible from the selected node";
+      });
     }
     return {
       kind: "account-activate" as const,
@@ -200,15 +200,14 @@ export class TronAccountService {
       }),
     });
     if (outcome.stage === "confirmed" && !outcome.failed) {
-      const updated = await gateway.getAccount(address);
-      const raw =
-        field === "name" ? updated.account_name : updated.account_id;
-      if (decodeAccountText(raw, field) !== value) {
-        throw new ChainError(
-          "provider_error",
-          `confirmed account ${field} does not match the submitted value`,
-        );
-      }
+      await warnOnPostCheck(scope, "account_set_postcheck", async () => {
+        const updated = await gateway.getAccount(address);
+        const raw =
+          field === "name" ? updated.account_name : updated.account_id;
+        return decodeAccountText(raw, field) === value
+          ? undefined
+          : `confirmed account ${field} does not match the submitted value`;
+      });
     }
     return {
       kind: "account-set" as const,

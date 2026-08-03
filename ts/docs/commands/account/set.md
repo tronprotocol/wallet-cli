@@ -82,11 +82,23 @@ error [invalid_option]: provide exactly one of --name or --id
 | `address` | string | Account that was updated |
 | `stage`, `txId`, `blockNumber`, `feeSun` | — | Standard broadcast receipt fields |
 
+### Warnings
+
+After confirmation the CLI re-reads the account to check the written value. Because the field is
+one-time and already on chain, that check never fails the command — both outcomes arrive as
+`{code, message}` entries in `meta.warnings`:
+
+| Code | Meaning |
+|---|---|
+| `account_set_postcheck_unavailable` | Confirmed on chain, but the verification read could not be performed (node lag, timeout, rate limit) |
+| `account_set_postcheck_mismatch` | The read succeeded, but the on-chain value differs from what was submitted |
+
+The receipt and `txId` stand in both cases; confirm with [`account info`](info.md).
+
 ## Exit status
 
 `0` · `1` execution failure (account not activated, chain rejected an already-set field,
-`provider_error`, `auth_failed`) · `2` usage error (neither/both of `--name` / `--id`, conflicting
-mode flags).
+`auth_failed`) · `2` usage error (neither/both of `--name` / `--id`, conflicting mode flags).
 
 ## See also
 

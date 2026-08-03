@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
@@ -103,4 +103,39 @@ describe("ConfigLoader GasFree credentials", () => {
         .toThrow(/mode 0600/);
     },
   );
+});
+
+// A broken config.yaml is the user's typo, not an internal fault — but the underlying errors quote
+// file content (YAML parse) or OS detail, and a credential can sit on the very line that failed.
+describe("ConfigLoader unreadable/malformed config", () => {
+  it("classifies malformed YAML without echoing the file content", () => {
+    const env = envWithConfig([
+      'gasfreeApiSecret: "SUPERSECRET123"',
+      'defaultNetwork: "unterminated',
+      "  bad: [1,2",
+      "",
+    ].join("\n"), 0o600);
+
+    let thrown: unknown;
+    try {
+      ConfigLoader.load(env);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toMatchObject({ code: "invalid_config", kind: "usage" });
+    expect((thrown as Error).message).toMatch(/not valid YAML/);
+    expect((thrown as Error).message).not.toContain("SUPERSECRET123");
+    expect((thrown as Error).message).not.toContain("bad: [1,2");
+  });
+
+  it("classifies a config path that cannot be read as a file", () => {
+    // a directory named config.yaml — deterministic across platforms and irrespective of uid,
+    // unlike chmod 000, which root would sail straight through.
+    const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
+    mkdirSync(join(root, "config.yaml"));
+
+    expect(() => ConfigLoader.load({ ...process.env, WALLET_CLI_HOME: root }))
+      .toThrow(/cannot be read/);
+  });
 });

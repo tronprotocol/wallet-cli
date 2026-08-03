@@ -49,7 +49,7 @@ export class TronMultisigCollaborationService {
     });
     const gateway = this.gateways.get(network, "tron");
     const validated = page.records.map((record) => this.#validate(gateway, address, record));
-    await mapWithConcurrency(validated, 4, (transaction) => this.#verifyOnChain(network, transaction));
+    await mapWithConcurrency(validated, 4, (transaction) => this.#verifyOnChain(network, address, transaction));
     return {
       address,
       total: page.total,
@@ -162,7 +162,7 @@ export class TronMultisigCollaborationService {
       for (const record of page.records) {
         const validated = this.#validate(gateway, address, record);
         if (validated.view.txId === txId) {
-          await this.#verifyOnChain(network, validated);
+          await this.#verifyOnChain(network, address, validated);
           return validated;
         }
       }
@@ -274,8 +274,16 @@ export class TronMultisigCollaborationService {
     };
   }
 
-  async #verifyOnChain(network: NetworkDescriptor, remote: ValidatedRemoteRecord): Promise<void> {
-    const approval = await this.multisig.approvals(network, remote.hex);
+  async #verifyOnChain(
+    network: NetworkDescriptor,
+    currentAddress: string,
+    remote: ValidatedRemoteRecord,
+  ): Promise<void> {
+    const gateway = this.gateways.get(network, "tron");
+    const [approval, signWeight] = await Promise.all([
+      this.multisig.approvals(network, remote.hex),
+      gateway.getSignWeight(gateway.decodeTransactionHex(remote.hex)),
+    ]);
     const signedProgress = remote.view.signatureProgress
       .filter((entry) => entry.signed)
       .map((entry) => entry.address);
@@ -294,6 +302,46 @@ export class TronMultisigCollaborationService {
       throw new ChainError(
         "provider_error",
         "TronLink transaction metadata or signatures disagree with the selected network",
+      );
+    }
+
+    // The checks above bind only the SIGNED set and the aggregate weight. Unsigned entries and every
+    // per-signer weight are still whatever the provider said — so a stale record (the permission was
+    // updated while this transaction sat pending) or a hostile one can name a signer the permission
+    // does not contain, or misstate how much weight each key carries. Both read as chain-validated
+    // in the summary a co-signer uses to decide. Bind the whole roster, and render chain weights.
+    const onChainWeight = new Map(
+      (signWeight.permission?.keys ?? []).map((key) => [key.address, key.weight] as const),
+    );
+    if (!onChainWeight.has(currentAddress)) {
+      throw new ChainError(
+        "not_authorized",
+        "selected account is not a key in the transaction permission",
+      );
+    }
+    // NB: deliberately not requiring every on-chain key to appear. Whether the service always
+    // returns the full roster is not something this client can know, and every number the user acts
+    // on (threshold, currentWeight, missingWeight) is chain-derived regardless — so rejecting a
+    // short list would risk breaking real usage to prevent nothing.
+    for (const entry of remote.view.signatureProgress) {
+      const weight = onChainWeight.get(entry.address);
+      if (weight === undefined) {
+        throw new ChainError(
+          "provider_error",
+          "TronLink lists a signer that is not a key in the on-chain permission",
+        );
+      }
+      entry.weight = weight;
+    }
+    // Re-derive from chain weights: catches weight redistributed among the signed keys, which the
+    // provider-side sum in #validate cannot see.
+    const signedWeight = remote.view.signatureProgress
+      .filter((entry) => entry.signed)
+      .reduce((sum, entry) => sum + entry.weight, 0);
+    if (signedWeight !== approval.currentWeight) {
+      throw new ChainError(
+        "provider_error",
+        "TronLink per-signer weights disagree with the on-chain permission",
       );
     }
     remote.view.permission.name = approval.permission.name;

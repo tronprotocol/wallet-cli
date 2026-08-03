@@ -91,10 +91,25 @@ An address that is already on chain is refused rather than paid for twice:
 | `payer` | string | Address that paid the creation fee |
 | `blockNumber`, `feeSun` | number \| string | Present after `--wait` |
 
+### Warnings
+
+After a confirmed activation the CLI re-reads the account to verify it. That check never fails the
+command — the fee is already spent and the transaction is already on chain — so both outcomes arrive
+as `{code, message}` entries in `meta.warnings`:
+
+| Code | Meaning |
+|---|---|
+| `account_activate_postcheck_unavailable` | Confirmed on chain, but the verification read could not be performed (node lag, timeout, rate limit) |
+| `account_activate_postcheck_mismatch` | The read succeeded, but the selected node still cannot see the account |
+
+Either way the receipt and `txId` stand — do not re-run the command; confirm with
+[`account info`](info.md).
+
 ## Exit status
 
-`0` · `1` execution failure (`account_already_active`, `insufficient_balance`, `provider_error`,
-`auth_failed`) · `2` usage error (`invalid_value`, conflicting mode flags).
+`0` · `1` execution failure (`account_already_active`, `insufficient_balance`, `provider_error`
+(chain parameters unavailable), `auth_failed`) · `2` usage error (`invalid_value`, conflicting mode
+flags).
 
 ## See also
 

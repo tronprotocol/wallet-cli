@@ -34,10 +34,15 @@ So a transaction whose `raw_data` reads "1 TRX" can carry the `txID` and `raw_da
 
 1. `txID` is the sha256 of `raw_data_hex` — always enforced, for every contract type; and
 2. `raw_data` re-encodes to exactly those bytes — enforced wherever the contract type can be
-   decoded. A handful of types (`MarketSellAssetContract`, `MarketCancelOrderContract`,
-   `ShieldedTransferContract`) cannot be re-encoded; those are still bound by check 1.
+   decoded.
 
-Neither check rejects anything a correct transaction builder produces.
+Four contract types cannot be decoded by the bundled TronWeb — `UnfreezeAssetContract`,
+`ShieldedTransferContract`, `MarketSellAssetContract`, and `MarketCancelOrderContract`. Because
+check 2 cannot be satisfied for them, `--hex` / `--file` input carrying one is **refused**
+(`invalid_transaction`), not accepted under check 1 alone. Sign those through `--transaction` JSON,
+or with a client that can round-trip them.
+
+Neither check rejects anything a correct transaction builder produces for the supported types.
 
 Watch-only accounts cannot sign (`watch_only_no_signer`). Ledger accounts sign on the device.
 

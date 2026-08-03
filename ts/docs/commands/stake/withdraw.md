@@ -5,7 +5,7 @@ Withdraw expired unfrozen TRX.
 ## Synopsis
 
 ```
-wallet-cli stake withdraw [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+wallet-cli stake withdraw [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
@@ -14,16 +14,21 @@ Claims every pending unstake whose waiting period has expired, moving the TRX ba
 
 Withdrawing also frees up unstake slots (max 32 pending unstakes per account).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` |
-| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--dry-run` | Estimate only, no signature/broadcast |
+| `--sign-only` | Sign without broadcasting |
+| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
+| `--permission-id <0-9>` | TRON permission group id used to authorize this transaction (default `0`) |
+| `--expiration <ms>` | Expiration duration in ms (1–86400000); only with `--sign-only` / `--build-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
+
+`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 

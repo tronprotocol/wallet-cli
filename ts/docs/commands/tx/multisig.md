@@ -27,9 +27,17 @@ command lists.
 
 **The service is a transport, not an authority.** Everything it returns is treated as untrusted:
 the CLI re-derives the transaction hash from the raw data, checks the reported contract type,
-owner, weights, and signature progress against the transaction itself, and fails with
-`provider_error` on any disagreement — rather than showing you what the service claims. Signing
-still happens locally with your key.
+owner, weights, and signature progress against the transaction itself **and against the on-chain
+permission**, and fails with `provider_error` on any disagreement — rather than showing you what the
+service claims. Signing still happens locally with your key.
+
+Concretely, for the signer roster: every address the service reports must be a key in the
+transaction's on-chain permission, and each `weight` shown is read from the chain, never from the
+service — so a reported weight that has gone stale (the permission was updated while this
+transaction sat pending) is corrected rather than displayed. If the selected account is not itself a
+key in that permission, the command fails with `not_authorized` instead of reporting the transaction
+as awaiting your signature. A roster that omits a key is accepted: every figure you act on
+(`threshold`, `currentWeight`, `missingWeight`) is chain-derived regardless.
 
 ### Modes
 

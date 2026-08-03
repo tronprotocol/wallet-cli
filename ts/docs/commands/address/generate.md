@@ -87,8 +87,13 @@ wallet-cli address generate -o json
 
 ## Exit status
 
-`0` · `1` execution failure — `entropy_failure`, `file_exists` (refusing to overwrite an existing
-keypair file), `io_error` · `2` usage error.
+`0` · `1` execution failure — `entropy_failure`, `io_error` · `2` usage error, including
+`output_exists` when the target file already exists (the same code [`backup`](../backup.md) uses —
+the key is never written over an existing file, and the conflict is deterministic, so retrying the
+identical command cannot help; choose another `--out` path).
+
+A failed write leaves nothing behind: the partially written file is removed, so the same `--out`
+path is free to retry once the underlying cause (a full disk, for instance) is resolved.
 
 ## See also
 

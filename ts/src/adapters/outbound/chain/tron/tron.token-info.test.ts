@@ -14,15 +14,52 @@ const dynamicString = (text: string) => {
 const bytes32 = (text: string) =>
   Buffer.from(text, "utf8").toString("hex").padEnd(64, "0");
 
+/**
+ * Node response shapes, as measured against a live Nile node rather than assumed:
+ *
+ *   method implemented   → { result: { result: true } }, constant_result: ["<abi hex>"]
+ *   method NOT there     → { result: { result: true, message: "REVERT opcode executed" } },
+ *                          constant_result: [""]          ← still result:true
+ *   address is no contract → { result: { code: "CONTRACT_VALIDATE_ERROR", … } }, no constant_result
+ *   node unreachable     → the request itself rejects
+ *
+ * The second row is the one that matters: a missing view method is not an error at this layer, so
+ * it needs no rescue — it decodes to undefined on its own.
+ */
 const stub = (responses: Record<string, string>) => {
   const client = new TronRpcClient("http://localhost:1", 200);
   client.tronweb.transactionBuilder.triggerConstantContract = ((
     _contract: string, fn: string,
   ) => {
     const hex = responses[fn];
-    if (hex === undefined) return Promise.resolve({ result: { result: false, message: "" } });
+    if (hex === undefined) {
+      return Promise.resolve({
+        result: { result: true, message: "REVERT opcode executed" },
+        constant_result: [""],
+      });
+    }
     return Promise.resolve({ result: { result: true }, constant_result: [hex] });
   }) as never;
+  return client;
+};
+
+/**
+ * No contract at that address. The node reports `CONTRACT_VALIDATE_ERROR` in a 200 body, but tronweb
+ * turns that into a rejection rather than handing it back — verified against a live Nile node, where
+ * an EOA address surfaces as `rpc_error`, not `execution_error`.
+ */
+const notAContract = () => {
+  const client = new TronRpcClient("http://localhost:1", 200);
+  client.tronweb.transactionBuilder.triggerConstantContract = (() =>
+    Promise.reject(new Error("Smart contract is not exist."))) as never;
+  return client;
+};
+
+/** the request never reached a node. */
+const unreachable = () => {
+  const client = new TronRpcClient("http://localhost:1", 200);
+  client.tronweb.transactionBuilder.triggerConstantContract = (() =>
+    Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:1"))) as never;
   return client;
 };
 
@@ -60,7 +97,7 @@ describe("TronRpcClient.getTokenInfo", () => {
     });
   });
 
-  it("leaves fields undefined when their view call reverts", async () => {
+  it("leaves fields undefined when the contract does not implement the view", async () => {
     const client = stub({ "symbol()": dynamicString("USDT") });
 
     await expect(client.getTokenInfo(CONTRACT)).resolves.toEqual({
@@ -70,5 +107,17 @@ describe("TronRpcClient.getTokenInfo", () => {
       decimals: undefined,
       totalSupply: undefined,
     });
+  });
+
+  // A node outage used to surface as "this token has no metadata", which GasFree then escalated to
+  // gasfree_integrity ("the provider is lying") and tx send reported as a usage error at exit 2.
+  it("propagates a transport failure instead of reporting absent metadata", async () => {
+    await expect(unreachable().getTokenInfo(CONTRACT))
+      .rejects.toMatchObject({ code: "rpc_error", kind: "execution" });
+  });
+
+  it("propagates 'no contract at this address' rather than blanking the fields", async () => {
+    await expect(notAContract().getTokenInfo(CONTRACT))
+      .rejects.toMatchObject({ code: "rpc_error" });
   });
 });

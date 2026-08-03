@@ -59,9 +59,12 @@ function accounts(): AccountStore {
   } as unknown as AccountStore;
 }
 
-function setup(balance = "200000000") {
+function setup(balance = "200000000", options: {
+  outcome?: Record<string, unknown>;
+  showPermissions?: () => Promise<AccountPermissionsView>;
+} = {}) {
   const gateway = {
-    getAccountPermissions: vi.fn(async () => permissions()),
+    getAccountPermissions: vi.fn(options.showPermissions ?? (async () => permissions())),
     getUpdateAccountPermissionFee: vi.fn(async () => 100_000_000),
     getNativeBalance: vi.fn(async () => balance),
     buildAccountPermissionUpdate: vi.fn(async () => ({ txID: "tx" })),
@@ -74,6 +77,7 @@ function setup(balance = "200000000") {
     run: vi.fn(async (params: TxPipelineParams) => {
       captured = params;
       const tx = await params.build(A);
+      if (options.outcome) return options.outcome;
       return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
     }),
   } as unknown as TxPipeline;
@@ -139,5 +143,40 @@ describe("TRON permission service", () => {
     await expect(service.update(scope(), NETWORK, {}, permissions())).rejects.toMatchObject({ code: "insufficient_balance" });
     expect(gateway.buildAccountPermissionUpdate).not.toHaveBeenCalled();
     expect(pipeline.run).not.toHaveBeenCalled();
+  });
+
+  // Permissions are already rewritten on chain by this point; an unreadable re-read must not present
+  // that as a failed command, or the caller re-submits a permission structure that is already live.
+  it("keeps the confirmed receipt when the permission re-read cannot be performed", async () => {
+    const { service } = setup("200000000", {
+      outcome: { stage: "confirmed", txId: "tx-confirmed" },
+      showPermissions: async () => { throw new Error("connect ETIMEDOUT"); },
+    });
+    const ctx = scope();
+
+    const result = await service.update(ctx, NETWORK, {}, permissions());
+
+    expect(result).toMatchObject({ kind: "permission-update", stage: "confirmed", txId: "tx-confirmed" });
+    expect(result).not.toHaveProperty("permissions");
+    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
+      code: "permission_postcheck_unavailable",
+    }));
+  });
+
+  it("still reports a genuine mismatch under the unchanged warning code", async () => {
+    const divergent = permissions();
+    divergent.owner.threshold = 1;
+    const { service } = setup("200000000", {
+      outcome: { stage: "confirmed", txId: "tx-confirmed" },
+      showPermissions: async () => divergent,
+    });
+    const ctx = scope();
+
+    const result = await service.update(ctx, NETWORK, {}, permissions());
+
+    expect(result).toMatchObject({ stage: "confirmed", txId: "tx-confirmed" });
+    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
+      code: "permission_postcheck_mismatch",
+    }));
   });
 });

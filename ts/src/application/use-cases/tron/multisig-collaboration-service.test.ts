@@ -220,3 +220,39 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(result).toMatchObject({ action: "watch", notifications: 1 });
   });
 });
+
+// #verifyOnChain used to bind only the SIGNED address set and the aggregate weight, leaving unsigned
+// entries and every per-signer weight provider-controlled. A stale record (permission updated while
+// the transaction sat pending) or a hostile one could therefore name a signer the permission does
+// not contain, or misstate weights — and it all rendered as chain-validated.
+describe("TronLink signer roster is bound to the on-chain permission", () => {
+  const C = "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"; // not a key in the permission (keys are A and B)
+  const unsigned = (address: string, weight: number) =>
+    ({ address, weight, is_sign: 0 as const, sign_time: 0 });
+
+  function withProgress(progress: ReturnType<typeof unsigned>[]) {
+    return setup(remote(unsignedHex(), { signature_progress: progress }));
+  }
+
+  it("refuses a fabricated signer entry", async () => {
+    const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
+    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "provider_error" });
+  });
+
+  it("refuses to act for an account the permission does not contain", async () => {
+    const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
+    // C passes every provider-side consistency check because the provider invented its own entry
+    await expect(service.list(NETWORK, C)).rejects.toMatchObject({ code: "not_authorized" });
+  });
+
+  it("renders on-chain weights, not the ones the provider reported", async () => {
+    const { service } = withProgress([unsigned(A, 1), unsigned(B, 99)]);
+    const view = await service.list(NETWORK, A);
+    expect(view.transactions[0]!.signatureProgress.map((entry) => entry.weight)).toEqual([1, 1]);
+  });
+
+  it("accepts a roster that omits a key — every number shown is chain-derived anyway", async () => {
+    const { service } = withProgress([unsigned(A, 1)]);
+    await expect(service.list(NETWORK, A)).resolves.toBeDefined();
+  });
+});

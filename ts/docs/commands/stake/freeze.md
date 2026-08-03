@@ -6,7 +6,7 @@ Stake TRX for energy/bandwidth.
 
 ```
 wallet-cli stake freeze --amount-sun <n> [--resource energy|bandwidth]
-                        [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+                        [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Stakes TRX from the active account's balance (Stake 2.0) in exchange for a stead
 
 Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back, [`stake unfreeze`](unfreeze.md) and, after the waiting period, [`stake withdraw`](withdraw.md).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -23,10 +23,15 @@ Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back
 |---|---|
 | `--amount-sun <string>` | **Required.** Amount to stake, in SUN |
 | `--resource <energy\|bandwidth>` | Resource type to obtain (default `bandwidth`) |
-| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` |
-| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--dry-run` | Estimate only, no signature/broadcast |
+| `--sign-only` | Sign without broadcasting |
+| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
+| `--permission-id <0-9>` | TRON permission group id used to authorize this transaction (default `0`) |
+| `--expiration <ms>` | Expiration duration in ms (1–86400000); only with `--sign-only` / `--build-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
+
+`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 

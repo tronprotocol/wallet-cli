@@ -23,6 +23,24 @@ Corollary for scripts: source the piped secret from a secret store, not from a t
 
 Unexpected internal exceptions are collapsed to a generic `internal_error` message before reaching the output envelope, so a third-party library error that happens to echo key material can never leak through a result or a log that captured it.
 
+## Terminal output cannot be spoofed by chain data
+
+Several fields you read before approving something are controlled by whoever wrote them on chain or
+by a third-party service — permission names, token names and symbols, co-signer labels. In text
+mode every output frame is neutralised before it reaches your terminal: ANSI/OSC control bytes are
+stripped, so a crafted name cannot repaint the screen, and invisible formatting characters are
+replaced by a visible escape such as `<U+202E>`.
+
+That escape is the important one. `U+202E` reverses the display order of everything after it, which
+would let a permission name change how the address or weight printed beside it appears; the
+zero-width characters can make two different names look identical. Seeing `<U+200B>` or `<U+202E>`
+in a name means the underlying string really contains it — treat it as a red flag, not a rendering
+glitch. Ordinary right-to-left text (Arabic, Hebrew) contains no such characters and displays
+normally.
+
+JSON mode is never rewritten — machine consumers get the bytes exactly as they came, and are
+expected to do their own neutralising before display.
+
 ## Files that contain secrets
 
 `backup` writes secret + metadata with file mode **0600** and never overwrites an existing file. After exporting: move it to your secure storage and treat the file exactly like the key it contains — it is outside wallet-cli's protection from that moment.

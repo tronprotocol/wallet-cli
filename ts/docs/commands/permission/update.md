@@ -106,6 +106,10 @@ the update:
 | `active_can_update_permission` | An active group can itself replace the permission structure |
 | `active_unknown_operations` | An active group grants contract types this build cannot name |
 | `permission_postcheck_mismatch` | After confirmation, the on-chain structure differs from what was requested |
+| `permission_postcheck_unavailable` | The update is confirmed on chain, but the re-read could not be performed (node lag, timeout, rate limit) — the receipt stands; verify with `permission show` |
+
+These entries use the `{code, message}` object form; see
+[reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
 
 The command also refuses to broadcast when the account balance is below the network's permission
 update fee (`insufficient_balance`) — this fee is substantial on mainnet, so check it with

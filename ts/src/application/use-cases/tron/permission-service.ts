@@ -17,6 +17,7 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { warnOnPostCheck } from "../../services/post-check.js";
 import { assertTronSignerAuthorized } from "./multisig-authorization.js";
 
 export class TronPermissionService {
@@ -75,13 +76,12 @@ export class TronPermissionService {
 
     let resultPermissions: AccountPermissionsView | undefined;
     if (outcome.stage === "confirmed") {
-      resultPermissions = await this.show(network, address);
-      if (canonicalPermissions(resultPermissions) !== canonicalPermissions(permissions)) {
-        scope.warn({
-          code: "permission_postcheck_mismatch",
-          message: "confirmed transaction permissions differ from the requested canonical structure",
-        });
-      }
+      await warnOnPostCheck(scope, "permission_postcheck", async () => {
+        resultPermissions = await this.show(network, address);
+        return canonicalPermissions(resultPermissions) === canonicalPermissions(permissions)
+          ? undefined
+          : "confirmed transaction permissions differ from the requested canonical structure";
+      });
     } else if (outcome.stage === "plan" || outcome.stage === "built" || outcome.stage === "signed") {
       resultPermissions = permissions;
     }

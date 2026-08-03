@@ -314,6 +314,90 @@ describe("TronAccountService account lifecycle writes", () => {
     })).resolves.toMatchObject({ field: "id", value: "账".repeat(10) });
   });
 
+  // The post-check runs AFTER the fee is paid and the transaction is confirmed. A lagging node or a
+  // transient RPC failure there must never replace the confirmed txid with a command failure —
+  // callers would retry an operation that already succeeded.
+  describe("post-check never overwrites a confirmed receipt", () => {
+    const CONFIRMED = { stage: "confirmed", txId: "tx-confirmed", failed: false };
+
+    /** first call is the pre-check, second is the post-check. */
+    function twoReads(
+      first: () => Promise<Record<string, unknown>>,
+      second: () => Promise<Record<string, unknown>>,
+    ) {
+      let calls = 0;
+      return async () => (++calls === 1 ? first() : second());
+    }
+
+    it("activate: an unreadable post-check degrades to a warning", async () => {
+      const { service } = writeService({
+        outcome: CONFIRMED,
+        getAccount: twoReads(
+          async () => ({}),
+          async () => { throw new Error("connect ETIMEDOUT https://nile.trongrid.io/wallet/getaccount"); },
+        ),
+      });
+      const ctx = transactionScope();
+
+      const result = await service.activate(ctx, net, { address: TARGET });
+
+      expect(result).toMatchObject({ kind: "account-activate", stage: "confirmed", txId: "tx-confirmed" });
+      expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
+        code: "account_activate_postcheck_unavailable",
+      }));
+    });
+
+    it("activate: a node that cannot see the account yet warns instead of throwing", async () => {
+      const { service } = writeService({
+        outcome: CONFIRMED,
+        getAccount: twoReads(async () => ({}), async () => ({})),
+      });
+      const ctx = transactionScope();
+
+      const result = await service.activate(ctx, net, { address: TARGET });
+
+      expect(result).toMatchObject({ stage: "confirmed", txId: "tx-confirmed" });
+      expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
+        code: "account_activate_postcheck_mismatch",
+      }));
+    });
+
+    it("set: an unreadable post-check degrades to a warning", async () => {
+      const { service } = writeService({
+        outcome: CONFIRMED,
+        getAccount: twoReads(
+          async () => ({ address: OWNER }),
+          async () => { throw new Error("HTTP 429 Too Many Requests"); },
+        ),
+      });
+      const ctx = transactionScope();
+
+      const result = await service.setOnChain(ctx, net, { name: "Acme Treasury" });
+
+      expect(result).toMatchObject({ kind: "account-set", stage: "confirmed", txId: "tx-confirmed" });
+      expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
+        code: "account_set_postcheck_unavailable",
+      }));
+    });
+
+    it("the warning explains the state without leaking endpoint credentials", async () => {
+      const { service } = writeService({
+        outcome: CONFIRMED,
+        getAccount: twoReads(
+          async () => ({}),
+          async () => { throw new Error("request to https://user:pw@node.example/wallet failed"); },
+        ),
+      });
+      const ctx = transactionScope();
+
+      await service.activate(ctx, net, { address: TARGET });
+
+      const [warning] = vi.mocked(ctx.warn).mock.calls[0]! as [{ message: string }];
+      expect(warning.message).toContain("confirmed on chain");
+      expect(warning.message).not.toContain("user:pw");
+    });
+  });
+
   it("fails a signing mode before RPC when the active account cannot sign", async () => {
     const { service, gateway, pipeline } = writeService();
     vi.mocked(pipeline.assertCanSign).mockImplementation(() => {

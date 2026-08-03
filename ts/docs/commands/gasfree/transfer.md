@@ -59,6 +59,21 @@ the estimates, with `stage` of `confirmed` (`SUCCEED`) or `failed` (`FAILED`). I
 elapses first, it warns and returns the submitted receipt — the transfer is still in flight, so
 track it with [`gasfree trace`](trace.md).
 
+Polling begins only after the provider has accepted the transfer, so a polling failure says nothing
+about the outcome and never discards the receipt. Transport flakiness (429, 5xx, connection failure,
+request timeout) is retried until the deadline; any other provider error stops the wait immediately.
+Both paths warn and return `stage: "submitted"` with the `traceId` intact — reconcile with
+`gasfree trace <traceId>` rather than resubmitting, which would send the tokens twice. The one
+exception is a `gasfree_integrity` violation, which still fails the command; its `error.details`
+carries the `traceId` so it stays reconcilable too.
+
+**A `FAILED` terminal state does not fail the command.** Reaching a terminal state means the wait
+did its job, so the envelope stays `success: true` at exit `0` and the failure is reported in
+`data.stage` (`"failed"`), `data.state` (`"FAILED"`), and `data.failureReason`. Text mode marks the
+receipt as failed, but JSON consumers must branch on `data.stage` — treating exit `0` as "the
+tokens moved" will record a failed transfer as a successful one. See
+[machine interface — script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
+
 ## Options
 
 | Option | Description |
@@ -143,7 +158,8 @@ echo "$PW" | wallet-cli gasfree transfer --to alice --amount 25 \
 
 ## Exit status
 
-`0` submitted (or dry-run) · `1` execution failure — `insufficient_token_balance`,
+`0` submitted, dry-run, **or a `--wait` that settled as `FAILED`** (see [`--wait`](#--wait)) ·
+`1` execution failure — `insufficient_token_balance`,
 `gasfree_rejected` (address not permitted to submit), `gasfree_integrity`, `signing_rejected`,
 `auth_failed` · `2` usage error — `invalid_option` (`--dry-run` with `--wait`), `invalid_amount`,
 `unsupported_network` (`tron:shasta`), unknown token or contact.

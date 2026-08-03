@@ -94,4 +94,32 @@ describe("TRON complete transaction hex codec", () => {
     expect(() => encodeTransactionHex({ ...transaction, raw_data_hex: "00" })).toThrowError(/raw_data_hex does not match/);
     expect(() => encodeTransactionHex({ ...transaction, signature: ["aa"] })).toThrowError(/65 bytes/);
   });
+
+  // TronWeb's deserializer rejects these four by name, so an artifact carrying one can never satisfy
+  // the raw_data round-trip. They are refused either way — but a named type produces an actionable
+  // message, so type 51 belongs in the table even though it will never decode.
+  it("names the undecodable contract types instead of reporting an unknown id", () => {
+    const transaction = fixture("TransferContract", { owner_address: OWNER, to_address: OTHER, amount: 1 });
+    const hex = encodeTransactionHex({ ...transaction, signature: undefined });
+    const proto = (globalThis as unknown as {
+      TronWebProto: { Transaction: { deserializeBinary(b: Uint8Array): {
+        getRawData(): { getContractList(): Array<{ setType(id: number): void }> };
+        serializeBinary(): Uint8Array;
+      } } };
+    }).TronWebProto.Transaction;
+
+    const retyped = (id: number): string => {
+      const pb = proto.deserializeBinary(Uint8Array.from(Buffer.from(hex, "hex")));
+      pb.getRawData().getContractList()[0]!.setType(id);
+      return Buffer.from(pb.serializeBinary()).toString("hex");
+    };
+
+    expect(() => decodeTransactionHex(retyped(51)))
+      .toThrowError(/ShieldedTransferContract cannot be decoded losslessly/);
+    expect(() => decodeTransactionHex(retyped(52)))
+      .toThrowError(/MarketSellAssetContract cannot be decoded losslessly/);
+    // an id outside the catalogue still reports as unknown
+    expect(() => decodeTransactionHex(retyped(200)))
+      .toThrowError(/unsupported TRON contract type id 200/);
+  });
 });

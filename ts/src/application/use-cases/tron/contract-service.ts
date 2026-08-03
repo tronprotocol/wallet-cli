@@ -91,6 +91,7 @@ export class TronContractService {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
     const gateway = this.gateways.get(network, "tron");
+    const hooks = tronTransactionHooks(gateway);
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -98,15 +99,19 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...hooks,
+      // TRON derives the deployed address from the final txID, and `prepare` recomputes that txID
+      // when it binds --permission-id / --expiration. Read the address from the prepared
+      // transaction, never from the builder output, or we report a contract nobody deploys.
+      prepare: (transaction, options) => {
+        const prepared = hooks.prepare(transaction, options);
+        const hex = (prepared as { contract_address?: string }).contract_address;
+        contractAddress = hex ? tronHexToBase58(hex) : undefined;
+        return prepared;
+      },
       signerOptions: { requireSoftware: true },
       confirm: tronConfirmation(gateway, scope),
-      build: async (from) => {
-        const tx = await gateway.deployContract(from, input);
-        const hex = (tx as { contract_address?: string }).contract_address;
-        if (hex) contractAddress = tronHexToBase58(hex);
-        return tx;
-      },
+      build: (from) => gateway.deployContract(from, input),
       estimate: async () => ({
         feeModel: "tron-resource",
         note: "deploy energy depends on bytecode size",

@@ -7,16 +7,16 @@ Deploy a smart contract.
 ```
 wallet-cli contract deploy --abi <json> --bytecode <hex> --fee-limit <sun>
                            [--constructor-sig <sig> --params <json>]
-                           [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+                           [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
 
 Deploys compiled contract bytecode from the active account (or `--account`) and reports the new contract address. `--fee-limit` is **required** here (deployments are energy-heavy; there is no safe default). Constructor arguments go via `--constructor-sig` + `--params`.
 
-Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), default returns at submission, `--wait` blocks until confirmed/failed.
+Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` outputs the unsigned transaction for [multi-party or offline signing](../tx/index.md), default returns at submission, `--wait` blocks until confirmed/failed.
 
-Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -27,10 +27,15 @@ Requires an account and the master password via `--password-stdin`; watch-only a
 | `--fee-limit <number>` | **Required.** Max energy fee to burn, in SUN |
 | `--constructor-sig <string>` | Constructor signature, e.g. `constructor(uint256)`; omit when no constructor args |
 | `--params <string>` | Constructor args as a JSON array of `{type,value}` |
-| `--dry-run` | Estimate only; excludes `--sign-only` |
-| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--dry-run` | Estimate only |
+| `--sign-only` | Sign without broadcasting |
+| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
+| `--permission-id <0-9>` | TRON permission group id used to authorize this transaction (default `0`) |
+| `--expiration <ms>` | Expiration duration in ms (1–86400000); only with `--sign-only` / `--build-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
+
+`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 

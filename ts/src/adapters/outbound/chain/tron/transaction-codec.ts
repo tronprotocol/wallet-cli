@@ -49,6 +49,10 @@ const CONTRACT_TYPE_BY_ID: Readonly<Record<number, string>> = Object.freeze({
   46: "AccountPermissionUpdateContract",
   48: "ClearABIContract",
   49: "UpdateBrokerageContract",
+  // 14/51/52/53 are named but NOT decodable by the bundled TronWeb (its deserializer throws
+  // "not supported"). They stay in the table so an artifact carrying one is refused as
+  // "<name> cannot be decoded losslessly" rather than the opaque "unsupported contract type id".
+  51: "ShieldedTransferContract",
   52: "MarketSellAssetContract",
   53: "MarketCancelOrderContract",
   54: "FreezeBalanceV2Contract",
@@ -198,7 +202,25 @@ export function decodeTransactionHex(input: string): TronTransactionArtifact {
   return transaction;
 }
 
-/** Recompute txID and raw_data_hex after a deliberate unsigned raw_data mutation. */
+/**
+ * TRON derives a deployed contract's address from the transaction that creates it:
+ * `41 ‖ keccak256(txID ‖ owner_address)[12..]`. It is therefore part of the transaction identity,
+ * not an independent field — any raw_data mutation moves the contract, so a carried-over
+ * `contract_address` would name a contract that never gets deployed.
+ */
+function deriveContractAddress(txId: string, contract: { parameter?: { value?: Record<string, unknown> } }): string {
+  const owner = contract.parameter?.value?.owner_address;
+  if (typeof owner !== "string" || !/^41[0-9a-fA-F]{40}$/.test(owner)) {
+    return invalidTransaction("CreateSmartContract owner_address must be a 21-byte hex address");
+  }
+  const preimage = Uint8Array.from(
+    (txId + owner.toLowerCase()).match(/../g)!.map((byte) => parseInt(byte, 16)),
+  );
+  return `41${tronUtils.ethersUtils.keccak256(preimage).slice(2).slice(24)}`;
+}
+
+/** Recompute txID, raw_data_hex, and any derived contract address after a deliberate unsigned
+ *  raw_data mutation. */
 export function refreshTransactionIdentity(transaction: unknown): TronTransactionArtifact {
   if (!transaction || typeof transaction !== "object") {
     return invalidTransaction("transaction must be an object");
@@ -219,6 +241,10 @@ export function refreshTransactionIdentity(transaction: unknown): TronTransactio
     txID: tronUtils.transaction.txPbToTxID(pb).replace(/^0x/i, "").toLowerCase(),
     raw_data_hex: tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase(),
   };
+  const deployment = refreshed.raw_data.contract[0];
+  if (typeof refreshed.contract_address === "string" && deployment?.type === "CreateSmartContract") {
+    refreshed.contract_address = deriveContractAddress(refreshed.txID, deployment);
+  }
   decodeTransactionHex(encodeTransactionHex(refreshed));
   return refreshed;
 }

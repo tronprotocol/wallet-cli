@@ -50,6 +50,14 @@ These are the only wallet-cli settings that hold credentials, and unlike wallet 
 stored in the config document rather than the encrypted keystore — they authenticate you to a
 third-party service, they do not control funds.
 
+Because they sit in plain text, a config file holding either secret must be private: on POSIX
+systems it must not be a symlink and must be mode `0600`, or **every** command fails at startup with
+`insecure_config` (exit 2) until you run `chmod 600` on it. Windows uses ACLs rather than POSIX
+modes, so the check is skipped there and the file is not protected by wallet-cli — restrict it
+yourself. A file that cannot be read, or that is not valid YAML, fails the same way with
+`invalid_config`; the parser's detail is withheld because it quotes the offending line, which may be
+the credential itself.
+
 Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 60000.
 
 An invalid value returns `invalid_value` (exit 2). `networks` is read-only — writing it fails with

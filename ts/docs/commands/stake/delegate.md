@@ -7,7 +7,7 @@ Delegate resource to another address.
 ```
 wallet-cli stake delegate --receiver <address> --amount-sun <n>
                           [--resource energy|bandwidth] [--lock [--lock-period <blocks>]]
-                          [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+                          [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
@@ -18,7 +18,7 @@ Lends the resource backed by your staked TRX to another address — the receiver
 
 Check how much you can still delegate with [`stake delegated`](delegated.md) (`Max delegatable`).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -29,10 +29,15 @@ Check how much you can still delegate with [`stake delegated`](delegated.md) (`M
 | `--resource <energy\|bandwidth>` | Resource type to delegate (default `bandwidth`) |
 | `--lock` | Lock the delegation; prevents early undelegation |
 | `--lock-period <number>` | Lock duration in blocks (~3 s/block); requires `--lock` |
-| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` |
-| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--dry-run` | Estimate only, no signature/broadcast |
+| `--sign-only` | Sign without broadcasting |
+| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
+| `--permission-id <0-9>` | TRON permission group id used to authorize this transaction (default `0`) |
+| `--expiration <ms>` | Expiration duration in ms (1–86400000); only with `--sign-only` / `--build-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
+
+`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 
