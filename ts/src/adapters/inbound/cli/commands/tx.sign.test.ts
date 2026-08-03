@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   txBroadcastSpec,
   txBroadcastTronBinding,
+  txSendSpec,
   txSignSpec,
   txSignTronBinding,
   txTronLinkMultisigSpec,
@@ -140,6 +141,35 @@ describe("tx sign 4.10.0 JSON compatibility", () => {
   });
 });
 
+// tx send carries both flavours, and conflating them would be a new lie in the help:
+// the amount pair is jointly required, the asset trio is not (omit all three → native TRX).
+describe("tx send exclusive groups", () => {
+  const groups = () => Object.fromEntries((txSendSpec.exclusive ?? []).map((g) => [g.flags[0], g]));
+
+  it("marks the amount pair jointly required", () => {
+    expect(groups().amount).toEqual({
+      label: "the amount to send",
+      flags: ["amount", "raw-amount"],
+      select: "exactly-one",
+    });
+  });
+
+  it("marks the asset selector optional, since omitting it sends native TRX", () => {
+    expect(groups().token).toEqual({
+      label: "which asset to send; omit for native TRX",
+      flags: ["token", "contract", "asset-id"],
+      select: "at-most-one",
+    });
+    expect(txSendSpec.baseFields.safeParse({ to: "T...", amount: "1" }).success).toBe(true);
+  });
+
+  it("states each exclusivity once — in the group, not also in a field description", () => {
+    const descriptions = Object.values(txSendSpec.baseFields.shape)
+      .map((field) => (field as { description?: string }).description ?? "");
+    expect(descriptions.filter((d) => d.includes("mutually exclusive"))).toEqual([]);
+  });
+});
+
 describe("tx broadcast binding", () => {
   const broadcastContext = (stdin?: string, wait = false) => ({
     wait,
@@ -153,6 +183,18 @@ describe("tx broadcast binding", () => {
     expect(txBroadcastSpec.baseFields.safeParse({ transaction: "{}" }).success).toBe(true);
     expect(txBroadcastSpec.baseFields.safeParse({ hex: "abcd" }).success).toBe(true);
     expect(txBroadcastSpec.baseFields.safeParse({ file: "tx.hex" }).success).toBe(true);
+  });
+
+  // The exclusive group is the single source of truth for "pick exactly one of these four",
+  // on both the human help and the --json-schema catalog. Restating it inside a field
+  // description is a second copy that drifts the moment an input is added or renamed.
+  it("declares every input in one exclusive group and nowhere else", () => {
+    expect(txBroadcastSpec.exclusive).toEqual([
+      { label: "the signed transaction to broadcast", flags: ["transaction", "tx-stdin", "hex", "file"] },
+    ]);
+    const descriptions = Object.values(txBroadcastSpec.baseFields.shape)
+      .map((field) => (field as { description?: string }).description ?? "");
+    expect(descriptions.filter((d) => d.includes("mutually exclusive"))).toEqual([]);
   });
 
   it("routes protobuf hex without parsing it as JSON", async () => {

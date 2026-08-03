@@ -3,6 +3,8 @@ import { z } from "zod"
 import { HelpService } from "./index.js"
 import { CommandRegistry } from "../registry/index.js"
 import type { ChainSpec, StreamManager } from "../contracts/index.js"
+import { txBroadcastSpec, txSendSpec } from "../commands/tx.js"
+import { messageSignSpec } from "../commands/shared.js"
 
 // ── minimal fakes ─────────────────────────────────────────────────────────────
 
@@ -59,6 +61,122 @@ describe("HelpService --json-schema", () => {
   })
 })
 
+// Asserting the spec object is not enough: the renderer resolves members by kebab flag name, so a
+// group can be well-formed and still never appear. These render the real specs end to end.
+describe("shipped exclusive groups actually render", () => {
+  function optionsOf(spec: ChainSpec): string[] {
+    const reg = new CommandRegistry()
+    reg.addChain(spec, "tron", { run: async () => ({}) })
+    const stream = makeStream()
+    new HelpService(reg, stream, "0.0.0").handleMeta([...spec.path, "--help"])
+    const lines = (stream.last ?? "").split("\n")
+    return lines.slice(lines.indexOf("Options:") + 1, lines.indexOf("Global options:"))
+  }
+
+  it("renders both of tx send's groups, with the right requirement wording", () => {
+    const out = optionsOf(txSendSpec)
+    expect(out).toContain("  Exactly one of these — the amount to send:")
+    expect(out).toContain("  At most one of these — which asset to send; omit for native TRX:")
+    const amount = out[out.indexOf("  Exactly one of these — the amount to send:") + 1]!
+    expect(amount).toContain("--amount")
+    expect(out[out.indexOf("  Exactly one of these — the amount to send:") + 2]).toContain("--raw-amount")
+  })
+
+  it("renders message sign's group, pairing the inline flag with its stdin channel", () => {
+    const out = optionsOf(messageSignSpec)
+    expect(out[0]).toBe("  Exactly one of these — the message to sign:")
+    expect(out.slice(1, 3).map((l) => l.trim().split(" ")[0])).toEqual(["--message", "--message-stdin"])
+    expect(out[1]).not.toContain("[optional]")
+  })
+
+  it("renders tx broadcast's group including the stdin channel flag", () => {
+    const out = optionsOf(txBroadcastSpec)
+    expect(out[0]).toBe("  Exactly one of these — the signed transaction to broadcast:")
+    expect(out.slice(1, 5).map((l) => l.trim().split(" ")[0]))
+      .toEqual(["--transaction", "--tx-stdin", "--hex", "--file"])
+  })
+})
+
+// The (tron) tag on the root listing tells a reader which groups disappear on a non-TRON network.
+// `chain` is assembled only in the tron family (bootstrap/families/tron.ts), like permission /
+// gasfree / stake / vote / reward — it was the one family-scoped group left untagged.
+describe("root help family tags", () => {
+  function rootRow(name: string): string {
+    const stream = makeStream()
+    new HelpService(new CommandRegistry(), stream, "0.0.0").handleMeta(["--help"])
+    return (stream.last ?? "").split("\n").find((l) => l.trimStart().startsWith(`${name} `)) ?? ""
+  }
+
+  it("tags chain as TRON-only, like every other family-scoped group", () => {
+    expect(rootRow("chain")).toMatch(/\(tron\)$/)
+  })
+
+  it("leaves family-neutral groups untagged", () => {
+    for (const group of ["contract", "message", "block"]) {
+      expect(rootRow(group)).not.toMatch(/\(tron\)$/)
+    }
+  })
+})
+
+// A group page is the first thing a reader sees, and for these two the deciding factor is cost:
+// a permission update burns a substantial one-off fee, and GasFree is only "free" of TRX — it bills
+// in the token being sent. Neither was stated anywhere a reader passes before running the command.
+describe("group help states what a command costs", () => {
+  function groupHelp(group: string): string {
+    const reg = new CommandRegistry()
+    reg.addChain(chainSpec([group, "show"], {}), "tron", { run: async () => ({}) })
+    const stream = makeStream()
+    new HelpService(reg, stream, "0.0.0").handleMeta([group, "--help"])
+    return stream.last ?? ""
+  }
+
+  it("permission help explains the model and names the update fee", () => {
+    const text = groupHelp("permission")
+    expect(text).toMatch(/owner/i)
+    expect(text).toMatch(/active/i)
+    expect(text).toMatch(/witness/i)
+    // the fee is a chain parameter the command reads live, so it must be pinned to a network
+    expect(text).toMatch(/100 TRX on mainnet/)
+  })
+
+  it("gasfree help says fees come out of the token, not TRX", () => {
+    const text = groupHelp("gasfree")
+    expect(text).toMatch(/no TRX/i)
+    expect(text).toMatch(/activation fee/i)
+    expect(text).toMatch(/first transfer/i)
+    expect(text).toMatch(/service fee/i)
+  })
+})
+
+// The catalog is the agent's single discovery call, so an exclusive set has to reach it too —
+// otherwise the constraint is human-help-only and an agent can only discover it by failing a run.
+describe("--json-schema catalog: exclusive groups", () => {
+  function catalogEntry(spec: Partial<ChainSpec>): any {
+    const reg = new CommandRegistry()
+    reg.addChain(
+      {
+        path: ["demo"], network: "none", wallet: "none", auth: "none", examples: [],
+        baseFields: z.object({ hex: z.string().optional(), file: z.string().optional() }),
+        ...spec,
+      } as ChainSpec,
+      "tron",
+      { run: async () => ({}) },
+    )
+    const stream = makeStream()
+    new HelpService(reg, stream, "0.0.0").handleMeta(["--json-schema"])
+    return JSON.parse(stream.last!).commands.find((c: any) => c.id === "demo")
+  }
+
+  it("emits the declared groups on a chain command", () => {
+    const entry = catalogEntry({ exclusive: [{ label: "the input", flags: ["hex", "file"] }] })
+    expect(entry.exclusive).toEqual([{ label: "the input", flags: ["hex", "file"] }])
+  })
+
+  it("omits the key entirely when the command declares no group", () => {
+    expect(catalogEntry({})).not.toHaveProperty("exclusive")
+  })
+})
+
 describe("HelpService ChainCommandDefinition", () => {
   it("renders one chain leaf and one family-keyed catalog entry", () => {
     const reg = new CommandRegistry()
@@ -82,6 +200,78 @@ describe("HelpService ChainCommandDefinition", () => {
     help.handleMeta(["--json-schema"])
     const catalog = JSON.parse(stream.last!)
     expect(catalog.commands).toContainEqual(expect.objectContaining({ id: "block", families: ["tron"] }))
+  })
+})
+
+// Regression: options that are jointly required rendered as "[optional]" each, so `--help` read
+// as "all of these may be omitted" while the command failed with "provide exactly one of …".
+describe("Options: exclusive groups", () => {
+  function renderOptions(spec: Partial<ChainSpec>, stdinFlags = false): string[] {
+    const reg = new CommandRegistry()
+    reg.addChain(
+      {
+        path: ["demo"], network: "none", wallet: "none", auth: "none", examples: [],
+        ...(stdinFlags ? { stdin: "tx" as const } : {}),
+        baseFields: z.object({
+          hex: z.string().optional().describe("transaction hex"),
+          file: z.string().optional().describe("file containing the hex"),
+          dryRun: z.boolean().default(false).describe("estimate only"),
+        }),
+        ...spec,
+      } as ChainSpec,
+      "tron",
+      { run: async () => ({}) },
+    )
+    const stream = makeStream()
+    new HelpService(reg, stream, "0.0.0").handleMeta(["demo", "--help"])
+    const lines = (stream.last ?? "").split("\n")
+    const start = lines.indexOf("Options:")
+    return lines.slice(start + 1, lines.indexOf("Global options:"))
+  }
+
+  it("heads the group and drops the misleading per-member [optional] tag", () => {
+    const out = renderOptions({ exclusive: [{ label: "the transaction to inspect", flags: ["hex", "file"] }] })
+    expect(out[0]).toBe("  Exactly one of these — the transaction to inspect:")
+    expect(out[1]).toContain("--hex")
+    expect(out[1]).not.toContain("[optional]")
+    expect(out[2]).toContain("--file")
+    expect(out[2]).not.toContain("[optional]")
+  })
+
+  it("keeps ungrouped options tagged, in their own block below the group", () => {
+    const out = renderOptions({ exclusive: [{ label: "the input", flags: ["hex", "file"] }] })
+    expect(out[3]).toBe("")
+    expect(out[4]).toContain("--dry-run")
+    expect(out[4]).toContain("[optional, default: false]")
+  })
+
+  it("orders members as declared and can include a --*-stdin channel flag", () => {
+    const out = renderOptions({ exclusive: [{ label: "the input", flags: ["file", "tx-stdin", "hex"] }] }, true)
+    expect(out.slice(1, 4).map((l) => l.trim().split(" ")[0])).toEqual(["--file", "--tx-stdin", "--hex"])
+  })
+
+  // A set that may be omitted entirely (tx send's --token/--contract/--asset-id — omit all three
+  // and you send native TRX) must not claim one is required, and its members really are optional.
+  it("says 'At most one' and keeps the tags for a set that may be omitted", () => {
+    const out = renderOptions({
+      exclusive: [{ label: "which asset to send", flags: ["hex", "file"], select: "at-most-one" }],
+    })
+    expect(out[0]).toBe("  At most one of these — which asset to send:")
+    expect(out[1]).toContain("[optional]")
+    expect(out[2]).toContain("[optional]")
+  })
+
+  // A group naming a flag the command does not have used to be dropped silently, so a typo in the
+  // member list (camelCase instead of kebab, say) shipped as help that never mentions the group.
+  it("refuses to render a group that names an unknown flag", () => {
+    expect(() => renderOptions({ exclusive: [{ label: "the input", flags: ["hex", "fyle"] }] }))
+      .toThrow(/fyle/)
+  })
+
+  it("leaves options untouched when no group is declared", () => {
+    const out = renderOptions({})
+    expect(out.every((l) => !l.includes("Exactly one of these"))).toBe(true)
+    expect(out[0]).toContain("[optional]")
   })
 })
 

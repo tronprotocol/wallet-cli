@@ -9,6 +9,9 @@ import type { WalletRepository } from "../ports/wallet-repository.js";
 const mutationStatus = (created: boolean): "created" | "existing" =>
   created ? "created" : "existing";
 
+const notExportable = (type: string) =>
+  new WalletError("not_exportable", `${type} accounts hold no exportable secret`);
+
 export class WalletService {
   constructor(
     private readonly wallets: WalletRepository,
@@ -100,6 +103,18 @@ export class WalletService {
     return this.wallets.delete(account);
   }
 
+  verifyPassword(password: string) {
+    return this.wallets.verifyPassword(password);
+  }
+
+  /** Ledger / watch accounts hold no exportable secret. Callers check this BEFORE the master-password
+   *  gate: a Ledger-only keystore may have no password sentinel at all, and verifying against a
+   *  missing sentinel can never succeed — the user would face a prompt no answer satisfies. */
+  assertExportable(account: string) {
+    const { type } = this.wallets.resolveAccount(account).wallet.source;
+    if (type !== "seed" && type !== "privateKey") throw notExportable(type);
+  }
+
   backup(account: string, requestedPath?: string) {
     const descriptor = this.wallets.describe(account);
     const { wallet } = this.wallets.resolveAccount(account);
@@ -126,10 +141,7 @@ export class WalletService {
         privateKey: bytesToHex(this.wallets.decryptKey(source.keyId)),
       };
     } else {
-      throw new WalletError(
-        "not_exportable",
-        `${source.type} accounts hold no exportable secret`,
-      );
+      throw notExportable(source.type);
     }
 
     const file = this.backups.write(descriptor.accountId, requestedPath, payload);

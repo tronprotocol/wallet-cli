@@ -411,4 +411,52 @@ describe("TronAccountService account lifecycle writes", () => {
     })).rejects.toMatchObject({ code: "watch_only_no_signer" });
     expect(gateway.getAccount).not.toHaveBeenCalled();
   });
+
+  // The Ledger TRON app parses a fixed set of contract types (app-tron src/parse.c). AccountCreate
+  // and SetAccountId are not among them: the device answers 0x6a80 after the user has already been
+  // sent to fetch, unlock and open the app. These must be refused up front like contract deploy and
+  // cancel-all-unfreeze already are. AccountUpdate IS parsed, so `set --name` must stay available.
+  describe("contract types the Ledger TRON app cannot parse", () => {
+    /** stands in for the real SignerResolver rule: a Ledger account fails a software-only gate. */
+    function ledgerAccount(pipeline: TxPipeline) {
+      vi.mocked(pipeline.assertCanSign).mockImplementation((_account, _family, opts) => {
+        if (opts?.requireSoftware) {
+          throw Object.assign(new Error("ledger"), { code: "ledger_unsupported" });
+        }
+      });
+    }
+
+    it("refuses activation on a Ledger account before any RPC", async () => {
+      const { service, gateway, pipeline } = writeService();
+      ledgerAccount(pipeline);
+
+      await expect(service.activate(transactionScope(), net, {
+        address: TARGET,
+      })).rejects.toMatchObject({ code: "ledger_unsupported" });
+      expect(gateway.getAccount).not.toHaveBeenCalled();
+    });
+
+    it("refuses `set --id` on a Ledger account before any RPC", async () => {
+      const { service, gateway, pipeline } = writeService({
+        getAccount: async () => ({ address: OWNER }),
+      });
+      ledgerAccount(pipeline);
+
+      await expect(service.setOnChain(transactionScope(), net, {
+        id: "acme-001",
+      })).rejects.toMatchObject({ code: "ledger_unsupported" });
+      expect(gateway.getAccount).not.toHaveBeenCalled();
+    });
+
+    it("still allows `set --name` on a Ledger account", async () => {
+      const { service, gateway, pipeline } = writeService({
+        getAccount: async () => ({ address: OWNER }),
+      });
+      ledgerAccount(pipeline);
+
+      await service.setOnChain(transactionScope(), net, { name: "Acme Treasury" });
+
+      expect(gateway.buildAccountUpdate).toHaveBeenCalledWith(OWNER, "Acme Treasury");
+    });
+  });
 });

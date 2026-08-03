@@ -21,7 +21,7 @@ const sendFields = z.object({
   to: z.string().trim().min(1).max(128)
     .describe("recipient TRON base58 address or local contact name"),
   token: z.string().min(1).optional()
-    .describe("token symbol from the address book; mutually exclusive with --contract and --asset-id"),
+    .describe("token symbol from the address book"),
   contract: Schemas.addressFor("tron").optional()
     .describe("TRC20 contract address; omit with --asset-id for native TRX"),
   assetId: z.string().regex(/^\d+$/).optional()
@@ -29,8 +29,8 @@ const sendFields = z.object({
   feeLimit: Schemas.positiveIntString().default("100000000")
     .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
   ...unifiedAmountFields(
-    "human amount: TRX for native, token units for TRC20/TRC10; mutually exclusive with --raw-amount",
-    "raw integer amount in SUN or token base units; mutually exclusive with --amount",
+    "human amount: TRX for native, token units for TRC20/TRC10",
+    "raw integer amount in SUN or token base units",
   ),
   ...txModeFields,
 });
@@ -42,6 +42,11 @@ export const txSendSpec: ChainSpec = {
   capability: "tx.send",
   summary: "Send native TRX or TRC20/TRC10 tokens with human --amount",
   baseFields: sendFields,
+  exclusive: [
+    { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
+    // omitting all three is the native-TRX path, so this set is optional as a whole.
+    { label: "which asset to send; omit for native TRX", flags: ["token", "contract", "asset-id"], select: "at-most-one" },
+  ],
   baseRefine: amountSelector,
   examples: [
     { cmd: "wallet-cli tx send --to T... --amount 1" },
@@ -58,8 +63,7 @@ export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding =>
 });
 
 const broadcastFields = z.object({
-  transaction: z.string().optional()
-    .describe("signed TRON transaction JSON; mutually exclusive with --tx-stdin/--hex/--file"),
+  transaction: z.string().optional().describe("signed TRON transaction JSON"),
   hex: z.string().min(2).optional().describe("complete signed protocol.Transaction hex"),
   file: z.string().min(1).optional().describe("file containing complete signed protocol.Transaction hex"),
   dryRun: z.boolean().default(false)
@@ -74,6 +78,7 @@ export const txBroadcastSpec: ChainSpec = {
   capability: "tx.broadcast",
   summary: "Validate and broadcast a presigned JSON or protobuf-hex transaction",
   baseFields: broadcastFields,
+  exclusive: [{ label: "the signed transaction to broadcast", flags: ["transaction", "tx-stdin", "hex", "file"] }],
   baseRefine: (input, context) => {
     if ([input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1) {
       context.addIssue({
@@ -130,6 +135,7 @@ export const txApprovalsSpec: ChainSpec = {
   summary: "Show permission, signature approvals, current weight, and expiration",
   description: "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
   baseFields: approvalsFields,
+  exclusive: [{ label: "the transaction to inspect", flags: ["hex", "file"] }],
   baseRefine: hexOrFileRefine,
   examples: [{ cmd: "wallet-cli tx approvals --file partially-signed.hex" }],
   formatText: TextFormatters.txApprovals,
@@ -161,6 +167,8 @@ export const txSignSpec: ChainSpec = {
     "approval weight. Add --offline to sign without contacting a node, which skips those checks.\n" +
     "This command never broadcasts.",
   baseFields: signFields,
+  // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
+  exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
   baseRefine: (input, context) => {
     if ([input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1) {
       context.addIssue({

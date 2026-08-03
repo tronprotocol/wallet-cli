@@ -38,8 +38,8 @@ invisible to the node is treated as a failure, not a success.
 | `--dry-run` | Build and estimate only — no signature, no broadcast |
 | `--sign-only` | Sign and output the complete transaction hex without broadcasting |
 | `--build-only` | Build and output the unsigned transaction hex without unlocking |
-| `--permission-id <0-9>` | TRON permission group id used to authorize this transaction (default `0`) |
-| `--expiration <ms>` | Expiration duration in ms (1–86400000); only with `--sign-only` / `--build-only` |
+| `--permission-id <0-9>` | TRON permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--expiration <ms>` | Transaction expiration in ms, up to 86400000 (24h); only with `--sign-only` / `--build-only`; omitted = node default (~60s) |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
 | `--password-stdin` | Master password from stdin (software accounts) |
 

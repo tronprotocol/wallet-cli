@@ -86,8 +86,11 @@ export class TronAccountService {
         "--address must be a valid TRON address",
       );
     }
+    // The Ledger TRON app has no parser for AccountCreateContract (app-tron src/parse.c falls
+    // through to `default: return USTREAM_FAULT`), so the device answers 0x6a80 — and no app
+    // setting changes that. Refuse before any RPC rather than after sending the user to unlock it.
     if (transactionRequiresSigner(input)) {
-      this.pipeline.assertCanSign(scope.activeAccount, "tron");
+      this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
     const mode = transactionMode(input);
     const gateway = this.gateways.get(network, "tron");
@@ -151,10 +154,12 @@ export class TronAccountService {
         "provide exactly one of --name or --id",
       );
     }
-    if (transactionRequiresSigner(input)) {
-      this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    }
     const field = input.name !== undefined ? "name" as const : "id" as const;
+    // Same parser gap as `activate`, but only for --id: the app implements AccountUpdateContract
+    // (--name) and not SetAccountIdContract, so the two fields differ in what a Ledger can sign.
+    if (transactionRequiresSigner(input)) {
+      this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: field === "id" });
+    }
     const value = validateAccountText(field, input.name ?? input.id!);
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");

@@ -9,8 +9,11 @@ export function registerAddressCommands(
   service: AddressService,
 ): void {
   const fields = z.object({
+    // The default lives in SecureKeypairWriter, not in this schema, so it is stated in prose:
+    // a "[optional, default: …]" tag is derived from zod and would claim a default --json-schema
+    // does not have. Readers need the location before running, not only in the receipt.
     out: z.string().min(1).max(4096).optional()
-      .describe("exclusive 0600 output path; existing files are never overwritten"),
+      .describe("exclusive 0600 output path; existing files are never overwritten (default: <wallet-cli root>/generated/keypair-<address>)"),
     printSecret: z.boolean().default(false)
       .describe("print the private key instead of writing it; use only offline"),
   });
