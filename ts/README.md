@@ -27,15 +27,15 @@ Your address is the same on every network, but balances, tokens, and transaction
 
 ### Standalone executable
 
-After a change lands on `develop`, download `wallet-cli-standalone-<commit>` from the successful [TypeScript Standalone Artifacts workflow](https://github.com/tronprotocol/wallet-cli/actions/workflows/ts-standalone-release.yml). GitHub wraps the artifact in a zip containing all five platform archives, `SHA256SUMS.txt`, and `BUILD_METADATA.txt`. The executables contain the runtime and JavaScript dependencies, including Ledger HID support; Node.js, Bun, and npm are not required.
+After a change lands on `develop`, download `wallet-cli-standalone-<commit>` from the successful [TypeScript Standalone Artifacts workflow](https://github.com/tronprotocol/wallet-cli/actions/workflows/ts-standalone-release.yml). GitHub wraps the artifact in a zip containing all five platform archives, `SHA256SUMS.txt`, and `BUILD_METADATA.txt`. The executables contain the runtime and JavaScript dependencies, including Ledger HID support; Node.js, Bun, and npm are not required. Linux remains dynamically linked to the system ABI: it requires glibc 2.35 or later, and Ledger access requires `libudev.so.1` plus permission to open the device.
 
-| System | Artifact archive |
-|---|---|
-| macOS Apple Silicon | `wallet-cli-<version>-macos-arm64.tar.gz` |
-| macOS Intel | `wallet-cli-<version>-macos-x64.tar.gz` |
-| Linux glibc ARM64 | `wallet-cli-<version>-linux-arm64.tar.gz` |
-| Linux glibc x64 | `wallet-cli-<version>-linux-x64.tar.gz` |
-| Windows x64 | `wallet-cli-<version>-windows-x64.zip` |
+| System | Artifact archive | Runtime requirements |
+|---|---|---|
+| macOS Apple Silicon | `wallet-cli-<version>-macos-arm64.tar.gz` | — |
+| macOS Intel | `wallet-cli-<version>-macos-x64.tar.gz` | — |
+| Linux ARM64 | `wallet-cli-<version>-linux-arm64.tar.gz` | glibc 2.35+; `libudev.so.1` for Ledger |
+| Linux x64 | `wallet-cli-<version>-linux-x64.tar.gz` | glibc 2.35+; `libudev.so.1` for Ledger |
+| Windows x64 | `wallet-cli-<version>-windows-x64.zip` | — |
 
 Example for Linux x64:
 
@@ -50,6 +50,8 @@ package="${archive#./}"
 sudo install -m 0755 "${package%.tar.gz}/wallet-cli" /usr/local/bin/wallet-cli
 wallet-cli --version
 ```
+
+On Linux, `ldconfig -p | grep -F libudev.so.1` checks whether the Ledger runtime library is available; Debian and Ubuntu provide it in the `libudev1` package. Device access also needs the Ledger udev rules described in the [Ledger guide](docs/guide/ledger.md). Minimal containers must expose the host's HID device as well as providing the library.
 
 On Windows, extract the zip and put its directory on `PATH`. On macOS, use the matching archive and install the same way; release binaries carry an ad-hoc code signature, not Apple notarization. If Gatekeeper quarantines a checksum-verified download, remove the quarantine attribute from that executable with `xattr -d com.apple.quarantine /path/to/wallet-cli`.
 

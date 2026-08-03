@@ -58,11 +58,13 @@ jobs:
             asset: linux-x64
             executable: wallet-cli
             archive: tar.gz
-          - os: ubuntu-24.04-arm
+            glibc_max: "2.35"
+          - os: ubuntu-22.04-arm
             target: bun-linux-arm64
             asset: linux-arm64
             executable: wallet-cli
             archive: tar.gz
+            glibc_max: "2.35"
           - os: macos-15-intel
             target: bun-darwin-x64
             asset: macos-x64
@@ -105,6 +107,47 @@ jobs:
 
       - name: Verify executable and embedded Ledger addon
         run: node scripts/verify-standalone.mjs standalone/${{ matrix.executable }}
+
+      - name: Verify Linux ABI baseline
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          MAX_GLIBC: ${{ matrix.glibc_max }}
+        run: |
+          set -euo pipefail
+          executable="standalone/${{ matrix.executable }}"
+          native_addon="$(
+            ./node_modules/.bin/bun -e \
+              'import { resolveNodeHidAddon } from "./scripts/standalone/resolve-node-hid-addon.ts"; console.log(resolveNodeHidAddon().nativeAddon)'
+          )"
+          host_glibc="$(getconf GNU_LIBC_VERSION | awk '{print $2}')"
+
+          if [[ "${host_glibc}" != "${MAX_GLIBC}" ]]; then
+            echo "::error::runner glibc ${host_glibc} does not match the supported baseline ${MAX_GLIBC}"
+            exit 1
+          fi
+
+          required_versions="$(
+            {
+              readelf --version-info --wide "${executable}"
+              readelf --version-info --wide "${native_addon}"
+            } | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sed 's/^GLIBC_//' | sort -Vu
+          )"
+          highest_required="$(printf '%s\n' "${required_versions}" | tail -n 1)"
+          highest_version="$(printf '%s\n%s\n' "${MAX_GLIBC}" "${highest_required}" | sort -V | tail -n 1)"
+
+          if [[ "${highest_version}" != "${MAX_GLIBC}" ]]; then
+            echo "::error::Linux artifact requires GLIBC_${highest_required}; maximum allowed is GLIBC_${MAX_GLIBC}"
+            exit 1
+          fi
+
+          dynamic_dependencies="$(readelf --dynamic --wide "${native_addon}")"
+          if ! grep -Fq 'Shared library: [libudev.so.1]' <<< "${dynamic_dependencies}"; then
+            echo "::error::Ledger native addon no longer declares its documented libudev.so.1 dependency"
+            exit 1
+          fi
+
+          echo "Verified GLIBC_${highest_required} <= GLIBC_${MAX_GLIBC} and libudev.so.1 dependency"
 
       - name: Verify macOS code signature
         if: runner.os == 'macOS'
