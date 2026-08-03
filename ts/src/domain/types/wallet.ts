@@ -1,7 +1,7 @@
 /**
  * SharedTypes — wallet data shapes (persisted in wallets.json).
  */
-import type { ChainFamily } from "../family/index.js";
+import type { ChainFamily } from "../family/chain-family.js";
 import type { AccountRef } from "./network.js";
 
 /** one secret derives every family → all slots always present (non-optional). */

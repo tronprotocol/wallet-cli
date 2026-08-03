@@ -19,7 +19,7 @@
  *
  * ChainFamily (type + value enum) lives with the family registry and is re-exported here.
  */
-export type { ChainFamily } from "../family/index.js";
+export type { ChainFamily } from "../family/chain-family.js";
 export type { TypedDataField, TypedDataPayload } from "../typed-data/index.js";
 
 export * from "./network.js";
