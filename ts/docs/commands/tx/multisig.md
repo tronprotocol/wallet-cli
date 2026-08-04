@@ -36,11 +36,11 @@ Byte-level lies are fatal: a record whose hash, contract type, or owner does not
 `raw_data` fails the command with `provider_error`, because no passage of time can produce one.
 
 Disagreement with the *chain* is different, because permissions change while old transactions sit
-in the queue. Listing marks such a record **unverified**, states why, and shows the rest of the
-page — it is never presented as chain-validated, its state column reads `unverified` rather than
-what the service claimed, and `awaitingMySignature` is forced to `false` so it cannot be mistaken
-for work waiting on you. Acting on one still refuses: [`--sign`](#modes) re-runs the same check and
-fails with `provider_error` or `not_authorized`.
+in the queue. Listing preserves the service's historical state, marks the independent validation
+column **unverified**, and shows the rest of the page. The JSON result retains the detailed
+`unverifiedReason`. `awaitingMySignature` is forced to `false` so the record cannot be mistaken for
+work waiting on you. Acting on one still refuses: [`--sign`](#modes) re-runs the same check and fails
+with `provider_error` or `not_authorized`.
 
 Concretely, for the signer roster: every address the service reports must be a key in the
 transaction's on-chain permission, and each `weight` shown is read from the chain, never from the
@@ -133,11 +133,10 @@ wallet-cli tx multisig --network tron:nile
 
 ```console
 Multi-sig transactions — TronLink service (2 total)
-| TxID  | Type              | Amount | State        | Progress | Expires                       |
-| ----- | ----------------- | ------ | ------------ | -------- | ----------------------------- |
-| 9c1f… | TransferContract  | 1 TRX  | awaiting you | 1 / 2    | 2026-07-29 12:34:56 (in 58m)  |
-| 1a9b… | TransferContract  | 1 TRX  | unverified   | 1 / 1    | 2026-04-29 12:33 (~97d ago)   |
-! 1a9b… unverified — TronLink transaction metadata or signatures disagree with the selected network
+| TxID  | Type              | Amount | State        | Validation | Progress | Expires                       |
+| ----- | ----------------- | ------ | ------------ | ---------- | -------- | ----------------------------- |
+| 9c1f… | TransferContract  | 1 TRX  | awaiting you | verified   | 1 / 2    | 2026-07-29 12:34:56 (in 58m)  |
+| 1a9b… | TransferContract  | 1 TRX  | success      | unverified | 1 / 1    | 2026-04-29 12:33 (~97d ago)   |
 ! Co-sign one with: wallet-cli tx multisig --sign <txId>
 ```
 

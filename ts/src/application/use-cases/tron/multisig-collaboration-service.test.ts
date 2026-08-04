@@ -240,6 +240,23 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(collaboration.submit).toHaveBeenCalledTimes(1);
   });
 
+  it("reports an expired failed record as tx_expired before the generic state error", async () => {
+    const expired = decodeTransactionHex(unsignedHex());
+    const hex = encodeTransactionHex({
+      visible: expired.visible,
+      raw_data: {
+        ...expired.raw_data,
+        timestamp: NOW - 60_000,
+        expiration: NOW - 1,
+      },
+    });
+    const { service, local } = setup(remote(hex, { state: 2 }));
+
+    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(hex).txID))
+      .rejects.toMatchObject({ code: "tx_expired" });
+    expect(local.signChecked).not.toHaveBeenCalled();
+  });
+
   it("counts only pending unsigned WebSocket records", async () => {
     const { service } = setup();
     const counts: number[] = [];

@@ -20,15 +20,17 @@ function renderTronLink(value: TronLinkMultisigView): string {
           ? `${formatSun(transaction.rawAmount)} TRX`
           : `${transaction.rawAmount} base units`
         : "";
-      // An unverified row's service-claimed state is precisely what must not be acted on.
-      const state = !transaction.verified
-        ? "unverified"
-        : transaction.awaitingMySignature ? "awaiting you" : transaction.state;
+      // State is service history; validation is an independent local safety assessment.
+      // Only a verified pending record may be promoted to an actionable "awaiting you" state.
+      const state = transaction.verified && transaction.awaitingMySignature
+        ? "awaiting you"
+        : transaction.state;
       return [
         transaction.txId,
         transaction.contractType,
         amount,
         state,
+        transaction.verified ? "verified" : "unverified",
         `${formatInt(transaction.currentWeight)} / ${formatInt(transaction.permission.threshold)}`,
         formatAtWithRelative(transaction.expiration),
       ];
@@ -36,14 +38,10 @@ function renderTronLink(value: TronLinkMultisigView): string {
     const hint = value.transactions.some((t) => t.verified && t.awaitingMySignature)
       ? "\n! Co-sign one with: wallet-cli tx multisig --sign <txId>"
       : "";
-    const unverified = value.transactions
-      .filter((transaction) => !transaction.verified)
-      .map((transaction) => `\n! ${transaction.txId} unverified — ${transaction.unverifiedReason ?? "chain check failed"}`)
-      .join("");
     return `${heading}\n${table(
-      ["TxID", "Type", "Amount", "State", "Progress", "Expires"],
+      ["TxID", "Type", "Amount", "State", "Validation", "Progress", "Expires"],
       rows,
-    )}${unverified}${hint}`;
+    )}${hint}`;
   }
   if (value.action === "watch") {
     return receipt(ok(), "Stopped watching TronLink multi-sig service", [

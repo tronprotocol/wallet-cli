@@ -53,7 +53,11 @@ export class TronPermissionService {
       gateway.getUpdateAccountPermissionFee(),
       gateway.getNativeBalance(address),
     ]);
-    if (mode.mode === "broadcast" && BigInt(balanceSun) < BigInt(feeSun)) {
+    // dry-run is included: its whole job is to answer "would this work", and an unfunded account
+    // makes the answer no. sign-only/build-only are not — those artifacts broadcast later, by which
+    // time the account can have been funded.
+    const paysNow = mode.mode === "broadcast" || mode.mode === "dry-run";
+    if (paysNow && BigInt(balanceSun) < BigInt(feeSun)) {
       throw new ChainError(
         "insufficient_balance",
         `account balance ${balanceSun} SUN is below the ${feeSun} SUN permission update fee`,

@@ -145,6 +145,21 @@ describe("TRON permission service", () => {
     expect(pipeline.run).not.toHaveBeenCalled();
   });
 
+  // A --dry-run that answers "fine" for a request the node would certainly reject defeats the point
+  // of the flag. sign-only/build-only are deliberately exempt: those artifacts are broadcast later,
+  // by which time the account can have been funded.
+  it("rejects insufficient balance on --dry-run too", async () => {
+    const { service, gateway } = setup("99999999");
+    await expect(service.update(scope(), NETWORK, { dryRun: true }, permissions()))
+      .rejects.toMatchObject({ code: "insufficient_balance" });
+    expect(gateway.buildAccountPermissionUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not gate --sign-only on balance, since broadcast happens later", async () => {
+    const { service } = setup("0");
+    await expect(service.update(scope(), NETWORK, { signOnly: true }, permissions())).resolves.toBeDefined();
+  });
+
   // Permissions are already rewritten on chain by this point; an unreadable re-read must not present
   // that as a failed command, or the caller re-submits a permission structure that is already live.
   it("keeps the confirmed receipt when the permission re-read cannot be performed", async () => {

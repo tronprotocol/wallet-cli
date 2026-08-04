@@ -246,6 +246,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
     "TronLink service credentials — config tronlinkSecretId / tronlinkSecretKey / tronlinkChannel",
   ],
   baseFields: tronLinkMultisigFields,
+  exclusive: [{ label: "which mode to run; omit all three to list", flags: ["create", "sign", "watch"], select: "at-most-one" }],
   baseRefine: tronLinkMultisigRefine,
   examples: [
     { cmd: "wallet-cli tx multisig" },

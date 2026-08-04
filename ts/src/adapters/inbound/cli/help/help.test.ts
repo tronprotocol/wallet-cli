@@ -3,7 +3,7 @@ import { z } from "zod"
 import { HelpService } from "./index.js"
 import { CommandRegistry } from "../registry/index.js"
 import type { ChainSpec, StreamManager } from "../contracts/index.js"
-import { txBroadcastSpec, txSendSpec } from "../commands/tx.js"
+import { txBroadcastSpec, txSendSpec, txTronLinkMultisigSpec } from "../commands/tx.js"
 import { messageSignSpec } from "../commands/shared.js"
 
 // ── minimal fakes ─────────────────────────────────────────────────────────────
@@ -95,6 +95,18 @@ describe("shipped exclusive groups actually render", () => {
     expect(out.slice(1, 5).map((l) => l.trim().split(" ")[0]))
       .toEqual(["--transaction", "--tx-stdin", "--hex", "--file"])
   })
+
+  // tx multisig's three modes are rejected in combination by tronLinkMultisigRefine. Without the
+  // group they each rendered a bare "[optional]", so the constraint was discoverable only by
+  // failing a run. Omitting all three IS valid (it lists), hence "at most one".
+  it("renders tx multisig's mode group, keeping the members optional", () => {
+    const out = optionsOf(txTronLinkMultisigSpec)
+    expect(out[0]).toBe("  At most one of these — which mode to run; omit all three to list:")
+    expect(out.slice(1, 4).map((l) => l.trim().split(" ")[0])).toEqual(["--create", "--sign", "--watch"])
+    for (const line of out.slice(1, 4)) expect(line).toContain("[optional")
+    // --hex/--file are not modes; they stay free-standing below the block.
+    expect(out.filter((l) => l.includes("--hex") || l.includes("--file"))).toHaveLength(2)
+  })
 })
 
 // The (tron) tag on the root listing tells a reader which groups disappear on a non-TRON network.
@@ -174,6 +186,17 @@ describe("--json-schema catalog: exclusive groups", () => {
 
   it("omits the key entirely when the command declares no group", () => {
     expect(catalogEntry({})).not.toHaveProperty("exclusive")
+  })
+
+  it("carries tx multisig's real mode group, so an agent sees the constraint too", () => {
+    const reg = new CommandRegistry()
+    reg.addChain(txTronLinkMultisigSpec, "tron", { run: async () => ({}) })
+    const stream = makeStream()
+    new HelpService(reg, stream, "0.0.0").handleMeta(["--json-schema"])
+    const entry = JSON.parse(stream.last!).commands.find((c: any) => c.id === "tx.multisig")
+    expect(entry.exclusive).toEqual([
+      { label: "which mode to run; omit all three to list", flags: ["create", "sign", "watch"], select: "at-most-one" },
+    ])
   })
 })
 

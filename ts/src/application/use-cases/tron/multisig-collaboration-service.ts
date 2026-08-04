@@ -105,13 +105,13 @@ export class TronMultisigCollaborationService {
   ) {
     const address = scope.resolveAddress("tron");
     const remote = await this.#find(network, address, normalizeTxId(txId));
+    if (remote.view.expired) throw new ChainError("tx_expired", "transaction has expired");
     if (remote.view.state !== "pending") {
       if (remote.view.signedByCurrentAccount) {
         throw new ChainError("already_signed", "this account has already signed the TronLink transaction");
       }
       throw new ChainError("invalid_value", `TronLink transaction is ${remote.view.state}, not pending`);
     }
-    if (remote.view.expired) throw new ChainError("tx_expired", "transaction has expired");
 
     const signed = await this.multisig.signChecked(scope, network, remote.hex);
     const gateway = this.gateways.get(network, "tron");

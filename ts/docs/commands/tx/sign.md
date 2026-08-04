@@ -118,19 +118,21 @@ echo "$PW" | wallet-cli tx sign --transaction "$TX" --password-stdin -o json \
 wallet-cli tx broadcast --network tron:nile --tx-stdin < signed.json
 ```
 
-Append a signature without an approval RPC dependency, then check it from an online machine:
+Append a signature to a partially signed transaction. This is the default `--hex`/`--file` path, so
+it contacts the node to verify permission membership and report the resulting approval weight:
 
 ```bash
 echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
   --out signed.hex --password-stdin
-wallet-cli tx approvals --file signed.hex
 ```
 
-To sign on a machine with no node access, skipping the online checks:
+To sign on a machine with no node access, add `--offline` — then check the approval state later,
+from an online machine:
 
 ```bash
 echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
   --offline --out signed.hex --password-stdin
+wallet-cli tx approvals --file signed.hex
 ```
 
 A transaction whose fields disagree is refused rather than signed:

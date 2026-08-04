@@ -38,17 +38,20 @@ function render(...transactions: unknown[]): string {
 }
 
 describe("TronLink multi-sig list rendering", () => {
-  // An unverified row's service-claimed state is exactly what must not be acted on, so the row
-  // stays visible but says so, and it never counts toward the co-sign prompt.
-  it("marks a chain-unverified row and keeps it out of the co-sign hint", () => {
+  // History and actionability are separate concerns: preserve the service's state for an
+  // informational list, but surface the failed chain check independently and never invite action.
+  it("preserves service state while marking a chain-unverified row and keeping it out of the co-sign hint", () => {
     const output = render(transaction({
+      state: "success",
       verified: false,
       unverifiedReason: "TronLink transaction metadata or signatures disagree with the selected network",
     }));
-    expect(output).toContain("unverified");
+    expect(output).toContain("State");
+    expect(output).toContain("Validation");
+    expect(output).toMatch(/\|\s+success\s+\|\s+unverified\s+\|/);
     expect(output).not.toContain("awaiting you");
     expect(output).not.toContain("--sign <txId>");
-    expect(output).toContain("disagree");
+    expect(output).not.toContain("disagree");
   });
 
   it("still prompts to co-sign when a verified row awaits this account", () => {

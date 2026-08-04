@@ -61,12 +61,16 @@ export class TronContractService {
         input.parameters,
         { feeLimit: input.feeLimit, callValue: input.callValueSun },
       ),
-      estimate: () => gateway.estimateResources(
-        scope.resolveAddress("tron"),
-        input.contract,
-        input.method,
-        input.parameters,
-      ),
+      estimate: async () => {
+        const estimate = await gateway.estimateResources(
+          scope.resolveAddress("tron"),
+          input.contract,
+          input.method,
+          input.parameters,
+        );
+        warnIfFeeLimitLikelyInsufficient(scope, input.feeLimit, estimate);
+        return estimate;
+      },
     });
     return {
       kind: "contract-send" as const,
@@ -131,4 +135,39 @@ export class TronContractService {
       info: metadata.info,
     };
   }
+}
+
+function warnIfFeeLimitLikelyInsufficient(
+  scope: TransactionScope,
+  feeLimit: string,
+  estimate: Record<string, unknown>,
+): void {
+  const energy = positiveInteger(estimate.energy);
+  const energyPriceSun = currentEnergyPrice(estimate.energyPriceSun);
+  if (energy === undefined || energyPriceSun === undefined) return;
+
+  const recommendedCapSun = energy * energyPriceSun;
+  if (BigInt(feeLimit) >= recommendedCapSun) return;
+
+  scope.warn(
+    `fee limit ${feeLimit} SUN is likely insufficient for the estimate of `
+      + `${energy} energy at ${energyPriceSun} SUN/energy `
+      + `(recommended cap ~${recommendedCapSun} SUN); staked/delegated energy and `
+      + "contract energy sharing may change the actual TRX burned",
+  );
+}
+
+function positiveInteger(value: unknown): bigint | undefined {
+  const text = typeof value === "bigint"
+    ? value.toString()
+    : typeof value === "number" && Number.isSafeInteger(value)
+      ? String(value)
+      : typeof value === "string" ? value : "";
+  return /^[1-9]\d*$/.test(text) ? BigInt(text) : undefined;
+}
+
+function currentEnergyPrice(value: unknown): bigint | undefined {
+  if (typeof value !== "string") return undefined;
+  const latest = value.split(",").at(-1)?.split(":");
+  return latest?.length === 2 ? positiveInteger(latest[1]) : undefined;
 }
