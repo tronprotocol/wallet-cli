@@ -101,6 +101,8 @@ export interface TronLinkMultisigTransactionView {
 export interface TronLinkMultisigListView {
   address: string;
   total: number;
+  /** Records omitted because this client could not reconstruct their transaction bytes. */
+  unreadable: number;
   transactions: TronLinkMultisigTransactionView[];
 }
 

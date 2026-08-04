@@ -14,7 +14,7 @@ import type {
   TronTransactionArtifact,
   TxApprovalView,
 } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
 import { TronMultisigService } from "./multisig-service.js";
 
@@ -48,7 +48,19 @@ export class TronMultisigCollaborationService {
       limit: LIST_LIMIT,
     });
     const gateway = this.gateways.get(network, "tron");
-    const validated = page.records.map((record) => this.#validate(gateway, address, record));
+    // A record whose bytes this client cannot reconstruct costs its own row, not the page: one
+    // historical transaction in an encoding we do not understand must not hide every pending one.
+    // Acting on it is a different matter — #find still refuses.
+    const validated: ValidatedRemoteRecord[] = [];
+    let unreadable = 0;
+    for (const record of page.records) {
+      try {
+        validated.push(this.#validate(gateway, address, record));
+      } catch (error) {
+        if (!isUndecodable(error)) throw error;
+        unreadable += 1;
+      }
+    }
     // A permission changed while an old transaction sat pending makes that record disagree with
     // the chain for good. Listing is informational, so one such row is reported as unverified
     // rather than costing the whole page — acting on it (--sign) still refuses.
@@ -65,6 +77,7 @@ export class TronMultisigCollaborationService {
     return {
       address,
       total: page.total,
+      unreadable,
       transactions: validated.map((transaction) => transaction.view),
     };
   }
@@ -165,11 +178,13 @@ export class TronMultisigCollaborationService {
       });
       total = page.total;
       for (const record of page.records) {
+        // Matching on the claimed hash first keeps one unreadable record from blocking the search
+        // for everything behind it. The claim smuggles nothing: #validate re-derives txID from the
+        // bytes and refuses any record whose hash disagrees.
+        if (claimedTxId(record) !== txId) continue;
         const validated = this.#validate(gateway, address, record);
-        if (validated.view.txId === txId) {
-          await this.#verifyOnChain(network, address, validated);
-          return validated;
-        }
+        await this.#verifyOnChain(network, address, validated);
+        return validated;
       }
       if (page.records.length === 0) break;
       start += page.records.length;
@@ -194,8 +209,13 @@ export class TronMultisigCollaborationService {
     try {
       hex = gateway.encodeTransactionHex(remote.current_transaction);
       transaction = gateway.decodeTransactionHex(hex);
-    } catch {
-      throw new ChainError("provider_error", "TronLink returned a transaction that is not losslessly encodable");
+    } catch (error) {
+      // Keep the codec's reason. "TronLink sent something bad" sends the user to the wrong system
+      // when the truth is that this client could not reconstruct the bytes.
+      throw new ChainError(
+        "invalid_transaction",
+        `this client cannot reconstruct the TronLink transaction bytes: ${reason(error)}`,
+      );
     }
     if (transaction.txID !== hash) {
       throw new ChainError("provider_error", "TronLink record hash does not match transaction raw_data");
@@ -360,6 +380,16 @@ export class TronMultisigCollaborationService {
  * A verdict of "checked and disagreed", as opposed to "could not check". Only the former may be
  * downgraded to an unverified row: a node outage must never read as a clean page.
  */
+/** "This client cannot read it", as opposed to "read it and it disagrees" — only the former may be
+ *  dropped from a page; a record that decodes and then lies still fails loudly. */
+function isUndecodable(error: unknown): error is ChainError {
+  return error instanceof ChainError && error.code === "invalid_transaction";
+}
+
+function reason(error: unknown): string {
+  return error instanceof CliError ? error.message : "unrecognized encoding";
+}
+
 function isChainDisagreement(error: unknown): error is ChainError {
   return error instanceof ChainError
     && (error.code === "provider_error" || error.code === "not_authorized");
@@ -419,6 +449,12 @@ function recordState(code: number, signed: boolean): TronLinkMultisigState {
   if (code === 1) return "success";
   if (code === 2) return "failed";
   throw new ChainError("provider_error", `TronLink returned unsupported transaction state ${code}`);
+}
+
+function claimedTxId(remote: TronLinkRemoteRecord): string | null {
+  return typeof remote.hash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(remote.hash)
+    ? remote.hash.replace(/^0x/i, "").toLowerCase()
+    : null;
 }
 
 function normalizeTxId(value: string): string {

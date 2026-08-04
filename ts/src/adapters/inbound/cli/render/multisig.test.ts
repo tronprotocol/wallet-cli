@@ -30,9 +30,14 @@ function transaction(overrides: Record<string, unknown> = {}) {
 }
 
 function render(...transactions: unknown[]): string {
+  return renderWith(0, ...transactions);
+}
+
+function renderWith(unreadable: number, ...transactions: unknown[]): string {
   return MultisigFormatters.txTronLinkMultisig({
     address: A,
-    total: transactions.length,
+    total: transactions.length + unreadable,
+    unreadable,
     transactions,
   } as unknown as TronLinkMultisigListView);
 }
@@ -52,6 +57,12 @@ describe("TronLink multi-sig list rendering", () => {
     expect(output).not.toContain("awaiting you");
     expect(output).not.toContain("--sign <txId>");
     expect(output).not.toContain("disagree");
+  });
+
+  // A shorter table than the total is a silent lie about the queue — say what was dropped.
+  it("reports records that were omitted because they could not be decoded", () => {
+    expect(renderWith(2, transaction())).toContain("2 record");
+    expect(render(transaction())).not.toMatch(/could not be decoded/i);
   });
 
   it("still prompts to co-sign when a verified row awaits this account", () => {

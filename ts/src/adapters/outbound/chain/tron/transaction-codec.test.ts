@@ -78,6 +78,52 @@ describe("TRON complete transaction hex codec", () => {
     expect(encodeTransactionHex(decoded)).toBe(hex);
   });
 
+  // TronLink returns protobuf enums as their numeric value (`"resource": 1`), which TronWeb's
+  // encoder does not understand — it drops the field silently, so the re-encoded bytes disagree
+  // with the provider's own raw_data_hex and the record is refused as forged. Regression fixture:
+  // a real Nile record from walletadapter.org (tx 0b1dddd1…), whose raw_data_hex carries `1801`.
+  it("encodes numeric protobuf enum values exactly like their names", () => {
+    const ENUM_CASES: Array<[string, Record<string, unknown>]> = [
+      ["FreezeBalanceV2Contract", { owner_address: OWNER, frozen_balance: 1_000_000 }],
+      ["UnfreezeBalanceV2Contract", { owner_address: OWNER, unfreeze_balance: 1_000_000 }],
+      ["DelegateResourceContract", { owner_address: OWNER, receiver_address: OTHER, balance: 1 }],
+      ["UnDelegateResourceContract", { owner_address: OWNER, receiver_address: OTHER, balance: 1 }],
+    ];
+    for (const [type, value] of ENUM_CASES) {
+      for (const [numeric, name] of [[0, "BANDWIDTH"], [1, "ENERGY"], [2, "TRON_POWER"]] as const) {
+        expect(encodeTransactionHex(fixture(type, { ...value, resource: numeric })))
+          .toBe(encodeTransactionHex(fixture(type, { ...value, resource: name })));
+      }
+    }
+
+    const record = {
+      raw_data: {
+        ref_block_bytes: "24de",
+        ref_block_hash: "77c5c5a6f49382a0",
+        expiration: 1_777_333_304_165,
+        timestamp: 1_777_246_904_164,
+        contract: [{
+          type: "FreezeBalanceV2Contract",
+          parameter: {
+            value: {
+              resource: 1,
+              frozen_balance: 1_000_000,
+              owner_address: "41c609440004050caaf57e8a7fa30fcd142bf5d17f",
+            },
+            type_url: "type.googleapis.com/protocol.FreezeBalanceV2Contract",
+          },
+        }],
+      },
+      raw_data_hex: "0a0224de220877c5c5a6f49382a040e5f6c78add335a59083612550a3474797065"
+        + "2e676f6f676c65617069732e636f6d2f70726f746f636f6c2e467265657a6542616c616e6365"
+        + "5632436f6e7472616374121d0a1541c609440004050caaf57e8a7fa30fcd142bf5d17f10c084"
+        + "3d180170e4beaee1dc33",
+    };
+    const decoded = decodeTransactionHex(encodeTransactionHex(record));
+    expect(decoded.txID).toBe("0b1dddd111cd238497dcc5baf1adb5f3b3cdff22134c29278749a64ca79049c2");
+    expect(decoded.raw_data.contract[0]?.parameter?.value?.resource).toBe("ENERGY");
+  });
+
   it("rejects malformed, oversized, and multi-contract inputs", () => {
     expect(() => normalizeTransactionHex("0xabc")).toThrowError(/even length/);
     expect(() => normalizeTransactionHex("zz")).toThrowError(/non-hex/);

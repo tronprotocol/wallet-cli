@@ -117,15 +117,43 @@ function appendSignatures(pb: ProtobufTransaction, signatures: unknown): void {
   }
 }
 
+const RESOURCE_CODE_NAMES: readonly string[] = ["BANDWIDTH", "ENERGY", "TRON_POWER"];
+
+/**
+ * TRON services (TronLink among them) render protobuf enums as their numeric value, while TronWeb's
+ * encoder only understands the name and drops an unrecognized value *silently* — the re-encoded
+ * bytes would then be missing the field and read as forged. Map it back to the name; the
+ * raw_data_hex / txID equality checks below remain the arbiter of whether the result is accepted.
+ */
+function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<TronTransactionArtifact> {
+  const contract = candidate.raw_data?.contract[0];
+  const value = contract?.parameter?.value;
+  const resource = value?.resource;
+  if (typeof resource !== "number") return candidate;
+  const name = RESOURCE_CODE_NAMES[resource];
+  if (name === undefined) return candidate;
+  return {
+    ...candidate,
+    raw_data: {
+      ...candidate.raw_data!,
+      contract: [{
+        ...contract!,
+        parameter: { ...contract!.parameter, value: { ...value, resource: name } },
+      }],
+    },
+  };
+}
+
 /** Encode JSON into complete protocol.Transaction bytes, preserving existing signatures. */
 export function encodeTransactionHex(transaction: unknown): string {
   if (!transaction || typeof transaction !== "object") {
     return invalidTransaction("transaction must be an object");
   }
-  const candidate = transaction as Partial<TronTransactionArtifact>;
+  let candidate = transaction as Partial<TronTransactionArtifact>;
   if (!candidate.raw_data || !Array.isArray(candidate.raw_data.contract) || candidate.raw_data.contract.length !== 1) {
     return invalidTransaction("exactly one contract is required per transaction");
   }
+  candidate = withNamedEnums(candidate);
   let pb: ProtobufTransaction;
   try {
     pb = tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction;

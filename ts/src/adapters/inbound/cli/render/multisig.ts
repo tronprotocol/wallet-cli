@@ -13,7 +13,11 @@ import { TxFormatters } from "./tx.js";
 function renderTronLink(value: TronLinkMultisigView): string {
   if ("transactions" in value) {
     const heading = `Multi-sig transactions — TronLink service (${value.total} total)`;
-    if (value.transactions.length === 0) return `${heading}\nNo transactions found.`;
+    // A table shorter than the total would otherwise read as a complete queue.
+    const omitted = value.unreadable > 0
+      ? `\n! ${formatInt(value.unreadable)} record(s) could not be decoded by this client and are not shown`
+      : "";
+    if (value.transactions.length === 0) return `${heading}\nNo transactions found.${omitted}`;
     const rows = value.transactions.map((transaction) => {
       const amount = transaction.rawAmount
         ? transaction.contractType === "TransferContract"
@@ -41,7 +45,7 @@ function renderTronLink(value: TronLinkMultisigView): string {
     return `${heading}\n${table(
       ["TxID", "Type", "Amount", "State", "Validation", "Progress", "Expires"],
       rows,
-    )}${hint}`;
+    )}${omitted}${hint}`;
   }
   if (value.action === "watch") {
     return receipt(ok(), "Stopped watching TronLink multi-sig service", [

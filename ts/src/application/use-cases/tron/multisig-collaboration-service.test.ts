@@ -22,13 +22,13 @@ const SIG = "ab".repeat(65);
 const NOW = 1_900_000_000_000;
 const NETWORK = { id: "tron:nile", family: "tron", chainId: "nile" } as never;
 
-function unsignedHex(): string {
+function unsignedHex(amount = 1): string {
   return encodeTransactionHex({
     visible: false,
     raw_data: {
       contract: [{
         parameter: {
-          value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount: 1 },
+          value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount },
           type_url: "type.googleapis.com/protocol.TransferContract",
         },
         type: "TransferContract",
@@ -60,6 +60,16 @@ function remote(hex = unsignedHex(), overrides: Partial<TronLinkRemoteRecord> = 
       { address: B, weight: 1, is_sign: 0, sign_time: 0 },
     ],
     ...overrides,
+  };
+}
+
+/** A record whose transaction bytes this client cannot reconstruct — as an unknown contract type
+ *  or an unrecognized provider encoding would be. */
+function undecodable(hex = unsignedHex()): TronLinkRemoteRecord {
+  const record = remote(hex);
+  return {
+    ...record,
+    current_transaction: { ...(record.current_transaction as object), raw_data_hex: "00" },
   };
 }
 
@@ -177,6 +187,36 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(result.transactions[0]!.unverifiedReason).toMatch(/disagree/i);
     expect(result.transactions[1]).toMatchObject({ verified: true });
     expect(result.transactions[1]!.unverifiedReason).toBeUndefined();
+  });
+
+  // A record this client cannot reconstruct costs its own row, never the whole queue: one historical
+  // transaction carrying an encoding we do not understand must not hide every pending one.
+  it("omits an undecodable record and counts it instead of failing the whole page", async () => {
+    const result = await setup(undecodable(), remote()).service.list(NETWORK, A);
+
+    expect(result.unreadable).toBe(1);
+    expect(result.transactions).toHaveLength(1);
+    expect(result.transactions[0]).toMatchObject({ verified: true });
+  });
+
+  it("finds a pending record behind an undecodable one", async () => {
+    const target = unsignedHex(2);
+    const { service } = setup(undecodable(), remote(target));
+
+    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(target).txID))
+      .resolves.toMatchObject({ action: "sign", accepted: true });
+  });
+
+  // The reason belongs in the message: "TronLink sent something bad" sends the user to the wrong
+  // system when the truth is that this client could not reconstruct the bytes.
+  it("names why the requested record could not be decoded", async () => {
+    const { service } = setup(undecodable());
+
+    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID))
+      .rejects.toMatchObject({
+        code: "invalid_transaction",
+        message: expect.stringMatching(/raw_data_hex does not match/),
+      });
   });
 
   // "Could not check" is not "checked and disagreed" — a node outage must not read as a clean page.

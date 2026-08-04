@@ -35,6 +35,12 @@ your key.
 Byte-level lies are fatal: a record whose hash, contract type, or owner does not match its own
 `raw_data` fails the command with `provider_error`, because no passage of time can produce one.
 
+A record whose bytes this client cannot reconstruct at all is a third case: it is omitted from the
+page, counted in `unreadable`, and reported below the table. Listing it is impossible without
+trusting the service's own summary, but one such record — an unknown contract type, an encoding a
+future service version introduces — must not hide every other transaction in the queue. Acting on
+one still fails with `invalid_transaction`, naming what could not be decoded.
+
 Disagreement with the *chain* is different, because permissions change while old transactions sit
 in the queue. Listing preserves the service's historical state, marks the independent validation
 column **unverified**, and shows the rest of the page. The JSON result retains the detailed
@@ -180,7 +186,8 @@ Watching TronLink multi-sig service for tron:nile … (Ctrl-C to stop)
 | Field | Type | Meaning |
 |---|---|---|
 | `address` | string | Account the queue was read for |
-| `total` | number | Number of transactions |
+| `total` | number | Number of transactions the service reports |
+| `unreadable` | number | Records omitted because this client could not decode them |
 | `transactions[].verified` | boolean | Whether the record reconciled with the chain |
 | `transactions[].unverifiedReason` | string? | Present only when `verified` is `false` |
 | `transactions[].txId` | string | Transaction id |
