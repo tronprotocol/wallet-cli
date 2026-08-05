@@ -5,36 +5,16 @@ Show the current (active) account.
 ## Synopsis
 
 ```
-wallet-cli current [--qr] [options]
+wallet-cli current [options]
 ```
-
-## Description
-
-Shows the selected account entirely locally — no unlock, no network access. By default that is the
-persisted **active** account; `--account <accountId|label|address>` inspects a different one
-without changing the active selection (use [`use`](use.md) for that).
-
-`--qr` appends a scannable TRON **receive-address** QR code, encoding exactly the address and
-nothing else — no amount, no memo, no URI scheme. The full address is printed underneath so you can
-verify by eye what the code contains before anyone scans it.
-
-`--qr` applies to text output only:
-
-- In `-o json` it is ignored — the envelope stays a stable data frame rather than gaining terminal
-  art.
-- If the terminal is non-interactive or too narrow to render a complete code, the command warns
-  (`terminal is non-interactive or too narrow for a complete QR code; showing the full address
-  only`) and prints the address alone. A **partial** QR is never shown — a truncated code could
-  scan as a different address.
-- An account with no TRON address fails with `invalid_value`.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--qr` | Render a terminal receive QR for the selected TRON address (text output, interactive TTY) |
+| `--qr` | Also render the active account's address as a scannable QR code in the terminal, with the full address printed below it for manual verification; text output only |
 
-Plus the [global options](index.md).
+Plus the [global options](index.md) (`--account` overrides which account is shown).
 
 ## Examples
 
@@ -47,15 +27,7 @@ Active account: main-1
   TRON address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
 ```
 
-```bash
-wallet-cli current -o json
-```
-
-```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_758891fa.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax"},"seedId":"wlt_758891fa"},"meta":{"durationMs":13,"warnings":[]}}
-```
-
-Show a receive QR to be scanned by a phone wallet:
+Add `--qr` to also render the active account's address as a scannable receive QR code, drawn with block characters below the address. Purely local — the address comes from local keystore metadata, no node access:
 
 ```bash
 wallet-cli current --qr
@@ -65,19 +37,17 @@ wallet-cli current --qr
 Active account: main-1
   TRON address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
 
-█▀▀▀▀▀█ ▀▄█ ▄▀ █▀▀▀▀▀█
-█ ███ █ █▄▀ ▄█ █ ███ █
-█ ▀▀▀ █ ▀ █▄▄▀ █ ▀▀▀ █
-▀▀▀▀▀▀▀ █▄█▄▀ ▀▀▀▀▀▀▀
-
-Receive address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
+  [ scannable QR code of the address, drawn in the terminal ]
 ```
 
-Inspect another account without switching to it — the heading reads `Selected account:` rather than
-`Active account:`, because it is not the active one:
+The QR is a terminal rendering only and scans from a real terminal (where the block characters line up); `-o json` is unchanged by `--qr` (machine consumers take the address and generate their own code). If the terminal is too narrow to fit it, it degrades to printing just the address with a `!` hint.
 
 ```bash
-wallet-cli current --qr --account treasury
+wallet-cli current -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_758891fa.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax"},"seedId":"wlt_758891fa"},"meta":{"durationMs":13,"warnings":[]}}
 ```
 
 With no active account yet, it fails with `missing_wallet_address` (exit 1):
@@ -100,7 +70,7 @@ error [missing_wallet_address]: no active account; import one first
 | `label` | string | Account label |
 | `type` | string | `seed` / `privateKey` / `watch` / `ledger` |
 | `index` | number \| null | HD derivation index; `null` for non-HD accounts |
-| `active` | boolean | Whether this is the active account — `false` when `--account` selected another |
+| `active` | boolean | Always `true` |
 | `addresses.tron` | string | Base58 TRON address |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family, e.g. `tron` (`watch` accounts only) |

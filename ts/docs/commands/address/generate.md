@@ -1,41 +1,29 @@
 # wallet-cli address generate
 
-Generate a random TRON/EVM keypair locally, without adding it to the wallet.
+Generate a random keypair locally (not stored in the wallet).
 
 ## Synopsis
 
 ```
-wallet-cli address generate [--out <path>] [--print-secret] [options]
+wallet-cli address generate [--out <path>] [--print-secret]
 ```
 
 ## Description
 
-Generates a secp256k1 keypair offline and derives both address encodings from the same public key:
-the TRON base58 address and the EVM `0x` address. No network access, no wallet unlock, no keystore
-write.
+Generates a random keypair locally (works offline) and prints its TRON and EVM addresses. The private key is **not** stored in the wallet and does not enter the keystore.
 
-**The private key is not printed by default.** It is written to an exclusively-created `0600` file:
+By default the private key is written to a `0600` file — the terminal shows only the addresses and the file path, keeping the secret off the screen, out of pipes, and out of an AI session (the same discipline as [`backup`](../backup.md)). Pass `--print-secret` to print the key to stdout instead (for offline transcription); the text output then carries a `!` warning.
 
-- `--out <path>` — write there. An existing file is **never** overwritten; the create is exclusive,
-  so a collision fails rather than clobbering a key you already have.
-- omitted — write to `<wallet-home>/generated/keypair-<tron-address>`.
-
-`--print-secret` prints the key to stdout instead of writing a file. That puts the secret in your
-terminal scrollback and, in `-o json`, in whatever consumes the envelope — use it only on an
-offline machine.
-
-The generated key is **not** in the wallet: `list`, `use`, and every signing command remain unaware
-of it. Import it with [`import private-key`](../import/private-key.md) if you want to sign with it.
+This produces a bare key for a one-off address, testing, or import into another system. For a normal account — an HD wallet in the keystore, with derivation — use [`create`](../create.md). To sign with a generated key, import it with [`import private-key`](../import/private-key.md).
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--out <path>` | Exclusive `0600` output path; existing files are never overwritten |
-| `--print-secret` | Print the private key instead of writing it — use only offline |
+| `--out <path>` | File to write the keypair to (mode `0600`); refuses to overwrite an existing file. Default: `<wallet-cli-root>/generated/keypair-<address>` |
+| `--print-secret` | ⚠️ Print the private key to stdout instead of writing a file (use offline) |
 
-Plus the [global options](../index.md#global-options-every-command). `--network` and `--account`
-do not apply: the command is entirely local.
+Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
@@ -45,57 +33,35 @@ wallet-cli address generate
 
 ```console
 ✅ Keypair generated (NOT stored in the wallet)
-  TRON address  TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2
-  EVM address   0x0C5f589E3C99Cc365ffb8af588241921f764dF66
-  Private key   written to /Users/you/.wallet-cli/generated/keypair-TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2
+  TRON address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
+  EVM address   0x8a41C3b9E2d07f6A5B14c8D9e0F27a3B6c5D48E1
+  Private key   written to <wallet-cli-root>/generated/keypair-TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
 
 ! To sign with this key, import it: wallet-cli import private-key
 ```
 
-Write to a specific location:
-
-```bash
-wallet-cli address generate --out /secure/usb/key.json
-```
-
-The secret file is JSON:
-
-```json
-{"version":1,"privateKey":"…","publicKey":"…","tron":"TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2","evm":"0x0C5f589E3C99Cc365ffb8af588241921f764dF66"}
-```
-
-JSON output — note that `privateKey` is absent unless `--print-secret` was given:
+The private key never appears in JSON output (unless `--print-secret`):
 
 ```bash
 wallet-cli address generate -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"address.generate","data":{"tron":"TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2","evm":"0x0C5f589E3C99Cc365ffb8af588241921f764dF66","secretFile":"/Users/you/.wallet-cli/generated/keypair-TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"},"meta":{"durationMs":21,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"address.generate","data":{"tron":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","evm":"0x8a41C3b9E2d07f6A5B14c8D9e0F27a3B6c5D48E1","secretFile":"<wallet-cli-root>/generated/keypair-TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz"},"meta":{"durationMs":8,"warnings":[]}}
 ```
 
 ## Output
 
-`data` is a local result — no `chain` block.
-
 | Field | Type | Meaning |
 |---|---|---|
 | `tron` | string | TRON base58 address |
-| `evm` | string | EIP-55 checksummed EVM address from the same key |
-| `secretFile` | string | Path the private key was written to (omitted with `--print-secret`) |
-| `privateKey` | string | Raw private key hex — **only** with `--print-secret` |
+| `evm` | string | EVM `0x` address (EIP-55) |
+| `secretFile` | string | Path the private key was written to (absent with `--print-secret`) |
 
 ## Exit status
 
-`0` · `1` execution failure — `entropy_failure`, `io_error` · `2` usage error, including
-`output_exists` when the target file already exists (the same code [`backup`](../backup.md) uses —
-the key is never written over an existing file, and the conflict is deterministic, so retrying the
-identical command cannot help; choose another `--out` path).
-
-A failed write leaves nothing behind: the partially written file is removed, so the same `--out`
-path is free to retry once the underlying cause (a full disk, for instance) is resolved.
+`0` success · `1` execution failure (`io_error`, `output_exists` — the `--out` target already exists and is never overwritten, `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`invalid_value`).
 
 ## See also
 
-[`import private-key`](../import/private-key.md) · [`create`](../create.md) ·
-[`encoding convert`](../encoding/convert.md) · [Security model](../../concepts/security.md)
+[`create`](../create.md) · [`import private-key`](../import/private-key.md) · [`encoding convert`](../encoding/convert.md)

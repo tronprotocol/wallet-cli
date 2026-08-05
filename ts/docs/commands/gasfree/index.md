@@ -1,6 +1,8 @@
 # wallet-cli gasfree
 
-Transfer tokens without holding any TRX, via the GasFree Open Platform.
+Gas-free token transfers via the GasFree service.
+
+`gasfree` moves tokens without holding any TRX: you sign a transfer with EIP-712 structured-data signing and the GasFree service ([open.gasfree.io](https://open.gasfree.io)) puts it on-chain for you. The fee is charged in the transferred token itself — a per-transfer service fee, plus a one-time activation fee on your first transfer — so **no TRX is needed**.
 
 ## Synopsis
 
@@ -10,65 +12,21 @@ wallet-cli gasfree COMMAND
 
 ## Subcommands
 
-| Command | Description | Broadcasts |
+| Command | Page | Description |
 |---|---|---|
-| [`gasfree info`](info.md) | Show GasFree address, activation status, nonce, balances, and fees | no |
-| [`gasfree transfer`](transfer.md) | Sign and submit a TIP-712 GasFree token transfer | ✍️ yes |
-| [`gasfree trace`](trace.md) | Track a GasFree transfer by provider trace id | no |
+| `gasfree info` | [info.md](info.md) | Your GasFree address, activation status, nonce, and fee schedule |
+| `gasfree transfer` | [transfer.md](transfer.md) | Sign a gas-free transfer and submit it to the provider |
+| `gasfree trace` | [trace.md](trace.md) | Track a submitted transfer by its trace id |
 
-## What GasFree is
+## How it works
 
-Normally a TRC20 transfer costs TRX — you need bandwidth and energy, so an account holding only
-USDT cannot move it. GasFree removes that requirement: instead of broadcasting a transaction, you
-**sign a TIP-712 `PermitTransfer` authorization** and hand it to a service provider, who broadcasts
-on your behalf and takes their fee **in the token being transferred**.
+- Each account has a **deterministically-derived GasFree address**. Assets are received and paid from that address — to receive USDT gas-free, give the sender your GasFree address (`gasfree info`).
+- On your **first** transfer, the provider activates the GasFree address on-chain and charges a one-time activation fee, on top of the per-transfer service fee. Both are deducted in the token.
+- Signatures are ordered by a per-address **nonce** to prevent replay.
+- Requires provider **API credentials** — set `gasfreeApiKey` / `gasfreeApiSecret` with [`config`](../config.md). `--network` selects the service environment (mainnet / testnet).
 
-So the flow is not "send a transaction" but "sign an intent, then track it":
-
-```
-gasfree transfer ──sign PermitTransfer──> provider accepts (traceId)
-                                                │
-                          WAITING → INPROGRESS → CONFIRMING → SUCCEED | FAILED
-                                                │
-                                        gasfree trace <traceId>
-```
-
-Your **GasFree address** is a distinct, deterministic address derived from your account — it is
-*not* your normal TRON address. Tokens must be in the GasFree address to be transferable this way;
-see [`gasfree info`](info.md).
-
-## Configuration
-
-GasFree requires Open Platform credentials, stored via [`config`](../config.md):
-
-```bash
-wallet-cli config gasfreeApiKey <key>
-wallet-cli config gasfreeApiSecret <secret>
-```
-
-The secret is never echoed back — reading it returns `********`.
-
-Endpoint and TIP-712 domain come from the network descriptor, not from your config:
-
-| Network | GasFree endpoint | Supported |
-|---|---|---|
-| `tron:mainnet` | `https://open.gasfree.io` | yes |
-| `tron:nile` | `https://open-test.gasfree.io` | yes |
-| `tron:shasta` | — | **no** — `unsupported_network` |
-
-## Integrity checks
-
-Provider responses are untrusted input, and the CLI validates rather than displays them. It fails
-with `gasfree_integrity` if the provider reports an owner that is not the selected account, if
-token and address fee metadata disagree, if fee arithmetic does not add up, or if a trace names a
-token outside the current configuration. Signing likewise fails (`signing_rejected`) unless the
-signed digest is exactly the expected `PermitTransfer` and recovers to the selected account.
-
-`gasfree_integrity` means the provider's answer is inconsistent — it is never raised because *your*
-node was unreachable. Cross-checking reads TRC20 metadata from the chain, and a failure there
-surfaces as `rpc_error` (retryable) instead, so the two causes stay distinguishable.
+Compared with [`tx send`](../tx/send.md): `tx send` broadcasts on-chain, spending bandwidth/energy or burning TRX; `gasfree transfer` goes through the provider's API — zero TRX, but a token-denominated fee per transfer. When you have TRX or energy, `tx send` is usually cheaper; `gasfree` is for the "no TRX at all" case.
 
 ## See also
 
-[`tx send`](../tx/send.md) — the ordinary, TRX-paying transfer ·
-[`token balance`](../token/balance.md) · [`config`](../config.md)
+[`gasfree info`](info.md) · [`gasfree transfer`](transfer.md) · [`gasfree trace`](trace.md) · [`config`](../config.md) · [`tx send`](../tx/send.md)

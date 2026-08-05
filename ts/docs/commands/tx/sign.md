@@ -1,180 +1,150 @@
 # wallet-cli tx sign
 
-Sign a transaction built elsewhere, without broadcasting.
+Add your signature to a transaction hex (multi-sig co-signing).
 
 ## Synopsis
 
 ```
-wallet-cli tx sign (--transaction <json> | --hex <hex> | --file <path>) [options]
+wallet-cli tx sign (--hex <hex> | --file <path> | --transaction <json>) [--offline] [--out <path>] [options]
 ```
 
 ## Description
 
-Signs a transaction that was constructed outside this CLI with the active account's key (or
-`--account`) and prints the signed result. JSON input retains the original direct-signing response.
-Hex/file input produces a portable protobuf transaction artifact for multi-party signing. Nothing is broadcast — pass the signed payload to
-[`tx broadcast`](broadcast.md) when you are ready. `--network` is optional: signing itself is
-offline for software accounts.
+Adds the active account's signature to a (unsigned or partially signed) transaction hex, outputs the new hex, and reports how far the accumulated signing weight is from the permission group's threshold.
 
-This is a **pure signer**. It does not check who owns the transaction, what contract it calls, or
-how much it moves — the caller decides what to sign; the wallet holds the key, not the policy.
+Two input modes: with `--hex` / `--file` it appends exactly one signature while preserving prior signatures; with `--transaction` it takes unsigned transaction JSON, preserving the direct single-signature flow.
 
-What it does check is **payload integrity**, because a TRON transaction states its content three
-times and nothing in the format forces the three to agree:
+It is the on-chain co-signing path: an initiator produces a partially signed hex with `tx send --sign-only` (or any broadcast command in `--sign-only` mode), each co-signer runs `tx sign` in turn — passing the hex from person to person — and once the weight reaches the threshold, anyone broadcasts the final hex with [`tx broadcast --hex`](broadcast.md). All signatures must be collected before the transaction expires (default ~60s, up to 24h via `--expiration`).
 
-| Field | Who reads it |
-|---|---|
-| `raw_data` | you / your agent, when deciding whether to sign |
-| `raw_data_hex` | the node, when executing the transaction |
-| `txID` | the signature — this hash, and only this hash, is what gets signed |
+Signing endorses the transaction with your key: the command shows no preview or confirmation, reads the master password from `--password-stdin`, and signs directly — to inspect a transaction without signing it, use [`tx approvals`](approvals.md). It does **not** broadcast, and has **no `--permission-id`** (the group is fixed in the transaction body; it's shown on the `Permission` line). Watch-only accounts fail with `watch_only_no_signer`.
 
-So a transaction whose `raw_data` reads "1 TRX" can carry the `txID` and `raw_data_hex` of a
-1000 TRX transfer, and the signature would be perfectly valid for what actually executes.
-`tx sign` therefore refuses (`tx_integrity`) unless:
+### What is verified before signing
 
-1. `txID` is the sha256 of `raw_data_hex` — always enforced, for every contract type; and
-2. `raw_data` re-encodes to exactly those bytes — enforced wherever the contract type can be
-   decoded.
+With `--hex` / `--file` the command contacts the node and refuses to sign unless this account is a key in the transaction's permission group (`not_authorized`) and has not already approved it (`already_signed`). Both are checked *before* a key is decrypted, so a mistaken signer never produces a signature at all.
 
-Four contract types cannot be decoded by the bundled TronWeb — `UnfreezeAssetContract`,
-`ShieldedTransferContract`, `MarketSellAssetContract`, and `MarketCancelOrderContract`. Because
-check 2 cannot be satisfied for them, `--hex` / `--file` input carrying one is **refused**
-(`invalid_transaction`), not accepted under check 1 alone. Sign those through `--transaction` JSON,
-or with a client that can round-trip them.
+`--offline` skips those two checks and never contacts a node — for signing machines with no network. Signature-eligibility errors then surface only when the transaction is broadcast, so confirm the signing account is in the group beforehand.
 
-Neither check rejects anything a correct transaction builder produces for the supported types.
+Payload integrity is checked in every mode, offline included. A TRON transaction states its content three times — `raw_data` (what you read), `raw_data_hex` (what the node executes), and `txID` (what the signature actually covers) — and nothing in the format forces them to agree, so a transaction whose `raw_data` reads "1 TRX" can carry the `txID` of a 1000 TRX transfer. `tx sign` therefore refuses (`tx_integrity`) unless `txID` is the sha256 of `raw_data_hex`, and `raw_data` re-encodes to exactly those bytes wherever the contract type can be decoded.
 
-Watch-only accounts cannot sign (`watch_only_no_signer`). Ledger accounts sign on the device.
-
-### Multi-sig co-signing
-
-With `--hex` or `--file`, the command decodes the complete protobuf transaction and **appends** its
-signature rather than replacing what is there. That is what TRON multi-sig requires — each
-permitted key signs the same transaction in turn — so a partially signed transaction can be passed
-from signer to signer and broadcast once the permission threshold is met.
-
-By default this path verifies online, through `getsignweight` and `getapprovedlist`, that this
-account is a key in the transaction's permission group and has not already signed, and it reports
-the resulting approval weight. Both checks run **before** a signature is produced, so a co-signer
-who is not permitted — or who is signing twice — fails immediately instead of emitting a hex that
-only `tx broadcast` would reject, after it has already been passed along.
-
-Add `--offline` to sign without contacting a node. Transaction integrity, expiration, and
-append-only signature behavior are still verified locally, but permission membership and approval
-weight are not — inspect those later with `wallet-cli tx approvals`.
-
-The JSON compatibility path also preserves existing signatures. `data.signed.signature` may
-therefore contain signatures this wallet did not produce. `data.address` always tells you which key
-this invocation used, and the text receipt numbers them so you can tell them apart:
-
-```console
-✅ Signed transaction
-  Address      TU9Z8Ha6Xj9oLLhamrT8MC77dxsj65VYMC
-  TxID         d0157b08eb6a5ce9482d4429a481f3bca4a95914f92a6b8f2fb73fb905ff7de0
-  Signature 1  ffffffff…                       ← already on the transaction
-  Signature 2  16a2ec10…                       ← added by this invocation
-```
+Four contract types cannot be re-encoded by the bundled decoder — `UnfreezeAssetContract`, `ShieldedTransferContract`, `MarketSellAssetContract`, `MarketCancelOrderContract`. `--hex` / `--file` input carrying one is refused with `invalid_transaction`; sign those through `--transaction` JSON instead.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--transaction <string>` | Unsigned transaction JSON (`raw_data`, `raw_data_hex` and `txID` must agree) |
-| `--hex <string>` | Complete protobuf `protocol.Transaction` hex |
-| `--file <path>` | Read complete transaction hex from a file |
-| `--out <path>` | Atomically write the resulting signed hex to a file |
-| `--offline` | Sign locally without contacting a node; skips the signer-permission and approval-weight checks |
-| `--password-stdin` | Master password from stdin (software accounts) |
+| `--hex <hex>` | **Required** (one of). Complete `protocol.Transaction` hex |
+| `--file <path>` | **Required** (one of). File containing the transaction hex (prefer this for long hex) |
+| `--transaction <json>` | **Required** (one of). Unsigned TRON transaction JSON; retained for direct single-signature compatibility |
+| `--offline` | Sign locally without contacting a node; skips the signer-permission and approval-weight checks. Only with `--hex` / `--file` |
+| `--out <path>` | Write the resulting hex to a file (mode 0644, written atomically) instead of stdout |
 
-Plus the [global options](../index.md#global-options-every-command).
+Plus the [global options](../index.md#global-options-every-command) and `--password-stdin`.
 
-The payload is passed on argv, not stdin: it is not a secret, and this leaves fd 0 free for
-`--password-stdin`.
+The transaction is passed on argv, not stdin: it is not a secret, and this leaves fd 0 free for `--password-stdin`.
 
 ## Examples
 
-In the examples, `$PW` is your master password (fed on stdin via `--password-stdin`) and `$TX`
-holds the unsigned transaction JSON.
+In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
+
+An initiator first produces a partially signed `tx.hex` with `tx send --sign-only`:
 
 ```bash
-echo "$PW" | wallet-cli tx sign --transaction "$TX" --password-stdin
+echo "$PW" | wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --sign-only --permission-id 2 --expiration 86400000 --network tron:nile --password-stdin > tx.hex
+```
+
+A second signer appends their signature — no preview, no confirmation; the receipt carries the transaction content and progress blocks:
+
+```bash
+echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:nile --password-stdin
 ```
 
 ```console
-✅ Signed transaction
-  Address    TU9Z8Ha6Xj9oLLhamrT8MC77dxsj65VYMC
-  TxID       d0157b08eb6a5ce9482d4429a481f3bca4a95914f92a6b8f2fb73fb905ff7de0
-  Signature  16a2ec107591827046bcd77e9ae71a5fc415e2f69b9eebe5ad0fe6e3e39cfed16e7dad3e35bc36031ddd5bc47e22de63a925bf65a82e0e1e69508735bc3fd6271C
+✅ Signature added
+  Signer   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  (weight 1)
+  Hex      written to tx.signed.hex
+
+Transaction
+  TxID        9c1...
+  Type        Transfer TRX — 1,000 TRX
+  From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  Permission  active "finance" (id 2)  threshold 2
+  Expires     2026-07-14 15:32 (~23h)
+
+Progress  2 / 2 — threshold reached
+| Approved signer                    | Weight |
+| ---------------------------------- | ------ |
+| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  |      1 |
+| TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  |      1 |
+
+! Broadcast it: wallet-cli tx broadcast --file tx.signed.hex
 ```
 
-The signature is printed in full — it is the product of the command and you have to copy it
-somewhere. `Fee` is omitted because nothing was estimated: the transaction was built elsewhere.
-
-Sign now, broadcast later:
+With `--offline` the group name, threshold and per-signer weights are unavailable, so the receipt degrades to locally derivable fields and says so. `Signatures` is a **count**, not accumulated weight:
 
 ```bash
-echo "$PW" | wallet-cli tx sign --transaction "$TX" --password-stdin -o json \
-  | jq -c .data.signed > signed.json
-wallet-cli tx broadcast --network tron:nile --tx-stdin < signed.json
+echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --offline --network tron:nile --password-stdin
 ```
-
-Append a signature to a partially signed transaction. This is the default `--hex`/`--file` path, so
-it contacts the node to verify permission membership and report the resulting approval weight:
-
-```bash
-echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
-  --out signed.hex --password-stdin
-```
-
-To sign on a machine with no node access, add `--offline` — then check the approval state later,
-from an online machine:
-
-```bash
-echo "$PW" | wallet-cli tx sign --file partially-signed.hex \
-  --offline --out signed.hex --password-stdin
-wallet-cli tx approvals --file signed.hex
-```
-
-A transaction whose fields disagree is refused rather than signed:
 
 ```console
-{"success":false,"command":"tx.sign","error":{"code":"tx_integrity","message":"TRON transaction raw_data does not match its raw_data_hex; refusing to sign"}}
+✅ Signature added
+  Signer  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz
+  Hex     0a02...9f31
+
+Transaction (local inspection)
+  TxID        9c1...
+  Type        Transfer TRX — 1,000 TRX
+  From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  Permission  active (id 2)
+  Signatures  1
+  Expires     2026-07-14 15:32 (~23h)
+
+! Approval state was not checked online. Inspect it with: wallet-cli tx approvals --hex <hex-above>
+```
+
+```bash
+echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:nile --password-stdin -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.sign","data":{"kind":"tx-sign","signer":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","hex":"0a02...9f31","checked":true,"transaction":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permissionId":2,"expiration":1784388720000,"expired":false,"signatures":2},"signerWeight":1,"approval":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":2,"missingWeight":0,"thresholdReached":true,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1}],"expiration":1784388720000,"expired":false,"signatures":2}},"meta":{"durationMs":310,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
 
-`--transaction` retains the original direct-signing shape:
+The two input modes return different shapes.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `kind` | string | `"sign"` |
-| `mode` | string | `"sign-only"` — same shape `tx send --sign-only` emits, so consumers need no branch |
-| `address` | string | Address that produced the signature |
-| `txId` | string | Transaction id (TRON: `txID`) |
-| `signed` | object | The signed transaction — exactly what `tx broadcast` accepts |
-
-No `fee` is reported: nothing was estimated, because the transaction was not built here.
-
-`--hex` and `--file` return the artifact-signing shape:
+`--hex` / `--file` (artifact signing):
 
 | Field | Type | Meaning |
 |---|---|---|
 | `kind` | string | `"tx-sign"` |
-| `signer` | string | Address that appended this signature |
-| `hex` | string | Complete transaction hex including all signatures |
-| `checked` | boolean | Whether online permission/approval verification ran |
-| `transaction` | object | Locally decoded transaction summary |
-| `signerWeight` | number | Present only when `checked` is true |
-| `approval` | object | Present only when `checked` is true; authoritative online approval state |
+| `signer` | string | The address that just signed |
+| `hex` | string | The transaction hex with the new signature appended |
+| `checked` | boolean | Whether the online permission/approval verification ran — `false` under `--offline` |
+| `transaction` | object | Locally decoded summary: `txId`, `contractType`, `operation`, `from`, `to`, `rawAmount`, `permissionId` (a scalar — no group name or threshold), `expiration`, `expired`, `signatures` (count) |
+| `signerWeight` | number | The signer's weight in the group. Present only when `checked` is `true` |
+| `approval` | object | Authoritative online approval state, same shape as [`tx approvals`](approvals.md) `data`. Present only when `checked` is `true` |
+
+`transaction` is always present and identical in both modes, so a consumer can read it unconditionally; test `checked` before reaching for `approval`.
+
+`--transaction` (direct JSON signing) returns the same shape `tx send --sign-only` emits, so consumers need no branch:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `kind` | string | `"sign"` |
+| `mode` | string | `"sign-only"` |
+| `address` | string | Address that produced the signature |
+| `txId` | string | Transaction id |
+| `signed` | object | The signed transaction — exactly what [`tx broadcast`](broadcast.md) accepts |
+
+No `fee` is reported for `--transaction`: nothing was estimated, because the transaction was not built here.
 
 ## Exit status
 
-`0` signed · `1` execution failure (`tx_integrity`, `tx_expired`, `not_authorized`,
-`already_signed`, `watch_only_no_signer`, `auth_failed`,
-`signing_rejected`) · `2` usage error (missing or malformed `--transaction` → `missing_option` /
-`invalid_value`).
+`0` success · `1` execution failure (`tx_integrity` — the three payload representations disagree, `invalid_transaction`, `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `wrong_password`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value`, `missing_option`).
 
 ## See also
 
-[`tx broadcast`](broadcast.md) · [`typed-data sign`](../typed-data/sign.md) ·
-[Security model](../../concepts/security.md)
+[`tx approvals`](approvals.md) · [`tx broadcast`](broadcast.md) · [`tx multisig`](multisig.md) · [`permission show`](../permission/show.md)

@@ -52,24 +52,24 @@ Schema id: `wallet-cli.result.v1`.
 }
 ```
 
-| Field | Type | Presence | Notes |
-|---|---|---|---|
-| `schema` | `"wallet-cli.result.v1"` | always | Version gate; dispatch on this |
-| `success` | boolean | always | Mirrors the exit code (`true` ⇔ 0) |
-| `command` | string | always | Canonical command id, e.g. `tx.send`, `list` |
-| `data` | object/array | success only | Command-specific payload; see each command's reference page |
-| `error.code` | string | error only | Machine-readable; see [error codes](#error-codes) |
-| `error.message` | string | error only | Human-readable; **not** stable — never parse it |
-| `error.details` | object | optional | Structured extras when available |
-| `meta.durationMs` | number | always | Wall time |
-| `meta.warnings` | `(string \| {code, message})[]` | always | Non-fatal notices; **elements are not uniformly typed** — see below |
-| `chain` | object | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
+| Field             | Type                     | Presence            | Notes                                                                            |
+| ----------------- | ------------------------ | ------------------- | -------------------------------------------------------------------------------- |
+| `schema`          | `"wallet-cli.result.v1"` | always              | Version gate; dispatch on this                                                   |
+| `success`         | boolean                  | always              | Mirrors the exit code (`true` ⇔ 0)                                               |
+| `command`         | string                   | always              | Canonical command id, e.g. `tx.send`, `list`                                |
+| `data`            | object/array             | success only        | Command-specific payload; see each command's reference page                      |
+| `error.code`      | string                   | error only          | Machine-readable; see [error codes](#error-codes)                                |
+| `error.message`   | string                   | error only          | Human-readable; **not** stable — never parse it                                  |
+| `error.details`   | object                   | optional            | Structured extras when available                                                 |
+| `meta.durationMs` | number                   | always              | Wall time                                                                        |
+| `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
+| `chain`           | object                   | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
 
 ### Reading `meta.warnings`
 
-An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md#safety-warnings) safety warnings and the post-confirmation checks; everything else is a bare string. Normalise before display, and never assume a uniform element type:
+An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings and the post-confirmation checks; everything else is a bare string. Normalise before display, and never assume a uniform element type:
 
 ```bash
 # text for humans — works for both forms
@@ -79,7 +79,7 @@ jq -r '.meta.warnings[] | if type == "string" then . else .message end'
 jq -e '.meta.warnings[] | select(type == "object" and .code == "owner_lockout")' >/dev/null && exit 1
 ```
 
-`join`-style helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.join`) will fail or print `[object Object]` on the object form. Warning `code` values are stable and additive within v1 — new codes may appear, existing ones keep their meaning. Warning `message` text is **not** stable; treat it like `error.message` and never parse it.
+Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.join`) fail or print `[object Object]` on the object form. Warning `code` values are stable and additive within v1 — new codes may appear, existing ones keep their meaning. Warning `message` text is **not** stable; treat it like `error.message` and never parse it.
 
 ## Error codes
 
@@ -100,7 +100,7 @@ Common codes at exit **2** (usage — fix the call):
 | `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id |
 | `unknown_command` | No such command |
 | `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
-| `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The underlying parser detail is withheld: it quotes the offending line, which may carry a credential |
+| `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
 | `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
 
@@ -116,6 +116,10 @@ Common codes at exit **1** (execution — runtime failure):
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
+| `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
+| `provider_error` | An external service (GasFree, TronLink multi-sig) returned an error or rate-limited |
+| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
+| `tx_expired` | The transaction's expiration passed before signatures were collected |
 | `history_not_supported` | The endpoint lacks TronGrid history support |
 | `internal_error` | Unexpected internal failure; message is intentionally generic |
 
@@ -139,7 +143,7 @@ printf '%s' "$MASTER_PASSWORD_FROM_YOUR_VAULT" | wallet-cli tx send \
 
 This is a wallet; a wrong success check loses money. The rules:
 
-1. `tx send` **by default returns after submission**, not confirmation. The payload carries `"stage": "submitted"` and the `txId`:
+1. Broadcast (✍️) commands **by default return after submission**, not confirmation. The payload is a flat object with a `kind` naming the operation (`send`, `stake-freeze`, `permission-update`, `account-activate`, …), a `stage`, and the `txId`; the `submitted` stage carries no block / fee / result (those appear only after `--wait` confirms):
 
    ```json
    { "kind": "send", "stage": "submitted", "txId": "7d9b6a08…", "rawAmount": "1000000", "to": "TSx72…" }
@@ -147,7 +151,7 @@ This is a wallet; a wrong success check loses money. The rules:
 
 2. To block until the outcome is known, pass `--wait` (polls until confirmed/failed, capped by `--wait-timeout`, default 60000 ms; on cap it returns the submitted receipt).
 
-   **A `--wait` receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out your request, not whether the chain accepted the result — so after any `--wait`, branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done. This holds for every `--wait` receipt, including [`gasfree transfer`](commands/gasfree/transfer.md), which additionally mirrors the provider's terminal state in `data.state` (`SUCCEED` / `FAILED`) and explains it in `data.failureReason`.
+   **A `--wait` receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out the request, not whether the chain accepted the result — so after any `--wait`, branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done.
 
 3. Or poll yourself with `tx status`, which has a **four-state model**:
 
@@ -159,6 +163,8 @@ This is a wallet; a wrong success check loses money. The rules:
    | `not_found` | Unknown to the queried node | no — keep polling until your own deadline, then treat as failed |
 
    `data.confirmed` and `data.failed` are provided as booleans for direct branching.
+
+   **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. Follow it with `--wait` or [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
 
 ```bash
 txid=$(wallet-cli tx send --to T... --amount 1 --network tron:nile --password-stdin -o json \

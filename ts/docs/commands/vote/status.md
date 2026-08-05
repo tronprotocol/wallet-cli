@@ -56,8 +56,7 @@ wallet-cli vote status --account main --network tron:nile -o json
 | `claimableRewardSun` | string | Currently claimable reward, in SUN |
 | `votes[]` | array | Current distribution: `witness`, `name`, `count`, `rewardRatioPct`, `brokeragePct`, `aprPct` |
 
-Zero-reward-ratio warnings appear in `meta.warnings` as plain strings — see
-[reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
+Zero-reward-ratio warnings appear in `meta.warnings` as plain strings — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
 
 ## Exit status
 

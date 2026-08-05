@@ -5,7 +5,8 @@ Cancel all pending unstakes (roll back to frozen).
 ## Synopsis
 
 ```
-wallet-cli stake cancel-unfreeze [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
+wallet-cli stake cancel-unfreeze [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                                 [--permission-id <n>] [options]
 ```
 
 ## Description
@@ -18,15 +19,13 @@ Cancels **every** unstake still in its waiting period and rolls those amounts ba
 
 | Option | Description |
 |---|---|
-| `--dry-run` | Estimate only, no signature/broadcast |
-| `--sign-only` | Sign without broadcasting |
-| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
-| `--permission-id <0-9>` | TRON permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--expiration <ms>` | Transaction expiration in ms, up to 86400000 (24h); only with `--sign-only` / `--build-only`; omitted = node default (~60s) |
+| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
+| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
-
-`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 

@@ -7,7 +7,7 @@ Delegate resource to another address.
 ```
 wallet-cli stake delegate --receiver <address> --amount-sun <n>
                           [--resource energy|bandwidth] [--lock [--lock-period <blocks>]]
-                          [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
+                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]] [--permission-id <n>] [options]
 ```
 
 ## Description
@@ -29,15 +29,13 @@ Check how much you can still delegate with [`stake delegated`](delegated.md) (`M
 | `--resource <energy\|bandwidth>` | Resource type to delegate (default `bandwidth`) |
 | `--lock` | Lock the delegation; prevents early undelegation |
 | `--lock-period <number>` | Lock duration in blocks (~3 s/block); requires `--lock` |
-| `--dry-run` | Estimate only, no signature/broadcast |
-| `--sign-only` | Sign without broadcasting |
-| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
-| `--permission-id <0-9>` | TRON permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--expiration <ms>` | Transaction expiration in ms, up to 86400000 (24h); only with `--sign-only` / `--build-only`; omitted = node default (~60s) |
+| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
+| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
-
-`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 

@@ -7,14 +7,14 @@ State-changing contract call (triggerSmartContract).
 ```
 wallet-cli contract send --contract <address> --method <sig> [--params <json>]
                          [--call-value-sun <n>] [--fee-limit <sun>]
-                         [--dry-run | --sign-only | --build-only] [--wait [--wait-timeout <ms>]] [options]
+                         [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]] [--permission-id <n>] [options]
 ```
 
 ## Description
 
 Builds, signs, and broadcasts a state-changing contract call from the active account (or `--account`). Parameters follow the same `{type,value}` JSON-array convention as [`contract call`](call.md); `--call-value-sun` attaches native TRX to the call.
 
-Three early exits: `--dry-run` previews the energy cost (estimateEnergy) without signing or broadcasting; `--sign-only` signs and prints the transaction for a later [`tx broadcast`](../tx/broadcast.md); `--build-only` prints it unsigned, for [multi-party or offline signing](../tx/index.md).
+Two early exits: `--dry-run` previews the energy cost (estimateEnergy) without signing or broadcasting; `--sign-only` signs and prints the transaction for a later [`tx broadcast`](../tx/broadcast.md).
 
 **By default the command returns at submission** (`stage: "submitted"`) — add `--wait` to block until confirmed/failed. With `--wait`, an on-chain execution failure (revert / `OUT_OF_ENERGY`) comes back as `stage: "failed"` with the `result` reason.
 
@@ -29,15 +29,13 @@ Requires an account. The master password (via `--password-stdin`) is needed only
 | `--params <string>` | JSON array of ABI parameters as `{type,value}` |
 | `--call-value-sun <number>` | Native TRX attached to the call, in SUN (default 0) |
 | `--fee-limit <number>` | Max energy fee to burn, in SUN (default 100000000) |
-| `--dry-run` | Estimate energy only, no signature/broadcast |
-| `--sign-only` | Sign without broadcasting |
-| `--build-only` | Build and output the unsigned transaction hex **without unlocking** — the entry point for [multi-party or offline signing](../tx/index.md) |
-| `--permission-id <0-9>` | TRON permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--expiration <ms>` | Transaction expiration in ms, up to 86400000 (24h); only with `--sign-only` / `--build-only`; omitted = node default (~60s) |
+| `--dry-run` | Estimate energy only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
+| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
-
-`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
 
 Plus the [global options](../index.md#global-options-every-command).
 
@@ -106,8 +104,8 @@ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkA
 | default (submit) | `kind: "contract-send"`, `stage: "submitted"`, `txId`, `method`, `contract` |
 | `--wait` (confirmed/failed) | above, but `stage: "confirmed"` or `"failed"`, plus `confirmed`, `blockNumber`, `feeSun`, `energyUsed`, `result` (`SUCCESS` / `OUT_OF_ENERGY`, etc.), `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, estimated `energy`, `availableEnergy`), unsigned `tx` |
-| `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (feed to `tx broadcast`), `address` (signer), `txId`, `fee`, `method`, `contract` |
-| `--build-only` | `kind`, `mode: "build-only"`, unsigned `tx`, `hex` (complete protobuf artifact — feed to `tx sign`), `fee`, `method`, `contract` |
+| `--sign-only` | `kind`, `mode: "sign-only"`, `hex` (signed transaction hex), `signed` (the same transaction as a TRON tx object incl. `signature[]`), `address` (signer), `txId`, `fee`, `method`, `contract` |
+| `--build-only` | `kind`, `mode: "build-only"`, `hex` (**unsigned** transaction hex), unsigned `tx` (TRON tx object), `fee`, `method`, `contract` |
 
 ## Exit status
 

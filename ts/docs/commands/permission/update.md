@@ -1,199 +1,133 @@
 # wallet-cli permission update
 
-Replace the complete account permission structure. ✍️
-
-> **This can permanently lock you out of the account.** It is a full replacement, and the owner
-> permission is what authorizes all future changes. Run `--dry-run` first and read the rendered
-> structure back before broadcasting. See [the lockout risk](index.md#the-lockout-risk).
+Replace the account's permission structure.
 
 ## Synopsis
 
 ```
-wallet-cli permission update (--file <path> | --json <json>)
-                             [--dry-run | --sign-only | --build-only] [options]
+wallet-cli permission update (--file <path> | --json <str>)
+                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                             [--permission-id <n>] [options]
 ```
 
 ## Description
 
-Submits one `AccountPermissionUpdateContract` that replaces the account's **owner, witness, and
-active** permissions in a single atomic change. There is no partial update: whatever you pass is
-the account's entire permission structure afterwards, and anything you omit is gone.
+Replaces the account's **entire** permission structure with the new one given by `--file` (a JSON file) or `--json` (an inline JSON string) — TRON's `UpdateAccountPermission` has replace semantics, so the JSON you supply becomes the whole structure. The chain burns **100 TRX** for the change.
 
-The structure is validated strictly before anything is built, and rejected with `invalid_permission`
-(exit 2) on any violation — never silently normalized.
+The command runs without a confirmation prompt. It requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
 
-Exactly one of `--file` / `--json`. Files are read with a 1 MiB cap. Numbers are parsed
-losslessly, so a threshold or weight beyond the safe-integer range is rejected rather than rounded.
+**Input format.** The permission JSON is the same shape as [`permission show -o json`](show.md)'s `data` (`owner` / `witness` / `actives`; a key's `local` field may be omitted). You write the **contract-type names** for each active group's `operations`, not the raw bitmap — the CLI encodes it. A convenient way to produce a valid input is to export the current structure, edit it, and submit the file.
 
-### The permission JSON
+The structure is validated strictly before anything is built, and a violation is a usage error (exit `2`) rather than a silent normalisation. In particular a group's `threshold` may **not exceed the sum of its key weights** — an unreachable threshold is itself a lockout, so it is refused with `invalid_permission` (`owner.threshold exceeds the total key weight`). Thresholds and weights are parsed losslessly, so a value beyond the safe-integer range is rejected rather than rounded.
 
-```json
-{
-  "owner": {
-    "id": 0,
-    "name": "owner",
-    "threshold": 2,
-    "keys": [
-      { "address": "TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ", "weight": 1 },
-      { "address": "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2", "weight": 1 }
-    ]
-  },
-  "actives": [
-    {
-      "id": 2,
-      "name": "operations",
-      "threshold": 1,
-      "operations": [
-        "TransferContract",
-        "TransferAssetContract",
-        "VoteWitnessContract",
-        "FreezeBalanceV2Contract"
-      ],
-      "keys": [
-        { "address": "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2", "weight": 1 }
-      ]
-    }
-  ]
-}
+**Editing an exported structure.** `permission show -o json` emits both `operations` (contract-type names) and `operationsHex` (the raw bitmap) for each active group. Supplying both is allowed, but they must **agree** — two disagreeing descriptions of the same group would mean the structure you reviewed is not the structure that goes on chain, so the mismatch is refused. After editing `operations`, delete that group's `operationsHex` and the CLI regenerates it:
+
+```bash
+wallet-cli permission show -o json --network tron:nile | jq '.data' > perms.json
+# edit operations, then drop the stale operationsHex from the same active group
 ```
 
-| Field | Required | Rules |
-|---|---|---|
-| `address` | no | If present, must equal the selected account's address |
-| `owner` | **yes** | `id` must be `0`; must **not** define `operations` |
-| `witness` | no | `id` must be `1`; exactly one key; must **not** define `operations`; omit or `null` for non-SR accounts |
-| `actives` | no | At most 8 groups; ids `2`–`9` and unique; defaults to `[]` |
+Changing only `keys`, `threshold` or `name` needs no such deletion.
 
-Rules that apply to every group:
+⚠️ **The chain applies no safety checks.** Even if the new structure contains no key you can sign with, the transaction still succeeds and the account is permanently locked, with no on-chain recovery. This CLI surfaces two **local** warnings but does **not** block the submission (in JSON they go to `meta.warnings`, and `success` stays `true`):
 
-- `keys` — 1 to 5 entries, valid TRON addresses, **no duplicates**
-- `weight` — a positive safe integer
-- `threshold` — a positive safe integer that **may not exceed the sum of the group's key weights**
-  (an unreachable threshold is a lockout, so it is refused)
-- `name` — at most 32 UTF-8 bytes, no control characters; defaults to the group kind
-
-Active groups must grant at least one operation. Contract-type names are the TRON protocol names
-(`TransferContract`, `TriggerSmartContract`, `AccountPermissionUpdateContract`, …); an unrecognized
-one is refused rather than ignored. Use [`permission show`](show.md) on an existing account to see
-the exact spelling.
-
-### `operations` and `operationsHex`
-
-Normally you list `operations` and the bitmap is computed for you. You may also supply
-`operationsHex` — but then it must **agree** with `operations`, and any set bit that has no known
-contract type must be declared verbatim in `unknownOperationIds`:
-
-```json
-{ "id": 2, "name": "ops", "threshold": 1,
-  "operations": ["TransferContract"],
-  "operationsHex": "02000000000000000000000000000000000000000000000000000000000000c0",
-  "unknownOperationIds": [254, 255],
-  "keys": [{ "address": "T…", "weight": 1 }] }
-```
-
-This exists so a bitmap cannot quietly widen a permission while the human-readable `operations`
-list stays unchanged. A mismatch is `invalid_permission`.
-
-### Safety warnings
-
-Warnings are emitted into `meta.warnings` before the transaction is built. They do **not** block
-the update:
-
-| Code | Meaning |
-|---|---|
-| `owner_lockout` | Local keys hold **no** owner weight — applying this may permanently lock out this wallet |
-| `owner_lockout_partial` | Local keys hold less than the owner threshold — co-signers will be required |
-| `active_can_update_permission` | An active group can itself replace the permission structure |
-| `active_unknown_operations` | An active group grants contract types this build cannot name |
-| `permission_postcheck_mismatch` | After confirmation, the on-chain structure differs from what was requested |
-| `permission_postcheck_unavailable` | The update is confirmed on chain, but the re-read could not be performed (node lag, timeout, rate limit) — the receipt stands; verify with `permission show` |
-
-These entries use the `{code, message}` object form; see
-[reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
-
-The command also refuses to broadcast when the account balance is below the network's permission
-update fee (`insufficient_balance`) — this fee is substantial on mainnet, so check it with
-`--dry-run`.
+- **Lockout risk** — when the combined weight of your locally-signable owner keys (software / Ledger) is below the new owner threshold, a `!` line spells out that you can no longer meet the owner threshold on your own (`owner_lockout` if you hold no weight, `owner_lockout_partial` if you now need co-signers). Multi-party custody legitimately means "I alone can't reach the threshold", so this is a notice, not a block.
+- **Dangerous operations** — when an active group includes `Update Account Permissions` (that group could then change the permissions themselves, effectively owner-level), a `!` line flags it (`active_can_update_permission`).
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--file <path>` | Complete replacement permission JSON file (≤ 1 MiB) |
-| `--json <string>` | The same JSON inline |
-| `--dry-run` | Validate, build, and estimate without signing or broadcasting |
-| `--sign-only` | Build and sign, then output the complete transaction hex |
-| `--build-only` | Build and output unsigned transaction hex without unlocking |
-| `--permission-id <0-9>` | TRON permission group to sign with (0=owner, 1=witness, 2-9=active) — authorizes *this* update, not the structure being written; default `0` |
-| `--expiration <ms>` | Transaction expiration in ms, up to 86400000 (24h); only with `--sign-only` / `--build-only`; omitted = node default (~60s) |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
-| `--password-stdin` | Master password from stdin (software accounts) |
-
-`--dry-run`, `--sign-only`, and `--build-only` are mutually exclusive.
+| `--file <path>` | **Required** (one of). JSON file with the new structure (same shape as `permission show -o json` data); replaces the whole thing |
+| `--json <string>` | **Required** (one of). Inline JSON string with the new structure (same shape) |
+| `--dry-run` | Mock receipt — fee, resulting-structure card, and warnings — matching a real submission; no signature, no broadcast, no password. Excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Build and sign, output the signed hex without broadcasting (feed [`tx broadcast`](../tx/broadcast.md) for on-chain co-signing). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
+| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md) for service-relayed multi-sig). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only` |
+| `--permission-id <n>` | Permission group to sign with — changing permissions is owner-level, so normally `0` (default `0`) |
+| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-Always start here — validate and price the change without signing:
+In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
+
+Prepare the new structure by exporting, then editing (no need to hand-write the operations bitmap):
 
 ```bash
-wallet-cli permission update --file permissions.json --network tron:nile --dry-run
+wallet-cli permission show --network tron:nile -o json | jq '.data' > perms.json
+```
+
+```bash
+# edit perms.json — e.g. turn the owner group into a 2-of-3
+$EDITOR perms.json
+```
+
+Submit with `--wait`. The receipt is the transaction record plus the resulting on-chain structure (read back after confirmation, same cards as `permission show`), with any `!` warnings appended:
+
+```bash
+echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile --wait --password-stdin
 ```
 
 ```console
-⏳ Permission update dry run
-  Fee     100 TRX
-  Status  not submitted
-
-Account  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+✅ Permissions updated
+  Account  main (TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw)
+  TxID     b3c...
+  Block    #84,335,102
+  Fee      100.268 TRX
+  Status   success
 
 Permission Name   owner  (id 0)
 Threshold         2
 Authorized To     Address                             Weight
-                  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ       1  (this wallet: main)
-                  TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2       1
+                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
+                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
+                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
+
+Permission Name   finance  (id 2, active)
+Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract
+Threshold         2
+Authorized To     Address                             Weight
+                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
+                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
+                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
+
+! Your local keys now hold 1 of 2 owner weight — co-signers are required
+  for owner-level operations from now on.
 ```
 
-Apply it once the rendered structure is what you intended:
+The JSON receipt's `data.permissions` is **structurally identical** to `permission show`'s `data`, so you can diff it against the pre-change export; the lockout warning is in `meta.warnings` with `success` still `true`:
 
 ```bash
-echo "$PW" | wallet-cli permission update --file permissions.json \
-  --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile --wait --password-stdin -o json
 ```
 
-Build on an online machine, sign on an offline one:
-
-```bash
-wallet-cli permission update --file permissions.json --network tron:nile --build-only
-# → unsigned transaction hex; sign it with `tx sign --hex`, then `tx broadcast --hex`
-```
-
-A structure whose threshold cannot be met is refused, not submitted:
-
-```console
-error [invalid_permission]: owner.threshold exceeds the total key weight
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"permission.update","data":{"kind":"permission-update","stage":"confirmed","txId":"b3c...","confirmed":true,"blockNumber":84335102,"feeSun":100268000,"failed":false,"permissions":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]}},"meta":{"durationMs":6810,"warnings":[{"code":"owner_lockout_partial","message":"local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations"}]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
 
-| Field | Type | Meaning |
-|---|---|---|
-| `kind` | string | `"permission-update"` |
-| `stage` | string | `"submitted"` / `"confirmed"` / `"failed"` |
-| `mode` | string | `"dry-run"` / `"sign-only"` / `"build-only"` when a mode flag was used |
-| `txId` | string | Transaction id |
-| `hex` | string | Complete transaction hex (`--sign-only` / `--build-only`) |
-| `permissions` | object | The canonical structure — as requested for non-broadcast modes, as read back from the chain after confirmation. Same shape as [`permission show`](show.md) |
-| `blockNumber`, `feeSun` | — | Present after `--wait` |
+`data` varies by mode:
+
+| Mode | Fields |
+|---|---|
+| default (submit) | `kind: "permission-update"`, `stage: "submitted"`, `txId` |
+| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed`, and `permissions` (same shape as `permission show` data, read back from chain) |
+| `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (the 100 TRX change fee), and `permissions` (the resulting structure); no `txId` |
+| `--sign-only` | `kind`, `mode: "sign-only"`, `hex` (signed tx hex — feed `tx broadcast --hex`), `fee` |
+| `--build-only` | `kind`, `mode: "build-only"`, `hex` (unsigned tx hex — feed `tx multisig --create`), `fee` |
+
+Local warnings (`owner_lockout`, `owner_lockout_partial`, `active_can_update_permission`) are emitted before the transaction is built, appear in `meta.warnings` as `{code, message}` objects, and do not affect `success` — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
 
 ## Exit status
 
-`0` · `1` execution failure (`insufficient_balance`, `not_authorized`, `auth_failed`, node
-rejection) · `2` usage error — `invalid_permission` (any structural violation), neither/both of
-`--file` / `--json`, conflicting mode flags.
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`invalid_permission`, `not_authorized`, `watch_only_no_signer`, `wrong_password`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`).
+
+On a multi-sig account, a submission whose accumulated signature weight is below the permission threshold is refused **after signing and before broadcasting** with `not_authorized` (`signature threshold is not reached; missing N weight`) — nothing is sent and no fee is burned. Collect the remaining signatures through `--sign-only` + [`tx sign`](../tx/sign.md) and submit with [`tx broadcast`](../tx/broadcast.md) instead. `--sign-only` and `--build-only` still return a partial signature, which is how a co-signing flow starts.
 
 ## See also
 
-[`permission show`](show.md) · [`tx sign`](../tx/sign.md) · [`tx approvals`](../tx/approvals.md) ·
-[Security model](../../concepts/security.md)
+[`permission show`](show.md) · [`tx sign`](../tx/sign.md) · [`tx broadcast`](../tx/broadcast.md) · [`tx multisig`](../tx/multisig.md) · [Security](../../concepts/security.md)

@@ -1,65 +1,51 @@
 # wallet-cli contact remove
 
-Remove one recipient from the local address book.
+Remove a recipient from the contact book.
 
 ## Synopsis
 
 ```
-wallet-cli contact remove <name> [options]
+wallet-cli contact remove <name>
 ```
 
 ## Description
 
-Deletes a single contact. This is a purely local edit — it changes **no on-chain state**, moves no
-funds, and does not affect any transaction that already used the name.
-
-The lookup is case-insensitive, so the name may be given in any casing. An unknown name fails with
-`not_found` rather than silently succeeding.
-
-Use this to repoint a name at a different address: remove it, then
-[`contact add`](add.md) it again — [`contact add`](add.md) refuses to overwrite an existing entry.
-
-## Arguments
-
-- `name` — contact name to remove (positional)
+Deletes a recipient from the local address book. Local record only — nothing on-chain is affected. Purely local; no node access.
 
 ## Options
 
-Only the [global options](../index.md#global-options-every-command).
+No command-specific options; `name` is a positional argument, plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
 ```bash
-wallet-cli contact remove alice
+wallet-cli contact remove bob
 ```
 
 ```console
 ✅ Contact removed
-  Name     alice
-  Address  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+  Name     bob
+  Address  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz
 ```
 
-Removing a name that is not there:
+```bash
+wallet-cli contact remove bob -o json
+```
 
-```console
-error [not_found]: contact not found: alice
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"contact.remove","data":{"name":"bob","address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz"},"meta":{"durationMs":3,"warnings":[]}}
 ```
 
 ## Output
 
-`data` is the removed contact — the address is echoed so you can confirm what was dropped.
-
 | Field | Type | Meaning |
 |---|---|---|
-| `name` | string | Removed contact name |
-| `address` | string | Address it pointed to |
-| `note` | string \| null | The note, or `null` |
-| `family` | string | Chain family — `tron` |
+| `name` | string | The removed contact's name |
+| `address` | string | Its address |
 
 ## Exit status
 
-`0` · `1` execution failure (`insecure_permissions`, `encoding_error`) · `2` usage error
-(`not_found`, missing positional).
+`0` success · `1` execution failure (`not_found` — no such contact, `encoding_error`, `insecure_permissions`) · `2` usage error.
 
 ## See also
 

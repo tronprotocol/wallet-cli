@@ -19,8 +19,6 @@ Every command — including every subcommand — has its own page, following a f
 | `backup` | [backup.md](backup.md) |
 | `delete` | [delete.md](delete.md) |
 | `change-password` | [change-password.md](change-password.md) |
-| `address` (group) | [address/index.md](address/index.md) |
-| `address generate` | [address/generate.md](address/generate.md) |
 
 ## Transactions
 
@@ -28,29 +26,12 @@ Every command — including every subcommand — has its own page, following a f
 |---|---|
 | `tx` (group) | [tx/index.md](tx/index.md) |
 | `tx send` | [tx/send.md](tx/send.md) |
-| `tx sign` | [tx/sign.md](tx/sign.md) |
 | `tx broadcast` | [tx/broadcast.md](tx/broadcast.md) |
-| `tx approvals` | [tx/approvals.md](tx/approvals.md) |
-| `tx multisig` | [tx/multisig.md](tx/multisig.md) |
 | `tx status` | [tx/status.md](tx/status.md) |
 | `tx info` | [tx/info.md](tx/info.md) |
-
-## Multi-signature permissions
-
-| Command | Page |
-|---|---|
-| `permission` (group) | [permission/index.md](permission/index.md) |
-| `permission show` | [permission/show.md](permission/show.md) |
-| `permission update` | [permission/update.md](permission/update.md) *(can lock you out — read first)* |
-
-## Gas-free transfers
-
-| Command | Page |
-|---|---|
-| `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
-| `gasfree info` | [gasfree/info.md](gasfree/info.md) |
-| `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |
-| `gasfree trace` | [gasfree/trace.md](gasfree/trace.md) |
+| `tx sign` | [tx/sign.md](tx/sign.md) |
+| `tx approvals` | [tx/approvals.md](tx/approvals.md) |
+| `tx multisig` | [tx/multisig.md](tx/multisig.md) |
 
 ## On-chain queries
 
@@ -69,6 +50,14 @@ Every command — including every subcommand — has its own page, following a f
 | `chain prices` | [chain/prices.md](chain/prices.md) |
 | `chain node` | [chain/node.md](chain/node.md) |
 
+## Account permissions
+
+| Command | Page |
+|---|---|
+| `permission` (group) | [permission/index.md](permission/index.md) |
+| `permission show` | [permission/show.md](permission/show.md) |
+| `permission update` | [permission/update.md](permission/update.md) |
+
 ## Tokens and contracts
 
 | Command | Page |
@@ -79,11 +68,19 @@ Every command — including every subcommand — has its own page, following a f
 | `token add` | [token/add.md](token/add.md) |
 | `token list` | [token/list.md](token/list.md) |
 | `token remove` | [token/remove.md](token/remove.md) |
+| `contact` (group) | [contact/index.md](contact/index.md) |
+| `contact add` | [contact/add.md](contact/add.md) |
+| `contact list` | [contact/list.md](contact/list.md) |
+| `contact remove` | [contact/remove.md](contact/remove.md) |
 | `contract` (group) | [contract/index.md](contract/index.md) |
 | `contract call` | [contract/call.md](contract/call.md) |
 | `contract send` | [contract/send.md](contract/send.md) |
 | `contract deploy` | [contract/deploy.md](contract/deploy.md) |
 | `contract info` | [contract/info.md](contract/info.md) |
+| `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
+| `gasfree info` | [gasfree/info.md](gasfree/info.md) |
+| `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |
+| `gasfree trace` | [gasfree/trace.md](gasfree/trace.md) |
 
 ## Staking, voting, rewards
 
@@ -119,14 +116,10 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
+| `encoding convert` | [encoding/convert.md](encoding/convert.md) |
+| `address generate` | [address/generate.md](address/generate.md) |
 | `config` | [config.md](config.md) |
 | `networks` | [networks.md](networks.md) |
-| `contact` (group) | [contact/index.md](contact/index.md) |
-| `contact add` | [contact/add.md](contact/add.md) |
-| `contact list` | [contact/list.md](contact/list.md) |
-| `contact remove` | [contact/remove.md](contact/remove.md) |
-| `encoding` (group) | [encoding/index.md](encoding/index.md) |
-| `encoding convert` | [encoding/convert.md](encoding/convert.md) |
 
 ## Global options (every command)
 
@@ -139,15 +132,4 @@ Every command — including every subcommand — has its own page, following a f
 -h, --help / -V, --version
 ```
 
-Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000) and the mutually exclusive execution-mode flags:
-
-```
---dry-run                  build and estimate only — no signature, no broadcast
---sign-only                sign and output the complete transaction hex
---build-only               build unsigned transaction hex without unlocking
---permission-id <0-9>      TRON permission group authorizing this transaction (default 0)
---expiration <ms>          expiration duration, 1–86400000; only with --sign-only / --build-only
-```
-
-Not every broadcast command exposes all of these — `gasfree transfer` signs a TIP-712 authorization
-rather than building a TRON transaction, so it takes only `--dry-run`. Check the command's page.
+Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000), the early-exit modes `--dry-run` / `--sign-only` / `--build-only`, and the multi-sig options `--permission-id <n>` / `--expiration <ms>`.

@@ -1,6 +1,6 @@
 # wallet-cli tx approvals
 
-Show permission, signature approvals, current weight, and expiration.
+Show the sign-weight and approved-signer list of a transaction hex.
 
 ## Synopsis
 
@@ -10,71 +10,47 @@ wallet-cli tx approvals (--hex <hex> | --file <path>) [options]
 
 ## Description
 
-Answers the question every multi-signature workflow keeps asking: **is this transaction ready to
-broadcast yet, and if not, who still has to sign?**
+A read-only view of a transaction hex's co-signing progress: the permission group and threshold it uses, the accumulated weight so far, the list of signers who have already approved, how much weight is still missing, and the expiration. It's the "look before you sign" companion to [`tx sign`](sign.md) — same information, no signature, no account or password needed.
 
-Given a partially signed transaction artifact, it decodes the transaction, asks the node which
-permission group governs it, and reports:
+It needs a node (`--network`), because approval state — which signatures count, and for how much weight — is the chain's answer, not something derivable from the artifact alone. Files are read with a size cap of just over 1 MiB and must be regular files, not symlinks.
 
-- what the transaction actually does — contract type, from, to, amount
-- which permission group authorizes it, and that group's threshold
-- which signers have already approved, and the weight each contributes
-- the accumulated weight, the missing weight, and whether the threshold is reached
-- when the transaction expires — and whether it already has
-
-Read-only and wallet-independent: it signs nothing, unlocks nothing, and needs no account. `--hex`
-and `--file` are mutually exclusive; exactly one is required. Files are read with a size cap of just
-over 1 MiB, and must be regular files (not symlinks).
-
-It does need a node (`--network`), because approval state — which signatures count, and for how
-much weight — is the chain's answer, not something derivable from the artifact alone.
-
-An **expired** transaction is reported, not rejected: the output flags it and tells you to rebuild,
-because collecting further signatures on it would be wasted effort.
+An expired transaction is still queryable (no error): the text `Expires` line shows `expired <time>` with a `!` hint to re-initiate, and the JSON `expired` field is `true`.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--hex <string>` | Complete `protocol.Transaction` hex |
-| `--file <path>` | Read the transaction hex from a file |
+| `--hex <hex>` | **Required** (one of). Transaction hex string |
+| `--file <path>` | **Required** (one of). File containing the transaction hex |
 
-Plus the [global options](../index.md#global-options-every-command).
+Plus the [global options](../index.md#global-options-every-command) (`--network`).
 
 ## Examples
 
 ```bash
-wallet-cli tx approvals --file partially-signed.hex --network tron:nile
+wallet-cli tx approvals --file tx.hex --network tron:nile
 ```
 
 ```console
 Transaction
-  TxID        abc123…
-  Type        Transfer TRX (TransferContract) — 1 TRX
-  From        TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
-  To          TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
-  Permission  active "operations" (id 2)  threshold 2
-  Expires     2026-07-29 12:34:56 (in 58 minutes)
+  TxID        9c1...
+  Type        Transfer TRX — 1,000 TRX
+  From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  Permission  active "finance" (id 2)  threshold 2
+  Expires     2026-07-14 15:32 (~22h)
 
 Progress  1 / 2 — 1 more weight needed
-| Approved signer                    | Weight |
-| ---------------------------------- | ------ |
-| TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2 |      1 |
+  Approved signer                     Weight
+  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1
 ```
-
-Once enough weight has accumulated, the progress line says so instead:
-
-```console
-Progress  2 / 2 — threshold reached
-```
-
-Gate a broadcast on it in a script:
 
 ```bash
-if wallet-cli tx approvals --file signed.hex --network tron:nile -o json \
-   | jq -e '.data.thresholdReached and (.data.expired | not)' >/dev/null; then
-  wallet-cli tx broadcast --file signed.hex --network tron:nile
-fi
+wallet-cli tx approvals --file tx.hex --network tron:nile -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.approvals","data":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1}],"expiration":1784388720000,"expired":false,"signatures":1},"meta":{"durationMs":45,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -82,34 +58,22 @@ fi
 | Field | Type | Meaning |
 |---|---|---|
 | `txId` | string | Transaction id |
-| `contractType` | string | TRON contract type, e.g. `TransferContract` |
-| `operation` | string | Human label for that contract type, e.g. `Transfer TRX` |
-| `from` / `to` | string | Decoded parties, when the contract type exposes them |
-| `rawAmount` | string | Amount in base units, when applicable |
-| `tokenContract` | string | Token contract, for token transfers |
-| `permission.id` | number | Governing permission group id |
-| `permission.name` | string | Group name |
-| `permission.threshold` | number | Weight required |
-| `currentWeight` | number | Weight accumulated so far |
-| `missingWeight` | number | Weight still needed — `0` once reached |
-| `thresholdReached` | boolean | Whether it can be broadcast |
-| `approved[].address` | string | A signer that has approved |
-| `approved[].weight` | number | That signer's weight |
-| `signatures` | number | Raw signature count on the artifact |
-| `expiration` | number | Expiry, epoch ms |
-| `expired` | boolean | Whether it is already past |
-
-`signatures` counts signatures on the artifact; `currentWeight` is what the **node** counts toward
-the threshold. They differ when a signature is not from a key in the governing permission — that is
-exactly the case worth noticing.
+| `contractType` | string | Raw contract-type enum (e.g. `TransferContract`) |
+| `from` / `to` | string | Sender / recipient |
+| `rawAmount` | string | Raw integer amount; units follow the contract type (SUN for TRX, token base units for TRC20/TRC10) |
+| `operation` | string | Human operation name, e.g. `Transfer TRX` |
+| `signatures` | number | How many signatures the artifact currently carries |
+| `permission` | object | The signing group: `{id, name, threshold}` |
+| `currentWeight` / `missingWeight` | number | Accumulated weight so far / weight still needed |
+| `thresholdReached` | boolean | Whether the threshold is met |
+| `approved[]` | array | Signers who have approved: `{address, weight}` |
+| `expiration` | number | Expiry (epoch ms) |
+| `expired` | boolean | Whether it has already expired |
 
 ## Exit status
 
-`0` — including when the threshold is *not* reached: the query succeeded, so branch on
-`data.thresholdReached`, not on the exit code · `1` execution failure (node unreachable,
-undecodable transaction) · `2` usage error (neither/both of `--hex` / `--file`).
+`0` success · `1` execution failure (`invalid_transaction`, `rpc_error`) · `2` usage error (`invalid_value`).
 
 ## See also
 
-[`tx sign`](sign.md) · [`tx broadcast`](broadcast.md) ·
-[`tx multisig`](multisig.md) · [`permission show`](../permission/show.md)
+[`tx sign`](sign.md) · [`tx broadcast`](broadcast.md) · [`permission show`](../permission/show.md)
