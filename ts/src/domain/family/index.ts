@@ -10,14 +10,10 @@
  */
 import { type AddressCodec, TronAddress } from "../address/index.js";
 
-/**
- * The family identity: the named, value-level enum of chain families. Prefer `ChainFamily.tron`
- * over the bare `"tron"` string in comparisons/switches. Kept as a const-object (not a TS `enum`)
- * so the derived type stays a plain `"tron"` string union — bare strings (config data,
- * CLI/RPC boundaries) remain assignable, and references can migrate incrementally.
- */
-export const ChainFamily = { tron: "tron" } as const;
-export type ChainFamily = (typeof ChainFamily)[keyof typeof ChainFamily];
+/** The family identity itself lives in a dependency-free module; re-exported here so the registry
+ *  stays the one place callers import family facts from. */
+export { ChainFamily } from "./chain-family.js";
+import type { ChainFamily } from "./chain-family.js";
 
 export interface FamilyMeta {
   family: ChainFamily;

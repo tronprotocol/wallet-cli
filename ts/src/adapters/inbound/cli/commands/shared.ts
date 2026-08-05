@@ -10,10 +10,20 @@ import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 
 // ── execution-mode flags shared by every signing command ─────────────────────────
-/** dry-run / sign-only fields; default (no flag) = sign AND broadcast on-chain. */
+/** Transaction execution fields; default (no mode flag) = sign and broadcast on-chain. */
 export const txModeFields = {
-  dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast; mutually exclusive with --sign-only"),
-  signOnly: z.boolean().default(false).describe("sign and output the transaction without broadcasting; mutually exclusive with --dry-run; broadcast later with tx broadcast"),
+  dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast"),
+  signOnly: z.boolean().default(false).describe("sign and output complete transaction hex without broadcasting"),
+  // Both multi-sig routes start from this artifact: the hex relay (`tx sign --file --out`) and the
+  // TronLink queue (`tx multisig --create`). Naming only one would read as "service path only".
+  buildOnly: z.boolean().default(false)
+    .describe("build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)"),
+  permissionId: z.coerce.number().int().min(0).max(9).default(0)
+    .describe("TRON permission group to sign with (0=owner, 1=witness, 2-9=active)"),
+  // The 24h bound is the chain's, enforced by max() above; the omitted case is the node's own
+  // ~60s, which is why extending it is the whole point of this flag when collecting signatures.
+  expiration: z.coerce.number().int().min(1).max(86_400_000).optional()
+    .describe("transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)"),
 };
 // ── unified --amount / --raw-amount selector (shared by every chain's `tx send`) ────
 // A transfer of 0 is meaningless on any chain — reject it here (exit 2) rather than let the node
@@ -38,7 +48,7 @@ export function amountSelector(v: { amount?: string; rawAmount?: string }, ctx: 
 }
 
 const messageSignFields = z.object({
-  message: z.string().min(1).optional().describe("message text to sign; provide this OR --message-stdin; exactly one is required"),
+  message: z.string().min(1).optional().describe("message text to sign"),
 });
 
 export const messageSignSpec: ChainSpec = {
@@ -50,6 +60,8 @@ export const messageSignSpec: ChainSpec = {
   capability: "message.sign",
   summary: "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
   baseFields: messageSignFields,
+  // SecretResolver.pick enforces this: both sources → invalid_option, neither → missing_option.
+  exclusive: [{ label: "the message to sign", flags: ["message", "message-stdin"], select: "exactly-one" }],
   examples: [{ cmd: `wallet-cli message sign --message "hello"` }],
   formatText: TextFormatters.messageSign,
 };

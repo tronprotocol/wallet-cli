@@ -198,6 +198,37 @@ describe("Ledger unsupported instruction (0x6d00)", () => {
   });
 });
 
+describe("Ledger incorrect data (0x6a80)", () => {
+  // The TRON app parses a fixed set of contract types (app-tron src/parse.c); anything else — e.g.
+  // AccountCreateContract, SetAccountIdContract — hits the parser's `default: return USTREAM_FAULT`,
+  // which the sign handler answers with E_INCORRECT_DATA (0x6a80). The "Sign by Hash" fallback lives
+  // in the *display* switch and is only reached after a successful parse, so no setting rescues it.
+  // Unmapped, this surfaced as auth_required + a raw "UNKNOWN_ERROR (0x6a80)" — the wrong category
+  // and an unreadable message.
+  it("maps E_INCORRECT_DATA to ledger_unsupported instead of auth_required", async () => {
+    const apdu = Object.assign(new Error("Ledger device: UNKNOWN_ERROR (0x6a80)"), { statusCode: 0x6a80 });
+    failures.tip712 = apdu;
+    let err: unknown;
+    try {
+      await new Ledger(2000).signTypedData("tron", PATH, {
+        domain: { name: "X", version: "1", chainId: 1 },
+        types: { A: [{ name: "x", type: "uint256" }] },
+        message: { x: "1" },
+      });
+    } catch (e) {
+      err = e;
+    } finally {
+      failures.tip712 = undefined;
+    }
+    const m = err as { code?: string; message: string };
+    expect(m.code).toBe("ledger_unsupported");
+    // 0x6a80 also covers a malformed payload (bad protobuf, out-of-range permission id), so the
+    // message must not claim the contract type is the only cause.
+    expect(m.message).toMatch(/could not decode/i);
+    expect(m.message).toMatch(/unsupported|malformed/i);
+  });
+});
+
 describe("Ledger TIP-712", () => {
   const domain = { name: "SunPerp", version: "1", chainId: 728126428 };
   const types = { Order: [{ name: "trader", type: "address" }, { name: "size", type: "uint256" }] };

@@ -5,43 +5,46 @@ Broadcast a presigned transaction.
 ## Synopsis
 
 ```
-wallet-cli tx broadcast (--transaction <json> | --tx-stdin) --network <id> [options]
+wallet-cli tx broadcast (--hex <hex> | --file <path> | --transaction <json> | --tx-stdin)
+                        [--dry-run] --network <id> [options]
 ```
 
 ## Description
 
-Submits a transaction that was signed elsewhere — typically the `data.signed` object from [`tx send --sign-only`](send.md) on an offline or key-holding machine. No wallet unlock is needed; the transaction is already signed.
+Submits a transaction that was signed elsewhere. No wallet unlock is needed; the transaction is already signed. The signed input can be **hex** — `--hex` inline or `--file` from a file (the format emitted by `--sign-only` and `tx sign`) — or **JSON** — `--transaction` inline or `--tx-stdin` from stdin. Exactly one of the four; prefer `--file` for long hex.
 
-A presigned transaction carries no network of its own, so pass `--network` to say which network to broadcast to (falls back to the config default network when omitted). Exactly one of `--transaction` / `--tx-stdin`.
+A presigned transaction carries no network of its own, so pass `--network` to say which network to broadcast to (falls back to the config default network when omitted).
+
+### Validation before submission
+
+Broadcasting is not blind. Whatever form the transaction arrives in, it is decoded and checked first, and a transaction that cannot succeed is rejected locally instead of being sent:
+
+- **expired** → `tx_expired`
+- **insufficient signature weight** → `not_authorized`, naming the missing weight
+
+That check is what makes this safe as the last step of a multi-signature workflow: a transaction that has not yet reached its permission threshold never reaches the node.
+
+> A transaction with more than one signature incurs an extra **1 TRX multi-sig fee** on-chain at broadcast; it is reported as `multiSignFeeSun` in both dry-run and real broadcasts.
 
 ## Options
 
 | Option | Description |
 |---|---|
+| `--hex <hex>` | Signed transaction hex inline |
+| `--file <path>` | File containing the signed transaction hex (size-capped at just over 1 MiB) |
 | `--transaction <string>` | Signed TRON transaction JSON inline |
 | `--tx-stdin` | Read the signed transaction JSON from stdin (fd 0) |
+| `--dry-run` | Validate signatures, threshold, expiration, and the dynamic multi-sig fee **without broadcasting**; cannot be combined with `--wait` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000) |
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-Two-machine flow:
+Broadcast a signed hex from a file:
 
 ```bash
-# Signer (offline / key-holding): --sign-only emits the signed tx under data.signed
-wallet-cli tx send --to T... --amount 1 --network tron:nile --sign-only -o json
-
-# Take the data.signed object from that output, save it as signed.json, copy to the broadcaster
-
-# Broadcaster: read from stdin and broadcast
-wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
-```
-
-Broadcast receipt (text and json):
-
-```bash
-wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
+wallet-cli tx broadcast --file tx.signed.hex --network tron:nile
 ```
 
 ```console
@@ -49,6 +52,12 @@ wallet-cli tx broadcast --tx-stdin --network tron:nile < signed.json
   TxID    72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
   Status  pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:nile --txid 72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
+```
+
+Or inline hex, and the JSON receipt:
+
+```bash
+wallet-cli tx broadcast --hex 0a02...9f31 --network tron:nile -o json
 ```
 
 ```json
@@ -68,7 +77,7 @@ As with `tx send`, the default return point is **submission** — confirm via `-
 
 ## Exit status
 
-`0` submitted · `1` execution failure (node rejected the tx, timeout) · `2` usage error (both/neither transaction sources).
+`0` submitted · `1` execution failure (node rejected the tx, timeout) · `2` usage error (more than one, or none, of the input sources).
 
 ## See also
 
