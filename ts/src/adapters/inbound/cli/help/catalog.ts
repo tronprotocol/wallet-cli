@@ -81,6 +81,7 @@ export function buildCatalog(registry: CommandRegistry, version: string, familyF
           requires: { network: cmd.spec.network, auth: cmd.spec.auth, wallet: cmd.spec.wallet },
           ...(cmd.spec.capability ? { capability: cmd.spec.capability } : {}),
           examples: cmd.spec.examples.map((e: { cmd: string }) => e.cmd),
+          ...(cmd.spec.exclusive?.length ? { exclusive: cmd.spec.exclusive } : {}),
           ...(cmd.spec.stdin ? { inputFlags: inputFlagsFor(cmd.spec) } : {}),
           inputSchema: commandInputSchema(mergedInput(cmd)),
         }
@@ -93,6 +94,7 @@ export function buildCatalog(registry: CommandRegistry, version: string, familyF
           requires: { network: cmd.network, auth: cmd.auth, wallet: cmd.wallet },
           ...(cmd.capability ? { capability: cmd.capability } : {}),
           examples: cmd.examples.map((e: { cmd: string }) => e.cmd),
+          ...(cmd.exclusive?.length ? { exclusive: cmd.exclusive } : {}),
           ...(inputFlagsFor(cmd).length ? { inputFlags: inputFlagsFor(cmd) } : {}),
           inputSchema: commandInputSchema(cmd.input),
         })

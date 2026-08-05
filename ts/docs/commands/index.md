@@ -26,10 +26,12 @@ Every command — including every subcommand — has its own page, following a f
 |---|---|
 | `tx` (group) | [tx/index.md](tx/index.md) |
 | `tx send` | [tx/send.md](tx/send.md) |
-| `tx sign` | [tx/sign.md](tx/sign.md) |
 | `tx broadcast` | [tx/broadcast.md](tx/broadcast.md) |
 | `tx status` | [tx/status.md](tx/status.md) |
 | `tx info` | [tx/info.md](tx/info.md) |
+| `tx sign` | [tx/sign.md](tx/sign.md) |
+| `tx approvals` | [tx/approvals.md](tx/approvals.md) |
+| `tx multisig` | [tx/multisig.md](tx/multisig.md) |
 
 ## On-chain queries
 
@@ -40,11 +42,21 @@ Every command — including every subcommand — has its own page, following a f
 | `account info` | [account/info.md](account/info.md) |
 | `account history` | [account/history.md](account/history.md) |
 | `account portfolio` | [account/portfolio.md](account/portfolio.md) |
+| `account activate` | [account/activate.md](account/activate.md) |
+| `account set` | [account/set.md](account/set.md) |
 | `block` | [block.md](block.md) |
 | `chain` (group) | [chain/index.md](chain/index.md) |
 | `chain params` | [chain/params.md](chain/params.md) |
 | `chain prices` | [chain/prices.md](chain/prices.md) |
 | `chain node` | [chain/node.md](chain/node.md) |
+
+## Account permissions
+
+| Command | Page |
+|---|---|
+| `permission` (group) | [permission/index.md](permission/index.md) |
+| `permission show` | [permission/show.md](permission/show.md) |
+| `permission update` | [permission/update.md](permission/update.md) |
 
 ## Tokens and contracts
 
@@ -56,11 +68,19 @@ Every command — including every subcommand — has its own page, following a f
 | `token add` | [token/add.md](token/add.md) |
 | `token list` | [token/list.md](token/list.md) |
 | `token remove` | [token/remove.md](token/remove.md) |
+| `contact` (group) | [contact/index.md](contact/index.md) |
+| `contact add` | [contact/add.md](contact/add.md) |
+| `contact list` | [contact/list.md](contact/list.md) |
+| `contact remove` | [contact/remove.md](contact/remove.md) |
 | `contract` (group) | [contract/index.md](contract/index.md) |
 | `contract call` | [contract/call.md](contract/call.md) |
 | `contract send` | [contract/send.md](contract/send.md) |
 | `contract deploy` | [contract/deploy.md](contract/deploy.md) |
 | `contract info` | [contract/info.md](contract/info.md) |
+| `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
+| `gasfree info` | [gasfree/info.md](gasfree/info.md) |
+| `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |
+| `gasfree trace` | [gasfree/trace.md](gasfree/trace.md) |
 
 ## Staking, voting, rewards
 
@@ -96,6 +116,8 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
+| `encoding convert` | [encoding/convert.md](encoding/convert.md) |
+| `address generate` | [address/generate.md](address/generate.md) |
 | `config` | [config.md](config.md) |
 | `networks` | [networks.md](networks.md) |
 
@@ -110,4 +132,4 @@ Every command — including every subcommand — has its own page, following a f
 -h, --help / -V, --version
 ```
 
-Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000) and `--dry-run` / `--sign-only`.
+Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000), the early-exit modes `--dry-run` / `--sign-only` / `--build-only`, and the multi-sig options `--permission-id <n>` / `--expiration <ms>`.

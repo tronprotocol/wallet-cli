@@ -45,5 +45,10 @@ module.exports = {
     doNotFollow: { path: "node_modules" },
     tsConfig: { fileName: "tsconfig.json" },
     enhancedResolveOptions: { extensions: [".ts", ".js"] },
+    // `import type` is erased at build time, so without this the rules above only see the graph
+    // that survives compilation — and a boundary violation carrying only a type is still one: it
+    // names a concrete implementation where a port belongs, and it is what a later refactor turns
+    // into a runtime edge.
+    tsPreCompilationDeps: true,
   },
 };

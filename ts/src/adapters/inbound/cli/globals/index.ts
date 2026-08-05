@@ -47,11 +47,13 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
   { name: "account", kind: "value", valueType: "string",
     description: "accountId, label, or address for wallet-bound commands; falls back to the active account set by use" },
   { name: "timeout", kind: "value", valueType: "number", field: "timeoutMs", min: 1,
-    description: "per RPC/device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 60000)" },
+    description: "per node, service, or device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 60000)" },
   { name: "verbose", alias: "v", kind: "boolean",
     description: "show extra diagnostic output", defaultValue: false },
+  // Shown verbatim on every submitting command, including `gasfree transfer`, which submits to the
+  // GasFree service rather than broadcasting and returns a trace id — so this stays on "submitted".
   { name: "wait", kind: "boolean",
-    description: "after broadcast, poll until the tx is confirmed/failed before returning; default returns the submitted txid without blocking", defaultValue: false },
+    description: "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking", defaultValue: false },
   { name: "wait-timeout", kind: "value", valueType: "number", field: "waitTimeoutMs",
     description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt", defaultValue: "config.waitTimeoutMs (built-in: 60000)" },
   { name: "password-stdin", kind: "secret-stdin", secretKey: "password",

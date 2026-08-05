@@ -2,6 +2,8 @@ import type { TxInfoView, TxReceiptKind, TxReceiptView, TxStatusView } from "../
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js"
 import { ChainFamily } from "../../../../domain/family/index.js"
 import { fromBaseUnits } from "../../../../domain/amounts/index.js"
+import type { TxApprovalView } from "../../../../domain/types/index.js"
+import { renderApproval } from "./approval.js"
 import { formatScalar, formatInt, formatSun, num, shorten, methodName } from "./scalars.js"
 import { type Pair, asObj, query, receipt, ok, fail, pending, unknown } from "./layout.js"
 import { FAMILY_RENDER, renderFamily } from "./family.js"
@@ -33,12 +35,24 @@ export const TxFormatters = {
 function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx)
   if (r.mode === "dry-run") {
-    return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
+    // receiptRows already states a multi-sign fee; only estimated fees need their own row here.
+    const body = receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
+      ...receiptRows(r),
+      ...(r.multiSignFeeSun === undefined ? [["Fee", formatFee(r.fee, family)] as Pair] : []),
+      ["Tx", summarizeTx(r.tx ?? r.transaction)],
+    ])
+    // `tx broadcast --dry-run` resolves the full approval state to decide broadcastability; show
+    // it rather than leaving text with a fee line while json carries permission and progress.
+    return r.transaction ? `${body}\n\n${renderApproval(r.transaction as TxApprovalView)}` : body
+  }
+  if (r.mode === "build-only") {
+    return r.hex ?? receipt(pending(), `Built ${actionLabel(r.kind)}`, [
       ["Fee", formatFee(r.fee, family)],
       ["Tx", summarizeTx(r.tx)],
     ])
   }
   if (r.mode === "sign-only") {
+    if (r.hex) return r.hex
     // kv() drops empty rows, so a fee-less signature (tx sign estimates nothing) omits the Fee line.
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
       ["Address", r.address ?? ""],
@@ -135,18 +149,37 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
     // switch total over TxReceiptKind.
     case "sign":
       return "Signed"
+    case "permission-update":
+      return "Permissions updated"
+    case "account-activate":
+      return "Account activated"
+    case "account-set":
+      return `On-chain ${r.field ?? "account field"} set`
   }
 }
 
 /** action-specific extra rows (To/From/Address/Contract), by kind. */
 function receiptRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = []
+  // `undefined` means "not a multi-sig broadcast"; 0 is a real answer (single signature,
+  // no extra fee) and must still be stated rather than silently dropped as falsy.
+  if (r.multiSignFeeSun !== undefined) rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`])
   if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
   else if (r.kind === "stake-undelegate") rows.push(["From", String(r.receiver ?? "")])
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])
   else if (r.kind === "vote-cast" && Array.isArray(r.votes)) rows.push(["Votes", r.votes.map((vote) => `${vote.witness}=${formatInt(vote.count)}`).join(", ")])
   else if (r.kind === "reward-withdraw") rows.push(["Amount", `${formatSun(r.rewardSun ?? r.withdrawnSun ?? 0)} TRX`])
-  else if (r.to ?? r.receiver) rows.push(["To", String(r.to ?? r.receiver)])
+  else if (r.kind === "account-activate") {
+    rows.push(["Address", String(r.address ?? "")])
+    rows.push(["Payer", String(r.payer ?? "")])
+  } else if (r.kind === "account-set") {
+    rows.push(["Address", String(r.address ?? "")])
+    rows.push([r.field === "id" ? "ID" : "Name", String(r.value ?? "")])
+  }
+  else if (r.to ?? r.receiver) {
+    const address = String(r.to ?? r.receiver)
+    rows.push(["To", r.toContact ? `${r.toContact} (${address})` : address])
+  }
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")])
   return rows
 }
@@ -198,6 +231,12 @@ function actionLabel(kind: TxReceiptKind): string {
       return "vote cast"
     case "reward-withdraw":
       return "reward withdraw"
+    case "permission-update":
+      return "permission update"
+    case "account-activate":
+      return "account activate"
+    case "account-set":
+      return "account set"
   }
 }
 
@@ -207,6 +246,10 @@ function formatFee(fee: unknown, family: ChainFamily): string {
     const f = asObj(fee)
     if (f.feeSun) return `${formatSun(f.feeSun)} TRX`
     if (f.bandwidthBurnSunIfNoFreeze) return `${formatSun(f.bandwidthBurnSunIfNoFreeze)} TRX`
+    // account activate: the fee is derived from two chain parameters rather than quoted by the
+    // node, so it arrives as its components plus their sum. Show the sum — the same single total
+    // the confirmed receipt prints — and leave the breakdown to json.
+    if (f.minimumFeeSun !== undefined) return `${formatSun(f.minimumFeeSun)} TRX`
     // energy estimate (TRC20/contract via estimateResources): no sun figure — staked energy may
     // cover it. Report the estimated energy + whether the account's available energy covers it.
     if (f.energy !== undefined) {
@@ -216,6 +259,10 @@ function formatFee(fee: unknown, family: ChainFamily): string {
       return `~${energy.toLocaleString()} energy${covered}`
     }
     if (f.note) return String(f.note)
+    // An unrecognised fee object must not reach feeFallback: that formats a scalar sun amount and
+    // would stringify the object into "[object Object]". Saying "unknown" is honest, and it keeps
+    // a fee shape added later from silently rendering as garbage instead of failing visibly.
+    return "unknown"
   }
   return FAMILY_RENDER[family].feeFallback(fee)
 }
@@ -236,5 +283,5 @@ function signatureRows(signed: unknown): Pair[] {
 function summarizeTx(tx: unknown): string {
   if (!tx || typeof tx !== "object") return formatScalar(tx)
   const o = asObj(tx)
-  return shorten(String(o.txid ?? o.txID ?? o.hash ?? JSON.stringify(o)))
+  return shorten(String(o.txid ?? o.txID ?? o.txId ?? o.hash ?? JSON.stringify(o)))
 }

@@ -19,6 +19,14 @@ Anything in a command's arguments or environment leaks into shell history, `ps` 
 
 Corollary for scripts: source the piped secret from a secret store, not from a tracked file. See [machine-interface → Secret handling](../machine-interface.md#secret-handling).
 
+## Chain data cannot repaint your terminal
+
+Several fields you read before approving something are written by whoever put them on chain, or by a third-party service — permission names, token names and symbols, co-signer labels. In text mode every output frame is neutralised before it reaches the terminal: ANSI/OSC control bytes are stripped, and invisible formatting characters are replaced by a visible escape such as `<U+202E>`.
+
+That escape matters. `U+202E` reverses the display order of everything after it, which would let a permission name change how the address or weight printed beside it appears; zero-width characters can make two different names render identically. `<U+200B>` or `<U+202E>` appearing in a name means the underlying string really contains it — a red flag, not a rendering glitch. Ordinary right-to-left text (Arabic, Hebrew) contains no such characters and displays normally.
+
+JSON output is never rewritten: machine consumers receive the bytes as they arrived and neutralise them themselves before display.
+
 ## Error output is redaction-safe
 
 Unexpected internal exceptions are collapsed to a generic `internal_error` message before reaching the output envelope, so a third-party library error that happens to echo key material can never leak through a result or a log that captured it.

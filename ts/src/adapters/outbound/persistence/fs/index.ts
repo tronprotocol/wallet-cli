@@ -51,12 +51,7 @@ export class AtomicFileStore {
   }
 
   writeJson(path: string, value: unknown): void {
-    mkdirSync(dirname(path), { recursive: true });
-    const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
-    writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
-    this.fsyncFile(tmp); // durably land the content before the rename that publishes it
-    renameSync(tmp, path); // atomic replace on same filesystem
-    this.fsyncDir(dirname(path)); // durably land the rename (the directory entry)
+    this.writeText(path, JSON.stringify(value, null, 2) + "\n");
   }
 
   /** transactional multi-file write: stage every temp first, then commit each into place while
@@ -76,7 +71,7 @@ export class AtomicFileStore {
       }
     } catch (e) {
       for (const { tmp } of staged) { try { unlinkSync(tmp); } catch { /* best-effort */ } }
-      throw e;
+      throwIoError(e, "could not stage atomic JSON write");
     }
 
     // commit phase: back up each existing target, then move its temp into place.
@@ -123,7 +118,7 @@ export class AtomicFileStore {
           { error: String(e), fsyncError: String(fsyncErr), files: committed.map((c) => c.path).join(", ") },
         );
       }
-      throw e; // clean rollback: every target restored to its prior state
+      throwIoError(e, "atomic JSON write failed and was rolled back");
     }
     // durably land every committed rename before reporting success (still not multi-file atomic —
     // that needs the journal in CP-01 — but each installed blob now survives power loss).
@@ -178,12 +173,26 @@ export class AtomicFileStore {
   }
 
   writeText(path: string, text: string): void {
-    mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
-    writeFileSync(tmp, text, { mode: 0o600 });
-    this.fsyncFile(tmp);
-    renameSync(tmp, path);
-    this.fsyncDir(dirname(path));
+    let published = false;
+    try {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(tmp, text, { mode: 0o600 });
+      this.fsyncFile(tmp);
+      renameSync(tmp, path);
+      published = true;
+      this.fsyncDir(dirname(path));
+    } catch (error) {
+      if (!published) {
+        try { unlinkSync(tmp); } catch { /* best-effort */ }
+      }
+      throwIoError(
+        error,
+        published
+          ? "atomic text write committed but durability could not be confirmed"
+          : "could not complete atomic text write",
+      );
+    }
   }
 
   withLock<T>(path: string, fn: () => T, opts: { timeoutMs?: number; staleMs?: number } = {}): T {
@@ -221,4 +230,13 @@ export class AtomicFileStore {
   }
 
   #counter = 0;
+}
+
+function throwIoError(error: unknown, message: string): never {
+  if (error instanceof ExecutionError) throw error;
+  const code = (error as NodeJS.ErrnoException)?.code;
+  if (typeof code === "string") {
+    throw new ExecutionError("io_error", message, { code });
+  }
+  throw error;
 }

@@ -7,6 +7,10 @@ import { AtomicFileStore } from "../persistence/fs/index.js";
 import type { TokenEntry } from "../../../domain/types/index.js";
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // official mainnet
+const NILE_OFFICIAL: TokenEntry[] = [
+  { kind: "trc20", id: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf", symbol: "USDT", decimals: 6, name: "Tether USD" },
+  { kind: "trc20", id: "TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt", symbol: "USDD", decimals: 18, name: "Usdd Stablecoin" },
+];
 const REF = "wlt_abc.0";
 const customToken: TokenEntry = { kind: "trc20", id: "TCustomContractXXXXXXXXXXXXXXXXXXXX", symbol: "CUS", decimals: 8, name: "Custom" };
 
@@ -30,18 +34,23 @@ describe("TokenBook", () => {
     tb = freshBook();
   });
 
-  it("official layer ships USDT/USDC on mainnet, empty on nile", () => {
-    expect(tb.official("tron:mainnet").map((t) => t.symbol)).toEqual(["USDT", "USDC"]);
-    expect(tb.official("tron:nile")).toEqual([]);
+  it("official layer ships stablecoins on mainnet/nile, empty on shasta", () => {
+    expect(tb.official("tron:mainnet").map((t) => t.symbol)).toEqual(["USDT", "USDC", "USDD"]);
+    expect(tb.official("tron:nile")).toEqual(NILE_OFFICIAL);
+    expect(tb.official("tron:shasta")).toEqual([]);
   });
 
   it("add() appends to the user layer; effective() unions official-first + tags source", () => {
     expect(tb.add("tron:nile", REF, customToken)).toBe("added");
     const eff = tb.effective("tron:nile", REF);
-    expect(eff).toEqual([{ ...customToken, source: "user" }]);
+    expect(eff).toEqual([
+      ...NILE_OFFICIAL.map((t) => ({ ...t, source: "official" })),
+      { ...customToken, source: "user" },
+    ]);
 
     const onMainnet = tb.effective("tron:mainnet", REF);
-    expect(onMainnet.map((t) => `${t.source}:${t.symbol}`)).toEqual(["official:USDT", "official:USDC"]);
+    expect(onMainnet.map((t) => `${t.source}:${t.symbol}`))
+      .toEqual(["official:USDT", "official:USDC", "official:USDD"]);
   });
 
   it("add() of an official token → token_already_listed", () => {
@@ -52,7 +61,7 @@ describe("TokenBook", () => {
     tb.add("tron:nile", REF, customToken);
     const action = tb.add("tron:nile", REF, { ...customToken, symbol: "NEW", decimals: 2 });
     expect(action).toBe("refreshed");
-    const eff = tb.effective("tron:nile", REF);
+    const eff = tb.effective("tron:nile", REF).filter((t) => t.source === "user");
     expect(eff).toHaveLength(1);
     expect(eff[0]).toMatchObject({ symbol: "NEW", decimals: 2, source: "user" });
   });

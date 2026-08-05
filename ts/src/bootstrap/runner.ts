@@ -1,19 +1,57 @@
 import { hideBin } from "yargs/helpers"
-import type { ExitCode } from "../domain/types/index.js"
+import type { ExitCode, OutputMode } from "../domain/types/index.js"
 import { normalizeError, UsageError } from "../domain/errors/index.js"
+import { redactErrorMessage } from "../domain/errors/redact.js"
 import { HelpService, hasMeta } from "../adapters/inbound/cli/help/index.js"
 import { buildCli } from "../adapters/inbound/cli/shell/index.js"
+import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js"
+import { StreamManager } from "../adapters/inbound/cli/stream/index.js"
 import { hasCommand, parseGlobals } from "./argv.js"
 import { composeCliRuntime } from "./composition.js"
 
-export const VERSION = "4.10.1"
+export const VERSION = "4.11.0"
+
+/**
+ * Report a failure raised while the composition root was still being built — an unreadable,
+ * insecure, or malformed `config.yaml`. These happen before the runtime exists, so they cannot use
+ * the normal error path, and without this they escape `main()` entirely and land on the last-resort
+ * guard in `index.ts` as a bare `fatal:` line at exit 1 — no envelope, and the wrong exit code for
+ * what is a UsageError.
+ *
+ * Everything here depends on argv alone: the config that would have supplied the default output
+ * mode is precisely what failed, so only an explicit `-o` is honoured and text is the fallback.
+ * `normalizeError` still does the redacting — a YAML parse error quotes the offending line, which
+ * may sit next to a service credential, so it is classified to a generic `internal_error` rather
+ * than surfaced.
+ */
+function reportBootstrapFailure(
+  error: unknown,
+  globals: { output?: OutputMode; verbose?: boolean },
+  startedAt: number,
+): ExitCode {
+  const output = globals.output ?? "text"
+  const normalized = normalizeError(error)
+  const streams = new StreamManager(output, globals.verbose ?? false)
+  if (normalized.code === "internal_error") {
+    // same --verbose-gated escape hatch the main path offers, minus paths/URLs
+    streams.diagnostic("debug", `bootstrap error: ${redactErrorMessage(String(error))}`)
+  }
+  createOutputFormatter(output, streams, startedAt).error(normalized)
+  return normalized.exitCode()
+}
 
 /** Execute one CLI invocation. Dependency construction is delegated to the composition root. */
 export async function main(argv: string[]): Promise<ExitCode> {
   const startedAt = Date.now()
   const tokens = hideBin(argv)
   const { globals, secretPaths, invalid } = parseGlobals(tokens)
-  const runtime = composeCliRuntime({ globals, secretPaths, startedAt })
+
+  let runtime: ReturnType<typeof composeCliRuntime>
+  try {
+    runtime = composeCliRuntime({ globals, secretPaths, startedAt })
+  } catch (error) {
+    return reportBootstrapFailure(error, globals, startedAt)
+  }
 
   try {
     if (hasMeta(tokens) || !hasCommand(tokens)) {
