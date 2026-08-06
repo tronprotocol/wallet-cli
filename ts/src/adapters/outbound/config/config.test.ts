@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
 
-function envWithConfig(yaml: string): NodeJS.ProcessEnv {
+function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
-  writeFileSync(join(root, "config.yaml"), yaml);
+  const path = join(root, "config.yaml");
+  writeFileSync(path, yaml);
+  if (mode !== undefined) chmodSync(path, mode);
   return { ...process.env, WALLET_CLI_HOME: root };
 }
 
@@ -25,6 +27,32 @@ describe("ConfigLoader defaultNetwork", () => {
   it("does not resolve hidden-family networks (EVM is not currently exposed)", () => {
     const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
     expect(() => registry.resolve("base")).toThrow(/unknown network/);
+  });
+});
+
+describe("ConfigLoader Windows wallet root", () => {
+  const profile = "C:\\Users\\alice";
+  const expected = "C:\\Users\\alice\\.wallet-cli";
+
+  it("uses USERPROFILE for the same default root in PowerShell and Git Bash", () => {
+    const powerShell = ConfigLoader.resolveRoot({ USERPROFILE: profile }, "win32");
+    const gitBash = ConfigLoader.resolveRoot({ USERPROFILE: "/c/Users/alice", HOME: "/c/Users/alice" }, "win32");
+
+    expect(powerShell).toBe(expected);
+    expect(gitBash).toBe(expected);
+  });
+
+  it("normalizes a Cygwin-style USERPROFILE to the same native root", () => {
+    expect(ConfigLoader.resolveRoot({ USERPROFILE: "/cygdrive/c/Users/alice" }, "win32")).toBe(expected);
+  });
+
+  it.each([
+    "C:\\Users\\alice\\.wallet-cli",
+    "C:/Users/alice/.wallet-cli",
+    "/c/Users/alice/.wallet-cli",
+    "/cygdrive/c/Users/alice/.wallet-cli",
+  ])("normalizes the explicit Windows/MSYS root %s", (root) => {
+    expect(ConfigLoader.resolveRoot({ WALLET_CLI_HOME: root }, "win32")).toBe(expected);
   });
 });
 
@@ -56,4 +84,49 @@ describe("NetworkRegistry.resolve case-insensitivity", () => {
   it("still rejects genuinely unknown networks", () => {
     expect(() => registry().resolve("dogechain")).toThrow(/unknown network/);
   });
+});
+
+describe("ConfigLoader TronLink credentials", () => {
+  const credentials = [
+    "tronlinkSecretId: TEST",
+    "tronlinkSecretKey: TESTTESTTEST",
+    "tronlinkChannel: test",
+    "",
+  ].join("\n");
+
+  it("loads credentials only from a private config file", () => {
+    expect(ConfigLoader.load(envWithConfig(credentials, 0o600))).toMatchObject({
+      tronlinkSecretId: "TEST",
+      tronlinkSecretKey: "TESTTESTTEST",
+      tronlinkChannel: "test",
+    });
+  });
+
+  it.runIf(process.platform !== "win32")("rejects credentials in a group/world-readable file", () => {
+    expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644)))
+      .toThrow(/mode 0600/);
+  });
+});
+
+describe("ConfigLoader GasFree credentials", () => {
+  const credentials = [
+    "gasfreeApiKey: TEST",
+    "gasfreeApiSecret: TESTTESTTEST",
+    "",
+  ].join("\n");
+
+  it("loads credentials only from a private config file", () => {
+    expect(ConfigLoader.load(envWithConfig(credentials, 0o600))).toMatchObject({
+      gasfreeApiKey: "TEST",
+      gasfreeApiSecret: "TESTTESTTEST",
+    });
+  });
+
+  it.runIf(process.platform !== "win32")(
+    "rejects credentials in a group/world-readable file",
+    () => {
+      expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644)))
+        .toThrow(/mode 0600/);
+    },
+  );
 });

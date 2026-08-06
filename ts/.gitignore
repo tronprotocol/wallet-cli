@@ -1,5 +1,7 @@
 node_modules/
 dist/
+/standalone/
+/release-assets/
 *.log
 .wallet-cli/
 .env

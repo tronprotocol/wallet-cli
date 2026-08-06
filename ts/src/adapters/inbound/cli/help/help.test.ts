@@ -109,4 +109,13 @@ describe("Requires: master password line", () => {
     expect(renderAuthLine({ interactive: true })).toContain("enter it interactively in a TTY")
     expect(renderAuthLine({ interactive: true })).not.toContain("never prompts")
   })
+
+  // "locked" is taken: stake help uses it for the TRX freeze period, and Ledger help uses
+  // "unlocked" for the device. Say what the reader must supply, not what state the keystore is in.
+  it("describes mode-dependent authentication in terms of the password, not a lock state", () => {
+    const line = renderAuthLine({ auth: "conditional" })
+    expect(line).toContain("only when the selected mode signs")
+    expect(line).toContain("other modes need no password")
+    expect(line).not.toContain("locked")
+  })
 })

@@ -10,6 +10,7 @@ import { SignerResolver } from "../signer/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { obtainSignature } from "../signing/obtain-signature.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
+import type { TransactionExecutionMode } from "../transaction-mode.js";
 
 export interface TxPipelineParams {
   ctx: TransactionScope;
@@ -20,7 +21,18 @@ export interface TxPipelineParams {
   build: (signerAddress: string) => Promise<UnsignedTx>;
   estimate: (tx: UnsignedTx) => Promise<FeeReport>;
   dryRun: boolean;
+  buildOnly?: boolean;
   broadcast: boolean;
+  mode?: TransactionExecutionMode;
+  permissionId?: number;
+  expiration?: number;
+  signerOptions?: { requireSoftware?: boolean };
+  /** Bind permission/expiration and recompute transaction identity before signing. */
+  prepare?: (tx: UnsignedTx, options: { permissionId: number; expiration?: number }) => Promise<UnsignedTx> | UnsignedTx;
+  /** Complete transaction protobuf serializer, required for build-only. */
+  artifact?: (tx: UnsignedTx | SignedTx) => string;
+  /** Authorization check performed before software key decryption or Ledger interaction. */
+  preflight?: (tx: UnsignedTx, signerAddress: string) => Promise<void>;
   /** Optional post-broadcast confirmation: poll the chain for on-chain results (fee/energy/
    *  withdrawn amount) and merge them into the broadcast outcome. Best-effort — it must never
    *  throw; on timeout it returns undefined and the receipt falls back to txid + echoed inputs. */
@@ -54,22 +66,50 @@ export class TxPipeline {
   }
 
   async run(p: TxPipelineParams): Promise<TxOutcome> {
-    // --wait only makes sense when we actually broadcast (dry-run/sign-only never reach the chain).
-    if (p.ctx.wait && !p.broadcast) {
-      throw new UsageError("invalid_option", "--wait has nothing to wait for with --dry-run/--sign-only (neither broadcasts)");
+    const mode: TransactionExecutionMode = p.mode
+      ?? (p.dryRun ? "dry-run" : p.buildOnly ? "build-only" : p.broadcast ? "broadcast" : "sign-only");
+    if (p.ctx.wait && mode !== "broadcast") {
+      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run, --sign-only, or --build-only");
     }
-    const signer = this.signers.resolve(p.account, p.net.family);
 
     // RPC steps (build/estimate/broadcast) are bounded by the adapter's own --timeout, so they
     // aren't wrapped here. The one thing no RPC timeout covers is a Ledger tap that never comes;
     // obtainSignature bounds the device signature and aborts its prompt on timeout.
-    const tx = await p.build(signer.address);
+    const ownerAddress = p.ctx.resolveAddress(p.net.family);
+    let tx = await p.build(ownerAddress);
+    if (p.prepare) {
+      tx = await p.prepare(tx, {
+        permissionId: p.permissionId ?? 0,
+        ...(p.expiration === undefined ? {} : { expiration: p.expiration }),
+      });
+    } else if ((p.permissionId ?? 0) !== 0 || p.expiration !== undefined) {
+      throw new UsageError("invalid_option", "this chain adapter cannot apply --permission-id or --expiration");
+    }
     const fee = await p.estimate(tx);
-    if (p.dryRun) return { stage: "plan", tx, fee };
+    if (mode === "dry-run") return { stage: "plan", tx, fee };
+    if (mode === "build-only") {
+      if (!p.artifact) throw new UsageError("invalid_option", "this chain adapter cannot produce transaction hex");
+      return { stage: "built", tx, hex: p.artifact(tx), fee };
+    }
 
+    this.signers.assertCanSign(p.account, p.net.family, p.signerOptions);
+    const signer = this.signers.resolve(p.account, p.net.family);
+    if (signer.address !== ownerAddress) {
+      throw new UsageError("invalid_account", "resolved signer address changed during transaction construction");
+    }
+    await p.preflight?.(tx, signer.address);
     const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(tx, opts));
 
-    if (!p.broadcast) return { stage: "signed", signed, fee, address: signer.address, txId: txIdOf(signed) };
+    if (mode === "sign-only") {
+      return {
+        stage: "signed",
+        signed,
+        ...(p.artifact ? { hex: p.artifact(signed) } : {}),
+        fee,
+        address: signer.address,
+        txId: txIdOf(signed),
+      };
+    }
     const result = await p.broadcaster.broadcast(signed);
     const txId = String(result.txId ?? result.hash ?? "");
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).

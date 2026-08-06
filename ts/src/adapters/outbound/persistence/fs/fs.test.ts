@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  fstatSync,
+  ftruncateSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AtomicFileStore } from "./index.js";
@@ -199,6 +208,37 @@ describe("AtomicFileStore.writeJsonAll", () => {
     expect(bakTargets).toHaveLength(1);
     // 128-bit hex suffix, not `<pid>.<counter>.bak` — so a leftover .bak can never be reused/overwritten
     expect(bakTargets[0]).toMatch(/\.[0-9a-f]{32}\.bak$/);
+  });
+});
+
+describe("AtomicFileStore single-file writes", () => {
+  it("opens the fsync handle with write access required by Windows FlushFileBuffers", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const path = join(root, "wallets.json");
+    writeFileSync(path, "{}\n");
+
+    const store = new AtomicFileStore();
+    store.rawFsyncFile = (fd: number) => {
+      // ftruncate-to-current-size is non-destructive but requires a write-capable descriptor.
+      // This fails with the former openSync(path, "r") implementation on every platform.
+      ftruncateSync(fd, fstatSync(fd).size);
+    };
+
+    expect(() => store.fsyncFile(path)).not.toThrow();
+    expect(readFileSync(path, "utf8")).toBe("{}\n");
+  });
+
+  it("removes its temporary file when fsync fails before publication", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const path = join(root, "wallets.json");
+    const store = new AtomicFileStore();
+    store.rawFsyncFile = () => {
+      throw Object.assign(new Error("EPERM: operation not permitted, fsync"), { code: "EPERM" });
+    };
+
+    expect(() => store.writeJson(path, { version: 1 })).toThrowError(/EPERM/);
+    expect(existsSync(path)).toBe(false);
+    expect(readdirSync(root).filter((file) => file.endsWith(".tmp"))).toEqual([]);
   });
 });
 

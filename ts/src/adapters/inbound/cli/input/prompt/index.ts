@@ -122,15 +122,32 @@ function dim(s: string): string {
   return process.env.NO_COLOR ? s : `\x1b[2m${s}\x1b[0m`;
 }
 
-/** Real backend: reads /dev/tty, writes prompts to /dev/tty (never stdout). */
+export interface TtyBackendOptions {
+  platform?: NodeJS.Platform;
+  stdin?: ReadStream;
+}
+
+/** Real backend: POSIX reads /dev/tty; Windows reads its TTY stdin. Prompts never use stdout. */
 export class TtyBackend implements PromptBackend {
   #tty: boolean;
+  readonly #platform: NodeJS.Platform;
+  readonly #stdioInput: ReadStream;
+  #ownsInput = false;
   #fd?: number;
   #input?: ReadStream;
   #keyQueue: KeyEvent[] = [];
   #pendingKey?: (key: KeyEvent) => void;
   #keyListener?: (s: string, key: KeyEvent) => void;
-  constructor() {
+  constructor(opts: TtyBackendOptions = {}) {
+    this.#platform = opts.platform ?? process.platform;
+    this.#stdioInput = opts.stdin ?? process.stdin;
+    if (this.#platform === "win32") {
+      // Windows has no /dev/tty. Console/ConPTY hosts (cmd, PowerShell, Windows Terminal) expose a
+      // TTY directly; Git Bash/MSYS2 do so through ConPTY or winpty. Capability detection keeps this
+      // shell-agnostic. Require setRawMode because arrow-select and hidden input depend on it.
+      this.#tty = this.#stdioInput.isTTY === true && typeof this.#stdioInput.setRawMode === "function";
+      return;
+    }
     // Probe for a controlling terminal without holding the fd; the real stream opens on first prompt.
     try {
       closeSync(openSync("/dev/tty", "r"));
@@ -151,8 +168,14 @@ export class TtyBackend implements PromptBackend {
    */
   #stream(): ReadStream {
     if (!this.#input) {
-      this.#fd = openSync("/dev/tty", "r");
-      this.#input = new ReadStream(this.#fd);
+      if (this.#platform === "win32") {
+        if (!this.#tty) throw new ExecutionError("tty_required", "interactive input requires a Windows console TTY");
+        this.#input = this.#stdioInput;
+      } else {
+        this.#fd = openSync("/dev/tty", "r");
+        this.#input = new ReadStream(this.#fd);
+        this.#ownsInput = true;
+      }
     }
     return this.#input;
   }
@@ -233,13 +256,15 @@ export class TtyBackend implements PromptBackend {
       this.#pendingKey = resolve;
     });
   }
-  /** Release the persistent /dev/tty stream so the event loop drains and the process exits. */
+  /** Release an owned /dev/tty stream; process.stdin on Windows must never be destroyed. */
   close(): void {
     if (this.#input) {
-      try { this.#input.setRawMode(false); } catch { /* may already be closed */ }
-      this.#input.destroy();
+      try { this.endRaw(); } catch { /* may already be closed */ }
+      if (this.#ownsInput) this.#input.destroy();
+      else this.#input.pause();
       this.#input = undefined;
     }
+    this.#ownsInput = false;
     this.#fd = undefined;
   }
 }

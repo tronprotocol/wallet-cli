@@ -1,0 +1,10 @@
+node_modules/
+dist/
+standalone/
+standalone-assets/
+release-assets/
+.wallet-cli/
+.private/
+.env
+*.log
+

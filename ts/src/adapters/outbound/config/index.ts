@@ -3,9 +3,9 @@
  * build the network registry, and resolve canonical network ids. The descriptor stays pure data;
  * live RPC clients are owned by the chain gateway provider, not attached here.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type {
   Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
@@ -15,10 +15,17 @@ import { BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
 
 export class ConfigLoader {
   /** bootstrap: must run before locating config.yaml. */
-  static resolveRoot(env: NodeJS.ProcessEnv = process.env): string {
-    return env.WALLET_CLI_HOME && env.WALLET_CLI_HOME.trim() !== ""
-      ? env.WALLET_CLI_HOME
-      : join(homedir(), ".wallet-cli");
+  static resolveRoot(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string {
+    const configured = env.WALLET_CLI_HOME?.trim();
+    if (configured) return platform === "win32" ? normalizeWindowsRoot(configured) : configured;
+
+    // USERPROFILE is the Windows account identity shared by cmd, PowerShell and Git Bash. Resolve
+    // it explicitly instead of delegating to runtime-specific HOME/homedir precedence.
+    if (platform === "win32") {
+      const profile = env.USERPROFILE?.trim() || homedir();
+      return win32.join(normalizeWindowsRoot(profile), ".wallet-cli");
+    }
+    return join(homedir(), ".wallet-cli");
   }
 
   static configPath(env: NodeJS.ProcessEnv = process.env): string {
@@ -35,10 +42,21 @@ export class ConfigLoader {
     let timeoutMs = DEFAULT_CONFIG.timeoutMs;
     let waitTimeoutMs = DEFAULT_CONFIG.waitTimeoutMs;
     let price: Config["price"];
+    let tronlinkSecretId: string | undefined;
+    let tronlinkSecretKey: string | undefined;
+    let tronlinkChannel: string | undefined;
+    let gasfreeApiKey: string | undefined;
+    let gasfreeApiSecret: string | undefined;
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
       const raw = parseYaml(readFileSync(path, "utf8")) ?? {};
+      if (
+        (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "")
+        || (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "")
+      ) {
+        assertSecretConfigPermissions(path);
+      }
       if (typeof raw.defaultNetwork === "string" && raw.defaultNetwork.trim() !== "") {
         defaultNetwork = raw.defaultNetwork;
       }
@@ -53,13 +71,61 @@ export class ConfigLoader {
         price = { provider };
         if (typeof p.baseUrl === "string" && p.baseUrl.trim() !== "") price.baseUrl = p.baseUrl;
       }
+      if (validCredential(raw.tronlinkSecretId)) tronlinkSecretId = raw.tronlinkSecretId;
+      if (validCredential(raw.tronlinkSecretKey)) tronlinkSecretKey = raw.tronlinkSecretKey;
+      if (validCredential(raw.tronlinkChannel)) tronlinkChannel = raw.tronlinkChannel;
+      if (validCredential(raw.gasfreeApiKey)) gasfreeApiKey = raw.gasfreeApiKey;
+      if (validCredential(raw.gasfreeApiSecret)) gasfreeApiSecret = raw.gasfreeApiSecret;
       if (raw.networks && typeof raw.networks === "object") {
         for (const [id, d] of Object.entries(raw.networks as Record<string, Record<string, unknown>>)) {
           networks[id] = { ...(networks[id] ?? {}), ...d, id } as NetworkDescriptor;
         }
       }
     }
-    return { defaultNetwork, defaultOutput, timeoutMs, waitTimeoutMs, networks, price };
+    return {
+      defaultNetwork,
+      defaultOutput,
+      timeoutMs,
+      waitTimeoutMs,
+      networks,
+      price,
+      tronlinkSecretId,
+      tronlinkSecretKey,
+      tronlinkChannel,
+      gasfreeApiKey,
+      gasfreeApiSecret,
+    };
+  }
+}
+
+/** Convert Git Bash/MSYS/Cygwin drive paths before the native Windows executable touches disk. */
+function normalizeWindowsRoot(input: string): string {
+  const slashPath = input.replaceAll("\\", "/");
+  const msys = /^\/([a-zA-Z])(?:\/(.*))?$/.exec(slashPath);
+  if (msys) return win32.normalize(`${msys[1]!.toUpperCase()}:\\${msys[2] ?? ""}`);
+  const cygwin = /^\/cygdrive\/([a-zA-Z])(?:\/(.*))?$/.exec(slashPath);
+  if (cygwin) return win32.normalize(`${cygwin[1]!.toUpperCase()}:\\${cygwin[2] ?? ""}`);
+  const resolved = win32.resolve(input);
+  return resolved.replace(/^([a-z]):/, (_match, drive: string) => `${drive.toUpperCase()}:`);
+}
+
+function validCredential(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length > 0
+    && value.length <= 256
+    && !/[\u0000-\u001f\u007f]/.test(value);
+}
+
+function assertSecretConfigPermissions(path: string): void {
+  if (process.platform === "win32") return;
+  if (lstatSync(path).isSymbolicLink()) {
+    throw new UsageError("insecure_config", "config.yaml containing service credentials must not be a symbolic link");
+  }
+  if ((statSync(path).mode & 0o077) !== 0) {
+    throw new UsageError(
+      "insecure_config",
+      "config.yaml containing service credentials must have mode 0600; run chmod 600 on the file",
+    );
   }
 }
 

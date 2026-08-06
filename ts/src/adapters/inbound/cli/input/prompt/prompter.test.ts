@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { Prompter, type PromptBackend, type KeyEvent } from "./index.js";
+import { PassThrough } from "node:stream";
+import type { ReadStream } from "node:tty";
+import { describe, it, expect, vi } from "vitest";
+import { Prompter, TtyBackend, type PromptBackend, type KeyEvent } from "./index.js";
 
 class FakeBackend implements PromptBackend {
   out = "";
@@ -86,5 +88,36 @@ describe("Prompter.select", () => {
       loadMore: async () => [{ value: "x0", label: "0" }, { value: "x1", label: "1" }],
     });
     expect(v).toBe("x1");
+  });
+});
+
+describe("TtyBackend on Windows", () => {
+  it.each([
+    "Command Prompt",
+    "Windows PowerShell 5.1",
+    "PowerShell 7",
+    "Windows Terminal with a Console/ConPTY profile",
+    "Git Bash or MSYS2 through ConPTY/winpty",
+  ])("supports %s when the host exposes raw-capable stdin", () => {
+    const input = new PassThrough() as PassThrough & { isTTY: boolean; setRawMode: (mode: boolean) => void };
+    input.isTTY = true;
+    input.setRawMode = vi.fn();
+    const backend = new TtyBackend({ platform: "win32", stdin: input as unknown as ReadStream });
+
+    expect(backend.isTTY()).toBe(true);
+    backend.beginRaw();
+    backend.close();
+
+    expect(input.setRawMode).toHaveBeenCalledWith(true);
+    expect(input.setRawMode).toHaveBeenLastCalledWith(false);
+    expect(input.destroyed).toBe(false);
+  });
+
+  it("rejects redirected stdin instead of treating a script pipe as an interactive shell", () => {
+    const input = new PassThrough() as PassThrough & { isTTY: boolean };
+    input.isTTY = false;
+    const backend = new TtyBackend({ platform: "win32", stdin: input as unknown as ReadStream });
+
+    expect(backend.isTTY()).toBe(false);
   });
 });

@@ -5,13 +5,39 @@ Keep keys on the device; wallet-cli builds transactions and the Ledger signs the
 ## Prerequisites
 
 - Ledger connected, **unlocked**, with the **TRON app open** on the device;
-- the TRON app installed via Ledger Live beforehand.
+- the TRON app installed via Ledger Live beforehand;
+- on Linux, glibc 2.35 or later and the system package providing `libudev.so.1`;
+- on Linux, the official [Ledger udev rules](https://github.com/LedgerHQ/udev-rules) installed so a non-root process can open the HID device.
+- On Windows, use one of the interactive invocations below. Do not pipe or redirect stdin.
+
+For Debian and Ubuntu, install the runtime library with `sudo apt-get install libudev1`. After installing or updating udev rules, reload the rules and reconnect the Ledger before retrying. Containers also need the relevant `/dev/hidraw*` device passed through from the host.
+
+For a reproducible Ubuntu 22.04 image and a device-scoped Docker launch command, see the [Ledger transaction test container](../../docker/ledger/README.md).
 
 ## 1. Register the Ledger account
 
 ```bash
 wallet-cli import ledger --app tron --index 0 --label cold
 ```
+
+To choose an account interactively, omit the locator:
+
+| Windows shell / host | Command |
+|---|---|
+| Command Prompt (`cmd.exe`) | `wallet-cli.exe import ledger --app tron` |
+| Windows PowerShell 5.1 | `.\wallet-cli.exe import ledger --app tron` |
+| PowerShell 7 (`pwsh`) | `.\wallet-cli.exe import ledger --app tron` |
+| Windows Terminal | Use the command for its active PowerShell or Command Prompt profile |
+| Git Bash / MSYS2 with ConPTY | `./wallet-cli.exe import ledger --app tron` |
+| WSL | Run the Linux x64 release as `./wallet-cli import ledger --app tron`; do not use the Windows executable |
+
+If an older Git Bash/MSYS2 build does not expose raw TTY input, use
+`winpty ./wallet-cli.exe import ledger --app tron`. Current Git for Windows releases use the direct
+ConPTY form in release testing.
+
+All Windows shells use `%USERPROFILE%\.wallet-cli` by default, so an account imported in one shell
+appears in `list` from the others. If `WALLET_CLI_HOME` is set, every shell must receive the same
+absolute path; different values intentionally create isolated wallet stores.
 
 Locally this creates a **watch-only** entry — no secret is stored; signing happens on the device. Three ways to pick the account (mutually exclusive):
 
