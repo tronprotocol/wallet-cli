@@ -32,6 +32,7 @@ export type BroadcastStage = "submitted" | "confirmed" | "failed";
 
 export type TxOutcome =
   | { stage: "plan"; tx: UnsignedTx; fee: FeeReport }
+  | { stage: "built"; tx: UnsignedTx }
   // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
   | { stage: "signed"; signed: SignedTx; fee?: FeeReport; address?: string; txId?: string }
   | ({ stage: BroadcastStage } & BroadcastResult);
@@ -67,6 +68,9 @@ export type TxReceiptKind =
   | "send" | "broadcast" | "sign"
   | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
   | "contract-send" | "contract-deploy"
+  | "proposal-create" | "proposal-approve" | "proposal-delete"
+  | "witness-create" | "witness-update" | "witness-set-brokerage"
+  | "contract-clear-abi" | "contract-set-origin-energy-limit" | "contract-set-user-resource-percent"
   | "vote-cast" | "reward-withdraw";
 
 /**
@@ -77,7 +81,7 @@ export type TxReceiptKind =
  */
 export interface TxReceiptView {
   kind: TxReceiptKind;
-  mode?: "dry-run" | "sign-only";
+  mode?: "dry-run" | "sign-only" | "build-only";
   stage?: BroadcastStage;
   txId?: string;
   hash?: string;

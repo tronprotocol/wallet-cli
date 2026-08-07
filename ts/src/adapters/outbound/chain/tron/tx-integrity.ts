@@ -45,6 +45,10 @@ import { utils as tronUtils } from "tronweb"
 import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js"
 import { ChainError } from "../../../../domain/errors/index.js"
+import {
+  proposalCreateTxCheckExact,
+  updateEnergyLimitTxCheckExact,
+} from "./proposal-protobuf.js"
 
 /** tronweb's txJsonToPb rejects contract types it has no protobuf mapping for with this message. */
 const UNSUPPORTED_CONTRACT_TYPE = /^Unsupported transaction type/i
@@ -127,7 +131,14 @@ export function assertTronTxIntegrity(tx: unknown): void {
 
   let matchesRawData: boolean
   try {
-    matchesRawData = tronUtils.transaction.txCheck(tx as any)
+    const contracts = Array.isArray((t.raw_data as { contract?: unknown })?.contract)
+      ? (t.raw_data as { contract: Array<{ type?: unknown }> }).contract
+      : []
+    matchesRawData = contracts.some((contract) => contract?.type === "ProposalCreateContract")
+      ? proposalCreateTxCheckExact(tx)
+      : contracts.some((contract) => contract?.type === "UpdateEnergyLimitContract")
+        ? updateEnergyLimitTxCheckExact(tx)
+        : tronUtils.transaction.txCheck(tx as any)
   } catch (e) {
     const message = (e as Error)?.message ?? String(e)
     // The one tolerable failure: tronweb has no encoding for this contract type, so raw_data

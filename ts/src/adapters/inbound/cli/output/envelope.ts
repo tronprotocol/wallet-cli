@@ -27,8 +27,8 @@ function chainView(net: NetworkDescriptor): ChainView {
   };
 }
 
-function meta(durationMs: number, warnings: string[]): Meta {
-  return { durationMs, warnings };
+function meta(value: Meta): Meta {
+  return value;
 }
 
 export const OutputEnvelope = {
@@ -36,14 +36,14 @@ export const OutputEnvelope = {
     command: string,
     net: NetworkDescriptor | undefined,
     data: unknown,
-    m: { durationMs: number; warnings: string[] },
+    m: Meta,
   ): ResultEnvelope {
     const env: ResultEnvelope = {
       schema: SCHEMA_VERSION,
       success: true,
       command,
       data: data ?? {},
-      meta: meta(m.durationMs, m.warnings),
+      meta: meta(m),
     };
     if (net) env.chain = chainView(net); // neutral commands omit chain
     return env;
@@ -53,14 +53,14 @@ export const OutputEnvelope = {
     command: string,
     net: NetworkDescriptor | undefined,
     err: CliErrorEnvelopeShape,
-    m: { durationMs: number; warnings: string[] },
+    m: Meta,
   ): ErrorEnvelope {
     const env: ErrorEnvelope = {
       schema: SCHEMA_VERSION,
       success: false,
       command,
       error: err,
-      meta: meta(m.durationMs, m.warnings),
+      meta: meta(m),
     };
     if (net) env.chain = chainView(net);
     return env;

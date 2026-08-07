@@ -135,7 +135,9 @@ Every command — including every subcommand — has a reference page; run `wall
 | Command | Description |
 |---|---|
 | [`token`](docs/commands/token/index.md) | Manage the token address book and query tokens ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
-| [`contract`](docs/commands/contract/index.md) | Call, send, deploy, and inspect smart contracts ([call](docs/commands/contract/call.md) · [send](docs/commands/contract/send.md) · [deploy](docs/commands/contract/deploy.md) · [info](docs/commands/contract/info.md)) |
+| [`contract`](docs/commands/contract/index.md) | Call, deploy, inspect, and govern smart contracts, including energy policy, ABI clearing, and CREATE2 address calculation |
+| [`proposal`](docs/commands/proposal/index.md) | Query, create, approve, and cancel chain-parameter proposals |
+| [`witness`](docs/commands/witness/index.md) | Register and operate an SR candidacy, including brokerage |
 | [`stake`](docs/commands/stake/index.md) | Stake / delegate resources & query state ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [withdraw](docs/commands/stake/withdraw.md) · [cancel-unfreeze](docs/commands/stake/cancel-unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [undelegate](docs/commands/stake/undelegate.md) · [info](docs/commands/stake/info.md) · [delegated](docs/commands/stake/delegated.md)) |
 | [`vote`](docs/commands/vote/index.md) | Vote for super representatives ([cast](docs/commands/vote/cast.md) · [list](docs/commands/vote/list.md) · [status](docs/commands/vote/status.md)) |
 | [`reward`](docs/commands/reward/index.md) | Query / withdraw voting rewards ([balance](docs/commands/reward/balance.md) · [withdraw](docs/commands/reward/withdraw.md)) |

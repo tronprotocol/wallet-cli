@@ -118,6 +118,15 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
       return `Called ${methodName(String(r.method ?? ""))}`
     case "contract-deploy":
       return "Contract deployed"
+    case "proposal-create": return "Proposal created"
+    case "proposal-approve": return "Proposal approval submitted"
+    case "proposal-delete": return "Proposal deleted"
+    case "witness-create": return "Witness registered"
+    case "witness-update": return "Witness updated"
+    case "witness-set-brokerage": return "Brokerage set"
+    case "contract-clear-abi": return "ABI cleared"
+    case "contract-set-origin-energy-limit": return "Origin energy limit set"
+    case "contract-set-user-resource-percent": return "User resource ratio set"
     case "vote-cast": {
       const count = Array.isArray(r.votes) ? r.votes.length : 0
       const across = `across ${formatInt(count)} witness${count === 1 ? "" : "es"}`
@@ -194,6 +203,15 @@ function actionLabel(kind: TxReceiptKind): string {
       return "contract send"
     case "contract-deploy":
       return "contract deploy"
+    case "proposal-create": return "proposal create"
+    case "proposal-approve": return "proposal approve"
+    case "proposal-delete": return "proposal delete"
+    case "witness-create": return "witness create"
+    case "witness-update": return "witness update"
+    case "witness-set-brokerage": return "witness set-brokerage"
+    case "contract-clear-abi": return "contract clear-abi"
+    case "contract-set-origin-energy-limit": return "contract set-origin-energy-limit"
+    case "contract-set-user-resource-percent": return "contract set-user-resource-percent"
     case "vote-cast":
       return "vote cast"
     case "reward-withdraw":

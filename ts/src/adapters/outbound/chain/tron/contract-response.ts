@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { TronContractMetadata } from "../../../../application/ports/chain/tron-gateway.js";
+import { tronHexToBase58 } from "../../../../domain/address/index.js";
 
 const ContractEntrySchema = z.looseObject({
   type: z.string().optional().catch(undefined),
@@ -39,5 +40,13 @@ export function normalizeContractResponses(contract: unknown, info: unknown): Tr
     .filter((entry) => entry.type === "Function" || entry.type === "function")
     .map((entry) => entry.name)
     .filter((name): name is string => typeof name === "string" && name.length > 0);
-  return { name: contractView.name ?? infoView.name, methods, contract, info: info ?? undefined };
+  const rawContract = contract && typeof contract === "object" ? contract as Record<string, unknown> : {};
+  const origin = rawContract.origin_address ?? rawContract.originAddress;
+  return {
+    name: contractView.name ?? infoView.name,
+    methods,
+    originAddress: origin === undefined ? undefined : tronHexToBase58(origin),
+    contract,
+    info: info ?? undefined,
+  };
 }

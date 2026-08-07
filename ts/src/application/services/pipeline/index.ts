@@ -20,6 +20,7 @@ export interface TxPipelineParams {
   build: (signerAddress: string) => Promise<UnsignedTx>;
   estimate: (tx: UnsignedTx) => Promise<FeeReport>;
   dryRun: boolean;
+  buildOnly?: boolean;
   broadcast: boolean;
   /** Optional post-broadcast confirmation: poll the chain for on-chain results (fee/energy/
    *  withdrawn amount) and merge them into the broadcast outcome. Best-effort — it must never
@@ -56,20 +57,25 @@ export class TxPipeline {
   async run(p: TxPipelineParams): Promise<TxOutcome> {
     // --wait only makes sense when we actually broadcast (dry-run/sign-only never reach the chain).
     if (p.ctx.wait && !p.broadcast) {
-      throw new UsageError("invalid_option", "--wait has nothing to wait for with --dry-run/--sign-only (neither broadcasts)");
+      throw new UsageError("invalid_option", "--wait has nothing to wait for with --dry-run/--sign-only/--build-only (none broadcasts)");
     }
-    const signer = this.signers.resolve(p.account, p.net.family);
+    // Planning/build-only never needs private-key access. Resolve only an address so watch-only
+    // accounts can safely build or inspect the exact transaction without pretending they can sign.
+    const unsignedOnly = p.dryRun || p.buildOnly === true;
+    const signer = unsignedOnly ? undefined : this.signers.resolve(p.account, p.net.family);
+    const signerAddress = signer?.address ?? p.ctx.resolveAddress(p.net.family);
 
     // RPC steps (build/estimate/broadcast) are bounded by the adapter's own --timeout, so they
     // aren't wrapped here. The one thing no RPC timeout covers is a Ledger tap that never comes;
     // obtainSignature bounds the device signature and aborts its prompt on timeout.
-    const tx = await p.build(signer.address);
+    const tx = await p.build(signerAddress);
+    if (p.buildOnly) return { stage: "built", tx };
     const fee = await p.estimate(tx);
     if (p.dryRun) return { stage: "plan", tx, fee };
 
-    const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(tx, opts));
+    const signed = await obtainSignature(signer!, p.ctx, (opts) => signer!.sign(tx, opts));
 
-    if (!p.broadcast) return { stage: "signed", signed, fee, address: signer.address, txId: txIdOf(signed) };
+    if (!p.broadcast) return { stage: "signed", signed, fee, address: signer!.address, txId: txIdOf(signed) };
     const result = await p.broadcaster.broadcast(signed);
     const txId = String(result.txId ?? result.hash ?? "");
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).

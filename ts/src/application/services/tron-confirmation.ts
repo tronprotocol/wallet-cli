@@ -14,6 +14,8 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
   if (info.fee !== undefined) result.feeSun = info.fee;
   if (receipt.energy_usage_total !== undefined) result.energyUsed = receipt.energy_usage_total;
   if (receipt.net_usage !== undefined) result.netUsed = receipt.net_usage;
+  if (receipt.energy_fee !== undefined) result.energyFeeSun = receipt.energy_fee;
+  if (receipt.net_fee !== undefined) result.netFeeSun = receipt.net_fee;
   if (info.withdraw_amount !== undefined) result.withdrawnSun = info.withdraw_amount;
   if (receipt.result !== undefined) result.result = receipt.result;
   result.failed = receipt.result !== undefined &&
@@ -57,4 +59,3 @@ export async function stageTronBroadcast(
   }
   return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
 }
-

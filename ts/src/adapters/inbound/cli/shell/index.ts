@@ -149,8 +149,30 @@ async function dispatchNeutral(opts: ShellOptions, path: string[], argv: any): P
 
 async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): Promise<void> {
   const chain = opts.registry.resolveChain(path)
-  if (chain) return executeChainCommand(opts, chain, argv)
+  if (chain) {
+    bindGroupedPositionals(chain.spec, argv)
+    return executeChainCommand(opts, chain, argv)
+  }
   throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`)
+}
+
+/** yargs binds the group verb (`proposal show`) but leaves leaf arguments in `argv._` because
+ * groups are registered once. Project those tail values onto the resolved leaf's declared
+ * positionals before zod validation. */
+function bindGroupedPositionals(spec: ChainSpec, argv: any): void {
+  const tail = Array.isArray(argv._) ? argv._.slice(1) : []
+  const positionals = spec.positionals ?? []
+  if (tail.length > positionals.length) {
+    throw new UsageError("usage_error", `too many arguments for ${spec.path.join(" ")}`)
+  }
+  for (const [index, raw] of tail.entries()) {
+    const field = positionals[index]?.field
+    if (!field) continue
+    if (argv[field] !== undefined && String(argv[field]) !== String(raw)) {
+      throw new UsageError("invalid_option", `${field} was provided both positionally and as --${camelToKebab(field)}`)
+    }
+    argv[field] = raw
+  }
 }
 
 async function executeChainCommand(opts: ShellOptions, def: ChainCommandDefinition, argv: any): Promise<void> {

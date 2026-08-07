@@ -63,6 +63,7 @@ Schema id: `wallet-cli.result.v1`.
 | `error.details` | object | optional | Structured extras when available |
 | `meta.durationMs` | number | always | Wall time |
 | `meta.warnings` | string[] | always | Non-fatal notices |
+| `meta.pagination` | object | paginated results | `offset`, nullable `limit`, and filtered `total` |
 | `chain` | object | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
@@ -87,6 +88,7 @@ Common codes at exit **2** (usage — fix the call):
 | `unknown_command` | No such command |
 | `output_exists` | Target file already exists and is never overwritten (e.g. `backup --out`) |
 | `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
+| `unknown_parameter` | Unknown governance parameter name or id |
 
 Common codes at exit **1** (execution — runtime failure):
 
@@ -98,6 +100,9 @@ Common codes at exit **1** (execution — runtime failure):
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
+| `proposal_not_found` / `proposal_expired` | Proposal lookup or voting-window failure |
+| `not_a_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
+| `contract_not_found` / `not_contract_deployer` | Contract lookup or deployer authorization failure |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `history_not_supported` | The endpoint lacks TronGrid history support |

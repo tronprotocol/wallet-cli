@@ -15,6 +15,29 @@ export const txModeFields = {
   dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast; mutually exclusive with --sign-only"),
   signOnly: z.boolean().default(false).describe("sign and output the transaction without broadcasting; mutually exclusive with --dry-run; broadcast later with tx broadcast"),
 };
+
+/** Full transaction controls required by governance/administrative writes. */
+export const governanceTxModeFields = {
+  ...txModeFields,
+  buildOnly: z.boolean().default(false)
+    .describe("build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only"),
+  expiration: z.coerce.number().int().positive().max(86_400_000).optional()
+    .describe("extend transaction expiration in milliseconds (max 86400000); only with --sign-only or --build-only"),
+  permissionId: z.coerce.number().int().min(0).max(2_147_483_647).default(0)
+    .describe("TRON permission group used by the transaction (0 = owner)"),
+};
+
+export function governanceTxRefine(
+  value: { dryRun?: boolean; signOnly?: boolean; buildOnly?: boolean; expiration?: number },
+  ctx: z.RefinementCtx,
+): void {
+  if ([value.dryRun, value.signOnly, value.buildOnly].filter(Boolean).length > 1) {
+    ctx.addIssue({ code: "custom", message: "choose at most one of --dry-run, --sign-only, --build-only" });
+  }
+  if (value.expiration !== undefined && !value.signOnly && !value.buildOnly) {
+    ctx.addIssue({ code: "custom", path: ["expiration"], message: "only valid with --sign-only or --build-only" });
+  }
+}
 // ── unified --amount / --raw-amount selector (shared by every chain's `tx send`) ────
 // A transfer of 0 is meaningless on any chain — reject it here (exit 2) rather than let the node
 // reject it with an opaque error. regex-based zero check (never BigInt): zod v4 keeps running

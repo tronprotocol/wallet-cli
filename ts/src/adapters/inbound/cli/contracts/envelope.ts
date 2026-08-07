@@ -13,6 +13,7 @@ export interface ChainView {
 export interface Meta {
   durationMs: number;
   warnings: string[];
+  pagination?: { offset: number; limit: number | null; total: number };
 }
 export interface ResultEnvelope {
   schema: "wallet-cli.result.v1";

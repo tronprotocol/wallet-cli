@@ -6,15 +6,16 @@ Deploy a smart contract.
 
 ```
 wallet-cli contract deploy --abi <json> --bytecode <hex> --fee-limit <sun>
-                           [--constructor-sig <sig> --params <json>]
-                           [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+                           [--params <json>]
+                           [--dry-run | --sign-only | --build-only]
+                           [--expiration <ms>] [--permission-id <n>] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
 
-Deploys compiled contract bytecode from the active account (or `--account`) and reports the new contract address. `--fee-limit` is **required** here (deployments are energy-heavy; there is no safe default). Constructor arguments go via `--constructor-sig` + `--params`.
+Deploys compiled contract bytecode from the active account (or `--account`) and reports the new contract address. `--fee-limit` is **required** here (deployments are energy-heavy; there is no safe default). Constructor types are read from the ABI; `--params` supplies raw positional values in that order.
 
-Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), default returns at submission, `--wait` blocks until confirmed/failed.
+Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), and `--build-only` emits the unsigned transaction without touching a signer. `--expiration` is restricted to build/sign-only; `--permission-id` selects the TRON permission group. Default returns at submission and `--wait` blocks until confirmed/failed.
 
 Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
 
@@ -25,10 +26,12 @@ Requires an account and the master password via `--password-stdin`; watch-only a
 | `--abi <string>` | **Required.** Contract ABI as a JSON array string |
 | `--bytecode <string>` | **Required.** Compiled bytecode as hex (0x-prefixed or bare) |
 | `--fee-limit <number>` | **Required.** Max energy fee to burn, in SUN |
-| `--constructor-sig <string>` | Constructor signature, e.g. `constructor(uint256)`; omit when no constructor args |
-| `--params <string>` | Constructor args as a JSON array of `{type,value}` |
+| `--params <string>` | Constructor args as a JSON array of raw positional values |
 | `--dry-run` | Estimate only; excludes `--sign-only` |
 | `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--build-only` | Build unsigned without signer access or broadcast |
+| `--expiration <ms>` | Extend expiry in build/sign-only modes; max 86,400,000 |
+| `--permission-id <n>` | TRON permission group; default 0 |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -66,6 +69,9 @@ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" --byteco
 |---|---|
 | default (submit) | `kind: "contract-deploy"`, `contractAddress` (deterministic new address), `stage: "submitted"`, `txId` |
 | `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
+| `--dry-run` | `kind`, `mode: "dry-run"`, unsigned `tx`, fee estimate, deterministic `contractAddress` |
+| `--sign-only` | `kind`, `mode: "sign-only"`, `signed`, signer address, tx id, `contractAddress` |
+| `--build-only` | `kind`, `mode: "build-only"`, `unsigned`, `unsignedHex`, `contractAddress` |
 
 ## Exit status
 

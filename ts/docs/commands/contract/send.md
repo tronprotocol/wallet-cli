@@ -7,14 +7,15 @@ State-changing contract call (triggerSmartContract).
 ```
 wallet-cli contract send --contract <address> --method <sig> [--params <json>]
                          [--call-value-sun <n>] [--fee-limit <sun>]
-                         [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+                         [--dry-run | --sign-only | --build-only]
+                         [--expiration <ms>] [--permission-id <n>] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
 
 Builds, signs, and broadcasts a state-changing contract call from the active account (or `--account`). Parameters follow the same `{type,value}` JSON-array convention as [`contract call`](call.md); `--call-value-sun` attaches native TRX to the call.
 
-Two early exits: `--dry-run` previews the energy cost (estimateEnergy) without signing or broadcasting; `--sign-only` signs and prints the transaction for a later [`tx broadcast`](../tx/broadcast.md).
+Three early exits are available: `--dry-run` previews energy, `--sign-only` emits a signed transaction, and `--build-only` emits an unsigned transaction without resolving a signer. `--expiration` is valid only with build/sign-only; `--permission-id` selects the TRON permission group.
 
 **By default the command returns at submission** (`stage: "submitted"`) — add `--wait` to block until confirmed/failed. With `--wait`, an on-chain execution failure (revert / `OUT_OF_ENERGY`) comes back as `stage: "failed"` with the `result` reason.
 
@@ -31,6 +32,9 @@ Requires an account and the master password via `--password-stdin`; watch-only a
 | `--fee-limit <number>` | Max energy fee to burn, in SUN (default 100000000) |
 | `--dry-run` | Estimate energy only, no signature/broadcast; excludes `--sign-only` |
 | `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--build-only` | Build unsigned without signer access or broadcast |
+| `--expiration <ms>` | Extend expiry in build/sign-only modes; max 86,400,000 |
+| `--permission-id <n>` | TRON permission group; default 0 |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -102,6 +106,7 @@ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkA
 | `--wait` (confirmed/failed) | above, but `stage: "confirmed"` or `"failed"`, plus `confirmed`, `blockNumber`, `feeSun`, `energyUsed`, `result` (`SUCCESS` / `OUT_OF_ENERGY`, etc.), `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, estimated `energy`, `availableEnergy`), unsigned `tx` |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (feed to `tx broadcast`), `address` (signer), `txId`, `fee`, `method`, `contract` |
+| `--build-only` | `kind`, `mode: "build-only"`, `unsigned`, `unsignedHex`, `method`, `contract` |
 
 ## Exit status
 

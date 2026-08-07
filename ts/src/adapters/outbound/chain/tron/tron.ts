@@ -3,7 +3,7 @@
  * Broadcaster port plus TRON-specific reads, TRC10/TRC20, Stake 2.0, and contract operations.
  * (builtin TRON networks carry an HTTP fullHost; tronweb is HTTP-based.)
  */
-import { TronWeb } from "tronweb";
+import { TronWeb, utils as tronUtils } from "tronweb";
 import type { Types } from "tronweb";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type { BroadcastResult, SignedTx } from "../../../../domain/types/index.js";
@@ -17,6 +17,7 @@ import type {
   TronDelegatedResource,
   TronGateway,
   TronNodeInfo,
+  TronProposal,
   TronTokenInfo,
   TronTx,
   TronTxInfo,
@@ -31,6 +32,10 @@ import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
 import { isDeployedContract, normalizeContractResponses } from "./contract-response.js";
+import {
+  proposalCreateTxJsonToPbExact,
+  updateEnergyLimitTxJsonToPbExact,
+} from "./proposal-protobuf.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -304,6 +309,120 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       return witnesses.map(normalizeWitness).filter((w): w is TronWitness => w !== null);
     });
   }
+  async getWitness(address: string): Promise<TronWitness | null> {
+    return this.#wrap("getWitnessByAddress", async () => {
+      const response = await fetch(`${this.#fullHost}/wallet/getwitnessbyaddress`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const normalized = normalizeAccountValue(parseLosslessJson(await response.text()));
+      return normalizeWitness(normalized);
+    });
+  }
+  async getProposals(): Promise<TronProposal[]> {
+    return this.#wrap("listProposals", async () => {
+      const response = await fetch(`${this.#fullHost}/wallet/listproposals`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<string, unknown>;
+      const proposals = Array.isArray(raw.proposals) ? raw.proposals : [];
+      return proposals.map(normalizeProposal).filter((proposal): proposal is TronProposal => proposal !== null);
+    });
+  }
+  async getProposal(id: number): Promise<TronProposal | null> {
+    return this.#wrap("getProposalById", async () => {
+      const response = await fetch(`${this.#fullHost}/wallet/getproposalbyid`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return normalizeProposal(normalizeAccountValue(parseLosslessJson(await response.text())));
+    });
+  }
+  async buildProposalCreate(
+    owner: string,
+    parameters: Array<{ key: number; value: number | string }>,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("createProposal", async () => assertBuiltTx(
+      await this.#buildLocalTransaction(
+        "ProposalCreateContract",
+        { owner_address: this.#tw.address.toHex(owner), parameters },
+        options.permissionId,
+      ),
+      "ProposalCreateContract",
+    ));
+  }
+  async buildProposalApprove(
+    owner: string,
+    proposalId: number,
+    addApproval: boolean,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("voteProposal", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.voteProposal(proposalId, addApproval, owner, options),
+        "ProposalApproveContract",
+      ),
+    );
+  }
+  async buildProposalDelete(
+    owner: string,
+    proposalId: number,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("deleteProposal", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.deleteProposal(proposalId, owner, options),
+        "ProposalDeleteContract",
+      ),
+    );
+  }
+  async buildWitnessCreate(
+    owner: string,
+    url: string,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("applyForSR", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.applyForSR(owner, url, options),
+        "WitnessCreateContract",
+      ),
+    );
+  }
+  async buildWitnessUpdate(
+    owner: string,
+    url: string,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("updateWitness", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.updateWitness(owner, url, options),
+        "WitnessUpdateContract",
+      ),
+    );
+  }
+  async buildWitnessSetBrokerage(
+    owner: string,
+    brokerage: number,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("updateBrokerage", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.updateBrokerage(brokerage, owner, options),
+        "UpdateBrokerageContract",
+      ),
+    );
+  }
   async getBrokerage(address: string): Promise<number> {
     return this.#wrap("getBrokerage", async () => {
       const response = await fetch(`${this.#fullHost}/wallet/getBrokerage`, {
@@ -399,7 +518,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     contract: string,
     fn: string,
     params: TronContractParameter[],
-    opts: { feeLimit?: string; callValue?: string } = {},
+    opts: { feeLimit?: string; callValue?: string; permissionId?: number } = {},
   ): Promise<Types.Transaction> {
     // Guard before #wrap so a bad fee/callValue surfaces as invalid_amount, not a wrapped rpc_error.
     const feeLimit = opts.feeLimit === undefined ? undefined : this.#safeNumber(opts.feeLimit, "fee limit");
@@ -409,7 +528,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       const { transaction } = await this.#tw.transactionBuilder.triggerSmartContract(
         contract,
         fn,
-        { feeLimit, callValue, txLocal: true },
+        { feeLimit, callValue, permissionId: opts.permissionId, txLocal: true },
         params as Types.ContractFunctionParameter[],
         from,
       );
@@ -418,13 +537,19 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async deployContract(
     from: string,
-    p: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[] },
+    p: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[]; permissionId?: number },
   ): Promise<Types.Transaction> {
     const feeLimit = this.#safeNumber(p.feeLimit, "fee limit"); // guard before #wrap → invalid_amount, not rpc_error
     return this.#wrap("createSmartContract", async () =>
       assertBuiltTx(
         await this.#tw.transactionBuilder.createSmartContract(
-          { abi: p.abi as Types.CreateSmartContractOptions["abi"], bytecode: p.bytecode, feeLimit, parameters: p.parameters },
+          {
+            abi: p.abi as Types.CreateSmartContractOptions["abi"],
+            bytecode: p.bytecode,
+            feeLimit,
+            parameters: p.parameters,
+            permissionId: p.permissionId,
+          },
           from,
         ),
         "CreateSmartContract",
@@ -448,6 +573,91 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       throw new ChainError("not_found", `no contract deployed at ${address}`);
     }
     return normalizeContractResponses(contract, info);
+  }
+  async buildClearContractAbi(
+    owner: string,
+    contract: string,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("clearContractABI", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.clearABI(contract, owner, options),
+        "ClearABIContract",
+      ),
+    );
+  }
+  async buildUpdateOriginEnergyLimit(
+    owner: string,
+    contract: string,
+    energy: number | string,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    // TronWeb 6.4.0 still rejects values above 10,000,000 in its client-side validator, while
+    // java-tron and the protocol field accept a positive int64. Build the same protobuf locally
+    // so valid limits such as 50,000,000 are not rejected by an obsolete SDK policy check.
+    return this.#wrap("updateEnergyLimit", async () => assertBuiltTx(
+      await this.#buildLocalTransaction(
+        "UpdateEnergyLimitContract",
+        {
+          owner_address: this.#tw.address.toHex(owner),
+          contract_address: this.#tw.address.toHex(contract),
+          origin_energy_limit: energy,
+        },
+        options.permissionId,
+      ),
+      "UpdateEnergyLimitContract",
+    ));
+  }
+  async buildUpdateUserResourcePercent(
+    owner: string,
+    contract: string,
+    percent: number,
+    options: { permissionId?: number } = {},
+  ): Promise<Types.Transaction> {
+    return this.#wrap("updateSetting", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.updateSetting(contract, percent, owner, options),
+        "UpdateSettingContract",
+      ),
+    );
+  }
+  async extendTransactionExpiration(transaction: unknown, extensionMs: number): Promise<Types.Transaction> {
+    return this.#wrap("extendExpiration", async () =>
+      await this.#tw.transactionBuilder.extendExpiration(
+        transaction as Types.Transaction,
+        extensionMs,
+        { txLocal: true },
+      ),
+    );
+  }
+
+  /** Build a one-contract transaction using TronWeb's public protobuf codec and local ref block.
+   * This is equivalent to TransactionBuilder.createTransaction but does not inherit individual
+   * builder methods' stale policy limits. raw_data, raw_data_hex and txID are derived together. */
+  async #buildLocalTransaction(
+    type: string,
+    value: Record<string, unknown>,
+    permissionId?: number,
+  ): Promise<Types.Transaction> {
+    const rawData = {
+      contract: [{
+        parameter: { value, type_url: `type.googleapis.com/protocol.${type}` },
+        type,
+        ...(permissionId ? { Permission_id: permissionId } : {}),
+      }],
+      ...await this.#tw.trx.getCurrentRefBlockParams(),
+    };
+    const shell = { visible: false, txID: "", raw_data_hex: "", raw_data: rawData };
+    const protobuf = type === "ProposalCreateContract"
+      ? proposalCreateTxJsonToPbExact(shell)
+      : type === "UpdateEnergyLimitContract"
+        ? updateEnergyLimitTxJsonToPbExact(shell)
+        : tronUtils.transaction.txJsonToPb(shell);
+    return {
+      ...shell,
+      txID: tronUtils.transaction.txPbToTxID(protobuf).replace(/^0x/, ""),
+      raw_data_hex: tronUtils.transaction.txPbToRawDataHex(protobuf).toLowerCase(),
+    } as unknown as Types.Transaction;
   }
 
   // tronweb's builder params are JS numbers; strings stay exact until this last inch,
@@ -514,6 +724,35 @@ function normalizeWitness(value: unknown): TronWitness | null {
     latestBlockNum: optionalNumber(raw.latestBlockNum),
     latestSlotNum: optionalNumber(raw.latestSlotNum),
     isJobs: typeof raw.isJobs === "boolean" ? raw.isJobs : undefined,
+  };
+}
+
+function normalizeProposal(value: unknown): TronProposal | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const id = Number(raw.proposal_id ?? raw.proposalId);
+  if (!Number.isSafeInteger(id) || id < 0) return null;
+  const proposerAddress = hexToBase58(raw.proposer_address ?? raw.proposerAddress);
+  if (!proposerAddress) return null;
+  const parametersRaw = raw.parameters && typeof raw.parameters === "object" && !Array.isArray(raw.parameters)
+    ? raw.parameters as Record<string, unknown>
+    : {};
+  const parameters = Object.fromEntries(
+    Object.entries(parametersRaw).map(([key, entry]) => [key, String(entry)]),
+  );
+  const stateValue = raw.state;
+  const states = ["PENDING", "DISAPPROVED", "APPROVED", "CANCELED"] as const;
+  const state = typeof stateValue === "string" && states.includes(stateValue.toUpperCase() as typeof states[number])
+    ? stateValue.toUpperCase() as typeof states[number]
+    : states[Number(stateValue)] ?? "PENDING";
+  return {
+    id,
+    proposerAddress,
+    parameters,
+    expirationTime: Number(raw.expiration_time ?? raw.expirationTime ?? 0),
+    createTime: Number(raw.create_time ?? raw.createTime ?? 0),
+    approvals: (Array.isArray(raw.approvals) ? raw.approvals : []).map(hexToBase58).filter(Boolean),
+    state,
   };
 }
 

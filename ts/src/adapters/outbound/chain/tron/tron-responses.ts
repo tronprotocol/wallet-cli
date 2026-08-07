@@ -30,7 +30,13 @@ const TronTxInfoSchema = objectish(
     blockNumber: optNum,
     fee: optNum,
     receipt: z
-      .looseObject({ result: optStr, energy_usage_total: optNum })
+      .looseObject({
+        result: optStr,
+        energy_usage_total: optNum,
+        energy_fee: optNum,
+        net_usage: optNum,
+        net_fee: optNum,
+      })
       .optional()
       .catch(undefined),
   }),

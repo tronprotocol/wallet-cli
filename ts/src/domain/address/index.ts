@@ -52,3 +52,20 @@ export function tronHexToBase58(address: unknown): string {
     return value;
   }
 }
+
+/** Decode a Base58Check TRON address to its 21-byte, 0x41-prefixed payload. */
+export function tronBase58ToBytes(address: string): Uint8Array {
+  const decoded = b58c.decode(address);
+  if (decoded.length !== 21 || decoded[0] !== 0x41) {
+    throw new Error("invalid TRON address payload");
+  }
+  return decoded;
+}
+
+/** Encode a 21-byte, 0x41-prefixed TRON address payload as Base58Check. */
+export function tronBytesToBase58(payload: Uint8Array): string {
+  if (payload.length !== 21 || payload[0] !== 0x41) {
+    throw new Error("invalid TRON address payload");
+  }
+  return b58c.encode(payload);
+}
