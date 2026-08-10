@@ -1,7 +1,7 @@
 import type { TextFormatter } from "../contracts/index.js"
 import { sourceLabel } from "../../../../domain/sources/index.js"
-import { quote } from "./scalars.js"
-import { type Obj, type Pair, asObj, receipt, titled, ok, warn } from "./layout.js"
+import { formatInt, quote, shorten } from "./scalars.js"
+import { type Obj, type Pair, asObj, receipt, table, titled, ok, warn } from "./layout.js"
 import { familyAddressLabel } from "./family.js"
 
 export const WalletFormatters = {
@@ -55,17 +55,22 @@ export const WalletFormatters = {
       ["New active", d.newActive ? String(d.newActive) : ""],
     ])
   }) satisfies TextFormatter,
+  // One command, two shapes: an export receipt, or the audit log when --records was given. They are
+  // told apart by `records` rather than by the command id, which the envelope carries separately.
   walletBackup: ((data) => {
     const d = asObj(data)
+    if (Array.isArray(d.records)) return renderBackupRecords(d)
+    const keystore = d.format === "keystore"
+    const noun = keystore ? "keystore" : "backup"
     return [
-      receipt(warn(), `Backup written ${String(d.out ?? "")}`, [
+      receipt(warn(), `${keystore ? "Keystore" : "Backup"} written ${String(d.out ?? "")}`, [
         ["Account ID", String(d.accountId ?? "")],
         ["Secret", secretLabel(d.secretType)],
         ["File mode", String(d.fileMode ?? "0600")],
         ["Bytes", String(d.bytes ?? "?")],
       ]),
       "",
-      `${warn()} Secret material was written only to the backup file, never to stdout.`,
+      `${warn()} Secret material was written only to the ${noun} file, never to stdout.`,
     ].join("\n")
   }) satisfies TextFormatter,
   passwordChanged: ((data) => {
@@ -158,6 +163,25 @@ function addressPairs(d: Obj): Pair[] {
 
 function typeLabel(v: unknown): string {
   return sourceLabel(v)
+}
+
+/** The export audit log: newest first, UTC, one row per past export and the file it went to. */
+function renderBackupRecords(d: Obj): string {
+  const records = (d.records as unknown[]).map(asObj)
+  const page = asObj(d.pagination)
+  const total = formatInt(page.total ?? records.length)
+  const header = `Backup records (showing ${records.length} of ${total})`
+  if (records.length === 0) return `${header}\n  (none)`
+  return `${header}\n${table(
+    ["Time (UTC)", "Exported account", "Operation", "File"],
+    records.map((r) => [
+      // The stored instant is second-precision UTC; minutes are enough to read a trail by.
+      String(r.timestamp ?? "").replace("T", " ").slice(0, 16),
+      r.label ? `${shorten(String(r.account ?? ""))} (${String(r.label)})` : shorten(String(r.account ?? "")),
+      String(r.operation ?? ""),
+      String(r.out ?? ""),
+    ]),
+  )}`
 }
 
 function secretLabel(v: unknown): string {

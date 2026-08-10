@@ -52,9 +52,12 @@ function fixture(opts: { tty: boolean }) {
   const formatter = createOutputFormatter("text", streams, Date.now());
   const registry = new CommandRegistry();
   registerWalletCommands(registry, {
-    walletService: new WalletService(keystore, {} as any, {
-      write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }),
-    }),
+    walletService: new WalletService(
+      keystore,
+      {} as any,
+      { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
+      { append: () => {}, list: () => [] },
+    ),
     ledger: {} as any,
   } as any);
 

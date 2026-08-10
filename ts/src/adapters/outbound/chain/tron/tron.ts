@@ -22,6 +22,10 @@ import type {
   TronContractParameter,
   TronContractMetadata,
   TronAccount,
+  TronAsset,
+  TronAssetIssuance,
+  TronAssetUpdate,
+  TronExchange,
   TronDelegatedResource,
   TronGateway,
   TronNodeInfo,
@@ -39,12 +43,14 @@ import { withTimeout } from "../../../../domain/async/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
+import { classifyNodeRejection } from "./node-errors.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
 import { isDeployedContract, normalizeContractResponses } from "./contract-response.js";
 import {
   proposalCreateTxJsonToPbExact,
   updateEnergyLimitTxJsonToPbExact,
 } from "./proposal-protobuf.js";
+import {
   decodeTransactionHex,
   encodeTransactionHex,
   normalizeTransactionHex,
@@ -98,8 +104,15 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     // rejected /wallet/broadcasttransaction carries no `result` field at all (only code/message/txid).
     // So acceptance must be the white-listed case: anything but an explicit `true` is a rejection.
     if (res.result !== true) {
-      const reason = decodeTronMessage(res.message) || res.code || "rejected by node";
-      throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`, { code: res.code });
+      const reason = String(decodeTronMessage(res.message) || res.code || "rejected by node");
+      // A recognised rejection gets a code an agent can branch on; everything else keeps the
+      // node's own words under transaction_rejected (see node-errors.ts).
+      const known = classifyNodeRejection(reason);
+      throw new ChainError(
+        known?.code ?? "transaction_rejected",
+        known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+        { code: res.code, nodeMessage: redactErrorMessage(reason) },
+      );
     }
     return { txId: res.txid ?? res.transaction?.txID };
   }
@@ -506,6 +519,225 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return this.#wrap("build trc10 transfer", async () =>
       assertBuiltTx(await this.#tw.transactionBuilder.sendToken(to, n, assetId, from), "TransferAssetContract"),
     );
+  }
+
+  // ── TRC10 assets ───────────────────────────────────────────────────────────────
+  async getAssetById(assetId: string): Promise<TronAsset | undefined> {
+    return this.#wrap("asset by id", async () => {
+      // getTokenByID throws a plain Error for an unknown id; absence is a result, not a fault.
+      try {
+        return await this.#tw.trx.getTokenByID(assetId) as unknown as TronAsset;
+      } catch {
+        return undefined;
+      }
+    });
+  }
+
+  async getAssetsByName(name: string): Promise<TronAsset[]> {
+    return this.#wrap("assets by name", async () => {
+      try {
+        const found = await this.#tw.trx.getTokenListByName(name);
+        return (Array.isArray(found) ? found : [found]) as unknown as TronAsset[];
+      } catch {
+        return [];
+      }
+    });
+  }
+
+  async getAssetByIssuer(address: string): Promise<TronAsset | undefined> {
+    return this.#wrap("asset by issuer", async () => {
+      const issued = await this.#tw.trx.getTokensIssuedByAddress(address);
+      // keyed by token name; an account may issue at most one asset, so there is at most one entry.
+      return Object.values(issued ?? {})[0] as unknown as TronAsset | undefined;
+    });
+  }
+
+  async listAssets(limit: number, offset: number): Promise<TronAsset[]> {
+    return this.#wrap("list assets", async () =>
+      // limit is always > 0 here, so tronweb takes the paginated endpoint, never the full dump.
+      await this.#tw.trx.listTokens(limit, offset) as unknown as TronAsset[],
+    );
+  }
+
+  /**
+   * AssetIssue and UnfreezeAsset are built through our own codec: TronWeb's serialiser drops every
+   * frozen tranche after the first, and has no UnfreezeAssetContract at all. See ADR-0001 and
+   * asset-contract-codec.ts. The node still only supplies the reference block, exactly as it does
+   * for every tronweb-built transaction here.
+   */
+  async #buildLocally(type: string, value: Record<string, unknown>): Promise<Types.Transaction> {
+    const refBlock = await this.#tw.trx.getCurrentRefBlockParams();
+    const built = refreshTransactionIdentity({
+      visible: false,
+      raw_data: {
+        ...refBlock,
+        contract: [{
+          parameter: { value, type_url: `type.googleapis.com/protocol.${type}` },
+          type,
+        }],
+      },
+    } as never);
+    return assertBuiltTx(built, type) as unknown as Types.Transaction;
+  }
+
+  async buildAssetIssue(owner: string, issuance: TronAssetIssuance): Promise<Types.Transaction> {
+    return this.#wrap("build asset issue", async () => this.#buildLocally("AssetIssueContract", {
+      owner_address: this.#toHexAddress(owner),
+      name: Buffer.from(issuance.name, "utf8").toString("hex"),
+      abbr: Buffer.from(issuance.abbr, "utf8").toString("hex"),
+      description: Buffer.from(issuance.description, "utf8").toString("hex"),
+      url: Buffer.from(issuance.url, "utf8").toString("hex"),
+      total_supply: issuance.totalSupply,
+      trx_num: issuance.trxNum,
+      num: issuance.num,
+      precision: issuance.precision,
+      start_time: issuance.startTime,
+      end_time: issuance.endTime,
+      free_asset_net_limit: issuance.freeAssetNetLimit,
+      public_free_asset_net_limit: issuance.publicFreeAssetNetLimit,
+      frozen_supply: issuance.frozenSupply,
+    }));
+  }
+
+  async buildAssetUnfreeze(owner: string): Promise<Types.Transaction> {
+    return this.#wrap("build asset unfreeze", async () =>
+      this.#buildLocally("UnfreezeAssetContract", { owner_address: this.#toHexAddress(owner) }),
+    );
+  }
+
+  async buildAssetUpdate(owner: string, update: TronAssetUpdate): Promise<Types.Transaction> {
+    return this.#wrap("build asset update", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.updateToken({
+          description: update.description,
+          url: update.url,
+          freeBandwidth: update.freeAssetNetLimit,
+          freeBandwidthLimit: update.publicFreeAssetNetLimit,
+        }, owner),
+        "UpdateAssetContract",
+      ),
+    );
+  }
+
+  async buildAssetParticipate(
+    owner: string,
+    issuer: string,
+    assetId: string,
+    amountSun: string,
+  ): Promise<Types.Transaction> {
+    const amount = this.#safeNumber(amountSun);
+    return this.#wrap("build asset participate", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.purchaseToken(issuer, assetId, amount, owner),
+        "ParticipateAssetIssueContract",
+      ),
+    );
+  }
+
+  // ── Bancor exchange ────────────────────────────────────────────────────────────
+  /**
+   * Exchange records carry token ids in their raw byte form (`"5f"` = `_` = TRX,
+   * `"31303035303338"` = `"1005038"`), and tronweb passes them through undecoded — unlike token
+   * records, which it does decode. Normalise here so nothing above this layer sees hex.
+   */
+  #toExchange(raw: Record<string, unknown>): TronExchange {
+    const tokenId = (value: unknown): string => {
+      const hex = String(value ?? "");
+      if (!/^([0-9a-fA-F]{2})+$/.test(hex)) return hex;
+      return Buffer.from(hex, "hex").toString("utf8");
+    };
+    return {
+      exchangeId: Number(raw.exchange_id ?? 0),
+      creatorAddress: tronHexToBase58(raw.creator_address),
+      createTime: Number(raw.create_time ?? 0),
+      firstTokenId: tokenId(raw.first_token_id),
+      firstTokenBalance: String(raw.first_token_balance ?? 0),
+      secondTokenId: tokenId(raw.second_token_id),
+      secondTokenBalance: String(raw.second_token_balance ?? 0),
+    };
+  }
+
+  async getExchangeById(exchangeId: number): Promise<TronExchange | undefined> {
+    return this.#wrap("exchange by id", async () => {
+      const found = await this.#tw.trx.getExchangeByID(exchangeId) as unknown as Record<string, unknown>;
+      // an unknown id comes back as an empty object rather than an error
+      if (!found || found.exchange_id === undefined) return undefined;
+      return this.#toExchange(found);
+    });
+  }
+
+  async listExchanges(limit: number, offset: number): Promise<TronExchange[]> {
+    return this.#wrap("list exchanges", async () => {
+      const page = await this.#tw.trx.listExchangesPaginated(limit, offset) as unknown as Array<Record<string, unknown>>;
+      return (page ?? []).map((raw) => this.#toExchange(raw));
+    });
+  }
+
+  async buildExchangeCreate(
+    owner: string,
+    firstTokenId: string,
+    firstBalance: string,
+    secondTokenId: string,
+    secondBalance: string,
+  ): Promise<Types.Transaction> {
+    const first = this.#safeNumber(firstBalance);
+    const second = this.#safeNumber(secondBalance);
+    return this.#wrap("build exchange create", async () =>
+      // createTokenExchange (not createTRXExchange) for both sides: it takes the token ids
+      // verbatim, so the pair keeps the order the user typed. createTRXExchange would force TRX
+      // into the second slot regardless.
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.createTokenExchange(
+          firstTokenId, first, secondTokenId, second, owner,
+        ),
+        "ExchangeCreateContract",
+      ),
+    );
+  }
+
+  async buildExchangeInject(owner: string, exchangeId: number, tokenId: string, quant: string): Promise<Types.Transaction> {
+    const amount = this.#safeNumber(quant);
+    return this.#wrap("build exchange inject", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.injectExchangeTokens(exchangeId, tokenId, amount, owner),
+        "ExchangeInjectContract",
+      ),
+    );
+  }
+
+  async buildExchangeWithdraw(owner: string, exchangeId: number, tokenId: string, quant: string): Promise<Types.Transaction> {
+    const amount = this.#safeNumber(quant);
+    return this.#wrap("build exchange withdraw", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.withdrawExchangeTokens(exchangeId, tokenId, amount, owner),
+        "ExchangeWithdrawContract",
+      ),
+    );
+  }
+
+  async buildExchangeTrade(
+    owner: string,
+    exchangeId: number,
+    tokenId: string,
+    quant: string,
+    expected: string,
+  ): Promise<Types.Transaction> {
+    const amount = this.#safeNumber(quant);
+    const floor = this.#safeNumber(expected);
+    return this.#wrap("build exchange trade", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.tradeExchangeTokens(exchangeId, tokenId, amount, floor, owner),
+        "ExchangeTransactionContract",
+      ),
+    );
+  }
+
+  #toHexAddress(address: string): string {
+    try {
+      return TronWeb.address.toHex(address).replace(/^0x/, "");
+    } catch {
+      throw new UsageError("invalid_address", "owner address is not a TRON address");
+    }
   }
 
   // ── estimate (real fee report for --dry-run) ─────────────────────────────────

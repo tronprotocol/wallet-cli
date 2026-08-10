@@ -100,6 +100,8 @@ Common codes at exit **2** (usage — fix the call):
 | `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id |
 | `unknown_command` | No such command |
 | `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
+| `keystore_not_found` | `import keystore`: no file at the given path |
+| `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, unsupported cipher/kdf, or a payload that is not a 32-byte private key |
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
 | `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
@@ -113,6 +115,9 @@ Common codes at exit **1** (execution — runtime failure):
 | `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
 | `auth_required` | Master password required but not supplied |
 | `auth_failed` | Wrong master password (decryption failed) |
+| `wrong_keystore_password` | `import keystore`: the keystore file's own password is wrong (its MAC did not match). Distinct from `auth_failed`, which is the master password |
+| `not_exportable` | The account holds no exportable secret (watch-only / Ledger) — `backup` |
+| `account_exists` | `import keystore`: an account with this address already exists locally; delete it first (wallet-cli never overwrites it) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
 | `proposal_not_found` / `proposal_expired` | Proposal lookup or voting-window failure |

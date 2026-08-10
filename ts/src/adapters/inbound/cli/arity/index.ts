@@ -12,8 +12,11 @@ import { z, type ZodObject, type ZodRawShape, type ZodType } from "zod";
 // lives on the FINAL schema instance (zod methods clone), so accountRef applies min+describe
 // itself and must be the terminal call — no further chaining.
 const ACCOUNT_REF = new WeakSet<object>();
-export function accountRef(describe: string): ZodType {
-  const s = z.string().min(1).describe(describe);
+export function accountRef(describe: string, opts: { optional?: boolean } = {}): ZodType {
+  const base = z.string().min(1).describe(describe);
+  // The brand must sit on the instance stored in `fields`, so an optional ref is wrapped HERE —
+  // chaining `.optional()` at the call site would clone away the brand and silently lose the picker.
+  const s = opts.optional ? base.optional() : base;
   ACCOUNT_REF.add(s);
   return s;
 }

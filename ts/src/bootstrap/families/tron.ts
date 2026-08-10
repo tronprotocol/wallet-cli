@@ -54,6 +54,8 @@ import {
   txStatusTronBinding,
 } from "../../adapters/inbound/cli/commands/tx.js";
 import { stakeDefinitions } from "../../adapters/inbound/cli/commands/stake.js";
+import { assetDefinitions } from "../../adapters/inbound/cli/commands/asset.js";
+import { exchangeDefinitions } from "../../adapters/inbound/cli/commands/exchange.js";
 import { chainDefinitions } from "../../adapters/inbound/cli/commands/chain.js";
 import {
   voteCastSpec,
@@ -113,6 +115,8 @@ import { TronTokenService } from "../../application/use-cases/tron/token-service
 import { TronTransactionService } from "../../application/use-cases/tron/transaction-service.js";
 import { TronContractService } from "../../application/use-cases/tron/contract-service.js";
 import { TronStakeService } from "../../application/use-cases/tron/stake-service.js";
+import { TronAssetService } from "../../application/use-cases/tron/asset-service.js";
+import { TronExchangeService } from "../../application/use-cases/tron/exchange-service.js";
 import { TronVoteService } from "../../application/use-cases/tron/vote-service.js";
 import { TronRewardService } from "../../application/use-cases/tron/reward-service.js";
 import { TronChainService } from "../../application/use-cases/tron/chain-service.js";
@@ -197,6 +201,8 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   );
   const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
+  const asset = new TronAssetService(deps.gateways, deps.transactions);
+  const exchange = new TronExchangeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
   const reward = new TronRewardService(deps.gateways, deps.transactions);
   const chain = new TronChainService(deps.gateways);
@@ -240,6 +246,12 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(permissionShowSpec, "tron", permissionShowTronBinding(permission));
   reg.addChain(permissionUpdateSpec, "tron", permissionUpdateTronBinding(permission));
   for (const definition of stakeDefinitions(stake)) {
+    reg.addChain(definition.spec, "tron", definition.binding);
+  }
+  for (const definition of assetDefinitions(asset)) {
+    reg.addChain(definition.spec, "tron", definition.binding);
+  }
+  for (const definition of exchangeDefinitions(exchange)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }
   reg.addChain(voteCastSpec, "tron", voteCastTronBinding(vote));

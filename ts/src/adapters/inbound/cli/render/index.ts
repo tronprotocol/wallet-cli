@@ -16,6 +16,8 @@ import { formatScalar } from "./scalars.js"
 import { type Obj, ok } from "./layout.js"
 import { WalletFormatters } from "./wallet.js"
 import { AccountFormatters } from "./account.js"
+import { AssetFormatters } from "./asset.js"
+import { ExchangeFormatters } from "./exchange.js"
 import { TxFormatters } from "./tx.js"
 import { StakeFormatters } from "./stake.js"
 import { VoteFormatters } from "./vote.js"
@@ -34,6 +36,8 @@ export { FAMILY_RENDER, renderFamily } from "./family.js"
 export const TextFormatters = {
   ...WalletFormatters,
   ...AccountFormatters,
+  ...AssetFormatters,
+  ...ExchangeFormatters,
   ...TxFormatters,
   ...StakeFormatters,
   ...VoteFormatters,

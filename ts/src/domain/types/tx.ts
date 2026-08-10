@@ -92,7 +92,9 @@ export type TxReceiptKind =
   | "witness-create" | "witness-update" | "witness-set-brokerage"
   | "contract-clear-abi" | "contract-set-origin-energy-limit" | "contract-set-user-resource-percent"
   | "vote-cast" | "reward-withdraw" | "permission-update"
-  | "account-activate" | "account-set";
+  | "account-activate" | "account-set"
+  | "asset-issue" | "asset-update" | "asset-participate" | "asset-unfreeze"
+  | "exchange-create" | "exchange-inject" | "exchange-withdraw" | "exchange-trade";
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
@@ -135,6 +137,60 @@ export interface TxReceiptView {
   // contract
   method?: string;
   contractAddress?: string;
+  // TRC10 assets — quantities in the asset's minimal units, rendered with `precision`
+  name?: string;
+  abbr?: string;
+  issuerAddress?: string;
+  participantAddress?: string;
+  precision?: number;
+  totalSupply?: string;
+  price?: string;
+  trxNum?: number;
+  num?: number;
+  startTime?: number;
+  endTime?: number;
+  url?: string;
+  description?: string;
+  freeAssetNetLimit?: number;
+  publicFreeAssetNetLimit?: number;
+  frozenSupply?: Array<{ amount: string; days: number }>;
+  paidSun?: string;
+  receivedAmount?: string;
+  // Bancor exchange — quantities in each token's minimal units, rendered with its own decimals
+  exchangeId?: number;
+  pair?: string;
+  creatorAddress?: string;
+  traderAddress?: string;
+  firstTokenId?: string;
+  firstTokenQuant?: string;
+  firstTokenLabel?: string;
+  firstTokenDecimals?: number;
+  secondTokenId?: string;
+  secondTokenQuant?: string;
+  secondTokenLabel?: string;
+  secondTokenDecimals?: number;
+  tokenId?: string;
+  tokenQuant?: string;
+  tokenLabel?: string;
+  tokenDecimals?: number;
+  otherTokenId?: string;
+  otherTokenQuant?: string;
+  otherTokenLabel?: string;
+  otherTokenDecimals?: number;
+  reserveAfter?: string;
+  otherReserveAfter?: string;
+  soldTokenId?: string;
+  soldQuant?: string;
+  soldLabel?: string;
+  soldDecimals?: number;
+  receivedTokenId?: string;
+  receivedQuant?: string;
+  receivedLabel?: string;
+  receivedDecimals?: number;
+  estimatedReceivedQuant?: string;
+  minReceivedQuant?: string;
+  releasedAmount?: string;
+  stillFrozenAmount?: string;
   // confirmed / failed on-chain numbers
   blockNumber?: number;
   energyUsed?: number;

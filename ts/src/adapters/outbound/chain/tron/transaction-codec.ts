@@ -1,6 +1,7 @@
 import { utils as tronUtils } from "tronweb";
 import { ChainError } from "../../../../domain/errors/index.js";
 import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
+import { decodeOverriddenContract, encodeOverriddenContract } from "./asset-contract-codec.js";
 
 const MAX_TRANSACTION_BYTES = 512 * 1024;
 const SIGNATURE_BYTES = 65;
@@ -49,9 +50,10 @@ const CONTRACT_TYPE_BY_ID: Readonly<Record<number, string>> = Object.freeze({
   46: "AccountPermissionUpdateContract",
   48: "ClearABIContract",
   49: "UpdateBrokerageContract",
-  // 14/51/52/53 are named but NOT decodable by the bundled TronWeb (its deserializer throws
+  // 51/52/53 are named but NOT decodable by the bundled TronWeb (its deserializer throws
   // "not supported"). They stay in the table so an artifact carrying one is refused as
   // "<name> cannot be decoded losslessly" rather than the opaque "unsupported contract type id".
+  // (14 was in this group until asset-contract-codec.ts supplied the missing serialiser.)
   51: "ShieldedTransferContract",
   52: "MarketSellAssetContract",
   53: "MarketCancelOrderContract",
@@ -144,6 +146,37 @@ function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<Tr
   };
 }
 
+/**
+ * TronWeb's JSON→protobuf encoder, with the two contract types it gets wrong routed to our own
+ * serialiser first (see asset-contract-codec.ts). Every path that reaches protobuf goes through
+ * here, so the override cannot be bypassed by one caller and silently corrupt a transaction.
+ */
+function toProtobuf(candidate: Partial<TronTransactionArtifact>): ProtobufTransaction {
+  const overridden = encodeOverriddenContract(candidate);
+  if (overridden) return overridden as unknown as ProtobufTransaction;
+  try {
+    return tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction;
+  } catch {
+    return invalidTransaction("transaction JSON cannot be encoded as TRON protobuf");
+  }
+}
+
+/**
+ * The raw_data_hex our encoder derives from a raw_data — the arbiter the integrity check compares
+ * against. Deliberately lets encoding errors propagate so the caller can tell "this contract type
+ * has no encoder" apart from "this payload is malformed".
+ *
+ * tx-integrity must go through here rather than tronweb's own `txCheck`: for the two contract
+ * types we override, tronweb's re-encoding disagrees with the bytes we actually signed, and a
+ * legitimate transaction would be refused (see asset-contract-codec.ts).
+ */
+export function rawDataHexOf(transaction: unknown): string {
+  const candidate = withNamedEnums(transaction as Partial<TronTransactionArtifact>);
+  const overridden = encodeOverriddenContract(candidate) as unknown as ProtobufTransaction | undefined;
+  const pb = overridden ?? (tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction);
+  return tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase();
+}
+
 /** Encode JSON into complete protocol.Transaction bytes, preserving existing signatures. */
 export function encodeTransactionHex(transaction: unknown): string {
   if (!transaction || typeof transaction !== "object") {
@@ -154,12 +187,7 @@ export function encodeTransactionHex(transaction: unknown): string {
     return invalidTransaction("exactly one contract is required per transaction");
   }
   candidate = withNamedEnums(candidate);
-  let pb: ProtobufTransaction;
-  try {
-    pb = tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction;
-  } catch {
-    return invalidTransaction("transaction JSON cannot be encoded as TRON protobuf");
-  }
+  const pb = toProtobuf(candidate);
 
   const computedRawDataHex = tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase();
   const computedTxId = tronUtils.transaction.txPbToTxID(pb).replace(/^0x/i, "").toLowerCase();
@@ -206,10 +234,15 @@ export function decodeTransactionHex(input: string): TronTransactionArtifact {
 
   const rawDataHex = Buffer.from(raw.serializeBinary()).toString("hex").toLowerCase();
   let rawData: TronTransactionArtifact["raw_data"];
-  try {
-    rawData = tronUtils.deserializeTx.deserializeTransaction(contractType, rawDataHex) as TronTransactionArtifact["raw_data"];
-  } catch {
-    return invalidTransaction(`TRON contract type ${contractType} cannot be decoded losslessly`);
+  const overridden = decodeOverriddenContract(contractType, rawDataHex);
+  if (overridden) {
+    rawData = overridden;
+  } else {
+    try {
+      rawData = tronUtils.deserializeTx.deserializeTransaction(contractType, rawDataHex) as TronTransactionArtifact["raw_data"];
+    } catch {
+      return invalidTransaction(`TRON contract type ${contractType} cannot be decoded losslessly`);
+    }
   }
   const txID = tronUtils.transaction.txPbToTxID(pb).replace(/^0x/i, "").toLowerCase();
   const signature = pb.getSignatureList_asU8().map((value) => Buffer.from(value).toString("hex").toLowerCase());
@@ -257,12 +290,7 @@ export function refreshTransactionIdentity(transaction: unknown): TronTransactio
   if (Array.isArray(candidate.signature) && candidate.signature.length > 0) {
     return invalidTransaction("a signed transaction cannot be mutated");
   }
-  let pb: ProtobufTransaction;
-  try {
-    pb = tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction;
-  } catch {
-    return invalidTransaction("transaction JSON cannot be encoded as TRON protobuf");
-  }
+  const pb = toProtobuf(candidate);
   const refreshed: TronTransactionArtifact = {
     ...(candidate as TronTransactionArtifact),
     visible: false,

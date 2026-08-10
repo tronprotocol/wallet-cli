@@ -9,6 +9,7 @@ Every command — including every subcommand — has its own page, following a f
 | `create` | [create.md](create.md) |
 | `import mnemonic` | [import/mnemonic.md](import/mnemonic.md) *(interactive-only)* |
 | `import private-key` | [import/private-key.md](import/private-key.md) *(interactive-only)* |
+| `import keystore` | [import/keystore.md](import/keystore.md) *(interactive-only)* |
 | `import ledger` | [import/ledger.md](import/ledger.md) |
 | `import watch` | [import/watch.md](import/watch.md) |
 | `list` | [list.md](list.md) |
@@ -68,6 +69,20 @@ Every command — including every subcommand — has its own page, following a f
 | `token add` | [token/add.md](token/add.md) |
 | `token list` | [token/list.md](token/list.md) |
 | `token remove` | [token/remove.md](token/remove.md) |
+| `asset` (group) | [asset/index.md](asset/index.md) |
+| `asset issue` | [asset/issue.md](asset/issue.md) |
+| `asset update` | [asset/update.md](asset/update.md) |
+| `asset participate` | [asset/participate.md](asset/participate.md) |
+| `asset unfreeze` | [asset/unfreeze.md](asset/unfreeze.md) |
+| `asset info` | [asset/info.md](asset/info.md) |
+| `asset list` | [asset/list.md](asset/list.md) |
+| `exchange` (group) | [exchange/index.md](exchange/index.md) |
+| `exchange create` | [exchange/create.md](exchange/create.md) |
+| `exchange inject` | [exchange/inject.md](exchange/inject.md) |
+| `exchange withdraw` | [exchange/withdraw.md](exchange/withdraw.md) |
+| `exchange trade` | [exchange/trade.md](exchange/trade.md) |
+| `exchange show` | [exchange/show.md](exchange/show.md) |
+| `exchange list` | [exchange/list.md](exchange/list.md) |
 | `contact` (group) | [contact/index.md](contact/index.md) |
 | `contact add` | [contact/add.md](contact/add.md) |
 | `contact list` | [contact/list.md](contact/list.md) |

@@ -102,6 +102,75 @@ export interface TronTokenInfo {
   [key: string]: unknown;
 }
 
+/** one frozen tranche of a TRC10's supply, fixed at issuance. */
+export interface TronAssetTranche {
+  frozen_amount: number;
+  frozen_days: number;
+}
+
+/**
+ * A TRC10 asset as the chain stores it. `name`/`abbr`/`description`/`url` arrive decoded to
+ * UTF-8; every quantity is in the asset's minimal units. `trx_num`/`num` are the on-chain ICO
+ * rate pair (sun per minimal unit), both int32.
+ */
+export interface TronAsset {
+  id: string;
+  owner_address: string;
+  name: string;
+  abbr?: string;
+  description?: string;
+  url?: string;
+  total_supply: number;
+  trx_num: number;
+  num: number;
+  precision?: number;
+  start_time: number;
+  end_time: number;
+  free_asset_net_limit?: number;
+  public_free_asset_net_limit?: number;
+  frozen_supply?: TronAssetTranche[];
+}
+
+/** the mutable half of a TRC10, i.e. everything `asset update` may change. */
+export interface TronAssetUpdate {
+  description: string;
+  url: string;
+  freeAssetNetLimit: number;
+  publicFreeAssetNetLimit: number;
+}
+
+/** every field an issuance locks in; quantities already scaled to minimal units. */
+export interface TronAssetIssuance {
+  name: string;
+  abbr: string;
+  description: string;
+  url: string;
+  totalSupply: number;
+  trxNum: number;
+  num: number;
+  precision: number;
+  startTime: number;
+  endTime: number;
+  freeAssetNetLimit: number;
+  publicFreeAssetNetLimit: number;
+  frozenSupply: TronAssetTranche[];
+}
+
+/**
+ * A Bancor exchange pair. Token ids arrive decoded from their on-chain byte form — `"_"` for TRX,
+ * the numeric id for a TRC10 — and both balances are in the respective token's minimal units.
+ * Side order is whatever the creator submitted; it is not normalised.
+ */
+export interface TronExchange {
+  exchangeId: number;
+  creatorAddress: string;
+  createTime: number;
+  firstTokenId: string;
+  firstTokenBalance: string;
+  secondTokenId: string;
+  secondTokenBalance: string;
+}
+
 export interface TronTxInfo {
   blockNumber?: number;
   fee?: number;
@@ -237,6 +306,48 @@ export interface TronGateway extends Broadcaster {
     to: string,
     assetId: string,
     amount: string,
+  ): Promise<UnsignedTx>;
+
+  // ── TRC10 assets (the `asset` command group) ──────────────────────────────────
+  /** resolves undefined when no asset carries that id. */
+  getAssetById(assetId: string): Promise<TronAsset | undefined>;
+  /** every asset sharing a name — the chain permits duplicates once AllowSameTokenName is on. */
+  getAssetsByName(name: string): Promise<TronAsset[]>;
+  /** the asset this address issued, if any; an account may issue at most one, ever. */
+  getAssetByIssuer(address: string): Promise<TronAsset | undefined>;
+  /** one server-side page; never fetches the whole list (it is megabytes). */
+  listAssets(limit: number, offset: number): Promise<TronAsset[]>;
+  buildAssetIssue(owner: string, issuance: TronAssetIssuance): Promise<UnsignedTx>;
+  buildAssetUpdate(owner: string, update: TronAssetUpdate): Promise<UnsignedTx>;
+  buildAssetParticipate(
+    owner: string,
+    issuer: string,
+    assetId: string,
+    amountSun: string,
+  ): Promise<UnsignedTx>;
+  buildAssetUnfreeze(owner: string): Promise<UnsignedTx>;
+
+  // ── Bancor exchange (the `exchange` command group) ────────────────────────────
+  /** resolves undefined when no pair carries that id. */
+  getExchangeById(exchangeId: number): Promise<TronExchange | undefined>;
+  /** one server-side page, in id order. */
+  listExchanges(limit: number, offset: number): Promise<TronExchange[]>;
+  buildExchangeCreate(
+    owner: string,
+    firstTokenId: string,
+    firstBalance: string,
+    secondTokenId: string,
+    secondBalance: string,
+  ): Promise<UnsignedTx>;
+  buildExchangeInject(owner: string, exchangeId: number, tokenId: string, quant: string): Promise<UnsignedTx>;
+  buildExchangeWithdraw(owner: string, exchangeId: number, tokenId: string, quant: string): Promise<UnsignedTx>;
+  /** `expected` is the on-chain slippage floor: below it the trade reverts. */
+  buildExchangeTrade(
+    owner: string,
+    exchangeId: number,
+    tokenId: string,
+    quant: string,
+    expected: string,
   ): Promise<UnsignedTx>;
   estimateResources(
     from: string,

@@ -17,6 +17,19 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
   if (receipt.energy_fee !== undefined) result.energyFeeSun = receipt.energy_fee;
   if (receipt.net_fee !== undefined) result.netFeeSun = receipt.net_fee;
   if (info.withdraw_amount !== undefined) result.withdrawnSun = info.withdraw_amount;
+  // Chain-assigned identities and realised amounts exist only in the receipt, so they are absent
+  // whenever a command returns `submitted` — see docs/asset-exchange-spec-deviations-v4.12.0.md.
+  // (TRON's HTTP mapping camel-cases this one field and leaves the rest snake_case.)
+  if (info.assetIssueID !== undefined) result.assetIssueID = info.assetIssueID;
+  if (info.unfreeze_amount !== undefined) result.unfreezeAmount = info.unfreeze_amount;
+  if (info.exchange_id !== undefined) result.exchangeId = info.exchange_id;
+  if (info.exchange_received_amount !== undefined) result.exchangeReceived = info.exchange_received_amount;
+  if (info.exchange_inject_another_amount !== undefined) {
+    result.exchangeInjectedOther = info.exchange_inject_another_amount;
+  }
+  if (info.exchange_withdraw_another_amount !== undefined) {
+    result.exchangeWithdrawnOther = info.exchange_withdraw_another_amount;
+  }
   if (receipt.result !== undefined) result.result = receipt.result;
   result.failed = receipt.result !== undefined &&
     receipt.result !== "SUCCESS" &&

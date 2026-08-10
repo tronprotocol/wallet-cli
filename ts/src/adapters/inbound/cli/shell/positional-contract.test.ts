@@ -64,8 +64,11 @@ describe("every registered positional command rejects its --<field> spelling", (
   it("finds the shipped positional commands (guards against an empty, vacuously-passing table)", () => {
     const found = positionalCommands().map((c) => c.path.join(" ")).sort();
     expect(found).toEqual([
+      "asset info", "asset participate",
       "backup", "block", "config", "contact add", "contact remove",
-      "delete", "encoding convert", "gasfree trace", "rename", "use",
+      "delete", "encoding convert",
+      "exchange inject", "exchange show", "exchange trade", "exchange withdraw",
+      "gasfree trace", "import keystore", "rename", "use",
     ]);
   });
 
