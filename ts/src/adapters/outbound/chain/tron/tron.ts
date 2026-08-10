@@ -1143,7 +1143,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         {
           owner_address: this.#tw.address.toHex(owner),
           contract_address: this.#tw.address.toHex(contract),
-          origin_energy_limit: energy,
+          // MUST be a json NUMBER, never a numeric string. java-tron rebuilds the contract from
+          // `raw_data` json (it ignores raw_data_hex on the non-visible broadcast path); a string
+          // fails to parse into the int64 field and it validates an EMPTY message, which surfaces as
+          // the misleading "Contract validate error : No contract!" even though the address is right.
+          // Proven on Nile: one signed transaction, identical raw_data_hex — number accepted, string
+          // rejected. #safeNumber refuses anything Number cannot hold exactly.
+          origin_energy_limit: typeof energy === "string" ? this.#safeNumber(energy, "origin energy limit") : energy,
         },
         options.permissionId,
       ),
