@@ -13,6 +13,17 @@ import {
   type GovernanceTransactionInput,
 } from "./governance-transaction.js";
 
+/**
+ * The Ledger TRON app's parser implements a fixed contract-type allowlist (java's
+ * `ledger/wrapper/ContractTypeChecker`), and none of this group's types are on it:
+ * `WitnessCreateContract`, `WitnessUpdateContract`, `UpdateBrokerageContract`. The device answers
+ * APDU 0x6a80 and no app setting changes that, so refuse before the user is sent to unlock it and
+ * before any RPC is spent — the rule established for the asset group in docs/adr/0003.
+ *
+ * The `proposal` group is deliberately NOT gated: ProposalCreate/Approve/Delete *are* allowlisted.
+ */
+const LEDGER_CANNOT_SIGN = { requireSoftware: true } as const;
+
 export interface WitnessUrlInput extends GovernanceTransactionInput {
   url: string;
 }
@@ -29,7 +40,7 @@ export class TronWitnessService {
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
     const gateway = this.gateways.get(network, "tron");
-    const mode = governanceTransactionMode(this.pipeline, scope, input);
+    const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     const [witness, account, parameters] = await Promise.all([
       gateway.getWitness(owner),
@@ -37,7 +48,10 @@ export class TronWitnessService {
       gateway.getChainParameters(),
     ]);
     if (witness) throw new ChainError("already_witness", `${owner} is already a registered witness`);
-    if (Object.keys(account).length === 0) {
+    // "Activated" means the node returned a record carrying an address. Testing for an EMPTY object
+    // is not the same thing: a node that answers with a stub (just `address`, no balance) would pass
+    // that check and the user would get an opaque node rejection instead of `account_not_active`.
+    if (!account.address) {
       throw new ChainError("account_not_active", `${owner} is not activated on-chain`);
     }
     const feeValue = parameters.find((entry) => entry.key === "getAccountUpgradeCost")?.value;
@@ -80,7 +94,7 @@ export class TronWitnessService {
 
   async update(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
     const gateway = this.gateways.get(network, "tron");
-    const mode = governanceTransactionMode(this.pipeline, scope, input);
+    const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
     const outcome = await this.pipeline.run({
@@ -102,7 +116,7 @@ export class TronWitnessService {
 
   async setBrokerage(scope: TransactionScope, network: NetworkDescriptor, input: WitnessBrokerageInput) {
     const gateway = this.gateways.get(network, "tron");
-    const mode = governanceTransactionMode(this.pipeline, scope, input);
+    const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
     const outcome = await this.pipeline.run({

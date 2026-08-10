@@ -832,17 +832,36 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       return witnesses.map(normalizeWitness).filter((w): w is TronWitness => w !== null);
     });
   }
+  /**
+   * The witness record for `address`, or null when it is not a registered witness.
+   *
+   * Read from the witness LIST and filtered locally, because there is no per-address witness
+   * endpoint: `/wallet/getwitnessbyaddress` does not exist on any node (POST 405 / GET 404 on both
+   * mainnet and Nile), so asking for one can only ever fail. One request, no per-row fan-out —
+   * 440 records / 59 KB on mainnet, 842 / 89 KB on Nile — and it runs once as a pre-flight for a
+   * write, never inside a listing.
+   *
+   * `listwitnesses` rather than `getpaginatednowwitnesslist`: it returns EVERY witness in a single
+   * response, and the rights this gates (brokerage, creating/approving proposals) belong to any
+   * witness, not only the 27 currently-active SRs.
+   */
   async getWitness(address: string): Promise<TronWitness | null> {
-    return this.#wrap("getWitnessByAddress", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getwitnessbyaddress`, {
+    return this.#wrap("listWitnesses", async () => {
+      const response = await fetch(`${this.#fullHost}/wallet/listwitnesses`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
+        body: "{}",
         signal: AbortSignal.timeout(this.#timeoutMs),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const normalized = normalizeAccountValue(parseLosslessJson(await response.text()));
-      return normalizeWitness(normalized);
+      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<string, unknown>;
+      const witnesses = Array.isArray(raw.witnesses) ? raw.witnesses : [];
+      // normalizeWitness yields base58; compare against the caller's ref in the same form.
+      const wanted = hexToBase58(address) || address;
+      return witnesses
+        .map(normalizeWitness)
+        .find((witness): witness is TronWitness => witness !== null && witness.address === wanted)
+        ?? null;
     });
   }
   async getProposals(): Promise<TronProposal[]> {
@@ -1250,6 +1269,38 @@ function normalizeWitness(value: unknown): TronWitness | null {
   };
 }
 
+/**
+ * A proposal's parameter changes, keyed by protocol parameter id — the substance of the proposal.
+ *
+ * The node sends `parameters` as an ARRAY of `{key, value}` (`/wallet/listproposals`), which is the
+ * only shape observed on mainnet and Nile. A map keyed by id is accepted too, because that is what
+ * tronweb's typings describe and what a future gateway could hand us; both collapse to the same
+ * `{ "<id>": "<value>" }` record the domain works with.
+ *
+ * Getting this wrong is silent: an unrecognised shape yields `{}`, so every proposal renders with
+ * "no changes" and `proposal create --wait` cannot match the proposal it just made. Hence the
+ * explicit array branch and the adapter-level test over a real node payload.
+ */
+function normalizeProposalParameters(value: unknown): Record<string, string> {
+  if (Array.isArray(value)) {
+    const entries = value.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const { key, value: parameterValue } = entry as { key?: unknown; value?: unknown };
+      if (key === undefined || key === null || parameterValue === undefined || parameterValue === null) return [];
+      return [[String(key), String(parameterValue)] as const];
+    });
+    return Object.fromEntries(entries);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined && entry !== null)
+        .map(([key, entry]) => [key, String(entry)]),
+    );
+  }
+  return {};
+}
+
 function normalizeProposal(value: unknown): TronProposal | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -1257,12 +1308,7 @@ function normalizeProposal(value: unknown): TronProposal | null {
   if (!Number.isSafeInteger(id) || id < 0) return null;
   const proposerAddress = hexToBase58(raw.proposer_address ?? raw.proposerAddress);
   if (!proposerAddress) return null;
-  const parametersRaw = raw.parameters && typeof raw.parameters === "object" && !Array.isArray(raw.parameters)
-    ? raw.parameters as Record<string, unknown>
-    : {};
-  const parameters = Object.fromEntries(
-    Object.entries(parametersRaw).map(([key, entry]) => [key, String(entry)]),
-  );
+  const parameters = normalizeProposalParameters(raw.parameters);
   const stateValue = raw.state;
   const states = ["PENDING", "DISAPPROVED", "APPROVED", "CANCELED"] as const;
   const state = typeof stateValue === "string" && states.includes(stateValue.toUpperCase() as typeof states[number])
