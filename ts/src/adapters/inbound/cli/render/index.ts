@@ -23,6 +23,11 @@ import { RewardFormatters } from "./reward.js"
 import { ChainFormatters } from "./chain.js"
 import { MiscFormatters } from "./misc.js"
 import { GovernanceFormatters } from "./governance.js"
+import { PermissionFormatters } from "./permission.js"
+import { MultisigFormatters } from "./multisig.js"
+import { GasFreeFormatters } from "./gasfree.js"
+import { ContactFormatters } from "./contact.js"
+import { EncodingFormatters } from "./encoding.js"
 
 export { FAMILY_RENDER, renderFamily } from "./family.js"
 
@@ -36,6 +41,11 @@ export const TextFormatters = {
   ...ChainFormatters,
   ...MiscFormatters,
   ...GovernanceFormatters,
+  ...PermissionFormatters,
+  ...MultisigFormatters,
+  ...GasFreeFormatters,
+  ...ContactFormatters,
+  ...EncodingFormatters,
 }
 
 export function renderGenericText(command: string, net: NetworkDescriptor | undefined, data: unknown): string {

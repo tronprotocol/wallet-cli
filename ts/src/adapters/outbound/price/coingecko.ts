@@ -3,7 +3,7 @@
  * native via `ids=`, TRC20 via `token_price/tron`. TRC10 → null. Best-effort:
  * any network/parse failure resolves to null (see {@link PriceProvider}).
  */
-import type { PriceProvider } from "./index.js";
+import type { PriceProvider } from "../../../application/ports/price-provider.js";
 
 export class CoinGeckoPriceProvider implements PriceProvider {
   readonly source = "coingecko";

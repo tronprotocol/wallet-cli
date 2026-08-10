@@ -98,23 +98,25 @@ export class HelpService {
       ["list", "List wallets / accounts", ""],
     ] as const
     const management = [
-      ["account", "Query on-chain account state", ""],
+      ["account", "Query on-chain account state, activate & name accounts", ""],
+      ["permission", "View and update account multi-sign permissions", "tron"],
       ["token", "Manage the token address book and query tokens", ""],
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
       ["contract", "Call, deploy, govern, and inspect smart contracts", ""],
+      ["gasfree", "Gas-free token transfers via the GasFree service", "tron"],
       ["proposal", "Create and vote on governance proposals", "tron"],
       ["witness", "Register and operate an SR candidacy", "tron"],
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
-      ["chain", "Query chain params, prices & node info", ""],
+      ["chain", "Query chain params, prices & node info", "tron"],
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
     ] as const
     const commands = [
       ["use", "Set the active account", ""],
-      ["current", "Show the current (active) account", ""],
+      ["current", "Show the current account (--qr for a receive QR code)", ""],
       ["rename", "Rename an account label", ""],
       ["derive", "Derive the next HD account from a seed wallet", ""],
       ["backup", "Export an account's secret + metadata (0600)", ""],
@@ -122,6 +124,9 @@ export class HelpService {
       ["config", "Show / get / set configuration values", ""],
       ["networks", "List known networks", ""],
       ["change-password", "Change the master password (re-encrypt keystores)", ""],
+      ["encoding", "Convert / validate addresses & encodings across formats", ""],
+      ["address", "Generate a random keypair (local, not stored)", ""],
+      ["contact", "Manage the recipient address book", ""],
     ] as const
     const sections = [common, management, commands] as const
     const nameWidth = Math.max(...sections.flat().map(([name]) => name.length)) + 2
@@ -206,6 +211,7 @@ export class HelpService {
       broadcasts: cmd.broadcasts,
       fields: introspectFields(cmd.fields),
       inputFlags: inputFlagsFor(cmd),
+      exclusive: cmd.exclusive,
       examples: cmd.examples,
       requires: cmd.requires,
       positionals: cmd.positionals,
@@ -226,6 +232,7 @@ export class HelpService {
       broadcasts: spec.broadcasts,
       fields: introspectFields(mergedFields(def)),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
+      exclusive: spec.exclusive,
       examples: spec.examples,
       requires: spec.requires,
       positionals: spec.positionals,
@@ -244,6 +251,7 @@ export class HelpService {
     broadcasts?: boolean
     fields: FieldInfo[]
     inputFlags: readonly GlobalFlag[]
+    exclusive?: ChainSpec["exclusive"]
     examples: CommandDefinition["examples"]
     requires?: string[]
     positionals?: { field: string; placeholder?: string }[]
@@ -273,13 +281,19 @@ export class HelpService {
     // A command only prompts when it opts in (`interactive`); everything else fails fast so
     // scripts and agents get a deterministic error instead of a hung prompt. Say which one this
     // is — promising a TTY prompt that never comes sends the reader hunting for a broken terminal.
-    if (c.auth === "required") requires.push(
-      c.secretsTtyOnly
-        ? "the master password — entered interactively in a TTY"
-        : c.interactive
-          ? "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY"
-          : "master password — pass --password-stdin; this command never prompts",
-    )
+    if (c.auth === "required") {
+      requires.push(
+        c.secretsTtyOnly
+          ? "the master password — entered interactively in a TTY"
+          : c.interactive
+            ? "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY"
+            : "master password — pass --password-stdin; this command never prompts",
+      )
+    } else if (c.auth === "conditional") {
+      requires.push(
+        "the master password only when the selected mode signs — pass --password-stdin then; other modes need no password",
+      )
+    }
     if (c.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or run `wallet-cli use <account>` to change the active account)")
     if (requires.length) {
       lines.push("", "Requires:")
@@ -291,16 +305,40 @@ export class HelpService {
     // of its own. (The machine --json-schema catalog still keeps inputFlags as a distinct key.)
     const posNames = new Set((c.positionals ?? []).map((p) => p.field))
     const flagFields = posNames.size ? c.fields.filter((f) => !posNames.has(f.name)) : c.fields
-    const optionRows: Array<{ head: string; desc: string; tag: string }> = [
-      ...flagFields.map((f) => ({ head: flagHead(f), desc: f.description ?? "", tag: flagTag(f) })),
-      ...c.inputFlags.map((g) => ({ head: globalFlagHead(g), desc: g.description, tag: globalFlagTag(g) })),
+    const optionRows: OptionRow[] = [
+      ...flagFields.map((f) => ({ key: f.kebab, head: flagHead(f), desc: f.description ?? "", tag: flagTag(f) })),
+      ...c.inputFlags.map((g) => ({ key: g.flag.replace(/^--/, ""), head: globalFlagHead(g), desc: g.description, tag: globalFlagTag(g) })),
     ]
     if (optionRows.length) {
       const width = Math.min(34, Math.max(...optionRows.map((r) => r.head.length)))
-      lines.push("", "Options:")
-      for (const r of optionRows) {
-        lines.push(`  ${r.head.padEnd(width)}  ${r.desc}${r.desc && r.tag ? "  " : ""}${r.tag}`.trimEnd())
+      const rowLine = (r: OptionRow, tag: string): string =>
+        `  ${r.head.padEnd(width)}  ${r.desc}${r.desc && tag ? "  " : ""}${tag}`.trimEnd()
+      // an exclusive set renders as its own labelled block, ahead of the free-standing options.
+      // A jointly-required set drops the per-member "[optional]" tag: individually true, but read
+      // together it says the whole set may be omitted — which is exactly what the runtime rejects.
+      // An "at-most-one" set genuinely may be omitted, so its members keep their tags.
+      const grouped = new Set<string>()
+      const blocks: string[][] = []
+      for (const group of c.exclusive ?? []) {
+        // Resolving by kebab flag name means a stale or mistyped member would just disappear,
+        // leaving help that silently omits the constraint. Fail loudly — only a spec can be wrong
+        // here, never user input.
+        const members = group.flags.map((flag) => {
+          const row = optionRows.find((r) => r.key === flag)
+          if (!row) throw new Error(`exclusive group "${group.label}" names unknown flag --${flag} on ${c.path.join(" ")}`)
+          return row
+        })
+        if (members.length < 2) continue
+        for (const m of members) grouped.add(m.key)
+        const atMostOne = group.select === "at-most-one"
+        blocks.push([
+          `  ${atMostOne ? "At most one" : "Exactly one"} of these — ${group.label}:`,
+          ...members.map((m) => rowLine(m, atMostOne ? m.tag : "")),
+        ])
       }
+      const rest = optionRows.filter((r) => !grouped.has(r.key)).map((r) => rowLine(r, r.tag))
+      if (rest.length) blocks.push(rest)
+      lines.push("", "Options:", ...blocks.flatMap((block, i) => (i ? ["", ...block] : block)))
     }
 
     lines.push("", "Global options:")
@@ -383,6 +421,14 @@ function metaPositionals(tokens: string[]): string[] {
 }
 
 /** "--flag <type>" header for a command flag — enum fields list their choices instead of <enum>. */
+/** one rendered Options row; `key` is the kebab flag name an ExclusiveGroup refers to. */
+interface OptionRow {
+  key: string
+  head: string
+  desc: string
+  tag: string
+}
+
 function flagHead(f: FieldInfo): string {
   const typ = f.choices ? ` <${f.choices.join("|")}>` : f.baseType === "boolean" ? "" : ` <${f.baseType}>`
   return `--${f.kebab}${typ}`
@@ -401,7 +447,7 @@ function formatDefault(v: unknown): string {
 }
 
 // Per-command "Global options" projection: output/timeout/verbose always; --network only when the
-// command selects a network; --password-stdin only when it requires unlock; --wait/--wait-timeout
+// command selects a network; --password-stdin when it may unlock; --wait/--wait-timeout
 // only for ✍️ broadcast commands; --account only when the command acts as an account (also surfaced,
 // with fuller semantics, under Requires). The full GLOBAL_FLAGS array still backs the --json-schema catalog.
 function globalFlagsForText(
@@ -414,7 +460,7 @@ function globalFlagsForText(
   return GLOBAL_FLAGS.filter((g) => {
     if (g.flag === "--account") return wallet !== "none"
     if (g.flag === "--network") return network !== "none"
-    if (g.flag === "--password-stdin") return auth === "required" && !secretsTtyOnly
+    if (g.flag === "--password-stdin") return auth !== "none" && !secretsTtyOnly
     if (g.flag === "--wait" || g.flag === "--wait-timeout") return broadcasts
     return true
   })
@@ -431,19 +477,26 @@ function globalFlagLine(g: GlobalFlag): string {
 // `<group> --help` page need an entry; absent → the description line is omitted.
 const GROUP_DESCRIPTIONS: Record<string, string> = {
   import: "Import a wallet from an existing secret or device.",
-  account: "Query on-chain account state.",
+  account: "Query on-chain account state, activate accounts, and set on-chain identity fields.",
   token: "Manage the token address book and query tokens.",
   tx: "Build, send, broadcast, and inspect transactions.",
   contract: "Call, deploy, govern, and inspect smart contracts.",
   proposal: "Create, approve, delete, and query on-chain governance proposals.",
   witness: "Register and operate a super representative candidacy.",
+  gasfree: "Gas-free token transfers via the GasFree service (open.gasfree.io).\nFees are charged in the transferred token — a per-transfer service fee, plus a one-time\nactivation fee on the first transfer from an inactive GasFree address — so no TRX is needed.\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",
   reward: "Query and withdraw voting/block rewards.",
+  // The fee is a chain parameter read live at run time (getUpdateAccountPermissionFee), so it is
+  // pinned to mainnet rather than stated as an absolute.
+  permission: "View and update account permissions (TRON multi-sign).\nAn account has one owner permission (full control), up to 8 active permissions (scoped operations),\nand — for SRs — one witness permission. Replacing the structure burns a chain-set fee (100 TRX on mainnet).\nMisconfiguring owner permission can permanently lock the account.",
   chain: "Query on-chain parameters, resource prices, and node status.",
   message: "Sign arbitrary messages.",
   "typed-data": "Sign EIP-712 / TIP-712 structured data.",
   block: "Get a block (latest if omitted).",
+  encoding: "Convert and validate addresses and encodings across formats.",
+  address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
+  contact: "Manage the local recipient address book.\nNames can be used directly in 'tx send --to' and 'gasfree transfer --to'.",
 }
 
 /** "--output, -o <text|json>" style header for text help. */

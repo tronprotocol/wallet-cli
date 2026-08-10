@@ -7,7 +7,22 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
 - **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
-- **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, message and EIP-712/TIP-712 signing, and on-chain queries.
+- **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, multi-sig, GasFree transfers, message signing, and on-chain queries.
+
+## Table of contents
+
+- [Supported chains](#supported-chains)
+- [Install](#install)
+- [Quickstart](#quickstart)
+- [Commands](#commands)
+  - [Wallets and accounts](#wallets-and-accounts)
+  - [Transactions](#transactions)
+  - [On-chain queries](#on-chain-queries)
+  - [Tokens, contracts, staking, signing](#tokens-contracts-staking-signing)
+  - [Local tools and configuration](#local-tools-and-configuration)
+- [The contract, in one paragraph](#the-contract-in-one-paragraph)
+- [Understanding TRON mechanics](#understanding-tron-mechanics)
+- [Troubleshooting](#troubleshooting)
 
 ## Supported chains
 
@@ -52,6 +67,8 @@ npm ci && npm run build
 npm link             # puts `wallet-cli` on your PATH (or run: node dist/index.js)
 ```
 
+## Quickstart
+
 **Create your first wallet.** `create` prompts for a master password, then shows the new account:
 
 ```bash
@@ -74,91 +91,91 @@ HD  wlt_2dbv24de
 └─ [0] main  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ  (active)
 ```
 
-Next: fund it on a testnet, check the balance, and send TRX → [Getting started](docs/guide/getting-started.md).
-
-## Start here
-
-- 🚀 **First time?** → [Getting started: create a wallet and send your first transaction](docs/guide/getting-started.md)
-- 📖 **Looking up a command?** → [Command index](#commands) below, or `wallet-cli <command> --help`
-- 🤖 **Calling from a script, CI, or an AI agent?** → [Machine interface: JSON envelope, exit codes, script safety](docs/machine-interface.md) · [Agent skill](skills/wallet-cli/SKILL.md)
-- 🔐 **Using a Ledger hardware wallet?** → [Ledger guide](docs/guide/ledger.md)
-- 🧭 **Something failed?** → [Troubleshooting](docs/troubleshooting.md)
-
-## The contract, in one paragraph
-
-Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Details: [machine-interface.md](docs/machine-interface.md).
+The full flow — fund it on a testnet, check the balance, send your first TRX — is in the [getting-started guide](docs/guide/getting-started.md). From there, go deeper by topic: [sending tokens](docs/guide/send-tokens.md) · [staking & resources](docs/guide/stake-and-resources.md) · [using a Ledger hardware wallet](docs/guide/ledger.md) · [scripting](docs/guide/scripting.md).
 
 ## Commands
 
-Every command — including every subcommand — has a reference page; run `wallet-cli <command> --help` for the built-in equivalent.
+Every command — including every subcommand — has its own reference page; the full per-command list is in the **[command index](docs/commands/index.md)**, and `wallet-cli <command> --help` is the built-in equivalent.
 
 ### Wallets and accounts
+
+Create, import, and manage local wallets and accounts.
 
 | Command | Description |
 |---|---|
 | [`create`](docs/commands/create.md) | Create a new HD wallet (BIP39 seed) |
-| [`import mnemonic`](docs/commands/import/mnemonic.md) | Import a BIP39 mnemonic phrase (interactive-only) |
-| [`import private-key`](docs/commands/import/private-key.md) | Import a raw private key (interactive-only) |
-| [`import ledger`](docs/commands/import/ledger.md) | Register a Ledger account (watch-only; signs on device) |
-| [`import watch`](docs/commands/import/watch.md) | Register a watch-only address (no secret) |
-| [`list`](docs/commands/list.md) | List wallets / accounts |
-| [`use`](docs/commands/use.md) / [`current`](docs/commands/current.md) | Set / show the active account |
+| `import` | Import a wallet — [mnemonic](docs/commands/import/mnemonic.md) · [private-key](docs/commands/import/private-key.md) · [ledger](docs/commands/import/ledger.md) · [watch](docs/commands/import/watch.md)-only |
+| [`list`](docs/commands/list.md) | List wallets and accounts |
+| [`use`](docs/commands/use.md) · [`current`](docs/commands/current.md) | Set / show the active account (`current --qr` for a receive QR) |
 | [`derive`](docs/commands/derive.md) | Derive the next HD account from a seed wallet |
-| [`rename`](docs/commands/rename.md) / [`backup`](docs/commands/backup.md) / [`delete`](docs/commands/delete.md) | Manage accounts (backup writes secret + metadata, mode 0600) |
+| [`rename`](docs/commands/rename.md) · [`backup`](docs/commands/backup.md) · [`delete`](docs/commands/delete.md) | Rename, back up, or delete an account (backup writes secret + metadata, mode 0600) |
 | [`change-password`](docs/commands/change-password.md) | Change the master password (re-encrypt all software keystores) |
 
 ### Transactions
 
+Send, broadcast, inspect, and co-sign transactions.
+
 | Command | Description |
 |---|---|
 | [`tx send`](docs/commands/tx/send.md) | Send native TRX or TRC20/TRC10 tokens |
-| [`tx sign`](docs/commands/tx/sign.md) | Sign a transaction built elsewhere, without broadcasting |
 | [`tx broadcast`](docs/commands/tx/broadcast.md) | Broadcast a presigned transaction |
-| [`tx status`](docs/commands/tx/status.md) | Show confirmation status (confirmed / failed / pending / not_found) |
-| [`tx info`](docs/commands/tx/info.md) | Show full transaction detail + receipt |
+| [`tx status`](docs/commands/tx/status.md) · [`tx info`](docs/commands/tx/info.md) | Confirmation status, or full detail + receipt |
+| [`tx sign`](docs/commands/tx/sign.md) · [`tx approvals`](docs/commands/tx/approvals.md) · [`tx multisig`](docs/commands/tx/multisig.md) | Co-sign multi-sig transactions and inspect approvals |
 
 ### On-chain queries
 
+Read account, block, and chain state.
+
 | Command | Description |
 |---|---|
-| [`account balance`](docs/commands/account/balance.md) | Show the native TRX balance |
-| [`account info`](docs/commands/account/info.md) | Show raw account data incl. resources |
-| [`account history`](docs/commands/account/history.md) | Show transaction history (requires TronGrid) |
-| [`account portfolio`](docs/commands/account/portfolio.md) | Native + token balances with best-effort USD value |
+| [`account balance`](docs/commands/account/balance.md) · [`info`](docs/commands/account/info.md) · [`portfolio`](docs/commands/account/portfolio.md) | Balance, raw account data, or balances with USD estimate |
+| [`account history`](docs/commands/account/history.md) | Transaction history (requires TronGrid) |
+| [`account activate`](docs/commands/account/activate.md) · [`set`](docs/commands/account/set.md) | Activate an account, or set its on-chain name / ID |
 | [`block`](docs/commands/block.md) | Get a block (latest if omitted) |
-| [`chain params`](docs/commands/chain/params.md) | On-chain governance parameters |
-| [`chain prices`](docs/commands/chain/prices.md) | Energy/bandwidth unit price and memo fee |
-| [`chain node`](docs/commands/chain/node.md) | Connected node status (version / sync / peers) |
+| [`chain params`](docs/commands/chain/params.md) · [`prices`](docs/commands/chain/prices.md) · [`node`](docs/commands/chain/node.md) | Governance params, resource prices, or node status |
 
 ### Tokens, contracts, staking, signing
 
+Token and contract operations, resource staking, voting rewards, message signing, and permissions.
+
 | Command | Description |
 |---|---|
-| [`token`](docs/commands/token/index.md) | Manage the token address book and query tokens ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
-| [`contract`](docs/commands/contract/index.md) | Call, deploy, inspect, and govern smart contracts, including energy policy, ABI clearing, and CREATE2 address calculation |
-| [`proposal`](docs/commands/proposal/index.md) | Query, create, approve, and cancel chain-parameter proposals |
-| [`witness`](docs/commands/witness/index.md) | Register and operate an SR candidacy, including brokerage |
-| [`stake`](docs/commands/stake/index.md) | Stake / delegate resources & query state ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [withdraw](docs/commands/stake/withdraw.md) · [cancel-unfreeze](docs/commands/stake/cancel-unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [undelegate](docs/commands/stake/undelegate.md) · [info](docs/commands/stake/info.md) · [delegated](docs/commands/stake/delegated.md)) |
-| [`vote`](docs/commands/vote/index.md) | Vote for super representatives ([cast](docs/commands/vote/cast.md) · [list](docs/commands/vote/list.md) · [status](docs/commands/vote/status.md)) |
-| [`reward`](docs/commands/reward/index.md) | Query / withdraw voting rewards ([balance](docs/commands/reward/balance.md) · [withdraw](docs/commands/reward/withdraw.md)) |
-| [`message`](docs/commands/message/index.md) | Sign arbitrary messages ([sign](docs/commands/message/sign.md)) |
+| [`token`](docs/commands/token/index.md) | Token address book and queries ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
+| [`contact`](docs/commands/contact/index.md) | Recipient contact book ([add](docs/commands/contact/add.md) · [list](docs/commands/contact/list.md) · [remove](docs/commands/contact/remove.md)) |
+| [`contract`](docs/commands/contract/index.md) | Call, send, deploy, inspect contracts ([call](docs/commands/contract/call.md) · [send](docs/commands/contract/send.md) · [deploy](docs/commands/contract/deploy.md) · [info](docs/commands/contract/info.md)) |
+| [`stake`](docs/commands/stake/index.md) | Stake / delegate resources ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [info](docs/commands/stake/info.md), …) |
+| [`vote`](docs/commands/vote/index.md) · [`reward`](docs/commands/reward/index.md) | Vote for super representatives and claim voting rewards |
+| [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data |
+| [`permission`](docs/commands/permission/index.md) | View / update account permissions for multi-sig |
+| [`gasfree`](docs/commands/gasfree/index.md) | Gas-free token transfers via the GasFree service |
 | [`typed-data`](docs/commands/typed-data/index.md) | Sign EIP-712 / TIP-712 structured data ([sign](docs/commands/typed-data/sign.md)) |
 
-### Local configuration
+### Local tools and configuration
+
+Offline local commands and configuration.
 
 | Command | Description |
 |---|---|
+| [`encoding convert`](docs/commands/encoding/convert.md) | Convert / validate addresses and encodings |
+| [`address generate`](docs/commands/address/generate.md) | Generate a random keypair (local, not stored) |
 | [`config`](docs/commands/config.md) | Show / get / set configuration values |
-| [`networks`](docs/commands/networks.md) | List known networks (`tron:mainnet`, `tron:nile`, `tron:shasta`) |
+| [`networks`](docs/commands/networks.md) | List known networks |
 
-## Documentation map
+## The contract, in one paragraph
 
-| You want to… | Read |
-|---|---|
-| Learn by doing | [guide/](docs/guide/index.md) — [getting started](docs/guide/getting-started.md) · [sending tokens](docs/guide/send-tokens.md) · [staking](docs/guide/stake-and-resources.md) · [Ledger](docs/guide/ledger.md) · [scripting](docs/guide/scripting.md) |
-| Look up a command | [commands/](docs/commands/index.md) |
-| Integrate programmatically | [machine-interface.md](docs/machine-interface.md) |
-| Understand TRON mechanics | [concepts/](docs/concepts/index.md) — [networks](docs/concepts/networks.md) · [accounts & HD](docs/concepts/accounts-and-hd.md) · [energy & bandwidth](docs/concepts/energy-bandwidth.md) · [security](docs/concepts/security.md) |
-| Fix an error | [troubleshooting.md](docs/troubleshooting.md) |
+Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md); for calling from an AI agent, see the [Agent skill](skills/wallet-cli/SKILL.md).
+
+## Understanding TRON mechanics
+
+TRON differs a lot from EVM chains in fees, accounts, and key permissions — these are worth understanding up front to avoid surprises:
+
+- [Networks](docs/concepts/networks.md) — the three networks and the `family:chain` id
+- [Accounts & HD](docs/concepts/accounts-and-hd.md) — mnemonics, derivation paths, account activation
+- [Energy & bandwidth](docs/concepts/energy-bandwidth.md) — TRON's resource-based fee model (in place of EVM gas)
+- [Security](docs/concepts/security.md) — keystore encryption, secret handling, multi-sig permissions
+
+## Troubleshooting
+
+A command errored or behaved unexpectedly? Common issues and how to diagnose them are in [troubleshooting.md](docs/troubleshooting.md).
 
 > All copy-pasteable examples in this documentation run against the **Nile testnet** (`--network tron:nile`). Mainnet commands move real funds; they appear only as annotated, non-copyable descriptions.

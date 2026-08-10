@@ -10,7 +10,11 @@ wallet-cli current [options]
 
 ## Options
 
-[Global options](index.md) only.
+| Option | Description |
+|---|---|
+| `--qr` | Also render the active account's address as a scannable QR code in the terminal, with the full address printed below it for manual verification; text output only |
+
+Plus the [global options](index.md) (`--account` overrides which account is shown).
 
 ## Examples
 
@@ -22,6 +26,21 @@ wallet-cli current
 Active account: main-1
   TRON address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
 ```
+
+Add `--qr` to also render the active account's address as a scannable receive QR code, drawn with block characters below the address. Purely local — the address comes from local keystore metadata, no node access:
+
+```bash
+wallet-cli current --qr
+```
+
+```console
+Active account: main-1
+  TRON address  TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax
+
+  [ scannable QR code of the address, drawn in the terminal ]
+```
+
+The QR is a terminal rendering only and scans from a real terminal (where the block characters line up); `-o json` is unchanged by `--qr` (machine consumers take the address and generate their own code). If the terminal is too narrow to fit it, it degrades to printing just the address with a `!` hint.
 
 ```bash
 wallet-cli current -o json

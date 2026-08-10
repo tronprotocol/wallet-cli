@@ -14,7 +14,7 @@ One read-only screen for the stake → vote → reward loop: your current vote d
 
 - **Voting power (TP)** — total = staked TRX; used = votes placed; available = total − used.
 - **APR / Reward ratio** — same semantics and sources as [`vote list`](list.md). Worth re-checking: an SR can change its ratio at any time (on-chain UpdateBrokerage) — votes placed at 80% silently stop earning if it drops to 0%.
-- **0% warning** — if any votes sit on an SR with a 0% reward ratio, text output appends a `!` line and json adds a `zero_reward_ratio` entry (`{code, message}`) to `meta.warnings`.
+- **0% warning** — if any votes sit on an SR with a 0% reward ratio, text output appends a `!` line and json adds a plain-string entry to `meta.warnings`, one per affected SR.
 - **Claimable** — same source as [`reward balance`](../reward/balance.md); claim with [`reward withdraw`](../reward/withdraw.md).
 
 ## Options
@@ -44,7 +44,7 @@ wallet-cli vote status --account main --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.status","data":{"address":"TQk...","votingPower":{"total":1500,"used":1000,"available":500},"claimableRewardSun":"12345678","votes":[{"witness":"TZ4...","name":"TRONSCAN","count":600,"rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8},{"witness":"TT5...","name":"Binance Staking","count":400,"rewardRatioPct":0,"brokeragePct":100,"aprPct":0}]},"meta":{"durationMs":16,"warnings":[{"code":"zero_reward_ratio","message":"400 votes on TT5... (Binance Staking) earn nothing: reward ratio is 0%"}]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.status","data":{"address":"TQk...","votingPower":{"total":1500,"used":1000,"available":500},"claimableRewardSun":"12345678","votes":[{"witness":"TZ4...","name":"TRONSCAN","count":600,"rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8},{"witness":"TT5...","name":"Binance Staking","count":400,"rewardRatioPct":0,"brokeragePct":100,"aprPct":0}]},"meta":{"durationMs":16,"warnings":["400 votes on TT5... (Binance Staking) earn nothing: reward ratio is 0%"]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -56,7 +56,7 @@ wallet-cli vote status --account main --network tron:nile -o json
 | `claimableRewardSun` | string | Currently claimable reward, in SUN |
 | `votes[]` | array | Current distribution: `witness`, `name`, `count`, `rewardRatioPct`, `brokeragePct`, `aprPct` |
 
-Zero-reward-ratio warnings appear in `meta.warnings` as `{code: "zero_reward_ratio", message}`.
+Zero-reward-ratio warnings appear in `meta.warnings` as plain strings — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
 
 ## Exit status
 

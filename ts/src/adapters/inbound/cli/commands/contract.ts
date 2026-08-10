@@ -76,7 +76,7 @@ const sendFields = z.object({
 
 export const contractSendSpec: ChainSpec = {
   path: ["contract", "send"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional", wallet: "optional", auth: "conditional",
   broadcasts: true,
   capability: "contract.call",
   summary: "State-changing call (triggerSmartContract)",
@@ -106,7 +106,7 @@ const deployFields = z.object({
 
 export const contractDeploySpec: ChainSpec = {
   path: ["contract", "deploy"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional", wallet: "optional", auth: "conditional",
   broadcasts: true,
   capability: "contract.deploy",
   summary: "Deploy a smart contract",

@@ -1,18 +1,19 @@
 /** CLI runtime seams implemented by stream and secret input adapters. */
 import type { NetworkDescriptor } from "../../../../domain/types/network.js";
+import type { WarningItem } from "./envelope.js";
 
 export type DiagnosticLevel = "info" | "debug" | "warn";
 
 export interface StreamManager {
   result(text: string): void;
-  diagnostic(level: DiagnosticLevel, msg: string): void;
+  diagnostic(level: DiagnosticLevel, msg: WarningItem): void;
   /** always-on stderr line. */
   errorLine(msg: string): void;
   /** intermediate progress frame → stderr plain line; null is skipped (StreamManager). */
   event(frame: string | null): void;
   readStdinOnce(): string;
   /** warnings accumulated for the JSON envelope's meta.warnings. */
-  warnings(): string[];
+  warnings(): WarningItem[];
 }
 
 export type SecretKind = "password" | "privateKey" | "mnemonic" | "tx" | "message";
