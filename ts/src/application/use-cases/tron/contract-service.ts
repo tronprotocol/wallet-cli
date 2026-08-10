@@ -7,6 +7,7 @@ import { ChainError } from "../../../domain/errors/index.js";
 import { computeTronCreate2Address } from "../../../domain/governance/create2.js";
 import type { UnsignedTx } from "../../../domain/types/index.js";
 import {
+  governanceArtifact,
   governanceTransactionMode,
   transactionResource,
   withExtendedExpiration,
@@ -253,6 +254,7 @@ export class TronContractService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await build(gateway, address),

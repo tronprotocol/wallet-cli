@@ -7,6 +7,7 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import {
+  governanceArtifact,
   governanceTransactionMode,
   transactionResource,
   withExtendedExpiration,
@@ -72,6 +73,7 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
@@ -104,6 +106,7 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
@@ -126,6 +129,7 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await gateway.buildWitnessSetBrokerage(address, input.percent, { permissionId: input.permissionId }),

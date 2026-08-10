@@ -29,6 +29,20 @@ export function governanceTransactionMode(
   return mode;
 }
 
+/**
+ * The hook `--build-only` and `--sign-only` need: complete transaction hex. Without it the pipeline
+ * refuses build-only outright ("this chain adapter cannot produce transaction hex") and omits `hex`
+ * from sign-only, which is the whole point of both flags.
+ *
+ * Only `artifact` — deliberately NOT the full `tronTransactionHooks`. This group binds
+ * `--permission-id` inside each builder and applies `--expiration` via `withExtendedExpiration`
+ * before the pipeline sees the transaction, so also supplying `prepare` would rebind Permission_id
+ * and extend the expiration a SECOND time. Unifying on `prepare` is a separate refactor.
+ */
+export function governanceArtifact(gateway: TronGateway) {
+  return { artifact: (transaction: UnsignedTx) => gateway.encodeTransactionHex(transaction) };
+}
+
 export async function withExtendedExpiration(
   gateway: TronGateway,
   transaction: UnsignedTx,

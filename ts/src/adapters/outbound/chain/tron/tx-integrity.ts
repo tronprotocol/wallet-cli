@@ -44,10 +44,6 @@
 import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js"
 import { ChainError } from "../../../../domain/errors/index.js"
-import {
-  proposalCreateTxCheckExact,
-  updateEnergyLimitTxCheckExact,
-} from "./proposal-protobuf.js"
 import { rawDataHexOf } from "./transaction-codec.js"
 
 /** tronweb's txJsonToPb rejects contract types it has no protobuf mapping for with this message. */
@@ -132,19 +128,11 @@ export function assertTronTxIntegrity(tx: unknown): void {
   let matchesRawData: boolean
   try {
     // Never tronweb's `txCheck` here: it mis-encodes several contract types, so asking it would
-    // refuse transactions whose bytes are correct. Two independent sets of overrides exist and BOTH
-    // must apply — the governance ones (ProposalCreate / UpdateEnergyLimit, checked exactly) and the
-    // TRC10 ones inside `rawDataHexOf` (multi-tranche AssetIssue, UnfreezeAsset). `rawDataHexOf` is
-    // the general path and still delegates to tronweb for every type neither set overrides.
-    // TODO: fold the two proposal encoders into `encodeOverriddenContract` so there is one seam.
-    const contracts = Array.isArray((t.raw_data as { contract?: unknown })?.contract)
-      ? (t.raw_data as { contract: Array<{ type?: unknown }> }).contract
-      : []
-    matchesRawData = contracts.some((contract) => contract?.type === "ProposalCreateContract")
-      ? proposalCreateTxCheckExact(tx)
-      : contracts.some((contract) => contract?.type === "UpdateEnergyLimitContract")
-        ? updateEnergyLimitTxCheckExact(tx)
-        : rawDataHexOf(tx) === t.raw_data_hex.replace(/^0x/, "").toLowerCase()
+    // refuse transactions whose bytes are correct. `rawDataHexOf` applies OUR serialiser for every
+    // overridden type — TRC10 (multi-tranche AssetIssue, UnfreezeAsset) and governance
+    // (ProposalCreate, UpdateEnergyLimit) — from one table, and delegates to tronweb for everything
+    // else. So this comparison uses the same arbiter the builders themselves used.
+    matchesRawData = rawDataHexOf(tx) === t.raw_data_hex.replace(/^0x/, "").toLowerCase()
   } catch (e) {
     const message = (e as Error)?.message ?? String(e)
     // The one tolerable failure: tronweb has no encoding for this contract type, so raw_data

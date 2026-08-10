@@ -2,6 +2,7 @@ import { utils as tronUtils } from "tronweb";
 import { ChainError } from "../../../../domain/errors/index.js";
 import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
 import { decodeOverriddenContract, encodeOverriddenContract } from "./asset-contract-codec.js";
+import { proposalCreateTxJsonToPbExact, updateEnergyLimitTxJsonToPbExact } from "./proposal-protobuf.js";
 
 const MAX_TRANSACTION_BYTES = 512 * 1024;
 const SIGNATURE_BYTES = 65;
@@ -147,13 +148,36 @@ function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<Tr
 }
 
 /**
- * TronWeb's JSON→protobuf encoder, with the two contract types it gets wrong routed to our own
- * serialiser first (see asset-contract-codec.ts). Every path that reaches protobuf goes through
- * here, so the override cannot be bypassed by one caller and silently corrupt a transaction.
+ * Contract types TronWeb encodes WRONGLY, each routed to our own serialiser. Two families, one
+ * table — see asset-contract-codec.ts (types TronWeb cannot represent at all) and
+ * proposal-protobuf.ts (types it represents but narrows past int64 / applies obsolete policy caps).
+ *
+ * Keeping them in a single table is the point: the override must be reachable from every path that
+ * produces protobuf, or one caller silently emits bytes that disagree with what was signed. That is
+ * exactly how `--build-only` shipped broken for the governance commands.
+ */
+const GOVERNANCE_ENCODERS: Readonly<Record<string, (transaction: unknown) => unknown>> = Object.freeze({
+  ProposalCreateContract: proposalCreateTxJsonToPbExact,
+  UpdateEnergyLimitContract: updateEnergyLimitTxJsonToPbExact,
+});
+
+function encodeOverridden(candidate: Partial<TronTransactionArtifact>): ProtobufTransaction | undefined {
+  const type = candidate.raw_data?.contract?.[0]?.type;
+  if (typeof type === "string") {
+    const governance = GOVERNANCE_ENCODERS[type];
+    if (governance) return governance(candidate) as ProtobufTransaction;
+  }
+  return encodeOverriddenContract(candidate) as unknown as ProtobufTransaction | undefined;
+}
+
+/**
+ * TronWeb's JSON→protobuf encoder, with every contract type it gets wrong routed to our own
+ * serialiser first. Every path that reaches protobuf goes through `encodeOverridden`, so the
+ * override cannot be bypassed by one caller and silently corrupt a transaction.
  */
 function toProtobuf(candidate: Partial<TronTransactionArtifact>): ProtobufTransaction {
-  const overridden = encodeOverriddenContract(candidate);
-  if (overridden) return overridden as unknown as ProtobufTransaction;
+  const overridden = encodeOverridden(candidate);
+  if (overridden) return overridden;
   try {
     return tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction;
   } catch {
@@ -172,8 +196,7 @@ function toProtobuf(candidate: Partial<TronTransactionArtifact>): ProtobufTransa
  */
 export function rawDataHexOf(transaction: unknown): string {
   const candidate = withNamedEnums(transaction as Partial<TronTransactionArtifact>);
-  const overridden = encodeOverriddenContract(candidate) as unknown as ProtobufTransaction | undefined;
-  const pb = overridden ?? (tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction);
+  const pb = encodeOverridden(candidate) ?? (tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction);
   return tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase();
 }
 

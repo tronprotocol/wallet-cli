@@ -12,6 +12,7 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import {
+  governanceArtifact,
   governanceTransactionMode,
   transactionResource,
   withExtendedExpiration,
@@ -100,6 +101,7 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await gateway.buildProposalCreate(
@@ -150,6 +152,7 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await gateway.buildProposalApprove(address, input.id, addApproval, { permissionId: input.permissionId }),
@@ -192,6 +195,7 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
+      ...governanceArtifact(gateway),
       build: async (address) => withExtendedExpiration(
         gateway,
         await gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),
