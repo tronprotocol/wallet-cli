@@ -40,7 +40,13 @@ abstract class BaseOutputFormatter {
 class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
   success(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
     // JSON mode always uses the envelope; the account label is a text-mode display nicety.
-    return toJson(OutputEnvelope.success(command, net, data, this.meta()));
+    const paged = extractPagination(data);
+    return toJson(OutputEnvelope.success(
+      command,
+      net,
+      paged.data,
+      { ...this.meta(), ...(paged.pagination ? { pagination: paged.pagination } : {}) },
+    ));
   }
 
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void {
@@ -51,6 +57,32 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
   event(e: ProgressEvent): string {
     return JSON.stringify(e);
   }
+}
+
+/** Pagination is envelope metadata in the public JSON contract, while text renderers consume the
+ * same value from their view model to produce `showing N of total` titles. */
+function extractPagination(data: unknown): {
+  data: unknown;
+  pagination?: { offset: number; limit: number | null; total: number };
+} {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return { data };
+  const source = data as Record<string, unknown>;
+  const value = source.pagination;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { data };
+  const pagination = value as Record<string, unknown>;
+  if (
+    !Number.isInteger(pagination.offset) ||
+    !(pagination.limit === null || Number.isInteger(pagination.limit)) ||
+    !Number.isInteger(pagination.total)
+  ) return { data };
+  const normalized = {
+    offset: Number(pagination.offset),
+    limit: pagination.limit === null ? null : Number(pagination.limit),
+    total: Number(pagination.total),
+  };
+  const clean = { ...source };
+  delete clean.pagination;
+  return { data: clean, pagination: normalized };
 }
 
 class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatter {

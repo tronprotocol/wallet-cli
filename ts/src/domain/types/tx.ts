@@ -88,6 +88,9 @@ export type TxReceiptKind =
   | "send" | "broadcast" | "sign"
   | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
   | "contract-send" | "contract-deploy"
+  | "proposal-create" | "proposal-approve" | "proposal-delete"
+  | "witness-create" | "witness-update" | "witness-set-brokerage"
+  | "contract-clear-abi" | "contract-set-origin-energy-limit" | "contract-set-user-resource-percent"
   | "vote-cast" | "reward-withdraw" | "permission-update"
   | "account-activate" | "account-set";
 

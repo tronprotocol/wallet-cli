@@ -103,6 +103,7 @@ Common codes at exit **2** (usage — fix the call):
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
 | `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
+| `unknown_parameter` | Unknown governance parameter name or id |
 
 Common codes at exit **1** (execution — runtime failure):
 
@@ -114,6 +115,9 @@ Common codes at exit **1** (execution — runtime failure):
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
+| `proposal_not_found` / `proposal_expired` | Proposal lookup or voting-window failure |
+| `not_a_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
+| `contract_not_found` / `not_contract_deployer` | Contract lookup or deployer authorization failure |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |

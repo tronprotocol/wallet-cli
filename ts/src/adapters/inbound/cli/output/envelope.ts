@@ -43,7 +43,7 @@ export const OutputEnvelope = {
       success: true,
       command,
       data: data ?? {},
-      meta: meta(m.durationMs, m.warnings),
+      meta: meta(m),
     };
     if (net) env.chain = chainView(net); // neutral commands omit chain
     return env;
@@ -60,7 +60,7 @@ export const OutputEnvelope = {
       success: false,
       command,
       error: err,
-      meta: meta(m.durationMs, m.warnings),
+      meta: meta(m),
     };
     if (net) env.chain = chainView(net);
     return env;

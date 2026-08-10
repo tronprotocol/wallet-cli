@@ -134,3 +134,24 @@ describe("TxPipeline device-sign timeout", () => {
     expect(assertBroadcastable).not.toHaveBeenCalled();
   });
 });
+
+describe("TxPipeline build-only", () => {
+  it("builds from the public address without resolving a signer or estimating", async () => {
+    const resolve = vi.fn(() => { throw new Error("signer must not be resolved"); });
+    const signers = { resolve } as unknown as SignerResolver;
+    const build = vi.fn(async (address: string) => ({ raw_data_hex: "0102", owner: address }));
+    const estimate = vi.fn(async () => ({}));
+
+    await expect(new TxPipeline(signers).run(params({} as Signer, {
+      ctx: scope({ resolveAddress: () => "TWatchOnly" }),
+      buildOnly: true,
+      build,
+      estimate,
+    }))).resolves.toEqual({
+      stage: "built",
+      tx: { raw_data_hex: "0102", owner: "TWatchOnly" },
+    });
+    expect(resolve).not.toHaveBeenCalled();
+    expect(estimate).not.toHaveBeenCalled();
+  });
+});

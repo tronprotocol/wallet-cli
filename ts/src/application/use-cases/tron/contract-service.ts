@@ -3,6 +3,15 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronContractParameter } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import { ChainError } from "../../../domain/errors/index.js";
+import { computeTronCreate2Address } from "../../../domain/governance/create2.js";
+import type { UnsignedTx } from "../../../domain/types/index.js";
+import {
+  governanceTransactionMode,
+  transactionResource,
+  withExtendedExpiration,
+  type GovernanceTransactionInput,
+} from "./governance-transaction.js";
 import {
   outcomeData,
   transactionMode,
@@ -36,7 +45,7 @@ export class TronContractService {
   async send(
     scope: TransactionScope,
     network: NetworkDescriptor,
-    input: TransactionModeInput & {
+    input: GovernanceTransactionInput & {
       contract: string;
       method: string;
       parameters: TronContractParameter[];
@@ -46,6 +55,7 @@ export class TronContractService {
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
+    const mode = governanceTransactionMode(this.pipeline, scope, input);
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -54,12 +64,16 @@ export class TronContractService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: (from) => gateway.triggerSmartContract(
-        from,
-        input.contract,
-        input.method,
-        input.parameters,
-        { feeLimit: input.feeLimit, callValue: input.callValueSun },
+      build: async (from) => withExtendedExpiration(
+        gateway,
+        await gateway.triggerSmartContract(
+          from,
+          input.contract,
+          input.method,
+          input.parameters,
+          { feeLimit: input.feeLimit, callValue: input.callValueSun, permissionId: input.permissionId },
+        ),
+        input.expiration,
       ),
       estimate: async () => {
         const estimate = await gateway.estimateResources(
@@ -83,7 +97,7 @@ export class TronContractService {
   async deploy(
     scope: TransactionScope,
     network: NetworkDescriptor,
-    input: TransactionModeInput & {
+    input: GovernanceTransactionInput & {
       abi: unknown;
       bytecode: string;
       feeLimit: string;
@@ -135,6 +149,129 @@ export class TronContractService {
       info: metadata.info,
     };
   }
+
+  async clearAbi(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: GovernanceTransactionInput & { address: string },
+  ) {
+    return this.govern(
+      scope,
+      network,
+      input,
+      "contract-clear-abi",
+      (gateway, owner) => gateway.buildClearContractAbi(
+        owner,
+        input.address,
+        { permissionId: input.permissionId },
+      ),
+      {},
+    );
+  }
+
+  async setOriginEnergyLimit(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: GovernanceTransactionInput & { address: string; energy: number | string },
+  ) {
+    return this.govern(
+      scope,
+      network,
+      input,
+      "contract-set-origin-energy-limit",
+      (gateway, owner) => gateway.buildUpdateOriginEnergyLimit(
+        owner,
+        input.address,
+        input.energy,
+        { permissionId: input.permissionId },
+      ),
+      { originEnergyLimit: exactIntegerView(input.energy) },
+    );
+  }
+
+  async setUserResourcePercent(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: GovernanceTransactionInput & { address: string; percent: number },
+  ) {
+    return this.govern(
+      scope,
+      network,
+      input,
+      "contract-set-user-resource-percent",
+      (gateway, owner) => gateway.buildUpdateUserResourcePercent(
+        owner,
+        input.address,
+        input.percent,
+        { permissionId: input.permissionId },
+      ),
+      { consumeUserResourcePercent: input.percent },
+    );
+  }
+
+  create2(deployer: string, code: string, salt: string) {
+    return computeTronCreate2Address(deployer, code, salt);
+  }
+
+  private async govern(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: GovernanceTransactionInput & { address: string },
+    kind:
+      | "contract-clear-abi"
+      | "contract-set-origin-energy-limit"
+      | "contract-set-user-resource-percent",
+    build: (gateway: ReturnType<ChainGatewayProvider["get"]>, owner: string) => Promise<UnsignedTx>,
+    fields: Record<string, unknown>,
+  ) {
+    const gateway = this.gateways.get(network, "tron");
+    const mode = governanceTransactionMode(this.pipeline, scope, input);
+    const owner = scope.resolveAddress("tron");
+    let metadata;
+    try {
+      metadata = await gateway.getContractMetadata(input.address);
+    } catch (error) {
+      if (error instanceof ChainError && error.code === "not_found") {
+        throw new ChainError("contract_not_found", `no contract deployed at ${input.address}`);
+      }
+      throw error;
+    }
+    if (!metadata.originAddress || metadata.originAddress !== owner) {
+      throw new ChainError(
+        "not_contract_deployer",
+        `only contract deployer ${metadata.originAddress ?? "(unknown)"} may govern ${input.address}`,
+      );
+    }
+    const outcome = await this.pipeline.run({
+      ctx: scope,
+      net: network,
+      account: scope.activeAccount,
+      broadcaster: gateway,
+      ...mode,
+      confirm: tronConfirmation(gateway, scope),
+      build: async (address) => withExtendedExpiration(
+        gateway,
+        await build(gateway, address),
+        input.expiration,
+      ),
+      estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "contract governance uses bandwidth only" }),
+    });
+    const data = outcomeData(outcome);
+    const resource = transactionResource(data);
+    return {
+      kind,
+      ...data,
+      contractAddress: input.address,
+      deployerAddress: owner,
+      ...fields,
+      ...(resource ? { resource } : {}),
+    };
+  }
+}
+
+function exactIntegerView(value: number | string): number | string {
+  const parsed = BigInt(value);
+  return parsed <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(parsed) : parsed.toString();
 }
 
 function warnIfFeeLimitLikelyInsufficient(

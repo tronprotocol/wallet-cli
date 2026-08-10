@@ -47,6 +47,18 @@ describe("createOutputFormatter (json)", () => {
     const frame = f.event({ type: "awaiting_device", reason: "sign" });
     expect(JSON.parse(frame!)).toEqual({ type: "awaiting_device", reason: "sign" });
   });
+
+  it("moves pagination into JSON envelope metadata", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("proposal.list", net, {
+      approvalThreshold: 18,
+      proposals: [],
+      pagination: { offset: 10, limit: 5, total: 42 },
+    }));
+    expect(env.data).toEqual({ approvalThreshold: 18, proposals: [] });
+    expect(env.meta.pagination).toEqual({ offset: 10, limit: 5, total: 42 });
+  });
 });
 
 describe("createOutputFormatter (text)", () => {

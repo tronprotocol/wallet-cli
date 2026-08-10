@@ -22,6 +22,7 @@ import { VoteFormatters } from "./vote.js"
 import { RewardFormatters } from "./reward.js"
 import { ChainFormatters } from "./chain.js"
 import { MiscFormatters } from "./misc.js"
+import { GovernanceFormatters } from "./governance.js"
 import { PermissionFormatters } from "./permission.js"
 import { MultisigFormatters } from "./multisig.js"
 import { GasFreeFormatters } from "./gasfree.js"
@@ -39,6 +40,7 @@ export const TextFormatters = {
   ...RewardFormatters,
   ...ChainFormatters,
   ...MiscFormatters,
+  ...GovernanceFormatters,
   ...PermissionFormatters,
   ...MultisigFormatters,
   ...GasFreeFormatters,

@@ -68,6 +68,51 @@ describe("ChainCommandDefinition dispatch", () => {
     expect(run.mock.calls[0]![2]).toMatchObject({ number: "123" });
     expect(JSON.parse(out[0]!).data).toEqual({ block: { number: "123" } });
   });
+
+  it("binds positional arguments declared by a grouped leaf command", async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-group-position-test-"));
+    const store = new AtomicFileStore();
+    const backend = {
+      isTTY: () => false,
+      async question() { return ""; },
+      async readKey() { return { name: "return" }; },
+      write() {}, beginRaw() {}, endRaw() {},
+    };
+    const prompter = new Prompter(backend);
+    const out: string[] = [];
+    const streams = new StreamManager("json", false, (value) => out.push(value));
+    const secrets = new SecretResolver(streams, {}, prompter);
+    const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const config = ConfigLoader.load();
+    const networkRegistry = new NetworkRegistry(config);
+    const formatter = createOutputFormatter("json", streams, Date.now());
+    const registry = new CommandRegistry();
+    const run = vi.fn(async (_ctx, _net, input) => ({ proposal: input.id }));
+    registry.addChain({
+      path: ["proposal", "show"],
+      network: "optional", wallet: "none", auth: "none",
+      positionals: [{ field: "id" }],
+      examples: [],
+      baseFields: z.object({ id: z.coerce.number().int().positive() }),
+    }, "tron", { run });
+
+    const globals = { output: "json" as const, verbose: false, network: "tron:mainnet" };
+    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    await buildCli({
+      registry,
+      globals,
+      deps,
+      targetResolver: new TargetResolver({ networkRegistry, keystore }),
+      caps: new CapabilityRegistry(),
+      streams,
+      formatter,
+      session: {} as SessionRef,
+    }).parseAsync(["proposal", "show", "47"]);
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(run.mock.calls[0]![2]).toMatchObject({ id: 47 });
+    expect(JSON.parse(out[0]!).data).toEqual({ proposal: 47 });
+  });
 });
 
 // executeChainCommand is a second, independent dispatch path: it binds positionals and rejects

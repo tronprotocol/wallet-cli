@@ -78,7 +78,35 @@ import {
   contractInfoTronBinding,
   contractSendSpec,
   contractSendTronBinding,
+  contractClearAbiSpec,
+  contractClearAbiTronBinding,
+  contractSetOriginEnergyLimitSpec,
+  contractSetOriginEnergyLimitTronBinding,
+  contractSetUserResourcePercentSpec,
+  contractSetUserResourcePercentTronBinding,
+  contractCreate2Spec,
+  contractCreate2TronBinding,
 } from "../../adapters/inbound/cli/commands/contract.js";
+import {
+  proposalApproveSpec,
+  proposalApproveTronBinding,
+  proposalCreateSpec,
+  proposalCreateTronBinding,
+  proposalDeleteSpec,
+  proposalDeleteTronBinding,
+  proposalListSpec,
+  proposalListTronBinding,
+  proposalShowSpec,
+  proposalShowTronBinding,
+} from "../../adapters/inbound/cli/commands/proposal.js";
+import {
+  witnessCreateSpec,
+  witnessCreateTronBinding,
+  witnessSetBrokerageSpec,
+  witnessSetBrokerageTronBinding,
+  witnessUpdateSpec,
+  witnessUpdateTronBinding,
+} from "../../adapters/inbound/cli/commands/witness.js";
 import type { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
 import { TronAccountService } from "../../application/use-cases/tron/account-service.js";
 import { TronTokenService } from "../../application/use-cases/tron/token-service.js";
@@ -88,6 +116,8 @@ import { TronStakeService } from "../../application/use-cases/tron/stake-service
 import { TronVoteService } from "../../application/use-cases/tron/vote-service.js";
 import { TronRewardService } from "../../application/use-cases/tron/reward-service.js";
 import { TronChainService } from "../../application/use-cases/tron/chain-service.js";
+import { TronProposalService } from "../../application/use-cases/tron/proposal-service.js";
+import { TronWitnessService } from "../../application/use-cases/tron/witness-service.js";
 import { TronBlockService } from "../../application/use-cases/tron/block-service.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
@@ -171,6 +201,8 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   const reward = new TronRewardService(deps.gateways, deps.transactions);
   const chain = new TronChainService(deps.gateways);
   const contract = new TronContractService(deps.gateways, deps.transactions);
+  const proposal = new TronProposalService(deps.gateways, deps.transactions);
+  const witness = new TronWitnessService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
   reg.addChain(accountActivateSpec, "tron", accountActivateTronBinding(account));
@@ -222,4 +254,16 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(contractSendSpec, "tron", contractSendTronBinding(contract));
   reg.addChain(contractDeploySpec, "tron", contractDeployTronBinding(contract));
   reg.addChain(contractInfoSpec, "tron", contractInfoTronBinding(contract));
+  reg.addChain(contractClearAbiSpec, "tron", contractClearAbiTronBinding(contract));
+  reg.addChain(contractSetOriginEnergyLimitSpec, "tron", contractSetOriginEnergyLimitTronBinding(contract));
+  reg.addChain(contractSetUserResourcePercentSpec, "tron", contractSetUserResourcePercentTronBinding(contract));
+  reg.addChain(contractCreate2Spec, "tron", contractCreate2TronBinding(contract));
+  reg.addChain(proposalListSpec, "tron", proposalListTronBinding(proposal));
+  reg.addChain(proposalShowSpec, "tron", proposalShowTronBinding(proposal));
+  reg.addChain(proposalCreateSpec, "tron", proposalCreateTronBinding(proposal));
+  reg.addChain(proposalApproveSpec, "tron", proposalApproveTronBinding(proposal));
+  reg.addChain(proposalDeleteSpec, "tron", proposalDeleteTronBinding(proposal));
+  reg.addChain(witnessCreateSpec, "tron", witnessCreateTronBinding(witness));
+  reg.addChain(witnessUpdateSpec, "tron", witnessUpdateTronBinding(witness));
+  reg.addChain(witnessSetBrokerageSpec, "tron", witnessSetBrokerageTronBinding(witness));
 }

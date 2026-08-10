@@ -343,7 +343,9 @@ wallet-cli
 ├── account balance | info | history | portfolio
 ├── token balance | info | add | list | remove
 ├── tx send | broadcast | status | info
-├── contract call | send | deploy | info
+├── contract call | send | deploy | info | clear-abi | set-origin-energy-limit | set-user-resource-percent | create2
+├── proposal list | show | create | approve | delete
+├── witness create | update | set-brokerage
 ├── stake freeze | unfreeze | withdraw | cancel-unfreeze | delegate | undelegate | info | delegated
 ├── vote cast | list | status
 ├── reward balance | withdraw
@@ -358,6 +360,7 @@ Neutral commands do not touch a chain. Chain commands are currently all provided
 
 - `--dry-run`: build + estimate, no decrypt, no sign, no broadcast.
 - `--sign-only`: build + estimate + sign, returns a signed transaction.
+- Governance writes also support `--build-only` (no signer resolution), `--permission-id`, and an optional `--expiration` extension in build/sign-only modes.
 - No mode flag: sign + broadcast.
 - `--wait`: wait for confirmation only after broadcast.
 
@@ -443,7 +446,7 @@ Application defines capabilities, not concrete technologies:
 | `NetworkRegistry` | canonical network id/default resolution | outbound config registry |
 | `LedgerDevice` | address, tx/message signing, app config | `Ledger` |
 | `ChainGatewayProvider` | obtain a gateway by network/family | `ChainGatewayRegistry` |
-| `TronGateway` | TRON reads/build/estimate/broadcast, plus stake/delegation/vote/reward and chain (params/prices/node) queries | `TronRpcClient` |
+| `TronGateway` | TRON reads/build/estimate/broadcast, plus stake/delegation/vote/reward, proposal/witness, contract-governance, and chain queries | `TronRpcClient` |
 | `TronHistoryReader` | TronGrid transaction history | `TronGridHistoryReader` |
 | `TokenRepository` | official/user token book | `TokenBook` |
 | `PriceProvider` | best-effort USD price | CoinGecko/Null provider |
@@ -456,7 +459,7 @@ Application defines capabilities, not concrete technologies:
 - `WalletService`: create/import/list/use/current/rename/derive/delete/backup/change-password, with no knowledge of JSON/Zod/yargs. `changePassword` re-encrypts every software keystore under a new master password.
 - `ConfigService`: effective config view, key validation, canonical network normalization, and document update. Writable keys are `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`.
 - `MessageService`: sign a message via the signer port.
-- TRON use cases: account, token, transaction, contract, stake, vote, reward, chain, block; they use only the TRON gateway and the necessary shared ports. `TronVoteService` reads voting power authoritatively from `TronStakeService.votingPower` (injected), not from raw balances; its witness/brokerage fan-out is bounded and per-request cached. `TronChainService` exposes governance params, energy/bandwidth prices, and node sync status.
+- TRON use cases: account, token, transaction, contract, proposal, witness, stake, vote, reward, chain, block; they use only the TRON gateway and the necessary shared ports. `TronVoteService` reads voting power authoritatively from `TronStakeService.votingPower` (injected), not from raw balances; its witness/brokerage fan-out is bounded and per-request cached. `TronProposalService` and `TronWitnessService` perform witness/state/fee preflights before entering the shared transaction pipeline. `TronChainService` exposes governance params, energy/bandwidth prices, and node sync status.
 
 An inbound command's responsibility is to turn argv/Zod input and `ExecutionContext` into use-case input and then choose a stable output view; it must not do persistence or provider transport itself.
 

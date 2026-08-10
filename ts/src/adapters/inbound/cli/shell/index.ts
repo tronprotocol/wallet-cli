@@ -150,7 +150,10 @@ async function dispatchNeutral(opts: ShellOptions, path: string[], argv: any): P
 
 async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): Promise<void> {
   const chain = opts.registry.resolveChain(path)
-  if (chain) return executeChainCommand(opts, chain, argv)
+  if (chain) {
+    bindGroupedPositionals(chain.spec, argv)
+    return executeChainCommand(opts, chain, argv)
+  }
   throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`)
 }
 

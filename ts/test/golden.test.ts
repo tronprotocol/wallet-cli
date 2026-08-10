@@ -8,7 +8,6 @@ import { TokenBook } from "../src/adapters/outbound/tokenbook/index.js"
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js"
 import type { TokenEntry } from "../src/domain/types/index.js"
 
-const TSX = join(process.cwd(), "node_modules", ".bin", "tsx")
 const ENTRY = join(process.cwd(), "src", "index.ts")
 const MNEMONIC = "test test test test test test test test test test test junk"
 const TRON1 = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
@@ -33,7 +32,11 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
   }
   // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
   // signal instead of silently eating the whole test budget.
-  const r = spawnSync(TSX, [ENTRY, ...finalArgs], { input: stdin, encoding: "utf8", env, timeout: 25_000 })
+  // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
+  // socket, so black-box tests also run in restricted CI/sandbox environments.
+  const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...finalArgs], {
+    input: stdin, encoding: "utf8", env, timeout: 25_000,
+  })
   let json: any
   try {
     json = JSON.parse(r.stdout)
@@ -587,5 +590,63 @@ describe("golden CLI — fixes regression", () => {
     const r = run(["--output", "json", "tx", "send", "--network", "tron:nile", "--to", TRON1, "--raw-amount", "notanumber", "--dry-run"])
     expect(r.status).toBe(2)
     expect(r.json.error.code).toBe("invalid_value")
+  })
+})
+
+describe("golden CLI — v4.12 governance surface", () => {
+  it("registers proposal, witness, and contract-governance command groups", () => {
+    const proposal = run(["proposal", "--help"], { password: null })
+    expect(proposal.status).toBe(0)
+    expect(proposal.stdout).toContain("create")
+    expect(proposal.stdout).toContain("approve")
+    expect(proposal.stdout).toContain("delete")
+
+    const witness = run(["witness", "--help"], { password: null })
+    expect(witness.status).toBe(0)
+    expect(witness.stdout).toContain("set-brokerage")
+
+    const contract = run(["contract", "--help"], { password: null })
+    expect(contract.status).toBe(0)
+    expect(contract.stdout).toContain("set-origin-energy-limit")
+    expect(contract.stdout).toContain("set-user-resource-percent")
+    expect(contract.stdout).toContain("create2")
+  })
+
+  it("computes the Java-compatible TVM CREATE2 vector without RPC or wallet", () => {
+    const r = run([
+      "-o", "json", "contract", "create2",
+      "--deployer", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      "--code", "60006000",
+      "--salt", "1",
+    ], { password: null })
+    expect(r.status).toBe(0)
+    expect(r.json.data).toMatchObject({
+      saltHex: "0x0000000000000000000000000000000000000000000000000000000000000001",
+      address: "TFVMEWMJCq5fCmADjNzuhKnUFHJkJBBFAW",
+    })
+  })
+
+  it("publishes build-only, expiration, and permission-id in governance schemas", () => {
+    const r = run(["proposal", "create", "--json-schema"], { password: null })
+    expect(r.status).toBe(0)
+    expect(r.json.properties.buildOnly).toBeDefined()
+    expect(r.json.properties.expiration).toBeDefined()
+    expect(r.json.properties.permissionId).toBeDefined()
+    expect(r.json.required).toContain("set")
+  })
+
+  it("rejects brokerage and origin-energy int64 overflow before wallet or RPC access", () => {
+    const brokerage = run([
+      "-o", "json", "witness", "set-brokerage", "101",
+    ], { password: null })
+    expect(brokerage.status).toBe(2)
+    expect(brokerage.json.error.code).toBe("invalid_value")
+
+    const energy = run([
+      "-o", "json", "contract", "set-origin-energy-limit",
+      "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "9223372036854775808",
+    ], { password: null })
+    expect(energy.status).toBe(2)
+    expect(energy.json.error.code).toBe("invalid_value")
   })
 })

@@ -69,6 +69,23 @@ export interface TronWitness {
   [key: string]: unknown;
 }
 
+export type TronProposalState = "PENDING" | "DISAPPROVED" | "APPROVED" | "CANCELED";
+
+/** Proposal payload normalized at the adapter boundary; all int64 map values stay decimal strings. */
+export interface TronProposal {
+  id: number;
+  proposerAddress: string;
+  parameters: Record<string, string>;
+  expirationTime: number;
+  createTime: number;
+  approvals: string[];
+  state: TronProposalState;
+}
+
+export interface TronTransactionBuildOptions {
+  permissionId?: number;
+}
+
 export interface TronVote {
   witness: string;
   count: string;
@@ -88,7 +105,14 @@ export interface TronTokenInfo {
 export interface TronTxInfo {
   blockNumber?: number;
   fee?: number;
-  receipt?: { result?: string; energy_usage_total?: number; [key: string]: unknown };
+  receipt?: {
+    result?: string;
+    energy_usage_total?: number;
+    energy_fee?: number;
+    net_usage?: number;
+    net_fee?: number;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -117,6 +141,7 @@ export interface DecodedTronTransaction {
 export interface TronContractMetadata {
   name?: string;
   methods: string[];
+  originAddress?: string;
   contract: unknown;
   info?: unknown;
 }
@@ -182,7 +207,7 @@ export interface TronGateway extends Broadcaster {
   getBlock(number?: string): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
-  getChainParameters(): Promise<Array<{ key: string; value?: number }>>;
+  getChainParameters(): Promise<Array<{ key: string; value?: number | string }>>;
   getEnergyPrices(): Promise<string>;
   getBandwidthPrices(): Promise<string>;
   getNodeInfo(): Promise<TronNodeInfo>;
@@ -240,6 +265,32 @@ export interface TronGateway extends Broadcaster {
   buildVoteWitness(owner: string, votes: TronVote[]): Promise<UnsignedTx>;
   buildWithdrawBalance(owner: string): Promise<UnsignedTx>;
   getWitnesses(limit: number): Promise<TronWitness[]>;
+  getWitness(address: string): Promise<TronWitness | null>;
+  getProposals(): Promise<TronProposal[]>;
+  getProposal(id: number): Promise<TronProposal | null>;
+  buildProposalCreate(
+    owner: string,
+    parameters: Array<{ key: number; value: number | string }>,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  buildProposalApprove(
+    owner: string,
+    proposalId: number,
+    addApproval: boolean,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  buildProposalDelete(
+    owner: string,
+    proposalId: number,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  buildWitnessCreate(owner: string, url: string, options?: TronTransactionBuildOptions): Promise<UnsignedTx>;
+  buildWitnessUpdate(owner: string, url: string, options?: TronTransactionBuildOptions): Promise<UnsignedTx>;
+  buildWitnessSetBrokerage(
+    owner: string,
+    brokerage: number,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
   getBrokerage(address: string): Promise<number>;
   getReward(address: string): Promise<string>;
   triggerConstantContract(
@@ -253,13 +304,31 @@ export interface TronGateway extends Broadcaster {
     contract: string,
     method: string,
     parameters: TronContractParameter[],
-    options?: { feeLimit?: string; callValue?: string },
+    options?: { feeLimit?: string; callValue?: string; permissionId?: number },
   ): Promise<UnsignedTx>;
   deployContract(
     from: string,
-    input: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[] },
+    input: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[]; permissionId?: number },
   ): Promise<UnsignedTx>;
   getContract(address: string): Promise<unknown>;
   getContractInfo(address: string): Promise<unknown>;
   getContractMetadata(address: string): Promise<TronContractMetadata>;
+  buildClearContractAbi(
+    owner: string,
+    contract: string,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  buildUpdateOriginEnergyLimit(
+    owner: string,
+    contract: string,
+    energy: number | string,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  buildUpdateUserResourcePercent(
+    owner: string,
+    contract: string,
+    percent: number,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  extendTransactionExpiration(transaction: UnsignedTx, extensionMs: number): Promise<UnsignedTx>;
 }

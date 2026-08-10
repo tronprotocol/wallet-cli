@@ -77,6 +77,10 @@ Every command — including every subcommand — has its own page, following a f
 | `contract send` | [contract/send.md](contract/send.md) |
 | `contract deploy` | [contract/deploy.md](contract/deploy.md) |
 | `contract info` | [contract/info.md](contract/info.md) |
+| `contract clear-abi` | [contract/clear-abi.md](contract/clear-abi.md) |
+| `contract set-origin-energy-limit` | [contract/set-origin-energy-limit.md](contract/set-origin-energy-limit.md) |
+| `contract set-user-resource-percent` | [contract/set-user-resource-percent.md](contract/set-user-resource-percent.md) |
+| `contract create2` | [contract/create2.md](contract/create2.md) |
 | `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
 | `gasfree info` | [gasfree/info.md](gasfree/info.md) |
 | `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |
@@ -86,6 +90,16 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
+| `proposal` (group) | [proposal/index.md](proposal/index.md) |
+| `proposal list` | [proposal/list.md](proposal/list.md) |
+| `proposal show` | [proposal/show.md](proposal/show.md) |
+| `proposal create` | [proposal/create.md](proposal/create.md) |
+| `proposal approve` | [proposal/approve.md](proposal/approve.md) |
+| `proposal delete` | [proposal/delete.md](proposal/delete.md) |
+| `witness` (group) | [witness/index.md](witness/index.md) |
+| `witness create` | [witness/create.md](witness/create.md) |
+| `witness update` | [witness/update.md](witness/update.md) |
+| `witness set-brokerage` | [witness/set-brokerage.md](witness/set-brokerage.md) |
 | `stake` (group) | [stake/index.md](stake/index.md) |
 | `stake freeze` | [stake/freeze.md](stake/freeze.md) |
 | `stake unfreeze` | [stake/unfreeze.md](stake/unfreeze.md) |
