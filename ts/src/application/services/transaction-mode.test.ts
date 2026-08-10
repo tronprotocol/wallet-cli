@@ -31,7 +31,13 @@ describe("transactionMode", () => {
   });
 
   it("--build-only → unsigned transaction without broadcast", () => {
-    expect(transactionMode({ buildOnly: true })).toEqual({ dryRun: false, buildOnly: true, broadcast: false });
+    expect(transactionMode({ buildOnly: true })).toEqual({
+      mode: "build-only",
+      dryRun: false,
+      buildOnly: true,
+      broadcast: false,
+      permissionId: 0,
+    });
   });
 
   it("--dry-run + --sign-only → invalid_option", () => {

@@ -27,8 +27,11 @@ function chainView(net: NetworkDescriptor): ChainView {
   };
 }
 
-function meta(durationMs: number, warnings: WarningItem[]): Meta {
-  return { durationMs, warnings };
+/** Copy so the caller's object cannot be mutated through the envelope. Takes the whole Meta rather
+ *  than field-by-field arguments: optional members (pagination) are then carried automatically
+ *  instead of being silently dropped each time one is added. */
+function meta(m: Meta): Meta {
+  return { ...m };
 }
 
 export const OutputEnvelope = {
@@ -36,7 +39,7 @@ export const OutputEnvelope = {
     command: string,
     net: NetworkDescriptor | undefined,
     data: unknown,
-    m: { durationMs: number; warnings: WarningItem[] },
+    m: Meta,
   ): ResultEnvelope {
     const env: ResultEnvelope = {
       schema: SCHEMA_VERSION,
@@ -53,7 +56,7 @@ export const OutputEnvelope = {
     command: string,
     net: NetworkDescriptor | undefined,
     err: CliErrorEnvelopeShape,
-    m: { durationMs: number; warnings: WarningItem[] },
+    m: Meta,
   ): ErrorEnvelope {
     const env: ErrorEnvelope = {
       schema: SCHEMA_VERSION,

@@ -109,7 +109,7 @@ wallet-cli backup --records --account main --from 2026-08-01 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TJToBi4Ngr6JT3HqZHfCkKvuQTvqm73HHp","label":"main","out":"./wlt_d1qbj2fb.0-1785930000000.keystore.json","timestamp":"2026-08-05T11:40:00Z"}],"pagination":{"offset":0,"limit":null,"total":1}},"meta":{"durationMs":8,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TJToBi4Ngr6JT3HqZHfCkKvuQTvqm73HHp","label":"main","out":"./wlt_d1qbj2fb.0-1785930000000.keystore.json","timestamp":"2026-08-05T11:40:00Z"}]},"meta":{"durationMs":8,"warnings":[],"pagination":{"offset":0,"limit":null,"total":1}}}
 ```
 
 ## Output
@@ -137,7 +137,7 @@ The two modes return **different shapes** and therefore different `command` ids:
 
 ### Audit log (`backup --records`)
 
-`data.records` is newest-first; `data.pagination` carries `offset`, `limit` (`null` when unlimited) and the pre-window `total`.
+`data.records` is newest-first. The window is envelope metadata — [`meta.pagination`](../machine-interface.md#reading-metapagination) — carrying `offset`, `limit` (`null` when unlimited) and the pre-window `total` (always a number here: the log is local, so the count is always knowable).
 
 | Field | Type | Meaning |
 |---|---|---|

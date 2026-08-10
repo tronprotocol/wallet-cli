@@ -63,6 +63,7 @@ Schema id: `wallet-cli.result.v1`.
 | `error.details`   | object                   | optional            | Structured extras when available                                                 |
 | `meta.durationMs` | number                   | always              | Wall time                                                                        |
 | `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
+| `meta.pagination` | `{offset, limit, total}` | paginated reads only | The window this response returned; `limit`/`total` are nullable — see below       |
 | `chain`           | object                   | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
@@ -80,6 +81,38 @@ jq -e '.meta.warnings[] | select(type == "object" and .code == "owner_lockout")'
 ```
 
 Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.join`) fail or print `[object Object]` on the object form. Warning `code` values are stable and additive within v1 — new codes may appear, existing ones keep their meaning. Warning `message` text is **not** stable; treat it like `error.message` and never parse it.
+
+### Reading `meta.pagination`
+
+Every paginated read reports its window in **one place — `meta.pagination`** — never inside `data`. That is deliberate: the cursor lives at a fixed path regardless of the payload's shape, so a single pager works for `asset list`, `exchange list`, `backup --records`, `proposal show`, and any list command added later. Its absence means the command is not paginated.
+
+```json
+"meta": { "durationMs": 8, "warnings": [], "pagination": { "offset": 0, "limit": 10, "total": null } }
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `offset` | number | Index this page started at — echoes `--offset` |
+| `limit` | number \| **null** | Page size; `null` = unlimited (no `--limit` given) |
+| `total` | number \| **null** | Matching records in total; `null` = **no count exists**, not "we omitted it" |
+
+All three keys are always present, so `null` is the only "unknown" signal and you never have to distinguish absent from null.
+
+`total: null` is permanent for the commands backed by TRON's paginated node endpoints (`asset list`, `exchange list`): the endpoint returns no count, and computing one would mean transferring every record — 5,187 assets / 2.7 MB on mainnet. **Page until you get a short page** rather than comparing against a total:
+
+```bash
+# works whether or not a total is knowable
+offset=0
+while :; do
+  page=$(wallet-cli asset list --limit 50 --offset "$offset" -o json)
+  n=$(jq '.data.assets | length' <<<"$page")
+  jq -c '.data.assets[]' <<<"$page"
+  [ "$n" -lt 50 ] && break
+  offset=$((offset + 50))
+done
+```
+
+In **text** mode the same window titles the table (`Assets (limit 50, offset 0)`, `Backup records (showing 3 of 12)`); text output is not part of this contract — parse `-o json`.
 
 ## Error codes
 

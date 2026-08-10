@@ -66,9 +66,12 @@ describe("every registered positional command rejects its --<field> spelling", (
     expect(found).toEqual([
       "asset info", "asset participate",
       "backup", "block", "config", "contact add", "contact remove",
+      "contract clear-abi", "contract set-origin-energy-limit", "contract set-user-resource-percent",
       "delete", "encoding convert",
       "exchange inject", "exchange show", "exchange trade", "exchange withdraw",
-      "gasfree trace", "import keystore", "rename", "use",
+      "gasfree trace", "import keystore",
+      "proposal approve", "proposal delete", "proposal show",
+      "rename", "use", "witness set-brokerage",
     ]);
   });
 

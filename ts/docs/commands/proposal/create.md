@@ -21,8 +21,8 @@ Only a registered witness can create a proposal. Parameter names match [`chain p
 | `--dry-run` | Build and estimate without signing |
 | `--sign-only` | Sign without broadcasting |
 | `--build-only` | Return the unsigned transaction without accessing a signer |
-| `--expiration <ms>` | Extend expiry by at most 86,400,000 ms; build/sign-only only |
-| `--permission-id <n>` | TRON permission group; default 0 |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 
 Plus `--account`, `--password-stdin`, and the [global options](../index.md#global-options-every-command).
 

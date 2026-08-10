@@ -11,7 +11,7 @@
  */
 import type { NetworkDescriptor, OutputMode } from "../../../../domain/types/index.js";
 import type { ProgressEvent } from "../../../../application/contracts/index.js";
-import type { StreamManager, TextFormatter } from "../contracts/index.js";
+import type { Pagination, StreamManager, TextFormatter } from "../contracts/index.js";
 import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderGenericText } from "../render/index.js";
@@ -59,26 +59,32 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
   }
 }
 
-/** Pagination is envelope metadata in the public JSON contract, while text renderers consume the
- * same value from their view model to produce `showing N of total` titles. */
-function extractPagination(data: unknown): {
-  data: unknown;
-  pagination?: { offset: number; limit: number | null; total: number };
-} {
+/**
+ * Pagination is envelope metadata in the public JSON contract — ONE location for every list command,
+ * so a caller pages any of them without knowing the payload's shape. Text renderers keep reading the
+ * same value from their view model to title `showing N of total`, which is why only this path moves it.
+ *
+ * What identifies a window is `offset` + `limit`; `total` is OPTIONAL and normalised to `null`,
+ * because for TRON's paginated endpoints no count exists at all (obtaining one would mean
+ * transferring every record). Requiring it here is what used to strand `asset list` / `exchange list`
+ * in `data` while `backup --records` / `proposal show` moved to `meta` — the same envelope carrying
+ * the same concept in two places, decided by whether a total happened to be knowable.
+ */
+function extractPagination(data: unknown): { data: unknown; pagination?: Pagination } {
   if (!data || typeof data !== "object" || Array.isArray(data)) return { data };
   const source = data as Record<string, unknown>;
   const value = source.pagination;
   if (!value || typeof value !== "object" || Array.isArray(value)) return { data };
   const pagination = value as Record<string, unknown>;
+  // Not a window → leave it alone: `pagination` might be an unrelated field on some future payload.
   if (
     !Number.isInteger(pagination.offset) ||
-    !(pagination.limit === null || Number.isInteger(pagination.limit)) ||
-    !Number.isInteger(pagination.total)
+    !(pagination.limit === null || Number.isInteger(pagination.limit))
   ) return { data };
-  const normalized = {
+  const normalized: Pagination = {
     offset: Number(pagination.offset),
     limit: pagination.limit === null ? null : Number(pagination.limit),
-    total: Number(pagination.total),
+    total: Number.isInteger(pagination.total) ? Number(pagination.total) : null,
   };
   const clean = { ...source };
   delete clean.pagination;

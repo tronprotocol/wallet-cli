@@ -136,22 +136,41 @@ describe("TxPipeline device-sign timeout", () => {
 });
 
 describe("TxPipeline build-only", () => {
-  it("builds from the public address without resolving a signer or estimating", async () => {
+  // The guarantee that matters: NO signer is resolved. That is what lets --build-only run from a
+  // watch-only or Ledger account and hand the unsigned hex to co-signers. It does estimate, and
+  // reports `fee` — documented for every command offering the flag (docs/commands/tx/send.md).
+  it("builds from the public address without resolving a signer", async () => {
     const resolve = vi.fn(() => { throw new Error("signer must not be resolved"); });
-    const signers = { resolve } as unknown as SignerResolver;
+    const assertCanSign = vi.fn(() => { throw new Error("signing must not be asserted"); });
+    const signers = { resolve, assertCanSign } as unknown as SignerResolver;
     const build = vi.fn(async (address: string) => ({ raw_data_hex: "0102", owner: address }));
-    const estimate = vi.fn(async () => ({}));
+    const estimate = vi.fn(async () => ({ feeSun: "1000" }));
+    const artifact = vi.fn(() => "0a02010202");
 
     await expect(new TxPipeline(signers).run(params({} as Signer, {
       ctx: scope({ resolveAddress: () => "TWatchOnly" }),
       buildOnly: true,
       build,
       estimate,
-    }))).resolves.toEqual({
+      artifact,
+    } as Partial<TxPipelineParams>))).resolves.toEqual({
       stage: "built",
       tx: { raw_data_hex: "0102", owner: "TWatchOnly" },
+      hex: "0a02010202",
+      fee: { feeSun: "1000" },
     });
     expect(resolve).not.toHaveBeenCalled();
-    expect(estimate).not.toHaveBeenCalled();
+    expect(assertCanSign).not.toHaveBeenCalled();
+  });
+
+  // Producing the unsigned hex IS the point of the mode, so an adapter that cannot serialise one has
+  // nothing to return — refused up front rather than yielding a hex-less "built" outcome.
+  it("refuses when the adapter cannot produce transaction hex", async () => {
+    const signers = { resolve: vi.fn(), assertCanSign: vi.fn() } as unknown as SignerResolver;
+    await expect(new TxPipeline(signers).run(params({} as Signer, {
+      ctx: scope({ resolveAddress: () => "TWatchOnly" }),
+      buildOnly: true,
+      build: async (address: string) => ({ raw_data_hex: "0102", owner: address }),
+    }))).rejects.toMatchObject({ code: "invalid_option" });
   });
 });

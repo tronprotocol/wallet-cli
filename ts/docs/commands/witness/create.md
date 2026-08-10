@@ -18,8 +18,8 @@ Registration burns the current `getAccountUpgradeCost` chain parameter and canno
 |---|---|
 | `--url <string>` | Required candidate information URL, at most 256 UTF-8 bytes |
 | `--dry-run`, `--sign-only`, `--build-only` | Mutually exclusive transaction modes |
-| `--expiration <ms>` | Build/sign-only expiry extension, max 24 h |
-| `--permission-id <n>` | TRON permission group; default 0 |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 
 Plus `--account`, `--wait`, `--password-stdin`, and the [global options](../index.md#global-options-every-command).
 

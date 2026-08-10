@@ -166,12 +166,15 @@ describe("backup --records", () => {
     expect(f.envelope().command).toBe("backup.records");
   });
 
-  it("returns records with pagination", async () => {
+  // The service returns `pagination` inside its view; the json formatter lifts it into envelope
+  // `meta` (and removes it from `data`) whenever it carries a full offset/limit/total triple.
+  it("returns records, with pagination lifted into envelope meta", async () => {
     const f = fixture({ tty: false, records: [record({ out: "./1.json" }), record({ out: "./2.json" })] });
     await buildCli(f.shellOpts).parseAsync(["backup", "--records", "--limit", "1"]);
-    const { data } = f.envelope();
-    expect(data.records.map((r: BackupRecord) => r.out)).toEqual(["./1.json"]);
-    expect(data.pagination).toEqual({ offset: 0, limit: 1, total: 2 });
+    const env = f.envelope();
+    expect(env.data.records.map((r: BackupRecord) => r.out)).toEqual(["./1.json"]);
+    expect(env.meta.pagination).toEqual({ offset: 0, limit: 1, total: 2 });
+    expect(env.data.pagination).toBeUndefined();
   });
 
   it("rejects export flags, which it could only ignore", async () => {

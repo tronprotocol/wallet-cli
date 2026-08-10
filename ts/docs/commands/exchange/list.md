@@ -16,7 +16,7 @@ Lists exchange pairs with their two token ids, reserves and creator.
 
 Use [`exchange show`](show.md) for one pair with names and whole tokens.
 
-**No total is reported.** The chain does not return one without transferring every record. `meta.pagination` carries `offset` and `limit` only. Page until you get a short page.
+**No total is reported.** The chain does not return one without transferring every record. [`meta.pagination`](../../machine-interface.md#reading-metapagination) therefore carries `total: null` — the count does not exist, rather than having been omitted — alongside `offset` and `limit`. Page until you get a short page.
 
 ## Options
 

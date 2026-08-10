@@ -335,7 +335,9 @@ async function accountCreateFee(gateway: TronGateway) {
   const parameters = await gateway.getChainParameters();
   const find = (key: string): bigint => {
     const value = parameters.find((entry) => entry.key === key)?.value;
-    if (!Number.isSafeInteger(value) || value! < 0) {
+    // `value` is typed `string | number` since the gateway port widened; isSafeInteger already
+    // rejects every non-number, so Number() here is a cast for the compiler, not a behaviour change.
+    if (!Number.isSafeInteger(value) || Number(value) < 0) {
       throw new ChainError(
         "provider_error",
         `chain parameter is unavailable: ${key}`,

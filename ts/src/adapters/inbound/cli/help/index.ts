@@ -101,6 +101,8 @@ export class HelpService {
       ["account", "Query on-chain account state, activate & name accounts", ""],
       ["permission", "View and update account multi-sign permissions", "tron"],
       ["token", "Manage the token address book and query tokens", ""],
+      ["asset", "Issue and manage TRC10 tokens", "tron"],
+      ["exchange", "Create and trade Bancor exchange pairs", "tron"],
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
       ["contract", "Call, deploy, govern, and inspect smart contracts", ""],
       ["gasfree", "Gas-free token transfers via the GasFree service", "tron"],
@@ -178,19 +180,22 @@ export class HelpService {
   #renderNeutralGroup(head: string): string {
     const cmds = this.#neutralGroupCommands(head)
     const rows = cmds.map((c) => [c.path[1] ?? "", c.summary ?? ""] as const)
-    return this.#renderGroup(head, rows, 1000)
+    return this.#renderGroup(head, rows)
   }
 
   /** logical resource group (`account --help`): default surface, implementations chosen by --network/defaultNetwork. */
   #renderLogicalNs(group: string): string {
     const commands = this.#chainGroupCommands(group)
     const rows = commands.map((c) => [c.path[1] ?? "", c.summary ?? ""] as const)
-    return this.#renderGroup(group, rows, 18)
+    return this.#renderGroup(group, rows)
   }
 
   /** shared group skeleton (群组层): inline Usage → description → verb list → footer. */
-  #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string]>, maxWidth: number): string {
-    const width = Math.min(maxWidth, Math.max(0, ...rows.map(([verb]) => verb.length)) + 2)
+  #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string]>): string {
+    // Width is the longest verb, uncapped: a cap cannot shorten an over-long verb, it only stops
+    // padEnd from reaching it — so every summary in the group loses its column the moment one verb
+    // exceeds the cap (`contract set-user-resource-percent`, 25 chars, did exactly that).
+    const width = Math.max(0, ...rows.map(([verb]) => verb.length)) + 2
     const lines = [`${bold("Usage:")}  wallet-cli ${group} COMMAND`, ""]
     const desc = GROUP_DESCRIPTIONS[group]
     if (desc) lines.push(desc, "")
