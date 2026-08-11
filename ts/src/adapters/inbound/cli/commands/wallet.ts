@@ -448,10 +448,13 @@ export function registerWalletCommands(
     to: utcDateTime("with --records: only records at or before this UTC time"),
     limit: z.coerce.number().int().positive().optional()
       .describe("with --records: maximum records to return; omit for all"),
-    offset: z.coerce.number().int().min(0).default(0)
+    // Optional, not .default(0): a default makes "not given" indistinguishable from "given as 0"
+    // in the refine below, which is how --offset alone slipped past the --records guard. The 0
+    // lives in backupRecords (query.offset ?? 0), so the emitted pagination is unchanged.
+    offset: z.coerce.number().int().min(0).optional()
       .describe("with --records: pagination offset"),
   })
-  const RECORD_FILTERS = ["from", "to", "limit"] as const
+  const RECORD_FILTERS = ["from", "to", "limit", "offset"] as const
   const backupInput = backupFields.superRefine((v, c) => {
     if (v.records) {
       // --keystore/--out describe an export; --records exports nothing, so accepting them would
@@ -495,7 +498,7 @@ export function registerWalletCommands(
     input: backupInput,
     // Log filters are never interrogated — a listing is meant to be re-run with a narrower flag, not
     // negotiated one prompt at a time.
-    promptHints: { from: "skip", to: "skip", limit: "skip" },
+    promptHints: { from: "skip", to: "skip", limit: "skip", offset: "skip" },
     // --records audits: nothing is exported, so there is no account to pick and no file to name.
     skipGapFill: (argv) => (argv.records ? ["account", "out"] : []),
     commandIdFor: (input) => (input.records ? "backup.records" : "backup"),
