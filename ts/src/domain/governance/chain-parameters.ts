@@ -17,6 +17,13 @@ export interface ChainParameterChange {
   unit: string;
 }
 
+export interface ChainParameterValue {
+  id: number;
+  name: string;
+  value: number | string;
+  unit: string;
+}
+
 const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER);
 const INT64_MAX = (1n << 63n) - 1n;
 const BOOL = [0n, 1n] as const;
@@ -201,24 +208,20 @@ export function parseChainParameterAssignments(
   return [...selected.values()].sort((left, right) => left.id - right.id);
 }
 
-export function proposalParameterChanges(
+export function proposalParameters(
   parameters: Readonly<Record<string, string>>,
-  current: ReadonlyArray<{ key: string; value?: number | string }>,
-): ChainParameterChange[] {
-  const currentByName = new Map(current.map((entry) => [entry.key.toLowerCase(), entry.value]));
+): ChainParameterValue[] {
   return Object.entries(parameters)
     .map(([rawId, rawValue]) => {
       const id = Number(rawId);
       const definition = byId.get(id);
-      const name = definition?.name ?? `parameter-${id}`;
       const value = /^-?\d+$/.test(rawValue) && BigInt(rawValue) <= MAX_SAFE
         ? Number(rawValue)
         : rawValue;
       return {
         id,
-        name,
-        currentValue: currentByName.get(name.toLowerCase()) ?? null,
-        proposedValue: value,
+        name: definition?.name ?? `parameter-${id}`,
+        value,
         unit: definition?.unit ?? "",
       };
     })

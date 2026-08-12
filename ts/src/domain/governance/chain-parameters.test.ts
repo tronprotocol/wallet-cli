@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseChainParameterAssignments, proposalParameterChanges } from "./chain-parameters.js";
+import { parseChainParameterAssignments, proposalParameters } from "./chain-parameters.js";
 
 const current = [
   { key: "getCreateAccountFee", value: 100_000 },
@@ -27,14 +27,14 @@ describe("chain parameter proposal mapping", () => {
   });
 
   it("keeps lossless proposal values as strings when they exceed JS safe integers", () => {
-    expect(proposalParameterChanges({ "999": "9223372036854775807" }, current)).toEqual([
-      {
-        id: 999,
-        name: "parameter-999",
-        currentValue: null,
-        proposedValue: "9223372036854775807",
-        unit: "",
-      },
+    expect(proposalParameters({ "999": "9223372036854775807" })).toEqual([
+      { id: 999, name: "parameter-999", value: "9223372036854775807", unit: "" },
+    ]);
+  });
+
+  it("never carries a current value — a proposal records only what it would set", () => {
+    expect(proposalParameters({ "3": "15" })).toEqual([
+      { id: 3, name: "getTransactionFee", value: 15, unit: "sun/byte" },
     ]);
   });
 

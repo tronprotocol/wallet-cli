@@ -12,6 +12,8 @@ wallet-cli proposal list [--state active|all] [--offset <n>] [--limit <n>] [opti
 
 `active` selects `PENDING` proposals whose voting window has not expired. `all` includes approved, disapproved, and canceled history. Filtering happens before local pagination. Each proposal's parameter map is sorted by protocol parameter id; JSON pagination is emitted as `meta.pagination`.
 
+The `Value` column is what the proposal would set, not the value in effect now — a proposal does not record what the parameter was before it. See [`chain params`](../chain/params.md) for current values.
+
 ## Options
 
 | Option | Description |
@@ -30,7 +32,7 @@ wallet-cli proposal list --state all --offset 20 --limit 20 --network tron:nile 
 
 ## Output
 
-`data.approvalThreshold` is 18 for the normal 27-member active SR set. `data.proposals[]` contains `id`, `proposerAddress`, normalized `state`, approval count, expiry, and sorted `changes[]`. `meta.pagination` contains `offset`, `limit`, and the filtered total.
+`data.approvalThreshold` is 18 for the normal 27-member active SR set. `data.proposals[]` contains `id`, `proposerAddress`, normalized `state`, approval count, expiry, and sorted `parameters[]` — each entry `{ id, name, value, unit }`. `meta.pagination` contains `offset`, `limit`, and the filtered total. Text output prints `(none)` when nothing matches the filter.
 
 ## Exit status
 

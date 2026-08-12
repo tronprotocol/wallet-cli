@@ -2,7 +2,7 @@ import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.
 import { ChainError } from "../../../domain/errors/index.js";
 import {
   parseChainParameterAssignments,
-  proposalParameterChanges,
+  proposalParameters,
   type ChainParameterChange,
 } from "../../../domain/governance/chain-parameters.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
@@ -38,8 +38,6 @@ export interface ProposalDeleteInput extends GovernanceTransactionInput {
   id: number;
 }
 
-type ChainParameters = Awaited<ReturnType<TronGateway["getChainParameters"]>>;
-
 export class TronProposalService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
@@ -48,16 +46,15 @@ export class TronProposalService {
 
   async list(network: NetworkDescriptor, input: ProposalListInput) {
     const gateway = this.gateways.get(network, "tron");
-    const [proposals, parameters, witnesses] = await Promise.all([
+    const [proposals, witnesses] = await Promise.all([
       gateway.getProposals(),
-      gateway.getChainParameters(),
       gateway.getWitnesses(27),
     ]);
     const approvalThreshold = threshold(witnesses.length);
     const views = proposals
       .filter((proposal) => input.state === "all" || isActive(proposal))
       .sort((left, right) => right.id - left.id)
-      .map((proposal) => listView(proposal, parameters));
+      .map((proposal) => listView(proposal));
     const total = views.length;
     const proposalsPage = views.slice(input.offset, input.limit === undefined ? undefined : input.offset + input.limit);
     return {
@@ -69,15 +66,14 @@ export class TronProposalService {
 
   async show(network: NetworkDescriptor, id: number) {
     const gateway = this.gateways.get(network, "tron");
-    const [proposal, parameters, witnesses] = await Promise.all([
+    const [proposal, witnesses] = await Promise.all([
       gateway.getProposal(id),
-      gateway.getChainParameters(),
       gateway.getWitnesses(27),
     ]);
     if (!proposal) throw new ChainError("proposal_not_found", `proposal #${id} was not found`);
     const approvalThreshold = threshold(witnesses.length);
     return {
-      ...listView(proposal, parameters),
+      ...listView(proposal),
       createTime: proposal.createTime,
       approvalThreshold,
       reachedThreshold: proposal.approvals.length >= approvalThreshold,
@@ -249,14 +245,14 @@ function stateName(state: TronProposal["state"]): "voting" | "approved" | "disap
   } as const)[state];
 }
 
-function listView(proposal: TronProposal, parameters: ChainParameters) {
+function listView(proposal: TronProposal) {
   return {
     id: proposal.id,
     proposerAddress: proposal.proposerAddress,
     state: stateName(proposal.state),
     approvals: proposal.approvals.length,
     expirationTime: proposal.expirationTime,
-    changes: proposalParameterChanges(proposal.parameters, parameters),
+    parameters: proposalParameters(proposal.parameters),
   };
 }
 

@@ -41,18 +41,14 @@ describe("TronProposalService", () => {
         { id: 3, proposerAddress: OWNER, parameters: { "3": "15", "2": "200000" }, expirationTime: now + 60_000, createTime: now, approvals: [OTHER], state: "PENDING" },
         { id: 2, proposerAddress: OTHER, parameters: { "20": "1" }, expirationTime: now + 60_000, createTime: now, approvals: [], state: "PENDING" },
       ] as TronProposal[]),
-      getChainParameters: async () => [
-        { key: "getCreateAccountFee", value: 100_000 },
-        { key: "getTransactionFee", value: 10 },
-        { key: "getAllowMultiSign", value: 0 },
-      ],
+      // no getChainParameters stub: listing must not reach for the values in effect now.
       getWitnesses: async () => Array.from({ length: 27 }, (_, index) => ({ address: `${OWNER}${index}`, voteCount: "0" })),
     });
 
     await expect(service.list(NET, { state: "active", offset: 1, limit: 1 })).resolves.toMatchObject({
       approvalThreshold: 18,
       pagination: { offset: 1, limit: 1, total: 2 },
-      proposals: [{ id: 2, state: "voting", changes: [{ id: 20, name: "getAllowMultiSign" }] }],
+      proposals: [{ id: 2, state: "voting", parameters: [{ id: 20, name: "getAllowMultiSign", value: 1 }] }],
     });
   });
 

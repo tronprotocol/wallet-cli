@@ -27,46 +27,47 @@ function renderProposalList(data: Obj): string {
   const title = paged
     ? `Proposals (showing ${proposals.length} of ${total})`
     : `Proposals (${proposals.length})`;
-  const headers = ["ID", "State", "Approvals", "Expiry (UTC)", "Parameter change"];
+  if (proposals.length === 0) return `${title}\n  (none)`;
+  const headers = ["ID", "State", "Approvals", "Expiry (UTC)", "Parameter", "Value"];
+  const align: Align[] = ["left", "left", "right", "left", "left", "right"];
   const rows: string[][] = [];
   for (const proposal of proposals) {
-    const changes = Array.isArray(proposal.changes) ? proposal.changes.map(asObj) : [];
+    const parameters = Array.isArray(proposal.parameters) ? proposal.parameters.map(asObj) : [];
     const base = [
       String(proposal.id ?? ""),
       String(proposal.state ?? ""),
       `${formatInt(proposal.approvals)} / ${formatInt(data.approvalThreshold)}`,
       utcMinute(proposal.expirationTime),
     ];
-    if (changes.length === 0) rows.push([...base, ""]);
-    for (const [index, change] of changes.entries()) {
+    if (parameters.length === 0) rows.push([...base, "", ""]);
+    for (const [index, parameter] of parameters.entries()) {
       rows.push([
         ...(index === 0 ? base : ["", "", "", ""]),
-        `${String(change.name ?? "")}: ${changeValue(change.currentValue)} → ${changeValue(change.proposedValue)}`,
+        String(parameter.name ?? ""),
+        changeValue(parameter.value),
       ]);
     }
   }
-  const widths = headers.map((header, index) => Math.max(
-    header.length,
-    ...rows.map((row) => String(row[index] ?? "").length),
-  ));
-  const line = (cells: string[]) => `  ${cells.map((cell, index) => String(cell).padEnd(widths[index] ?? 0)).join("   ").trimEnd()}`;
-  return [title, line(headers), ...rows.map(line)].join("\n");
+  return [title, ...table(headers, rows, align)].join("\n");
 }
 
 function renderProposalShow(data: Obj): string {
-  const changes = Array.isArray(data.changes) ? data.changes.map(asObj) : [];
+  const parameters = Array.isArray(data.parameters) ? data.parameters.map(asObj) : [];
   const body = titled(`Proposal #${String(data.id ?? "")}`, [
     ["State", String(data.state ?? "")],
     ["Proposer", String(data.proposerAddress ?? "")],
     ["Created time", `${utcMinute(data.createTime)} UTC`],
     ["Expiry time", `${utcMinute(data.expirationTime)} UTC`],
     ["Approvals", `${formatInt(data.approvals)} / ${formatInt(data.approvalThreshold)}`],
-    ["Parameter changes", `(${changes.length})`],
+    ["Parameters", `(${parameters.length})`],
   ]);
+  const nameWidth = width(parameters.map((parameter) => String(parameter.name ?? "")));
+  const valueWidth = width(parameters.map((parameter) => changeValue(parameter.value)));
   return [
     body,
-    ...changes.map((change) =>
-      `    ${String(change.name ?? "")}   ${changeValue(change.currentValue)} → ${changeValue(change.proposedValue)}${change.unit ? `   ${String(change.unit)}` : ""}`,
+    ...parameters.map((parameter) =>
+      `    ${String(parameter.name ?? "").padEnd(nameWidth)}   ${changeValue(parameter.value).padStart(valueWidth)}`
+      + (parameter.unit ? `   ${String(parameter.unit)}` : ""),
     ),
   ].join("\n");
 }
@@ -145,11 +146,16 @@ function governanceRows(data: Obj, ctx: TextRenderContext): Array<[string, strin
 function appendChanges(rendered: string, data: Obj): string {
   const changes = Array.isArray(data.changes) ? data.changes.map(asObj) : [];
   if (changes.length === 0) return rendered;
+  const nameWidth = width(changes.map((change) => String(change.name ?? "")));
+  const fromWidth = width(changes.map((change) => changeValue(change.currentValue)));
+  const toWidth = width(changes.map((change) => changeValue(change.proposedValue)));
   return [
     rendered,
     `  Parameter changes (${changes.length})`,
     ...changes.map((change) =>
-      `    ${String(change.name ?? "")}   ${changeValue(change.currentValue)} → ${changeValue(change.proposedValue)}${change.unit ? `   ${String(change.unit)}` : ""}`,
+      `    ${String(change.name ?? "").padEnd(nameWidth)}   ${changeValue(change.currentValue).padStart(fromWidth)}`
+      + ` → ${changeValue(change.proposedValue).padStart(toWidth)}`
+      + (change.unit ? `   ${String(change.unit)}` : ""),
     ),
   ].join("\n");
 }
@@ -203,6 +209,27 @@ function signedSummary(value: unknown): string {
 
 function changeValue(value: unknown): string {
   return value === null || value === undefined ? "unknown" : String(value);
+}
+
+type Align = "left" | "right";
+
+function width(values: string[]): number {
+  return Math.max(0, ...values.map((value) => value.length));
+}
+
+/** Column-aligned rows; numeric columns are right-aligned so digits line up down the page. */
+function table(headers: string[], rows: string[][], align: Align[]): string[] {
+  const widths = headers.map((header, index) => Math.max(
+    header.length,
+    ...rows.map((row) => String(row[index] ?? "").length),
+  ));
+  const line = (cells: string[]) => `  ${cells
+    .map((cell, index) => align[index] === "right"
+      ? String(cell).padStart(widths[index] ?? 0)
+      : String(cell).padEnd(widths[index] ?? 0))
+    .join("   ")
+    .trimEnd()}`;
+  return [line(headers), ...rows.map(line)];
 }
 
 function utcMinute(value: unknown): string {

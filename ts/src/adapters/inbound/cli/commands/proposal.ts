@@ -10,7 +10,11 @@ export const proposalListSpec: ChainSpec = {
   network: "optional", wallet: "none", auth: "none",
   capability: "proposal.read",
   summary: "List on-chain governance proposals",
-  description: "List governance proposals and their chain-parameter changes. Active proposals are shown by default.",
+  description:
+    "List governance proposals. Each proposal is a set of chain parameters with the values\n" +
+    "it would set, for super representatives to vote on. Parameters are shown by name; the\n" +
+    "value column is what the proposal sets, not the current value on chain — see\n" +
+    "'chain params' for those. Active proposals are shown by default.",
   baseFields: z.object({
     state: ciEnum(["active", "all"]).default("active")
       .describe("active voting proposals, or all proposal history"),
@@ -34,7 +38,14 @@ export const proposalShowSpec: ChainSpec = {
   capability: "proposal.read",
   positionals: [{ field: "id" }],
   summary: "Show one governance proposal",
-  description: "Show parameter changes, approval progress, proposer, and voting-window timestamps.",
+  description:
+    "Show a single proposal in full: each parameter it sets (name, value, unit), approval\n" +
+    "progress, proposer, and voting-window timestamps. The addresses that approved are in\n" +
+    "the json output only.\n" +
+    "\n" +
+    "The value shown is the one the proposal sets, not the current value on chain — a\n" +
+    "proposal does not record what the parameter was. Use 'chain params' for the values in\n" +
+    "effect now.",
   baseFields: z.object({
     id: z.coerce.number().int().positive().describe("proposal id"),
   }),
