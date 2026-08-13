@@ -33,7 +33,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     finalArgs.push("--password-stdin");
     stdin = (opts.password ?? DEFAULT_PW) + "\n";
   }
-  // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
+  // 18s < the suite's 20s testTimeout: a genuinely hung subprocess errors here with a clear
   // signal instead of silently eating the whole test budget.
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.

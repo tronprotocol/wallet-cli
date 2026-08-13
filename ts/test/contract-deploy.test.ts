@@ -80,8 +80,8 @@ function deploy(
   const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...globals, ...local], {
     input: PW + "\n",
     encoding: "utf8",
-    env: { ...process.env, WALLET_CLI_HOME: HOME, NO_COLOR: "1" },
-    timeout: opts.timeoutMs ?? 30_000,
+    env: { ...process.env, WALLET_CLI_HOME: HOME, NO_COLOR: "1", WALLET_CLI_NO_TTY: "1" },
+    timeout: opts.timeoutMs ?? 18_000,
   });
   return JSON.parse(r.stdout);
 }
