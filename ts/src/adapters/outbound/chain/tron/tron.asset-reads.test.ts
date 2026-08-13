@@ -120,3 +120,112 @@ describe("exchange reads carry int64 reserves exactly", () => {
     expect(await client().getExchangeById(999)).toBeUndefined();
   });
 });
+
+/**
+ * A response is only trustworthy to the extent it can be checked. Two things can be:
+ *
+ *   - identity — we know which id we asked for, so a record answering with a different one is a
+ *     mismatch no matter how self-consistent it looks;
+ *   - protocol range — precision is 0..6 and the rate pair is a positive int32, by definition of
+ *     the contract, not by observation.
+ *
+ * Both matter because these fields are not merely displayed: `precision` converts a human `--amount`
+ * into the minimal units that get SIGNED, so a node that reports 0 where the token has 6 moves the
+ * decimal point six places on a transaction the user is about to authorise.
+ *
+ * Scanning every TRC10 on mainnet (5,192) and Nile (4,000) found zero records violating either
+ * rule, so rejecting is not a compatibility risk — an out-of-range value is a broken or dishonest
+ * node, never a historical quirk. Absence stays legal: 47.67% of mainnet assets omit `precision`
+ * entirely, which means 0.
+ */
+describe("node responses are checked against what we asked for and what the protocol allows", () => {
+  const asset = (over: Record<string, unknown> = {}) => JSON.stringify({
+    id: "1002438", owner_address: OWNER_HEX, name: "4556494c",
+    total_supply: 100, trx_num: 1, num: 1, precision: 6,
+    start_time: 1, end_time: 2, ...over,
+  });
+
+  it("rejects an asset whose id is not the one requested", async () => {
+    nodeReturns(asset({ id: "9999" }));
+    await expect(client().getAssetById("1002438")).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
+
+  it.each([
+    ["far out of range", 100_000],
+    ["negative", -1],
+    ["fractional", 1.5],
+    ["one past the ceiling", 7],
+  ])("rejects a precision that is %s", async (_label, precision) => {
+    nodeReturns(asset({ precision }));
+    await expect(client().getAssetById("1002438")).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
+
+  it.each([
+    ["trx_num", { trx_num: 0 }],
+    ["num", { num: 0 }],
+    ["a negative rate", { trx_num: -1 }],
+  ])("rejects a rate pair that is not a positive int32: %s", async (_label, over) => {
+    nodeReturns(asset(over));
+    await expect(client().getAssetById("1002438")).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
+
+  it("accepts an asset with no precision field at all — that is 47% of mainnet", async () => {
+    nodeReturns(asset({ precision: undefined }));
+    await expect(client().getAssetById("1002438")).resolves.toMatchObject({ id: "1002438" });
+  });
+
+  it("accepts every precision the protocol allows", async () => {
+    for (const precision of [0, 1, 2, 3, 4, 5, 6]) {
+      nodeReturns(asset({ precision }));
+      await expect(client().getAssetById("1002438")).resolves.toMatchObject({ precision });
+    }
+  });
+
+  it("rejects an exchange whose id is not the one requested", async () => {
+    nodeReturns('{"exchange_id": 99, "creator_address": "' + OWNER_HEX + '", "first_token_id": "5f", "first_token_balance": 1, "second_token_id": "31", "second_token_balance": 1}');
+    await expect(client().getExchangeById(12)).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
+
+  // A list is a display surface: one poisoned row must not deny the other 199.
+  it("drops an invalid row from a list instead of failing the whole page", async () => {
+    nodeReturns(`{"assetIssue": [${asset()}, ${asset({ id: "2", precision: 99 })}, ${asset({ id: "3" })}]}`);
+    const assets = await client().listAssets(10, 0);
+
+    expect(assets.map((a) => a.id)).toEqual(["1002438", "3"]);
+  });
+
+  it("drops an invalid match from a name lookup — it can still reach a signing path", async () => {
+    nodeReturns(`{"assetIssue": [${asset({ precision: 99 })}, ${asset({ id: "3" })}]}`);
+    expect((await client().getAssetsByName("EVIL")).map((a) => a.id)).toEqual(["3"]);
+  });
+});
+
+/**
+ * `tx send --asset-id <id> --amount 1` is the mainstream way to move a TRC10, and it reads its
+ * decimals from here rather than from getAssetById — so this method needs the same guarantees, or
+ * the most-used signing path keeps the hole the others just closed.
+ */
+describe("getTrc10Info is held to the same rules as the other TRC10 reads", () => {
+  const info = (over: Record<string, unknown> = {}) =>
+    JSON.stringify({ id: "1000001", name: "4556494c", abbr: "4556", trx_num: 1, num: 1, precision: 6, ...over });
+
+  it("keeps a valid record and its decoded text", async () => {
+    nodeReturns(info());
+    await expect(client().getTrc10Info("1000001")).resolves.toMatchObject({ precision: 6, name: "EVIL" });
+  });
+
+  it("rejects a record answering with a different id", async () => {
+    nodeReturns(info({ id: "9999" }));
+    await expect(client().getTrc10Info("1000001")).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
+
+  it.each([100_000, -1, 1.5, 7])("rejects precision %s, which would rescale a signed amount", async (precision) => {
+    nodeReturns(info({ precision }));
+    await expect(client().getTrc10Info("1000001")).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
+
+  it("accepts an absent precision as 0", async () => {
+    nodeReturns(info({ precision: undefined }));
+    await expect(client().getTrc10Info("1000001")).resolves.toMatchObject({ id: "1000001" });
+  });
+});

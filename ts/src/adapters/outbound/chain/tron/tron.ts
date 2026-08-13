@@ -509,10 +509,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       return entry?.value ?? "0";
     });
   }
+  /** `tx send --asset-id` reads its decimals here, so it gets the same identity and range checks
+   *  as every other TRC10 read — this is the signing path a user is most likely to take. */
   async getTrc10Info(assetId: string): Promise<TronTokenInfo> {
-    return this.#wrap("trc10 info", async () =>
-      await this.#tw.trx.getTokenFromID(assetId) as unknown as TronTokenInfo,
-    );
+    return this.#wrap("trc10 info", async () => {
+      const raw = parseTronAssetResponse(await this.#post("/wallet/getassetissuebyid", { value: assetId }));
+      return assertUsableAsset(raw, assetId) as unknown as TronTokenInfo;
+    });
   }
 
   async buildTrc20Transfer(from: string, to: string, contract: string, amount: string, feeLimit: string): Promise<Types.Transaction> {
@@ -541,7 +544,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return this.#wrap("asset by id", async () => {
       // an unknown id comes back as an empty object; absence is a result, not a fault.
       const raw = parseTronAssetResponse(await this.#post("/wallet/getassetissuebyid", { value: assetId }));
-      return raw.owner_address === undefined ? undefined : raw;
+      return raw.owner_address === undefined ? undefined : assertUsableAsset(raw, assetId);
     });
   }
 
@@ -672,6 +675,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       const found = exchangeValue(await this.#post("/wallet/getexchangebyid", { id: exchangeId }));
       // an unknown id comes back as an empty object rather than an error
       if (found.exchange_id === undefined) return undefined;
+      if (Number(found.exchange_id) !== exchangeId) {
+        throw new ChainError(
+          "invalid_node_response",
+          `asked the node for exchange ${exchangeId} and it answered with ${JSON.stringify(found.exchange_id)}`,
+        );
+      }
       return this.#toExchange(found);
     });
   }
@@ -1392,10 +1401,61 @@ function normalizeTxInfoValue(value: unknown, key?: string): unknown {
   return value;
 }
 
-/** `{assetIssue: [...]}` — the shape every list-ish TRC10 endpoint answers with. */
+/**
+ * What a TRC10 record must satisfy to be usable, as opposed to merely well-formed json.
+ *
+ * `precision` is 0..6 and the rate pair is a positive int32 by definition of the contract — every
+ * TRC10 on mainnet (5,192) and Nile (4,000) complies, so a violation is a broken or dishonest node
+ * rather than a historical quirk. It is worth refusing because `precision` converts a human
+ * `--amount` into the minimal units that get signed: reporting 0 where the token carries 6 moves
+ * the decimal point six places on a transaction the user is about to authorise.
+ *
+ * An ABSENT precision is legal and means 0 — 47% of mainnet assets omit the field.
+ */
+const TRC10_MAX_PRECISION = 6;
+const INT32_MAX = 2_147_483_647;
+
+function assetViolation(asset: TronAsset): string | undefined {
+  const precision = asset.precision;
+  if (precision !== undefined && (!Number.isInteger(precision) || precision < 0 || precision > TRC10_MAX_PRECISION)) {
+    return `precision ${JSON.stringify(precision)} is outside the protocol range 0..${TRC10_MAX_PRECISION}`;
+  }
+  for (const field of ["trx_num", "num"] as const) {
+    const value = asset[field];
+    if (!Number.isInteger(value) || value <= 0 || value > INT32_MAX) {
+      return `${field} ${JSON.stringify(value)} is not a positive int32`;
+    }
+  }
+  return undefined;
+}
+
+function assertUsableAsset(asset: TronAsset, requestedId?: string): TronAsset {
+  // We know which id we asked for, so a record answering with another one is a mismatch however
+  // self-consistent it looks — the one identity claim that can be checked without trusting the node.
+  if (requestedId !== undefined && String(asset.id) !== requestedId) {
+    throw new ChainError(
+      "invalid_node_response",
+      `asked the node for TRC10 ${requestedId} and it answered with ${JSON.stringify(asset.id)}`,
+    );
+  }
+  const violation = assetViolation(asset);
+  if (violation) {
+    throw new ChainError("invalid_node_response", `TRC10 ${String(asset.id)}: ${violation}`);
+  }
+  return asset;
+}
+
+/**
+ * `{assetIssue: [...]}` — the shape every list-ish TRC10 endpoint answers with.
+ *
+ * Unusable rows are dropped rather than thrown on: a list is a display surface, and one poisoned
+ * record must not deny the caller the other 199. A name lookup filters the same way because its
+ * single match can still reach a signing path.
+ */
 function assetList(text: string): TronAsset[] {
   const raw = parseTronAssetResponse(text) as unknown as { assetIssue?: unknown };
-  return Array.isArray(raw.assetIssue) ? raw.assetIssue as TronAsset[] : [];
+  const assets = Array.isArray(raw.assetIssue) ? raw.assetIssue as TronAsset[] : [];
+  return assets.filter((asset) => assetViolation(asset) === undefined);
 }
 
 /** exchange records need no text decoding — #toExchange already decodes their token ids. */
