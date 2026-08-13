@@ -14,7 +14,7 @@ import type {
   GasFreeTransferView,
   NetworkDescriptor,
 } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import {
   gasFreeDigest,
   gasFreeTypedData,
@@ -267,18 +267,14 @@ export class GasFreeService {
     };
     if (!scope.wait) return accepted;
     const terminal = await this.#wait(
+      scope,
       network,
       submitted,
       authorization,
       addressInfo.gasFreeAddress,
-      scope.waitTimeoutMs,
     );
-    if (!terminal) {
-      scope.warn(
-        `--wait: GasFree transfer ${submitted.id} did not finish within ${scope.waitTimeoutMs}ms; returning submitted`,
-      );
-      return accepted;
-    }
+    // #wait has already warned with the precise reason it stopped.
+    if (!terminal) return accepted;
     const settledAmount = terminal.txnAmount ?? accepted.amount;
     const settledServiceFee =
       terminal.txnTransferFee ?? accepted.serviceFee;
@@ -381,32 +377,64 @@ export class GasFreeService {
     );
   }
 
+  /**
+   * Poll the trace until a terminal state, or give up.
+   *
+   * Everything here runs AFTER `submitTransfer` succeeded — the transfer is accepted and the tokens
+   * are committed. A polling failure therefore says nothing about the outcome, and must never
+   * destroy the receipt that carries the trace id: without it the caller cannot reconcile and is
+   * likely to resubmit. Transport flakiness is retried inside the deadline; anything else that is
+   * not an integrity violation gives up with a warning and lets the caller return `submitted`.
+   *
+   * Returns undefined when no terminal state was reached; it has already warned why.
+   */
   async #wait(
+    scope: TransactionScope,
     network: NetworkDescriptor,
     initial: GasFreeTransferRecord,
     authorization: GasFreeAuthorization,
     gasFreeAddress: string,
-    timeoutMs: number,
   ): Promise<GasFreeTransferRecord | undefined> {
-    const deadline = this.clock() + Math.max(0, timeoutMs);
+    const deadline = this.clock() + Math.max(0, scope.waitTimeoutMs);
+    const traceContext = { traceId: initial.id };
     let previous = initial.state;
     if (previous === "SUCCEED" || previous === "FAILED") return initial;
     for (;;) {
       const remaining = deadline - this.clock();
-      if (remaining <= 0) return undefined;
+      if (remaining <= 0) {
+        scope.warn(
+          `--wait: GasFree transfer ${initial.id} did not finish within ${scope.waitTimeoutMs}ms; returning submitted`,
+        );
+        return undefined;
+      }
       await this.sleep(Math.min(POLL_MS, remaining));
-      const current = await this.provider.trace(network, initial.id);
+      let current: GasFreeTransferRecord;
+      try {
+        current = await this.provider.trace(network, initial.id);
+      } catch (error) {
+        // 429 / 5xx / connection failure / request timeout — the deadline decides when to stop.
+        if (isRetryablePoll(error)) continue;
+        if (error instanceof CliError && error.code === "gasfree_integrity") throw error;
+        scope.warn(
+          `--wait: GasFree trace could not be polled (${
+            error instanceof CliError ? error.code : "provider_error"
+          }); returning submitted — reconcile with \`gasfree trace ${initial.id}\``,
+        );
+        return undefined;
+      }
       if (current.id !== initial.id) {
         throw new ChainError(
           "gasfree_integrity",
           "GasFree trace id changed while polling",
+          traceContext,
         );
       }
-      assertAccepted(current, authorization, gasFreeAddress);
+      assertAccepted(current, authorization, gasFreeAddress, traceContext);
       if (stateRank(current.state) < stateRank(previous)) {
         throw new ChainError(
           "gasfree_integrity",
           "GasFree state regressed while polling",
+          traceContext,
         );
       }
       previous = current.state;
@@ -415,6 +443,12 @@ export class GasFreeService {
       }
     }
   }
+}
+
+/** Transport-level flakiness the provider will plausibly recover from inside the wait deadline. */
+function isRetryablePoll(error: unknown): boolean {
+  return error instanceof TransportError
+    || (error instanceof CliError && error.code === "timeout");
 }
 
 function selectToken(
@@ -510,6 +544,8 @@ function assertAccepted(
   record: GasFreeTransferRecord,
   authorization: GasFreeAuthorization,
   gasFreeAddress: string,
+  /** carried into error.details once a trace id exists, so a rejected receipt stays reconcilable. */
+  context?: object,
 ): void {
   const deadlineMatches =
     record.expiredAt === undefined
@@ -532,6 +568,7 @@ function assertAccepted(
     throw new ChainError(
       "gasfree_integrity",
       "GasFree submit receipt does not match the signed authorization",
+      context,
     );
   }
   assertFeeIntegrity(record, authorization.maxFee);

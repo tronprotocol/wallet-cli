@@ -90,8 +90,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       if (e instanceof ChainError) throw e; // preserve timeout as ChainError, don't remap to rpc_error
       throw new TransportError("rpc_error", `TRON broadcast failed: ${redactErrorMessage((e as Error).message ?? "")}`);
     }
-    // tronweb does NOT throw on node rejection — it returns { result:false, code, message }.
-    if (res.result === false) {
+    // tronweb does NOT throw on node rejection — it hands back the node's response verbatim, and a
+    // rejected /wallet/broadcasttransaction carries no `result` field at all (only code/message/txid).
+    // So acceptance must be the white-listed case: anything but an explicit `true` is a rejection.
+    if (res.result !== true) {
       const reason = decodeTronMessage(res.message) || res.code || "rejected by node";
       throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`, { code: res.code });
     }
@@ -255,7 +257,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     const hex = normalizeTransactionHex(input);
     decodeTransactionHex(hex);
     const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));
-    if (response.result === false) {
+    if (response.result !== true) {
       const reason = decodeTronMessage(response.message) || response.code || "rejected by node";
       throw new ChainError("transaction_rejected", `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`);
     }
@@ -398,9 +400,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getBlock(numberOrLatest?: string): Promise<Types.Block> {
     // Guard before #wrap so a bad height surfaces as invalid_amount, not a wrapped rpc_error.
     const height = numberOrLatest === undefined ? undefined : this.#safeNumber(numberOrLatest, "block number");
-    return this.#wrap("getBlock", () =>
-      height === undefined ? this.#tw.trx.getCurrentBlock() : this.#tw.trx.getBlockByNumber(height),
-    );
+    return this.#wrap("getBlock", async () => {
+      const endpoint = height === undefined ? "getnowblock" : "getblockbynum";
+      const response = await fetch(`${this.#fullHost}/wallet/${endpoint}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(height === undefined ? {} : { num: height }),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return parseTronBlockResponse(await response.text());
+    });
   }
   async getTransactionById(txid: string): Promise<TronTx> {
     return this.#wrap("getTransaction", async () => parseTronTx(await this.#tw.trx.getTransaction(txid)));
@@ -438,8 +448,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return this.#wrap("trc20 tokenInfo", async () => {
       // Read the view methods by selector rather than via contract().at(): tokens deployed without a
       // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
+      //
+      // No catch here on purpose. A method the contract does not implement is NOT an error at this
+      // layer — the node answers `result: true` with an empty `constant_result`, which decodes to
+      // undefined on its own. The only failures that reach this point are a transport fault and
+      // "no contract at this address", and swallowing either would report a node outage as missing
+      // token metadata — which callers then escalate into far more specific (and wrong) claims.
       const read = async (fn: string): Promise<string | undefined> =>
-        this.#constant(contract, fn, []).then(([hex]) => hex).catch(() => undefined);
+        this.#constant(contract, fn, []).then(([hex]) => hex);
       const [name, symbol, decimals, totalSupply] = await Promise.all([
         read("name()"), read("symbol()"), read("decimals()"), read("totalSupply()"),
       ]);
@@ -798,6 +814,11 @@ export function parseTronAccountResponse(text: string): TronAccount {
   return normalizeAccountValue(parseLosslessJson(text)) as TronAccount;
 }
 
+/** Parse a block without coercing protobuf int64/uint64 JSON values through JS number. */
+export function parseTronBlockResponse(text: string): Types.Block {
+  return normalizeLosslessValue(parseLosslessJson(text)) as Types.Block;
+}
+
 function safeNodeInteger(value: unknown, field: string): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
   if (typeof value === "string" && /^\d+$/.test(value)) {
@@ -902,6 +923,21 @@ function normalizeAccountValue(value: unknown, key?: string): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value).map(([entryKey, entry]) => [entryKey, normalizeAccountValue(entry, entryKey)]),
+    );
+  }
+  return value;
+}
+
+function normalizeLosslessValue(value: unknown): unknown {
+  if (isLosslessNumber(value)) {
+    const exact = value.toString();
+    const number = Number(exact);
+    return Number.isSafeInteger(number) ? number : exact;
+  }
+  if (Array.isArray(value)) return value.map(normalizeLosslessValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, normalizeLosslessValue(entry)]),
     );
   }
   return value;

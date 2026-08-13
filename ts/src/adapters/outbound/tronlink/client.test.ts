@@ -67,25 +67,29 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
   });
 
-  it("uploads unsigned raw_data with the Java createTransaction query shape", async () => {
+  // The service authenticates POSTs over exactly this key set; one extra signed field is rejected
+  // with code 4000, so pin the signed set rather than only the body.
+  it("signs POSTs over the fixed auth set plus address, and nothing else", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
       response({ code: 0, data: {} }));
     const client = new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch, () => NOW, () => UUID);
-    await client.create(NETWORK, ADDRESS, {
-      permissionName: "finance",
-      txId: "ab".repeat(32),
-      rawDataJson: '{"contract":[]}',
-      contractType: "TransferContract",
-    });
+    await client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact);
 
-    const [rawUrl, init] = fetchMock.mock.calls[0]!;
-    const calledUrl = new URL(String(rawUrl));
-    expect(calledUrl.searchParams.get("permission_name")).toBe("finance");
-    expect(calledUrl.searchParams.get("tx_id")).toBe("ab".repeat(32));
-    expect(JSON.parse(String(init?.body))).toEqual({
-      raw_data: '{"contract":[]}',
-      extra: { type: "TransferContract" },
-    });
+    const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(calledUrl.pathname).toBe("/multi/transaction");
+    expect([...calledUrl.searchParams.keys()].sort()).toEqual(
+      ["address", "channel", "secret_id", "sign", "sign_version", "ts", "uuid"],
+    );
+    expect(calledUrl.searchParams.get("sign")).toBe(
+      signTronLinkRequest("POST", "/multi/transaction", {
+        sign_version: "v1",
+        channel: "wallet-cli",
+        secret_id: "sid",
+        ts: String(NOW),
+        uuid: UUID,
+        address: ADDRESS,
+      }, "super-secret").signature,
+    );
   });
 
   it("submits the complete accumulated transaction for a signing step", async () => {
@@ -130,6 +134,48 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     controller.abort();
     await watching;
     expect(messages).toEqual([[{ state: 0, is_sign: 0 }]]);
+  });
+
+  // The business code alone cannot tell a rejected signature (4000) from a bad parameter (20004)
+  // or a stale signature (20305). Carry the service's own wording through to the caller.
+  it("carries the service's rejection message into the error details", async () => {
+    const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
+      response({ code: 4000, message: "Authentication failed." }));
+    const client = new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch, () => NOW, () => UUID);
+    await expect(client.list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
+      .rejects.toMatchObject({
+        code: "provider_error",
+        details: { code: 4000, providerMessage: "Authentication failed." },
+      });
+  });
+
+  it("bounds the service message and drops non-string or control-character noise", async () => {
+    const noisy = `x\u0000y\u001b[31m${"z".repeat(400)}`;
+    const client = (body: unknown) => new TronLinkClient(
+      CONFIG,
+      1_000,
+      (vi.fn(async () => response(body)) as unknown) as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
+    let rejection: { details?: { providerMessage?: string } } = {};
+    try {
+      await client({ code: 20004, message: noisy })
+        .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 });
+    } catch (error) {
+      rejection = error as { details?: { providerMessage?: string } };
+    }
+    const message = rejection.details?.providerMessage ?? "";
+    expect(message.length).toBeLessThanOrEqual(200);
+    expect(message).not.toMatch(/[\u0000-\u001f]/);
+    expect(message.startsWith("xy[31mzzz")).toBe(true);
+
+    await expect(client({ code: 20004, message: { nested: true } })
+      .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
+      .rejects.toMatchObject({ code: "provider_error", details: { code: 20004 } });
+    await expect(client({ code: 20004, message: { nested: true } })
+      .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
+      .rejects.not.toHaveProperty("details.providerMessage");
   });
 
   it("requires complete credentials and rejects insecure endpoints before a request", async () => {

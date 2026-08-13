@@ -10,6 +10,19 @@ export interface Example {
   note?: string;
 }
 
+/** a set of options of which exactly one must be supplied, enforced in the command's refine.
+ *  Help renders it as a labelled block ("Exactly one of these — <label>:") instead of tagging every
+ *  member "[optional]", which reads as "all of these may be omitted". `flags` are kebab flag names
+ *  in the order they should be listed, and may include a `--*-stdin` channel flag (e.g. "tx-stdin"). */
+export interface ExclusiveGroup {
+  label: string;
+  flags: string[];
+  /** "exactly-one" (default): the set is jointly required, so members drop their "[optional]" tag.
+   *  "at-most-one": omitting the whole set is valid (there is a default behaviour) — members really
+   *  are optional and keep the tag; only picking two is rejected. */
+  select?: "exactly-one" | "at-most-one";
+}
+
 // "optional" = the command operates on an account; --account is optional and falls back to the
 // active account (errors only if no account exists at all). "none" = never touches an account.
 // (No "required": no command forces --account — active is always a valid default. cf. network.)
@@ -67,6 +80,8 @@ interface CommandDefinitionBase<I, O> {
   /** extra command-specific preconditions rendered in the help "Requires:" block, ahead of the
    *  auto-derived network/auth/account lines (e.g. a connected Ledger for `import ledger`). */
   requires?: string[];
+  /** mutually-exclusive option sets, surfaced in help; see ExclusiveGroup. */
+  exclusive?: ExclusiveGroup[];
   /** per-field zod object; feeds the arity adapter + HelpService. */
   fields: ZodObject<ZodRawShape>;
   /** full validation schema (often fields.superRefine), used in dispatch. */
@@ -114,6 +129,8 @@ export interface ChainSpec<I = any, O = any> {
    *  instead of `summary` when present. Absent ⇒ leaf help falls back to `summary`. */
   description?: string;
   examples: Example[];
+  /** mutually-exclusive option sets, surfaced in help; see ExclusiveGroup. */
+  exclusive?: ExclusiveGroup[];
   baseFields: ZodObject<ZodRawShape>;
   baseRefine?: (value: any, ctx: import("zod").RefinementCtx) => void;
   /** shared text renderer; uses FAMILY_RENDER[net.family] for family-shaped rows. */

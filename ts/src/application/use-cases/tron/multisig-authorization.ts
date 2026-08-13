@@ -3,6 +3,7 @@ import { ChainError } from "../../../domain/errors/index.js";
 import { decodeOperations } from "../../../domain/permission/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
+import type { SignerAuthorization } from "../../services/pipeline/index.js";
 import { assertNotExpired, transactionContract } from "./transaction-artifact.js";
 
 function uniqueAddresses(addresses: readonly string[], field: string): Set<string> {
@@ -85,22 +86,42 @@ export async function authorizationState(
   return { weight, approved, permission };
 }
 
+/**
+ * The one rule both broadcast entry points apply, so `tx broadcast` and a direct-submit pipeline
+ * fail with identical semantics when the accumulated signature weight is short.
+ */
+export function assertThresholdReached(currentWeight: number, threshold: number): void {
+  if (currentWeight < threshold) {
+    throw new ChainError(
+      "not_authorized",
+      `signature threshold is not reached; missing ${threshold - currentWeight} weight`,
+    );
+  }
+}
+
 /** Validate permission membership before decrypting a software key or opening Ledger UI. */
 export async function assertTronSignerAuthorized(
   gateway: TronGateway,
   transaction: UnsignedTx,
   signerAddress: string,
   now = Date.now(),
-): Promise<void> {
+): Promise<SignerAuthorization> {
   const artifact = transaction as TronTransactionArtifact;
   assertNotExpired(artifact, now);
-  const { approved, permission } = await authorizationState(gateway, artifact);
-  if (!permission.keys.some((key) => key.address === signerAddress)) {
+  const { weight, approved, permission } = await authorizationState(gateway, artifact);
+  const key = permission.keys.find((entry) => entry.address === signerAddress);
+  if (!key) {
     throw new ChainError("not_authorized", "selected signer is not a key in the transaction permission group");
   }
   if (approved.includes(signerAddress)) {
     throw new ChainError("already_signed", "selected signer has already approved this transaction");
   }
+  // The pipeline has already pinned the signer to the transaction owner and rejected a repeat
+  // approval, so the signature about to be produced adds exactly this key's weight.
+  const weightAfterSigning = weight.currentWeight + key.weight;
+  return {
+    assertBroadcastable: () => assertThresholdReached(weightAfterSigning, permission.threshold),
+  };
 }
 
 /**

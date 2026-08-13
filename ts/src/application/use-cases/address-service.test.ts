@@ -8,7 +8,6 @@ describe("AddressService", () => {
     const writer = { write: vi.fn(() => "/safe/key.json") };
     const scalar = Uint8Array.from([...new Uint8Array(31), 1]);
     const result = new AddressService(
-      "/safe",
       writer,
       () => scalar,
     ).generate({ printSecret: false });
@@ -19,8 +18,9 @@ describe("AddressService", () => {
       secretFile: "/safe/key.json",
     });
     expect(JSON.stringify(result)).not.toContain(SECRET);
+    // the use case states the name; where it lands is the adapter's decision
     expect(writer.write).toHaveBeenCalledWith(
-      "/safe/generated/keypair-TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+      { name: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC" },
       expect.objectContaining({ privateKey: SECRET }),
     );
     expect(scalar.every((byte) => byte === 0)).toBe(true);
@@ -29,7 +29,6 @@ describe("AddressService", () => {
   it("returns the private key only when printSecret is explicit", () => {
     const writer = { write: vi.fn() };
     const result = new AddressService(
-      "/safe",
       writer,
       () => Uint8Array.from([...new Uint8Array(31), 1]),
     ).generate({ printSecret: true });
@@ -41,7 +40,7 @@ describe("AddressService", () => {
   it("bounds rejection sampling when an entropy source is broken", () => {
     const random = vi.fn(() => new Uint8Array(32));
     expect(() =>
-      new AddressService("/safe", { write: vi.fn() }, random)
+      new AddressService({ write: vi.fn() }, random)
         .generate({ printSecret: false })
     ).toThrow(/valid secp256k1/);
     expect(random).toHaveBeenCalledTimes(128);

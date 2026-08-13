@@ -255,3 +255,48 @@ describe("AtomicFileStore.fsyncDir", () => {
     expect(() => store.fsyncDir("/anything")).not.toThrow();
   });
 });
+
+describe("AtomicFileStore I/O error mapping", () => {
+  const ENOSPC = () => {
+    throw Object.assign(new Error("disk full"), { code: "ENOSPC" });
+  };
+
+  it("writeJson reports io_error, preserves the target, and removes its temp", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-enospc-json-"));
+    const target = join(root, "data.json");
+    writeFileSync(target, '"old"\n');
+    const store = new AtomicFileStore();
+    store.fsyncFile = ENOSPC;
+
+    expect(() => store.writeJson(target, "new"))
+      .toThrowError(expect.objectContaining({ code: "io_error" }));
+    expect(readFileSync(target, "utf8")).toBe('"old"\n');
+    expect(readdirSync(root)).toEqual(["data.json"]);
+  });
+
+  it("writeText reports io_error, preserves the target, and removes its temp", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-enospc-text-"));
+    const target = join(root, "config.yaml");
+    writeFileSync(target, "old\n");
+    const store = new AtomicFileStore();
+    store.fsyncFile = ENOSPC;
+
+    expect(() => store.writeText(target, "new\n"))
+      .toThrowError(expect.objectContaining({ code: "io_error" }));
+    expect(readFileSync(target, "utf8")).toBe("old\n");
+    expect(readdirSync(root)).toEqual(["config.yaml"]);
+  });
+
+  it("writeJsonAll maps a cleanly rolled-back ENOSPC to io_error", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-enospc-all-"));
+    const target = join(root, "wallets.json");
+    writeFileSync(target, '"old"\n');
+    const store = new AtomicFileStore();
+    store.fsyncFile = ENOSPC;
+
+    expect(() => store.writeJsonAll([{ path: target, value: "new" }]))
+      .toThrowError(expect.objectContaining({ code: "io_error" }));
+    expect(readFileSync(target, "utf8")).toBe('"old"\n');
+    expect(readdirSync(root)).toEqual(["wallets.json"]);
+  });
+});

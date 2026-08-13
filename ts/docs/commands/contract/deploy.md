@@ -6,17 +6,17 @@ Deploy a smart contract.
 
 ```
 wallet-cli contract deploy --abi <json> --bytecode <hex> --fee-limit <sun>
-                           [--constructor-sig <sig> --params <json>]
-                           [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+                           [--params <json>]
+                           [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]] [--permission-id <n>] [options]
 ```
 
 ## Description
 
-Deploys compiled contract bytecode from the active account (or `--account`) and reports the new contract address. `--fee-limit` is **required** here (deployments are energy-heavy; there is no safe default). Constructor arguments go via `--constructor-sig` + `--params`.
+Deploys compiled contract bytecode from the active account (or `--account`) and reports the new contract address. `--fee-limit` is **required** here (deployments are energy-heavy; there is no safe default). Constructor arguments go via `--params` alone — the parameter types are taken from the constructor entry in the `--abi` you pass.
 
 Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), default returns at submission, `--wait` blocks until confirmed/failed.
 
-Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -25,10 +25,12 @@ Requires an account and the master password via `--password-stdin`; watch-only a
 | `--abi <string>` | **Required.** Contract ABI as a JSON array string |
 | `--bytecode <string>` | **Required.** Compiled bytecode as hex (0x-prefixed or bare) |
 | `--fee-limit <number>` | **Required.** Max energy fee to burn, in SUN |
-| `--constructor-sig <string>` | Constructor signature, e.g. `constructor(uint256)`; omit when no constructor args |
-| `--params <string>` | Constructor args as a JSON array of `{type,value}` |
-| `--dry-run` | Estimate only; excludes `--sign-only` |
-| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--params <string>` | Constructor args as a JSON array of raw positional values, e.g. `[100, "T..."]`; types are taken from the ABI constructor. Omit to pass no constructor args |
+| `--dry-run` | Estimate only; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
+| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 

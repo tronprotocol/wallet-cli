@@ -5,7 +5,8 @@ Withdraw expired unfrozen TRX.
 ## Synopsis
 
 ```
-wallet-cli stake withdraw [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
+wallet-cli stake withdraw [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                          [--permission-id <n>] [options]
 ```
 
 ## Description
@@ -14,14 +15,17 @@ Claims every pending unstake whose waiting period has expired, moving the TRX ba
 
 Withdrawing also frees up unstake slots (max 32 pending unstakes per account).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` |
-| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
+| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
+| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 

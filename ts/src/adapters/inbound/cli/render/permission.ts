@@ -33,7 +33,6 @@ function permissionCard(permission: PermissionGroupView, active = false): string
     lines.push(`Operation(s)      ${wrapped[0] ?? ""}`);
     for (const continuation of wrapped.slice(1)) lines.push(`                  ${continuation}`);
     lines[lines.length - 1] += `  (${operations.length} total)`;
-    lines.push(`Operations Hex    ${activePermission.operationsHex}`);
   }
   lines.push(`Threshold         ${formatInt(permission.threshold)}`);
   lines.push("Authorized To     Address                             Weight");

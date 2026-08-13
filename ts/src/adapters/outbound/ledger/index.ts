@@ -100,6 +100,17 @@ function classifyDeviceError(e: unknown): CliError {
       "the Ledger app does not support this operation — make sure the correct app is open on the device and updated to its latest version",
     );
   }
+  // 0x6a80 (E_INCORRECT_DATA) is what the TRON app answers when its parser cannot make sense of the
+  // payload — a contract type it does not implement (app-tron parse.c falls through to
+  // `default: return USTREAM_FAULT`) or a genuinely malformed transaction. The "Sign by Hash"
+  // fallback sits in the display switch, past a successful parse, so no app setting rescues this.
+  // Keep the wording covering both causes: the status word alone cannot tell them apart.
+  if (status === 0x6a80) {
+    return new WalletError(
+      "ledger_unsupported",
+      "the Ledger app could not decode this payload — an unsupported contract type or a malformed transaction",
+    );
+  }
   const setting = status === undefined ? undefined : APP_SETTING_REQUIRED[status];
   if (setting) return new WalletError("ledger_setting_required", setting);
   return new ExecutionError("auth_required", `Ledger device error: ${errMessage(e)}`);

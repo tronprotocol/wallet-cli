@@ -209,6 +209,10 @@ export function encodeOperations(contractTypes: readonly string[]): string {
   return bytes.toString("hex");
 }
 
+function isEmptyUnknownList(value: unknown): boolean {
+  return Array.isArray(value) && value.length === 0;
+}
+
 /** Require unnamed bitmap bits to be declared verbatim, so no set bit escapes human review. */
 function assertDeclaredUnknownOperations(value: unknown, actual: readonly number[], index: number): void {
   const field = `actives[${index}].unknownOperationIds`;
@@ -258,14 +262,21 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
       supplied.operations.length !== known.operations.length
       || supplied.operations.some((operation, operationIndex) => operation !== known.operations[operationIndex])
     ) {
-      return invalidPermission(`actives[${index}].operationsHex does not match operations`);
+      return invalidPermission(
+        `actives[${index}].operationsHex does not match operations; remove operationsHex to regenerate `
+        + "it from operations, or edit both together",
+      );
     }
     // Every set bit must be declared somewhere a reviewer can read: named types in `operations`,
     // unnamed ones in `unknownOperationIds`. Without this, a bitmap can widen the permission
     // while the human-readable fields stay unchanged — the failure this whole field pair prevents.
     assertDeclaredUnknownOperations(input.unknownOperationIds, supplied.unknownOperationIds, index);
     operationsHex = supplied.operationsHex;
-  } else if (input.unknownOperationIds !== undefined) {
+    // `[]` declares "there are no unnamed bits", which is exactly what encoding `operations` alone
+    // produces — so it needs no bitmap to justify it. `permission show` always emits the field, and
+    // demanding operationsHex alongside an empty list blocked the documented show/edit/update round
+    // trip. Only a non-empty list still requires the bitmap it was read from.
+  } else if (input.unknownOperationIds !== undefined && !isEmptyUnknownList(input.unknownOperationIds)) {
     return invalidPermission(
       `actives[${index}].unknownOperationIds requires operationsHex — operations cannot express unnamed contract types`,
     );

@@ -9,8 +9,10 @@ export function registerContactCommands(
   service: ContactService,
 ): void {
   const addFields = z.object({
-    name: z.string().min(1).max(256),
-    address: z.string().min(1).max(128),
+    name: z.string().min(1).max(256)
+      .describe("local name for this recipient; usable anywhere an address is accepted"),
+    address: z.string().min(1).max(128)
+      .describe("recipient address to store under this name"),
     note: z.string().max(512).optional()
       .describe("free-form note, up to 128 safe characters"),
   });
@@ -50,7 +52,7 @@ export function registerContactCommands(
   } satisfies CommandDefinition);
 
   const removeFields = z.object({
-    name: z.string().min(1).max(256),
+    name: z.string().min(1).max(256).describe("name of the contact to delete"),
   });
   registry.add({
     path: ["contact", "remove"],

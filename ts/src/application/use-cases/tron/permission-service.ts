@@ -17,6 +17,7 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { warnOnPostCheck } from "../../services/post-check.js";
 import { assertTronSignerAuthorized } from "./multisig-authorization.js";
 
 export class TronPermissionService {
@@ -52,7 +53,11 @@ export class TronPermissionService {
       gateway.getUpdateAccountPermissionFee(),
       gateway.getNativeBalance(address),
     ]);
-    if (mode.mode === "broadcast" && BigInt(balanceSun) < BigInt(feeSun)) {
+    // dry-run is included: its whole job is to answer "would this work", and an unfunded account
+    // makes the answer no. sign-only/build-only are not — those artifacts broadcast later, by which
+    // time the account can have been funded.
+    const paysNow = mode.mode === "broadcast" || mode.mode === "dry-run";
+    if (paysNow && BigInt(balanceSun) < BigInt(feeSun)) {
       throw new ChainError(
         "insufficient_balance",
         `account balance ${balanceSun} SUN is below the ${feeSun} SUN permission update fee`,
@@ -75,13 +80,12 @@ export class TronPermissionService {
 
     let resultPermissions: AccountPermissionsView | undefined;
     if (outcome.stage === "confirmed") {
-      resultPermissions = await this.show(network, address);
-      if (canonicalPermissions(resultPermissions) !== canonicalPermissions(permissions)) {
-        scope.warn({
-          code: "permission_postcheck_mismatch",
-          message: "confirmed transaction permissions differ from the requested canonical structure",
-        });
-      }
+      await warnOnPostCheck(scope, "permission_postcheck", async () => {
+        resultPermissions = await this.show(network, address);
+        return canonicalPermissions(resultPermissions) === canonicalPermissions(permissions)
+          ? undefined
+          : "confirmed transaction permissions differ from the requested canonical structure";
+      });
     } else if (outcome.stage === "plan" || outcome.stage === "built" || outcome.stage === "signed") {
       resultPermissions = permissions;
     }

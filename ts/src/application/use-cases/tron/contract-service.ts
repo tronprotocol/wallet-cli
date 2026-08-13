@@ -61,12 +61,16 @@ export class TronContractService {
         input.parameters,
         { feeLimit: input.feeLimit, callValue: input.callValueSun },
       ),
-      estimate: () => gateway.estimateResources(
-        scope.resolveAddress("tron"),
-        input.contract,
-        input.method,
-        input.parameters,
-      ),
+      estimate: async () => {
+        const estimate = await gateway.estimateResources(
+          scope.resolveAddress("tron"),
+          input.contract,
+          input.method,
+          input.parameters,
+        );
+        warnIfFeeLimitLikelyInsufficient(scope, input.feeLimit, estimate);
+        return estimate;
+      },
     });
     return {
       kind: "contract-send" as const,
@@ -91,6 +95,7 @@ export class TronContractService {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
     const gateway = this.gateways.get(network, "tron");
+    const hooks = tronTransactionHooks(gateway);
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -98,15 +103,19 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...hooks,
+      // TRON derives the deployed address from the final txID, and `prepare` recomputes that txID
+      // when it binds --permission-id / --expiration. Read the address from the prepared
+      // transaction, never from the builder output, or we report a contract nobody deploys.
+      prepare: (transaction, options) => {
+        const prepared = hooks.prepare(transaction, options);
+        const hex = (prepared as { contract_address?: string }).contract_address;
+        contractAddress = hex ? tronHexToBase58(hex) : undefined;
+        return prepared;
+      },
       signerOptions: { requireSoftware: true },
       confirm: tronConfirmation(gateway, scope),
-      build: async (from) => {
-        const tx = await gateway.deployContract(from, input);
-        const hex = (tx as { contract_address?: string }).contract_address;
-        if (hex) contractAddress = tronHexToBase58(hex);
-        return tx;
-      },
+      build: (from) => gateway.deployContract(from, input),
       estimate: async () => ({
         feeModel: "tron-resource",
         note: "deploy energy depends on bytecode size",
@@ -126,4 +135,39 @@ export class TronContractService {
       info: metadata.info,
     };
   }
+}
+
+function warnIfFeeLimitLikelyInsufficient(
+  scope: TransactionScope,
+  feeLimit: string,
+  estimate: Record<string, unknown>,
+): void {
+  const energy = positiveInteger(estimate.energy);
+  const energyPriceSun = currentEnergyPrice(estimate.energyPriceSun);
+  if (energy === undefined || energyPriceSun === undefined) return;
+
+  const recommendedCapSun = energy * energyPriceSun;
+  if (BigInt(feeLimit) >= recommendedCapSun) return;
+
+  scope.warn(
+    `fee limit ${feeLimit} SUN is likely insufficient for the estimate of `
+      + `${energy} energy at ${energyPriceSun} SUN/energy `
+      + `(recommended cap ~${recommendedCapSun} SUN); staked/delegated energy and `
+      + "contract energy sharing may change the actual TRX burned",
+  );
+}
+
+function positiveInteger(value: unknown): bigint | undefined {
+  const text = typeof value === "bigint"
+    ? value.toString()
+    : typeof value === "number" && Number.isSafeInteger(value)
+      ? String(value)
+      : typeof value === "string" ? value : "";
+  return /^[1-9]\d*$/.test(text) ? BigInt(text) : undefined;
+}
+
+function currentEnergyPrice(value: unknown): bigint | undefined {
+  if (typeof value !== "string") return undefined;
+  const latest = value.split(",").at(-1)?.split(":");
+  return latest?.length === 2 ? positiveInteger(latest[1]) : undefined;
 }

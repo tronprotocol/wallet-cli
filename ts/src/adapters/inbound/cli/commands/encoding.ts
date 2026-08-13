@@ -9,7 +9,8 @@ export function registerEncodingCommands(
   service: EncodingService,
 ): void {
   const fields = z.object({
-    input: z.string().min(1).max(2 * 1024 * 1024),
+    input: z.string().min(1).max(2 * 1024 * 1024)
+      .describe("value to convert: TRON base58 / hex address, EVM 0x address, public key, hex, or Base64"),
   });
   registry.add({
     path: ["encoding", "convert"],

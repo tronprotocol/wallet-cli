@@ -1,6 +1,6 @@
 # wallet-cli gasfree trace
 
-Track a GasFree transfer by provider trace id.
+Track a submitted gas-free transfer by its trace id.
 
 ## Synopsis
 
@@ -10,31 +10,15 @@ wallet-cli gasfree trace <traceId> [options]
 
 ## Description
 
-A GasFree transfer is not on-chain when it is accepted — the provider queues it, then broadcasts.
-[`gasfree transfer`](transfer.md) returns a `traceId`; this command turns that id into the current
-state.
+Looks up a GasFree transfer by the `traceId` returned from [`gasfree transfer`](transfer.md) and reports its current state. Once the transfer is on-chain, the response includes the transaction id and the actual fees charged.
 
-| State | Meaning |
-|---|---|
-| `WAITING` | Accepted, not yet picked up |
-| `INPROGRESS` | Being processed by the provider |
-| `CONFIRMING` | Broadcast, awaiting chain confirmation |
-| `SUCCEED` | Terminal — on chain, `txId` is populated |
-| `FAILED` | Terminal — `failureReason` explains why |
+The provider's states are: `WAITING` (accepted, queued) → `INPROGRESS` (submitted on-chain) → `CONFIRMING` (awaiting solidification) → `SUCCEED` / `FAILED`. The text `Status` line shows the state in lowercase (consistent with the other commands); the raw uppercase enum is kept in the JSON `state`. On `FAILED`, the provider's failure reason is included as returned by the API.
 
-Once the transfer settles, the reported amount and fees switch from the estimates to the **actual**
-settled values, so a completed trace is the authoritative record of what was deducted.
-
-No wallet unlock and no signing; it only needs GasFree credentials and the trace id. Because it is
-wallet-independent, you can track a transfer from a machine that holds no keys.
-
-## Arguments
-
-- `traceId` — the provider trace id returned by [`gasfree transfer`](transfer.md) (positional)
+Requires the provider API credentials (`gasfreeApiKey` / `gasfreeApiSecret`, set with [`config`](../config.md)).
 
 ## Options
 
-Only the [global options](../index.md#global-options-every-command).
+No command-specific options; `traceId` is a positional argument, plus the [global options](../index.md#global-options-every-command) (`--network`).
 
 ## Examples
 
@@ -43,52 +27,41 @@ wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:nil
 ```
 
 ```console
-Trace ID        7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
-Status          succeed
-TxID            5b1c0d9e7a4f2c8b6d3e1a0f9c7b5d3a1e8f6c4b2d0a9e7c5b3d1f8a6c4e2b0d
-Token           USDT
-Amount          25 USDT
-Service fee     1 USDT
-Activation fee  0 USDT
-Total           26 USDT
-To              TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+Trace ID  7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
+Status    succeed
+TxID      d2e...
+Token     USDT
+Amount    25 USDT
+Fee       0.5 USDT
+To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 ```
 
-Poll until terminal in a script:
-
 ```bash
-until wallet-cli gasfree trace "$TRACE" -o json \
-  | jq -e '.data.state == "SUCCEED" or .data.state == "FAILED"' >/dev/null; do
-  sleep 5
-done
+wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:nile -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"0","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
 
 | Field | Type | Meaning |
 |---|---|---|
-| `traceId` | string | Provider trace id |
-| `state` | string | `WAITING` \| `INPROGRESS` \| `CONFIRMING` \| `SUCCEED` \| `FAILED` |
-| `txId` | string | On-chain transaction hash — present once broadcast |
+| `traceId` | string | The provider's acceptance id |
+| `state` | string | Raw state enum: `WAITING` / `INPROGRESS` / `CONFIRMING` / `SUCCEED` / `FAILED` |
+| `txId` | string | On-chain transaction id (once submitted) |
 | `token` | string | Token symbol |
-| `tokenAddress` | string | Token contract address |
-| `decimals` | number | Token decimals |
-| `amount` | string | Settled amount if available, else the submitted amount (base units) |
-| `serviceFee` | string | Settled or estimated transfer fee (base units) |
-| `activateFee` | string | Settled or estimated activation fee (base units) |
-| `totalDeducted` | string | Total taken from the GasFree address (base units) |
-| `from` | string | GasFree address the tokens left |
-| `owner` | string | Account that authorized the transfer |
-| `to` | string | Recipient |
-| `nonce` | string | Authorization nonce |
-| `failureReason` | string | Present only when `state` is `FAILED` |
+| `amount` | string | Amount, in token base units |
+| `serviceFee` / `activateFee` | string | Fees charged, in token base units |
+| `to` | string | Recipient address |
 
 ## Exit status
 
-`0` — including for a `FAILED` transfer: the *query* succeeded, so check `data.state` rather than
-the exit code · `1` execution failure (`gasfree_integrity`, provider unreachable, unknown trace
-id) · `2` usage error (malformed trace id, `unsupported_network`).
+`0` success · `1` execution failure (`gasfree_credentials_missing`, `not_found` — no such trace id, `gasfree_integrity`, `provider_error`, `unsupported_network`) · `2` usage error (`invalid_value`).
+
+A `FAILED` transfer is a successful query: the envelope stays `success: true` at exit `0`, and `data.failureReason` carries the provider's explanation.
 
 ## See also
 
-[`gasfree transfer`](transfer.md) · [`gasfree info`](info.md) · [`tx status`](../tx/status.md)
+[`gasfree transfer`](transfer.md) · [`gasfree info`](info.md) · [`config`](../config.md)
