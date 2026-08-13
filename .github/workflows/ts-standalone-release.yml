@@ -3,7 +3,7 @@ name: TypeScript Standalone Artifacts
 on:
   push:
     branches:
-      - develop
+      - master
   workflow_dispatch:
 
 permissions:
