@@ -385,6 +385,18 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   // ── account / query ──────────────────────────────────────────────────────────
+  /** node POST returning the raw body, so the caller can parse it losslessly. */
+  async #post(path: string, body: unknown): Promise<string> {
+    const response = await fetch(`${this.#fullHost}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(this.#timeoutMs),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  }
+
   async getAccount(address: string): Promise<TronAccount> {
     return this.#wrap("getAccount", async () => {
       const response = await fetch(`${this.#fullHost}/wallet/getaccount`, {
@@ -436,7 +448,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     // Full-node (unconfirmed) info: available ~one block after inclusion (~3s), not after
     // solidification (~19 blocks / ~60s). So `--wait` confirms at "mined in a block" rather than
     // "irreversible" — the receipt (fee/energy/result) is already final by then. Same response shape.
-    return this.#wrap("getTransactionInfo", async () => parseTronTxInfo(await this.#tw.trx.getUnconfirmedTransactionInfo(txid)));
+    return this.#wrap("getTransactionInfo", async () =>
+      parseTronTxInfo(normalizeTxInfoValue(parseLosslessJson(
+        await this.#post("/wallet/gettransactioninfobyid", { value: txid }),
+      ))));
   }
   decodeTransaction(transaction: TronTx): DecodedTronTransaction {
     return decodeTronTransaction(transaction);
@@ -524,38 +539,33 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   // ── TRC10 assets ───────────────────────────────────────────────────────────────
   async getAssetById(assetId: string): Promise<TronAsset | undefined> {
     return this.#wrap("asset by id", async () => {
-      // getTokenByID throws a plain Error for an unknown id; absence is a result, not a fault.
-      try {
-        return await this.#tw.trx.getTokenByID(assetId) as unknown as TronAsset;
-      } catch {
-        return undefined;
-      }
+      // an unknown id comes back as an empty object; absence is a result, not a fault.
+      const raw = parseTronAssetResponse(await this.#post("/wallet/getassetissuebyid", { value: assetId }));
+      return raw.owner_address === undefined ? undefined : raw;
     });
   }
 
   async getAssetsByName(name: string): Promise<TronAsset[]> {
-    return this.#wrap("assets by name", async () => {
-      try {
-        const found = await this.#tw.trx.getTokenListByName(name);
-        return (Array.isArray(found) ? found : [found]) as unknown as TronAsset[];
-      } catch {
-        return [];
-      }
-    });
+    return this.#wrap("assets by name", async () =>
+      assetList(await this.#post("/wallet/getassetissuelistbyname", {
+        value: Buffer.from(name, "utf8").toString("hex"),
+      })),
+    );
   }
 
   async getAssetByIssuer(address: string): Promise<TronAsset | undefined> {
     return this.#wrap("asset by issuer", async () => {
-      const issued = await this.#tw.trx.getTokensIssuedByAddress(address);
-      // keyed by token name; an account may issue at most one asset, so there is at most one entry.
-      return Object.values(issued ?? {})[0] as unknown as TronAsset | undefined;
+      // an account may issue at most one asset, so there is at most one entry.
+      const issued = assetList(await this.#post("/wallet/getassetissuebyaccount", {
+        address: this.#tw.address.toHex(address),
+      }));
+      return issued[0];
     });
   }
 
   async listAssets(limit: number, offset: number): Promise<TronAsset[]> {
     return this.#wrap("list assets", async () =>
-      // limit is always > 0 here, so tronweb takes the paginated endpoint, never the full dump.
-      await this.#tw.trx.listTokens(limit, offset) as unknown as TronAsset[],
+      assetList(await this.#post("/wallet/getpaginatedassetissuelist", { offset, limit })),
     );
   }
 
@@ -659,17 +669,18 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async getExchangeById(exchangeId: number): Promise<TronExchange | undefined> {
     return this.#wrap("exchange by id", async () => {
-      const found = await this.#tw.trx.getExchangeByID(exchangeId) as unknown as Record<string, unknown>;
+      const found = exchangeValue(await this.#post("/wallet/getexchangebyid", { id: exchangeId }));
       // an unknown id comes back as an empty object rather than an error
-      if (!found || found.exchange_id === undefined) return undefined;
+      if (found.exchange_id === undefined) return undefined;
       return this.#toExchange(found);
     });
   }
 
   async listExchanges(limit: number, offset: number): Promise<TronExchange[]> {
     return this.#wrap("list exchanges", async () => {
-      const page = await this.#tw.trx.listExchangesPaginated(limit, offset) as unknown as Array<Record<string, unknown>>;
-      return (page ?? []).map((raw) => this.#toExchange(raw));
+      const raw = exchangeValue(await this.#post("/wallet/getpaginatedexchangelist", { offset, limit }));
+      const page = Array.isArray(raw.exchanges) ? raw.exchanges : [];
+      return page.map((entry) => this.#toExchange(entry as Record<string, unknown>));
     });
   }
 
@@ -1320,6 +1331,76 @@ function normalizeProposal(value: unknown): TronProposal | null {
     approvals: (Array.isArray(raw.approvals) ? raw.approvals : []).map(hexToBase58).filter(Boolean),
     state,
   };
+}
+
+/**
+ * Parse TRC10 asset JSON without coercing its int64 quantities through JS number.
+ *
+ * Asked with `visible: false`, so `owner_address` keeps the hex form `tronHexToBase58` expects;
+ * the cost is that the node's text fields arrive hex-encoded and are decoded here — the one piece
+ * of tronweb's `_parseToken` worth keeping.
+ */
+export function parseTronAssetResponse(text: string): TronAsset {
+  return decodeAssetText(normalizeAccountValue(parseLosslessJson(text))) as TronAsset;
+}
+
+const ASSET_TEXT_KEYS = new Set(["name", "abbr", "url", "description"]);
+
+function decodeAssetText(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(decodeAssetText);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      ASSET_TEXT_KEYS.has(key) && typeof entry === "string" ? hexToUtf8(entry) : decodeAssetText(entry),
+    ]),
+  );
+}
+
+/** node text fields are hex; anything else is passed through rather than mangled. */
+function hexToUtf8(value: string): string {
+  if (value === "" || !/^([0-9a-fA-F]{2})+$/.test(value)) return value;
+  return Buffer.from(value, "hex").toString("utf8");
+}
+
+/**
+ * Amounts the chain reports having actually moved. Kept exact because a high-supply TRC10 puts
+ * them above 2^53; fee and resource counters are deliberately absent, so `--wait` receipts keep
+ * reporting those as numbers.
+ */
+const REALISED_AMOUNT_KEYS = new Set([
+  "unfreeze_amount",
+  "withdraw_amount",
+  "exchange_received_amount",
+  "exchange_inject_another_amount",
+  "exchange_withdraw_another_amount",
+]);
+
+function normalizeTxInfoValue(value: unknown, key?: string): unknown {
+  if (isLosslessNumber(value)) {
+    const exact = value.toString();
+    if (key && REALISED_AMOUNT_KEYS.has(key)) return exact;
+    const number = Number(exact);
+    return Number.isSafeInteger(number) ? number : exact;
+  }
+  if (Array.isArray(value)) return value.map((entry) => normalizeTxInfoValue(entry));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([entryKey, entry]) => [entryKey, normalizeTxInfoValue(entry, entryKey)]),
+    );
+  }
+  return value;
+}
+
+/** `{assetIssue: [...]}` — the shape every list-ish TRC10 endpoint answers with. */
+function assetList(text: string): TronAsset[] {
+  const raw = parseTronAssetResponse(text) as unknown as { assetIssue?: unknown };
+  return Array.isArray(raw.assetIssue) ? raw.assetIssue as TronAsset[] : [];
+}
+
+/** exchange records need no text decoding — #toExchange already decodes their token ids. */
+function exchangeValue(text: string): Record<string, unknown> {
+  return normalizeAccountValue(parseLosslessJson(text)) as Record<string, unknown>;
 }
 
 /** Parse node account JSON without first coercing 64-bit quantities through JS number. */

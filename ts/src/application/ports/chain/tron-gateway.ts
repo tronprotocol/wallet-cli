@@ -102,9 +102,23 @@ export interface TronTokenInfo {
   [key: string]: unknown;
 }
 
-/** one frozen tranche of a TRC10's supply, fixed at issuance. */
+/**
+ * One frozen tranche as ISSUANCE declares it. Quantities stay `number` on the way out: java-tron
+ * rebuilds the contract from `raw_data` json on the non-visible broadcast path, and a numeric
+ * *string* does not parse into an int64 field there — the node then validates an empty message.
+ * `asset issue` therefore refuses a supply above 2^53 rather than emit one it cannot broadcast.
+ */
 export interface TronAssetTranche {
   frozen_amount: number;
+  frozen_days: number;
+}
+
+/**
+ * One frozen tranche as the chain REPORTS it. Reading has no such constraint, so the int64 is
+ * carried exactly, as a decimal string.
+ */
+export interface TronAssetTrancheView {
+  frozen_amount: string;
   frozen_days: number;
 }
 
@@ -120,7 +134,8 @@ export interface TronAsset {
   abbr?: string;
   description?: string;
   url?: string;
-  total_supply: number;
+  /** protocol int64, carried exactly as a decimal string — real assets exceed 2^53. */
+  total_supply: string;
   trx_num: number;
   num: number;
   precision?: number;
@@ -128,7 +143,7 @@ export interface TronAsset {
   end_time: number;
   free_asset_net_limit?: number;
   public_free_asset_net_limit?: number;
-  frozen_supply?: TronAssetTranche[];
+  frozen_supply?: TronAssetTrancheView[];
 }
 
 /** the mutable half of a TRC10, i.e. everything `asset update` may change. */

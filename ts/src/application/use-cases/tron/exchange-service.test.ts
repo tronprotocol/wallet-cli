@@ -41,7 +41,7 @@ const MYTOKEN: TronAsset = {
   name: "MyToken",
   precision: 6,
   owner_address: "4174472e7d35395a6b5add427eecb7f4b62ad2b071",
-  total_supply: 1_000_000_000_000_000,
+  total_supply: "1000000000000000",
   trx_num: 1,
   num: 100,
   start_time: 0,

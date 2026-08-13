@@ -30,7 +30,7 @@ function asset(over: Partial<TronAsset> = {}): TronAsset {
     abbr: "MTK",
     description: "Demo TRC10",
     url: "https://mytoken.io",
-    total_supply: 1_000_000_000_000_000,
+    total_supply: "1000000000000000",
     trx_num: 1,
     num: 100,
     precision: 6,
@@ -208,8 +208,8 @@ describe("ambiguous asset names", () => {
   it("carries the queried name, the ids, and one comparable row per match", async () => {
     const svc = service({
       getAssetsByName: async () => [
-        asset({ id: "1000123", owner_address: OTHER_HEX, total_supply: 1_000_000_000, precision: 6 }),
-        asset({ id: "1000488", owner_address: OWNER_HEX, total_supply: 50_000_000, precision: 2 }),
+        asset({ id: "1000123", owner_address: OTHER_HEX, total_supply: "1000000000", precision: 6 }),
+        asset({ id: "1000488", owner_address: OWNER_HEX, total_supply: "50000000", precision: 2 }),
       ],
     });
     await expect(svc.info(NET, { assetRef: "MyToken" })).rejects.toMatchObject({
@@ -233,8 +233,8 @@ describe("ambiguous asset names", () => {
 
 describe("asset unfreeze", () => {
   const tranches = [
-    { frozen_amount: 100_000_000_000_000, frozen_days: 30 },
-    { frozen_amount: 50_000_000_000_000, frozen_days: 90 },
+    { frozen_amount: "100000000000000", frozen_days: 30 },
+    { frozen_amount: "50000000000000", frozen_days: 90 },
   ];
 
   it("releases every matured tranche and reports what stays frozen", async () => {
@@ -272,7 +272,7 @@ describe("asset info / list", () => {
   it("returns one asset with its ICO terms and tranche unlock times", async () => {
     const start = 1_800_000_000_000;
     const svc = service({
-      getAssetById: async () => asset({ start_time: start, frozen_supply: [{ frozen_amount: 5, frozen_days: 30 }] }),
+      getAssetById: async () => asset({ start_time: start, frozen_supply: [{ frozen_amount: "5", frozen_days: 30 }] }),
     });
     await expect(svc.info(NET, { assetRef: "1000123" })).resolves.toMatchObject({
       assetId: "1000123",
