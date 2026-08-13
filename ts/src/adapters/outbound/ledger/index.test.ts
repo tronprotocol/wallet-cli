@@ -10,7 +10,7 @@ const { closeSpy, tip712Calls, failures } = vi.hoisted(() => ({
   tip712Calls: [] as Array<{ path: string; domainHash: string; messageHash: string }>,
   failures: { tip712: undefined as Error | undefined, tip712Hang: false },
 }));
-vi.mock("@ledgerhq/hw-transport-node-hid", () => ({
+vi.mock("@ledgerhq/hw-transport-node-hid-noevents", () => ({
   default: { open: async () => ({ close: closeSpy }) },
 }));
 // Every device APDU never resolves — models an on-device prompt that is never tapped.
