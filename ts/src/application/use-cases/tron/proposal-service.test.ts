@@ -22,14 +22,16 @@ const scope: TransactionScope = {
 function createService(gateway: Partial<TronGateway>, run?: (params: TxPipelineParams) => Promise<never>) {
   const concrete = gateway as TronGateway;
   const gateways = { get: () => concrete } as unknown as ChainGatewayProvider;
+  const captured: TxPipelineParams[] = [];
   const pipeline = {
     assertCanSign: vi.fn(),
     run: run ?? (async (params: TxPipelineParams) => {
+      captured.push(params);
       await params.build(OWNER);
       return { stage: "submitted", txId: "tx-proposal" } as never;
     }),
   } as unknown as TxPipeline;
-  return { service: new TronProposalService(gateways, pipeline), pipeline };
+  return { service: new TronProposalService(gateways, pipeline), pipeline, captured };
 }
 
 describe("TronProposalService", () => {
@@ -54,8 +56,7 @@ describe("TronProposalService", () => {
 
   it("maps --cancel to Java is_add_approval=false and preserves permission/expiration", async () => {
     const build = vi.fn(async () => ({ raw_data: { contract: [{ type: "ProposalApproveContract" }] } }));
-    const extend = vi.fn(async (tx) => ({ ...tx as object, extended: true }));
-    const { service } = createService({
+    const { service, captured } = createService({
       getProposal: async () => ({
         id: 47,
         proposerAddress: OTHER,
@@ -68,7 +69,6 @@ describe("TronProposalService", () => {
       getWitness: async () => ({ address: OWNER, voteCount: "1" }),
       getWitnesses: async () => Array.from({ length: 27 }, () => ({ address: OTHER, voteCount: "1" })),
       buildProposalApprove: build,
-      extendTransactionExpiration: extend,
     });
 
     await expect(service.approve(scope, NET, {
@@ -79,7 +79,8 @@ describe("TronProposalService", () => {
       signOnly: true,
     })).resolves.toMatchObject({ addApproval: false, approvals: 0, approvalThreshold: 18 });
     expect(build).toHaveBeenCalledWith(OWNER, 47, false, { permissionId: 2 });
-    expect(extend).toHaveBeenCalledWith(expect.anything(), 120_000);
+    expect(captured[0]).toMatchObject({ permissionId: 2, expiration: 120_000 });
+    expect(typeof captured[0]!.prepare).toBe("function");
   });
 
   it("rejects a non-witness before proposal creation is built", async () => {

@@ -1169,15 +1169,6 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       ),
     );
   }
-  async extendTransactionExpiration(transaction: unknown, extensionMs: number): Promise<Types.Transaction> {
-    return this.#wrap("extendExpiration", async () =>
-      await this.#tw.transactionBuilder.extendExpiration(
-        transaction as Types.Transaction,
-        extensionMs,
-        { txLocal: true },
-      ),
-    );
-  }
 
   /** Build a one-contract transaction using TronWeb's public protobuf codec and local ref block.
    * This is equivalent to TransactionBuilder.createTransaction but does not inherit individual

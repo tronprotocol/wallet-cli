@@ -6,11 +6,10 @@ import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
-  governanceArtifact,
   governanceTransactionMode,
   transactionResource,
-  withExtendedExpiration,
   type GovernanceTransactionInput,
 } from "./governance-transaction.js";
 
@@ -73,12 +72,8 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
-        input.expiration,
-      ),
+      ...tronTransactionHooks(gateway),
+      build: async (address) => gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
         feeModel: "tron-resource",
         feeSun: registrationFeeSun.toString(),
@@ -106,12 +101,8 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
-        input.expiration,
-      ),
+      ...tronTransactionHooks(gateway),
+      build: async (address) => gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
       estimate: bandwidthEstimate,
     });
     return witnessReceipt("witness-update", outcomeData(outcome), owner, { url: input.url });
@@ -129,12 +120,8 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await gateway.buildWitnessSetBrokerage(address, input.percent, { permissionId: input.permissionId }),
-        input.expiration,
-      ),
+      ...tronTransactionHooks(gateway),
+      build: async (address) => gateway.buildWitnessSetBrokerage(address, input.percent, { permissionId: input.permissionId }),
       estimate: bandwidthEstimate,
     });
     return witnessReceipt("witness-set-brokerage", outcomeData(outcome), owner, { brokerage: input.percent });

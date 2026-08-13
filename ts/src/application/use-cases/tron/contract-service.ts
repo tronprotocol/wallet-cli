@@ -7,10 +7,8 @@ import { ChainError } from "../../../domain/errors/index.js";
 import { computeTronCreate2Address } from "../../../domain/governance/create2.js";
 import type { UnsignedTx } from "../../../domain/types/index.js";
 import {
-  governanceArtifact,
   governanceTransactionMode,
   transactionResource,
-  withExtendedExpiration,
   type GovernanceTransactionInput,
 } from "./governance-transaction.js";
 import {
@@ -56,7 +54,6 @@ export class TronContractService {
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
-    const mode = governanceTransactionMode(this.pipeline, scope, input);
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -65,17 +62,13 @@ export class TronContractService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: async (from) => withExtendedExpiration(
-        gateway,
-        await gateway.triggerSmartContract(
+      build: async (from) => gateway.triggerSmartContract(
           from,
           input.contract,
           input.method,
           input.parameters,
           { feeLimit: input.feeLimit, callValue: input.callValueSun, permissionId: input.permissionId },
         ),
-        input.expiration,
-      ),
       estimate: async () => {
         const estimate = await gateway.estimateResources(
           scope.resolveAddress("tron"),
@@ -254,12 +247,8 @@ export class TronContractService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await build(gateway, address),
-        input.expiration,
-      ),
+      ...tronTransactionHooks(gateway),
+      build: async (address) => await build(gateway, address),
       estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "contract governance uses bandwidth only" }),
     });
     const data = outcomeData(outcome);

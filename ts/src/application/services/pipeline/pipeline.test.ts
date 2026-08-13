@@ -174,3 +174,26 @@ describe("TxPipeline build-only", () => {
     }))).rejects.toMatchObject({ code: "invalid_option" });
   });
 });
+
+/**
+ * `--permission-id` / `--expiration` need someone to bind them into the transaction, and that
+ * someone is the `prepare` hook. An adapter that offers no hook cannot apply either option, so the
+ * pipeline refuses rather than silently dropping them.
+ */
+describe("TxPipeline permission/expiration binding guard", () => {
+  const buildOnly = {
+    buildOnly: true,
+    mode: "build-only" as const,
+    build: async () => ({ raw_data_hex: "0102" }) as never,
+    artifact: () => "0a02010202",
+  };
+  const signers = () => ({ resolve: vi.fn(), assertCanSign: vi.fn() } as unknown as SignerResolver);
+
+  it.each([
+    ["--permission-id", { permissionId: 2 }],
+    ["--expiration", { expiration: 60_000 }],
+  ])("refuses %s when the adapter has no prepare hook", async (_label, opts) => {
+    await expect(new TxPipeline(signers()).run(params({} as Signer, { ...buildOnly, ...opts })))
+      .rejects.toMatchObject({ code: "invalid_option" });
+  });
+});

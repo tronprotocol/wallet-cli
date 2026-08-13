@@ -81,11 +81,15 @@ function renderGovernanceReceipt(data: Obj, ctx: TextRenderContext): string {
     fields.push(["Fee", estimateFee(data)]);
     return appendChanges(receipt(pending(), `Dry run ${label}`, fields), data);
   }
+  // Both early-exit modes exist to produce a relayable artifact, so the hex IS the output —
+  // bare, as `tx send` prints it, so it pipes into a file or the next command unchanged. The
+  // receipts below remain for the case the pipeline could not serialise one.
   if (mode === "build-only") {
-    fields.push(["Unsigned hex", String(data.unsignedHex ?? "")]);
+    if (data.hex) return String(data.hex);
     return appendChanges(receipt(ok(), `Built unsigned ${label}`, fields), data);
   }
   if (mode === "sign-only") {
+    if (data.hex) return String(data.hex);
     fields.push(["TxID", String(data.txId ?? "")]);
     fields.push(["Signed", signedSummary(data.signed)]);
     return appendChanges(receipt(ok(), `Signed ${label}`, fields), data);

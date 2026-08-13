@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { z } from "zod";
 import { permissionUpdateSpec } from "./permission.js";
-import { txModeFields } from "./shared.js";
+import { governanceTxModeFields, txModeFields } from "./shared.js";
 
 describe("transaction option argv coercion", () => {
   it("accepts numeric --permission-id and --expiration values from argv", () => {
@@ -129,5 +129,28 @@ describe("reference pages keep up with the shared transaction options", () => {
       .map(({ path }) => relative(DOCS, path));
 
     expect(behind).toEqual([]);
+  });
+});
+
+/**
+ * The governance group re-declared `--permission-id` with an int32 ceiling, so `--help` advertised a
+ * range the application layer then refused: `transactionMode()` accepts 0..9 and rejects anything
+ * above it with `invalid_option`, after the command has already started. TRON has at most eight
+ * active permissions (ids 2..9) plus owner (0), so 0..9 is the real bound and the override was
+ * simply wrong — it also downgraded the failure from a schema `invalid_value` to a runtime
+ * `invalid_option`, classifying the same mistake differently from every non-governance command.
+ */
+describe("governance --permission-id shares the protocol bound with every other command", () => {
+  const field = (fields: Record<string, unknown>) => z.object(fields as never);
+
+  it("rejects a permission id above the protocol maximum at the schema, as txModeFields does", () => {
+    expect(field(governanceTxModeFields).safeParse({ permissionId: "10" }).success).toBe(false);
+    expect(field(txModeFields).safeParse({ permissionId: "10" }).success).toBe(false);
+  });
+
+  it("still accepts the whole valid range", () => {
+    for (const id of ["0", "2", "9"]) {
+      expect(field(governanceTxModeFields).safeParse({ permissionId: id }).success).toBe(true);
+    }
   });
 });

@@ -11,11 +11,10 @@ import type { TronGateway, TronProposal } from "../../ports/chain/tron-gateway.j
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
-  governanceArtifact,
   governanceTransactionMode,
   transactionResource,
-  withExtendedExpiration,
   type GovernanceTransactionInput,
 } from "./governance-transaction.js";
 
@@ -97,16 +96,12 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await gateway.buildProposalCreate(
+      ...tronTransactionHooks(gateway),
+      build: async (address) => gateway.buildProposalCreate(
           address,
           changes.map((change) => ({ key: change.id, value: change.proposedValue })),
           { permissionId: input.permissionId },
         ),
-        input.expiration,
-      ),
       estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal creation uses bandwidth only" }),
     });
     const data = outcomeData(outcome);
@@ -148,12 +143,8 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await gateway.buildProposalApprove(address, input.id, addApproval, { permissionId: input.permissionId }),
-        input.expiration,
-      ),
+      ...tronTransactionHooks(gateway),
+      build: async (address) => gateway.buildProposalApprove(address, input.id, addApproval, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal approval uses bandwidth only" }),
     });
     const data = outcomeData(outcome);
@@ -191,12 +182,8 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...governanceArtifact(gateway),
-      build: async (address) => withExtendedExpiration(
-        gateway,
-        await gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),
-        input.expiration,
-      ),
+      ...tronTransactionHooks(gateway),
+      build: async (address) => gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal deletion uses bandwidth only" }),
     });
     const data = outcomeData(outcome);

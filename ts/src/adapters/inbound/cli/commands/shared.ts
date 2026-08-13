@@ -31,10 +31,6 @@ export const governanceTxModeFields = {
   ...txModeFields,
   buildOnly: z.boolean().default(false)
     .describe("build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only"),
-  expiration: z.coerce.number().int().positive().max(86_400_000).optional()
-    .describe("extend transaction expiration in milliseconds (max 86400000); only with --sign-only or --build-only"),
-  permissionId: z.coerce.number().int().min(0).max(2_147_483_647).default(0)
-    .describe("TRON permission group used by the transaction (0 = owner)"),
 };
 
 export function governanceTxRefine(

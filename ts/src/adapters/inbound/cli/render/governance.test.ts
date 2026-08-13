@@ -75,3 +75,21 @@ describe("proposal text rendering", () => {
     ].join("\n"));
   });
 });
+
+/**
+ * `--build-only` and `--sign-only` exist to hand the transaction hex to the next step (collect a
+ * co-signature, relay it offline). `tx send` prints that hex bare, so it pipes straight into a file
+ * or another command; the governance renderer printed a receipt built around `data.unsignedHex`, a
+ * field the pipeline never produces — the canonical name is `hex`. `kv()` drops empty rows, so the
+ * artifact did not merely render blank, it vanished, and only `-o json` carried it.
+ */
+describe("governance build-only / sign-only emit the transaction artifact", () => {
+  const HEX = "0a83010a02c1112208bd2a9a677fccd7dc";
+
+  it.each([
+    ["build-only", { kind: "witness-update", mode: "build-only", hex: HEX }],
+    ["sign-only", { kind: "witness-update", mode: "sign-only", hex: HEX, txId: "abc", signed: {} }],
+  ])("`%s` prints the hex and nothing else, exactly like `tx send`", (_label, data) => {
+    expect(GovernanceFormatters.governanceReceipt(data, ctx)).toBe(HEX);
+  });
+});

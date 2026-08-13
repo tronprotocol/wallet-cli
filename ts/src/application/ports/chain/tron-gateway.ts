@@ -441,5 +441,4 @@ export interface TronGateway extends Broadcaster {
     percent: number,
     options?: TronTransactionBuildOptions,
   ): Promise<UnsignedTx>;
-  extendTransactionExpiration(transaction: UnsignedTx, extensionMs: number): Promise<UnsignedTx>;
 }
