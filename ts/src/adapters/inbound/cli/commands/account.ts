@@ -39,9 +39,7 @@ export const accountActivateSpec: ChainSpec = {
   capability: "account.activate",
   summary: "Activate a new TRON account",
   description:
-    "Create an AccountCreateContract funded by the active account. The target must not already be\n"
-    + "active; use --dry-run to inspect current creation fees. Note: a plain transfer also activates\n"
-    + "the recipient, so use this command only when the address just needs to exist.",
+    "Create an AccountCreateContract funded by the active account. The target must not already be active; use --dry-run to inspect current creation fees.",
   baseFields: z.object({
     address: z.string().min(1).describe("unactivated TRON base58 address"),
     ...txModeFields,
@@ -69,15 +67,12 @@ export const accountSetSpec: ChainSpec = {
   capability: "account.set",
   summary: "Set the one-time on-chain account name or ID",
   description:
-    "Set exactly one immutable account field. Names are 1-32 UTF-8 bytes; IDs are unique and 8-32\n"
-    + "UTF-8 bytes. Each can be set only once and can never be changed afterwards — rehearse with\n"
-    + "--dry-run to check the value first. This is not `wallet-cli rename`, which changes the local label.",
+    "Set exactly one immutable account field. Names are 1-32 UTF-8 bytes; IDs are unique and 8-32 UTF-8 bytes.",
   baseFields: z.object({
     name: z.string().min(1).optional().describe("one-time on-chain account name (1-32 UTF-8 bytes)"),
     id: z.string().min(1).optional().describe("one-time unique account ID (8-32 UTF-8 bytes)"),
     ...txModeFields,
   }),
-  exclusive: [{ label: "what to set", flags: ["name", "id"] }],
   baseRefine: (input, context) => {
     if ((input.name === undefined) === (input.id === undefined)) {
       context.addIssue({

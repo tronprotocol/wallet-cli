@@ -4,12 +4,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 export function readBoundedTextFile(path: string, maxBytes: number, label: string): string {
   let fd: number | undefined;
   try {
-    fd = openSync(
-      path,
-      constants.O_RDONLY
-        | (constants.O_NOFOLLOW ?? 0)
-        | (constants.O_NONBLOCK ?? 0),
-    );
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
     const stat = fstatSync(fd);
     if (!stat.isFile()) throw new UsageError("invalid_value", `${label} must be a regular file`);
     if (stat.size > maxBytes) throw new UsageError("invalid_value", `${label} exceeds the ${maxBytes}-byte limit`);

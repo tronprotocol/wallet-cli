@@ -1,4 +1,4 @@
-import type { ChainFamily } from "../family/chain-family.js";
+import type { ChainFamily } from "../family/index.js";
 
 /** Canonical persisted recipient. nameKey is an integrity-checked lookup key. */
 export interface ContactEntry {

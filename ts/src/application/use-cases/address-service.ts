@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { KeypairWriter } from "../ports/keypair-writer.js";
@@ -12,6 +13,7 @@ const MAX_SCALAR_ATTEMPTS = 128;
 
 export class AddressService {
   constructor(
+    private readonly root: string,
     private readonly writer: KeypairWriter,
     private readonly random: (size: number) => Uint8Array = randomBytes,
   ) {}
@@ -48,7 +50,10 @@ export class AddressService {
       if (input.printSecret) {
         return { tron, evm, privateKey: privateKeyHex };
       }
-      const secretFile = this.writer.write(input.out ? { out: input.out } : { name: tron }, {
+      const path =
+        input.out
+        ?? join(this.root, "generated", `keypair-${tron}`);
+      const secretFile = this.writer.write(path, {
         version: 1,
         privateKey: privateKeyHex,
         publicKey: bytesToHex(publicKey),

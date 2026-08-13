@@ -16,4 +16,5 @@ wallet-cli typed-data COMMAND
 
 ## See also
 
-[`message sign`](../message/sign.md) — sign a plain text message · [Security model](../../concepts/security.md)
+[`message`](../message/index.md) — arbitrary text signing (TIP-191/V2 · EIP-191) ·
+[Security model](../../concepts/security.md)

@@ -5,7 +5,6 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
-import { txModeFields } from "./shared.js";
 
 const showFields = z.object({});
 
@@ -30,11 +29,9 @@ const updateFields = z.object({
   json: z.string().min(1).optional().describe("inline complete replacement permission JSON"),
   dryRun: z.boolean().default(false).describe("validate, build, and estimate without signing or broadcasting"),
   signOnly: z.boolean().default(false).describe("build and sign, then output complete transaction hex"),
-  buildOnly: txModeFields.buildOnly,
-  // dry-run/sign-only wording is specific to a permission replacement, but the permission group
-  // and expiration semantics are the shared ones — reuse them rather than keep a second copy.
-  permissionId: txModeFields.permissionId,
-  expiration: txModeFields.expiration,
+  buildOnly: z.boolean().default(false).describe("build and output unsigned complete transaction hex without unlocking"),
+  permissionId: z.coerce.number().int().min(0).max(9).default(0).describe("TRON permission group id used to authorize this transaction"),
+  expiration: z.coerce.number().int().min(1).max(86_400_000).optional().describe("expiration duration in milliseconds; only with --sign-only or --build-only"),
 });
 
 export const permissionUpdateSpec: ChainSpec = {
@@ -45,13 +42,8 @@ export const permissionUpdateSpec: ChainSpec = {
   broadcasts: true,
   capability: "permission.update",
   summary: "Replace the complete account permission structure",
-  description:
-    "Replaces owner/witness/active permissions in one AccountPermissionUpdateContract. The input is\n"
-    + "the complete structure, in the same shape as `permission show -o json` data.\n"
-    + "There is no confirmation prompt: it warns about a permanent lockout but does not block the\n"
-    + "submission, so rehearse with --dry-run first.",
+  description: "Replaces owner/witness/active permissions in one AccountPermissionUpdateContract. Misconfiguration can permanently lock the account; use --dry-run first.",
   baseFields: updateFields,
-  exclusive: [{ label: "the new permission structure", flags: ["file", "json"] }],
   baseRefine: (input, context) => {
     if ([input.file, input.json].filter((value) => value !== undefined).length !== 1) {
       context.addIssue({ code: "custom", path: ["file"], message: "provide exactly one of --file or --json" });

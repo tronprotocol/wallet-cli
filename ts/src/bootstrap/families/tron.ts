@@ -101,7 +101,7 @@ import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
 import type { AccountStore } from "../../application/ports/account-store.js";
-import { SecureTransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
+import { TransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
 import type { FamilyPlugin } from "./types.js";
 import type { TronLinkCollaborationPort } from "../../application/ports/tronlink-collaboration.js";
 import type { GasFreeProvider } from "../../application/ports/gasfree-provider.js";
@@ -191,7 +191,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
     transaction,
     signing,
     multisig,
-    new SecureTransactionArtifactWriter(),
+    new TransactionArtifactWriter(),
   ));
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(

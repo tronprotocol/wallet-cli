@@ -12,14 +12,6 @@ import { obtainSignature } from "../signing/obtain-signature.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 import type { TransactionExecutionMode } from "../transaction-mode.js";
 
-/** What a preflight hands back to the pipeline: the checks it can only make once the signature
- *  the pipeline is about to produce has been accounted for. */
-export interface SignerAuthorization {
-  /** Broadcast-only gate. Sign-only and build-only never call it — collecting one signature of a
-   *  multi-signature transaction is the legitimate way to reach the threshold. */
-  assertBroadcastable(): void;
-}
-
 export interface TxPipelineParams {
   ctx: TransactionScope;
   net: NetworkDescriptor;
@@ -39,9 +31,8 @@ export interface TxPipelineParams {
   prepare?: (tx: UnsignedTx, options: { permissionId: number; expiration?: number }) => Promise<UnsignedTx> | UnsignedTx;
   /** Complete transaction protobuf serializer, required for build-only. */
   artifact?: (tx: UnsignedTx | SignedTx) => string;
-  /** Authorization check performed before software key decryption or Ledger interaction. May
-   *  return a gate the pipeline consults again once signing is done, before broadcasting. */
-  preflight?: (tx: UnsignedTx, signerAddress: string) => Promise<SignerAuthorization | void>;
+  /** Authorization check performed before software key decryption or Ledger interaction. */
+  preflight?: (tx: UnsignedTx, signerAddress: string) => Promise<void>;
   /** Optional post-broadcast confirmation: poll the chain for on-chain results (fee/energy/
    *  withdrawn amount) and merge them into the broadcast outcome. Best-effort — it must never
    *  throw; on timeout it returns undefined and the receipt falls back to txid + echoed inputs. */
@@ -106,7 +97,7 @@ export class TxPipeline {
     if (signer.address !== ownerAddress) {
       throw new UsageError("invalid_account", "resolved signer address changed during transaction construction");
     }
-    const authorization = await p.preflight?.(tx, signer.address);
+    await p.preflight?.(tx, signer.address);
     const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(tx, opts));
 
     if (mode === "sign-only") {
@@ -119,10 +110,6 @@ export class TxPipeline {
         txId: txIdOf(signed),
       };
     }
-    // A transaction that cannot satisfy its permission threshold is refused here rather than sent
-    // for the node to reject, so an under-signed direct submit fails locally and identically to
-    // the same transaction handed to `tx broadcast`.
-    authorization?.assertBroadcastable();
     const result = await p.broadcaster.broadcast(signed);
     const txId = String(result.txId ?? result.hash ?? "");
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).

@@ -6,9 +6,8 @@ Send native TRX or TRC20/TRC10 tokens with human `--amount`.
 
 ```
 wallet-cli tx send --to <address|contact> (--amount <n> | --raw-amount <n>)
-                   [--token <symbol> | --contract <address> | --asset-id <id>] [--fee-limit <sun>]
-                   [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
-                   [--permission-id <n>] [options]
+                   [--token <symbol> | --contract <address> | --asset-id <id>]
+                   [--dry-run | --sign-only] [--fee-limit <sun>] [options]
 ```
 
 ## Description
@@ -20,9 +19,13 @@ Builds, signs, and submits a transfer from the active account (or `--account`). 
 - `--contract <address>` → TRC20 by contract address;
 - `--asset-id <id>` → TRC10 by numeric asset id.
 
+`--to` accepts a TRON address or the name of a local [contact](../contact/index.md). When a contact
+name resolves, the receipt shows both — `To  alice (TR7NHq…)` — and `data.toContact` carries the
+name, so the resolution stays auditable rather than implicit.
+
 Amounts: `--amount` is human units (TRX, or token units respecting the token's decimals); `--raw-amount` is the raw integer (SUN or token base units). Exactly one of the two.
 
-Early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the signed transaction **hex**; `--build-only` builds but does **not** sign, printing the **unsigned** hex. For multi-sig, `--permission-id` selects the signing group and `--expiration` extends how long the transaction stays valid for co-signers to add their signatures.
+Two early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the transaction for a later [`tx broadcast`](broadcast.md).
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed, or poll [`tx status`](status.md).
 
@@ -32,18 +35,15 @@ Requires an account and the master password via `--password-stdin` — signing c
 
 | Option | Description |
 |---|---|
-| `--to <address\|contact>` | **Required.** Recipient TRON base58 address, or a name from the [contact book](../contact/index.md) |
+| `--to <string>` | **Required.** Recipient TRON base58 address, or a local [contact](../contact/index.md) name |
 | `--amount <string>` | Human amount; mutually exclusive with `--raw-amount` |
 | `--raw-amount <string>` | Raw integer amount in SUN / token base units |
 | `--token <string>` | Token symbol from the address book; excludes `--contract`, `--asset-id` |
 | `--contract <string>` | TRC20 contract address |
 | `--asset-id <string>` | TRC10 numeric asset id |
 | `--fee-limit <string>` | Max TRX energy fee to burn for TRC20 transfers, in SUN (default 100000000) |
-| `--dry-run` | Build and estimate only; excludes `--sign-only` / `--build-only` |
-| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--dry-run` | Build and estimate only; excludes `--sign-only` |
+| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000; on cap returns the submitted receipt) |
 | `--password-stdin` | Master password from stdin |
 
@@ -91,18 +91,12 @@ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH -
 |---|---|
 | default (submit) | `kind: "send"`, `stage: "submitted"`, `txId`, `rawAmount` (string), `to`, plus `toContact` when `--to` was a contact name |
 | `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `netUsed` (bandwidth used) or `feeSun` (fee burned), `failed` |
-| `--wait` (reverted) | the same fields, but `stage: "failed"` and `failed: true` — the transaction was mined and then reverted |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (`feeModel`, e.g. `bandwidthBurnSunIfNoFreeze`), unsigned `tx` (TRON tx object incl. `txID`, `raw_data`), `rawAmount`, `to` |
-| `--sign-only` | `kind`, `mode: "sign-only"`, `hex` (signed transaction hex), `signed` (the same transaction as a TRON tx object incl. `signature[]`), `address` (signer), `txId`, `fee`, `rawAmount`, `to` |
-| `--build-only` | `kind`, `mode: "build-only"`, `hex` (**unsigned** transaction hex), unsigned `tx` (TRON tx object), `fee`, `rawAmount`, `to` |
-
-A reverted transaction still leaves the envelope at `success: true` and exit `0` — the command completed; the chain rejected the transaction. Scripts must branch on `data.stage`, not on the exit code.
+| `--sign-only` | `kind`, `mode: "sign-only"`, `signed` (full signed TRON tx incl. `signature[]` — feed to `tx broadcast`), `address` (signer), `txId`, `fee`, `rawAmount`, `to` |
 
 ## Exit status
 
 `0` submitted (or built/signed in early-exit modes) · `1` execution failure (`rpc_error`, `timeout` — **on timeout the tx may still be in flight; check `tx status` before resending**) · `2` usage error (conflicting selectors/amounts/modes).
-
-`0` also covers `--wait` reporting `stage: "failed"`: the exit code reflects the command, not the on-chain result. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## See also
 

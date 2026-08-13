@@ -17,7 +17,6 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
-import { warnOnPostCheck } from "../../services/post-check.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const round6 = (value: number): number => Math.round(value * 1e6) / 1e6;
@@ -86,11 +85,8 @@ export class TronAccountService {
         "--address must be a valid TRON address",
       );
     }
-    // The Ledger TRON app has no parser for AccountCreateContract (app-tron src/parse.c falls
-    // through to `default: return USTREAM_FAULT`), so the device answers 0x6a80 — and no app
-    // setting changes that. Refuse before any RPC rather than after sending the user to unlock it.
     if (transactionRequiresSigner(input)) {
-      this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
+      this.pipeline.assertCanSign(scope.activeAccount, "tron");
     }
     const mode = transactionMode(input);
     const gateway = this.gateways.get(network, "tron");
@@ -128,12 +124,13 @@ export class TronAccountService {
       estimate: async () => ({ ...fee, balanceSun }),
     });
     if (outcome.stage === "confirmed" && !outcome.failed) {
-      await warnOnPostCheck(scope, "account_activate_postcheck", async () => {
-        const activated = await gateway.getAccount(input.address);
-        return accountExists(activated, input.address)
-          ? undefined
-          : "confirmed account activation is not visible from the selected node";
-      });
+      const activated = await gateway.getAccount(input.address);
+      if (!accountExists(activated, input.address)) {
+        throw new ChainError(
+          "provider_error",
+          "confirmed account activation is not visible from the selected node",
+        );
+      }
     }
     return {
       kind: "account-activate" as const,
@@ -154,12 +151,10 @@ export class TronAccountService {
         "provide exactly one of --name or --id",
       );
     }
-    const field = input.name !== undefined ? "name" as const : "id" as const;
-    // Same parser gap as `activate`, but only for --id: the app implements AccountUpdateContract
-    // (--name) and not SetAccountIdContract, so the two fields differ in what a Ledger can sign.
     if (transactionRequiresSigner(input)) {
-      this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: field === "id" });
+      this.pipeline.assertCanSign(scope.activeAccount, "tron");
     }
+    const field = input.name !== undefined ? "name" as const : "id" as const;
     const value = validateAccountText(field, input.name ?? input.id!);
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
@@ -205,14 +200,15 @@ export class TronAccountService {
       }),
     });
     if (outcome.stage === "confirmed" && !outcome.failed) {
-      await warnOnPostCheck(scope, "account_set_postcheck", async () => {
-        const updated = await gateway.getAccount(address);
-        const raw =
-          field === "name" ? updated.account_name : updated.account_id;
-        return decodeAccountText(raw, field) === value
-          ? undefined
-          : `confirmed account ${field} does not match the submitted value`;
-      });
+      const updated = await gateway.getAccount(address);
+      const raw =
+        field === "name" ? updated.account_name : updated.account_id;
+      if (decodeAccountText(raw, field) !== value) {
+        throw new ChainError(
+          "provider_error",
+          `confirmed account ${field} does not match the submitted value`,
+        );
+      }
     }
     return {
       kind: "account-set" as const,

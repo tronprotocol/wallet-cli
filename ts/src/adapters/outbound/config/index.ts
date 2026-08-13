@@ -50,7 +50,7 @@ export class ConfigLoader {
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
-      const raw = readConfigDocument(path);
+      const raw = parseYaml(readFileSync(path, "utf8")) ?? {};
       if (
         (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "")
         || (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "")
@@ -114,28 +114,6 @@ function validCredential(value: unknown): value is string {
     && value.length > 0
     && value.length <= 256
     && !/[\u0000-\u001f\u007f]/.test(value);
-}
-
-/**
- * Read config.yaml, reporting the condition rather than the underlying error.
- *
- * Both failures carry material we must not surface: a YAML parse error quotes the offending line,
- * which may sit right beside `gasfreeApiSecret`, and a read error carries whatever the OS put in
- * its message. Classifying here also keeps the user out of the generic `internal_error` they would
- * otherwise get from the bootstrap boundary for what is simply a broken file.
- */
-function readConfigDocument(path: string) {
-  let text: string;
-  try {
-    text = readFileSync(path, "utf8");
-  } catch {
-    throw new UsageError("invalid_config", `config.yaml cannot be read: ${path}`);
-  }
-  try {
-    return parseYaml(text) ?? {};
-  } catch {
-    throw new UsageError("invalid_config", `config.yaml is not valid YAML: ${path}`);
-  }
 }
 
 function assertSecretConfigPermissions(path: string): void {

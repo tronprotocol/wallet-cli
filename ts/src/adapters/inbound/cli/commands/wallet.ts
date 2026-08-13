@@ -334,12 +334,7 @@ export function registerWalletCommands(
   // ── backup ────────────────────────────────────────────────────────────────
   // Writes the secret + metadata to a 0600 FILE (never stdout/envelope): the secret stays off
   // screen, logs and AI context. stdout returns only metadata + the written path.
-  // The master password is primed by `run` itself, not by dispatch (no passwordMode): the account
-  // must be known to be exportable BEFORE a password is demanded. A Ledger/watch account holds no
-  // secret, and a Ledger-only keystore may have no master password at all — verifying against a
-  // missing sentinel always fails, so a dispatch-level gate would trap the user on a prompt no
-  // answer satisfies instead of telling them the account simply cannot be exported.
-  // --password-stdin remains the non-interactive source.
+  // master password via dispatch prime (passwordMode: "verify"); --password-stdin is the non-interactive source.
   const backupFields = z.object({
     account: accountRef("account or wallet to export, addressed by accountId, label, or address"),
     out: z
@@ -352,6 +347,7 @@ export function registerWalletCommands(
     network: "none",
     wallet: "none",
     auth: "required",
+    passwordMode: "verify",
     interactive: true,
     positionals: [{ field: "account" }],
     summary: "Export an account's secret + metadata to a 0600 file",
@@ -359,11 +355,7 @@ export function registerWalletCommands(
     input: backupFields,
     examples: [{ cmd: "wallet-cli backup main --out ~/main-backup.json --password-stdin" }],
     formatText: TextFormatters.walletBackup,
-    run: async (ctx, _net, input) => {
-      wallets.assertExportable(input.account)
-      await ctx.secrets.primePassword({ mode: "verify", verify: (pw) => wallets.verifyPassword(pw) })
-      return wallets.backup(input.account, input.out)
-    },
+    run: async (_ctx, _net, input) => wallets.backup(input.account, input.out),
   } satisfies CommandDefinition)
 
   // ── change-password ───────────────────────────────────────────────────────

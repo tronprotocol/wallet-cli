@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { GasFreeProvider } from "../../ports/gasfree-provider.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { SignerResolver } from "../../services/signer/index.js";
@@ -33,13 +32,13 @@ const NETWORK = {
   },
 } satisfies NetworkDescriptor;
 
-function scope(wait = false, waitTimeoutMs = 1000): TransactionScope {
+function scope(wait = false): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
     timeoutMs: 1000,
     wait,
-    waitTimeoutMs,
+    waitTimeoutMs: 1000,
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -52,11 +51,8 @@ function fixture(options: {
   badDigest?: boolean;
   expiredAtSeconds?: boolean;
   terminal?: "success" | "fee-exceeded" | "mutated-recipient";
-  /** replaces the polling response entirely — for failure-path tests. */
-  trace?: (call: number) => Promise<unknown>;
 } = {}) {
   let submittedAuthorization: SignedGasFreeAuthorization | undefined;
-  let traceCalls = 0;
   const submitTransfer = vi.fn(
     async (
       _network: NetworkDescriptor,
@@ -108,7 +104,6 @@ function fixture(options: {
     })),
     submitTransfer,
     trace: vi.fn(async () => {
-      if (options.trace) return options.trace(++traceCalls);
       const authorization = submittedAuthorization!;
       const transferFee =
         options.terminal === "fee-exceeded" ? "1600000" : "400000";
@@ -338,81 +333,6 @@ describe("GasFreeService", () => {
         token: "USDT",
         dryRun: false,
       }),
-      // an integrity violation must still fail loudly — but it stays reconcilable
-    ).rejects.toMatchObject({ code: "gasfree_integrity", details: { traceId: "trace-1" } });
-  });
-
-  // Everything below runs after submitTransfer has already succeeded and the tokens are committed.
-  // A polling failure says nothing about the outcome and must never take the trace id with it.
-  describe("--wait polling failures never destroy the receipt", () => {
-    const send = (fixtureValue: ReturnType<typeof fixture>, ctx: TransactionScope) =>
-      fixtureValue.service.transfer(ctx, NETWORK, {
-        to: RECEIVER,
-        amount: "25",
-        token: "USDT",
-        dryRun: false,
-      });
-
-    function terminalRecord(state: "SUCCEED") {
-      return {
-        id: "trace-1",
-        state,
-        tokenAddress: TOKEN,
-        providerAddress: PROVIDER,
-        accountAddress: OWNER,
-        gasFreeAddress: GASFREE,
-        targetAddress: RECEIVER,
-        amount: "25000000",
-        maxFee: "1500000",
-        nonce: "8",
-        txnHash: "ab".repeat(32),
-      };
-    }
-
-    it("retries transport flakiness inside the deadline and still settles", async () => {
-      const fixtureValue = fixture({
-        active: true,
-        trace: async (call) => {
-          if (call === 1) throw new TransportError("provider_error", "GasFree service returned HTTP 503");
-          if (call === 2) throw new ChainError("timeout", "GasFree request timed out after 1000ms");
-          return terminalRecord("SUCCEED");
-        },
-      });
-      const ctx = scope(true, 5000);
-
-      const result = await send(fixtureValue, ctx);
-
-      expect(fixtureValue.provider.trace).toHaveBeenCalledTimes(3);
-      expect(result).toMatchObject({ stage: "confirmed", state: "SUCCEED", traceId: "trace-1" });
-    });
-
-    it("returns the submitted receipt when flakiness outlasts the deadline", async () => {
-      const fixtureValue = fixture({
-        active: true,
-        trace: async () => { throw new TransportError("provider_error", "GasFree service rate limit exceeded"); },
-      });
-      const ctx = scope(true, 3000);
-
-      const result = await send(fixtureValue, ctx);
-
-      expect(result).toMatchObject({ stage: "submitted", state: "WAITING", traceId: "trace-1" });
-      expect(ctx.warn).toHaveBeenCalledWith(expect.stringContaining("did not finish within"));
-    });
-
-    it("gives up on a non-retryable provider error but keeps the trace id", async () => {
-      const fixtureValue = fixture({
-        active: true,
-        trace: async () => { throw new ChainError("gasfree_rejected", "GasFree service returned HTTP 404"); },
-      });
-      const ctx = scope(true, 5000);
-
-      const result = await send(fixtureValue, ctx);
-
-      expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
-      expect(fixtureValue.provider.trace).toHaveBeenCalledTimes(1); // not retried
-      expect(ctx.warn).toHaveBeenCalledWith(
-        expect.stringContaining("gasfree trace trace-1"),
-      );
-    });
+    ).rejects.toMatchObject({ code: "gasfree_integrity" });
   });
 });

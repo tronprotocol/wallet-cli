@@ -5,10 +5,10 @@
  */
 import yargs, { type Argv } from "yargs"
 import { randomBytes } from "node:crypto"
-import { type RefinementCtx, type ZodObject, type ZodRawShape, type ZodType } from "zod"
-import type { AccountDescriptor, NetworkDescriptor } from "../../../../domain/types/index.js"
-import { isChainCommand } from "../contracts/index.js"
-import type { ChainCommandDefinition, ChainSpec, CommandDefinition, CommandExecutionSpec, ExecutionContext, Globals, SessionRef, StreamManager } from "../contracts/index.js"
+import { z, type RefinementCtx, type ZodObject, type ZodRawShape, type ZodType } from "zod"
+import type { AccountDescriptor, NetworkDescriptor } from "../../../../domain/types/index.js";
+import { isChainCommand } from "../contracts/index.js";
+import type { ChainCommandDefinition, ChainSpec, CommandDefinition, CommandExecutionSpec, ExecutionContext, Globals, SessionRef, StreamManager } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js"
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js"
 import { buildExecutionContext, type RuntimeDeps } from "../context/index.js"
@@ -70,20 +70,18 @@ export function buildCli(opts: ShellOptions): Argv {
       cli.command(
         `${head} [verb] [args..]`,
         `${head} commands`,
-        (y) =>
-          applyCommands(
-            stringGroupTail(y),
-            cmds.map((c) => c.fields),
-          ),
+        (y) => applyCommands(y, cmds.map((c) => c.fields)),
         (argv) => dispatchNeutral(opts, [head, typeof argv.verb === "string" ? argv.verb : undefined].filter(Boolean) as string[], argv),
       )
     } else {
       // single-segment leaf (create / list / use / current / rename / derive / delete / backup / networks)
       const cmd = cmds[0]!
       cli.command(
-        cmd.positionals?.length ? `${head} [args..]` : head,
+        cmd.positionals?.length
+          ? `${head} ${cmd.positionals.map((p) => `[${p.placeholder ?? p.field}]`).join(" ")}`
+          : head,
         cmd.summary ?? "",
-        (y) => applyCommands(stringGroupTail(y), [cmd.fields]),
+        (y) => applyCommands(y, [cmd.fields]),
         (argv) => dispatchNeutral(opts, [head], argv),
       )
     }
@@ -92,9 +90,10 @@ export function buildCli(opts: ShellOptions): Argv {
   const assembledChainCommands = all.filter(isChainCommand)
   const chainGroups = [...new Set(assembledChainCommands.map((c) => c.spec.path[0]).filter(Boolean) as string[])]
   const fieldsOfLogicalGroup = (group: string) => [
-    ...assembledChainCommands
-      .filter((c) => c.spec.path[0] === group)
-      .flatMap((c) => [c.spec.baseFields, ...Object.values(c.families).flatMap((binding) => (binding?.fields ? [binding.fields] : []))]),
+    ...assembledChainCommands.filter((c) => c.spec.path[0] === group).flatMap((c) => [
+      c.spec.baseFields,
+      ...Object.values(c.families).flatMap((binding) => binding?.fields ? [binding.fields] : []),
+    ]),
   ]
   for (const group of chainGroups) {
     const assembledLeaves = assembledChainCommands.filter((c) => c.spec.path[0] === group)
@@ -102,13 +101,13 @@ export function buildCli(opts: ShellOptions): Argv {
     if (paths.every((path) => path.length === 1)) {
       // single-segment chain leaf (e.g. `block [<number>]`): no sub-verb; bind its own positional.
       cli.command(
-        assembledLeaves[0]?.spec.positionals?.length ? `${group} [args..]` : group,
+        `${group} [number]`,
         assembledLeaves[0]?.spec.summary ?? "",
-        (y) => applyCommands(stringGroupTail(y), fieldsOfLogicalGroup(group)),
+        (y) => applyCommands(y, fieldsOfLogicalGroup(group)),
         (argv) => {
           // a non-numeric positional (e.g. `block get`) is a mistyped subcommand, not a block height:
           // report it as an unknown command rather than a confusing "--number received NaN".
-          const pos = (argv as any).args?.[0]
+          const pos = (argv as any).number
           if (pos !== undefined && !Number.isFinite(Number(pos))) {
             throw new UsageError("unknown_command", `unknown command: ${group} ${pos}`)
           }
@@ -120,7 +119,7 @@ export function buildCli(opts: ShellOptions): Argv {
     cli.command(
       `${group} [verb] [args..]`,
       `${group} commands`,
-      (y) => applyCommands(stringGroupTail(y), fieldsOfLogicalGroup(group)),
+      (y) => applyCommands(y, fieldsOfLogicalGroup(group)),
       (argv) => dispatchLogical(opts, [group, typeof argv.verb === "string" ? argv.verb : undefined].filter(Boolean) as string[], argv),
     )
   }
@@ -155,21 +154,13 @@ async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): P
 }
 
 /**
- * Type the group tail as strings. Declared fields already get `type: "string"` from applyArity,
- * but `verb`/`args..` are anonymous captures, so yargs would infer their type and hand back a
- * number for anything number-shaped (`0xdeadbeef`, `12345`) — which every positional-bound field,
- * being string-typed in zod, then rejects. Coercing after the fact is not enough: the inference is
- * lossy (`1e5` → 100000, oversized ints → float), so the raw token has to survive parsing.
- */
-function stringGroupTail(y: Argv): Argv {
-  return y.positional("verb", { type: "string" }).positional("args", { type: "string" })
-}
-
-/**
  * A yargs group has one positional layout while each leaf can have a different one.
  * Capture the group tail as args[], then bind it only after resolving the exact leaf.
  */
-export function bindGroupedPositionals(command: Pick<CommandExecutionSpec, "path" | "positionals">, argv: Record<string, any>): Record<string, any> {
+export function bindGroupedPositionals(
+  command: Pick<CommandExecutionSpec, "path" | "positionals">,
+  argv: Record<string, any>,
+): Record<string, any> {
   if (!("args" in argv)) return argv
   const bound = { ...argv }
   const raw = bound.args
@@ -177,12 +168,18 @@ export function bindGroupedPositionals(command: Pick<CommandExecutionSpec, "path
   const values = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]
   const declared = command.positionals ?? []
   if (values.length > declared.length) {
-    throw new UsageError("usage_error", `too many positional arguments for ${command.path.join(" ")}: expected ${declared.length}, received ${values.length}`)
+    throw new UsageError(
+      "usage_error",
+      `too many positional arguments for ${command.path.join(" ")}: expected ${declared.length}, received ${values.length}`,
+    )
   }
   values.forEach((value, index) => {
     const field = declared[index]!.field
     if (bound[field] !== undefined) {
-      throw new UsageError("invalid_option", `${field} was provided both positionally and as --${camelToKebab(field)}`)
+      throw new UsageError(
+        "invalid_option",
+        `${field} was provided both positionally and as --${camelToKebab(field)}`,
+      )
     }
     bound[field] = value
   })
@@ -194,22 +191,24 @@ async function executeChainCommand(opts: ShellOptions, def: ChainCommandDefiniti
   const { spec } = def
   const id = commandId({ path: spec.path })
   session.current = { commandId: id }
+  argv = bindGroupedPositionals(spec, argv)
 
   const target = targetResolver.resolve(spec, globals)
   const net = requireResolvedNetwork(spec, target.network)
   const binding = def.families[net.family]
   if (!binding) {
     const families = Object.keys(def.families).join(", ")
-    throw new UsageError("network_family_mismatch", `command ${spec.path.join(" ")} supports ${families} but selected network ${net.id} is ${net.family}`)
+    throw new UsageError(
+      "network_family_mismatch",
+      `command ${spec.path.join(" ")} supports ${families} but selected network ${net.id} is ${net.family}`,
+    )
   }
   session.current = { commandId: id, net }
 
   const effectiveFields = binding.fields ? spec.baseFields.extend(binding.fields.shape) : spec.baseFields
   const effectiveInput = composeRefines(effectiveFields, spec.baseRefine, binding.refine)
   const executionSpec = withFields(spec, effectiveFields)
-  // order matters: the flag check must see argv before positionals are bound onto their fields
   assertKnownFlags(executionSpec, argv)
-  argv = bindGroupedPositionals(spec, argv)
   deps.prompter.setInteractive(isInteractiveCommand(spec))
   caps.check(spec, net)
 
@@ -231,9 +230,8 @@ async function executeChainCommand(opts: ShellOptions, def: ChainCommandDefiniti
 async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: any): Promise<void> {
   const { globals, deps, targetResolver, caps, streams, formatter, session } = opts
   session.current = { commandId: commandId(cmd) }
-  // order matters: the flag check must see argv before positionals are bound onto their fields
-  assertKnownFlags(cmd, argv)
   argv = bindGroupedPositionals(cmd, argv)
+  assertKnownFlags(cmd, argv)
 
   // Gate all interactive prompts (gap-fill, password, secret, account-select, delete confirm) on a
   // per-command allowlist: only create/import/delete/backup may prompt; everything else fails fast.
@@ -280,7 +278,10 @@ async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: 
 }
 
 /** Runtime counterpart to CommandDefinition's network-policy discrimination. */
-function requireResolvedNetwork(cmd: Pick<CommandExecutionSpec, "path">, net: NetworkDescriptor | undefined): NetworkDescriptor {
+function requireResolvedNetwork(
+  cmd: Pick<CommandExecutionSpec, "path">,
+  net: NetworkDescriptor | undefined,
+): NetworkDescriptor {
   if (net) return net
   throw new Error(`network resolver returned no network for ${commandId(cmd)}`)
 }
@@ -369,8 +370,8 @@ function randomWalletLabel(): string {
  * and zod would silently strip them). Allowed = positionals + globals + THIS command's fields
  * (a sibling command's flag in the same namespace is unknown here). → invalid_option, exit 2.
  */
-function assertKnownFlags(cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals">, argv: any): void {
-  const allowed = new Set<string>(["_", "$0", "group", "verb", "args", "source"])
+function assertKnownFlags(cmd: Pick<CommandExecutionSpec, "path" | "fields">, argv: any): void {
+  const allowed = new Set<string>(["_", "$0", "group", "verb", "source", "key", "value"])
   const add = (name: string) => {
     allowed.add(name)
     allowed.add(camelToKebab(name))
@@ -379,24 +380,10 @@ function assertKnownFlags(cmd: Pick<CommandExecutionSpec, "path" | "fields" | "p
   for (const k of Object.keys(GLOBAL_OPTS)) add(k)
   for (const f of GLOBAL_FLAG_SPECS) if (f.alias) allowed.add(f.alias) // -o / -v short aliases
   for (const p of cmd.path) add(p)
-  // Positional fields are deliberately absent: they arrive in `args` and are bound to their field
-  // AFTER this check, so a field name present here can only be a `--field` the user typed — which
-  // this command does not accept (see CommandDefinition.positionals). A positional named after a
-  // global (`use [account]`) stays allowed via GLOBAL_OPTS above; supplying both is then caught by
-  // bindGroupedPositionals.
-  const positional = new Set((cmd.positionals ?? []).map((p) => p.field))
-  for (const k of Object.keys(cmd.fields.shape)) if (!positional.has(k)) add(k)
-  // dedupe: camel-case-expansion puts `--trace-id` in argv as both trace-id and traceId, and both
-  // render to the same flag name.
-  const unknown = [
-    ...new Set(
-      Object.keys(argv)
-        .filter((k) => !allowed.has(k))
-        .map(camelToKebab),
-    ),
-  ]
+  for (const k of Object.keys(cmd.fields.shape)) add(k)
+  const unknown = Object.keys(argv).filter((k) => !allowed.has(k))
   if (unknown.length > 0) {
-    throw new UsageError("invalid_option", `unknown option(s): ${unknown.map((u) => `--${u}`).join(", ")}`)
+    throw new UsageError("invalid_option", `unknown option(s): ${unknown.map((u) => `--${camelToKebab(u)}`).join(", ")}`)
   }
 }
 
@@ -421,7 +408,11 @@ function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExe
   return { ...spec, fields }
 }
 
-function composeRefines(fields: ZodObject<ZodRawShape>, baseRefine?: (value: any, ctx: RefinementCtx) => void, familyRefine?: (value: any, ctx: RefinementCtx) => void): ZodType {
+function composeRefines(
+  fields: ZodObject<ZodRawShape>,
+  baseRefine?: (value: any, ctx: RefinementCtx) => void,
+  familyRefine?: (value: any, ctx: RefinementCtx) => void,
+): ZodType {
   let schema: ZodType = fields
   if (baseRefine) schema = schema.superRefine(baseRefine)
   if (familyRefine) schema = schema.superRefine(familyRefine)

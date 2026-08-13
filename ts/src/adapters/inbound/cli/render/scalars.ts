@@ -95,24 +95,7 @@ export function methodName(sig: string): string {
 // Built via RegExp so the source file itself carries no raw control bytes.
 const CONTROL_BYTES = new RegExp("[\\u0000-\\u0009\\u000B-\\u001F\\u007F-\\u009F]", "g");
 
-// Bidi and other invisible formatting characters are NOT control bytes — they pass straight through
-// the strip above — and for a security display they are the more dangerous half. U+202E reverses
-// the visible order of everything after it, so a chain-controlled permission name can make the
-// address or weight printed beside it read as something else; the zero-width characters can make
-// two different names look identical. These are MARKED rather than dropped: dropping them would
-// silently mangle legitimate right-to-left text, whereas an escape keeps the string honest and
-// makes tampering obvious. Built via RegExp so this file carries no raw formatting characters.
-const INVISIBLE_FORMATTING = new RegExp(
-  "[\\u061C\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF]",
-  "g",
-);
-
 /** strip terminal control bytes from a text-mode output frame (never applied in JSON mode). */
 export function sanitizeText(s: string): string {
-  return s
-    .replace(CONTROL_BYTES, "")
-    .replace(
-      INVISIBLE_FORMATTING,
-      (c) => `<U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}>`,
-    );
+  return s.replace(CONTROL_BYTES, "");
 }

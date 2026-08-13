@@ -1,20 +1,20 @@
 # wallet-cli contact list
 
-List all recipients in the contact book.
+List every recipient in the local address book.
 
 ## Synopsis
 
 ```
-wallet-cli contact list
+wallet-cli contact list [options]
 ```
 
 ## Description
 
-Lists every recipient in the local address book — name, full address, and note. An empty address book returns an empty list (not an error). Purely local; no node access.
+Prints all stored contacts, sorted by name. Local only — no network access, no wallet unlock.
 
 ## Options
 
-No command-specific options; the [global options](../index.md#global-options-every-command) only.
+Only the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
@@ -23,9 +23,9 @@ wallet-cli contact list
 ```
 
 ```console
-Name   Address                             Note
-alice  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  Alice mainnet
-bob    TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  —
+| Name  | Address                            | Note          |
+| ----- | ---------------------------------- | ------------- |
+| alice | TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t | Alice mainnet |
 ```
 
 ```bash
@@ -33,19 +33,39 @@ wallet-cli contact list -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contact.list","data":{"contacts":[{"name":"alice","address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","note":"Alice mainnet","family":"tron"},{"name":"bob","address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","note":null,"family":"tron"}]},"meta":{"durationMs":3,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contact.list","data":{"contacts":[{"name":"alice","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","note":"Alice mainnet","family":"tron"}]},"meta":{"durationMs":14,"warnings":[]}}
 ```
+
+An empty address book is a success, not an error — `data.contacts` is `[]`.
 
 ## Output
 
+`data` is a local result — no `chain` block.
+
 | Field | Type | Meaning |
 |---|---|---|
-| `contacts[]` | array | Recipients, each `{name, address, note, family}` — `note` is `null` when unset |
+| `contacts` | array | Stored contacts, sorted by name |
+| `contacts[].name` | string | Contact name |
+| `contacts[].address` | string | TRON base58 address |
+| `contacts[].note` | string \| null | The note, or `null` |
+| `contacts[].family` | string | Chain family — `tron` |
+
+## Storage
+
+Contacts are kept in `contacts.json` under the wallet home. The file is not encrypted, but it must
+be a regular file owned by you with mode `0600`, and each entry is re-validated on every read.
+A file that fails those checks fails the command:
+
+| Code | Cause |
+|---|---|
+| `insecure_permissions` | Symlink, wrong owner, or mode other than `0600` |
+| `encoding_error` | Not valid JSON, wrong schema, duplicate names, or larger than 4 MiB |
 
 ## Exit status
 
-`0` success (including an empty list) · `1` execution failure (`encoding_error`, `insecure_permissions` — the address book is a symlink or group/world-readable; `chmod 600` it) · `2` usage error.
+`0` · `1` execution failure (`insecure_permissions`, `encoding_error`) · `2` usage error.
 
 ## See also
 
-[`contact add`](add.md) · [`contact remove`](remove.md) · [`tx send`](../tx/send.md)
+[`contact add`](add.md) · [`contact remove`](remove.md) · [`list`](../list.md) — wallet accounts,
+not recipients

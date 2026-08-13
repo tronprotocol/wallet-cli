@@ -12,7 +12,6 @@ import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import { stageTronBroadcast } from "../../services/tron-confirmation.js";
 import type { TronSigService } from "./sig-service.js";
 import {
-  assertThresholdReached,
   assertTronSignerAuthorized,
   authorizationState,
 } from "./multisig-authorization.js";
@@ -88,7 +87,12 @@ export class TronMultisigService {
   async #assertBroadcastable(gateway: TronGateway, transaction: TronTransactionArtifact) {
     assertNotExpired(transaction, this.now());
     const approval = await this.#approvalFor(gateway, transaction);
-    assertThresholdReached(approval.currentWeight, approval.permission.threshold);
+    if (!approval.thresholdReached) {
+      throw new ChainError(
+        "not_authorized",
+        `signature threshold is not reached; missing ${approval.missingWeight} weight`,
+      );
+    }
     return approval;
   }
 

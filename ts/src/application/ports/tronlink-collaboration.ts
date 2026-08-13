@@ -26,6 +26,13 @@ export interface TronLinkRemotePage {
   records: TronLinkRemoteRecord[];
 }
 
+export interface TronLinkCreateRequest {
+  permissionName: string;
+  txId: string;
+  rawDataJson: string;
+  contractType: string;
+}
+
 /** Outbound boundary for the official walletadapter REST/WebSocket collaboration service. */
 export interface TronLinkCollaborationPort {
   list(
@@ -33,7 +40,11 @@ export interface TronLinkCollaborationPort {
     address: string,
     filter: TronLinkListFilter,
   ): Promise<TronLinkRemotePage>;
-  /** Opens a collection when the transaction is new, and accumulates onto it thereafter. */
+  create(
+    network: NetworkDescriptor,
+    address: string,
+    request: TronLinkCreateRequest,
+  ): Promise<void>;
   submit(
     network: NetworkDescriptor,
     address: string,

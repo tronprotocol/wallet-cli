@@ -101,7 +101,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(
     registry,
-    new AddressService(new SecureKeypairWriter(root)),
+    new AddressService(root, new SecureKeypairWriter()),
   );
   registerTronChainCommands(registry, {
     gateways: gatewayProvider,

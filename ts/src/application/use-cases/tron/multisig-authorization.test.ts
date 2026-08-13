@@ -51,33 +51,7 @@ describe("TRON multisig authorization preflight", () => {
 
   it("accepts an unused key whose active bitmap allows the transaction contract", async () => {
     await expect(assertTronSignerAuthorized(gateway(), transaction(), A, 1_900_000_000_000))
-      .resolves.toMatchObject({ assertBroadcastable: expect.any(Function) });
-  });
-
-  it("gates the broadcast on the weight this signature will actually reach", async () => {
-    // 2-of-2 with only one local key: signing is legal, broadcasting the 1-weight result is not.
-    const short = await assertTronSignerAuthorized(gateway(), transaction(), A, 1_900_000_000_000);
-    expect(() => short.assertBroadcastable())
-      .toThrowError(/threshold is not reached; missing 1 weight/);
-
-    // the co-signer already approved, so this signature carries the transaction over the threshold.
-    const cosigned = gateway({
-      getSignWeight: vi.fn(async () => ({
-        permission: {
-          id: 2,
-          name: "finance",
-          threshold: 2,
-          operationsHex: "02" + "00".repeat(31),
-          keys: [{ address: A, weight: 1 }, { address: B, weight: 1 }],
-        },
-        approvedList: [B],
-        currentWeight: 1,
-        resultCode: "NOT_ENOUGH_PERMISSION",
-      })),
-      getApprovedList: vi.fn(async () => [B]),
-    });
-    const ready = await assertTronSignerAuthorized(cosigned, transaction(), A, 1_900_000_000_000);
-    expect(() => ready.assertBroadcastable()).not.toThrow();
+      .resolves.toBeUndefined();
   });
 
   it("rejects a signer outside the selected permission and a repeated signer", async () => {

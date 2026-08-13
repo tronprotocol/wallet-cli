@@ -1,8 +1,6 @@
 # wallet-cli permission
 
-View and update account permissions — the basis of TRON multi-sig.
-
-`show` is the read-only query to run before you touch anything; `update` replaces the whole permission structure in one on-chain transaction (and burns 100 TRX).
+Inspect and replace a TRON account's multi-signature permission structure.
 
 ## Synopsis
 
@@ -12,23 +10,56 @@ wallet-cli permission COMMAND
 
 ## Subcommands
 
-| Command | Page | Description |
+| Command | Description | Broadcasts |
 |---|---|---|
-| `permission show` | [show.md](show.md) | Show the account's permission structure |
-| `permission update` | [update.md](update.md) | Replace the account's permission structure (burns 100 TRX) |
+| [`permission show`](show.md) | Show owner, witness, and active permission groups | no |
+| [`permission update`](update.md) | Replace the complete account permission structure | ✍️ yes |
 
-## The permission model
+## The TRON permission model
 
-Every TRON account has:
+Every TRON account has a permission structure that decides **which keys may authorize what**. It
+has three kinds of group:
 
-- **one owner permission** (id `0`) — full control, including the power to change the permissions themselves;
-- **up to 8 active permissions** (ids `2`–`9`) — each scoped to a set of operation types it may perform;
-- **one witness permission** (id `1`) — SRs only, for block-production signing.
+| Group | id | Purpose |
+|---|---|---|
+| **owner** | `0` | Full control, including replacing the permission structure itself. Exactly one. |
+| **witness** | `1` | Block production. Only meaningful for super representatives; at most one, with exactly one key. |
+| **active** | `2`–`9` | Scoped day-to-day authority — each active group carries an explicit list of allowed operations. Up to 8. |
 
-Each permission group holds **up to 5 keys** (address + weight) and a **threshold**. A transaction is valid for a group when the combined weight of its signatures is **≥ the threshold** — that is what makes an account "multi-sig". A typical setup keeps the owner group behind a multi-key threshold and runs day-to-day activity through a scoped active group.
+Each group has:
 
-> ⚠️ **Misconfiguring the owner permission permanently locks the account.** If the new owner keys don't include an address you can sign with — or the threshold can't be met by keys you hold — the transaction still succeeds and there is no on-chain recovery. `permission update` surfaces the lockout risk as a warning but does **not** stop the submission. The warning codes are `owner_lockout` (local keys hold no owner weight), `owner_lockout_partial` (they hold less than the threshold, so co-signers become mandatory), `active_can_update_permission` (an active group can rewrite the permissions themselves) and `active_unknown_operations` (a group sets operation bits this build does not recognise).
+- **keys** — 1 to 5 addresses, each with a positive **weight**
+- a **threshold** — the total weight a transaction must accumulate to be authorized; it may not
+  exceed the sum of the group's key weights
+
+A single-key account is just the degenerate case: one key of weight 1 and a threshold of 1. Once a
+threshold exceeds any one key's weight, transactions need co-signing — that is what the
+[`tx sign`](../tx/sign.md) / [`tx approvals`](../tx/approvals.md) /
+[`tx multisig`](../tx/multisig.md) workflow exists for.
+
+Active groups additionally carry an **operations bitmap** — 32 bytes, one bit per TRON contract
+type — which is what limits an active permission to, say, transfers and staking but not permission
+changes.
+
+## Choosing the permission for a transaction
+
+Signing commands take `--permission-id <0-9>` to say *which group authorizes this transaction*
+(default `0`, the owner). The id must be a group that actually permits the operation, and the
+signer must be one of its keys.
+
+## The lockout risk
+
+`permission update` is a **complete replacement**, not a patch, and the account's own owner
+permission is what governs future changes. A structure whose owner group contains no key this
+wallet holds — or whose threshold your local keys cannot reach — leaves the account
+permanently unusable from here. There is no recovery path and no support channel that can undo it.
+
+The CLI emits warnings for the recognizable cases (`owner_lockout`, `owner_lockout_partial`,
+`active_can_update_permission`, `active_unknown_operations`), but they are warnings, not blocks.
+Always run [`permission update --dry-run`](update.md) first and read the rendered structure back
+before broadcasting.
 
 ## See also
 
-[`permission show`](show.md) · [`permission update`](update.md) · [`tx sign`](../tx/sign.md) · [Security](../../concepts/security.md)
+[`tx sign`](../tx/sign.md) · [`tx approvals`](../tx/approvals.md) ·
+[`tx multisig`](../tx/multisig.md) · [Security model](../../concepts/security.md)

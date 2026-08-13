@@ -146,42 +146,6 @@ describe("local TRON multi-signature workflow", () => {
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
-  // `tx sign` verifies online by default precisely so these two never yield a signature. Producing
-  // one anyway is worse than failing: the hex looks fine and gets passed to the next co-signer,
-  // and only `tx broadcast` — possibly hours and several people later — rejects it.
-  const spySigner = (address: string): Signer => ({
-    kind: "software",
-    address,
-    sign: vi.fn(async (transaction) => {
-      const mutable = transaction as { signature?: string[] };
-      mutable.signature = [...(mutable.signature ?? []), SIG_A];
-      return transaction;
-    }),
-    signMessage: async () => "",
-    signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
-  });
-
-  it("refuses a signer outside the permission group before producing a signature", async () => {
-    const outsider = "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8";
-    const signer = spySigner(outsider);
-    const scoped = { ...scope(), resolveAddress: () => outsider } as TransactionScope;
-    await expect(service(fakeGateway(), signer).signChecked(scoped, NETWORK, unsignedHex()))
-      .rejects.toMatchObject({ code: "not_authorized" });
-    expect(signer.sign).not.toHaveBeenCalled();
-  });
-
-  it("refuses a repeat signature before producing a signature", async () => {
-    const signer = spySigner(A);
-    // gateway reports A as already approved for any transaction carrying a signature
-    const alreadySigned = encodeTransactionHex({
-      ...decodeTransactionHex(unsignedHex()),
-      signature: [SIG_B],
-    } as never);
-    await expect(service(fakeGateway(), signer).signChecked(scope(), NETWORK, alreadySigned))
-      .rejects.toMatchObject({ code: "already_signed" });
-    expect(signer.sign).not.toHaveBeenCalled();
-  });
-
   it("does not sign when the authorized account and resolved signer diverge", async () => {
     const signer: Signer = {
       kind: "software",

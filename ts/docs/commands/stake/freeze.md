@@ -6,7 +6,7 @@ Stake TRX for energy/bandwidth.
 
 ```
 wallet-cli stake freeze --amount-sun <n> [--resource energy|bandwidth]
-                        [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]] [--permission-id <n>] [options]
+                        [--dry-run | --sign-only] [--wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Stakes TRX from the active account's balance (Stake 2.0) in exchange for a stead
 
 Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back, [`stake unfreeze`](unfreeze.md) and, after the waiting period, [`stake withdraw`](withdraw.md).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
 
 ## Options
 
@@ -23,11 +23,8 @@ Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back
 |---|---|
 | `--amount-sun <string>` | **Required.** Amount to stake, in SUN |
 | `--resource <energy\|bandwidth>` | Resource type to obtain (default `bandwidth`) |
-| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
-| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` |
+| `--sign-only` | Sign without broadcasting; excludes `--dry-run` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 

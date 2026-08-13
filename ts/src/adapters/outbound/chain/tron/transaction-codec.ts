@@ -49,10 +49,6 @@ const CONTRACT_TYPE_BY_ID: Readonly<Record<number, string>> = Object.freeze({
   46: "AccountPermissionUpdateContract",
   48: "ClearABIContract",
   49: "UpdateBrokerageContract",
-  // 14/51/52/53 are named but NOT decodable by the bundled TronWeb (its deserializer throws
-  // "not supported"). They stay in the table so an artifact carrying one is refused as
-  // "<name> cannot be decoded losslessly" rather than the opaque "unsupported contract type id".
-  51: "ShieldedTransferContract",
   52: "MarketSellAssetContract",
   53: "MarketCancelOrderContract",
   54: "FreezeBalanceV2Contract",
@@ -117,43 +113,15 @@ function appendSignatures(pb: ProtobufTransaction, signatures: unknown): void {
   }
 }
 
-const RESOURCE_CODE_NAMES: readonly string[] = ["BANDWIDTH", "ENERGY", "TRON_POWER"];
-
-/**
- * TRON services (TronLink among them) render protobuf enums as their numeric value, while TronWeb's
- * encoder only understands the name and drops an unrecognized value *silently* — the re-encoded
- * bytes would then be missing the field and read as forged. Map it back to the name; the
- * raw_data_hex / txID equality checks below remain the arbiter of whether the result is accepted.
- */
-function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<TronTransactionArtifact> {
-  const contract = candidate.raw_data?.contract[0];
-  const value = contract?.parameter?.value;
-  const resource = value?.resource;
-  if (typeof resource !== "number") return candidate;
-  const name = RESOURCE_CODE_NAMES[resource];
-  if (name === undefined) return candidate;
-  return {
-    ...candidate,
-    raw_data: {
-      ...candidate.raw_data!,
-      contract: [{
-        ...contract!,
-        parameter: { ...contract!.parameter, value: { ...value, resource: name } },
-      }],
-    },
-  };
-}
-
 /** Encode JSON into complete protocol.Transaction bytes, preserving existing signatures. */
 export function encodeTransactionHex(transaction: unknown): string {
   if (!transaction || typeof transaction !== "object") {
     return invalidTransaction("transaction must be an object");
   }
-  let candidate = transaction as Partial<TronTransactionArtifact>;
+  const candidate = transaction as Partial<TronTransactionArtifact>;
   if (!candidate.raw_data || !Array.isArray(candidate.raw_data.contract) || candidate.raw_data.contract.length !== 1) {
     return invalidTransaction("exactly one contract is required per transaction");
   }
-  candidate = withNamedEnums(candidate);
   let pb: ProtobufTransaction;
   try {
     pb = tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction;
@@ -230,25 +198,7 @@ export function decodeTransactionHex(input: string): TronTransactionArtifact {
   return transaction;
 }
 
-/**
- * TRON derives a deployed contract's address from the transaction that creates it:
- * `41 ‖ keccak256(txID ‖ owner_address)[12..]`. It is therefore part of the transaction identity,
- * not an independent field — any raw_data mutation moves the contract, so a carried-over
- * `contract_address` would name a contract that never gets deployed.
- */
-function deriveContractAddress(txId: string, contract: { parameter?: { value?: Record<string, unknown> } }): string {
-  const owner = contract.parameter?.value?.owner_address;
-  if (typeof owner !== "string" || !/^41[0-9a-fA-F]{40}$/.test(owner)) {
-    return invalidTransaction("CreateSmartContract owner_address must be a 21-byte hex address");
-  }
-  const preimage = Uint8Array.from(
-    (txId + owner.toLowerCase()).match(/../g)!.map((byte) => parseInt(byte, 16)),
-  );
-  return `41${tronUtils.ethersUtils.keccak256(preimage).slice(2).slice(24)}`;
-}
-
-/** Recompute txID, raw_data_hex, and any derived contract address after a deliberate unsigned
- *  raw_data mutation. */
+/** Recompute txID and raw_data_hex after a deliberate unsigned raw_data mutation. */
 export function refreshTransactionIdentity(transaction: unknown): TronTransactionArtifact {
   if (!transaction || typeof transaction !== "object") {
     return invalidTransaction("transaction must be an object");
@@ -269,10 +219,6 @@ export function refreshTransactionIdentity(transaction: unknown): TronTransactio
     txID: tronUtils.transaction.txPbToTxID(pb).replace(/^0x/i, "").toLowerCase(),
     raw_data_hex: tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase(),
   };
-  const deployment = refreshed.raw_data.contract[0];
-  if (typeof refreshed.contract_address === "string" && deployment?.type === "CreateSmartContract") {
-    refreshed.contract_address = deriveContractAddress(refreshed.txID, deployment);
-  }
   decodeTransactionHex(encodeTransactionHex(refreshed));
   return refreshed;
 }

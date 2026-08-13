@@ -33,12 +33,9 @@ const transferFields = z.object({
     .refine(
       (value) => !/^0+(\.0+)?$/.test(value),
       "must be greater than zero",
-    )
-    .describe("human token amount to transfer, in token units"),
-  token: z.string().trim().min(1).max(32).default("USDT")
-    .describe("token symbol supported by the GasFree provider"),
-  dryRun: z.boolean().default(false)
-    .describe("check token balance and the fee breakdown without unlocking, signing, or submitting"),
+    ),
+  token: z.string().trim().min(1).max(32).default("USDT"),
+  dryRun: z.boolean().default(false),
 });
 
 export const gasFreeTransferSpec: ChainSpec = {
@@ -84,8 +81,7 @@ export const gasFreeTransferTronBinding = (
 
 const traceFields = z.object({
   traceId: z.string().trim().min(1).max(128)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
-    .describe("trace id returned by `gasfree transfer`"),
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
 });
 
 export const gasFreeTraceSpec: ChainSpec = {

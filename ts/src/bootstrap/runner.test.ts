@@ -1,8 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { main } from "./runner.js";
+import { describe, it, expect } from "vitest";
 import { parseGlobals, hasCommand } from "./argv.js";
 import { FAMILY_REGISTRY } from "./family-registry.js";
 
@@ -67,69 +63,5 @@ describe("parseGlobals", () => {
   it("ignores a value flag with no following token at end of argv", () => {
     expect(() => parseGlobals(["--network"])).not.toThrow();
     expect(parseGlobals(["--network"]).globals.network).toBeUndefined();
-  });
-});
-
-// composeCliRuntime runs before the formatter exists, so a broken config.yaml used to escape main()
-// entirely and land on the last-resort `fatal:` guard in index.ts — no envelope, exit 1 for what is
-// a UsageError. A malformed document is the trigger here because, unlike the 0600 check, it is not
-// skipped on Windows.
-describe("bootstrap error boundary", () => {
-  async function runWithConfig(yaml: string, tokens: string[]) {
-    const root = mkdtempSync(join(tmpdir(), "wcli-boot-"));
-    writeFileSync(join(root, "config.yaml"), yaml);
-    const previous = process.env.WALLET_CLI_HOME;
-    process.env.WALLET_CLI_HOME = root;
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
-      stdout.push(String(chunk));
-      return true;
-    });
-    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
-      stderr.push(String(chunk));
-      return true;
-    });
-    try {
-      const code = await main(["node", "wallet-cli", ...tokens]);
-      return { code, stdout: stdout.join(""), stderr: stderr.join("") };
-    } finally {
-      outSpy.mockRestore();
-      errSpy.mockRestore();
-      if (previous === undefined) delete process.env.WALLET_CLI_HOME;
-      else process.env.WALLET_CLI_HOME = previous;
-    }
-  }
-
-  const BROKEN = [
-    'gasfreeApiSecret: "SUPERSECRET123"',
-    'defaultNetwork: "unterminated',
-    "  bad: [1,2",
-    "",
-  ].join("\n");
-
-  it("emits a v1 error envelope and the UsageError exit code, even for --help", async () => {
-    const { code, stdout } = await runWithConfig(BROKEN, ["-o", "json", "--help"]);
-
-    expect(code).toBe(2);
-    expect(JSON.parse(stdout)).toMatchObject({
-      schema: "wallet-cli.result.v1",
-      success: false,
-      error: { code: "invalid_config" },
-    });
-  });
-
-  it("never leaks the offending file content into either stream", async () => {
-    const { stdout, stderr } = await runWithConfig(BROKEN, ["-o", "json", "account", "balance"]);
-
-    expect(stdout + stderr).not.toContain("SUPERSECRET123");
-    expect(stdout + stderr).not.toContain("bad: [1,2");
-  });
-
-  it("falls back to text when no explicit -o was given (the config default is unreadable)", async () => {
-    const { code, stderr } = await runWithConfig(BROKEN, ["account", "balance"]);
-
-    expect(code).toBe(2);
-    expect(stderr).toMatch(/invalid_config/);
   });
 });

@@ -51,7 +51,7 @@ export class AtomicFileStore {
   }
 
   writeJson(path: string, value: unknown): void {
-    this.writeText(path, JSON.stringify(value, null, 2) + "\n");
+    this.#writeAtomically(path, JSON.stringify(value, null, 2) + "\n");
   }
 
   /** transactional multi-file write: stage every temp first, then commit each into place while
@@ -71,7 +71,7 @@ export class AtomicFileStore {
       }
     } catch (e) {
       for (const { tmp } of staged) { try { unlinkSync(tmp); } catch { /* best-effort */ } }
-      throwIoError(e, "could not stage atomic JSON write");
+      throw e;
     }
 
     // commit phase: back up each existing target, then move its temp into place.
@@ -118,7 +118,7 @@ export class AtomicFileStore {
           { error: String(e), fsyncError: String(fsyncErr), files: committed.map((c) => c.path).join(", ") },
         );
       }
-      throwIoError(e, "atomic JSON write failed and was rolled back");
+      throw e; // clean rollback: every target restored to its prior state
     }
     // durably land every committed rename before reporting success (still not multi-file atomic —
     // that needs the journal in CP-01 — but each installed blob now survives power loss).
@@ -179,25 +179,22 @@ export class AtomicFileStore {
   }
 
   writeText(path: string, text: string): void {
+    this.#writeAtomically(path, text);
+  }
+
+  #writeAtomically(path: string, text: string): void {
+    mkdirSync(dirname(path), { recursive: true });
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
-    let published = false;
     try {
-      mkdirSync(dirname(path), { recursive: true });
       writeFileSync(tmp, text, { mode: 0o600 });
       this.fsyncFile(tmp);
       renameSync(tmp, path);
-      published = true;
       this.fsyncDir(dirname(path));
-    } catch (error) {
-      if (!published) {
-        try { unlinkSync(tmp); } catch { /* best-effort */ }
-      }
-      throwIoError(
-        error,
-        published
-          ? "atomic text write committed but durability could not be confirmed"
-          : "could not complete atomic text write",
-      );
+    } catch (e) {
+      // A failed fsync/rename must not leave a plausible-looking keystore cache behind. Only remove
+      // this invocation's high-specificity temp path; an already-published target is never touched.
+      try { unlinkSync(tmp); } catch { /* absent after a successful rename, otherwise best-effort */ }
+      throw e;
     }
   }
 
@@ -236,13 +233,4 @@ export class AtomicFileStore {
   }
 
   #counter = 0;
-}
-
-function throwIoError(error: unknown, message: string): never {
-  if (error instanceof ExecutionError) throw error;
-  const code = (error as NodeJS.ErrnoException)?.code;
-  if (typeof code === "string") {
-    throw new ExecutionError("io_error", `${message}: ${code}`, { code });
-  }
-  throw error;
 }

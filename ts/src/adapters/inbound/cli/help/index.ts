@@ -107,7 +107,7 @@ export class HelpService {
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
-      ["chain", "Query chain params, prices & node info", "tron"],
+      ["chain", "Query chain params, prices & node info", ""],
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
@@ -209,7 +209,6 @@ export class HelpService {
       broadcasts: cmd.broadcasts,
       fields: introspectFields(cmd.fields),
       inputFlags: inputFlagsFor(cmd),
-      exclusive: cmd.exclusive,
       examples: cmd.examples,
       requires: cmd.requires,
       positionals: cmd.positionals,
@@ -230,7 +229,6 @@ export class HelpService {
       broadcasts: spec.broadcasts,
       fields: introspectFields(mergedFields(def)),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
-      exclusive: spec.exclusive,
       examples: spec.examples,
       requires: spec.requires,
       positionals: spec.positionals,
@@ -249,7 +247,6 @@ export class HelpService {
     broadcasts?: boolean
     fields: FieldInfo[]
     inputFlags: readonly GlobalFlag[]
-    exclusive?: ChainSpec["exclusive"]
     examples: CommandDefinition["examples"]
     requires?: string[]
     positionals?: { field: string; placeholder?: string }[]
@@ -303,40 +300,16 @@ export class HelpService {
     // of its own. (The machine --json-schema catalog still keeps inputFlags as a distinct key.)
     const posNames = new Set((c.positionals ?? []).map((p) => p.field))
     const flagFields = posNames.size ? c.fields.filter((f) => !posNames.has(f.name)) : c.fields
-    const optionRows: OptionRow[] = [
-      ...flagFields.map((f) => ({ key: f.kebab, head: flagHead(f), desc: f.description ?? "", tag: flagTag(f) })),
-      ...c.inputFlags.map((g) => ({ key: g.flag.replace(/^--/, ""), head: globalFlagHead(g), desc: g.description, tag: globalFlagTag(g) })),
+    const optionRows: Array<{ head: string; desc: string; tag: string }> = [
+      ...flagFields.map((f) => ({ head: flagHead(f), desc: f.description ?? "", tag: flagTag(f) })),
+      ...c.inputFlags.map((g) => ({ head: globalFlagHead(g), desc: g.description, tag: globalFlagTag(g) })),
     ]
     if (optionRows.length) {
       const width = Math.min(34, Math.max(...optionRows.map((r) => r.head.length)))
-      const rowLine = (r: OptionRow, tag: string): string =>
-        `  ${r.head.padEnd(width)}  ${r.desc}${r.desc && tag ? "  " : ""}${tag}`.trimEnd()
-      // an exclusive set renders as its own labelled block, ahead of the free-standing options.
-      // A jointly-required set drops the per-member "[optional]" tag: individually true, but read
-      // together it says the whole set may be omitted — which is exactly what the runtime rejects.
-      // An "at-most-one" set genuinely may be omitted, so its members keep their tags.
-      const grouped = new Set<string>()
-      const blocks: string[][] = []
-      for (const group of c.exclusive ?? []) {
-        // Resolving by kebab flag name means a stale or mistyped member would just disappear,
-        // leaving help that silently omits the constraint. Fail loudly — only a spec can be wrong
-        // here, never user input.
-        const members = group.flags.map((flag) => {
-          const row = optionRows.find((r) => r.key === flag)
-          if (!row) throw new Error(`exclusive group "${group.label}" names unknown flag --${flag} on ${c.path.join(" ")}`)
-          return row
-        })
-        if (members.length < 2) continue
-        for (const m of members) grouped.add(m.key)
-        const atMostOne = group.select === "at-most-one"
-        blocks.push([
-          `  ${atMostOne ? "At most one" : "Exactly one"} of these — ${group.label}:`,
-          ...members.map((m) => rowLine(m, atMostOne ? m.tag : "")),
-        ])
+      lines.push("", "Options:")
+      for (const r of optionRows) {
+        lines.push(`  ${r.head.padEnd(width)}  ${r.desc}${r.desc && r.tag ? "  " : ""}${r.tag}`.trimEnd())
       }
-      const rest = optionRows.filter((r) => !grouped.has(r.key)).map((r) => rowLine(r, r.tag))
-      if (rest.length) blocks.push(rest)
-      lines.push("", "Options:", ...blocks.flatMap((block, i) => (i ? ["", ...block] : block)))
     }
 
     lines.push("", "Global options:")
@@ -419,14 +392,6 @@ function metaPositionals(tokens: string[]): string[] {
 }
 
 /** "--flag <type>" header for a command flag — enum fields list their choices instead of <enum>. */
-/** one rendered Options row; `key` is the kebab flag name an ExclusiveGroup refers to. */
-interface OptionRow {
-  key: string
-  head: string
-  desc: string
-  tag: string
-}
-
 function flagHead(f: FieldInfo): string {
   const typ = f.choices ? ` <${f.choices.join("|")}>` : f.baseType === "boolean" ? "" : ` <${f.baseType}>`
   return `--${f.kebab}${typ}`
@@ -478,14 +443,12 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   account: "Query on-chain account state, activate accounts, and set on-chain identity fields.",
   token: "Manage the token address book and query tokens.",
   tx: "Build, send, broadcast, co-sign, and inspect transactions.",
-  gasfree: "Gas-free token transfers via the GasFree service (open.gasfree.io).\nFees are charged in the transferred token — a per-transfer service fee, plus a one-time\nactivation fee on the first transfer from an inactive GasFree address — so no TRX is needed.\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
+  gasfree: "Gas-free token transfers via the GasFree service (open.gasfree.io).\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
   contract: "Call, send, deploy, and inspect smart contracts.",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",
   reward: "Query and withdraw voting/block rewards.",
-  // The fee is a chain parameter read live at run time (getUpdateAccountPermissionFee), so it is
-  // pinned to mainnet rather than stated as an absolute.
-  permission: "View and update account permissions (TRON multi-sign).\nAn account has one owner permission (full control), up to 8 active permissions (scoped operations),\nand — for SRs — one witness permission. Replacing the structure burns a chain-set fee (100 TRX on mainnet).\nMisconfiguring owner permission can permanently lock the account.",
+  permission: "View and update account permissions (TRON multi-sign).\nMisconfiguring owner permission can permanently lock the account.",
   chain: "Query on-chain parameters, resource prices, and node status.",
   message: "Sign arbitrary messages.",
   "typed-data": "Sign EIP-712 / TIP-712 structured data.",

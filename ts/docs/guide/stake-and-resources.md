@@ -55,7 +55,7 @@ By default you can reclaim a delegation at any time. Adding `--lock` blocks that
 wallet-cli stake undelegate --amount-sun 50000000 --resource energy --receiver TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network tron:nile
 ```
 
-## 4. Unstake — a two-step exit, plus an undo
+## 4. Unstake — a three-step exit
 
 Unstaking is not instant; the chain imposes a waiting period — 14 days on mainnet (other networks may differ):
 
@@ -66,11 +66,11 @@ wallet-cli stake unfreeze --amount-sun 100000000 --resource energy --network tro
 # step 2 (after the waiting period): claim the expired unstake back to balance
 wallet-cli stake withdraw --network tron:nile
 
-# not a step — changed your mind before expiry? roll ALL pending unstakes back to staked
+# changed your mind before expiry? roll ALL pending unstakes back to staked
 wallet-cli stake cancel-unfreeze --network tron:nile
 ```
 
-`cancel-unfreeze` cancels the exit rather than continuing it — it is all-or-nothing across pending unstakes, so you cannot roll back just part of one. Run it and there is nothing left for `withdraw` to claim. `withdraw` claims whatever has expired.
+Note `cancel-unfreeze` is all-or-nothing across pending unstakes, and `withdraw` claims whatever has expired.
 
 ## See also
 

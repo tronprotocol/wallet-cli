@@ -60,15 +60,4 @@ describe("SecureBackupWriter", () => {
     // the symlink was not resolved into a real file
     expect(existsSync(join(root, "nonexistent-target"))).toBe(false);
   });
-
-  it.runIf(process.platform !== "win32")(
-    "maps an unusable parent path to io_error without creating an artifact",
-    () => {
-      const target = "/dev/null/account.backup";
-
-      expect(() => writer.write("acct-1", target, { secret: "x" }))
-        .toThrowError(expect.objectContaining({ code: "io_error" }));
-      expect(existsSync(target)).toBe(false);
-    },
-  );
 });
