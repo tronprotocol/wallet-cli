@@ -30,6 +30,16 @@ describe("transactionMode", () => {
     expect(transactionMode({ signOnly: true })).toMatchObject({ mode: "sign-only", dryRun: false, broadcast: false });
   });
 
+  it("--build-only → unsigned transaction without broadcast", () => {
+    expect(transactionMode({ buildOnly: true })).toEqual({
+      mode: "build-only",
+      dryRun: false,
+      buildOnly: true,
+      broadcast: false,
+      permissionId: 0,
+    });
+  });
+
   it("--dry-run + --sign-only → invalid_option", () => {
     expectCode(() => transactionMode({ dryRun: true, signOnly: true }), "invalid_option");
   });

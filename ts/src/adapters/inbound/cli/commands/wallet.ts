@@ -2,11 +2,12 @@
  * Wallet root commands — create/import/list/current/use/backup. Not chain-bound; no --network.
  * Calls WalletService rather than the transaction pipeline.
  */
+import { existsSync } from "node:fs"
 import { z } from "zod"
 import type { CommandDefinition } from "../contracts/index.js"
 import { Schemas } from "../schemas/index.js"
 import { CommandRegistry } from "../registry/index.js"
-import { accountRef, ciEnum } from "../arity/index.js"
+import { accountRef, camelToKebab, ciEnum } from "../arity/index.js"
 import type { LedgerDevice } from "../../../../application/ports/ledger-device.js"
 import type { QrEncoder } from "../../../../application/ports/qr-encoder.js"
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js"
@@ -14,6 +15,7 @@ import { resolveLedgerPath, selectLedgerPath } from "../../../../application/ser
 import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js"
 import { UsageError } from "../../../../domain/errors/index.js"
 import { passwordPolicyErrors } from "../input/prompt/validators.js"
+import { readBoundedTextFile } from "./artifact.js"
 import { TextFormatters } from "../render/index.js"
 
 // ── wallet import-ledger contract (module scope so it can be unit-tested) ───────
@@ -40,6 +42,52 @@ export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, 
   const locators = [v.index !== undefined, v.path !== undefined, v.address !== undefined].filter(Boolean).length
   if (locators > 1) c.addIssue({ code: "custom", path: ["index"], message: "--index, --path and --address are mutually exclusive" })
 })
+
+// ── import keystore file reading ───────────────────────────────────────────────
+// A V3 keystore is a small JSON document; the cap only exists to refuse a file that plainly is not
+// one before it is read into memory.
+const KEYSTORE_MAX_BYTES = 64 * 1024
+
+/** the parsed JSON of a keystore file. Distinguishes "no such file" from "not a keystore" so the
+ *  caller learns which of the two mistakes they made. */
+function readKeystoreFile(path: string): unknown {
+  if (!existsSync(path)) throw new UsageError("keystore_not_found", `no keystore file at ${path}`)
+  const raw = readBoundedTextFile(path, KEYSTORE_MAX_BYTES, "keystore file")
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    throw new UsageError("invalid_keystore", `${path} is not valid JSON`)
+  }
+}
+
+// ── backup --records time bounds ───────────────────────────────────────────────
+// `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss`, always read as UTC — the log is written in UTC, and a
+// local-time reading would silently shift a boundary by the machine's offset. A bare date means that
+// day's 00:00:00 (both bounds are inclusive instants, not day ranges).
+const UTC_DATETIME = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}):(\d{2}))?$/
+
+/** the ISO-8601 instant a bound denotes, or undefined when the bound was not given. */
+function utcInstant(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const [, y, mo, d, h = "00", mi = "00", s = "00"] = UTC_DATETIME.exec(value)!
+  return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`
+}
+
+function utcDateTime(describe: string) {
+  return z
+    .string()
+    .refine((v) => {
+      const m = UTC_DATETIME.exec(v)
+      if (!m) return false
+      // Reject impossible calendar values (2026-02-31, 25:00:00): Date normalises them silently, so
+      // compare the round-trip instead of trusting the parse.
+      const iso = utcInstant(v)!
+      const parsed = new Date(iso)
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().replace(/\.\d{3}Z$/, "Z") === iso
+    }, "expected YYYY-MM-DD or 'YYYY-MM-DD HH:mm:ss' (UTC)")
+    .optional()
+    .describe(`${describe}; format YYYY-MM-DD or 'YYYY-MM-DD HH:mm:ss', parsed as UTC`)
+}
 
 export function registerWalletCommands(
   reg: CommandRegistry,
@@ -130,6 +178,49 @@ export function registerWalletCommands(
     run: async (ctx, _net, input) => {
       const secret = await ctx.secrets.resolveSecret("privateKey")
       return wallets.importPrivateKey(secret, input.label)
+    },
+  } satisfies CommandDefinition)
+
+  // ── import keystore ───────────────────────────────────────────────────────
+  // Two independent passwords, both hidden-TTY-only: the FILE's own password (to decrypt it) and our
+  // master password (to re-encrypt it locally). The file is read and structurally validated FIRST, so
+  // a typo'd path costs no password prompts — hence no `passwordMode`; priming happens inside `run`
+  // (same reasoning as `backup`).
+  const importKeystoreFields = z.object({
+    path: z.string().min(1).describe("path to the keystore JSON file"),
+    label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
+  })
+  reg.add({
+    path: ["import", "keystore"],
+    network: "none",
+    wallet: "none",
+    auth: "required",
+    interactive: true,
+    secretsTtyOnly: true,
+    positionals: [{ field: "path" }],
+    promptHints: { label: "default-label" },
+    requires: ["the keystore file's own password — entered interactively in a TTY"],
+    summary: "Import an account from a standard Web3 keystore JSON",
+    description:
+      "Import a single account from a standard Web3 keystore JSON (as exported by TronLink or\n" +
+      "'backup --keystore'), stored encrypted under your master password and made active. It carries\n" +
+      "one private key, so nothing can be derived from it; a same-address account is refused with\n" +
+      "account_exists (delete it first).\n\n" +
+      "Interactive-only: the master password and the keystore's own password are entered only via\n" +
+      "hidden TTY prompts, never stdin/argv — without a TTY it fails with tty_required.",
+    fields: importKeystoreFields,
+    input: importKeystoreFields,
+    examples: [
+      { cmd: "wallet-cli import keystore ./tronlink-export.json" },
+      { cmd: "wallet-cli import keystore ./tronlink-export.json --label imported" },
+    ],
+    formatText: TextFormatters.walletCreated("Imported", ["The keystore password was read from hidden input and was not printed."]),
+    run: async (ctx, _net, input) => {
+      const file = readKeystoreFile(input.path)
+      const mode = wallets.isInitialized() ? "verify" : "set"
+      await ctx.secrets.primePassword({ mode, verify: (pw) => wallets.verifyPassword(pw) })
+      const keystorePassword = await ctx.prompt.hidden({ label: "Keystore file password (hidden)" })
+      return wallets.importKeystore(file, keystorePassword, input.label)
     },
   } satisfies CommandDefinition)
 
@@ -341,11 +432,48 @@ export function registerWalletCommands(
   // answer satisfies instead of telling them the account simply cannot be exported.
   // --password-stdin remains the non-interactive source.
   const backupFields = z.object({
-    account: accountRef("account or wallet to export, addressed by accountId, label, or address"),
+    account: accountRef(
+      "account or wallet to export, addressed by accountId, label, or address; with --records, the account whose exports to list",
+      { optional: true },
+    ),
+    keystore: z.boolean().default(false)
+      .describe("export as a standard Web3 keystore JSON (importable by TronLink and others, encrypted with your master password) instead of the native format"),
     out: z
       .string()
       .optional()
-      .describe("output file path; omit to write <wallet-cli-root>/backups/<accountId>-<timestamp>.json; file is created with mode 0600 and never overwritten"),
+      .describe("output file path; omit to write ./<accountId>-<timestamp>.json in the current directory (.keystore.json with --keystore); file is created with mode 0600 and never overwritten"),
+    records: z.boolean().default(false)
+      .describe("list past secret exports instead of exporting anything"),
+    from: utcDateTime("with --records: only records at or after this UTC time"),
+    to: utcDateTime("with --records: only records at or before this UTC time"),
+    limit: z.coerce.number().int().positive().optional()
+      .describe("with --records: maximum records to return; omit for all"),
+    // Optional, not .default(0): a default makes "not given" indistinguishable from "given as 0"
+    // in the refine below, which is how --offset alone slipped past the --records guard. The 0
+    // lives in backupRecords (query.offset ?? 0), so the emitted pagination is unchanged.
+    offset: z.coerce.number().int().min(0).optional()
+      .describe("with --records: pagination offset"),
+  })
+  const RECORD_FILTERS = ["from", "to", "limit", "offset"] as const
+  const backupInput = backupFields.superRefine((v, c) => {
+    if (v.records) {
+      // --keystore/--out describe an export; --records exports nothing, so accepting them would
+      // silently ignore what the caller asked for.
+      for (const flag of ["keystore", "out"] as const) {
+        if (v[flag] !== undefined && v[flag] !== false) {
+          c.addIssue({ code: "custom", path: [flag], message: `--${camelToKebab(flag)} exports a file; it cannot be combined with --records` })
+        }
+      }
+      return
+    }
+    if (v.account === undefined) {
+      c.addIssue({ code: "custom", path: ["account"], message: "an account is required unless --records is given" })
+    }
+    for (const flag of RECORD_FILTERS) {
+      if (v[flag] !== undefined) {
+        c.addIssue({ code: "custom", path: [flag], message: `--${flag} filters the export log; it needs --records` })
+      }
+    }
   })
   reg.add({
     path: ["backup"],
@@ -354,15 +482,49 @@ export function registerWalletCommands(
     auth: "required",
     interactive: true,
     positionals: [{ field: "account" }],
-    summary: "Export an account's secret + metadata to a 0600 file",
+    summary: "Export an account's secret (native or --keystore); audit exports with --records",
+    description:
+      "Export an account's secret to a 0600 file — the native backup format, or a standard Web3\n" +
+      "keystore JSON with --keystore (importable by TronLink and others, encrypted with your master\n" +
+      "password). A keystore holds a single private key, so an HD account exports only its current\n" +
+      "derived key; use the native backup to move a whole seed.\n\n" +
+      "The secret is written only to the file, never to stdout; watch-only and Ledger accounts have\n" +
+      "none to export. Files default to the CURRENT DIRECTORY — do not run this in a shared directory\n" +
+      "or a git repository.\n\n" +
+      "With --records and no account, nothing is exported: it shows the local audit log of past\n" +
+      "exports instead — one row per 'backup' and 'backup --keystore', newest first, with the file\n" +
+      "each secret went to. Imports are not logged. The log keeps the most recent 1000 entries.",
     fields: backupFields,
-    input: backupFields,
-    examples: [{ cmd: "wallet-cli backup main --out ~/main-backup.json --password-stdin" }],
+    input: backupInput,
+    // Log filters are never interrogated — a listing is meant to be re-run with a narrower flag, not
+    // negotiated one prompt at a time.
+    promptHints: { from: "skip", to: "skip", limit: "skip", offset: "skip" },
+    // --records audits: nothing is exported, so there is no account to pick and no file to name.
+    skipGapFill: (argv) => (argv.records ? ["account", "out"] : []),
+    commandIdFor: (input) => (input.records ? "backup.records" : "backup"),
+    examples: [
+      { cmd: "wallet-cli backup main --out ~/main-backup.json --password-stdin" },
+      { cmd: "wallet-cli backup main --keystore --password-stdin" },
+      { cmd: "wallet-cli backup --records --limit 20" },
+      { cmd: "wallet-cli backup --records --account main --from 2026-08-01" },
+    ],
     formatText: TextFormatters.walletBackup,
     run: async (ctx, _net, input) => {
-      wallets.assertExportable(input.account)
+      if (input.records) {
+        return wallets.backupRecords({
+          from: utcInstant(input.from),
+          to: utcInstant(input.to),
+          limit: input.limit,
+          offset: input.offset,
+          account: input.account,
+        })
+      }
+      const account = input.account! // guaranteed by backupInput's refine
+      wallets.assertExportable(account)
       await ctx.secrets.primePassword({ mode: "verify", verify: (pw) => wallets.verifyPassword(pw) })
-      return wallets.backup(input.account, input.out)
+      return input.keystore
+        ? wallets.backupKeystore(account, input.out, ctx.secrets.read("password"))
+        : wallets.backup(account, input.out)
     },
   } satisfies CommandDefinition)
 

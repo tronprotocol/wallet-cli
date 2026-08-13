@@ -101,9 +101,13 @@ export class HelpService {
       ["account", "Query on-chain account state, activate & name accounts", ""],
       ["permission", "View and update account multi-sign permissions", "tron"],
       ["token", "Manage the token address book and query tokens", ""],
-      ["tx", "Build, send, broadcast, co-sign, and inspect transactions", ""],
+      ["asset", "Issue and manage TRC10 tokens", "tron"],
+      ["exchange", "Create and trade Bancor exchange pairs", "tron"],
+      ["tx", "Build, send, broadcast, and inspect transactions", ""],
+      ["contract", "Call, deploy, govern, and inspect smart contracts", ""],
       ["gasfree", "Gas-free token transfers via the GasFree service", "tron"],
-      ["contract", "Call, send, deploy, and inspect smart contracts", ""],
+      ["proposal", "Create and vote on governance proposals", "tron"],
+      ["witness", "Register and operate an SR candidacy", "tron"],
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
@@ -176,19 +180,22 @@ export class HelpService {
   #renderNeutralGroup(head: string): string {
     const cmds = this.#neutralGroupCommands(head)
     const rows = cmds.map((c) => [c.path[1] ?? "", c.summary ?? ""] as const)
-    return this.#renderGroup(head, rows, 1000)
+    return this.#renderGroup(head, rows)
   }
 
   /** logical resource group (`account --help`): default surface, implementations chosen by --network/defaultNetwork. */
   #renderLogicalNs(group: string): string {
     const commands = this.#chainGroupCommands(group)
     const rows = commands.map((c) => [c.path[1] ?? "", c.summary ?? ""] as const)
-    return this.#renderGroup(group, rows, 18)
+    return this.#renderGroup(group, rows)
   }
 
   /** shared group skeleton (群组层): inline Usage → description → verb list → footer. */
-  #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string]>, maxWidth: number): string {
-    const width = Math.min(maxWidth, Math.max(0, ...rows.map(([verb]) => verb.length)) + 2)
+  #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string]>): string {
+    // Width is the longest verb, uncapped: a cap cannot shorten an over-long verb, it only stops
+    // padEnd from reaching it — so every summary in the group loses its column the moment one verb
+    // exceeds the cap (`contract set-user-resource-percent`, 25 chars, did exactly that).
+    const width = Math.max(0, ...rows.map(([verb]) => verb.length)) + 2
     const lines = [`${bold("Usage:")}  wallet-cli ${group} COMMAND`, ""]
     const desc = GROUP_DESCRIPTIONS[group]
     if (desc) lines.push(desc, "")
@@ -477,9 +484,11 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   import: "Import a wallet from an existing secret or device.",
   account: "Query on-chain account state, activate accounts, and set on-chain identity fields.",
   token: "Manage the token address book and query tokens.",
-  tx: "Build, send, broadcast, co-sign, and inspect transactions.",
+  tx: "Build, send, broadcast, and inspect transactions.",
+  contract: "Call, deploy, govern, and inspect smart contracts.",
+  proposal: "Create, approve, delete, and query on-chain governance proposals.",
+  witness: "Register and operate a super representative candidacy.",
   gasfree: "Gas-free token transfers via the GasFree service (open.gasfree.io).\nFees are charged in the transferred token — a per-transfer service fee, plus a one-time\nactivation fee on the first transfer from an inactive GasFree address — so no TRX is needed.\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
-  contract: "Call, send, deploy, and inspect smart contracts.",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",
   reward: "Query and withdraw voting/block rewards.",

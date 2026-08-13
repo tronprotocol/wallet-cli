@@ -13,9 +13,21 @@ export interface ChainView {
   network: string;
   chainId: string;
 }
+/** The window a paginated read returned. ONE location for every list command, so a caller can page
+ *  any of them without knowing the payload's shape. `limit: null` = unlimited (no --limit given);
+ *  `total: null` = the count is genuinely unknowable, not merely missing — TRON's paginated
+ *  endpoints return no count, and computing one would mean transferring every record. Both keys are
+ *  always present, so `null` is the single "unknown" signal and absence never has to be handled. */
+export interface Pagination {
+  offset: number;
+  limit: number | null;
+  total: number | null;
+}
 export interface Meta {
   durationMs: number;
   warnings: WarningItem[];
+  /** present on paginated reads only; lifted out of `data` by the json formatter. */
+  pagination?: Pagination;
 }
 export interface ResultEnvelope {
   schema: "wallet-cli.result.v1";

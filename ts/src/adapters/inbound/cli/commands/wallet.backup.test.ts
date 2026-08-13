@@ -51,12 +51,13 @@ function fixture(opts: { tty: boolean }) {
   const networkRegistry = new NetworkRegistry(config);
   const formatter = createOutputFormatter("text", streams, Date.now());
   const registry = new CommandRegistry();
-  registerWalletCommands(registry, {
-    walletService: new WalletService(keystore, {} as any, {
-      write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }),
-    }),
-    ledger: {} as any,
-  } as any);
+  const walletService = new WalletService(
+    keystore,
+    {} as any,
+    { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
+    { append: () => {}, list: () => [] },
+  );
+  registerWalletCommands(registry, { walletService, ledger: {} as any } as any);
 
   const session: SessionRef = {};
   const shellOpts: ShellOptions = {
@@ -69,7 +70,7 @@ function fixture(opts: { tty: boolean }) {
     formatter,
     session,
   };
-  return { shellOpts, keystore, secrets, spyPrime };
+  return { shellOpts, keystore, secrets, spyPrime, walletService };
 }
 
 describe("backup password gating", () => {
@@ -97,5 +98,42 @@ describe("backup password gating", () => {
 
     expect(spyPrime).toHaveBeenCalledOnce();
     expect(spyPrime.mock.calls[0]![0].mode).toBe("verify");
+  });
+});
+
+/**
+ * The log filters only mean anything in --records mode; accepting one on an export would silently
+ * ignore what the caller asked for. --offset is the one that has to be asserted deliberately: it
+ * reads as a plain pagination flag, so a default value would hide it from the guard entirely.
+ */
+describe("backup --records flag gating", () => {
+  for (const args of [["--from", "2026-08-01"], ["--to", "2026-08-01"], ["--limit", "5"], ["--offset", "5"]]) {
+    it(`rejects ${args[0]} without --records`, async () => {
+      const { shellOpts, spyPrime } = fixture({ tty: false });
+
+      await expect(buildCli(shellOpts).parseAsync(["backup", "main", ...args]))
+        .rejects.toMatchObject({ code: "invalid_value" });
+      expect(spyPrime).not.toHaveBeenCalled();
+    });
+  }
+
+  it("passes the filters through with --records", async () => {
+    const { shellOpts, walletService } = fixture({ tty: false });
+    const spy = vi.spyOn(walletService, "backupRecords");
+
+    await buildCli(shellOpts).parseAsync(["backup", "--records", "--offset", "1", "--limit", "5"]);
+
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ offset: 1, limit: 5 }));
+  });
+
+  // offset is optional now; the 0 has to come from the service, or the emitted pagination changes.
+  it("still reports offset 0 when --offset is omitted", async () => {
+    const { shellOpts, walletService } = fixture({ tty: false });
+    const spy = vi.spyOn(walletService, "backupRecords");
+
+    await buildCli(shellOpts).parseAsync(["backup", "--records"]);
+
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ offset: undefined }));
+    expect(spy.mock.results[0]!.value).toMatchObject({ pagination: { offset: 0, limit: null } });
   });
 });

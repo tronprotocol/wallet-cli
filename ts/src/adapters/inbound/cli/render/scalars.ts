@@ -13,6 +13,9 @@ export function formatScalar(v: unknown): string {
 }
 
 export function formatInt(v: unknown): string {
+  if (typeof v === "string" && /^-?\d+$/.test(v)) {
+    return formatDecimal(v);
+  }
   const n = Number(v);
   return Number.isFinite(n) ? Math.trunc(n).toLocaleString("en-US") : String(v ?? "");
 }

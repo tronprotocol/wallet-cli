@@ -14,7 +14,7 @@ wallet-cli contract send --contract <address> --method <sig> [--params <json>]
 
 Builds, signs, and broadcasts a state-changing contract call from the active account (or `--account`). Parameters follow the same `{type,value}` JSON-array convention as [`contract call`](call.md); `--call-value-sun` attaches native TRX to the call.
 
-Two early exits: `--dry-run` previews the energy cost (estimateEnergy) without signing or broadcasting; `--sign-only` signs and prints the transaction for a later [`tx broadcast`](../tx/broadcast.md).
+Three early exits are available: `--dry-run` previews energy, `--sign-only` emits a signed transaction, and `--build-only` emits an unsigned transaction without resolving a signer. `--expiration` is valid only with build/sign-only; `--permission-id` selects the TRON permission group.
 
 **By default the command returns at submission** (`stage: "submitted"`) — add `--wait` to block until confirmed/failed. With `--wait`, an on-chain execution failure (revert / `OUT_OF_ENERGY`) comes back as `stage: "failed"` with the `result` reason.
 

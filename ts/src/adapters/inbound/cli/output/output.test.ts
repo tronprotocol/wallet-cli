@@ -47,6 +47,70 @@ describe("createOutputFormatter (json)", () => {
     const frame = f.event({ type: "awaiting_device", reason: "sign" });
     expect(JSON.parse(frame!)).toEqual({ type: "awaiting_device", reason: "sign" });
   });
+
+  it("moves pagination into JSON envelope metadata", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("proposal.list", net, {
+      approvalThreshold: 18,
+      proposals: [],
+      pagination: { offset: 10, limit: 5, total: 42 },
+    }));
+    expect(env.data).toEqual({ approvalThreshold: 18, proposals: [] });
+    expect(env.meta.pagination).toEqual({ offset: 10, limit: 5, total: 42 });
+  });
+
+  // The commands whose endpoint reports no count (asset list / exchange list) must land in the SAME
+  // place as those that do — otherwise one envelope carries one concept in two locations, decided by
+  // whether a total happens to be knowable.
+  it("moves pagination into metadata even when no total is knowable, as total: null", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("asset.list", net, {
+      assets: [{ assetId: "1000001" }],
+      pagination: { offset: 0, limit: 10 },
+    }));
+    expect(env.data).toEqual({ assets: [{ assetId: "1000001" }] });
+    expect(env.meta.pagination).toEqual({ offset: 0, limit: 10, total: null });
+  });
+
+  it("keeps both window keys present so null is the only 'unknown' signal", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("backup.records", undefined, {
+      records: [],
+      pagination: { offset: 0, limit: null, total: 0 },
+    }));
+    expect(Object.keys(env.meta.pagination).sort()).toEqual(["limit", "offset", "total"]);
+    expect(env.meta.pagination).toEqual({ offset: 0, limit: null, total: 0 });
+  });
+
+  it("leaves a `pagination` field that is not a window untouched in data", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("some.command", net, { pagination: { mode: "cursor" } }));
+    expect(env.data).toEqual({ pagination: { mode: "cursor" } });
+    expect(env.meta.pagination).toBeUndefined();
+  });
+
+  it("carries no pagination key at all for an unpaginated command", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("account.info", net, { address: "T..." }));
+    expect(env.meta).not.toHaveProperty("pagination");
+  });
+
+  // Text mode titles read the window from the view model, so it must NOT be stripped there.
+  it("leaves pagination in the view model for text renderers", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const seen: unknown[] = [];
+    f.success("asset.list", net, { assets: [], pagination: { offset: 0, limit: 10 } }, (data) => {
+      seen.push((data as { pagination?: unknown }).pagination);
+      return "rendered";
+    });
+    expect(seen).toEqual([{ offset: 0, limit: 10 }]);
+  });
 });
 
 describe("createOutputFormatter (text)", () => {
