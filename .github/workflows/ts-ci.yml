@@ -6,7 +6,7 @@ on:
       - develop
   push:
     branches:
-      - develop
+      - "**"
   workflow_dispatch:
 
 permissions:
