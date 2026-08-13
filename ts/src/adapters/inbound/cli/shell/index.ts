@@ -150,10 +150,7 @@ async function dispatchNeutral(opts: ShellOptions, path: string[], argv: any): P
 
 async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): Promise<void> {
   const chain = opts.registry.resolveChain(path)
-  if (chain) {
-    bindGroupedPositionals(chain.spec, argv)
-    return executeChainCommand(opts, chain, argv)
-  }
+  if (chain) return executeChainCommand(opts, chain, argv)
   throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`)
 }
 
@@ -279,10 +276,7 @@ async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: 
   if (cmd.wallet !== "none") void ctx.activeAccount // resolve account (default active) up front; throws missing_wallet_address if none exists
 
   const data = await cmd.run(ctx, undefined, input)
-  // A mode-switching command may report a more precise semantic id than its path (backup.records).
-  const resultId = cmd.commandIdFor?.(input) ?? commandId(cmd)
-  session.current = { commandId: resultId, net }
-  streams.result(formatter.success(resultId, net, data, cmd.formatText, activeAccountLabel(cmd, ctx, deps)))
+  streams.result(formatter.success(commandId(cmd), net, data, cmd.formatText, activeAccountLabel(cmd, ctx, deps)))
 }
 
 /** Runtime counterpart to CommandDefinition's network-policy discrimination. */
@@ -318,23 +312,19 @@ function accountChoiceLabel(d: AccountDescriptor): string {
  * answered (enum → arrow select, else free text); OPTIONAL value fields are still offered but Enter
  * skips them, except wallet creation/import labels where Enter accepts the shown random default.
  * Boolean flags are never prompted (their default is false). Fields with a zod default are filled by
- * zod. A command may also declare fields inapplicable to THIS invocation via `skipGapFill` — a mode
- * flag can make an otherwise-promptable field meaningless (`backup --records` exports nothing, so it
- * must not ask which account to export).
+ * zod.
  */
 export async function gapFillRequiredFields(
-  cmd: Pick<CommandExecutionSpec, "fields" | "promptHints"> & { skipGapFill?: (argv: any) => string[] },
+  cmd: Pick<CommandExecutionSpec, "fields" | "promptHints">,
   argv: any,
   prompter: Pick<import("../input/prompt/index.js").Prompter, "isTTY" | "text" | "select">,
   accountChoices?: () => Array<{ value: string; label: string }>,
 ): Promise<void> {
   if (!prompter.isTTY()) return
-  const skip = new Set(cmd.skipGapFill?.(argv) ?? [])
   for (const f of introspectFields(cmd.fields)) {
     if (f.hasDefault) continue // zod supplies the value
     if (argv[f.name] !== undefined) continue // already given on argv
     if (f.baseType === "boolean") continue // never prompt for flags
-    if (skip.has(f.name)) continue // inapplicable in this invocation's mode
     if (isAccountRef(cmd.fields.shape[f.name])) {
       const choices = accountChoices?.() ?? []
       if (choices.length > 0) {

@@ -197,7 +197,6 @@ Token and contract operations, resource staking, voting rewards, message signing
 | [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data |
 | [`permission`](docs/commands/permission/index.md) | View / update account permissions for multi-sig |
 | [`gasfree`](docs/commands/gasfree/index.md) | Gas-free token transfers via the GasFree service |
-| [`typed-data`](docs/commands/typed-data/index.md) | Sign EIP-712 / TIP-712 structured data ([sign](docs/commands/typed-data/sign.md)) |
 
 ### Local tools and configuration
 

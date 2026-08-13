@@ -4,7 +4,7 @@ import { ChainFamily } from "../../../../domain/family/index.js"
 import { fromBaseUnits } from "../../../../domain/amounts/index.js"
 import type { TxApprovalView } from "../../../../domain/types/index.js"
 import { renderApproval } from "./approval.js"
-import { formatScalar, formatDecimal, formatInt, formatSun, formatUtc, num, shorten, methodName } from "./scalars.js"
+import { formatScalar, formatInt, formatSun, num, shorten, methodName } from "./scalars.js"
 import { type Pair, asObj, query, receipt, ok, fail, pending, unknown } from "./layout.js"
 import { FAMILY_RENDER, renderFamily } from "./family.js"
 
@@ -132,15 +132,6 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
       return `Called ${methodName(String(r.method ?? ""))}`
     case "contract-deploy":
       return "Contract deployed"
-    case "proposal-create": return "Proposal created"
-    case "proposal-approve": return "Proposal approval submitted"
-    case "proposal-delete": return "Proposal deleted"
-    case "witness-create": return "Witness registered"
-    case "witness-update": return "Witness updated"
-    case "witness-set-brokerage": return "Brokerage set"
-    case "contract-clear-abi": return "ABI cleared"
-    case "contract-set-origin-energy-limit": return "Origin energy limit set"
-    case "contract-set-user-resource-percent": return "User resource ratio set"
     case "vote-cast": {
       const count = Array.isArray(r.votes) ? r.votes.length : 0
       const across = `across ${formatInt(count)} witness${count === 1 ? "" : "es"}`
@@ -164,129 +155,7 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
       return "Account activated"
     case "account-set":
       return `On-chain ${r.field ?? "account field"} set`
-    case "asset-issue":
-      return "Asset issued"
-    case "asset-update":
-      return "Asset updated"
-    case "asset-participate":
-      return "Participated in ICO"
-    case "asset-unfreeze":
-      return "Frozen supply released"
-    case "exchange-create":
-      return "Exchange created"
-    case "exchange-inject":
-      return "Liquidity injected"
-    case "exchange-withdraw":
-      return "Liquidity withdrawn"
-    case "exchange-trade":
-      return "Trade completed"
   }
-}
-
-/** `<amount> <LABEL>` for one side of a pair, in whole tokens. */
-function pairAmount(raw: unknown, decimals: unknown, label: unknown): string {
-  if (raw === undefined || raw === null || raw === "") return ""
-  const whole = formatDecimal(fromBaseUnits(String(raw), num(decimals, 0)))
-  return label ? `${whole} ${String(label)}` : whole
-}
-
-/** `1,000 TRX / 50,000 MyToken` — both sides of a pair on one line, in --pair order. */
-function bothSides(r: TxReceiptView, a: [unknown, unknown, unknown], b: [unknown, unknown, unknown]): string {
-  const left = pairAmount(...a as [unknown, unknown, unknown])
-  const right = pairAmount(...b as [unknown, unknown, unknown])
-  return left && right ? `${left} / ${right}` : left || right
-}
-
-/** Bancor receipt rows, by action. */
-function exchangeRows(r: TxReceiptView): Pair[] {
-  const rows: Pair[] = [["Exchange id", r.exchangeId === undefined ? "" : formatInt(r.exchangeId)]]
-  if (r.kind === "exchange-trade") {
-    rows.push(["Trader", String(r.traderAddress ?? "")])
-    rows.push(["Sold", pairAmount(r.soldQuant, r.soldDecimals, r.soldLabel)])
-    // the realised amount comes from the receipt; before that we can only state an estimate
-    if (r.receivedQuant !== undefined) {
-      rows.push(["Received", pairAmount(r.receivedQuant, r.receivedDecimals, r.receivedLabel)])
-    } else {
-      rows.push(["Estimated return", pairAmount(r.estimatedReceivedQuant, r.receivedDecimals, r.receivedLabel)])
-    }
-    rows.push(["Min accepted", pairAmount(r.minReceivedQuant, r.receivedDecimals, r.receivedLabel)])
-    return rows
-  }
-  rows.push(["Creator", String(r.creatorAddress ?? "")])
-  if (r.kind === "exchange-create") {
-    rows.push(["Reserves", bothSides(r,
-      [r.firstTokenQuant, r.firstTokenDecimals, r.firstTokenLabel],
-      [r.secondTokenQuant, r.secondTokenDecimals, r.secondTokenLabel])])
-    return rows
-  }
-  rows.push([r.kind === "exchange-inject" ? "Injected" : "Withdrawn", bothSides(r,
-    [r.tokenQuant, r.tokenDecimals, r.tokenLabel],
-    [r.otherTokenQuant, r.otherTokenDecimals, r.otherTokenLabel])])
-  rows.push(["Reserves", bothSides(r,
-    [r.reserveAfter, r.tokenDecimals, r.tokenLabel],
-    [r.otherReserveAfter, r.otherTokenDecimals, r.otherTokenLabel])])
-  return rows
-}
-
-/** `<amount> <NAME>` in whole tokens — TRC10 quantities travel in minimal units. */
-function assetAmount(raw: unknown, precision: unknown, name: unknown): string {
-  if (raw === undefined || raw === null || raw === "") return ""
-  const whole = formatDecimal(fromBaseUnits(String(raw), num(precision, 0)))
-  return name ? `${whole} ${String(name)}` : whole
-}
-
-/** `MyToken (id 1000123)` — spec §0.4 object identity for a named object with an id. */
-function assetLabel(r: TxReceiptView): string {
-  const name = r.name ? String(r.name) : ""
-  const id = r.assetId === undefined ? "" : `id ${String(r.assetId)}`
-  if (name && id) return `${name}  (${id})`
-  return name || id
-}
-
-/**
- * TRC10 receipt rows. `asset issue` echoes every term it locked in, because issuance is
- * irreversible and the receipt is the only complete record of what was fixed.
- */
-function assetRows(r: TxReceiptView): Pair[] {
-  const rows: Pair[] = [["Asset", assetLabel(r)]]
-  if (r.kind === "asset-participate") {
-    rows.push(["Issuer", String(r.issuerAddress ?? "")])
-    rows.push(["Participant", String(r.participantAddress ?? "")])
-    rows.push(["Paid", r.paidSun === undefined ? "" : `${formatSun(r.paidSun)} TRX`])
-    rows.push(["Received", assetAmount(r.receivedAmount, r.precision, r.name)])
-    return rows
-  }
-  rows.push(["Issuer", String(r.issuerAddress ?? "")])
-  if (r.kind === "asset-unfreeze") {
-    rows.push(["Released", assetAmount(r.releasedAmount, r.precision, r.name)])
-    rows.push(["Still frozen", assetAmount(r.stillFrozenAmount, r.precision, r.name)])
-    return rows
-  }
-  if (r.kind === "asset-issue") {
-    rows.push(["Total supply", assetAmount(r.totalSupply, r.precision, "")])
-    rows.push(["Precision", formatInt(r.precision ?? 0)])
-    rows.push(["Price", assetPrice(r)])
-    rows.push(["ICO start time", formatUtc(r.startTime)])
-    rows.push(["ICO end time", formatUtc(r.endTime)])
-  }
-  rows.push(["Url", String(r.url ?? "")])
-  rows.push(["Description", String(r.description ?? "")])
-  rows.push(["Free net/account", formatInt(r.freeAssetNetLimit ?? 0)])
-  rows.push(["Public free net", formatInt(r.publicFreeAssetNetLimit ?? 0)])
-  if (r.kind === "asset-issue" && r.frozenSupply?.length) {
-    rows.push([`Frozen (${r.frozenSupply.length})`, ""])
-    for (const tranche of r.frozenSupply) {
-      rows.push([`  ${formatDecimal(fromBaseUnits(tranche.amount, num(r.precision, 0)))}`, `for ${formatInt(tranche.days)} days`])
-    }
-  }
-  return rows
-}
-
-/** `1 TRX = 100 MyToken`, from the `<trx>:<tokens>` pair the service already reduced. */
-function assetPrice(r: TxReceiptView): string {
-  const [trx, tokens] = String(r.price ?? "").split(":")
-  if (!trx || !tokens) return ""
-  return `${formatInt(trx)} TRX = ${formatInt(tokens)} ${r.name ? String(r.name) : "tokens"}`
 }
 
 /** action-specific extra rows (To/From/Address/Contract), by kind. */
@@ -295,9 +164,7 @@ function receiptRows(r: TxReceiptView): Pair[] {
   // `undefined` means "not a multi-sig broadcast"; 0 is a real answer (single signature,
   // no extra fee) and must still be stated rather than silently dropped as falsy.
   if (r.multiSignFeeSun !== undefined) rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`])
-  if (r.kind.startsWith("asset-")) rows.push(...assetRows(r))
-  else if (r.kind.startsWith("exchange-")) rows.push(...exchangeRows(r))
-  else if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
+  if (r.kind === "stake-delegate") rows.push(["To", String(r.receiver ?? "")])
   else if (r.kind === "stake-undelegate") rows.push(["From", String(r.receiver ?? "")])
   else if (r.kind === "contract-deploy") rows.push(["Address", String(r.contractAddress ?? "")])
   else if (r.kind === "vote-cast" && Array.isArray(r.votes)) rows.push(["Votes", r.votes.map((vote) => `${vote.witness}=${formatInt(vote.count)}`).join(", ")])
@@ -360,15 +227,6 @@ function actionLabel(kind: TxReceiptKind): string {
       return "contract send"
     case "contract-deploy":
       return "contract deploy"
-    case "proposal-create": return "proposal create"
-    case "proposal-approve": return "proposal approve"
-    case "proposal-delete": return "proposal delete"
-    case "witness-create": return "witness create"
-    case "witness-update": return "witness update"
-    case "witness-set-brokerage": return "witness set-brokerage"
-    case "contract-clear-abi": return "contract clear-abi"
-    case "contract-set-origin-energy-limit": return "contract set-origin-energy-limit"
-    case "contract-set-user-resource-percent": return "contract set-user-resource-percent"
     case "vote-cast":
       return "vote cast"
     case "reward-withdraw":
@@ -379,22 +237,6 @@ function actionLabel(kind: TxReceiptKind): string {
       return "account activate"
     case "account-set":
       return "account set"
-    case "asset-issue":
-      return "asset issue"
-    case "asset-update":
-      return "asset update"
-    case "asset-participate":
-      return "asset participate"
-    case "asset-unfreeze":
-      return "asset unfreeze"
-    case "exchange-create":
-      return "exchange create"
-    case "exchange-inject":
-      return "exchange inject"
-    case "exchange-withdraw":
-      return "exchange withdraw"
-    case "exchange-trade":
-      return "exchange trade"
   }
 }
 

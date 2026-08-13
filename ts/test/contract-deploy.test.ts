@@ -20,6 +20,7 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 //   RUN_LIVE_BROADCAST=1  → actually deploy + confirm on Nile (spends testnet TRX)
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const TSX = join(process.cwd(), "node_modules", ".bin", "tsx");
 const ENTRY = join(process.cwd(), "src", "index.ts");
 const PW = "testpw123A";
 
@@ -61,7 +62,7 @@ function deploy(
   ];
   if (opts.dryRun) local.push("--dry-run");
   local.push("--password-stdin");
-  const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...globals, ...local], {
+  const r = spawnSync(TSX, [ENTRY, ...globals, ...local], {
     input: PW + "\n",
     encoding: "utf8",
     env: { ...process.env, WALLET_CLI_HOME: HOME, NO_COLOR: "1" },

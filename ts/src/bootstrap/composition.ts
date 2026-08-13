@@ -8,7 +8,6 @@ import {
 } from "../adapters/outbound/config/builtins.js";
 import { AtomicFileStore } from "../adapters/outbound/persistence/fs/index.js";
 import { SecureBackupWriter } from "../adapters/outbound/persistence/backup-writer.js";
-import { FileBackupRecordStore } from "../adapters/outbound/persistence/backup-records.js";
 import { Keystore } from "../adapters/outbound/keystore/index.js";
 import { Ledger } from "../adapters/outbound/ledger/index.js";
 import { TokenBook } from "../adapters/outbound/tokenbook/index.js";
@@ -72,8 +71,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const walletService = new WalletService(
     keystore,
     ledger,
-    new SecureBackupWriter(),
-    new FileBackupRecordStore(root, store),
+    new SecureBackupWriter(root),
   );
   const tokenBook = new TokenBook(root, store);
   const contactBook = new ContactBook(root, store);

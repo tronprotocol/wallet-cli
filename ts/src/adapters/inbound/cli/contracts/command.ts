@@ -70,10 +70,6 @@ interface CommandDefinitionBase<I, O> {
   secretsTtyOnly?: boolean;
   /** gap-fill prompt hints, by field name: "skip" = never prompt this optional field; "default-label" = offer a generated default. */
   promptHints?: Record<string, "skip" | "default-label">;
-  /** fields that must not be gap-filled for THIS invocation, from raw argv. Use when a mode flag
-   *  makes a field meaningless (`backup --records` exports nothing, so no account is asked for).
-   *  Unlike `promptHints`, this is per-invocation rather than static. */
-  skipGapFill?: (argv: Record<string, unknown>) => string[];
   capability?: string;
   /** one-line command listing text (parent group's verb list). Keep it terse — a single line. */
   summary?: string;
@@ -93,10 +89,6 @@ interface CommandDefinitionBase<I, O> {
   examples: Example[];
   /** Optional command-specific renderer for text mode. JSON mode always uses the envelope. */
   formatText?: TextFormatter<O>;
-  /** Override the envelope's `command` for a mode-switching command whose modes return different
-   *  `data` shapes (`backup` vs `backup.records`). `command` names the SEMANTIC command, not how it
-   *  was typed, so a reader can branch on it instead of sniffing fields. Absent ⇒ the path. */
-  commandIdFor?: (input: I) => string;
 }
 
 /** A neutral (family-less) command — wallet/config/meta operations that never receive a

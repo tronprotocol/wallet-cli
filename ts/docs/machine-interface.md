@@ -63,7 +63,6 @@ Schema id: `wallet-cli.result.v1`.
 | `error.details`   | object                   | optional            | Structured extras when available                                                 |
 | `meta.durationMs` | number                   | always              | Wall time                                                                        |
 | `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
-| `meta.pagination` | `{offset, limit, total}` | paginated reads only | The window this response returned; `limit`/`total` are nullable — see below       |
 | `chain`           | object                   | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
@@ -81,38 +80,6 @@ jq -e '.meta.warnings[] | select(type == "object" and .code == "owner_lockout")'
 ```
 
 Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.join`) fail or print `[object Object]` on the object form. Warning `code` values are stable and additive within v1 — new codes may appear, existing ones keep their meaning. Warning `message` text is **not** stable; treat it like `error.message` and never parse it.
-
-### Reading `meta.pagination`
-
-Every paginated read reports its window in **one place — `meta.pagination`** — never inside `data`. That is deliberate: the cursor lives at a fixed path regardless of the payload's shape, so a single pager works for `asset list`, `exchange list`, `backup --records`, `proposal show`, and any list command added later. Its absence means the command is not paginated.
-
-```json
-"meta": { "durationMs": 8, "warnings": [], "pagination": { "offset": 0, "limit": 10, "total": null } }
-```
-
-| Field | Type | Meaning |
-|---|---|---|
-| `offset` | number | Index this page started at — echoes `--offset` |
-| `limit` | number \| **null** | Page size; `null` = unlimited (no `--limit` given) |
-| `total` | number \| **null** | Matching records in total; `null` = **no count exists**, not "we omitted it" |
-
-All three keys are always present, so `null` is the only "unknown" signal and you never have to distinguish absent from null.
-
-`total: null` is permanent for the commands backed by TRON's paginated node endpoints (`asset list`, `exchange list`): the endpoint returns no count, and computing one would mean transferring every record — 5,187 assets / 2.7 MB on mainnet. **Page until you get a short page** rather than comparing against a total:
-
-```bash
-# works whether or not a total is knowable
-offset=0
-while :; do
-  page=$(wallet-cli asset list --limit 50 --offset "$offset" -o json)
-  n=$(jq '.data.assets | length' <<<"$page")
-  jq -c '.data.assets[]' <<<"$page"
-  [ "$n" -lt 50 ] && break
-  offset=$((offset + 50))
-done
-```
-
-In **text** mode the same window titles the table (`Assets (limit 50, offset 0)`, `Backup records (showing 3 of 12)`); text output is not part of this contract — parse `-o json`.
 
 ## Error codes
 
@@ -133,12 +100,9 @@ Common codes at exit **2** (usage — fix the call):
 | `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id |
 | `unknown_command` | No such command |
 | `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
-| `keystore_not_found` | `import keystore`: no file at the given path |
-| `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, unsupported cipher/kdf, or a payload that is not a 32-byte private key |
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
 | `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
-| `unknown_parameter` | Unknown governance parameter name or id |
 
 Common codes at exit **1** (execution — runtime failure):
 
@@ -148,14 +112,8 @@ Common codes at exit **1** (execution — runtime failure):
 | `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
 | `auth_required` | Master password required but not supplied |
 | `auth_failed` | Wrong master password (decryption failed) |
-| `wrong_keystore_password` | `import keystore`: the keystore file's own password is wrong (its MAC did not match). Distinct from `auth_failed`, which is the master password |
-| `not_exportable` | The account holds no exportable secret (watch-only / Ledger) — `backup` |
-| `account_exists` | `import keystore`: an account with this address already exists locally; delete it first (wallet-cli never overwrites it) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
-| `proposal_not_found` / `proposal_expired` | Proposal lookup or voting-window failure |
-| `not_a_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
-| `contract_not_found` / `not_contract_deployer` | Contract lookup or deployer authorization failure |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |

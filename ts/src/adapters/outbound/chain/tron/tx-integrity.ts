@@ -41,10 +41,10 @@
  * Neither layer is policy — they reject nothing a correct transaction builder produces, only
  * self-inconsistent payloads.
  */
+import { utils as tronUtils } from "tronweb"
 import { sha256 } from "@noble/hashes/sha2.js"
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js"
 import { ChainError } from "../../../../domain/errors/index.js"
-import { rawDataHexOf } from "./transaction-codec.js"
 
 /** tronweb's txJsonToPb rejects contract types it has no protobuf mapping for with this message. */
 const UNSUPPORTED_CONTRACT_TYPE = /^Unsupported transaction type/i
@@ -127,12 +127,7 @@ export function assertTronTxIntegrity(tx: unknown): void {
 
   let matchesRawData: boolean
   try {
-    // Never tronweb's `txCheck` here: it mis-encodes several contract types, so asking it would
-    // refuse transactions whose bytes are correct. `rawDataHexOf` applies OUR serialiser for every
-    // overridden type — TRC10 (multi-tranche AssetIssue, UnfreezeAsset) and governance
-    // (ProposalCreate, UpdateEnergyLimit) — from one table, and delegates to tronweb for everything
-    // else. So this comparison uses the same arbiter the builders themselves used.
-    matchesRawData = rawDataHexOf(tx) === t.raw_data_hex.replace(/^0x/, "").toLowerCase()
+    matchesRawData = tronUtils.transaction.txCheck(tx as any)
   } catch (e) {
     const message = (e as Error)?.message ?? String(e)
     // The one tolerable failure: tronweb has no encoding for this contract type, so raw_data

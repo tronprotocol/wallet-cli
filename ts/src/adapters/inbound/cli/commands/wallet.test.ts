@@ -87,12 +87,9 @@ function buildGlobals(): Globals {
 function buildServices(ks: Keystore) {
   const ledger = {} as any;
   return {
-    walletService: new WalletService(
-      ks,
-      ledger,
-      { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
-      { append: () => {}, list: () => [] },
-    ),
+    walletService: new WalletService(ks, ledger, {
+      write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }),
+    }),
     ledger,
     tokenBook: {} as any,
     priceProvider: {} as any,

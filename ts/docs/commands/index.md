@@ -9,7 +9,6 @@ Every command — including every subcommand — has its own page, following a f
 | `create` | [create.md](create.md) |
 | `import mnemonic` | [import/mnemonic.md](import/mnemonic.md) *(interactive-only)* |
 | `import private-key` | [import/private-key.md](import/private-key.md) *(interactive-only)* |
-| `import keystore` | [import/keystore.md](import/keystore.md) *(interactive-only)* |
 | `import ledger` | [import/ledger.md](import/ledger.md) |
 | `import watch` | [import/watch.md](import/watch.md) |
 | `list` | [list.md](list.md) |
@@ -69,20 +68,6 @@ Every command — including every subcommand — has its own page, following a f
 | `token add` | [token/add.md](token/add.md) |
 | `token list` | [token/list.md](token/list.md) |
 | `token remove` | [token/remove.md](token/remove.md) |
-| `asset` (group) | [asset/index.md](asset/index.md) |
-| `asset issue` | [asset/issue.md](asset/issue.md) |
-| `asset update` | [asset/update.md](asset/update.md) |
-| `asset participate` | [asset/participate.md](asset/participate.md) |
-| `asset unfreeze` | [asset/unfreeze.md](asset/unfreeze.md) |
-| `asset info` | [asset/info.md](asset/info.md) |
-| `asset list` | [asset/list.md](asset/list.md) |
-| `exchange` (group) | [exchange/index.md](exchange/index.md) |
-| `exchange create` | [exchange/create.md](exchange/create.md) |
-| `exchange inject` | [exchange/inject.md](exchange/inject.md) |
-| `exchange withdraw` | [exchange/withdraw.md](exchange/withdraw.md) |
-| `exchange trade` | [exchange/trade.md](exchange/trade.md) |
-| `exchange show` | [exchange/show.md](exchange/show.md) |
-| `exchange list` | [exchange/list.md](exchange/list.md) |
 | `contact` (group) | [contact/index.md](contact/index.md) |
 | `contact add` | [contact/add.md](contact/add.md) |
 | `contact list` | [contact/list.md](contact/list.md) |
@@ -92,10 +77,6 @@ Every command — including every subcommand — has its own page, following a f
 | `contract send` | [contract/send.md](contract/send.md) |
 | `contract deploy` | [contract/deploy.md](contract/deploy.md) |
 | `contract info` | [contract/info.md](contract/info.md) |
-| `contract clear-abi` | [contract/clear-abi.md](contract/clear-abi.md) |
-| `contract set-origin-energy-limit` | [contract/set-origin-energy-limit.md](contract/set-origin-energy-limit.md) |
-| `contract set-user-resource-percent` | [contract/set-user-resource-percent.md](contract/set-user-resource-percent.md) |
-| `contract create2` | [contract/create2.md](contract/create2.md) |
 | `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
 | `gasfree info` | [gasfree/info.md](gasfree/info.md) |
 | `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |
@@ -105,16 +86,6 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
-| `proposal` (group) | [proposal/index.md](proposal/index.md) |
-| `proposal list` | [proposal/list.md](proposal/list.md) |
-| `proposal show` | [proposal/show.md](proposal/show.md) |
-| `proposal create` | [proposal/create.md](proposal/create.md) |
-| `proposal approve` | [proposal/approve.md](proposal/approve.md) |
-| `proposal delete` | [proposal/delete.md](proposal/delete.md) |
-| `witness` (group) | [witness/index.md](witness/index.md) |
-| `witness create` | [witness/create.md](witness/create.md) |
-| `witness update` | [witness/update.md](witness/update.md) |
-| `witness set-brokerage` | [witness/set-brokerage.md](witness/set-brokerage.md) |
 | `stake` (group) | [stake/index.md](stake/index.md) |
 | `stake freeze` | [stake/freeze.md](stake/freeze.md) |
 | `stake unfreeze` | [stake/unfreeze.md](stake/unfreeze.md) |

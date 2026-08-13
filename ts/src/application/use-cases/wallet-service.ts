@@ -1,13 +1,8 @@
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Derivation } from "../../domain/derivation/index.js";
-import { CHAIN_FAMILIES, familyOf, type ChainFamily } from "../../domain/family/index.js";
-import { KeystoreV3 } from "../../domain/keystore/index.js";
-import { derivePrivAddresses } from "../../domain/wallet/index.js";
-import { tronHexAddress } from "../../domain/address/index.js";
-import type { Bytes } from "../../domain/types/index.js";
+import { familyOf, type ChainFamily } from "../../domain/family/index.js";
 import { UsageError, WalletError } from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
-import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
 import type { WalletRepository } from "../ports/wallet-repository.js";
 
@@ -17,27 +12,11 @@ const mutationStatus = (created: boolean): "created" | "existing" =>
 const notExportable = (type: string) =>
   new WalletError("not_exportable", `${type} accounts hold no exportable secret`);
 
-/** A keystore file is single-key and TRON-shaped: its `address` is the TRON form, and an HD account
- *  exports the key at its own TRON derivation path. (EVM lands as its own export when it lands.) */
-const KEYSTORE_FAMILY: ChainFamily = "tron";
-
-export interface BackupRecordQuery {
-  /** inclusive bounds as UTC ISO-8601 instants; parsed and validated by the caller. */
-  from?: string;
-  to?: string;
-  limit?: number;
-  offset?: number;
-  /** accountId / label / address of the account whose exports to show. */
-  account?: string;
-}
-
 export class WalletService {
   constructor(
     private readonly wallets: WalletRepository,
     private readonly ledger: LedgerDevice,
     private readonly backups: BackupWriter,
-    private readonly backupRecordStore: BackupRecordStore,
-    private readonly now: () => number = Date.now,
   ) {}
 
   create(label?: string) {
@@ -165,101 +144,8 @@ export class WalletService {
       throw notExportable(source.type);
     }
 
-    const file = this.backups.write(descriptor.accountId, requestedPath, payload, "native");
-    this.#recordExport("backup", descriptor, file.out);
-    return { ...descriptor, secretType, format: "native" as const, ...file };
-  }
-
-  /**
-   * Export ONE account as a standard Web3 V3 keystore, encrypted with the master password.
-   *
-   * A keystore holds a single private key: an HD account exports only the key at its current index,
-   * so the file is an isolated account elsewhere and nothing can be derived from it. Moving a whole
-   * seed is what the native `backup` (mnemonic) is for.
-   */
-  backupKeystore(account: string, requestedPath: string | undefined, masterPassword: string) {
-    const descriptor = this.wallets.describe(account);
-    const privateKey = this.#exportablePrivateKey(account);
-    const file = this.backups.write(
-      descriptor.accountId,
-      requestedPath,
-      KeystoreV3.encrypt(privateKey, masterPassword, tronHexAddress(descriptor.addresses[KEYSTORE_FAMILY]!)),
-      "keystore",
-    );
-    this.#recordExport("backup --keystore", descriptor, file.out);
-    return { ...descriptor, secretType: "privateKey" as const, format: "keystore" as const, ...file };
-  }
-
-  /**
-   * Import the single private key held in a parsed V3 keystore, re-encrypted under the master
-   * password and made active.
-   *
-   * Deliberate deviation from the Java implementation, which silently overwrites a same-address
-   * wallet: a clash is refused, because that account may be an HD account whose seed backup the
-   * overwrite would destroy in exchange for one derived key. Delete it explicitly instead.
-   */
-  importKeystore(file: unknown, keystorePassword: string, label?: string) {
-    const privateKey = KeystoreV3.decrypt(file, keystorePassword);
-    const addresses = derivePrivAddresses(privateKey);
-    const clash = this.wallets
-      .list()
-      .find((a) => CHAIN_FAMILIES.some((f) => a.addresses[f] !== undefined && a.addresses[f] === addresses[f]));
-    if (clash) {
-      throw new WalletError(
-        "account_exists",
-        `${clash.accountId}${clash.label ? ` (${clash.label})` : ""} already holds this address; delete it first to replace it`,
-      );
-    }
-    return this.importSecret(bytesToHex(privateKey), "privateKey", label);
-  }
-
-  /** The local export audit log, newest first. Read-only and password-free — it holds no secrets. */
-  backupRecords(query: BackupRecordQuery = {}) {
-    const offset = query.offset ?? 0;
-    const target = query.account === undefined ? undefined : this.wallets.describe(query.account);
-    const matched = this.backupRecordStore.list().filter((r) => {
-      if (query.from !== undefined && r.timestamp < query.from) return false;
-      if (query.to !== undefined && r.timestamp > query.to) return false;
-      // Records are snapshots, so an account is matched by either identity it was logged under —
-      // a since-renamed account still matches on accountId, a re-imported one on its address.
-      if (target && r.accountId !== target.accountId && r.account !== target.addresses[KEYSTORE_FAMILY]) return false;
-      return true;
-    });
-    const records = matched.slice(offset, query.limit === undefined ? undefined : offset + query.limit);
-    return {
-      records,
-      pagination: { offset, limit: query.limit ?? null, total: matched.length },
-    };
-  }
-
-  isInitialized() {
-    return this.wallets.isInitialized();
-  }
-
-  /** The account's own private key: an HD account's is derived at its index; a privateKey wallet's is
-   *  the stored key. Watch/Ledger accounts have none (assertExportable is the caller's early gate). */
-  #exportablePrivateKey(account: string): Bytes {
-    const { wallet, index } = this.wallets.resolveAccount(account);
-    const source = wallet.source;
-    if (source.type === "privateKey") return this.wallets.decryptKey(source.keyId);
-    if (source.type === "seed") {
-      const seed = this.wallets.decryptSeed(source.vaultId);
-      return Derivation.derive(seed, Derivation.path(KEYSTORE_FAMILY, index)).privateKey;
-    }
-    throw notExportable(source.type);
-  }
-
-  /** Appended only after the file exists, so the audit log never claims a failed export.
-   *  Timestamps are UTC at second precision — an audit trail, not a profiler. */
-  #recordExport(operation: BackupRecord["operation"], descriptor: { accountId: string; label?: string | null; addresses: Partial<Record<ChainFamily, string>> }, out: string) {
-    this.backupRecordStore.append({
-      operation,
-      accountId: descriptor.accountId,
-      account: descriptor.addresses[KEYSTORE_FAMILY] ?? "",
-      label: descriptor.label ?? null,
-      out,
-      timestamp: new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z"),
-    });
+    const file = this.backups.write(descriptor.accountId, requestedPath, payload);
+    return { ...descriptor, secretType, ...file };
   }
 
   private importSecret(secret: string, type: "seed" | "privateKey", label?: string) {
