@@ -180,6 +180,17 @@ describe("exchange trade", () => {
       .resolves.toMatchObject({ minReceivedQuant: String(4_900n * 1_000_000n) });
   });
 
+  // The rejection has to point at --min-received, not at --amount: the caller would otherwise go
+  // and correct an option they never passed (and which carries a different meaning on this command).
+  it("blames --min-received, not --amount, for an over-precise floor", async () => {
+    const svc = service({ getExchangeById: async () => pool() });
+    await expect(svc.trade(scope, NET, { ...base, minReceived: "1.1234567" }))
+      .rejects.toMatchObject({
+        code: "invalid_amount",
+        message: expect.stringContaining("--min-received has too many decimal places"),
+      });
+  });
+
   it("sends expected=1 and warns when no protection is asked for", async () => {
     warnings.length = 0;
     const svc = service({ getExchangeById: async () => pool() });

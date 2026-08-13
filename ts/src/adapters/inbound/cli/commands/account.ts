@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAccountService } from "../../../../application/use-cases/tron/account-service.js";
 import { ciEnum } from "../arity/index.js";
+import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import { txModeFields } from "./shared.js";
 
@@ -43,7 +44,7 @@ export const accountActivateSpec: ChainSpec = {
     + "active; use --dry-run to inspect current creation fees. Note: a plain transfer also activates\n"
     + "the recipient, so use this command only when the address just needs to exist.",
   baseFields: z.object({
-    address: z.string().min(1).describe("unactivated TRON base58 address"),
+    address: Schemas.addressFor("tron").describe("unactivated TRON base58 address"),
     ...txModeFields,
   }),
   baseRefine: transactionModeRefine,

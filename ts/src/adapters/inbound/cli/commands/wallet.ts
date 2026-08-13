@@ -183,9 +183,12 @@ export function registerWalletCommands(
 
   // ── import keystore ───────────────────────────────────────────────────────
   // Two independent passwords, both hidden-TTY-only: the FILE's own password (to decrypt it) and our
-  // master password (to re-encrypt it locally). The file is read and structurally validated FIRST, so
-  // a typo'd path costs no password prompts — hence no `passwordMode`; priming happens inside `run`
-  // (same reasoning as `backup`).
+  // master password (to re-encrypt it locally). The file is read and structurally validated before
+  // EITHER password prompt, so a typo'd path costs no password typing — hence no `passwordMode`
+  // (which would prime the master password up in the shell, ahead of `run`); priming happens inside
+  // `run`, after the file (same reasoning as `backup`). Do not "restore" passwordMode here.
+  // The shell's secretsTtyOnly gate still runs first and reports tty_required without a terminal —
+  // correct, and uniform with the other TTY-only commands: there is no prompt to save there.
   const importKeystoreFields = z.object({
     path: z.string().min(1).describe("path to the keystore JSON file"),
     label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),

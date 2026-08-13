@@ -345,11 +345,22 @@ export class TronAssetService {
     if (/^\d+$/.test(reference)) return gateway.getAssetById(reference);
     const matches = await gateway.getAssetsByName(reference);
     if (matches.length > 1) {
-      const ids = matches.map((a) => String(a.id));
+      // `assetIds` is the machine-readable answer ("which ids do I re-run with?"); `matches` carries
+      // the columns a human needs to actually pick one, and is what the text renderer tables up.
+      // Quantities stay raw (minimal units) here, exactly as the success payload reports them.
       throw new ChainError(
         "ambiguous_asset_name",
         `${matches.length} TRC10 tokens are named ${reference}; re-run with the id`,
-        { assetIds: ids },
+        {
+          name: reference,
+          assetIds: matches.map((a) => String(a.id)),
+          matches: matches.map((a) => ({
+            assetId: String(a.id),
+            issuerAddress: tronHexToBase58(a.owner_address),
+            totalSupply: String(a.total_supply),
+            precision: a.precision ?? 0,
+          })),
+        },
       );
     }
     return matches[0];

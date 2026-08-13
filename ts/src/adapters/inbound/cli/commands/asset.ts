@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAssetService } from "../../../../application/use-cases/tron/asset-service.js";
 import { txModeFields } from "./shared.js";
+import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 
 const LEDGER_NOTE =
@@ -145,7 +146,7 @@ export const assetInfoSpec: ChainSpec = {
   positionals: [{ field: "assetRef", placeholder: "asset" }],
   baseFields: z.object({
     assetRef: assetReference.optional(),
-    issuer: z.string().min(1).optional().describe("look up the token issued by this address"),
+    issuer: Schemas.addressFor("tron").optional().describe("look up the token issued by this address"),
   }),
   examples: [
     { cmd: "wallet-cli asset info 1000123" },

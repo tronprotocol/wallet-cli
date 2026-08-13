@@ -35,7 +35,10 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.
   const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...finalArgs], {
-    input: stdin, encoding: "utf8", env, timeout: 25_000,
+    input: stdin,
+    encoding: "utf8",
+    env,
+    timeout: 25_000,
   })
   let json: any
   try {
@@ -63,7 +66,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"])
     expect(r.status).toBe(0)
-    expect(r.stdout.trim()).toBe("4.11.0")
+    expect(r.stdout.trim()).toBe("4.12.0")
   })
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -363,6 +366,18 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.json.error.code).toBe("invalid_value")
   })
 
+  // Every address-shaped flag is validated locally, so a typo is exit 2 everywhere rather than a
+  // node round-trip that reports the same typo as an execution failure (exit 1, rpc_error).
+  it.each([
+    ["asset info --issuer", ["asset", "info", "--issuer", "notanaddress"]],
+    ["account activate --address", ["account", "activate", "--address", "notanaddress", "--dry-run"]],
+  ])("%s with a malformed address → invalid_value, exit 2", (_label, args) => {
+    const r = run(["--output", "json", ...args, "--network", "tron:nile"])
+    expect(r.status).toBe(2)
+    expect(r.json.error.code).toBe("invalid_value")
+    expect(r.json.error.message).toMatch(/invalid tron address/)
+  })
+
   it("stake delegate --lock-period without --lock → invalid_value, exit 2", () => {
     const r = run([
       "--output",
@@ -613,12 +628,7 @@ describe("golden CLI — v4.12 governance surface", () => {
   })
 
   it("computes the Java-compatible TVM CREATE2 vector without RPC or wallet", () => {
-    const r = run([
-      "-o", "json", "contract", "create2",
-      "--deployer", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-      "--code", "60006000",
-      "--salt", "1",
-    ], { password: null })
+    const r = run(["-o", "json", "contract", "create2", "--deployer", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "--code", "60006000", "--salt", "1"], { password: null })
     expect(r.status).toBe(0)
     expect(r.json.data).toMatchObject({
       saltHex: "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -636,16 +646,11 @@ describe("golden CLI — v4.12 governance surface", () => {
   })
 
   it("rejects brokerage and origin-energy int64 overflow before wallet or RPC access", () => {
-    const brokerage = run([
-      "-o", "json", "witness", "set-brokerage", "101",
-    ], { password: null })
+    const brokerage = run(["-o", "json", "witness", "set-brokerage", "101"], { password: null })
     expect(brokerage.status).toBe(2)
     expect(brokerage.json.error.code).toBe("invalid_value")
 
-    const energy = run([
-      "-o", "json", "contract", "set-origin-energy-limit",
-      "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "9223372036854775808",
-    ], { password: null })
+    const energy = run(["-o", "json", "contract", "set-origin-energy-limit", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "9223372036854775808"], { password: null })
     expect(energy.status).toBe(2)
     expect(energy.json.error.code).toBe("invalid_value")
   })

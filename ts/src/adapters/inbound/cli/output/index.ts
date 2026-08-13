@@ -14,7 +14,7 @@ import type { ProgressEvent } from "../../../../application/contracts/index.js";
 import type { Pagination, StreamManager, TextFormatter } from "../contracts/index.js";
 import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
-import { renderGenericText } from "../render/index.js";
+import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
 
 export interface OutputFormatter {
@@ -101,7 +101,11 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   }
 
   error(err: CliError): void {
-    this.streams.errorLine(sanitizeText(`error [${err.code}]: ${err.message}`));
+    // Errors that are a choice rather than a dead end append their candidate table (see
+    // renderErrorDetails); everything else stays the single line it has always been.
+    const line = `error [${err.code}]: ${err.message}`;
+    const candidates = renderErrorDetails(err.details);
+    this.streams.errorLine(sanitizeText(candidates ? `${line}\n${candidates}` : line));
   }
 
   event(e: ProgressEvent): string {

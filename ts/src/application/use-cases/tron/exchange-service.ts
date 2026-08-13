@@ -405,7 +405,9 @@ export class TronExchangeService {
     if (given > 1) {
       throw new UsageError("invalid_option", "choose at most one of --min-received, --raw-min-received, --slippage");
     }
-    if (input.minReceived !== undefined) return BigInt(toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label));
+    if (input.minReceived !== undefined) {
+      return BigInt(toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, "--min-received"));
+    }
     if (input.rawMinReceived !== undefined) return BigInt(input.rawMinReceived);
     if (input.slippage !== undefined) return slippageFloor(predicted, input.slippage);
     scope.warn(

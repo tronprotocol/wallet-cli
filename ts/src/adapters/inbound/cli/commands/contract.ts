@@ -37,6 +37,77 @@ function typedParams(raw: string | undefined): TronContractParameter[] {
   return arr as TronContractParameter[];
 }
 
+// ── deploy input guards ────────────────────────────────────────────────────────
+// Both guards below only restate a rejection TronWeb already makes — the accepted input set is
+// unchanged. They exist because TronWeb states these two in terms of its own internals, and one
+// of them not as a rejection at all but as a crash.
+
+/** the ABI's entry list, in either shape TronWeb reads (`abi` itself, or `abi.entrys`). */
+function abiEntries(abi: unknown): unknown[] | undefined {
+  if (Array.isArray(abi)) return abi;
+  const wrapped = (abi as { entrys?: unknown } | null)?.entrys;
+  return Array.isArray(wrapped) ? wrapped : undefined;
+}
+
+/**
+ * TronWeb decides whether a constructor may take call value with an unguarded read —
+ * `'payable' === func.stateMutability.toLowerCase()` (TransactionBuilder.js) — so a constructor
+ * entry whose `stateMutability` is not a string dies inside the encoder as "Cannot read properties
+ * of undefined (reading 'toLowerCase')", naming neither the ABI nor the missing key, and arriving
+ * as rpc_error/exit 1 despite no request having been sent.
+ *
+ * Rejected here iff that read would throw — i.e. the value is not a string. An empty string is
+ * left alone on purpose: TronWeb accepts it (`''.toLowerCase()` is fine, the constructor is simply
+ * not payable), and rejecting it would make this CLI stricter than the encoder it fronts.
+ * A non-array, non-`entrys` ABI is likewise left alone — TronWeb's own "Invalid options.abi
+ * provided" already says that plainly.
+ */
+function assertConstructorEncodable(abi: unknown): void {
+  for (const entry of abiEntries(abi) ?? []) {
+    const e = entry as { type?: unknown; stateMutability?: unknown } | null;
+    if (e?.type !== "constructor") continue; // TronWeb's && short-circuits the same way
+    if (typeof e.stateMutability !== "string") {
+      throw new UsageError(
+        "invalid_value",
+        '--abi constructor entry needs a string "stateMutability" ("nonpayable" or "payable"); '
+        + "solc emits it — add it by hand if the ABI was trimmed or came from solc < 0.5",
+      );
+    }
+  }
+}
+
+/**
+ * Constructor args are RAW positional values here (`[100, "T..."]`) — types come from the ABI —
+ * whereas `contract call` / `send` take `{type,value}` entries. TronWeb rejects the wrong one too,
+ * but as ethers' `invalid BigNumberish value (argument="value", ...)`: an internal argument name
+ * that collides with the user's own `value` key and reads like a bad number rather than a wrong
+ * format. The two-format split is this CLI's own design, so name it in our own words.
+ *
+ * Only the unambiguous case is claimed — every entry an object with exactly `type` (a non-empty
+ * string) and `value`. A mixed or partial array is left to TronWeb rather than guessed at, and a
+ * genuine struct arg with those two field names can still be passed in positional array form.
+ */
+function deployParameters(raw: string | undefined): unknown[] {
+  const values = jsonArray(raw);
+  const allTyped = values.length > 0 && values.every((v) => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+    const keys = Object.keys(v);
+    return keys.length === 2
+      && keys.includes("type")
+      && keys.includes("value")
+      && typeof (v as { type: unknown }).type === "string"
+      && (v as { type: string }).type !== "";
+  });
+  if (allTyped) {
+    throw new UsageError(
+      "invalid_value",
+      '--params takes raw positional values for deploy (e.g. [100, "T..."]); {"type","value"} '
+      + "entries are the `contract call`/`send` form — deploy reads the types from the ABI constructor",
+    );
+  }
+  return values;
+}
+
 const callFields = z.object({
   contract: Schemas.addressFor("tron").describe("TRON contract address"),
   method: z.string().min(1).describe("function signature, e.g. balanceOf(address)"),
@@ -129,10 +200,11 @@ export const contractDeployTronBinding = (svc: TronContractService): FamilyBindi
     } catch {
       throw new UsageError("invalid_value", "--abi must be valid JSON");
     }
+    assertConstructorEncodable(abi);
     return svc.deploy(ctx, net, {
       ...input,
       abi,
-      parameters: jsonArray(input.params),
+      parameters: deployParameters(input.params),
     });
   },
 });

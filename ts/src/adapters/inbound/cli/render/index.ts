@@ -32,6 +32,7 @@ import { ContactFormatters } from "./contact.js"
 import { EncodingFormatters } from "./encoding.js"
 
 export { FAMILY_RENDER, renderFamily } from "./family.js"
+export { renderErrorDetails } from "./error-details.js"
 
 export const TextFormatters = {
   ...WalletFormatters,

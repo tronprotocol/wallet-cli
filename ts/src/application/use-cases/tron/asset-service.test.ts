@@ -202,6 +202,35 @@ describe("asset participate", () => {
   });
 });
 
+describe("ambiguous asset names", () => {
+  // A name collision is a choice, not a dead end: the error has to carry enough for the caller to
+  // pick — ids for a machine, and the columns a human compares on (§3.7).
+  it("carries the queried name, the ids, and one comparable row per match", async () => {
+    const svc = service({
+      getAssetsByName: async () => [
+        asset({ id: "1000123", owner_address: OTHER_HEX, total_supply: 1_000_000_000, precision: 6 }),
+        asset({ id: "1000488", owner_address: OWNER_HEX, total_supply: 50_000_000, precision: 2 }),
+      ],
+    });
+    await expect(svc.info(NET, { assetRef: "MyToken" })).rejects.toMatchObject({
+      code: "ambiguous_asset_name",
+      details: {
+        name: "MyToken",
+        assetIds: ["1000123", "1000488"],
+        matches: [
+          { assetId: "1000123", totalSupply: "1000000000", precision: 6 },
+          { assetId: "1000488", totalSupply: "50000000", precision: 2 },
+        ],
+      },
+    });
+  });
+
+  it("resolves a name matching exactly one asset instead of erroring", async () => {
+    const svc = service({ getAssetsByName: async () => [asset({ id: "1000123" })] });
+    await expect(svc.info(NET, { assetRef: "MyToken" })).resolves.toMatchObject({ assetId: "1000123" });
+  });
+});
+
 describe("asset unfreeze", () => {
   const tranches = [
     { frozen_amount: 100_000_000_000_000, frozen_days: 30 },

@@ -9,7 +9,7 @@ import { StreamManager } from "../adapters/inbound/cli/stream/index.js"
 import { hasCommand, parseGlobals } from "./argv.js"
 import { composeCliRuntime } from "./composition.js"
 
-export const VERSION = "4.11.0"
+export const VERSION = "4.12.0"
 
 /**
  * Report a failure raised while the composition root was still being built — an unreadable,
@@ -24,11 +24,7 @@ export const VERSION = "4.11.0"
  * may sit next to a service credential, so it is classified to a generic `internal_error` rather
  * than surfaced.
  */
-function reportBootstrapFailure(
-  error: unknown,
-  globals: { output?: OutputMode; verbose?: boolean },
-  startedAt: number,
-): ExitCode {
+function reportBootstrapFailure(error: unknown, globals: { output?: OutputMode; verbose?: boolean }, startedAt: number): ExitCode {
   const output = globals.output ?? "text"
   const normalized = normalizeError(error)
   const streams = new StreamManager(output, globals.verbose ?? false)

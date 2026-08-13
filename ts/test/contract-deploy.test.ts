@@ -11,7 +11,9 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 // Regression coverage for issue #2: `contract deploy` constructor params.
 //   • --constructor-sig was a dead flag (types come from the ABI); it was removed.
 //   • --params must be RAW positional values ([100, "T..."]) — the {type,value} form that
-//     contract call/send use is rejected by TronWeb's createSmartContract ABI encoder.
+//     contract call/send use is rejected by TronWeb's createSmartContract ABI encoder, and is now
+//     named as a format error at the command boundary before it gets there (see
+//     commands/contract.deploy.test.ts for that guard's own alignment coverage).
 //
 // The negative case fails at client-side ABI encoding *before* any node call, so it runs
 // hermetically (random key, no network, no funds). The positive/broadcast cases hit real Nile
@@ -76,10 +78,14 @@ describe("contract deploy — constructor params (issue #2)", () => {
   });
 
   it("rejects the {type,value} param form (raw positional values are required)", () => {
-    seed(randomBytes(32).toString("hex")); // encoding fails before any node call → hermetic
+    seed(randomBytes(32).toString("hex")); // rejected at the command boundary → hermetic
     const out = deploy(TYPED_PARAMS, { dryRun: true });
     expect(out.success).toBe(false);
-    expect(out.error.message).toMatch(/BigNumberish/i);
+    // A malformed call, not a failed execution: deterministic on retry, so exit 2 / invalid_value.
+    // (Before the guard this reached TronWeb and came back as rpc_error / `invalid BigNumberish
+    // value (argument="value")` — same refusal, worded in ethers' internals.)
+    expect(out.error.code).toBe("invalid_value");
+    expect(out.error.message).toMatch(/raw positional values/i);
   });
 
   const PK = loadTestPrivateKey();
