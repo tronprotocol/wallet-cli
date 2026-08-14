@@ -5,7 +5,7 @@ import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { tronHexAddress } from "../../domain/address/index.js";
 import type { Bytes } from "../../domain/types/index.js";
-import { UsageError, WalletError } from "../../domain/errors/index.js";
+import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
@@ -249,9 +249,28 @@ export class WalletService {
     throw notExportable(source.type);
   }
 
-  /** Appended only after the file exists, so the audit log never claims a failed export.
-   *  Timestamps are UTC at second precision — an audit trail, not a profiler. */
+  /**
+   * Appended only after the file exists, so the audit log never claims a failed export.
+   * Timestamps are UTC at second precision — an audit trail, not a profiler.
+   *
+   * The secret is already on disk by the time this runs, so a failure here is not a clean one: the
+   * export did not fully succeed, but something sensitive exists that the caller must be able to
+   * find and shred. Without `--out` that is a timestamped file in the process's working directory,
+   * which nobody can guess — so the path travels with the error rather than being lost with it.
+   */
   #recordExport(operation: BackupRecord["operation"], descriptor: { accountId: string; label?: string | null; addresses: Partial<Record<ChainFamily, string>> }, out: string) {
+    try {
+      this.#appendExport(operation, descriptor, out);
+    } catch (error) {
+      throw new ExecutionError(
+        "audit_append_failed",
+        `the ${operation === "backup" ? "backup" : "keystore"} file was written to ${out}, but recording it in the export log failed: ${(error as Error).message}`,
+        { out, fileMode: "0600" },
+      );
+    }
+  }
+
+  #appendExport(operation: BackupRecord["operation"], descriptor: { accountId: string; label?: string | null; addresses: Partial<Record<ChainFamily, string>> }, out: string) {
     this.backupRecordStore.append({
       operation,
       accountId: descriptor.accountId,

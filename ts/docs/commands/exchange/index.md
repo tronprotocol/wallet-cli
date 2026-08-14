@@ -10,6 +10,11 @@ TRON carries an automatic market maker at **protocol level**: no order book, no 
 - **TRX's on-chain token id is `_`.** We accept `TRX` in any case, the literal `_`, or a numeric TRC10 id.
 - **`--min-received` is a floor, not an expectation.** If the trade would return less, it reverts and you lose only bandwidth.
 - **The protocol takes no fee.** `inject`, `withdraw` and `trade` cost bandwidth only; just `create` burns a fee.
+- **Human amounts are scaled by node-supplied decimals.** Every `--amount` / `--amounts` /
+  `--min-received` is converted to base units using the TRC10 `precision` the node reports, so that
+  value decides the quantity you sign. It is checked against the protocol range 0..6 and against the
+  token id requested, but a wrong value inside that range cannot be caught locally. Use the
+  `--raw-*` variants when the exact base-unit quantity matters — they are used verbatim.
 
 ## Pricing
 

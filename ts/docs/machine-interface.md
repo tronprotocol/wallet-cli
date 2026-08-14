@@ -84,7 +84,7 @@ Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.joi
 
 ### Reading `meta.pagination`
 
-Every paginated read reports its window in **one place — `meta.pagination`** — never inside `data`. That is deliberate: the cursor lives at a fixed path regardless of the payload's shape, so a single pager works for `asset list`, `exchange list`, `backup --records`, `proposal show`, and any list command added later. Its absence means the command is not paginated.
+Every paginated read reports its window in **one place — `meta.pagination`** — never inside `data`. That is deliberate: the cursor lives at a fixed path regardless of the payload's shape, so a single pager works for `asset list`, `exchange list`, `backup --records`, `proposal list`, and any list command added later. Its absence means the command is not paginated.
 
 ```json
 "meta": { "durationMs": 8, "warnings": [], "pagination": { "offset": 0, "limit": 10, "total": null } }

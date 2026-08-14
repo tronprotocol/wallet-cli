@@ -277,3 +277,40 @@ describe("WalletService.importKeystore", () => {
       .toThrowError(/already holds this address/);
   });
 });
+
+/**
+ * A backup is two side effects in order: the secret file is committed, then the export is recorded.
+ * If the second throws — a lock held, a set-aside rename that fails, any local IO fault — the first
+ * has already happened. The command reported a plain failure, so the caller learned neither that a
+ * secret had been written nor where it went. Without `--out` that is a timestamped file in the
+ * process's working directory, so "somewhere in whichever directory the agent happened to be in".
+ * Retrying then writes a second copy.
+ *
+ * The export genuinely did not fully succeed, so it stays a failure — but the path it produced is
+ * part of the error, because the caller has to be able to find and shred it.
+ */
+describe("WalletService reports the file it wrote when the audit append fails", () => {
+  const auditFails = (h: ReturnType<typeof harness>) => new WalletService(
+    h.keystore,
+    {} as any,
+    { write: () => ({ out: "/tmp/exported-secret.json", fileMode: "0600" as const, bytes: 42 }) },
+    { append: () => { throw new Error("audit log is unwritable"); }, list: () => [] },
+    () => NOW,
+  );
+
+  it.each([
+    ["native backup", (s: WalletService, id: string) => s.backup(id, undefined)],
+    ["keystore backup", (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW)],
+  ])("%s still fails, but names the file it already committed", (_label, run) => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
+
+    try {
+      run(auditFails(h), accountId);
+      throw new Error("expected the export to fail");
+    } catch (error) {
+      expect((error as { code?: string }).code).toBe("audit_append_failed");
+      expect((error as { details?: { out?: string } }).details?.out).toBe("/tmp/exported-secret.json");
+    }
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AtomicFileStore } from "./fs/index.js";
@@ -58,10 +58,48 @@ describe("FileBackupRecordStore", () => {
     expect(onDisk).toEqual({ version: 1, records: [record(1)] });
   });
 
-  it("treats a file with no usable records array as empty rather than failing the command", () => {
-    writeFileSync(join(root, "backup-records.json"), JSON.stringify({ version: 1 }));
+  /**
+   * The audit log is the only local record of which secrets left this machine, and an append is a
+   * whole-file rewrite. A file that is legal json but not a shape we recognise used to read as
+   * "no records", so the next export overwrote it — reliably and silently destroying the evidence.
+   * A future `version: 2` written by a newer build and then opened by this one would do exactly
+   * that, which makes it a forward-compatibility trap as much as a tampering one.
+   *
+   * Unrecognised content is therefore set aside under a `.unreadable-<n>` name before anything is
+   * written. Backup keeps working — refusing to export because the log is unreadable helps nobody —
+   * but the original bytes survive for whoever has to reconstruct what happened.
+   */
+  const unreadable = [
+    ["a newer schema version", { version: 2, entries: [{ account: "T1" }] }],
+    ["records that are not an array", { version: 1, records: { a: 1 } }],
+    ["no records key at all", { version: 1 }],
+  ] as const;
+
+  it.each(unreadable)("sets aside %s instead of reporting an empty log", (_label, content) => {
+    writeFileSync(join(root, "backup-records.json"), JSON.stringify(content));
+
     expect(store.list()).toEqual([]);
+
+    const quarantined = readdirSync(root).filter((f) => f.startsWith("backup-records.json.unreadable"));
+    expect(quarantined).toHaveLength(1);
+    expect(JSON.parse(readFileSync(join(root, quarantined[0]!), "utf8"))).toEqual(content);
+  });
+
+  it("keeps the set-aside copy when the next export rewrites the log", () => {
+    const original = { version: 2, entries: [{ account: "T1" }] };
+    writeFileSync(join(root, "backup-records.json"), JSON.stringify(original));
+
     store.append(record(1));
+
     expect(store.list()).toEqual([record(1)]);
+    const quarantined = readdirSync(root).filter((f) => f.startsWith("backup-records.json.unreadable"));
+    expect(JSON.parse(readFileSync(join(root, quarantined[0]!), "utf8"))).toEqual(original);
+  });
+
+  // Syntactically broken json already failed closed; that behaviour is the reference, not the bug.
+  it("still refuses to touch a file that is not json at all", () => {
+    writeFileSync(join(root, "backup-records.json"), '{"version":1,"records":[');
+    expect(() => store.list()).toThrowError();
+    expect(readFileSync(join(root, "backup-records.json"), "utf8")).toBe('{"version":1,"records":[');
   });
 });

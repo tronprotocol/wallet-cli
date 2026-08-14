@@ -70,7 +70,7 @@ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" --byteco
 | `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, unsigned `tx`, fee estimate, deterministic `contractAddress` |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `signed`, signer address, tx id, `contractAddress` |
-| `--build-only` | `kind`, `mode: "build-only"`, `unsigned`, `unsignedHex`, `contractAddress` |
+| `--build-only` | `kind`, `mode: "build-only"`, unsigned `tx`, `hex`, fee estimate, `contractAddress` |
 
 ## Exit status
 

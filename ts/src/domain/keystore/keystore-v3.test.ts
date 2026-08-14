@@ -135,3 +135,61 @@ describe("KeystoreV3.decrypt", () => {
     expect(bytesToHex(KeystoreV3.decrypt(file, PW))).toBe(bytesToHex(KEY));
   });
 });
+
+/**
+ * The Web3 MAC is keccak(dk[16:32] || ciphertext) — it authenticates the password only because
+ * dk[16:32] is derived from it. A file declaring `dklen: 16` makes that slice EMPTY, so the MAC
+ * degenerates to keccak(ciphertext): a value the file's author fixes, independent of any password.
+ * Every password then passes the check and decrypts the ciphertext to different 32 random bytes,
+ * which is a well-formed private key. The import reports success and the user holds an address
+ * nobody knows the key to — funds sent there are burned.
+ *
+ * Both KDFs in the accept set are affected, and both are safe in the Java implementation this codec
+ * claims parity with: its pbkdf2 path ignores `dklen` and always derives 32 bytes, and its scrypt
+ * path would throw copying a 16-byte slice. Refusing dklen < 32 is therefore not a divergence from
+ * Java — it is catching up with it.
+ */
+describe("V3 import rejects a derived key too short to authenticate the password", () => {
+  const shortDklen = (kdf: "pbkdf2" | "scrypt", password: string) => {
+    const salt = new Uint8Array(32).fill(11);
+    const iv = new Uint8Array(16).fill(13);
+    const kdfparams = kdf === "pbkdf2"
+      ? { c: 1, prf: "hmac-sha256", dklen: 16, salt: bytesToHex(salt) }
+      : { n: 1024, r: 8, p: 1, dklen: 16, salt: bytesToHex(salt) };
+    const dk = kdf === "pbkdf2"
+      ? pbkdf2(sha256, utf8ToBytes(password), salt, { c: 1, dkLen: 16 })
+      : Web3Crypto.scryptKey(password, salt, { n: 1024, r: 8, p: 1, dklen: 16 });
+    const ciphertext = ctr(dk.slice(0, 16), iv).encrypt(KEY);
+    return {
+      version: 3,
+      id: "aa0f2c1e-0000-4000-8000-000000000002",
+      address: ADDRESS,
+      crypto: {
+        cipher: "aes-128-ctr",
+        ciphertext: bytesToHex(ciphertext),
+        cipherparams: { iv: bytesToHex(iv) },
+        kdf,
+        kdfparams,
+        // dk[16:32] is empty, so this is keccak(ciphertext) — no password involved.
+        mac: bytesToHex(Web3Crypto.mac(dk, ciphertext)),
+      },
+    };
+  };
+
+  it.each(["pbkdf2", "scrypt"] as const)("refuses a %s file declaring dklen 16", (kdf) => {
+    expect(() => KeystoreV3.decrypt(shortDklen(kdf, PW), PW))
+      .toThrowError(/dklen/i);
+  });
+
+  // The decisive property: without the guard BOTH of these succeed, each yielding a different key.
+  it.each(["pbkdf2", "scrypt"] as const)("refuses a %s file under any password, not just the wrong one", (kdf) => {
+    const file = shortDklen(kdf, PW);
+    for (const attempt of [PW, "completely-different-password", ""]) {
+      expect(() => KeystoreV3.decrypt(file, attempt)).toThrowError(/dklen/i);
+    }
+  });
+
+  it("still accepts the standard dklen 32", () => {
+    expect(KeystoreV3.decrypt(lightV3(), PW)).toEqual(KEY);
+  });
+});

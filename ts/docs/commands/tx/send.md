@@ -22,6 +22,14 @@ Builds, signs, and submits a transfer from the active account (or `--account`). 
 
 Amounts: `--amount` is human units (TRX, or token units respecting the token's decimals); `--raw-amount` is the raw integer (SUN or token base units). Exactly one of the two.
 
+Where the decimals come from: TRX is fixed at 6, but a token's are read from the node — from the
+contract for TRC20, from the asset record for TRC10. `--amount` is therefore scaled by a number the
+node supplies, and a node that misreports it moves the decimal point on the amount you sign. The
+value is checked against the protocol range (a TRC10 precision is 0..6, and a record answering for
+a different id is refused outright), but a wrong value *inside* that range cannot be detected
+locally — there is nothing to compare it against. When the exact base-unit quantity matters, pass
+`--raw-amount`, which is used verbatim and never rescaled.
+
 Early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the signed transaction **hex**; `--build-only` builds but does **not** sign, printing the **unsigned** hex. For multi-sig, `--permission-id` selects the signing group and `--expiration` extends how long the transaction stays valid for co-signers to add their signatures.
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed, or poll [`tx status`](status.md).

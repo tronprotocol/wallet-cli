@@ -303,3 +303,34 @@ describe("asset info / list", () => {
     expect(listAssets).toHaveBeenCalledWith(10, 20);
   });
 });
+
+/**
+ * `asset issue` burns the issuance fee, an account may only ever issue once, and the ICO window is
+ * fixed for the life of the token. So a mistyped time must not become a different, valid one.
+ *
+ * The parser accepted any two digits per component and let `Date.UTC` roll them over, checking only
+ * the resulting DATE afterwards — which catches `24:00:00` (it lands on the next day) but not
+ * `12:60:00`, which stays inside the same day and is silently read as 13:00:00.
+ */
+describe("asset issue rejects an impossible time instead of rolling it over", () => {
+  const issueWith = (start: string) =>
+    service({ getAssetByIssuer: async () => undefined, buildAssetIssue: async () => ({}) as never })
+      .issue(scope, NET, { ...ISSUE, start, end: "2031-01-01", dryRun: true } as never);
+
+  it.each([
+    ["60 minutes", "2030-01-01 12:60:00"],
+    ["60 seconds", "2030-01-01 12:00:60"],
+    ["25 hours", "2030-01-01 25:00:00"],
+    ["24 hours — already rejected, and must stay rejected", "2030-01-01 24:00:00"],
+  ])("rejects %s", async (_label, start) => {
+    await expect(issueWith(start)).rejects.toMatchObject({ code: "invalid_value" });
+  });
+
+  it.each([
+    ["midnight", "2030-01-01 00:00:00"],
+    ["the last second of a day", "2030-01-01 23:59:59"],
+    ["a date with no time at all", "2030-01-01"],
+  ])("still accepts %s", async (_label, start) => {
+    await expect(issueWith(start)).resolves.toMatchObject({ kind: "asset-issue" });
+  });
+});

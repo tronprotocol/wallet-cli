@@ -426,9 +426,11 @@ function parseUtcDateTime(value: string, flag: string): number {
   const [, y, mo, d, h = "00", mi = "00", s = "00"] = match;
   const stamp = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
   // Date.UTC rolls over out-of-range parts (month 13 → next January); reject rather than reinterpret.
+  // Comparing the whole instant, not just the date: `12:60:00` rolls to 13:00:00 WITHIN the same
+  // day, so a date-only check waves it through — and an issuance is irreversible.
   const iso = new Date(stamp).toISOString();
-  if (iso.slice(0, 10) !== `${y}-${mo}-${d}`) {
-    throw new UsageError("invalid_value", `${flag} is not a real date`);
+  if (iso.slice(0, 19) !== `${y}-${mo}-${d}T${h}:${mi}:${s}`) {
+    throw new UsageError("invalid_value", `${flag} is not a real date and time`);
   }
   return stamp;
 }

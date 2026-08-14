@@ -11,7 +11,9 @@
  *     its seed payload — a V3 keystore holds one key and nothing derivable.
  *
  * Asymmetric by design: we WRITE scrypt only, but READ scrypt or pbkdf2, matching the accept set of
- * the Java implementation (`Wallet.java`) so anything it or TronLink can open, we can open.
+ * the Java implementation (`Wallet.java`) so anything it or TronLink can open, we can open — with
+ * one deliberate exception: a derived key shorter than the private key it must authenticate is
+ * refused (see `deriveKey`), because accepting it would mean accepting any password.
  */
 import { randomUUID } from "node:crypto";
 import { scrypt } from "@noble/hashes/scrypt.js";
@@ -122,6 +124,14 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
   const p = asRecord(c.kdfparams, "missing crypto.kdfparams");
   const salt = hexField(p.salt, "crypto.kdfparams.salt");
   const dklen = intField(p.dklen, "crypto.kdfparams.dklen");
+  // The MAC authenticates the password only through dk[16:32]. Below 32 bytes that slice is empty
+  // and the MAC collapses to keccak(ciphertext) — a constant the file's author chooses — so every
+  // password passes and decrypts to a different, unknowable key. Java is not fooled here (its
+  // pbkdf2 path ignores dklen and derives 32; its scrypt path throws), so this is parity, not
+  // divergence.
+  if (dklen < PRIVATE_KEY_BYTES) {
+    throw invalid(`crypto.kdfparams.dklen must be at least ${PRIVATE_KEY_BYTES}, got ${dklen}: a shorter derived key cannot bind the MAC to the password`);
+  }
   if (c.kdf === "scrypt") {
     return Web3Crypto.scryptKey(password, salt, {
       n: intField(p.n, "crypto.kdfparams.n"),
