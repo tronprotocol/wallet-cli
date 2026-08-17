@@ -3,8 +3,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // Swap real scrypt (n=2^18, hundreds of ms/call) for a cheap deterministic KDF: this suite
 // exercises keystore *logic* over dozens of encrypt/decrypt cycles, not the KDF, which
 // crypto.test.ts covers against the real implementation. Production is untouched.
-vi.mock("@noble/hashes/scrypt.js", async () =>
-  import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
+vi.mock(
+  "@noble/hashes/scrypt.js",
+  async () => import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
 import { mkdtempSync, readdirSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,7 +35,11 @@ describe("Keystore", () => {
   });
 
   it("imports a seed, caches the chain address, and sets it active", () => {
-    const { accountId: ref, created } = ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const { accountId: ref, created } = ks.import({
+      secret: MNEMONIC,
+      type: "seed",
+      label: "main",
+    });
     expect(ref).toMatch(/^wlt_[a-z0-9]+\.0$/);
     expect(created).toBe(true);
     const views = ks.list();
@@ -96,7 +101,11 @@ describe("Keystore", () => {
     const watch = ks.registerWatch({ family: "tron", address: "Twatch-active" });
     expect(ks.activeAccount()).toBe(watch.accountId);
 
-    const repeatedLedger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
+    const repeatedLedger = ks.registerLedger({
+      family: "tron",
+      path: "m/44'/195'/0'/0/0",
+      address: TRON0,
+    });
     expect(repeatedLedger.created).toBe(false);
     expect(ks.activeAccount()).toBe(ledger.accountId);
 
@@ -113,7 +122,11 @@ describe("Keystore", () => {
 
   it("registerLedger does not dedup against a software account with the same address", () => {
     const seedRef = ks.import({ secret: MNEMONIC, type: "seed" }).accountId;
-    const ledRef = ks.registerLedger({ family: "tron", path: LEDGER_PATH, address: TRON0 }).accountId;
+    const ledRef = ks.registerLedger({
+      family: "tron",
+      path: LEDGER_PATH,
+      address: TRON0,
+    }).accountId;
     expect(ledRef).not.toBe(seedRef);
     expect(ks.list()).toHaveLength(2);
     expect(ks.resolveAccount(ledRef).wallet.source.type).toBe("ledger");
@@ -184,7 +197,11 @@ describe("Keystore", () => {
   });
 
   it("add-account on a ledger wallet is rejected with a re-import hint", () => {
-    const ledRef = ks.registerLedger({ family: "tron", path: LEDGER_PATH, address: TRON0 }).accountId;
+    const ledRef = ks.registerLedger({
+      family: "tron",
+      path: LEDGER_PATH,
+      address: TRON0,
+    }).accountId;
     const walletId = ledRef.split(".")[0]!;
     expect(() => ks.addAccount(walletId)).toThrow(/not HD|import/i);
   });
@@ -227,7 +244,9 @@ describe("Keystore", () => {
   it("rejects a duplicate label", () => {
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     const pk = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
-    expect(() => ks.import({ secret: pk, type: "privateKey", label: "main" })).toThrow(/already in use/);
+    expect(() => ks.import({ secret: pk, type: "privateKey", label: "main" })).toThrow(
+      /already in use/,
+    );
   });
 
   it("setActive switches the active account and reports the previous", () => {
@@ -268,7 +287,9 @@ describe("Keystore", () => {
     alice.import({ secret: MNEMONIC, type: "seed" });
     // a second wallet imported under a DIFFERENT password must be rejected, not silently stored
     const bob = new Keystore(root, new AtomicFileStore(), () => "bob-pw-2B");
-    expect(() => bob.import({ secret: pk, type: "privateKey" })).toThrow(/auth_failed|incorrect|does not match/i);
+    expect(() => bob.import({ secret: pk, type: "privateKey" })).toThrow(
+      /auth_failed|incorrect|does not match/i,
+    );
     // the original password still works
     const alice2 = new Keystore(root, new AtomicFileStore(), () => "alice-pw-1A");
     expect(() => alice2.import({ secret: pk, type: "privateKey" })).not.toThrow();
@@ -330,9 +351,12 @@ describe("Keystore", () => {
   it("rejects a wrong master password on decrypt", () => {
     const ref = ks.import({ secret: MNEMONIC, type: "seed" }).accountId;
     const vaultId = (ks.resolveAccount(ref).wallet.source as any).vaultId;
-    const bad = new Keystore((ks as any).root ?? "", new AtomicFileStore(), () => "wrongpw");
     // build a keystore pointing at the same root
-    const ks2 = new Keystore((ks as any).walletsPath.replace(/\/wallets\.json$/, ""), new AtomicFileStore(), () => "wrongpw");
+    const ks2 = new Keystore(
+      (ks as any).walletsPath.replace(/\/wallets\.json$/, ""),
+      new AtomicFileStore(),
+      () => "wrongpw",
+    );
     expect(() => ks2.decryptSeed(vaultId)).toThrow(/auth_failed|incorrect/);
   });
 });
@@ -384,7 +408,9 @@ describe("changePassword", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
     const ksWatchOnly = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
     ksWatchOnly.registerWatch({ family: "tron", address: "Twatch-only" });
-    expect(() => ksWatchOnly.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow(/no software wallet/);
+    expect(() => ksWatchOnly.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow(
+      /no software wallet/,
+    );
   });
 
   it("maps a write failure to io_error and leaves the keystore usable under the old password", () => {
@@ -392,7 +418,9 @@ describe("changePassword", () => {
     const store = new AtomicFileStore();
     const ks = new Keystore(root, store, () => "OldPw1!aa");
     ks.import({ secret: MNEMONIC, type: "seed" });
-    store.writeJsonAll = () => { throw new Error("disk full"); };
+    store.writeJsonAll = () => {
+      throw new Error("disk full");
+    };
     expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrowError(
       expect.objectContaining({ code: "io_error" }),
     );

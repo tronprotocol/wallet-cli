@@ -9,7 +9,10 @@ import * as readline from "node:readline";
 import { ExecutionError } from "../../../../../domain/errors/index.js";
 
 export type KeyEvent = { name?: string; ctrl?: boolean; sequence?: string };
-export interface Choice<T> { value: T; label: string }
+export interface Choice<T> {
+  value: T;
+  label: string;
+}
 
 export interface PromptBackend {
   isTTY(): boolean;
@@ -35,30 +38,53 @@ export class Prompter {
    * behave as if there were no TTY — every prompt site already gates on isTTY(), so flipping this
    * off makes gap-fill / password / secret prompts fail-fast on missing input instead of blocking.
    */
-  setInteractive(allowed: boolean): void { this.#interactive = allowed; }
+  setInteractive(allowed: boolean): void {
+    this.#interactive = allowed;
+  }
 
-  isTTY(): boolean { return this.#interactive && this.be.isTTY(); }
+  isTTY(): boolean {
+    return this.#interactive && this.be.isTTY();
+  }
 
   /** release backend resources at end of run (no-op for in-memory backends). */
-  close(): void { this.be.close?.(); }
+  close(): void {
+    this.be.close?.();
+  }
 
   async text(o: { label: string; validate?: (v: string) => string | null }): Promise<string> {
     for (;;) {
       const v = (await this.be.question(`${color("cyan", "?")} ${o.label}: `, false)).trim();
       const err = o.validate?.(v);
-      if (err) { this.be.write(`${color("red", "  x")} ${err}\n`); continue; }
+      if (err) {
+        this.be.write(`${color("red", "  x")} ${err}\n`);
+        continue;
+      }
       return v;
     }
   }
 
-  async hidden(o: { label: string; confirm?: boolean; confirmLabel?: string; validate?: (v: string) => string | null }): Promise<string> {
+  async hidden(o: {
+    label: string;
+    confirm?: boolean;
+    confirmLabel?: string;
+    validate?: (v: string) => string | null;
+  }): Promise<string> {
     for (;;) {
       const v = await this.be.question(`${color("cyan", "?")} ${o.label}: `, true);
       const err = o.validate?.(v);
-      if (err) { this.be.write(`${color("red", "  x")} ${err}\n`); continue; }
+      if (err) {
+        this.be.write(`${color("red", "  x")} ${err}\n`);
+        continue;
+      }
       if (o.confirm) {
-        const again = await this.be.question(`${color("cyan", "?")} ${o.confirmLabel ?? "Confirm"}: `, true);
-        if (v !== again) { this.be.write(`${color("red", "  x")} entries do not match\n`); continue; }
+        const again = await this.be.question(
+          `${color("cyan", "?")} ${o.confirmLabel ?? "Confirm"}: `,
+          true,
+        );
+        if (v !== again) {
+          this.be.write(`${color("red", "  x")} entries do not match\n`);
+          continue;
+        }
       }
       return v;
     }
@@ -71,7 +97,11 @@ export class Prompter {
     return /^y(es)?$/i.test(v.trim());
   }
 
-  async select<T>(o: { label: string; choices: Choice<T>[]; loadMore?: () => Promise<Choice<T>[]> }): Promise<T> {
+  async select<T>(o: {
+    label: string;
+    choices: Choice<T>[];
+    loadMore?: () => Promise<Choice<T>[]>;
+  }): Promise<T> {
     let items = [...o.choices];
     let idx = 0;
     this.be.beginRaw();
@@ -85,7 +115,10 @@ export class Prompter {
         else if (k.name === "down") {
           if (idx === items.length - 1 && o.loadMore) {
             const more = await o.loadMore();
-            if (more.length > items.length) { items = more; idx++; }
+            if (more.length > items.length) {
+              items = more;
+              idx++;
+            }
           } else {
             idx = Math.min(items.length - 1, idx + 1);
           }
@@ -103,10 +136,7 @@ export class Prompter {
       this.be.write(`\x1b[${this.#renderedSelectLines}F\x1b[J`);
     }
     const lines = items.map((c, i) => `${i === idx ? color("cyan", ">") : " "} ${c.label}`);
-    const frame = [
-      `${color("cyan", "?")} ${label} ${dim("(Up/Down, Enter)")}`,
-      ...lines,
-    ];
+    const frame = [`${color("cyan", "?")} ${label} ${dim("(Up/Down, Enter)")}`, ...lines];
     this.#renderedSelectLines = frame.length;
     this.be.write(`${frame.join("\n")}\n`);
   }
@@ -139,8 +169,12 @@ export class TtyBackend implements PromptBackend {
       this.#tty = false;
     }
   }
-  isTTY(): boolean { return this.#tty; }
-  write(s: string): void { process.stderr.write(s); }
+  isTTY(): boolean {
+    return this.#tty;
+  }
+  write(s: string): void {
+    process.stderr.write(s);
+  }
 
   /**
    * ONE persistent tty.ReadStream for the whole run (a real TTY stream, unlike fs.createReadStream).
@@ -168,7 +202,11 @@ export class TtyBackend implements PromptBackend {
     if (!hidden) {
       const rl = readline.createInterface({ input, output: process.stderr, terminal: true });
       return new Promise((resolve) => {
-        rl.question(prompt, (ans) => { rl.close(); input.pause(); resolve(ans); });
+        rl.question(prompt, (ans) => {
+          rl.close();
+          input.pause();
+          resolve(ans);
+        });
       });
     }
     return new Promise((resolve) => {
@@ -187,9 +225,15 @@ export class TtyBackend implements PromptBackend {
         for (const ch of d.toString("utf8")) {
           const code = ch.charCodeAt(0);
           if (ch === "\r" || ch === "\n") return finish(buf); // Enter
-          if (code === 3) { process.stderr.write("\n"); process.exit(130); } // Ctrl-C
+          if (code === 3) {
+            process.stderr.write("\n");
+            process.exit(130);
+          } // Ctrl-C
           if (code === 4) return finish(buf); // Ctrl-D
-          if (code === 127 || code === 8) { buf = buf.slice(0, -1); continue; } // Backspace
+          if (code === 127 || code === 8) {
+            buf = buf.slice(0, -1);
+            continue;
+          } // Backspace
           if (code < 32) continue; // ignore other control chars
           buf += ch;
         }
@@ -236,7 +280,11 @@ export class TtyBackend implements PromptBackend {
   /** Release the persistent /dev/tty stream so the event loop drains and the process exits. */
   close(): void {
     if (this.#input) {
-      try { this.#input.setRawMode(false); } catch { /* may already be closed */ }
+      try {
+        this.#input.setRawMode(false);
+      } catch {
+        /* may already be closed */
+      }
       this.#input.destroy();
       this.#input = undefined;
     }

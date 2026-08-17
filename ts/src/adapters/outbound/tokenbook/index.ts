@@ -5,7 +5,11 @@
  */
 import { join } from "node:path";
 import type {
-  AccountRef, EffectiveTokenEntry, TokenEntry, TokensFile } from "../../../domain/types/index.js";
+  AccountRef,
+  EffectiveTokenEntry,
+  TokenEntry,
+  TokensFile,
+} from "../../../domain/types/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { OFFICIAL_TOKENS } from "./builtins.js";

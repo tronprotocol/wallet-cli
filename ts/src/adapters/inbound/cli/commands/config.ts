@@ -9,7 +9,9 @@ import { TextFormatters } from "../render/index.js";
 
 export function registerConfigCommands(registry: CommandRegistry, service: ConfigService): void {
   const fields = z.object({
-    key: z.enum(CONFIG_KEYS).optional()
+    key: z
+      .enum(CONFIG_KEYS)
+      .optional()
       .describe("config key to read or set; omit to show the whole effective config"),
     value: z.string().min(1).optional().describe("new value; omit to read the key"),
   });

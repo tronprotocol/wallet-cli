@@ -1,11 +1,7 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
-import type {
-  Bytes,
-  GasFreeAuthorization,
-  TypedDataPayload,
-} from "../types/index.js";
+import type { Bytes, GasFreeAuthorization, TypedDataPayload } from "../types/index.js";
 import { TronAddress, tronAddressBytes } from "../address/index.js";
 
 export const GASFREE_DOMAIN_TYPE =
@@ -40,29 +36,33 @@ export interface GasFreeDomainInput {
 
 /** Java GasFreeApi.getDomainSeparator byte-for-byte equivalent. */
 export function gasFreeDomainSeparator(domain: GasFreeDomainInput): Bytes {
-  return keccak_256(concatBytes(
-    keccak_256(UTF8.encode(GASFREE_DOMAIN_TYPE)),
-    keccak_256(UTF8.encode(GASFREE_DOMAIN_NAME)),
-    keccak_256(UTF8.encode(GASFREE_DOMAIN_VERSION)),
-    uint256Word(domain.controllerChainId, "controllerChainId"),
-    addressWord(domain.verifyingContract),
-  ));
+  return keccak_256(
+    concatBytes(
+      keccak_256(UTF8.encode(GASFREE_DOMAIN_TYPE)),
+      keccak_256(UTF8.encode(GASFREE_DOMAIN_NAME)),
+      keccak_256(UTF8.encode(GASFREE_DOMAIN_VERSION)),
+      uint256Word(domain.controllerChainId, "controllerChainId"),
+      addressWord(domain.verifyingContract),
+    ),
+  );
 }
 
 /** Java GasFreeApi.buildMessage byte-for-byte equivalent. */
 export function gasFreeMessageHash(authorization: GasFreeAuthorization): Bytes {
-  return keccak_256(concatBytes(
-    keccak_256(UTF8.encode(GASFREE_PERMIT_TYPE)),
-    addressWord(authorization.token),
-    addressWord(authorization.serviceProvider),
-    addressWord(authorization.user),
-    addressWord(authorization.receiver),
-    uint256Word(authorization.value, "value"),
-    uint256Word(authorization.maxFee, "maxFee"),
-    uint256Word(authorization.deadline, "deadline"),
-    uint256Word(authorization.version, "version"),
-    uint256Word(authorization.nonce, "nonce"),
-  ));
+  return keccak_256(
+    concatBytes(
+      keccak_256(UTF8.encode(GASFREE_PERMIT_TYPE)),
+      addressWord(authorization.token),
+      addressWord(authorization.serviceProvider),
+      addressWord(authorization.user),
+      addressWord(authorization.receiver),
+      uint256Word(authorization.value, "value"),
+      uint256Word(authorization.maxFee, "maxFee"),
+      uint256Word(authorization.deadline, "deadline"),
+      uint256Word(authorization.version, "version"),
+      uint256Word(authorization.nonce, "nonce"),
+    ),
+  );
 }
 
 /** keccak256(0x1901 || domainSeparator || messageHash), matching Java signOffChain input. */
@@ -70,11 +70,13 @@ export function gasFreeDigest(
   domain: GasFreeDomainInput,
   authorization: GasFreeAuthorization,
 ): Bytes {
-  return keccak_256(concatBytes(
-    Uint8Array.of(0x19, 0x01),
-    gasFreeDomainSeparator(domain),
-    gasFreeMessageHash(authorization),
-  ));
+  return keccak_256(
+    concatBytes(
+      Uint8Array.of(0x19, 0x01),
+      gasFreeDomainSeparator(domain),
+      gasFreeMessageHash(authorization),
+    ),
+  );
 }
 
 /** Build the exact TIP-712 payload used by software and Ledger signers. */
@@ -129,10 +131,7 @@ export function recoverGasFreeSigner(digest: Bytes, signatureHex: string): strin
   if (digest.length !== 32) throw new Error("GasFree digest must be 32 bytes");
   const canonical = hexToBytes(normalizeGasFreeSignature(signatureHex));
   const recovery = canonical[64]! - 27;
-  const recoveredSignature = concatBytes(
-    Uint8Array.of(recovery),
-    canonical.slice(0, 64),
-  );
+  const recoveredSignature = concatBytes(Uint8Array.of(recovery), canonical.slice(0, 64));
   const compressed = secp256k1.recoverPublicKey(recoveredSignature, digest, { prehash: false });
   const uncompressed = secp256k1.Point.fromBytes(compressed).toBytes(false);
   return new TronAddress().fromPublicKey(uncompressed);

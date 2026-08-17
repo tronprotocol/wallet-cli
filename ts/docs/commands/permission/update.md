@@ -43,8 +43,8 @@ Changing only `keys`, `threshold` or `name` needs no such deletion.
 | `--dry-run` | Mock receipt — fee, resulting-structure card, and warnings — matching a real submission; no signature, no broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex without broadcasting (feed [`tx broadcast`](../tx/broadcast.md) for on-chain co-signing). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md) for service-relayed multi-sig). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only` |
-| `--permission-id <n>` | Permission group to sign with — changing permissions is owner-level, so normally `0` (default `0`) |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active) — changing permissions is owner-level, so normally `0` (default `0`) |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -124,7 +124,7 @@ Local warnings (`owner_lockout`, `owner_lockout_partial`, `active_can_update_per
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`invalid_permission`, `not_authorized`, `watch_only_no_signer`, `wrong_password`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`invalid_permission`, `not_authorized`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`).
 
 On a multi-sig account, a submission whose accumulated signature weight is below the permission threshold is refused **after signing and before broadcasting** with `not_authorized` (`signature threshold is not reached; missing N weight`) — nothing is sent and no fee is burned. Collect the remaining signatures through `--sign-only` + [`tx sign`](../tx/sign.md) and submit with [`tx broadcast`](../tx/broadcast.md) instead. `--sign-only` and `--build-only` still return a partial signature, which is how a co-signing flow starts.
 

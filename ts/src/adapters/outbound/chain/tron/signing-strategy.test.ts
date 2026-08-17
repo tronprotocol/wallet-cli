@@ -12,13 +12,15 @@ const OWNER = "4119e7e376e7c213b7e7e7e46cc70a5dd086daff2a";
 const TO = "41e552f6487585c2b58bc2c9bb4492bc1f17132cd0";
 
 const RAW_DATA = {
-  contract: [{
-    parameter: {
-      value: { amount: 1000000, owner_address: OWNER, to_address: TO },
-      type_url: "type.googleapis.com/protocol.TransferContract",
+  contract: [
+    {
+      parameter: {
+        value: { amount: 1000000, owner_address: OWNER, to_address: TO },
+        type_url: "type.googleapis.com/protocol.TransferContract",
+      },
+      type: "TransferContract",
     },
-    type: "TransferContract",
-  }],
+  ],
   ref_block_bytes: "0a1b",
   ref_block_hash: "c1e5f0a1d2b3c4d5",
   expiration: 1753180800000,
@@ -66,14 +68,18 @@ describe("tronSignStrategy.sign — payload integrity", () => {
     evilRaw.contract[0].parameter.value.amount = 1000000000;
     const evil = buildTx(evilRaw);
     const tampered = { ...honest, raw_data_hex: evil.raw_data_hex, txID: evil.txID };
-    await expect(tronSignStrategy.sign(PK, tampered as never)).rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(tronSignStrategy.sign(PK, tampered as never)).rejects.toMatchObject({
+      code: "tx_integrity",
+    });
   });
 
   // Layer 1: the hash we sign must be the hash of the bytes the node executes. Here raw_data and
   // raw_data_hex agree, but txID is someone else's — signing it would authorize other bytes.
   it("refuses a transaction whose txID is not the hash of its raw_data_hex", async () => {
     const tx = { ...buildTx(RAW_DATA), txID: "00".repeat(32) };
-    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({
+      code: "tx_integrity",
+    });
   });
 
   it("refuses a transaction missing raw_data_hex or txID", async () => {
@@ -90,15 +96,18 @@ describe("tronSignStrategy.sign — payload integrity", () => {
     const crafted = JSON.parse(JSON.stringify(RAW_DATA));
     crafted.contract[0].parameter.value.amount = 0.5;
     const tx = { ...honest, raw_data: crafted };
-    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({
+      code: "tx_integrity",
+    });
   });
 
   it("refuses raw_data whose address is malformed", async () => {
     const honest = buildTx(RAW_DATA);
     const crafted = JSON.parse(JSON.stringify(RAW_DATA));
     crafted.contract[0].parameter.value.to_address = "not-an-address";
-    await expect(tronSignStrategy.sign(PK, { ...honest, raw_data: crafted } as never))
-      .rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(
+      tronSignStrategy.sign(PK, { ...honest, raw_data: crafted } as never),
+    ).rejects.toMatchObject({ code: "tx_integrity" });
   });
 
   // Serialize a Transaction.raw carrying a single contract of `typeNum` (empty inner parameter —
@@ -127,15 +136,19 @@ describe("tronSignStrategy.sign — payload integrity", () => {
   // binding (decode of raw_data_hex) still applies. A legitimate Market tx, where the claimed type
   // matches the encoded envelope type, must still sign; refusing it gains no security.
   it("signs a Market contract tronweb cannot re-encode when raw_data's type matches the envelope", async () => {
-    const signed = await tronSignStrategy.sign(PK, exoticTx("MarketSellAssetContract", 52) as never);
+    const signed = await tronSignStrategy.sign(
+      PK,
+      exoticTx("MarketSellAssetContract", 52) as never,
+    );
     expect((signed as any).signature).toHaveLength(1);
   });
 
   // SIGN-TX-020: raw_data displays a (benign) Market order while raw_data_hex actually encodes a
   // different contract. Skipping layer 2 for Market must NOT let a disguised type through.
   it("refuses a transaction whose raw_data type disagrees with the encoded envelope type", async () => {
-    await expect(tronSignStrategy.sign(PK, exoticTx("MarketSellAssetContract", 1) as never))
-      .rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(
+      tronSignStrategy.sign(PK, exoticTx("MarketSellAssetContract", 1) as never),
+    ).rejects.toMatchObject({ code: "tx_integrity" });
   });
 
   // SIGN-TX-019: raw_data claims one contract, but the envelope decodes to none. A count mismatch is
@@ -148,14 +161,17 @@ describe("tronSignStrategy.sign — payload integrity", () => {
       raw_data_hex: hex,
       txID: bytesToHex(sha256(hexToBytes(hex))),
     };
-    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({
+      code: "tx_integrity",
+    });
   });
 
   // An unrecognizable contract-type name cannot be confirmed against the envelope, so fail closed
   // rather than skip — the safe reading of "we cannot verify this".
   it("refuses a transaction whose raw_data declares an unknown contract type", async () => {
-    await expect(tronSignStrategy.sign(PK, exoticTx("TotallyFakeContract", 52) as never))
-      .rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(
+      tronSignStrategy.sign(PK, exoticTx("TotallyFakeContract", 52) as never),
+    ).rejects.toMatchObject({ code: "tx_integrity" });
   });
 
   // Decode failure (valid hex, invalid protobuf) is suspicious, not a legitimate codec gap: the
@@ -169,7 +185,9 @@ describe("tronSignStrategy.sign — payload integrity", () => {
       raw_data_hex: hex,
       txID: bytesToHex(sha256(hexToBytes(hex))),
     };
-    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({ code: "tx_integrity" });
+    await expect(tronSignStrategy.sign(PK, tx as never)).rejects.toMatchObject({
+      code: "tx_integrity",
+    });
   });
 
   // TRON multi-sig collects N signatures on one transaction, each signer appending its own, so a
@@ -205,32 +223,44 @@ describe("tx-integrity — pinned tronweb assumptions", () => {
   // These families are valid on-chain but tronweb cannot re-encode them, so layer 2 is skipped and
   // layer 1.5 is the only thing binding their type. If any becomes re-encodable, revisit the skip.
   const UNENCODABLE = [
-    "VoteAssetContract", "UnfreezeAssetContract", "CustomContract",
-    "ShieldedTransferContract", "MarketSellAssetContract", "MarketCancelOrderContract",
+    "VoteAssetContract",
+    "UnfreezeAssetContract",
+    "CustomContract",
+    "ShieldedTransferContract",
+    "MarketSellAssetContract",
+    "MarketCancelOrderContract",
   ];
 
-  it.each(UNENCODABLE)("tronweb still cannot re-encode %s (layer 2 legitimately skips it)", (name) => {
-    const CT = (globalThis as any).TronWebProto.Transaction.Contract.ContractType;
-    const c = new (globalThis as any).TronWebProto.Transaction.Contract();
-    c.setType(CT[name.toUpperCase()]);
-    const raw = new (globalThis as any).TronWebProto.Transaction.raw();
-    raw.addContract(c);
-    const hex = bytesToHex(raw.serializeBinary());
-    expect(() =>
-      tronUtils.transaction.txCheck({
-        visible: false,
-        raw_data: { contract: [{ type: name, parameter: { value: {} } }] },
-        raw_data_hex: hex,
-        txID: bytesToHex(sha256(hexToBytes(hex))),
-      } as never),
-    ).toThrow(/Unsupported transaction type/i);
-  });
+  it.each(UNENCODABLE)(
+    "tronweb still cannot re-encode %s (layer 2 legitimately skips it)",
+    (name) => {
+      const CT = (globalThis as any).TronWebProto.Transaction.Contract.ContractType;
+      const c = new (globalThis as any).TronWebProto.Transaction.Contract();
+      c.setType(CT[name.toUpperCase()]);
+      const raw = new (globalThis as any).TronWebProto.Transaction.raw();
+      raw.addContract(c);
+      const hex = bytesToHex(raw.serializeBinary());
+      expect(() =>
+        tronUtils.transaction.txCheck({
+          visible: false,
+          raw_data: { contract: [{ type: name, parameter: { value: {} } }] },
+          raw_data_hex: hex,
+          txID: bytesToHex(sha256(hexToBytes(hex))),
+        } as never),
+      ).toThrow(/Unsupported transaction type/i);
+    },
+  );
 
   // Layer 1.5 resolves a raw_data type string by upper-casing it and looking it up in the enum.
   // That only works while the enum keys are the upper-cased CamelCase names with no separators.
   it("resolves contract type names against the protobuf enum by upper-casing", () => {
     const CT = (globalThis as any).TronWebProto.Transaction.Contract.ContractType;
-    for (const name of ["TransferContract", "TriggerSmartContract", "AccountPermissionUpdateContract", "MarketSellAssetContract"]) {
+    for (const name of [
+      "TransferContract",
+      "TriggerSmartContract",
+      "AccountPermissionUpdateContract",
+      "MarketSellAssetContract",
+    ]) {
       expect(CT[name.toUpperCase()]).toBeTypeOf("number");
     }
   });
@@ -239,7 +269,12 @@ describe("tx-integrity — pinned tronweb assumptions", () => {
 describe("tronSignStrategy.signTypedData", () => {
   const ADDRESS = TronWeb.address.fromPrivateKey(PK.slice(2)) as string;
   const domain = { name: "SunPerp", version: "1", chainId: 728126428 };
-  const types = { Order: [{ name: "trader", type: "address" }, { name: "size", type: "uint256" }] };
+  const types = {
+    Order: [
+      { name: "trader", type: "address" },
+      { name: "size", type: "uint256" },
+    ],
+  };
   const message = { trader: ADDRESS, size: "1000000" };
 
   it("produces a signature that recovers to the signing address", async () => {
@@ -251,13 +286,22 @@ describe("tronSignStrategy.signTypedData", () => {
   });
 
   it("honours an explicitly supplied primaryType", async () => {
-    const out = await tronSignStrategy.signTypedData(PK, { domain, types, primaryType: "Order", message });
+    const out = await tronSignStrategy.signTypedData(PK, {
+      domain,
+      types,
+      primaryType: "Order",
+      message,
+    });
     expect(out.primaryType).toBe("Order");
   });
 
   it("wraps hashing failures in a ChainError(signing_rejected)", async () => {
     await expect(
-      tronSignStrategy.signTypedData(PK, { domain, types, message: { trader: "not-an-address", size: "1" } }),
+      tronSignStrategy.signTypedData(PK, {
+        domain,
+        types,
+        message: { trader: "not-an-address", size: "1" },
+      }),
     ).rejects.toMatchObject({ code: "signing_rejected" });
   });
 });

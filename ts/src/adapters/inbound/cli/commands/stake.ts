@@ -1,10 +1,6 @@
 import { z } from "zod";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import type {
-  ChainSpec,
-  ExecutionContext,
-  FamilyBinding,
-} from "../contracts/index.js";
+import type { ChainSpec, ExecutionContext, FamilyBinding } from "../contracts/index.js";
 import type { TronStakeService } from "../../../../application/use-cases/tron/stake-service.js";
 import { RESOURCES } from "../../../../domain/resources/index.js";
 import { Schemas } from "../schemas/index.js";
@@ -38,7 +34,9 @@ function stakeCommand(
   return {
     spec: {
       path: ["stake", action],
-      network: "optional", wallet: "optional", auth: "conditional",
+      network: "optional",
+      wallet: "optional",
+      auth: "conditional",
       broadcasts: true,
       capability: options.capability ?? "staking.freeze",
       summary,
@@ -52,7 +50,9 @@ function stakeCommand(
   };
 }
 
-export function stakeDefinitions(service: TronStakeService): Array<{ spec: ChainSpec; binding: FamilyBinding }> {
+export function stakeDefinitions(
+  service: TronStakeService,
+): Array<{ spec: ChainSpec; binding: FamilyBinding }> {
   return [
     stakeCommand(
       "freeze",
@@ -85,7 +85,9 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
       {
         // The Ledger TRON app firmware rejects CancelAllUnfreezeV2Contract (APDU 0x6a80),
         // even with blind-signing enabled; software accounts sign it fine.
-        requires: ["a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type"],
+        requires: [
+          "a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type",
+        ],
       },
     ),
     stakeCommand(
@@ -93,14 +95,19 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
       "Delegate resource to another address (DelegateResourceV2)",
       (context, network, input) => service.delegate(context, network, input),
       {
-        amountSun: Schemas.positiveIntString()
-          .describe("staked-TRX amount backing the delegated resource, in SUN"),
-        receiver: Schemas.addressFor("tron")
-          .describe("TRON address receiving the delegated resource"),
+        amountSun: Schemas.positiveIntString().describe(
+          "staked-TRX amount backing the delegated resource, in SUN",
+        ),
+        receiver: Schemas.addressFor("tron").describe(
+          "TRON address receiving the delegated resource",
+        ),
         resource: resourceField("resource type to delegate or reclaim"),
-        lock: z.boolean().default(false)
+        lock: z
+          .boolean()
+          .default(false)
           .describe("lock the delegation and prevent early undelegation"),
-        lockPeriod: Schemas.positiveIntString().optional()
+        lockPeriod: Schemas.positiveIntString()
+          .optional()
           .describe("lock duration in blocks, approximately 3 seconds per block; requires --lock"),
       },
       {
@@ -121,10 +128,12 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
       "Reclaim delegated resource (UnDelegateResourceV2)",
       (context, network, input) => service.undelegate(context, network, input),
       {
-        amountSun: Schemas.positiveIntString()
-          .describe("staked-TRX amount backing the resource to reclaim, in SUN"),
-        receiver: Schemas.addressFor("tron")
-          .describe("TRON address that previously received the delegated resource"),
+        amountSun: Schemas.positiveIntString().describe(
+          "staked-TRX amount backing the resource to reclaim, in SUN",
+        ),
+        receiver: Schemas.addressFor("tron").describe(
+          "TRON address that previously received the delegated resource",
+        ),
         resource: resourceField("resource type to delegate or reclaim"),
       },
       { capability: "staking.delegate" },
@@ -132,13 +141,19 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
     {
       spec: {
         path: ["stake", "info"],
-        network: "optional", wallet: "optional", auth: "none",
-        summary: "Staking & resource overview (staked / voting power / resource / unfreezing / withdrawable)",
+        network: "optional",
+        wallet: "optional",
+        auth: "none",
+        summary:
+          "Staking & resource overview (staked / voting power / resource / unfreezing / withdrawable)",
         description:
           "Staking & resource overview: staked amounts, voting power (TP), energy/bandwidth\n" +
           "usage, pending unstakes, currently withdrawable TRX, and available unfreeze slots.",
         baseFields: z.object({}),
-        examples: [{ cmd: "wallet-cli stake info" }, { cmd: "wallet-cli stake info --account main -o json" }],
+        examples: [
+          { cmd: "wallet-cli stake info" },
+          { cmd: "wallet-cli stake info --account main -o json" },
+        ],
         formatText: TextFormatters.stakeInfo,
       },
       binding: { run: async (ctx, net) => service.info(ctx, net) },
@@ -146,23 +161,32 @@ export function stakeDefinitions(service: TronStakeService): Array<{ spec: Chain
     {
       spec: {
         path: ["stake", "delegated"],
-        network: "optional", wallet: "optional", auth: "none",
+        network: "optional",
+        wallet: "optional",
+        auth: "none",
         summary: "Delegation details and max delegatable size",
         description:
           "Delegation details (outbound/inbound) plus the maximum size you can still delegate.\n" +
-          "Outbound shows \"Locked until\" (you cannot reclaim before then); inbound shows\n" +
-          "\"Guaranteed until\" (the delegator cannot reclaim before then).",
+          'Outbound shows "Locked until" (you cannot reclaim before then); inbound shows\n' +
+          '"Guaranteed until" (the delegator cannot reclaim before then).',
         baseFields: z.object({
-          direction: ciEnum(["out", "in"]).default("out")
+          direction: ciEnum(["out", "in"])
+            .default("out")
             .describe("out = delegated to others; in = delegated to me"),
-          resource: ciEnum(RESOURCES).optional()
+          resource: ciEnum(RESOURCES)
+            .optional()
             .describe("filter to a single resource type; omit to show both"),
-          to: Schemas.addressFor("tron").optional()
+          to: Schemas.addressFor("tron")
+            .optional()
             .describe("only show delegation to this receiver (out only)"),
         }),
         baseRefine: (value, context) => {
           if (value.to !== undefined && value.direction === "in") {
-            context.addIssue({ code: "custom", path: ["to"], message: "--to only applies to --direction out" });
+            context.addIssue({
+              code: "custom",
+              path: ["to"],
+              message: "--to only applies to --direction out",
+            });
           }
         },
         examples: [

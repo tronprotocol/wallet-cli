@@ -33,7 +33,8 @@ export class CommandRegistry {
       this.#chainByPath.set(key, { spec, families: { [family]: binding } });
       return;
     }
-    if (existing.spec !== spec) throw new Error(`chain command ${key} registered with two different specs`);
+    if (existing.spec !== spec)
+      throw new Error(`chain command ${key} registered with two different specs`);
     if (existing.families[family]) throw new Error(`duplicate command ${family}:${key}`);
     existing.families[family] = binding;
   }

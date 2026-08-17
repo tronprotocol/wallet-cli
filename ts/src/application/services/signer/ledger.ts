@@ -4,7 +4,14 @@
  * detail stays inside the injected `Ledger` (path/hex encoding, @ledgerhq, hw-app-trx).
  */
 import type { ChainFamily } from "../../../domain/family/index.js";
-import type { SignedTx, Signer, SignerSignOpts, TypedDataPayload, TypedDataSignature, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  SignedTx,
+  Signer,
+  SignerSignOpts,
+  TypedDataPayload,
+  TypedDataSignature,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
 import { ExecutionError, WalletError } from "../../../domain/errors/index.js";
 import type { LedgerDevice } from "../../ports/ledger-device.js";
 
@@ -35,7 +42,10 @@ export class LedgerSigner implements Signer {
   async signMessage(message: string, opts: SignerSignOpts): Promise<string> {
     return this.ledger.signMessage(this.family, this.path, message, opts.signal);
   }
-  async signTypedData(payload: TypedDataPayload, opts: SignerSignOpts): Promise<TypedDataSignature> {
+  async signTypedData(
+    payload: TypedDataPayload,
+    opts: SignerSignOpts,
+  ): Promise<TypedDataSignature> {
     return this.ledger.signTypedData(this.family, this.path, payload, opts.signal);
   }
 }

@@ -13,6 +13,9 @@ export function formatScalar(v: unknown): string {
 }
 
 export function formatInt(v: unknown): string {
+  if (typeof v === "string" && /^-?\d+$/.test(v)) {
+    return formatDecimal(v);
+  }
   const n = Number(v);
   return Number.isFinite(n) ? Math.trunc(n).toLocaleString("en-US") : String(v ?? "");
 }
@@ -28,7 +31,9 @@ export function formatDecimal(v: unknown): string {
 
 export function formatUsd(v: unknown): string {
   const n = Number(v);
-  return Number.isFinite(n) ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(v ?? "");
+  return Number.isFinite(n)
+    ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : String(v ?? "");
 }
 
 export function formatSun(v: unknown): string {
@@ -57,9 +62,12 @@ export function formatAtWithRelative(v: unknown, now: number = Date.now()): stri
   const at = `${date} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   const delta = n - now;
   const mag = Math.abs(delta);
-  const unit = mag >= 86_400_000
-    ? `${Math.round(mag / 86_400_000)} day(s)`
-    : mag >= 3_600_000 ? `${Math.round(mag / 3_600_000)}h` : `${Math.max(1, Math.round(mag / 60_000))}m`;
+  const unit =
+    mag >= 86_400_000
+      ? `${Math.round(mag / 86_400_000)} day(s)`
+      : mag >= 3_600_000
+        ? `${Math.round(mag / 3_600_000)}h`
+        : `${Math.max(1, Math.round(mag / 60_000))}m`;
   return `${at} (${delta >= 0 ? `in ~${unit}` : `~${unit} ago`})`;
 }
 

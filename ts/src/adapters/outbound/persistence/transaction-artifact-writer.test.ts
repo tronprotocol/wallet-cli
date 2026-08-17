@@ -25,6 +25,8 @@ describe("SecureTransactionArtifactWriter", () => {
     const target = join(dir, "target");
     const link = join(dir, "signed.hex");
     symlinkSync(target, link);
-    expect(() => new SecureTransactionArtifactWriter().write(link, "abcd")).toThrowError(/symbolic-link/);
+    expect(() => new SecureTransactionArtifactWriter().write(link, "abcd")).toThrowError(
+      /symbolic-link/,
+    );
   });
 });

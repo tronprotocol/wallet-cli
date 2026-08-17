@@ -10,7 +10,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 /** human-readable labels for network-specific trait keys (the non command-backed capabilities above).
  *  Empty today — TRON carries no extra traits; the lookup path stays for future families. */
-export const TRAIT_SUMMARIES: Record<string, string> = {}
+export const TRAIT_SUMMARIES: Record<string, string> = {};
 
 /** human-readable labels for command-backed capability keys (the keys commands declare via
  *  `capability`). Sibling of TRAIT_SUMMARIES; the runner resolves both the same way. */
@@ -29,6 +29,11 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "message.sign": "sign a message",
   "contract.call": "constant + state-changing contract calls",
   "contract.deploy": "deploy a smart contract",
+  "contract.governance": "govern a deployed smart contract",
+  "contract.create2": "compute TVM CREATE2 addresses",
+  "proposal.read": "query governance proposals",
+  "proposal.write": "create, approve, and delete governance proposals",
+  "witness.manage": "register and operate an SR candidacy",
   "staking.freeze": "freeze/unfreeze (Stake 2.0)",
   "staking.delegate": "delegate/undelegate resource (Stake 2.0)",
   "vote.cast": "cast/replace SR votes",
@@ -41,7 +46,7 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "gasfree.info": "GasFree account, fee and nonce information",
   "gasfree.transfer": "TIP-712 gas-free token transfer",
   "gasfree.trace": "track a GasFree transfer",
-}
+};
 
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   "tron:mainnet": {
@@ -86,11 +91,11 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     feeModel: "tron-resource",
     capabilities: [],
   },
-}
+};
 
 export const DEFAULT_CONFIG = {
   defaultNetwork: "tron:mainnet",
   defaultOutput: "text" as const,
   timeoutMs: 60000,
   waitTimeoutMs: 60000,
-}
+};

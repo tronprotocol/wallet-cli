@@ -5,16 +5,30 @@ import { StreamManager } from "../../stream/index.js";
 
 function streams(stdin = ""): StreamManager {
   // out/err captured to no-op; readStdinOnce returns the provided value
-  const sm = new StreamManager("text", false, () => {}, () => {});
+  const sm = new StreamManager(
+    "text",
+    false,
+    () => {},
+    () => {},
+  );
   vi.spyOn(sm, "readStdinOnce").mockReturnValue(stdin);
   return sm;
 }
 
 class Backend implements PromptBackend {
-  constructor(private answers: string[], private tty = true) {}
-  isTTY() { return this.tty; }
-  async question() { return this.answers.shift() ?? ""; }
-  async readKey(): Promise<KeyEvent> { return { name: "return" }; }
+  constructor(
+    private answers: string[],
+    private tty = true,
+  ) {}
+  isTTY() {
+    return this.tty;
+  }
+  async question() {
+    return this.answers.shift() ?? "";
+  }
+  async readKey(): Promise<KeyEvent> {
+    return { name: "return" };
+  }
   write() {}
   beginRaw() {}
   endRaw() {}
@@ -53,21 +67,37 @@ describe("primePassword", () => {
     expect(r.masterPassword()).toBe(PW);
   });
   it("set mode via --password-stdin enforces policy (weak_password)", async () => {
-    const r = new SecretResolver(streams("weak\n"), { password: "-" }, new Prompter(new Backend([])));
+    const r = new SecretResolver(
+      streams("weak\n"),
+      { password: "-" },
+      new Prompter(new Backend([])),
+    );
     await expect(r.primePassword({ mode: "set" })).rejects.toMatchObject({ code: "weak_password" });
   });
   it("verify mode via --password-stdin just caches", async () => {
-    const r = new SecretResolver(streams(PW + "\n"), { password: "-" }, new Prompter(new Backend([])));
+    const r = new SecretResolver(
+      streams(PW + "\n"),
+      { password: "-" },
+      new Prompter(new Backend([])),
+    );
     await r.primePassword({ mode: "verify", verify: () => true });
     expect(r.masterPassword()).toBe(PW);
   });
   it("verify mode via --password-stdin rejects a wrong password", async () => {
-    const r = new SecretResolver(streams("wrong\n"), { password: "-" }, new Prompter(new Backend([])));
-    await expect(r.primePassword({ mode: "verify", verify: (pw) => pw === PW })).rejects.toMatchObject({ code: "auth_failed" });
+    const r = new SecretResolver(
+      streams("wrong\n"),
+      { password: "-" },
+      new Prompter(new Backend([])),
+    );
+    await expect(
+      r.primePassword({ mode: "verify", verify: (pw) => pw === PW }),
+    ).rejects.toMatchObject({ code: "auth_failed" });
   });
   it("no source and no TTY → auth_required", async () => {
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], false)));
-    await expect(r.primePassword({ mode: "verify", verify: () => true })).rejects.toMatchObject({ code: "auth_required" });
+    await expect(r.primePassword({ mode: "verify", verify: () => true })).rejects.toMatchObject({
+      code: "auth_required",
+    });
   });
 });
 

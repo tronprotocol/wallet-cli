@@ -6,7 +6,9 @@ import { TextFormatters } from "../render/index.js";
 
 export const rewardBalanceSpec: ChainSpec = {
   path: ["reward", "balance"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "reward.balance",
   summary: "Show claimable voting/block reward and withdraw status",
   description:
@@ -24,7 +26,9 @@ export const rewardBalanceTronBinding = (svc: TronRewardService): FamilyBinding 
 
 export const rewardWithdrawSpec: ChainSpec = {
   path: ["reward", "withdraw"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "reward.withdraw",
   summary: "Withdraw accrued voting/block rewards",
@@ -32,10 +36,7 @@ export const rewardWithdrawSpec: ChainSpec = {
     "Withdraw accrued voting/block rewards into your available balance.\n" +
     "Rewards can be withdrawn at most once every 24 hours.",
   baseFields: z.object({ ...txModeFields }),
-  examples: [
-    { cmd: "wallet-cli reward withdraw" },
-    { cmd: "wallet-cli reward withdraw --wait" },
-  ],
+  examples: [{ cmd: "wallet-cli reward withdraw" }, { cmd: "wallet-cli reward withdraw --wait" }],
   formatText: TextFormatters.txReceipt,
 };
 

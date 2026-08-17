@@ -26,14 +26,16 @@ function unsignedHex(amount = 1): string {
   return encodeTransactionHex({
     visible: false,
     raw_data: {
-      contract: [{
-        parameter: {
-          value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount },
-          type_url: "type.googleapis.com/protocol.TransferContract",
+      contract: [
+        {
+          parameter: {
+            value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount },
+            type_url: "type.googleapis.com/protocol.TransferContract",
+          },
+          type: "TransferContract",
+          Permission_id: 2,
         },
-        type: "TransferContract",
-        Permission_id: 2,
-      }],
+      ],
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       timestamp: NOW,
@@ -42,7 +44,10 @@ function unsignedHex(amount = 1): string {
   });
 }
 
-function remote(hex = unsignedHex(), overrides: Partial<TronLinkRemoteRecord> = {}): TronLinkRemoteRecord {
+function remote(
+  hex = unsignedHex(),
+  overrides: Partial<TronLinkRemoteRecord> = {},
+): TronLinkRemoteRecord {
   const transaction = decodeTransactionHex(hex);
   const signed = transaction.signature?.length ?? 0;
   return {
@@ -56,7 +61,12 @@ function remote(hex = unsignedHex(), overrides: Partial<TronLinkRemoteRecord> = 
     originator_address: A,
     current_transaction: transaction,
     signature_progress: [
-      { address: A, weight: 1, is_sign: signed > 0 ? 1 : 0, sign_time: signed > 0 ? 1_900_000_001 : 0 },
+      {
+        address: A,
+        weight: 1,
+        is_sign: signed > 0 ? 1 : 0,
+        sign_time: signed > 0 ? 1_900_000_001 : 0,
+      },
       { address: B, weight: 1, is_sign: 0, sign_time: 0 },
     ],
     ...overrides,
@@ -83,7 +93,10 @@ function gateway(): TronGateway {
         id: 2,
         name: "finance",
         threshold: 2,
-        keys: [{ address: A, weight: 1 }, { address: B, weight: 1 }],
+        keys: [
+          { address: A, weight: 1 },
+          { address: B, weight: 1 },
+        ],
       },
       approvedList: [],
       currentWeight: 0,
@@ -127,12 +140,18 @@ function setup(...given: TronLinkRemoteRecord[]) {
     list: vi.fn(async () => ({ total: records.length, records })),
     submit: vi.fn(async () => {}),
     watch: vi.fn(async (_network, _address, _signal, onMessage) => {
-      onMessage([{ state: 0, is_sign: 0 }, { state: 0, is_sign: 1 }]);
+      onMessage([
+        { state: 0, is_sign: 0 },
+        { state: 0, is_sign: 1 },
+      ]);
     }),
   } as unknown as TronLinkCollaborationPort;
   const chain = gateway();
   const provider = { get: vi.fn(() => chain) } as unknown as ChainGatewayProvider;
-  const signedHex = encodeTransactionHex({ ...decodeTransactionHex(unsignedHex()), signature: [SIG] });
+  const signedHex = encodeTransactionHex({
+    ...decodeTransactionHex(unsignedHex()),
+    signature: [SIG],
+  });
   const local = {
     approvals: vi.fn(async (_network, hex: string) => approval(hex)),
     signChecked: vi.fn(async () => ({
@@ -165,13 +184,15 @@ describe("TronLink multi-sign collaboration workflow", () => {
     const result = await setup().service.list(NETWORK, A);
     expect(result).toMatchObject({
       total: 1,
-      transactions: [{
-        txId: decodeTransactionHex(unsignedHex()).txID,
-        owner: A,
-        permission: { id: 2, name: "finance", threshold: 2 },
-        currentWeight: 0,
-        awaitingMySignature: true,
-      }],
+      transactions: [
+        {
+          txId: decodeTransactionHex(unsignedHex()).txID,
+          owner: A,
+          permission: { id: 2, name: "finance", threshold: 2 },
+          currentWeight: 0,
+          awaitingMySignature: true,
+        },
+      ],
     });
   });
 
@@ -179,7 +200,10 @@ describe("TronLink multi-sign collaboration workflow", () => {
   // chain forever. Listing must survive it: one stale row cannot cost the user the whole queue.
   it("lists a chain-disagreeing record as unverified instead of failing the whole page", async () => {
     const stale = remote(unsignedHex(), { threshold: 1 });
-    const signedHex = encodeTransactionHex({ ...decodeTransactionHex(unsignedHex()), signature: [SIG] });
+    const signedHex = encodeTransactionHex({
+      ...decodeTransactionHex(unsignedHex()),
+      signature: [SIG],
+    });
     const result = await setup(stale, remote(signedHex)).service.list(NETWORK, A);
 
     expect(result.transactions).toHaveLength(2);
@@ -203,8 +227,9 @@ describe("TronLink multi-sign collaboration workflow", () => {
     const target = unsignedHex(2);
     const { service } = setup(undecodable(), remote(target));
 
-    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(target).txID))
-      .resolves.toMatchObject({ action: "sign", accepted: true });
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(target).txID),
+    ).resolves.toMatchObject({ action: "sign", accepted: true });
   });
 
   // The reason belongs in the message: "TronLink sent something bad" sends the user to the wrong
@@ -212,11 +237,12 @@ describe("TronLink multi-sign collaboration workflow", () => {
   it("names why the requested record could not be decoded", async () => {
     const { service } = setup(undecodable());
 
-    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID))
-      .rejects.toMatchObject({
-        code: "invalid_transaction",
-        message: expect.stringMatching(/raw_data_hex does not match/),
-      });
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID),
+    ).rejects.toMatchObject({
+      code: "invalid_transaction",
+      message: expect.stringMatching(/raw_data_hex does not match/),
+    });
   });
 
   // "Could not check" is not "checked and disagreed" — a node outage must not read as a clean page.
@@ -228,17 +254,24 @@ describe("TronLink multi-sign collaboration workflow", () => {
 
   it("still refuses to co-sign a record that disagrees with the chain", async () => {
     const { service } = setup(remote(unsignedHex(), { threshold: 1 }));
-    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID))
-      .rejects.toMatchObject({ code: "provider_error" });
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID),
+    ).rejects.toMatchObject({ code: "provider_error" });
   });
 
   it("rejects hash, owner, and progress metadata tampering", async () => {
-    await expect(setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NETWORK, A))
-      .rejects.toMatchObject({ code: "provider_error" });
-    await expect(setup(remote(unsignedHex(), { contract_data: { owner_address: B } })).service.list(NETWORK, A))
-      .rejects.toMatchObject({ code: "provider_error" });
-    await expect(setup(remote(unsignedHex(), { current_weight: 1 })).service.list(NETWORK, A))
-      .rejects.toMatchObject({ code: "provider_error" });
+    await expect(
+      setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NETWORK, A),
+    ).rejects.toMatchObject({ code: "provider_error" });
+    await expect(
+      setup(remote(unsignedHex(), { contract_data: { owner_address: B } })).service.list(
+        NETWORK,
+        A,
+      ),
+    ).rejects.toMatchObject({ code: "provider_error" });
+    await expect(
+      setup(remote(unsignedHex(), { current_weight: 1 })).service.list(NETWORK, A),
+    ).rejects.toMatchObject({ code: "provider_error" });
   });
 
   it("opens the collection with the originator's own signature", async () => {
@@ -264,8 +297,9 @@ describe("TronLink multi-sign collaboration workflow", () => {
 
   it("refuses create artifacts that already contain a signature", async () => {
     const { service, collaboration, local, signedHex } = setup();
-    await expect(service.create(scope(), NETWORK, signedHex))
-      .rejects.toMatchObject({ code: "invalid_value" });
+    await expect(service.create(scope(), NETWORK, signedHex)).rejects.toMatchObject({
+      code: "invalid_value",
+    });
     expect(local.signChecked).not.toHaveBeenCalled();
     expect(collaboration.submit).not.toHaveBeenCalled();
   });
@@ -292,19 +326,17 @@ describe("TronLink multi-sign collaboration workflow", () => {
     });
     const { service, local } = setup(remote(hex, { state: 2 }));
 
-    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(hex).txID))
-      .rejects.toMatchObject({ code: "tx_expired" });
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(hex).txID),
+    ).rejects.toMatchObject({ code: "tx_expired" });
     expect(local.signChecked).not.toHaveBeenCalled();
   });
 
   it("counts only pending unsigned WebSocket records", async () => {
     const { service } = setup();
     const counts: number[] = [];
-    const result = await service.watch(
-      NETWORK,
-      A,
-      new AbortController().signal,
-      (count) => counts.push(count),
+    const result = await service.watch(NETWORK, A, new AbortController().signal, (count) =>
+      counts.push(count),
     );
     expect(counts).toEqual([1]);
     expect(result).toMatchObject({ action: "watch", notifications: 1 });
@@ -317,8 +349,12 @@ describe("TronLink multi-sign collaboration workflow", () => {
 // not contain, or misstate weights — and it all rendered as chain-validated.
 describe("TronLink signer roster is bound to the on-chain permission", () => {
   const C = "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"; // not a key in the permission (keys are A and B)
-  const unsigned = (address: string, weight: number) =>
-    ({ address, weight, is_sign: 0 as const, sign_time: 0 });
+  const unsigned = (address: string, weight: number) => ({
+    address,
+    weight,
+    is_sign: 0 as const,
+    sign_time: 0,
+  });
 
   function withProgress(progress: ReturnType<typeof unsigned>[]) {
     return setup(remote(unsignedHex(), { signature_progress: progress }));
@@ -338,8 +374,9 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
     // C passes every provider-side consistency check because the provider invented its own entry
     const view = await service.list(NETWORK, C);
     expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
-    await expect(service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID))
-      .rejects.toMatchObject({ code: "provider_error" });
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID),
+    ).rejects.toMatchObject({ code: "provider_error" });
   });
 
   it("renders on-chain weights, not the ones the provider reported", async () => {

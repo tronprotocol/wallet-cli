@@ -67,11 +67,7 @@ describe("TronTransactionService recipient resolution", () => {
     });
 
     expect(recipients.resolve).toHaveBeenCalledWith("tron", "alice");
-    expect(gateway.buildNativeTransfer).toHaveBeenCalledWith(
-      OWNER,
-      RECEIVER,
-      "1000000",
-    );
+    expect(gateway.buildNativeTransfer).toHaveBeenCalledWith(OWNER, RECEIVER, "1000000");
     expect(result).toMatchObject({
       kind: "send",
       mode: "dry-run",

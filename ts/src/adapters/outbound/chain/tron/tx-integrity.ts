@@ -41,32 +41,32 @@
  * Neither layer is policy — they reject nothing a correct transaction builder produces, only
  * self-inconsistent payloads.
  */
-import { utils as tronUtils } from "tronweb"
-import { sha256 } from "@noble/hashes/sha2.js"
-import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js"
-import { ChainError } from "../../../../domain/errors/index.js"
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { ChainError } from "../../../../domain/errors/index.js";
+import { rawDataHexOf } from "./transaction-codec.js";
 
 /** tronweb's txJsonToPb rejects contract types it has no protobuf mapping for with this message. */
-const UNSUPPORTED_CONTRACT_TYPE = /^Unsupported transaction type/i
+const UNSUPPORTED_CONTRACT_TYPE = /^Unsupported transaction type/i;
 
 /** Minimal shape of the protobuf definitions tronweb publishes on globalThis when it is imported. */
 interface TronProto {
   Transaction: {
-    raw: { deserializeBinary(bytes: Uint8Array): { getContractList(): { getType(): number }[] } }
-    Contract: { ContractType: Record<string, number> }
-  }
+    raw: { deserializeBinary(bytes: Uint8Array): { getContractList(): { getType(): number }[] } };
+    Contract: { ContractType: Record<string, number> };
+  };
 }
 
 /** ContractType names normalized to a case-insensitive lookup, built once from tronweb's protobuf. */
-let contractTypeMap: Map<string, number> | undefined
+let contractTypeMap: Map<string, number> | undefined;
 function contractTypeByName(proto: TronProto): Map<string, number> {
   if (!contractTypeMap) {
-    contractTypeMap = new Map()
+    contractTypeMap = new Map();
     for (const [name, num] of Object.entries(proto.Transaction.Contract.ContractType)) {
-      contractTypeMap.set(name.toUpperCase(), num)
+      contractTypeMap.set(name.toUpperCase(), num);
     }
   }
-  return contractTypeMap
+  return contractTypeMap;
 }
 
 /**
@@ -79,66 +79,110 @@ function assertContractTypeBinding(rawData: unknown, rawDataHex: string): void {
   // Load-bearing assumption: tronweb publishes its protobuf definitions on globalThis as an import
   // side effect. If a tronweb upgrade renames/removes this global, signing fails closed here (safe),
   // and the pinning tests in signing-strategy.test.ts are the tripwire that catches the drift.
-  const proto = (globalThis as { TronWebProto?: TronProto }).TronWebProto
-  if (!proto) throw new ChainError("tx_integrity", "TRON protobuf definitions are unavailable; refusing to sign")
+  const proto = (globalThis as { TronWebProto?: TronProto }).TronWebProto;
+  if (!proto)
+    throw new ChainError(
+      "tx_integrity",
+      "TRON protobuf definitions are unavailable; refusing to sign",
+    );
 
-  let encoded: number[]
+  let encoded: number[];
   try {
-    const raw = proto.Transaction.raw.deserializeBinary(hexToBytes(rawDataHex.replace(/^0x/, "")))
-    encoded = raw.getContractList().map((c) => c.getType())
+    const raw = proto.Transaction.raw.deserializeBinary(hexToBytes(rawDataHex.replace(/^0x/, "")));
+    encoded = raw.getContractList().map((c) => c.getType());
   } catch (e) {
-    throw new ChainError("tx_integrity", `TRON transaction raw_data_hex is not a decodable transaction: ${(e as Error).message}`)
+    throw new ChainError(
+      "tx_integrity",
+      `TRON transaction raw_data_hex is not a decodable transaction: ${(e as Error).message}`,
+    );
   }
 
-  const byName = contractTypeByName(proto)
-  const contracts = Array.isArray((rawData as { contract?: unknown }).contract) ? (rawData as { contract: unknown[] }).contract : []
+  const byName = contractTypeByName(proto);
+  const contracts = Array.isArray((rawData as { contract?: unknown }).contract)
+    ? (rawData as { contract: unknown[] }).contract
+    : [];
   const declared = contracts.map((c) => {
-    const name = typeof (c as { type?: unknown })?.type === "string" ? (c as { type: string }).type.toUpperCase() : ""
-    const num = byName.get(name)
+    const name =
+      typeof (c as { type?: unknown })?.type === "string"
+        ? (c as { type: string }).type.toUpperCase()
+        : "";
+    const num = byName.get(name);
     if (num === undefined) {
-      throw new ChainError("tx_integrity", `TRON transaction declares an unknown contract type "${(c as { type?: unknown })?.type}"; refusing to sign`)
+      throw new ChainError(
+        "tx_integrity",
+        `TRON transaction declares an unknown contract type "${(c as { type?: unknown })?.type}"; refusing to sign`,
+      );
     }
-    return num
-  })
+    return num;
+  });
 
   if (declared.length !== encoded.length || declared.some((n, i) => n !== encoded[i])) {
-    throw new ChainError("tx_integrity", "TRON transaction raw_data contract type does not match its raw_data_hex; refusing to sign")
+    throw new ChainError(
+      "tx_integrity",
+      "TRON transaction raw_data contract type does not match its raw_data_hex; refusing to sign",
+    );
   }
 }
 
 export function assertTronTxIntegrity(tx: unknown): void {
-  const t = tx as { raw_data?: unknown; raw_data_hex?: unknown; txID?: unknown }
-  if (!t || typeof t !== "object" || !t.raw_data || typeof t.raw_data_hex !== "string" || typeof t.txID !== "string") {
-    throw new ChainError("tx_integrity", "TRON transaction must carry raw_data, raw_data_hex and txID; refusing to sign")
+  const t = tx as { raw_data?: unknown; raw_data_hex?: unknown; txID?: unknown };
+  if (
+    !t ||
+    typeof t !== "object" ||
+    !t.raw_data ||
+    typeof t.raw_data_hex !== "string" ||
+    typeof t.txID !== "string"
+  ) {
+    throw new ChainError(
+      "tx_integrity",
+      "TRON transaction must carry raw_data, raw_data_hex and txID; refusing to sign",
+    );
   }
 
-  const claimed = t.txID.replace(/^0x/, "").toLowerCase()
-  let derived: string
+  const claimed = t.txID.replace(/^0x/, "").toLowerCase();
+  let derived: string;
   try {
-    derived = bytesToHex(sha256(hexToBytes(t.raw_data_hex.replace(/^0x/, ""))))
+    derived = bytesToHex(sha256(hexToBytes(t.raw_data_hex.replace(/^0x/, ""))));
   } catch (e) {
-    throw new ChainError("tx_integrity", `TRON transaction raw_data_hex is not valid hex: ${(e as Error).message}`)
+    throw new ChainError(
+      "tx_integrity",
+      `TRON transaction raw_data_hex is not valid hex: ${(e as Error).message}`,
+    );
   }
   if (derived !== claimed) {
-    throw new ChainError("tx_integrity", "TRON transaction txID is not the hash of its raw_data_hex; refusing to sign")
+    throw new ChainError(
+      "tx_integrity",
+      "TRON transaction txID is not the hash of its raw_data_hex; refusing to sign",
+    );
   }
 
-  assertContractTypeBinding(t.raw_data, t.raw_data_hex)
+  assertContractTypeBinding(t.raw_data, t.raw_data_hex);
 
-  let matchesRawData: boolean
+  let matchesRawData: boolean;
   try {
-    matchesRawData = tronUtils.transaction.txCheck(tx as any)
+    // Never tronweb's `txCheck` here: it mis-encodes several contract types, so asking it would
+    // refuse transactions whose bytes are correct. `rawDataHexOf` applies OUR serialiser for every
+    // overridden type — TRC10 (multi-tranche AssetIssue, UnfreezeAsset) and governance
+    // (ProposalCreate, UpdateEnergyLimit) — from one table, and delegates to tronweb for everything
+    // else. So this comparison uses the same arbiter the builders themselves used.
+    matchesRawData = rawDataHexOf(tx) === t.raw_data_hex.replace(/^0x/, "").toLowerCase();
   } catch (e) {
-    const message = (e as Error)?.message ?? String(e)
+    const message = (e as Error)?.message ?? String(e);
     // The one tolerable failure: tronweb has no encoding for this contract type, so raw_data
     // cannot be verified by anyone. Layer 1 still binds the signature to the executed bytes.
-    if (UNSUPPORTED_CONTRACT_TYPE.test(message)) return
+    if (UNSUPPORTED_CONTRACT_TYPE.test(message)) return;
     // Anything else — a float amount, an over-range value, a malformed address — means raw_data
     // could not be re-encoded. Fail closed: an unverifiable raw_data is exactly what a crafted
     // payload produces, and it looks benign in the JSON.
-    throw new ChainError("tx_integrity", `TRON transaction raw_data could not be re-encoded for verification: ${message}`)
+    throw new ChainError(
+      "tx_integrity",
+      `TRON transaction raw_data could not be re-encoded for verification: ${message}`,
+    );
   }
   if (!matchesRawData) {
-    throw new ChainError("tx_integrity", "TRON transaction raw_data does not match its raw_data_hex; refusing to sign")
+    throw new ChainError(
+      "tx_integrity",
+      "TRON transaction raw_data does not match its raw_data_hex; refusing to sign",
+    );
   }
 }

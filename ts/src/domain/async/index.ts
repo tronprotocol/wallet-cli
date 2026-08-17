@@ -12,8 +12,14 @@ export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: () => void)
       reject(new ChainError("timeout", `operation timed out after ${ms}ms`));
     }, ms);
     p.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
     );
   });
 }

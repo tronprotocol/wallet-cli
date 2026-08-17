@@ -1,5 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SecureBackupWriter } from "./backup-writer.js";
@@ -11,19 +19,41 @@ function freshRoot() {
 describe("SecureBackupWriter", () => {
   let root: string;
   let writer: SecureBackupWriter;
+  let cwd: string;
   beforeEach(() => {
     root = freshRoot();
-    writer = new SecureBackupWriter(root, () => 1_700_000_000_000);
+    writer = new SecureBackupWriter(() => 1_700_000_000_000);
+    cwd = process.cwd();
+  });
+  afterEach(() => {
+    process.chdir(cwd);
   });
 
   it("writes the payload with 0600 perms and reports the path/size", () => {
-    const res = writer.write("acct-1", undefined, { secret: "hunter2" });
-    expect(res.out).toBe(join(root, "backups", "acct-1-1700000000000.json"));
+    const res = writer.write("acct-1", join(root, "acct-1.json"), { secret: "hunter2" });
     expect(res.fileMode).toBe("0600");
     const onDisk = readFileSync(res.out, "utf8");
     expect(JSON.parse(onDisk)).toEqual({ secret: "hunter2" });
     expect(res.bytes).toBe(Buffer.byteLength(onDisk));
     expect(statSync(res.out).mode & 0o777).toBe(0o600);
+  });
+
+  it("defaults to <accountId>-<ms>.json in the CURRENT DIRECTORY, not the wallet root", () => {
+    process.chdir(root);
+    const res = writer.write("acct-1", undefined, { secret: "hunter2" });
+    expect(res.out).toBe(join(realpathSync(root), "acct-1-1700000000000.json"));
+    expect(existsSync(res.out)).toBe(true);
+  });
+
+  it("defaults keystore exports to the .keystore.json suffix, same directory rule", () => {
+    process.chdir(root);
+    const res = writer.write("acct-1", undefined, { version: 3 }, "keystore");
+    expect(res.out).toBe(join(realpathSync(root), "acct-1-1700000000000.keystore.json"));
+  });
+
+  it("uses an explicit --out path verbatim regardless of format", () => {
+    const target = join(root, "chosen-name.txt");
+    expect(writer.write("acct-1", target, { version: 3 }, "keystore").out).toBe(target);
   });
 
   it("refuses to overwrite an existing regular file (output_exists)", () => {
@@ -66,8 +96,9 @@ describe("SecureBackupWriter", () => {
     () => {
       const target = "/dev/null/account.backup";
 
-      expect(() => writer.write("acct-1", target, { secret: "x" }))
-        .toThrowError(expect.objectContaining({ code: "io_error" }));
+      expect(() => writer.write("acct-1", target, { secret: "x" })).toThrowError(
+        expect.objectContaining({ code: "io_error" }),
+      );
       expect(existsSync(target)).toBe(false);
     },
   );

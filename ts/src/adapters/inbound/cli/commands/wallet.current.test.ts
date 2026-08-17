@@ -14,18 +14,18 @@ const descriptor = {
   addresses: { tron: ADDRESS },
 } satisfies AccountDescriptor;
 
-function command(options: {
-  output?: "text" | "json";
-  encoded?: string | null;
-  account?: string;
-} = {}) {
+function command(
+  options: {
+    output?: "text" | "json";
+    encoded?: string | null;
+    account?: string;
+  } = {},
+) {
   const walletService = {
     current: vi.fn(() => descriptor),
   };
   const qr = {
-    encode: vi.fn(() =>
-      options.encoded === undefined ? "QR-MATRIX" : options.encoded
-    ),
+    encode: vi.fn(() => (options.encoded === undefined ? "QR-MATRIX" : options.encoded)),
   };
   const registry = new CommandRegistry();
   registerWalletCommands(registry, {
@@ -48,15 +48,9 @@ function command(options: {
 describe("current --qr", () => {
   it("encodes exactly the selected account's TRON address in text mode", async () => {
     const fixture = command({ account: "wlt_selected", encoded: "QR" });
-    const result = await fixture.current.run(
-      fixture.context as never,
-      undefined,
-      { qr: true },
-    );
+    const result = await fixture.current.run(fixture.context as never, undefined, { qr: true });
 
-    expect(fixture.walletService.current).toHaveBeenCalledWith(
-      "wlt_selected",
-    );
+    expect(fixture.walletService.current).toHaveBeenCalledWith("wlt_selected");
     expect(fixture.qr.encode).toHaveBeenCalledWith(ADDRESS);
     expect(result).toMatchObject({
       receiveQr: "QR",
@@ -66,11 +60,7 @@ describe("current --qr", () => {
 
   it("keeps JSON data unchanged and never builds terminal art", async () => {
     const fixture = command({ output: "json" });
-    const result = await fixture.current.run(
-      fixture.context as never,
-      undefined,
-      { qr: true },
-    );
+    const result = await fixture.current.run(fixture.context as never, undefined, { qr: true });
 
     expect(result).toEqual(descriptor);
     expect(fixture.qr.encode).not.toHaveBeenCalled();
@@ -78,15 +68,9 @@ describe("current --qr", () => {
 
   it("warns and returns the full normal descriptor on a narrow terminal", async () => {
     const fixture = command({ encoded: null });
-    const result = await fixture.current.run(
-      fixture.context as never,
-      undefined,
-      { qr: true },
-    );
+    const result = await fixture.current.run(fixture.context as never, undefined, { qr: true });
 
     expect(result).toEqual(descriptor);
-    expect(fixture.context.warn).toHaveBeenCalledWith(
-      expect.stringContaining("too narrow"),
-    );
+    expect(fixture.context.warn).toHaveBeenCalledWith(expect.stringContaining("too narrow"));
   });
 });

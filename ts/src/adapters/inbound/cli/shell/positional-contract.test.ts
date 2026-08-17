@@ -53,26 +53,54 @@ describe("every registered positional command rejects its --<field> spelling", (
   }
 
   function positionalCommands() {
-    return newRuntime().registry.all().flatMap((c) => {
-      const { path, positionals, fields } = isChainCommand(c)
-        ? { path: c.spec.path, positionals: c.spec.positionals, fields: c.spec.baseFields }
-        : { path: c.path, positionals: c.positionals, fields: c.fields };
-      return positionals?.length ? [{ path, positionals, fields }] : [];
-    });
+    return newRuntime()
+      .registry.all()
+      .flatMap((c) => {
+        const { path, positionals, fields } = isChainCommand(c)
+          ? { path: c.spec.path, positionals: c.spec.positionals, fields: c.spec.baseFields }
+          : { path: c.path, positionals: c.positionals, fields: c.fields };
+        return positionals?.length ? [{ path, positionals, fields }] : [];
+      });
   }
 
   it("finds the shipped positional commands (guards against an empty, vacuously-passing table)", () => {
-    const found = positionalCommands().map((c) => c.path.join(" ")).sort();
+    const found = positionalCommands()
+      .map((c) => c.path.join(" "))
+      .sort();
     expect(found).toEqual([
-      "backup", "block", "config", "contact add", "contact remove",
-      "delete", "encoding convert", "gasfree trace", "rename", "use",
+      "asset info",
+      "asset participate",
+      "backup",
+      "block",
+      "config",
+      "contact add",
+      "contact remove",
+      "contract clear-abi",
+      "contract set-origin-energy-limit",
+      "contract set-user-resource-percent",
+      "delete",
+      "encoding convert",
+      "exchange inject",
+      "exchange show",
+      "exchange trade",
+      "exchange withdraw",
+      "gasfree trace",
+      "import keystore",
+      "proposal approve",
+      "proposal delete",
+      "proposal show",
+      "rename",
+      "use",
+      "witness set-brokerage",
     ]);
   });
 
   it("declares every positional as a real field of its own schema", () => {
     for (const cmd of positionalCommands()) {
       for (const p of cmd.positionals) {
-        expect(Object.keys(cmd.fields.shape), `${cmd.path.join(" ")} → ${p.field}`).toContain(p.field);
+        expect(Object.keys(cmd.fields.shape), `${cmd.path.join(" ")} → ${p.field}`).toContain(
+          p.field,
+        );
       }
     }
   });
@@ -87,7 +115,10 @@ describe("every registered positional command rejects its --<field> spelling", (
         await expect(
           buildCli(shellOpts()).parseAsync(tokens),
           `${tokens.join(" ")} should be rejected`,
-        ).rejects.toMatchObject({ code: "invalid_option", message: `unknown option(s): --${kebab}` });
+        ).rejects.toMatchObject({
+          code: "invalid_option",
+          message: `unknown option(s): --${kebab}`,
+        });
       }
     }
   });
@@ -103,18 +134,23 @@ describe("every registered positional command rejects its --<field> spelling", (
   });
 
   it("still enforces the positional count limit", async () => {
-    await expect(buildCli(shellOpts()).parseAsync(["config", "a", "b", "c"]))
-      .rejects.toMatchObject({ message: /too many positional arguments for config/ });
+    await expect(buildCli(shellOpts()).parseAsync(["config", "a", "b", "c"])).rejects.toMatchObject(
+      { message: /too many positional arguments for config/ },
+    );
   });
 
   // `use`/`rename`/`delete`/`backup` name their positional after the global --account. The global
   // stays valid; supplying both spellings at once is the case bindGroupedPositionals catches.
   it("keeps the global --account usable on the commands whose positional shares its name", async () => {
-    for (const cmd of positionalCommands().filter((c) => c.positionals.some((p) => p.field === "account"))) {
-      await expect(buildCli(shellOpts()).parseAsync([...cmd.path, "--account", "no-such-account"]))
-        .rejects.not.toMatchObject({ code: "invalid_option" });
-      await expect(buildCli(shellOpts()).parseAsync([...cmd.path, "positional", "--account", "flag"]))
-        .rejects.toMatchObject({ message: /both positionally and as --account/ });
+    for (const cmd of positionalCommands().filter((c) =>
+      c.positionals.some((p) => p.field === "account"),
+    )) {
+      await expect(
+        buildCli(shellOpts()).parseAsync([...cmd.path, "--account", "no-such-account"]),
+      ).rejects.not.toMatchObject({ code: "invalid_option" });
+      await expect(
+        buildCli(shellOpts()).parseAsync([...cmd.path, "positional", "--account", "flag"]),
+      ).rejects.toMatchObject({ message: /both positionally and as --account/ });
     }
   });
 });

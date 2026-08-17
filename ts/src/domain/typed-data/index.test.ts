@@ -2,11 +2,20 @@ import { describe, it, expect } from "vitest";
 import { normalizeTypedData } from "./index.js";
 
 const DOMAIN = { name: "SunPerp", version: "1", chainId: 728126428 };
-const TYPES = { Order: [{ name: "trader", type: "address" }, { name: "size", type: "uint256" }] };
+const TYPES = {
+  Order: [
+    { name: "trader", type: "address" },
+    { name: "size", type: "uint256" },
+  ],
+};
 
 describe("normalizeTypedData", () => {
   it("keeps a well-formed payload intact", () => {
-    const p = normalizeTypedData({ domain: DOMAIN, types: TYPES, message: { trader: "T1", size: "1" } });
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: TYPES,
+      message: { trader: "T1", size: "1" },
+    });
     expect(p).toEqual({ domain: DOMAIN, types: TYPES, message: { trader: "T1", size: "1" } });
   });
 
@@ -23,13 +32,18 @@ describe("normalizeTypedData", () => {
   });
 
   it("accepts `value` as an alias for `message`", () => {
-    const p = normalizeTypedData({ domain: DOMAIN, types: TYPES, value: { trader: "T1", size: "1" } });
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: TYPES,
+      value: { trader: "T1", size: "1" },
+    });
     expect(p.message).toEqual({ trader: "T1", size: "1" });
   });
 
   it("rejects a payload whose types contain only EIP712Domain", () => {
-    expect(() => normalizeTypedData({ domain: DOMAIN, types: { EIP712Domain: [] }, message: {} }))
-      .toThrow(/at least one struct type/);
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: { EIP712Domain: [] }, message: {} }),
+    ).toThrow(/at least one struct type/);
   });
 
   it("rejects a missing message", () => {
@@ -41,20 +55,25 @@ describe("normalizeTypedData", () => {
   });
 
   it("rejects a primaryType that is not declared", () => {
-    expect(() => normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType: "Nope", message: {} }))
-      .toThrow(/not declared in types/);
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType: "Nope", message: {} }),
+    ).toThrow(/not declared in types/);
   });
 
   // A nested (non-root) type is referenced by another struct, so it can never be what actually gets
   // signed — ethers signs the root regardless. Reject it rather than sign one thing and report another.
   const NESTED = {
-    Outer: [{ name: "who", type: "address" }, { name: "detail", type: "Inner" }],
+    Outer: [
+      { name: "who", type: "address" },
+      { name: "detail", type: "Inner" },
+    ],
     Inner: [{ name: "amount", type: "uint256" }],
   };
 
   it("rejects a primaryType that is nested inside another type (not a root)", () => {
-    expect(() => normalizeTypedData({ domain: DOMAIN, types: NESTED, primaryType: "Inner", message: {} }))
-      .toThrow(/not a root type/);
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: NESTED, primaryType: "Inner", message: {} }),
+    ).toThrow(/not a root type/);
   });
 
   it("rejects a nested primaryType referenced through an array field", () => {
@@ -62,22 +81,33 @@ describe("normalizeTypedData", () => {
       Outer: [{ name: "items", type: "Inner[]" }],
       Inner: [{ name: "amount", type: "uint256" }],
     };
-    expect(() => normalizeTypedData({ domain: DOMAIN, types: arrayNested, primaryType: "Inner", message: {} }))
-      .toThrow(/not a root type/);
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: arrayNested, primaryType: "Inner", message: {} }),
+    ).toThrow(/not a root type/);
   });
 
   it("accepts a primaryType that is the root type", () => {
-    const p = normalizeTypedData({ domain: DOMAIN, types: NESTED, primaryType: "Outer", message: { who: "T1", detail: { amount: "1" } } });
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: NESTED,
+      primaryType: "Outer",
+      message: { who: "T1", detail: { amount: "1" } },
+    });
     expect(p.primaryType).toBe("Outer");
   });
 
   it("accepts an omitted primaryType even with nested types", () => {
-    const p = normalizeTypedData({ domain: DOMAIN, types: NESTED, message: { who: "T1", detail: { amount: "1" } } });
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: NESTED,
+      message: { who: "T1", detail: { amount: "1" } },
+    });
     expect(p.primaryType).toBeUndefined();
   });
 
   it("rejects a malformed field list", () => {
-    expect(() => normalizeTypedData({ domain: DOMAIN, types: { Order: [{ name: "x" }] }, message: {} }))
-      .toThrow(/without a name\/type/);
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: { Order: [{ name: "x" }] }, message: {} }),
+    ).toThrow(/without a name\/type/);
   });
 });

@@ -8,10 +8,7 @@ export const TRONLINK_CONFIG_KEYS = [
   "tronlinkSecretKey",
   "tronlinkChannel",
 ] as const;
-export const GASFREE_CONFIG_KEYS = [
-  "gasfreeApiKey",
-  "gasfreeApiSecret",
-] as const;
+export const GASFREE_CONFIG_KEYS = ["gasfreeApiKey", "gasfreeApiSecret"] as const;
 export const CONFIG_KEYS = [
   "defaultNetwork",
   "defaultOutput",
@@ -103,11 +100,14 @@ export class ConfigService {
       return raw;
     }
     if (
-      (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key)
-      || (GASFREE_CONFIG_KEYS as readonly string[]).includes(key)
+      (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key) ||
+      (GASFREE_CONFIG_KEYS as readonly string[]).includes(key)
     ) {
       if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
-        throw new UsageError("invalid_value", `${key} must be 1 to 256 characters without control characters`);
+        throw new UsageError(
+          "invalid_value",
+          `${key} must be 1 to 256 characters without control characters`,
+        );
       }
       return raw;
     }

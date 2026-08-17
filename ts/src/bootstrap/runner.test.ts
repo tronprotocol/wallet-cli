@@ -29,13 +29,21 @@ describe("hasCommand (bare invocation → root help)", () => {
 
 describe("parseGlobals", () => {
   it("parses value flags, inline =, and short -o alias", () => {
-    const { globals } = parseGlobals(["--network", "tron:nile", "--output=json", "tron", "account", "balance"]);
+    const { globals } = parseGlobals([
+      "--network",
+      "tron:nile",
+      "--output=json",
+      "tron",
+      "account",
+      "balance",
+    ]);
     expect(globals.network).toBe("tron:nile");
     expect(globals.output).toBe("json");
   });
 
   it("rejects an invalid --timeout as invalid (never falls back to the default)", () => {
-    for (const raw of ["abc", "-5", "0"]) { // 0ms = instant-abort, not a usable bound
+    for (const raw of ["abc", "-5", "0"]) {
+      // 0ms = instant-abort, not a usable bound
       const { globals, invalid } = parseGlobals(["--timeout", raw]);
       expect(globals.timeoutMs).toBeUndefined();
       expect(invalid).toEqual([{ flag: "--timeout", value: raw, reason: "must be a number >= 1" }]);
@@ -54,7 +62,9 @@ describe("parseGlobals", () => {
   it("rejects an invalid --output instead of silently defaulting to 'text'", () => {
     const bad = parseGlobals(["--output", "xml"]);
     expect(bad.globals.output).toBeUndefined();
-    expect(bad.invalid).toEqual([{ flag: "--output", value: "xml", reason: "must be one of: text, json" }]);
+    expect(bad.invalid).toEqual([
+      { flag: "--output", value: "xml", reason: "must be one of: text, json" },
+    ]);
     expect(parseGlobals(["--output", "json"]).globals.output).toBe("json");
   });
 

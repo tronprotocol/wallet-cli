@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAccountService } from "../../../../application/use-cases/tron/account-service.js";
 import { ciEnum } from "../arity/index.js";
+import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import { txModeFields } from "./shared.js";
 
@@ -39,11 +40,11 @@ export const accountActivateSpec: ChainSpec = {
   capability: "account.activate",
   summary: "Activate a new TRON account",
   description:
-    "Create an AccountCreateContract funded by the active account. The target must not already be\n"
-    + "active; use --dry-run to inspect current creation fees. Note: a plain transfer also activates\n"
-    + "the recipient, so use this command only when the address just needs to exist.",
+    "Create an AccountCreateContract funded by the active account. The target must not already be\n" +
+    "active; use --dry-run to inspect current creation fees. Note: a plain transfer also activates\n" +
+    "the recipient, so use this command only when the address just needs to exist.",
   baseFields: z.object({
-    address: z.string().min(1).describe("unactivated TRON base58 address"),
+    address: Schemas.addressFor("tron").describe("unactivated TRON base58 address"),
     ...txModeFields,
   }),
   baseRefine: transactionModeRefine,
@@ -54,9 +55,7 @@ export const accountActivateSpec: ChainSpec = {
   formatText: TextFormatters.txReceipt,
 };
 
-export const accountActivateTronBinding = (
-  service: TronAccountService,
-): FamilyBinding => ({
+export const accountActivateTronBinding = (service: TronAccountService): FamilyBinding => ({
   run: async (ctx, network, input) => service.activate(ctx, network, input),
 });
 
@@ -69,11 +68,15 @@ export const accountSetSpec: ChainSpec = {
   capability: "account.set",
   summary: "Set the one-time on-chain account name or ID",
   description:
-    "Set exactly one immutable account field. Names are 1-32 UTF-8 bytes; IDs are unique and 8-32\n"
-    + "UTF-8 bytes. Each can be set only once and can never be changed afterwards — rehearse with\n"
-    + "--dry-run to check the value first. This is not `wallet-cli rename`, which changes the local label.",
+    "Set exactly one immutable account field. Names are 1-32 UTF-8 bytes; IDs are unique and 8-32\n" +
+    "UTF-8 bytes. Each can be set only once and can never be changed afterwards — rehearse with\n" +
+    "--dry-run to check the value first. This is not `wallet-cli rename`, which changes the local label.",
   baseFields: z.object({
-    name: z.string().min(1).optional().describe("one-time on-chain account name (1-32 UTF-8 bytes)"),
+    name: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("one-time on-chain account name (1-32 UTF-8 bytes)"),
     id: z.string().min(1).optional().describe("one-time unique account ID (8-32 UTF-8 bytes)"),
     ...txModeFields,
   }),
@@ -95,15 +98,15 @@ export const accountSetSpec: ChainSpec = {
   formatText: TextFormatters.txReceipt,
 };
 
-export const accountSetTronBinding = (
-  service: TronAccountService,
-): FamilyBinding => ({
+export const accountSetTronBinding = (service: TronAccountService): FamilyBinding => ({
   run: async (ctx, network, input) => service.setOnChain(ctx, network, input),
 });
 
 export const accountBalanceSpec: ChainSpec = {
   path: ["account", "balance"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "account.balance.native",
   summary: "Show native balance (TRX/SUN)",
   baseFields: z.object({}),
@@ -117,7 +120,9 @@ export const accountBalanceTronBinding = (svc: TronAccountService): FamilyBindin
 
 export const accountInfoSpec: ChainSpec = {
   path: ["account", "info"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   summary: "Show raw account data (getAccount; TRON includes resources)",
   baseFields: z.object({}),
   examples: [{ cmd: "wallet-cli account info" }],
@@ -130,12 +135,20 @@ export const accountInfoTronBinding = (svc: TronAccountService): FamilyBinding =
 
 export const accountHistorySpec: ChainSpec = {
   path: ["account", "history"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   summary: "Show transaction history (requires TronGrid)",
   baseFields: z.object({
-    limit: z.coerce.number().int().positive().max(200).default(20)
+    limit: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(200)
+      .default(20)
       .describe("maximum records to return, in records; range: 1-200"),
-    only: ciEnum(["native", "token"]).optional()
+    only: ciEnum(["native", "token"])
+      .optional()
       .describe("filter history by transfer type; omit to show all transfer types"),
   }),
   examples: [{ cmd: "wallet-cli account history --limit 10" }],
@@ -148,7 +161,9 @@ export const accountHistoryTronBinding = (svc: TronAccountService): FamilyBindin
 
 export const accountPortfolioSpec: ChainSpec = {
   path: ["account", "portfolio"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "account.portfolio",
   summary: "Show native + token balances with best-effort USD value",
   baseFields: z.object({}),

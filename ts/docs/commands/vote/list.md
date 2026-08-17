@@ -34,10 +34,11 @@ wallet-cli vote list --limit 3 --network tron:nile
 ```
 
 ```console
-Rank  Name             Votes          APR   Reward ratio  Address
-   1  TRONSCAN         1,203,456,789  4.8%  80%           TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g
-   2  Binance Staking    998,765,432  0%    0%            TT5W8MPbYJih9R586kTszb4LoybzUvCYm2
-   3  JustLend           876,543,210  4.9%  80%           TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN
+| Rank | Name            | Votes         | APR  | Reward ratio | Address                            |
+| ---- | --------------- | ------------- | ---- | ------------ | ---------------------------------- |
+| 1    | TRONSCAN        | 1,203,456,789 | 4.8% | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
+| 2    | Binance Staking | 998,765,432   | 0%   | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+| 3    | JustLend        | 876,543,210   | 4.9% | 80%          | TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN |
 ```
 
 ```bash

@@ -14,6 +14,7 @@ wallet-cli import COMMAND
 |---|---|
 | [`import mnemonic`](mnemonic.md) | Import a BIP39 mnemonic phrase |
 | [`import private-key`](private-key.md) | Import a raw private key |
+| [`import keystore`](keystore.md) | Import an account from a Web3 keystore file |
 | `import ledger` | Register a Ledger account (watch-only locally; signs on device) — `wallet-cli import ledger --help` |
 | `import watch` | Register a watch-only address (no secret) — `wallet-cli import watch --help` |
 

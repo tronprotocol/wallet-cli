@@ -22,21 +22,23 @@ describe("TerminalQrEncoder", () => {
   it("encodes the exact payload rather than returning a static symbol", () => {
     const terminal = { isTTY: true, columns: 120 };
     const first = new TerminalQrEncoder(terminal).encode(ADDRESS);
-    const second = new TerminalQrEncoder(terminal).encode(
-      "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
-    );
+    const second = new TerminalQrEncoder(terminal).encode("TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT");
     expect(first).not.toBe(second);
   });
 
   it("degrades for non-TTY and narrow terminals", () => {
-    expect(new TerminalQrEncoder({
-      isTTY: false,
-      columns: 120,
-    }).encode(ADDRESS)).toBeNull();
-    expect(new TerminalQrEncoder({
-      isTTY: true,
-      columns: 10,
-    }).encode(ADDRESS)).toBeNull();
+    expect(
+      new TerminalQrEncoder({
+        isTTY: false,
+        columns: 120,
+      }).encode(ADDRESS),
+    ).toBeNull();
+    expect(
+      new TerminalQrEncoder({
+        isTTY: true,
+        columns: 10,
+      }).encode(ADDRESS),
+    ).toBeNull();
   });
 
   it("rejects unsafe payload text before encoding", () => {
@@ -44,7 +46,7 @@ describe("TerminalQrEncoder", () => {
       new TerminalQrEncoder({
         isTTY: true,
         columns: 120,
-      }).encode("address\u202e")
+      }).encode("address\u202e"),
     ).toThrow(/safe characters/);
   });
 });

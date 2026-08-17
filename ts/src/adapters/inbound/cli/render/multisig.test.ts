@@ -46,11 +46,14 @@ describe("TronLink multi-sig list rendering", () => {
   // History and actionability are separate concerns: preserve the service's state for an
   // informational list, but surface the failed chain check independently and never invite action.
   it("preserves service state while marking a chain-unverified row and keeping it out of the co-sign hint", () => {
-    const output = render(transaction({
-      state: "success",
-      verified: false,
-      unverifiedReason: "TronLink transaction metadata or signatures disagree with the selected network",
-    }));
+    const output = render(
+      transaction({
+        state: "success",
+        verified: false,
+        unverifiedReason:
+          "TronLink transaction metadata or signatures disagree with the selected network",
+      }),
+    );
     expect(output).toContain("State");
     expect(output).toContain("Validation");
     expect(output).toMatch(/\|\s+success\s+\|\s+unverified\s+\|/);

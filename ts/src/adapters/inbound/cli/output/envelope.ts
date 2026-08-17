@@ -4,7 +4,7 @@
  * Pure (no I/O); the formatter turns the envelope into strings.
  */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import type { ChainView, ErrorEnvelope, Meta, ResultEnvelope, WarningItem } from "../contracts/index.js";
+import type { ChainView, ErrorEnvelope, Meta, ResultEnvelope } from "../contracts/index.js";
 
 type CliErrorEnvelopeShape = { code: string; message: string; details?: object };
 
@@ -27,8 +27,11 @@ function chainView(net: NetworkDescriptor): ChainView {
   };
 }
 
-function meta(durationMs: number, warnings: WarningItem[]): Meta {
-  return { durationMs, warnings };
+/** Copy so the caller's object cannot be mutated through the envelope. Takes the whole Meta rather
+ *  than field-by-field arguments: optional members (pagination) are then carried automatically
+ *  instead of being silently dropped each time one is added. */
+function meta(m: Meta): Meta {
+  return { ...m };
 }
 
 export const OutputEnvelope = {
@@ -36,14 +39,14 @@ export const OutputEnvelope = {
     command: string,
     net: NetworkDescriptor | undefined,
     data: unknown,
-    m: { durationMs: number; warnings: WarningItem[] },
+    m: Meta,
   ): ResultEnvelope {
     const env: ResultEnvelope = {
       schema: SCHEMA_VERSION,
       success: true,
       command,
       data: data ?? {},
-      meta: meta(m.durationMs, m.warnings),
+      meta: meta(m),
     };
     if (net) env.chain = chainView(net); // neutral commands omit chain
     return env;
@@ -53,14 +56,14 @@ export const OutputEnvelope = {
     command: string,
     net: NetworkDescriptor | undefined,
     err: CliErrorEnvelopeShape,
-    m: { durationMs: number; warnings: WarningItem[] },
+    m: Meta,
   ): ErrorEnvelope {
     const env: ErrorEnvelope = {
       schema: SCHEMA_VERSION,
       success: false,
       command,
       error: err,
-      meta: meta(m.durationMs, m.warnings),
+      meta: meta(m),
     };
     if (net) env.chain = chainView(net);
     return env;

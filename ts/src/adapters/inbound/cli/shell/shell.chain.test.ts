@@ -22,8 +22,12 @@ describe("ChainCommandDefinition dispatch", () => {
     const store = new AtomicFileStore();
     const backend = {
       isTTY: () => false,
-      async question() { return ""; },
-      async readKey() { return { name: "return" }; },
+      async question() {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
       write() {},
       beginRaw() {},
       endRaw() {},
@@ -68,19 +72,82 @@ describe("ChainCommandDefinition dispatch", () => {
     expect(run.mock.calls[0]![2]).toMatchObject({ number: "123" });
     expect(JSON.parse(out[0]!).data).toEqual({ block: { number: "123" } });
   });
+
+  it("binds positional arguments declared by a grouped leaf command", async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-group-position-test-"));
+    const store = new AtomicFileStore();
+    const backend = {
+      isTTY: () => false,
+      async question() {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
+      write() {},
+      beginRaw() {},
+      endRaw() {},
+    };
+    const prompter = new Prompter(backend);
+    const out: string[] = [];
+    const streams = new StreamManager("json", false, (value) => out.push(value));
+    const secrets = new SecretResolver(streams, {}, prompter);
+    const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const config = ConfigLoader.load();
+    const networkRegistry = new NetworkRegistry(config);
+    const formatter = createOutputFormatter("json", streams, Date.now());
+    const registry = new CommandRegistry();
+    const run = vi.fn(async (_ctx, _net, input) => ({ proposal: input.id }));
+    registry.addChain(
+      {
+        path: ["proposal", "show"],
+        network: "optional",
+        wallet: "none",
+        auth: "none",
+        positionals: [{ field: "id" }],
+        examples: [],
+        baseFields: z.object({ id: z.coerce.number().int().positive() }),
+      },
+      "tron",
+      { run },
+    );
+
+    const globals = { output: "json" as const, verbose: false, network: "tron:mainnet" };
+    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    await buildCli({
+      registry,
+      globals,
+      deps,
+      targetResolver: new TargetResolver({ networkRegistry, keystore }),
+      caps: new CapabilityRegistry(),
+      streams,
+      formatter,
+      session: {} as SessionRef,
+    }).parseAsync(["proposal", "show", "47"]);
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(run.mock.calls[0]![2]).toMatchObject({ id: 47 });
+    expect(JSON.parse(out[0]!).data).toEqual({ proposal: 47 });
+  });
 });
 
 // executeChainCommand is a second, independent dispatch path: it binds positionals and rejects
 // flagged ones at its own call site. A `<group> <verb> [args..]` chain leaf exercises the grouped
 // tail there, which the single-segment `block` case above does not reach.
 describe("grouped chain leaf positionals", () => {
-  function chainFixture(tokens: string[]) {
+  function chainFixture(_tokens: string[]) {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-chain-test-"));
     const prompter = new Prompter({
       isTTY: () => false,
-      async question() { return ""; },
-      async readKey() { return { name: "return" }; },
-      write() {}, beginRaw() {}, endRaw() {},
+      async question() {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
+      write() {},
+      beginRaw() {},
+      endRaw() {},
     } as any);
     const out: string[] = [];
     const streams = new StreamManager("json", false, (s) => out.push(s));
@@ -93,7 +160,9 @@ describe("grouped chain leaf positionals", () => {
     const registry = new CommandRegistry();
     const spec: ChainSpec = {
       path: ["gasfree", "trace"],
-      network: "optional", wallet: "none", auth: "none",
+      network: "optional",
+      wallet: "none",
+      auth: "none",
       positionals: [{ field: "traceId" }],
       examples: [],
       baseFields: z.object({ traceId: z.string().optional() }),
@@ -102,7 +171,14 @@ describe("grouped chain leaf positionals", () => {
     registry.addChain(spec, "tron", { run });
     // sibling leaf → the head is dispatched as `gasfree [verb] [args..]`
     registry.addChain(
-      { path: ["gasfree", "info"], network: "optional", wallet: "none", auth: "none", examples: [], baseFields: z.object({}) },
+      {
+        path: ["gasfree", "info"],
+        network: "optional",
+        wallet: "none",
+        auth: "none",
+        examples: [],
+        baseFields: z.object({}),
+      },
       "tron",
       { run: async () => ({}) },
     );
@@ -133,15 +209,19 @@ describe("grouped chain leaf positionals", () => {
     const tokens = ["gasfree", "trace", "--trace-id", "12345"];
     const { shellOpts, run } = chainFixture(tokens);
     // exactly once: camel-case-expansion lands both spellings in argv, they must not double-report
-    await expect(buildCli(shellOpts).parseAsync(tokens))
-      .rejects.toMatchObject({ code: "invalid_option", message: "unknown option(s): --trace-id" });
+    await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
+      code: "invalid_option",
+      message: "unknown option(s): --trace-id",
+    });
     expect(run).not.toHaveBeenCalled();
   });
 
   it("rejects the camelCase spelling too", async () => {
     const tokens = ["gasfree", "trace", "--traceId", "12345"];
     const { shellOpts } = chainFixture(tokens);
-    await expect(buildCli(shellOpts).parseAsync(tokens))
-      .rejects.toMatchObject({ code: "invalid_option", message: /unknown option\(s\): --trace-id/ });
+    await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
+      code: "invalid_option",
+      message: /unknown option\(s\): --trace-id/,
+    });
   });
 });

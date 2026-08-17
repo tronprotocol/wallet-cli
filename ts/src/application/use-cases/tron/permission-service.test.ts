@@ -18,19 +18,24 @@ function permissions(): AccountPermissionsView {
       id: 0,
       name: "owner",
       threshold: 2,
-      keys: [{ address: A, weight: 1, local: null }, { address: B, weight: 1, local: null }],
+      keys: [
+        { address: A, weight: 1, local: null },
+        { address: B, weight: 1, local: null },
+      ],
     },
     witness: null,
-    actives: [{
-      id: 2,
-      name: "finance",
-      threshold: 1,
-      keys: [{ address: A, weight: 1, local: null }],
-      operations: ["TransferContract"],
-      operationLabels: ["Transfer TRX"],
-      operationsHex: "02" + "00".repeat(31),
-      unknownOperationIds: [],
-    }],
+    actives: [
+      {
+        id: 2,
+        name: "finance",
+        threshold: 1,
+        keys: [{ address: A, weight: 1, local: null }],
+        operations: ["TransferContract"],
+        operationLabels: ["Transfer TRX"],
+        operationsHex: "02" + "00".repeat(31),
+        unknownOperationIds: [],
+      },
+    ],
   };
 }
 
@@ -48,21 +53,26 @@ function scope(): TransactionScope {
 
 function accounts(): AccountStore {
   return {
-    list: () => [{
-      accountId: "local" as never,
-      label: "main",
-      type: "privateKey",
-      index: null,
-      active: true,
-      addresses: { tron: A },
-    }],
+    list: () => [
+      {
+        accountId: "local" as never,
+        label: "main",
+        type: "privateKey",
+        index: null,
+        active: true,
+        addresses: { tron: A },
+      },
+    ],
   } as unknown as AccountStore;
 }
 
-function setup(balance = "200000000", options: {
-  outcome?: Record<string, unknown>;
-  showPermissions?: () => Promise<AccountPermissionsView>;
-} = {}) {
+function setup(
+  balance = "200000000",
+  options: {
+    outcome?: Record<string, unknown>;
+    showPermissions?: () => Promise<AccountPermissionsView>;
+  } = {},
+) {
   const gateway = {
     getAccountPermissions: vi.fn(options.showPermissions ?? (async () => permissions())),
     getUpdateAccountPermissionFee: vi.fn(async () => 100_000_000),
@@ -102,7 +112,9 @@ describe("TRON permission service", () => {
     const ctx = scope();
     const result = await service.update(ctx, NETWORK, { dryRun: true }, permissions());
     expect(result).toMatchObject({ kind: "permission-update", mode: "dry-run" });
-    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({ code: "owner_lockout_partial" }));
+    expect(ctx.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "owner_lockout_partial" }),
+    );
     expect(pipeline.assertCanSign).not.toHaveBeenCalled();
     expect(captured()?.permissionId).toBe(0);
     expect((result as unknown as { fee: unknown }).fee).toMatchObject({
@@ -123,24 +135,32 @@ describe("TRON permission service", () => {
     expect(gateway.buildAccountPermissionUpdate).toHaveBeenCalledWith(
       A,
       expect.objectContaining({
-        actives: [expect.objectContaining({
-          operationsHex: "82" + "00".repeat(31),
-          unknownOperationIds: [7],
-        })],
+        actives: [
+          expect.objectContaining({
+            operationsHex: "82" + "00".repeat(31),
+            unknownOperationIds: [7],
+          }),
+        ],
       }),
     );
-    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({ code: "active_unknown_operations" }));
+    expect(ctx.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "active_unknown_operations" }),
+    );
   });
 
   it("allows an offline build even when balance is currently low", async () => {
     const { service, pipeline } = setup("0");
-    await expect(service.update(scope(), NETWORK, { buildOnly: true }, permissions())).resolves.toBeDefined();
+    await expect(
+      service.update(scope(), NETWORK, { buildOnly: true }, permissions()),
+    ).resolves.toBeDefined();
     expect(pipeline.assertCanSign).not.toHaveBeenCalled();
   });
 
   it("rejects insufficient balance before constructing a broadcast transaction", async () => {
     const { service, gateway, pipeline } = setup("99999999");
-    await expect(service.update(scope(), NETWORK, {}, permissions())).rejects.toMatchObject({ code: "insufficient_balance" });
+    await expect(service.update(scope(), NETWORK, {}, permissions())).rejects.toMatchObject({
+      code: "insufficient_balance",
+    });
     expect(gateway.buildAccountPermissionUpdate).not.toHaveBeenCalled();
     expect(pipeline.run).not.toHaveBeenCalled();
   });
@@ -150,14 +170,17 @@ describe("TRON permission service", () => {
   // by which time the account can have been funded.
   it("rejects insufficient balance on --dry-run too", async () => {
     const { service, gateway } = setup("99999999");
-    await expect(service.update(scope(), NETWORK, { dryRun: true }, permissions()))
-      .rejects.toMatchObject({ code: "insufficient_balance" });
+    await expect(
+      service.update(scope(), NETWORK, { dryRun: true }, permissions()),
+    ).rejects.toMatchObject({ code: "insufficient_balance" });
     expect(gateway.buildAccountPermissionUpdate).not.toHaveBeenCalled();
   });
 
   it("does not gate --sign-only on balance, since broadcast happens later", async () => {
     const { service } = setup("0");
-    await expect(service.update(scope(), NETWORK, { signOnly: true }, permissions())).resolves.toBeDefined();
+    await expect(
+      service.update(scope(), NETWORK, { signOnly: true }, permissions()),
+    ).resolves.toBeDefined();
   });
 
   // Permissions are already rewritten on chain by this point; an unreadable re-read must not present
@@ -165,17 +188,25 @@ describe("TRON permission service", () => {
   it("keeps the confirmed receipt when the permission re-read cannot be performed", async () => {
     const { service } = setup("200000000", {
       outcome: { stage: "confirmed", txId: "tx-confirmed" },
-      showPermissions: async () => { throw new Error("connect ETIMEDOUT"); },
+      showPermissions: async () => {
+        throw new Error("connect ETIMEDOUT");
+      },
     });
     const ctx = scope();
 
     const result = await service.update(ctx, NETWORK, {}, permissions());
 
-    expect(result).toMatchObject({ kind: "permission-update", stage: "confirmed", txId: "tx-confirmed" });
+    expect(result).toMatchObject({
+      kind: "permission-update",
+      stage: "confirmed",
+      txId: "tx-confirmed",
+    });
     expect(result).not.toHaveProperty("permissions");
-    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
-      code: "permission_postcheck_unavailable",
-    }));
+    expect(ctx.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "permission_postcheck_unavailable",
+      }),
+    );
   });
 
   it("still reports a genuine mismatch under the unchanged warning code", async () => {
@@ -190,8 +221,10 @@ describe("TRON permission service", () => {
     const result = await service.update(ctx, NETWORK, {}, permissions());
 
     expect(result).toMatchObject({ stage: "confirmed", txId: "tx-confirmed" });
-    expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
-      code: "permission_postcheck_mismatch",
-    }));
+    expect(ctx.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "permission_postcheck_mismatch",
+      }),
+    );
   });
 });

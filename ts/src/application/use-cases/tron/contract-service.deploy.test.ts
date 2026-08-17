@@ -27,9 +27,7 @@ function service(opts: {
       return opts.deployTx;
     },
     prepareTransaction(tx: Record<string, unknown>) {
-      return "preparedAddress" in opts
-        ? { ...tx, contract_address: opts.preparedAddress }
-        : tx;
+      return "preparedAddress" in opts ? { ...tx, contract_address: opts.preparedAddress } : tx;
     },
   } as unknown as TronGateway;
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;

@@ -11,7 +11,9 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 // Regression coverage for issue #2: `contract deploy` constructor params.
 //   • --constructor-sig was a dead flag (types come from the ABI); it was removed.
 //   • --params must be RAW positional values ([100, "T..."]) — the {type,value} form that
-//     contract call/send use is rejected by TronWeb's createSmartContract ABI encoder.
+//     contract call/send use is rejected by TronWeb's createSmartContract ABI encoder, and is now
+//     named as a format error at the command boundary before it gets there (see
+//     commands/contract.deploy.test.ts for that guard's own alignment coverage).
 //
 // The negative case fails at client-side ABI encoding *before* any node call, so it runs
 // hermetically (random key, no network, no funds). The positive/broadcast cases hit real Nile
@@ -20,17 +22,21 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 //   RUN_LIVE_BROADCAST=1  → actually deploy + confirm on Nile (spends testnet TRX)
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const TSX = join(process.cwd(), "node_modules", ".bin", "tsx");
 const ENTRY = join(process.cwd(), "src", "index.ts");
 const PW = "testpw123A";
 
 // Minimal init code whose runtime ignores appended constructor args (a known-good Nile deploy
 // payload). Declaring a constructor in the ABI is what drives client-side arg encoding.
-const ABI = JSON.stringify([{
-  type: "constructor",
-  stateMutability: "nonpayable",
-  inputs: [{ name: "cap", type: "uint256" }, { name: "owner", type: "address" }],
-}]);
+const ABI = JSON.stringify([
+  {
+    type: "constructor",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "cap", type: "uint256" },
+      { name: "owner", type: "address" },
+    ],
+  },
+]);
 const BYTECODE =
   "6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea2646970667358fe";
 const ARG_ADDR = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -39,14 +45,16 @@ const ENC_CAP = "0".repeat(62) + "64"; // uint256(100)
 const ENC_OWNER = "74472e7d35395a6b5add427eecb7f4b62ad2b071"; // ARG_ADDR as a 20-byte EVM address
 
 const RAW_PARAMS = `[100, "${ARG_ADDR}"]`;
-const TYPED_PARAMS =
-  `[{"type":"uint256","value":"100"},{"type":"address","value":"${ARG_ADDR}"}]`;
+const TYPED_PARAMS = `[{"type":"uint256","value":"100"},{"type":"address","value":"${ARG_ADDR}"}]`;
 
 let HOME: string;
 
 function seed(secret: string) {
-  new Keystore(HOME, new AtomicFileStore(), () => PW)
-    .import({ secret, type: "privateKey", label: "deployer" });
+  new Keystore(HOME, new AtomicFileStore(), () => PW).import({
+    secret,
+    type: "privateKey",
+    label: "deployer",
+  });
 }
 
 function deploy(
@@ -56,13 +64,20 @@ function deploy(
   const globals = ["--output", "json", "--network", "tron:nile"];
   if (opts.wait) globals.push("--wait"); // --wait is a global flag (before the subcommand)
   const local = [
-    "contract", "deploy",
-    "--abi", ABI, "--bytecode", BYTECODE, "--fee-limit", "1000000000",
-    "--params", params,
+    "contract",
+    "deploy",
+    "--abi",
+    ABI,
+    "--bytecode",
+    BYTECODE,
+    "--fee-limit",
+    "1000000000",
+    "--params",
+    params,
   ];
   if (opts.dryRun) local.push("--dry-run");
   local.push("--password-stdin");
-  const r = spawnSync(TSX, [ENTRY, ...globals, ...local], {
+  const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...globals, ...local], {
     input: PW + "\n",
     encoding: "utf8",
     env: { ...process.env, WALLET_CLI_HOME: HOME, NO_COLOR: "1" },
@@ -77,10 +92,14 @@ describe("contract deploy — constructor params (issue #2)", () => {
   });
 
   it("rejects the {type,value} param form (raw positional values are required)", () => {
-    seed(randomBytes(32).toString("hex")); // encoding fails before any node call → hermetic
+    seed(randomBytes(32).toString("hex")); // rejected at the command boundary → hermetic
     const out = deploy(TYPED_PARAMS, { dryRun: true });
     expect(out.success).toBe(false);
-    expect(out.error.message).toMatch(/BigNumberish/i);
+    // A malformed call, not a failed execution: deterministic on retry, so exit 2 / invalid_value.
+    // (Before the guard this reached TronWeb and came back as rpc_error / `invalid BigNumberish
+    // value (argument="value")` — same refusal, worded in ethers' internals.)
+    expect(out.error.code).toBe("invalid_value");
+    expect(out.error.message).toMatch(/raw positional values/i);
   });
 
   const PK = loadTestPrivateKey();

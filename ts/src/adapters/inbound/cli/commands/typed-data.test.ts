@@ -6,7 +6,10 @@ const net = { family: "tron", id: "nile", chainId: "728126428" } as never;
 
 const PAYLOAD = JSON.stringify({
   domain: { name: "SunPerp", version: "1", chainId: 728126428 },
-  types: { EIP712Domain: [{ name: "name", type: "string" }], Order: [{ name: "size", type: "uint256" }] },
+  types: {
+    EIP712Domain: [{ name: "name", type: "string" }],
+    Order: [{ name: "size", type: "uint256" }],
+  },
   message: { size: "1" },
 });
 
@@ -47,8 +50,9 @@ describe("typed-data sign binding", () => {
 
   it("rejects malformed JSON with invalid_value", async () => {
     const svc = { sign: async () => stubResult };
-    await expect(typedDataSignBinding(svc as never).run(ctx, net, { typedData: "nope" }))
-      .rejects.toMatchObject({ code: "invalid_value" });
+    await expect(
+      typedDataSignBinding(svc as never).run(ctx, net, { typedData: "nope" }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
   it("rejects a structurally invalid payload with invalid_value", async () => {

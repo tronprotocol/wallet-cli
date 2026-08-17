@@ -4,7 +4,16 @@
  * through dependency injection, so this class has no `if family` branch.
  */
 import { bytesToHex } from "@noble/hashes/utils.js";
-import type { Bytes, SignedTx, Signer, SignerSignOpts, SignStrategy, TypedDataPayload, TypedDataSignature, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  Bytes,
+  SignedTx,
+  Signer,
+  SignerSignOpts,
+  SignStrategy,
+  TypedDataPayload,
+  TypedDataSignature,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
 
 export class SoftwareSigner implements Signer {
   readonly kind = "software" as const;
@@ -30,7 +39,10 @@ export class SoftwareSigner implements Signer {
     return this.strategy.signMessage(this.#pk(), message);
   }
 
-  async signTypedData(payload: TypedDataPayload, _opts: SignerSignOpts): Promise<TypedDataSignature> {
+  async signTypedData(
+    payload: TypedDataPayload,
+    _opts: SignerSignOpts,
+  ): Promise<TypedDataSignature> {
     return this.strategy.signTypedData(this.#pk(), payload);
   }
 }

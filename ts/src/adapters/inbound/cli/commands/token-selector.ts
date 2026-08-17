@@ -5,8 +5,9 @@ export function tokenSelector(
   value: { contract?: string; assetId?: string },
   context: z.RefinementCtx,
 ): void {
-  const count = [value.contract, value.assetId]
-    .filter((candidate) => candidate !== undefined).length;
+  const count = [value.contract, value.assetId].filter(
+    (candidate) => candidate !== undefined,
+  ).length;
   if (count !== 1) {
     context.addIssue({
       code: "custom",

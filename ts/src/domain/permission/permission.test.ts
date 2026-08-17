@@ -19,24 +19,33 @@ function structure() {
     owner: {
       id: 0,
       threshold: 2,
-      keys: [{ address: A, weight: 1, local: "forged" }, { address: B, weight: 1 }],
+      keys: [
+        { address: A, weight: 1, local: "forged" },
+        { address: B, weight: 1 },
+      ],
     },
     witness: null,
-    actives: [{
-      id: 2,
-      name: "finance",
-      threshold: 1,
-      operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
-      operationsHex: "0600008000000000000000000000000000000000000000000000000000000000",
-      unknownOperationIds: [] as number[],
-      keys: [{ address: A, weight: 1 }],
-    }],
+    actives: [
+      {
+        id: 2,
+        name: "finance",
+        threshold: 1,
+        operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
+        operationsHex: "0600008000000000000000000000000000000000000000000000000000000000",
+        unknownOperationIds: [] as number[],
+        keys: [{ address: A, weight: 1 }],
+      },
+    ],
   };
 }
 
 describe("TRON permission operations", () => {
   it("uses contract ids as little-endian bits within a fixed 32-byte bitmap", () => {
-    const encoded = encodeOperations(["TransferContract", "TransferAssetContract", "TriggerSmartContract"]);
+    const encoded = encodeOperations([
+      "TransferContract",
+      "TransferAssetContract",
+      "TriggerSmartContract",
+    ]);
     expect(encoded).toBe("0600008000000000000000000000000000000000000000000000000000000000");
     expect(decodeOperations(encoded)).toMatchObject({
       operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
@@ -98,7 +107,9 @@ describe("permission replacement validation", () => {
     const omitted = structure();
     omitted.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
     delete (omitted.actives[0] as Record<string, unknown>).unknownOperationIds;
-    expect(() => validatePermissionStructure(omitted)).toThrowError(/must declare the unnamed contract types.*7/);
+    expect(() => validatePermissionStructure(omitted)).toThrowError(
+      /must declare the unnamed contract types.*7/,
+    );
 
     const emptied = structure();
     emptied.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
@@ -109,11 +120,15 @@ describe("permission replacement validation", () => {
     const understated = structure();
     understated.actives[0]!.operationsHex = "86000088" + "00".repeat(28);
     understated.actives[0]!.unknownOperationIds = [7];
-    expect(() => validatePermissionStructure(understated)).toThrowError(/does not match operationsHex/);
+    expect(() => validatePermissionStructure(understated)).toThrowError(
+      /does not match operationsHex/,
+    );
 
     const overstated = structure();
     overstated.actives[0]!.unknownOperationIds = [7];
-    expect(() => validatePermissionStructure(overstated)).toThrowError(/does not match operationsHex/);
+    expect(() => validatePermissionStructure(overstated)).toThrowError(
+      /does not match operationsHex/,
+    );
   });
 
   it("rejects duplicate unknownOperationIds", () => {
@@ -134,7 +149,11 @@ describe("permission replacement validation", () => {
     const result = validatePermissionStructure(input);
     expect(result.actives[0]).toMatchObject({
       operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
-      operationsHex: encodeOperations(["TransferContract", "TransferAssetContract", "TriggerSmartContract"]),
+      operationsHex: encodeOperations([
+        "TransferContract",
+        "TransferAssetContract",
+        "TriggerSmartContract",
+      ]),
       unknownOperationIds: [],
     });
   });
@@ -226,7 +245,10 @@ describe("permission replacement validation", () => {
     input.witness = {
       id: 1,
       threshold: 1,
-      keys: [{ address: A, weight: 1 }, { address: B, weight: 1 }],
+      keys: [
+        { address: A, weight: 1 },
+        { address: B, weight: 1 },
+      ],
     } as never;
     expect(() => validatePermissionStructure(input)).toThrowError(/exactly 1 key/);
   });
@@ -240,7 +262,11 @@ describe("permission replacement validation", () => {
 });
 
 describe("local key inventory and lockout warnings", () => {
-  const account = (type: AccountDescriptor["type"], address: string, label: string): AccountDescriptor => ({
+  const account = (
+    type: AccountDescriptor["type"],
+    address: string,
+    label: string,
+  ): AccountDescriptor => ({
     accountId: `wlt_${label}` as never,
     label,
     type,
@@ -256,7 +282,10 @@ describe("local key inventory and lockout warnings", () => {
       account("watch", B, "watch"),
     ]);
     expect([...inventory.entries()]).toEqual([[A, "main"]]);
-    const annotated = annotateLocalPermissionKeys(validatePermissionStructure(structure()), inventory);
+    const annotated = annotateLocalPermissionKeys(
+      validatePermissionStructure(structure()),
+      inventory,
+    );
     expect(annotated.owner.keys.map((key) => key.local)).toEqual(["main", null]);
     expect(permissionSafetyWarnings(annotated, inventory)).toEqual([
       expect.objectContaining({ code: "owner_lockout_partial" }),
@@ -267,7 +296,10 @@ describe("local key inventory and lockout warnings", () => {
     const input = structure();
     input.actives[0]!.operations.push("AccountPermissionUpdateContract");
     input.actives[0]!.operationsHex = encodeOperations(input.actives[0]!.operations);
-    const warnings = permissionSafetyWarnings(validatePermissionStructure(input), new Map([[C, "other"]]));
+    const warnings = permissionSafetyWarnings(
+      validatePermissionStructure(input),
+      new Map([[C, "other"]]),
+    );
     expect(warnings.map((warning) => warning.code)).toEqual([
       "owner_lockout",
       "active_can_update_permission",
@@ -282,9 +314,11 @@ describe("local key inventory and lockout warnings", () => {
     input.actives[0]!.unknownOperationIds = [7];
     const inventory = new Map([[A, "main"]]);
     const warnings = permissionSafetyWarnings(validatePermissionStructure(input), inventory);
-    expect(warnings).toContainEqual(expect.objectContaining({
-      code: "active_unknown_operations",
-      message: expect.stringContaining("7"),
-    }));
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        code: "active_unknown_operations",
+        message: expect.stringContaining("7"),
+      }),
+    );
   });
 });

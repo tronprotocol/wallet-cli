@@ -8,7 +8,12 @@ import { join } from "node:path";
 function capture(output: "text" | "json", verbose = false) {
   const out: string[] = [];
   const err: string[] = [];
-  const sm = new StreamManager(output, verbose, (s) => out.push(s), (s) => err.push(s));
+  const sm = new StreamManager(
+    output,
+    verbose,
+    (s) => out.push(s),
+    (s) => err.push(s),
+  );
   return { sm, out, err };
 }
 

@@ -36,13 +36,16 @@ describe("obtainSignature", () => {
     const s = scope();
     let aborted = false;
     await expect(
-      obtainSignature(device, s, (opts) =>
-        new Promise((_res, rej) => {
-          opts.signal?.addEventListener("abort", () => {
-            aborted = true;
-            rej(new Error("aborted"));
-          });
-        }),
+      obtainSignature(
+        device,
+        s,
+        (opts) =>
+          new Promise((_res, rej) => {
+            opts.signal?.addEventListener("abort", () => {
+              aborted = true;
+              rej(new Error("aborted"));
+            });
+          }),
       ),
     ).rejects.toMatchObject({ code: "timeout" });
     expect(aborted).toBe(true);

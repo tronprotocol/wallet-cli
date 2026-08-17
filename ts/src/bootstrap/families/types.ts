@@ -9,5 +9,5 @@ export interface FamilyPlugin<F extends ChainFamily> {
 }
 
 export type AnyFamilyPlugin = {
-  [F in ChainFamily]: FamilyPlugin<F>
+  [F in ChainFamily]: FamilyPlugin<F>;
 }[ChainFamily];

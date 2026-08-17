@@ -11,10 +11,17 @@ import { obtainSignature } from "../services/signing/obtain-signature.js";
 export class TypedDataService {
   constructor(private readonly signers: SignerResolver) {}
 
-  async sign(scope: TransactionScope, family: ChainFamily, account: AccountRef, payload: TypedDataPayload) {
+  async sign(
+    scope: TransactionScope,
+    family: ChainFamily,
+    account: AccountRef,
+    payload: TypedDataPayload,
+  ) {
     this.signers.assertCanSign(account, family);
     const signer = this.signers.resolve(account, family);
-    const result = await obtainSignature(signer, scope, (opts) => signer.signTypedData(payload, opts));
+    const result = await obtainSignature(signer, scope, (opts) =>
+      signer.signTypedData(payload, opts),
+    );
     return { address: signer.address, ...result };
   }
 }

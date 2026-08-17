@@ -36,7 +36,8 @@ export class StreamManager implements IStreamManager {
   diagnostic(level: DiagnosticLevel, msg: WarningItem): void {
     if (level === "warn") {
       this.#warnings.push(msg);
-      if (this.output === "text") this.err(`warning: ${typeof msg === "string" ? msg : msg.message}\n`);
+      if (this.output === "text")
+        this.err(`warning: ${typeof msg === "string" ? msg : msg.message}\n`);
       return;
     }
     if (level === "debug" && !this.verbose) return;

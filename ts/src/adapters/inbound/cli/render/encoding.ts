@@ -20,22 +20,13 @@ export const EncodingFormatters = {
     secretFile?: string;
     privateKey?: string;
   }): string => {
-    const rendered = receipt(
-      ok(),
-      "Keypair generated (NOT stored in the wallet)",
-      [
-        ["TRON address", value.tron],
-        ["EVM address", value.evm],
-        [
-          "Private key",
-          value.privateKey ?? `written to ${value.secretFile}`,
-        ],
-      ],
-    );
+    const rendered = receipt(ok(), "Keypair generated (NOT stored in the wallet)", [
+      ["TRON address", value.tron],
+      ["EVM address", value.evm],
+      ["Private key", value.privateKey ?? `written to ${value.secretFile}`],
+    ]);
     return `${
-      value.privateKey
-        ? "! Private key printed to stdout — keep it offline\n"
-        : ""
+      value.privateKey ? "! Private key printed to stdout — keep it offline\n" : ""
     }${rendered}\n\n! To sign with this key, import it: wallet-cli import private-key`;
   },
 };

@@ -6,13 +6,17 @@ import type { TypedDataService } from "../../../../application/use-cases/typed-d
 import { TextFormatters } from "../render/index.js";
 
 const typedDataFields = z.object({
-  typedData: z.string().min(1)
+  typedData: z
+    .string()
+    .min(1)
     .describe(`EIP-712/TIP-712 JSON: {"domain":…,"types":…,"primaryType"?:…,"message":…}`),
 });
 
 export const typedDataSignSpec: ChainSpec = {
   path: ["typed-data", "sign"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional",
+  wallet: "optional",
+  auth: "required",
   broadcasts: false,
   capability: "typedData.sign",
   summary: "Sign EIP-712 / TIP-712 structured data",
@@ -22,7 +26,9 @@ export const typedDataSignSpec: ChainSpec = {
     "addresses work in address fields.",
   baseFields: typedDataFields,
   examples: [
-    { cmd: `wallet-cli typed-data sign --typed-data '{"domain":{...},"types":{...},"message":{...}}'` },
+    {
+      cmd: `wallet-cli typed-data sign --typed-data '{"domain":{...},"types":{...},"message":{...}}'`,
+    },
   ],
   formatText: TextFormatters.typedDataSign,
 };

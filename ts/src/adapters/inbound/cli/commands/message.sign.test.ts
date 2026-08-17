@@ -13,7 +13,8 @@ describe("message sign exclusive group", () => {
   });
 
   it("states the constraint once — in the group, not also in the field description", () => {
-    const description = (messageSignSpec.baseFields.shape.message as { description?: string }).description ?? "";
+    const description =
+      (messageSignSpec.baseFields.shape.message as { description?: string }).description ?? "";
     expect(description).not.toMatch(/exactly one|OR --message-stdin/i);
     expect(description).toBeTruthy();
   });
@@ -30,7 +31,9 @@ describe("message sign exclusive group", () => {
       activeAccount: "main",
       secrets: { pick: (inline: string | undefined) => inline ?? "from-stdin" },
     } as never;
-    await messageSignBinding(service as never).run(ctx, { family: "tron" } as never, { message: "hello" });
+    await messageSignBinding(service as never).run(ctx, { family: "tron" } as never, {
+      message: "hello",
+    });
     expect(received).toBe("hello");
   });
 });

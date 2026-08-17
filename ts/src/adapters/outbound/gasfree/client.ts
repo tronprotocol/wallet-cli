@@ -16,23 +16,12 @@ import type {
   NetworkDescriptor,
   SignedGasFreeAuthorization,
 } from "../../../domain/types/index.js";
-import {
-  ChainError,
-  CliError,
-  TransportError,
-  UsageError,
-} from "../../../domain/errors/index.js";
+import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 
 const MAX_BYTES = 1024 * 1024;
 const ADDRESS = new TronAddress();
-const STATES = new Set<GasFreeState>([
-  "WAITING",
-  "INPROGRESS",
-  "CONFIRMING",
-  "SUCCEED",
-  "FAILED",
-]);
+const STATES = new Set<GasFreeState>(["WAITING", "INPROGRESS", "CONFIRMING", "SUCCEED", "FAILED"]);
 type Fetch = typeof globalThis.fetch;
 
 /** Java-compatible adapter for open.gasfree.io. Mutating POST requests are never retried. */
@@ -45,10 +34,7 @@ export class GasFreeClient implements GasFreeProvider {
   ) {}
 
   async listTokens(network: NetworkDescriptor): Promise<GasFreeTokenConfig[]> {
-    const data = object(
-      await this.#request(network, "GET", "/api/v1/config/token/all"),
-      "data",
-    );
+    const data = object(await this.#request(network, "GET", "/api/v1/config/token/all"), "data");
     return array(data.tokens, "data.tokens").map((entry, index) => {
       const item = object(entry, `data.tokens[${index}]`);
       const symbol = optionalText(item.symbol, 32, `data.tokens[${index}].symbol`);
@@ -65,10 +51,7 @@ export class GasFreeClient implements GasFreeProvider {
   }
 
   async listProviders(network: NetworkDescriptor): Promise<GasFreeProviderConfig[]> {
-    const data = object(
-      await this.#request(network, "GET", "/api/v1/config/provider/all"),
-      "data",
-    );
+    const data = object(await this.#request(network, "GET", "/api/v1/config/provider/all"), "data");
     return array(data.providers, "data.providers").map((entry, index) => {
       const item = object(entry, `data.providers[${index}]`);
       const providerConfig = object(item.config, `data.providers[${index}].config`);
@@ -83,19 +66,12 @@ export class GasFreeClient implements GasFreeProvider {
     });
   }
 
-  async getAddress(
-    network: NetworkDescriptor,
-    ownerAddress: string,
-  ): Promise<GasFreeAddressInfo> {
+  async getAddress(network: NetworkDescriptor, ownerAddress: string): Promise<GasFreeAddressInfo> {
     if (!ADDRESS.validate(ownerAddress)) {
       throw new UsageError("invalid_value", "ownerAddress must be a valid TRON address");
     }
     const data = object(
-      await this.#request(
-        network,
-        "GET",
-        `/api/v1/address/${encodeURIComponent(ownerAddress)}`,
-      ),
+      await this.#request(network, "GET", `/api/v1/address/${encodeURIComponent(ownerAddress)}`),
       "data",
     );
     return {
@@ -131,22 +107,13 @@ export class GasFreeClient implements GasFreeProvider {
       nonce: new LosslessNumber(authorization.nonce),
       sig: authorization.sig,
     };
-    return transferRecord(
-      await this.#request(network, "POST", "/api/v1/gasfree/submit", body),
-    );
+    return transferRecord(await this.#request(network, "POST", "/api/v1/gasfree/submit", body));
   }
 
-  async trace(
-    network: NetworkDescriptor,
-    traceId: string,
-  ): Promise<GasFreeTransferRecord> {
+  async trace(network: NetworkDescriptor, traceId: string): Promise<GasFreeTransferRecord> {
     const normalized = traceIdentifier(traceId);
     return transferRecord(
-      await this.#request(
-        network,
-        "GET",
-        `/api/v1/gasfree/${encodeURIComponent(normalized)}`,
-      ),
+      await this.#request(network, "GET", `/api/v1/gasfree/${encodeURIComponent(normalized)}`),
     );
   }
 
@@ -186,39 +153,23 @@ export class GasFreeClient implements GasFreeProvider {
       });
       if (!response.ok) throw httpError(response);
       const contentLength = response.headers.get("content-length");
-      if (
-        contentLength
-        && /^\d+$/.test(contentLength)
-        && Number(contentLength) > MAX_BYTES
-      ) {
-        throw new ChainError(
-          "provider_error",
-          "GasFree response exceeds the 1 MiB limit",
-        );
+      if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_BYTES) {
+        throw new ChainError("provider_error", "GasFree response exceeds the 1 MiB limit");
       }
       const text = await readBoundedText(response, MAX_BYTES);
       let decoded: unknown;
       try {
         decoded = normalizeLossless(parseLosslessJson(text));
       } catch {
-        throw new ChainError(
-          "provider_error",
-          "GasFree service returned malformed JSON",
-        );
+        throw new ChainError("provider_error", "GasFree service returned malformed JSON");
       }
       return unwrap(decoded);
     } catch (error) {
       if (error instanceof CliError) throw error;
       if (controller.signal.aborted) {
-        throw new ChainError(
-          "timeout",
-          `GasFree request timed out after ${this.timeoutMs}ms`,
-        );
+        throw new ChainError("timeout", `GasFree request timed out after ${this.timeoutMs}ms`);
       }
-      throw new TransportError(
-        "provider_error",
-        "GasFree service request failed",
-      );
+      throw new TransportError("provider_error", "GasFree service request failed");
     } finally {
       clearTimeout(timeout);
     }
@@ -236,15 +187,10 @@ export class GasFreeClient implements GasFreeProvider {
   }
 }
 
-function endpoint(
-  network: NetworkDescriptor,
-): { baseUrl: string; apiPrefix: string } {
+function endpoint(network: NetworkDescriptor): { baseUrl: string; apiPrefix: string } {
   const value = network.gasfree;
   if (!value) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} does not support GasFree`,
-    );
+    throw new UsageError("unsupported_network", `network ${network.id} does not support GasFree`);
   }
   let url: URL;
   try {
@@ -253,12 +199,12 @@ function endpoint(
     throw new UsageError("invalid_config", "GasFree baseUrl is invalid");
   }
   if (
-    url.protocol !== "https:"
-    || url.username
-    || url.password
-    || url.search
-    || url.hash
-    || url.pathname !== "/"
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    url.pathname !== "/"
   ) {
     throw new UsageError(
       "invalid_config",
@@ -266,21 +212,16 @@ function endpoint(
     );
   }
   if (!/^\/[a-z0-9-]+$/.test(value.apiPrefix)) {
-    throw new UsageError(
-      "invalid_config",
-      "GasFree apiPrefix must be one absolute path segment",
-    );
+    throw new UsageError("invalid_config", "GasFree apiPrefix must be one absolute path segment");
   }
   return { baseUrl: url.origin, apiPrefix: value.apiPrefix };
 }
 
 function httpError(response: Response): CliError {
   if (response.status === 401 || response.status === 403) {
-    return new ChainError(
-      "gasfree_auth_failed",
-      "GasFree credentials were rejected",
-      { status: response.status },
-    );
+    return new ChainError("gasfree_auth_failed", "GasFree credentials were rejected", {
+      status: response.status,
+    });
   }
   if (response.status === 404) {
     return new ChainError("not_found", "GasFree resource was not found", {
@@ -289,39 +230,24 @@ function httpError(response: Response): CliError {
   }
   if (response.status === 429) {
     const retryAfter = response.headers.get("retry-after");
-    return new ChainError(
-      "provider_rate_limited",
-      "GasFree service rate limit exceeded",
-      {
-        status: 429,
-        ...(retryAfter && /^[\x20-\x7e]{1,128}$/.test(retryAfter)
-          ? { retryAfter }
-          : {}),
-      },
-    );
+    return new ChainError("provider_rate_limited", "GasFree service rate limit exceeded", {
+      status: 429,
+      ...(retryAfter && /^[\x20-\x7e]{1,128}$/.test(retryAfter) ? { retryAfter } : {}),
+    });
   }
   if (response.status >= 500) {
-    return new TransportError(
-      "provider_error",
-      `GasFree service returned HTTP ${response.status}`,
-    );
+    return new TransportError("provider_error", `GasFree service returned HTTP ${response.status}`);
   }
-  return new ChainError(
-    "gasfree_rejected",
-    `GasFree service returned HTTP ${response.status}`,
-    { status: response.status },
-  );
+  return new ChainError("gasfree_rejected", `GasFree service returned HTTP ${response.status}`, {
+    status: response.status,
+  });
 }
 
 function unwrap(value: unknown): unknown {
   const root = object(value, "response");
   const code = smallUInt(root.code, "code", 999_999);
   if (code !== 200) {
-    throw new ChainError(
-      "gasfree_rejected",
-      "GasFree service rejected the request",
-      { code },
-    );
+    throw new ChainError("gasfree_rejected", "GasFree service rejected the request", { code });
   }
   if (root.data === null || root.data === undefined) {
     throw new ChainError("not_found", "GasFree resource was not found");
@@ -367,11 +293,7 @@ function transferRecord(value: unknown): GasFreeTransferRecord {
     ...(data.failureReason === undefined || data.failureReason === null
       ? {}
       : {
-          failureReason: text(
-            data.failureReason,
-            "data.failureReason",
-            256,
-          ),
+          failureReason: text(data.failureReason, "data.failureReason", 256),
         }),
   };
 }
@@ -388,9 +310,7 @@ function optionalUintFields(
 }
 
 function transactionHash(value: unknown): string {
-  const result = text(value, "data.txnHash", 66)
-    .replace(/^0x/, "")
-    .toLowerCase();
+  const result = text(value, "data.txnHash", 66).replace(/^0x/, "").toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(result)) {
     throw invalid("data.txnHash", "a 32-byte transaction hash");
   }
@@ -400,10 +320,7 @@ function transactionHash(value: unknown): string {
 function traceIdentifier(value: string): string {
   const normalized = value.trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(normalized)) {
-    throw new UsageError(
-      "invalid_value",
-      "traceId contains unsupported characters",
-    );
+    throw new UsageError("invalid_value", "traceId contains unsupported characters");
   }
   return normalized;
 }
@@ -421,16 +338,9 @@ function boolean(value: unknown, field: string): boolean {
 
 function uint(value: unknown, field: string): string {
   let result: string;
-  if (
-    typeof value === "number"
-    && Number.isSafeInteger(value)
-    && value >= 0
-  ) {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
     result = String(value);
-  } else if (
-    typeof value === "string"
-    && /^(0|[1-9]\d*)$/.test(value)
-  ) {
+  } else if (typeof value === "string" && /^(0|[1-9]\d*)$/.test(value)) {
     result = value;
   } else {
     throw invalid(field, "an unsigned decimal integer");
@@ -453,27 +363,18 @@ function smallUInt(value: unknown, field: string, maximum: number): number {
 
 function text(value: unknown, field: string, maximum: number): string {
   if (
-    typeof value !== "string"
-    || value.length === 0
-    || value.length > maximum
-    || /[\u0000-\u001f\u007f]/.test(value)
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maximum ||
+    /[\u0000-\u001f\u007f]/.test(value)
   ) {
-    throw invalid(
-      field,
-      `non-empty text no longer than ${maximum} characters`,
-    );
+    throw invalid(field, `non-empty text no longer than ${maximum} characters`);
   }
   return value;
 }
 
-function optionalText(
-  value: unknown,
-  maximum: number,
-  field: string,
-): string | undefined {
-  return value === undefined || value === null
-    ? undefined
-    : text(value, field, maximum);
+function optionalText(value: unknown, maximum: number, field: string): string | undefined {
+  return value === undefined || value === null ? undefined : text(value, field, maximum);
 }
 
 function object(value: unknown, field: string): Record<string, unknown> {
@@ -491,16 +392,10 @@ function array(value: unknown, field: string): unknown[] {
 }
 
 function invalid(field: string, expected: string): ChainError {
-  return new ChainError(
-    "provider_error",
-    `GasFree ${field} must be ${expected}`,
-  );
+  return new ChainError("provider_error", `GasFree ${field} must be ${expected}`);
 }
 
-async function readBoundedText(
-  response: Response,
-  maximum: number,
-): Promise<string> {
+async function readBoundedText(response: Response, maximum: number): Promise<string> {
   if (!response.body) return "";
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -512,10 +407,7 @@ async function readBoundedText(
       if (done) break;
       size += value.byteLength;
       if (size > maximum) {
-        throw new ChainError(
-          "provider_error",
-          "GasFree response exceeds the 1 MiB limit",
-        );
+        throw new ChainError("provider_error", "GasFree response exceeds the 1 MiB limit");
       }
       output += decoder.decode(value, { stream: true });
     }
@@ -534,10 +426,7 @@ function normalizeLossless(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalizeLossless);
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        normalizeLossless(item),
-      ]),
+      Object.entries(value).map(([key, item]) => [key, normalizeLossless(item)]),
     );
   }
   return value;

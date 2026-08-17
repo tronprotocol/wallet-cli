@@ -50,7 +50,8 @@ export class ChainGatewayRegistry implements ChainGatewayProvider {
 
   #make(net: NetworkDescriptor): AnyChainGateway {
     const factory = this.factories[net.family];
-    if (!factory) throw new ExecutionError("internal_error", `no RPC client for family ${net.family}`);
+    if (!factory)
+      throw new ExecutionError("internal_error", `no RPC client for family ${net.family}`);
     return factory(net, this.timeoutMs);
   }
 }

@@ -81,7 +81,10 @@ export class TronVoteService {
     const votes = parseVoteInputs(input.for);
     const totalVotes = votes.reduce((sum, vote) => sum + BigInt(vote.count), 0n);
     if (totalVotes > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new UsageError("invalid_value", "total votes exceed the safe-integer limit for this client");
+      throw new UsageError(
+        "invalid_value",
+        "total votes exceed the safe-integer limit for this client",
+      );
     }
     const owner = scope.resolveAddress("tron");
     const votingPower = await this.stake.votingPower(network, owner);
@@ -100,7 +103,10 @@ export class TronVoteService {
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (ownerAddress) => gateway.buildVoteWitness(ownerAddress, votes),
-      estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "voting uses bandwidth only" }),
+      estimate: async (_tx: UnsignedTx) => ({
+        feeModel: "tron-resource",
+        note: "voting uses bandwidth only",
+      }),
     });
     return {
       kind: "vote-cast" as const,
@@ -133,21 +139,27 @@ export class TronVoteService {
       gateway.getWitnesses(MAX_REWARDED_RANK).catch((): TronWitness[] => []),
       this.stake.votingPower(network, address),
     ]);
-    const witnessMap = new Map(witnesses.map((witness, index) => [witness.address, { witness, rank: index + 1 }]));
+    const witnessMap = new Map(
+      witnesses.map((witness, index) => [witness.address, { witness, rank: index + 1 }]),
+    );
     const currentVotes = normalizeAccountVotes(account);
     const cache: BrokerageCache = new Map();
-    const votes = await mapWithLimit(currentVotes, BROKERAGE_CONCURRENCY, async (vote): Promise<CurrentVoteView> => {
-      const known = witnessMap.get(vote.witness);
-      const brokeragePct = await brokerageOf(gateway, vote.witness, cache);
-      return {
-        witness: vote.witness,
-        name: known ? witnessName(known.witness) : vote.witness,
-        count: Number(vote.count),
-        brokeragePct,
-        rewardRatioPct: rewardRatioOf(brokeragePct),
-        aprPct: null,
-      };
-    });
+    const votes = await mapWithLimit(
+      currentVotes,
+      BROKERAGE_CONCURRENCY,
+      async (vote): Promise<CurrentVoteView> => {
+        const known = witnessMap.get(vote.witness);
+        const brokeragePct = await brokerageOf(gateway, vote.witness, cache);
+        return {
+          witness: vote.witness,
+          name: known ? witnessName(known.witness) : vote.witness,
+          count: Number(vote.count),
+          brokeragePct,
+          rewardRatioPct: rewardRatioOf(brokeragePct),
+          aprPct: null,
+        };
+      },
+    );
     // zero-reward-ratio votes earn nothing: warn via the standard channel (→ meta.warnings + stderr).
     for (const vote of votes) {
       if (vote.rewardRatioPct === 0) scope.warn(zeroRatioWarning(vote));
@@ -160,7 +172,12 @@ export class TronVoteService {
     };
   }
 
-  private async witnessView(gateway: TronGateway, witness: TronWitness, rank: number, cache: BrokerageCache): Promise<WitnessView> {
+  private async witnessView(
+    gateway: TronGateway,
+    witness: TronWitness,
+    rank: number,
+    cache: BrokerageCache,
+  ): Promise<WitnessView> {
     const brokeragePct = await brokerageOf(gateway, witness.address, cache);
     return {
       rank,
@@ -175,8 +192,10 @@ export class TronVoteService {
 }
 
 function parseVoteInputs(values: string[]): TronVote[] {
-  if (values.length === 0) throw new UsageError("invalid_value", "--for must include at least one SR=votes entry");
-  if (values.length > MAX_VOTE_ITEMS) throw new UsageError("invalid_value", "--for accepts at most 30 entries");
+  if (values.length === 0)
+    throw new UsageError("invalid_value", "--for must include at least one SR=votes entry");
+  if (values.length > MAX_VOTE_ITEMS)
+    throw new UsageError("invalid_value", "--for accepts at most 30 entries");
   const codec = addressCodec("tron");
   const seen = new Set<string>();
   return values.map((entry) => {
@@ -186,14 +205,19 @@ function parseVoteInputs(values: string[]): TronVote[] {
     }
     const witness = entry.slice(0, separator).trim();
     const count = entry.slice(separator + 1).trim();
-    if (!codec.validate(witness)) throw new UsageError("invalid_value", `invalid witness address: ${witness}`);
-    if (seen.has(witness)) throw new UsageError("invalid_value", `duplicate witness address: ${witness}`);
+    if (!codec.validate(witness))
+      throw new UsageError("invalid_value", `invalid witness address: ${witness}`);
+    if (seen.has(witness))
+      throw new UsageError("invalid_value", `duplicate witness address: ${witness}`);
     seen.add(witness);
     if (!/^\d+$/.test(count) || /^0+$/.test(count)) {
       throw new UsageError("invalid_value", `vote count for ${witness} must be a positive integer`);
     }
     if (BigInt(count) > BigInt(Number.MAX_SAFE_INTEGER)) {
-      throw new UsageError("invalid_value", `vote count for ${witness} exceeds the safe-integer limit for this client`);
+      throw new UsageError(
+        "invalid_value",
+        `vote count for ${witness} exceeds the safe-integer limit for this client`,
+      );
     }
     return { witness, count };
   });
@@ -218,7 +242,11 @@ function zeroRatioWarning(vote: CurrentVoteView): string {
 
 /** getBrokerage with a per-request cache — a given SR is fetched at most once, and failures
  *  degrade to null (unknown reward ratio). */
-function brokerageOf(gateway: TronGateway, address: string, cache: BrokerageCache): Promise<number | null> {
+function brokerageOf(
+  gateway: TronGateway,
+  address: string,
+  cache: BrokerageCache,
+): Promise<number | null> {
   let pending = cache.get(address);
   if (!pending) {
     pending = gateway.getBrokerage(address).catch(() => null);
@@ -229,7 +257,11 @@ function brokerageOf(gateway: TronGateway, address: string, cache: BrokerageCach
 
 /** map with bounded concurrency (results keep input order), so a large witness list doesn't
  *  fan out one socket per item. */
-async function mapWithLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+async function mapWithLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
   const worker = async () => {
@@ -272,7 +304,8 @@ function quantityString(value: unknown): string {
 
 function quantity(value: unknown): bigint {
   if (typeof value === "bigint") return value >= 0n ? value : 0n;
-  if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
+  if (typeof value === "number")
+    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
   if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
   return 0n;
 }

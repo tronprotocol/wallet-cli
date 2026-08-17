@@ -10,7 +10,9 @@ describe("OutputEnvelope.success — result payload passthrough", () => {
   it("passes a single descriptor's addresses map through unchanged", () => {
     const data = { accountId: "a.0", addresses: { tron: "Ttron" } };
     const env = OutputEnvelope.success(command, undefined, data, m);
-    expect((env.data as { addresses: Record<string, string> }).addresses).toEqual({ tron: "Ttron" });
+    expect((env.data as { addresses: Record<string, string> }).addresses).toEqual({
+      tron: "Ttron",
+    });
   });
 
   it("passes a list of descriptors through unchanged", () => {

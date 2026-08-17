@@ -9,7 +9,13 @@ import type { TokenRepository } from "../../ports/token-repository.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
 
-const net: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: ["nile"], capabilities: [] };
+const net: NetworkDescriptor = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: ["nile"],
+  capabilities: [],
+};
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "TXaddress" };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const TARGET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -27,13 +33,24 @@ function serviceWith(nativeRaw: string, nativePrice: number | null) {
     nativeUsd: async () => nativePrice,
     tokenUsd: async () => new Map(),
   } as unknown as PriceProvider;
-  return new TronAccountService(gateways, {} as unknown as TronHistoryReader, tokens, prices, {} as never);
+  return new TronAccountService(
+    gateways,
+    {} as unknown as TronHistoryReader,
+    tokens,
+    prices,
+    {} as never,
+  );
 }
 
 describe("TronAccountService.balance (direction A shape)", () => {
   it("returns raw sun balance with native decimals + symbol (no unit label)", async () => {
     const result = await serviceWith("1983993000", 0.12).balance(scope, net, "tron");
-    expect(result).toEqual({ address: "TXaddress", balance: "1983993000", decimals: 6, symbol: "TRX" });
+    expect(result).toEqual({
+      address: "TXaddress",
+      balance: "1983993000",
+      decimals: 6,
+      symbol: "TRX",
+    });
     expect(result).not.toHaveProperty("unit");
   });
 });
@@ -43,7 +60,12 @@ describe("TronAccountService.portfolio native USD conversion", () => {
     const result = await serviceWith("1983993000", 0.12).portfolio(scope, net);
     const native = result.holdings.find((h) => h.kind === "native")!;
     expect(native).toMatchObject({
-      kind: "native", symbol: "TRX", decimals: 6, rawBalance: "1983993000", balance: "1983.993", priceUsd: 0.12,
+      kind: "native",
+      symbol: "TRX",
+      decimals: 6,
+      rawBalance: "1983993000",
+      balance: "1983.993",
+      priceUsd: 0.12,
     });
     expect(native.valueUsd).toBe(238.07916); // 1983.993 × 0.12, rounded to 6 dp
     expect(result.totalValueUsd).toBe(238.07916);
@@ -59,18 +81,40 @@ describe("TronAccountService.portfolio native USD conversion", () => {
 });
 
 describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => {
-  const TOK = { kind: "trc20", id: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", symbol: "USDT", decimals: 6, name: "Tether", source: "user" };
+  const TOK = {
+    kind: "trc20",
+    id: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    symbol: "USDT",
+    decimals: 6,
+    name: "Tether",
+    source: "user",
+  };
 
   function serviceWithFailingToken() {
     const gateway = {
       getNativeBalance: async () => "1000000",
       getTrc10Balance: async () => "0",
-      getTrc20Balance: async () => { throw new Error("TRON trc20 balanceOf failed: HTTP 500"); },
+      getTrc20Balance: async () => {
+        throw new Error("TRON trc20 balanceOf failed: HTTP 500");
+      },
     };
-    const gateways = { client: () => gateway, get: () => gateway } as unknown as ChainGatewayProvider;
+    const gateways = {
+      client: () => gateway,
+      get: () => gateway,
+    } as unknown as ChainGatewayProvider;
     const tokens = { effective: () => [TOK] } as unknown as TokenRepository;
-    const prices = { source: "test", nativeUsd: async () => 0.1, tokenUsd: async () => new Map([[TOK.id, 1]]) } as unknown as PriceProvider;
-    return new TronAccountService(gateways, {} as unknown as TronHistoryReader, tokens, prices, {} as never);
+    const prices = {
+      source: "test",
+      nativeUsd: async () => 0.1,
+      tokenUsd: async () => new Map([[TOK.id, 1]]),
+    } as unknown as PriceProvider;
+    return new TronAccountService(
+      gateways,
+      {} as unknown as TronHistoryReader,
+      tokens,
+      prices,
+      {} as never,
+    );
   }
 
   it("one unreadable token degrades to a stable reason without leaking the raw error (I-06)", async () => {
@@ -97,11 +141,16 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
       getTrc10Balance: async () => "0",
       getTrc20Balance: async () => "0",
     };
-    const gateways = { client: () => gateway, get: () => gateway } as unknown as ChainGatewayProvider;
+    const gateways = {
+      client: () => gateway,
+      get: () => gateway,
+    } as unknown as ChainGatewayProvider;
     const tokens = { effective: () => [TOK] } as unknown as TokenRepository;
     const prices = {
       source: "test",
-      nativeUsd: async () => { throw new Error("request to https://api.provider.com/?key=SECRET failed"); },
+      nativeUsd: async () => {
+        throw new Error("request to https://api.provider.com/?key=SECRET failed");
+      },
       tokenUsd: async () => new Map(),
     } as unknown as PriceProvider;
     const result = await new TronAccountService(
@@ -129,12 +178,14 @@ function transactionScope(wait = false): TransactionScope {
   };
 }
 
-function writeService(options: {
-  balance?: string;
-  getAccount?: (address: string) => Promise<Record<string, unknown>>;
-  getAccountById?: (id: string) => Promise<Record<string, unknown>>;
-  outcome?: Record<string, unknown>;
-} = {}) {
+function writeService(
+  options: {
+    balance?: string;
+    getAccount?: (address: string) => Promise<Record<string, unknown>>;
+    getAccountById?: (id: string) => Promise<Record<string, unknown>>;
+    outcome?: Record<string, unknown>;
+  } = {},
+) {
   const gateway = {
     getAccount: vi.fn(options.getAccount ?? (async () => ({}))),
     getAccountById: vi.fn(options.getAccountById ?? (async () => ({}))),
@@ -215,20 +266,24 @@ describe("TronAccountService account lifecycle writes", () => {
       getAccount: async () => ({ address: TARGET }),
     });
 
-    await expect(service.activate(transactionScope(), net, {
-      address: TARGET,
-      dryRun: true,
-    })).rejects.toMatchObject({ code: "account_already_active" });
+    await expect(
+      service.activate(transactionScope(), net, {
+        address: TARGET,
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "account_already_active" });
     expect(pipeline.run).not.toHaveBeenCalled();
   });
 
   it("enforces the complete activation fee for dry-run and broadcast", async () => {
     const { service, pipeline } = writeService({ balance: "1099999" });
 
-    await expect(service.activate(transactionScope(), net, {
-      address: TARGET,
-      dryRun: true,
-    })).rejects.toMatchObject({
+    await expect(
+      service.activate(transactionScope(), net, {
+        address: TARGET,
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({
       code: "insufficient_balance",
       details: { balance: "1099999", required: "1100000" },
     });
@@ -266,10 +321,7 @@ describe("TronAccountService account lifecycle writes", () => {
       value: "Acme Treasury",
       address: OWNER,
     });
-    expect(gateway.buildAccountUpdate).toHaveBeenCalledWith(
-      OWNER,
-      "Acme Treasury",
-    );
+    expect(gateway.buildAccountUpdate).toHaveBeenCalledWith(OWNER, "Acme Treasury");
     expect(gateway.getAccountById).not.toHaveBeenCalled();
   });
 
@@ -280,19 +332,23 @@ describe("TronAccountService account lifecycle writes", () => {
         account_name: Buffer.from("existing", "utf8").toString("hex"),
       }),
     });
-    await expect(named.service.setOnChain(transactionScope(), net, {
-      name: "new-name",
-      dryRun: true,
-    })).rejects.toMatchObject({ code: "name_already_set" });
+    await expect(
+      named.service.setOnChain(transactionScope(), net, {
+        name: "new-name",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "name_already_set" });
 
     const occupied = writeService({
       getAccount: async () => ({ address: OWNER }),
       getAccountById: async () => ({ address: TARGET }),
     });
-    await expect(occupied.service.setOnChain(transactionScope(), net, {
-      id: "acme-001",
-      dryRun: true,
-    })).rejects.toMatchObject({ code: "id_taken" });
+    await expect(
+      occupied.service.setOnChain(transactionScope(), net, {
+        id: "acme-001",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "id_taken" });
   });
 
   it("validates name and ID limits in UTF-8 bytes", async () => {
@@ -300,18 +356,24 @@ describe("TronAccountService account lifecycle writes", () => {
       getAccount: async () => ({ address: OWNER }),
     });
 
-    await expect(service.setOnChain(transactionScope(), net, {
-      name: "账".repeat(11),
-      dryRun: true,
-    })).rejects.toMatchObject({ code: "invalid_value" });
-    await expect(service.setOnChain(transactionScope(), net, {
-      id: "short",
-      dryRun: true,
-    })).rejects.toMatchObject({ code: "invalid_value" });
-    await expect(service.setOnChain(transactionScope(), net, {
-      id: "账".repeat(10),
-      dryRun: true,
-    })).resolves.toMatchObject({ field: "id", value: "账".repeat(10) });
+    await expect(
+      service.setOnChain(transactionScope(), net, {
+        name: "账".repeat(11),
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    await expect(
+      service.setOnChain(transactionScope(), net, {
+        id: "short",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    await expect(
+      service.setOnChain(transactionScope(), net, {
+        id: "账".repeat(10),
+        dryRun: true,
+      }),
+    ).resolves.toMatchObject({ field: "id", value: "账".repeat(10) });
   });
 
   // The post-check runs AFTER the fee is paid and the transaction is confirmed. A lagging node or a
@@ -334,32 +396,45 @@ describe("TronAccountService account lifecycle writes", () => {
         outcome: CONFIRMED,
         getAccount: twoReads(
           async () => ({}),
-          async () => { throw new Error("connect ETIMEDOUT https://nile.trongrid.io/wallet/getaccount"); },
+          async () => {
+            throw new Error("connect ETIMEDOUT https://nile.trongrid.io/wallet/getaccount");
+          },
         ),
       });
       const ctx = transactionScope();
 
       const result = await service.activate(ctx, net, { address: TARGET });
 
-      expect(result).toMatchObject({ kind: "account-activate", stage: "confirmed", txId: "tx-confirmed" });
-      expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
-        code: "account_activate_postcheck_unavailable",
-      }));
+      expect(result).toMatchObject({
+        kind: "account-activate",
+        stage: "confirmed",
+        txId: "tx-confirmed",
+      });
+      expect(ctx.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "account_activate_postcheck_unavailable",
+        }),
+      );
     });
 
     it("activate: a node that cannot see the account yet warns instead of throwing", async () => {
       const { service } = writeService({
         outcome: CONFIRMED,
-        getAccount: twoReads(async () => ({}), async () => ({})),
+        getAccount: twoReads(
+          async () => ({}),
+          async () => ({}),
+        ),
       });
       const ctx = transactionScope();
 
       const result = await service.activate(ctx, net, { address: TARGET });
 
       expect(result).toMatchObject({ stage: "confirmed", txId: "tx-confirmed" });
-      expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
-        code: "account_activate_postcheck_mismatch",
-      }));
+      expect(ctx.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "account_activate_postcheck_mismatch",
+        }),
+      );
     });
 
     it("set: an unreadable post-check degrades to a warning", async () => {
@@ -367,17 +442,25 @@ describe("TronAccountService account lifecycle writes", () => {
         outcome: CONFIRMED,
         getAccount: twoReads(
           async () => ({ address: OWNER }),
-          async () => { throw new Error("HTTP 429 Too Many Requests"); },
+          async () => {
+            throw new Error("HTTP 429 Too Many Requests");
+          },
         ),
       });
       const ctx = transactionScope();
 
       const result = await service.setOnChain(ctx, net, { name: "Acme Treasury" });
 
-      expect(result).toMatchObject({ kind: "account-set", stage: "confirmed", txId: "tx-confirmed" });
-      expect(ctx.warn).toHaveBeenCalledWith(expect.objectContaining({
-        code: "account_set_postcheck_unavailable",
-      }));
+      expect(result).toMatchObject({
+        kind: "account-set",
+        stage: "confirmed",
+        txId: "tx-confirmed",
+      });
+      expect(ctx.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "account_set_postcheck_unavailable",
+        }),
+      );
     });
 
     it("the warning explains the state without leaking endpoint credentials", async () => {
@@ -385,7 +468,9 @@ describe("TronAccountService account lifecycle writes", () => {
         outcome: CONFIRMED,
         getAccount: twoReads(
           async () => ({}),
-          async () => { throw new Error("request to https://user:pw@node.example/wallet failed"); },
+          async () => {
+            throw new Error("request to https://user:pw@node.example/wallet failed");
+          },
         ),
       });
       const ctx = transactionScope();
@@ -406,9 +491,11 @@ describe("TronAccountService account lifecycle writes", () => {
       });
     });
 
-    await expect(service.activate(transactionScope(), net, {
-      address: TARGET,
-    })).rejects.toMatchObject({ code: "watch_only_no_signer" });
+    await expect(
+      service.activate(transactionScope(), net, {
+        address: TARGET,
+      }),
+    ).rejects.toMatchObject({ code: "watch_only_no_signer" });
     expect(gateway.getAccount).not.toHaveBeenCalled();
   });
 
@@ -430,9 +517,11 @@ describe("TronAccountService account lifecycle writes", () => {
       const { service, gateway, pipeline } = writeService();
       ledgerAccount(pipeline);
 
-      await expect(service.activate(transactionScope(), net, {
-        address: TARGET,
-      })).rejects.toMatchObject({ code: "ledger_unsupported" });
+      await expect(
+        service.activate(transactionScope(), net, {
+          address: TARGET,
+        }),
+      ).rejects.toMatchObject({ code: "ledger_unsupported" });
       expect(gateway.getAccount).not.toHaveBeenCalled();
     });
 
@@ -442,9 +531,11 @@ describe("TronAccountService account lifecycle writes", () => {
       });
       ledgerAccount(pipeline);
 
-      await expect(service.setOnChain(transactionScope(), net, {
-        id: "acme-001",
-      })).rejects.toMatchObject({ code: "ledger_unsupported" });
+      await expect(
+        service.setOnChain(transactionScope(), net, {
+          id: "acme-001",
+        }),
+      ).rejects.toMatchObject({ code: "ledger_unsupported" });
       expect(gateway.getAccount).not.toHaveBeenCalled();
     });
 

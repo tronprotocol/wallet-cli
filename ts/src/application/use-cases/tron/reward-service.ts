@@ -49,7 +49,10 @@ export class TronRewardService {
     }
     const status = withdrawStatus(account, this.now());
     if (!status.withdrawableNow) {
-      throw new ChainError("withdraw_too_frequent", `reward can be withdrawn after ${new Date(status.withdrawableAt!).toISOString()}`);
+      throw new ChainError(
+        "withdraw_too_frequent",
+        `reward can be withdrawn after ${new Date(status.withdrawableAt!).toISOString()}`,
+      );
     }
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -60,7 +63,10 @@ export class TronRewardService {
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => gateway.buildWithdrawBalance(owner),
-      estimate: async () => ({ feeModel: "tron-resource", note: "reward withdrawal uses bandwidth only" }),
+      estimate: async () => ({
+        feeModel: "tron-resource",
+        note: "reward withdrawal uses bandwidth only",
+      }),
     });
     const data = outcomeData(outcome);
     return {
@@ -71,7 +77,10 @@ export class TronRewardService {
   }
 }
 
-function withdrawStatus(account: TronAccount, now: number): { withdrawableNow: boolean; withdrawableAt: number | null } {
+function withdrawStatus(
+  account: TronAccount,
+  now: number,
+): { withdrawableNow: boolean; withdrawableAt: number | null } {
   const latest = toUnsignedBigInt(account.latest_withdraw_time);
   if (latest === 0n) return { withdrawableNow: true, withdrawableAt: null };
   const at = Number(latest) + WITHDRAW_INTERVAL_MS;
@@ -82,7 +91,8 @@ function withdrawStatus(account: TronAccount, now: number): { withdrawableNow: b
 
 function toUnsignedBigInt(value: unknown): bigint {
   if (typeof value === "bigint") return value >= 0n ? value : 0n;
-  if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
+  if (typeof value === "number")
+    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
   if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
   return 0n;
 }

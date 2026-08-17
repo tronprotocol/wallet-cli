@@ -9,8 +9,13 @@ export function registerEncodingCommands(
   service: EncodingService,
 ): void {
   const fields = z.object({
-    input: z.string().min(1).max(2 * 1024 * 1024)
-      .describe("value to convert: TRON base58 / hex address, EVM 0x address, public key, hex, or Base64"),
+    input: z
+      .string()
+      .min(1)
+      .max(2 * 1024 * 1024)
+      .describe(
+        "value to convert: TRON base58 / hex address, EVM 0x address, public key, hex, or Base64",
+      ),
   });
   registry.add({
     path: ["encoding", "convert"],
@@ -18,8 +23,7 @@ export function registerEncodingCommands(
     wallet: "none",
     auth: "none",
     positionals: [{ field: "input" }],
-    summary:
-      "Convert and validate address, hex, Base64, and Base58Check encodings",
+    summary: "Convert and validate address, hex, Base64, and Base58Check encodings",
     description:
       "Auto-detect an address/public-key or generic encoding and print all equivalent forms. Runs locally; 32-byte private-key-shaped values are rejected from argv.",
     fields,
@@ -29,7 +33,6 @@ export function registerEncodingCommands(
       { cmd: "wallet-cli encoding convert deadbeef0102" },
     ],
     formatText: TextFormatters.encodingConvert,
-    run: async (_context, _network, input) =>
-      service.convert(input.input),
+    run: async (_context, _network, input) => service.convert(input.input),
   } satisfies CommandDefinition);
 }
