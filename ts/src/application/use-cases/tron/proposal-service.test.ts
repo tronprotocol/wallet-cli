@@ -113,3 +113,75 @@ describe("TronProposalService", () => {
       .rejects.toMatchObject({ code: "not_proposal_owner" });
   });
 });
+
+/**
+ * The chain does not put the new proposal's id in the receipt, so `--wait` has to find it by looking
+ * at the list afterwards. Matching on proposer + parameter set is not enough to identify it: on
+ * mainnet, 10 of 106 proposals (9.4%) share a proposer and an identical parameter set with another,
+ * because a rejected proposal gets re-submitted unchanged. `findCreatedProposal` also never filtered
+ * by state, so every historical one stayed a candidate, and it resolved ties by taking the highest
+ * id — right whenever the list is fresh, and wrong in the case that needs no hostile node at all:
+ *
+ *   confirmation reads the fullnode's unsolidified data (~3s), the proposal list lags behind it, and
+ *   the caller had proposed these same parameters before. The new proposal is not listed yet, the
+ *   old one is, so the "highest match" IS the old one — and its id is handed back as the new
+ *   proposal's, to be passed to `proposal approve` or the irreversible `proposal delete`.
+ *
+ * Comparing against a snapshot taken before submitting is what separates "already there" from "just
+ * appeared". Anything other than exactly one new match is reported as unknown rather than guessed.
+ */
+describe("proposal create --wait identifies the proposal it created, or admits it cannot", () => {
+  const PARAMS = { "3": "15" };
+  const proposal = (id: number, over: Partial<TronProposal> = {}): TronProposal => ({
+    id, proposerAddress: OWNER, parameters: PARAMS,
+    expirationTime: Date.now() + 60_000, createTime: Date.now(), approvals: [], state: "PENDING",
+    ...over,
+  } as TronProposal);
+
+  function harness(listings: TronProposal[][]) {
+    const calls: number[] = [];
+    const warnings: string[] = [];
+    const waiting = { ...scope, wait: true, warn: (m: string) => warnings.push(String(m)) } as typeof scope;
+    const { service } = createService(
+      {
+        getChainParameters: async () => [{ key: "getTransactionFee", value: 10 }],
+        getWitness: async () => ({ address: OWNER, voteCount: "1" }),
+        buildProposalCreate: async () => ({ raw_data: { contract: [{ type: "ProposalCreateContract" }] } }),
+        getProposals: async () => listings[Math.min(calls.push(1) - 1, listings.length - 1)]!,
+      },
+      async () => ({ stage: "confirmed", txId: "tx", confirmed: true } as never),
+    );
+    return { service, waiting, warnings, listCalls: () => calls.length };
+  }
+
+  it("returns the proposal that appeared, not the highest id that matches", async () => {
+    // 41 already exists with identical parameters; 42 is the one just created.
+    const h = harness([[proposal(41)], [proposal(41), proposal(42)]]);
+    const out = await h.service.create(h.waiting, NET, { set: ["getTransactionFee=15"] } as never);
+    expect(out).toMatchObject({ proposalId: 42 });
+  });
+
+  it("admits it cannot tell when the list has not caught up, instead of naming the old one", async () => {
+    // The realistic failure: nothing new is listed yet, but a prior identical proposal is.
+    const h = harness([[proposal(41)], [proposal(41)]]);
+    const out = await h.service.create(h.waiting, NET, { set: ["getTransactionFee=15"] } as never) as { proposalId?: number };
+
+    expect(out.proposalId).toBeUndefined();
+    expect(h.warnings.join(" ")).toMatch(/could not|unable|not identify/i);
+  });
+
+  it("admits it cannot tell when two identical proposals appeared at once", async () => {
+    const h = harness([[proposal(41)], [proposal(41), proposal(42), proposal(43)]]);
+    const out = await h.service.create(h.waiting, NET, { set: ["getTransactionFee=15"] } as never) as { proposalId?: number };
+
+    expect(out.proposalId).toBeUndefined();
+    expect(h.warnings.join(" ")).toBeTruthy();
+  });
+
+  it("does not pay for a snapshot when no confirmation was asked for", async () => {
+    const h = harness([[proposal(41)]]);
+    const notWaiting = { ...h.waiting, wait: false } as typeof scope;
+    await h.service.create(notWaiting, NET, { set: ["getTransactionFee=15"] } as never);
+    expect(h.listCalls()).toBe(0);
+  });
+});

@@ -14,7 +14,12 @@ wallet-cli contract deploy --abi <json> --bytecode <hex> --fee-limit <sun>
 
 Deploys compiled contract bytecode from the active account (or `--account`) and reports the new contract address. `--fee-limit` is **required** here (deployments are energy-heavy; there is no safe default). Constructor arguments go via `--params` alone — the parameter types are taken from the constructor entry in the `--abi` you pass.
 
-Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), and `--build-only` emits the unsigned transaction without touching a signer. `--expiration` is restricted to build/sign-only; `--permission-id` selects the TRON permission group. Default returns at submission and `--wait` blocks until confirmed/failed.
+Two shapes are checked before anything is built, both reported as `invalid_value` at exit `2`:
+
+- **`--params` takes raw positional values here**, e.g. `[100, "T..."]`. The `{"type","value"}` entries that [`contract call`](call.md) and [`contract send`](send.md) take are rejected — deploy reads the types from the ABI's constructor instead.
+- **The ABI's `constructor` entry needs a string `stateMutability`** (`"nonpayable"` or `"payable"`). `solc` emits it; an ABI that was hand-trimmed, or produced by `solc` older than 0.5, may not have it.
+
+Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), default returns at submission, `--wait` blocks until confirmed/failed.
 
 Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
@@ -68,13 +73,10 @@ echo "$PW" | wallet-cli contract deploy --abi "$(cat MyToken.abi.json)" --byteco
 |---|---|
 | default (submit) | `kind: "contract-deploy"`, `contractAddress` (deterministic new address), `stage: "submitted"`, `txId` |
 | `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
-| `--dry-run` | `kind`, `mode: "dry-run"`, unsigned `tx`, fee estimate, deterministic `contractAddress` |
-| `--sign-only` | `kind`, `mode: "sign-only"`, `signed`, signer address, tx id, `contractAddress` |
-| `--build-only` | `kind`, `mode: "build-only"`, unsigned `tx`, `hex`, fee estimate, `contractAddress` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — bad ABI/bytecode/params, missing `--fee-limit`).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`missing_option` — no `--fee-limit`; `invalid_value` — bad ABI or bytecode, `--params` in `{"type","value"}` form, or an ABI constructor without a string `stateMutability`).
 
 ## See also
 

@@ -7,6 +7,7 @@ Every command — including every subcommand — has its own page, following a f
 | Command | Page |
 |---|---|
 | `create` | [create.md](create.md) |
+| `import` (group) | [import/index.md](import/index.md) |
 | `import mnemonic` | [import/mnemonic.md](import/mnemonic.md) *(interactive-only)* |
 | `import private-key` | [import/private-key.md](import/private-key.md) *(interactive-only)* |
 | `import keystore` | [import/keystore.md](import/keystore.md) *(interactive-only)* |
@@ -69,20 +70,6 @@ Every command — including every subcommand — has its own page, following a f
 | `token add` | [token/add.md](token/add.md) |
 | `token list` | [token/list.md](token/list.md) |
 | `token remove` | [token/remove.md](token/remove.md) |
-| `asset` (group) | [asset/index.md](asset/index.md) |
-| `asset issue` | [asset/issue.md](asset/issue.md) |
-| `asset update` | [asset/update.md](asset/update.md) |
-| `asset participate` | [asset/participate.md](asset/participate.md) |
-| `asset unfreeze` | [asset/unfreeze.md](asset/unfreeze.md) |
-| `asset info` | [asset/info.md](asset/info.md) |
-| `asset list` | [asset/list.md](asset/list.md) |
-| `exchange` (group) | [exchange/index.md](exchange/index.md) |
-| `exchange create` | [exchange/create.md](exchange/create.md) |
-| `exchange inject` | [exchange/inject.md](exchange/inject.md) |
-| `exchange withdraw` | [exchange/withdraw.md](exchange/withdraw.md) |
-| `exchange trade` | [exchange/trade.md](exchange/trade.md) |
-| `exchange show` | [exchange/show.md](exchange/show.md) |
-| `exchange list` | [exchange/list.md](exchange/list.md) |
 | `contact` (group) | [contact/index.md](contact/index.md) |
 | `contact add` | [contact/add.md](contact/add.md) |
 | `contact list` | [contact/list.md](contact/list.md) |
@@ -105,16 +92,6 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
-| `proposal` (group) | [proposal/index.md](proposal/index.md) |
-| `proposal list` | [proposal/list.md](proposal/list.md) |
-| `proposal show` | [proposal/show.md](proposal/show.md) |
-| `proposal create` | [proposal/create.md](proposal/create.md) |
-| `proposal approve` | [proposal/approve.md](proposal/approve.md) |
-| `proposal delete` | [proposal/delete.md](proposal/delete.md) |
-| `witness` (group) | [witness/index.md](witness/index.md) |
-| `witness create` | [witness/create.md](witness/create.md) |
-| `witness update` | [witness/update.md](witness/update.md) |
-| `witness set-brokerage` | [witness/set-brokerage.md](witness/set-brokerage.md) |
 | `stake` (group) | [stake/index.md](stake/index.md) |
 | `stake freeze` | [stake/freeze.md](stake/freeze.md) |
 | `stake unfreeze` | [stake/unfreeze.md](stake/unfreeze.md) |
@@ -132,6 +109,40 @@ Every command — including every subcommand — has its own page, following a f
 | `reward balance` | [reward/balance.md](reward/balance.md) |
 | `reward withdraw` | [reward/withdraw.md](reward/withdraw.md) |
 
+## Governance
+
+| Command | Page |
+|---|---|
+| `proposal` (group) | [proposal/index.md](proposal/index.md) |
+| `proposal list` | [proposal/list.md](proposal/list.md) |
+| `proposal show` | [proposal/show.md](proposal/show.md) |
+| `proposal create` | [proposal/create.md](proposal/create.md) |
+| `proposal approve` | [proposal/approve.md](proposal/approve.md) |
+| `proposal delete` | [proposal/delete.md](proposal/delete.md) |
+| `witness` (group) | [witness/index.md](witness/index.md) |
+| `witness create` | [witness/create.md](witness/create.md) |
+| `witness update` | [witness/update.md](witness/update.md) |
+| `witness set-brokerage` | [witness/set-brokerage.md](witness/set-brokerage.md) |
+
+## TRC10 assets and the on-chain exchange
+
+| Command | Page |
+|---|---|
+| `asset` (group) | [asset/index.md](asset/index.md) |
+| `asset issue` | [asset/issue.md](asset/issue.md) |
+| `asset update` | [asset/update.md](asset/update.md) |
+| `asset participate` | [asset/participate.md](asset/participate.md) |
+| `asset unfreeze` | [asset/unfreeze.md](asset/unfreeze.md) |
+| `asset info` | [asset/info.md](asset/info.md) |
+| `asset list` | [asset/list.md](asset/list.md) |
+| `exchange` (group) | [exchange/index.md](exchange/index.md) |
+| `exchange create` | [exchange/create.md](exchange/create.md) |
+| `exchange inject` | [exchange/inject.md](exchange/inject.md) |
+| `exchange withdraw` | [exchange/withdraw.md](exchange/withdraw.md) |
+| `exchange trade` | [exchange/trade.md](exchange/trade.md) |
+| `exchange show` | [exchange/show.md](exchange/show.md) |
+| `exchange list` | [exchange/list.md](exchange/list.md) |
+
 ## Signing
 
 | Command | Page |
@@ -145,7 +156,9 @@ Every command — including every subcommand — has its own page, following a f
 
 | Command | Page |
 |---|---|
+| `encoding` (group) | [encoding/index.md](encoding/index.md) |
 | `encoding convert` | [encoding/convert.md](encoding/convert.md) |
+| `address` (group) | [address/index.md](address/index.md) |
 | `address generate` | [address/generate.md](address/generate.md) |
 | `config` | [config.md](config.md) |
 | `networks` | [networks.md](networks.md) |
@@ -162,3 +175,5 @@ Every command — including every subcommand — has its own page, following a f
 ```
 
 Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000), the early-exit modes `--dry-run` / `--sign-only` / `--build-only`, and the multi-sig options `--permission-id <n>` / `--expiration <ms>`.
+
+The three early-exit modes are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance and asset/exchange writes it is `invalid_value`, and the message names the field as `--input` rather than the flags you passed — for example `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).

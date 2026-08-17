@@ -193,3 +193,44 @@ describe("V3 import rejects a derived key too short to authenticate the password
     expect(KeystoreV3.decrypt(lightV3(), PW)).toEqual(KEY);
   });
 });
+
+/**
+ * The MAC is a hex string, and `A1B2` and `a1b2` are the same bytes. It was the one hex field that
+ * skipped `hexField` and was compared as a STRING against our lowercase rendering, so a file written
+ * with uppercase hex — legal, and what `Arrays.equals` in the Java implementation accepts without
+ * noticing — came back as `wrong_keystore_password`. Two things wrong with that: a valid file is
+ * refused, and the refusal sends the reader to fix a password that was never wrong.
+ *
+ * The same misreport covered a malformed file: a missing or non-string `mac` compared unequal and
+ * was also reported as a bad password, which the codec's own contract says it should not be
+ * ("a malformed file is reported as such instead of as a wrong password").
+ */
+describe("V3 import compares the MAC by value, not by how it was written", () => {
+  const withMac = (mac: unknown) => {
+    const file = lightV3() as unknown as { crypto: Record<string, unknown> };
+    file.crypto.mac = mac;
+    return file;
+  };
+  const macOf = () => (lightV3() as unknown as { crypto: { mac: string } }).crypto.mac;
+
+  it.each([
+    ["uppercase", (m: string) => m.toUpperCase()],
+    ["mixed case", (m: string) => m.slice(0, 8).toUpperCase() + m.slice(8)],
+  ])("accepts a correct MAC written in %s", (_label, rewrite) => {
+    expect(KeystoreV3.decrypt(withMac(rewrite(macOf())), PW)).toEqual(KEY);
+  });
+
+  it("still rejects a wrong password as a wrong password", () => {
+    expect(() => KeystoreV3.decrypt(lightV3(), "not-the-password"))
+      .toThrowError(/incorrect keystore file password/);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["not a string", 123],
+    ["not hex", "zzzz"],
+    ["an odd number of digits", "abc"],
+  ])("reports a MAC that is %s as a malformed file, not a bad password", (_label, mac) => {
+    expect(() => KeystoreV3.decrypt(withMac(mac), PW)).toThrowError(/not a valid V3 keystore/);
+  });
+});

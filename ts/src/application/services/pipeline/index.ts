@@ -9,6 +9,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { obtainSignature } from "../signing/obtain-signature.js";
+import { authoritativeTxId, localTxId as txIdOf } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 import type { TransactionExecutionMode } from "../transaction-mode.js";
 
@@ -124,7 +125,7 @@ export class TxPipeline {
     // the same transaction handed to `tx broadcast`.
     authorization?.assertBroadcastable();
     const result = await p.broadcaster.broadcast(signed);
-    const txId = String(result.txId ?? result.hash ?? "");
+    const txId = authoritativeTxId(txIdOf(signed), String(result.txId ?? result.hash ?? ""), (m) => p.ctx.warn(m));
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).
     if (!p.ctx.wait || !p.confirm || !txId) {
       // --wait asked but we can't even attempt confirmation (no confirm hook or no txid): the
@@ -132,7 +133,7 @@ export class TxPipeline {
       if (p.ctx.wait && !txId) {
         p.ctx.warn("--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)");
       }
-      return { stage: "submitted", ...result };
+      return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
     }
     // --wait: poll until the tx mines so the receipt carries real fee/energy/result.
     // Best-effort — a confirmation failure/timeout never fails an already-broadcast tx; we just
@@ -146,15 +147,10 @@ export class TxPipeline {
     if (!confirmed) {
       // The user asked to wait; a silent "submitted" reads like confirmation was never attempted.
       p.ctx.warn(`--wait: ${txId} not confirmed within ${p.ctx.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`);
-      return { stage: "submitted", ...result };
+      return { stage: "submitted", ...result, txId };
     }
-    return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
+    return { stage: confirmed.failed ? "failed" : "confirmed", ...result, txId, ...confirmed };
   }
 }
 
-/** best-effort transaction id of a signed tx, for the sign-only receipt (TRON: txID). */
-function txIdOf(signed: SignedTx): string | undefined {
-  const s = signed as { txID?: unknown; hash?: unknown } | null;
-  const id = s?.txID ?? s?.hash;
-  return typeof id === "string" ? id : undefined;
-}
+

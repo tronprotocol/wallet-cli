@@ -106,7 +106,12 @@ export const KeystoreV3 = {
     const iv = hexField(asRecord(c.cipherparams, "missing crypto.cipherparams").iv, "crypto.cipherparams.iv");
     const dk = deriveKey(c, password);
 
-    if (bytesToHex(Web3Crypto.mac(dk, ciphertext)) !== c.mac) {
+    // Through hexField like every other hex field, then compared as BYTES: `A1B2` and `a1b2` are the
+    // same MAC, and comparing our lowercase rendering against the file's own spelling reported a
+    // valid keystore as a wrong password. It also keeps a missing or non-hex mac reported as the
+    // malformed file it is, rather than as a password the reader would then go and "fix".
+    const mac = hexField(c.mac, "crypto.mac");
+    if (!equalBytes(Web3Crypto.mac(dk, ciphertext), mac)) {
       throw new ExecutionError("wrong_keystore_password", "incorrect keystore file password");
     }
     const plaintext = Web3Crypto.crypt(dk, iv, ciphertext);
@@ -150,6 +155,12 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
 function asRecord(value: unknown, why: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw invalid(why);
   return value as Record<string, unknown>;
+}
+
+/** Same bytes, same MAC — no timing claim: whoever can time this already holds the file and can
+ *  try passwords offline, so the comparison is plain. */
+function equalBytes(a: Bytes, b: Bytes): boolean {
+  return a.length === b.length && a.every((byte, i) => byte === b[i]);
 }
 
 function hexField(value: unknown, field: string): Bytes {

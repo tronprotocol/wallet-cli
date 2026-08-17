@@ -1,6 +1,6 @@
 # wallet-cli asset list
 
-List TRC10 tokens, one page at a time.
+List every TRC10 on chain.
 
 ## Synopsis
 
@@ -10,49 +10,60 @@ wallet-cli asset list [--limit <n>] [--offset <n>] [options]
 
 ## Description
 
-Lists TRC10 tokens with id, name, total supply, precision and issuer. Use [`asset info`](info.md) for one token in full.
+Lists TRC10 tokens with id, name, total supply, precision, and issuer. Read-only, no account needed. For one token's full issuance record — ICO rate and window, frozen tranches — use [`asset info`](info.md).
 
-**Paged server-side, and small by default.** There are thousands of TRC10s on chain — around 5,200 on mainnet and 7,300 on Nile, roughly 2.7 MB if fetched in one go — so `--limit` defaults to **10**. Raise it deliberately; a tool call that returns five thousand records will exhaust an agent's context long before anyone notices.
-
-**No total is reported.** The paginated node endpoint does not return a count, and the only way to compute one is to transfer every record. [`meta.pagination`](../../machine-interface.md#reading-metapagination) therefore carries `total: null` — the count does not exist, rather than having been omitted — alongside `offset` and `limit`; the text header reads `Assets (limit 10, offset 0)`. Page until you get a short page.
-
-Total supply is shown in whole tokens; each record carries its own precision, so this costs no extra lookups.
+Paging happens on the node, and **there is no total**: the chain exposes no count of TRC10 tokens, and fetching them all to count them is expensive (thousands of tokens, megabytes of response). So the title reports the window it asked for — `Assets (limit 3, offset 0)` — not `showing 3 of N`, and `meta.pagination.total` is always `null`. To get everything, pass a `--limit` large enough to cover it.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--limit <number>` | Max tokens to return, 1–1000 (default `10`) |
+| `--limit <number>` | Max tokens to return (default `10`) |
 | `--offset <number>` | Pagination offset (default `0`) |
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-First page:
-
 ```bash
-wallet-cli asset list --network tron:nile
+wallet-cli asset list --limit 3 --network tron:nile
 ```
 
-Walk further in:
-
-```bash
-wallet-cli asset list --limit 50 --offset 50 --network tron:nile
+```console
+Assets (limit 3, offset 0)
+| ID      | Name      | Total supply  | Precision | Issuer            |
+| ------- | --------- | ------------- | --------- | ----------------- |
+| 1000125 | AlphaCoin | 500,000,000   | 2         | TAlpha7k...3nQw   |
+| 1000124 | BetaToken | 2,000,000,000 | 6         | TBeta9mR...8pLx   |
+| 1000123 | MyToken   | 1,000,000,000 | 6         | TQkXm4vN...5Zt7Uw |
 ```
 
-Machine-readable:
-
 ```bash
-wallet-cli asset list --limit 50 --network tron:nile -o json
+wallet-cli asset list --limit 3 --network tron:nile -o json
 ```
 
-## Errors
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.list","data":{"kind":"asset-list","assets":[{"assetId":"1000125","name":"AlphaCoin","issuerAddress":"TAlpha7k...","totalSupply":"50000000000","precision":2},{"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","totalSupply":"2000000000000000","precision":6},{"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6}]},"meta":{"durationMs":48,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+```
 
-| Code | Meaning |
-|---|---|
-| `invalid_value` | `--limit` outside 1–1000, or a negative `--offset` |
+## Output
+
+`data.kind` is `asset-list`. `data.assets[]` — one entry per token:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `assetId` | string | Token id |
+| `name` | string | Token name |
+| `issuerAddress` | string | Issuer, base58 |
+| `totalSupply` | string | Total supply, raw (whole tokens × 10^`precision`). A **string**: supplies reach int64 and would lose precision as a JSON number |
+| `precision` | number | Decimal places, 0–6 |
+
+`meta.pagination` carries `offset`, `limit`, and `total` — `total` is always `null` here, meaning "no count exists", not "zero".
+
+## Exit status
+
+`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`invalid_value` — bad limit or offset).
 
 ## See also
 
-[`asset info`](info.md) · [`asset` group](index.md)
+[`asset info`](info.md) · [`token list`](../token/list.md)

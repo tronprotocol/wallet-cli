@@ -34,7 +34,7 @@ Labels are unique, 1–64 chars, renameable (`rename`) — the stable handle is 
 
 ## Lifecycle
 
-- `backup <account>` exports secret + metadata to a file created with mode **0600** and never overwritten (default under `<wallet-cli-root>/backups/`). Treat the file as the secret it contains.
+- `backup <account>` exports secret + metadata to a file created with mode **0600** and never overwritten (in the current working directory by default). Treat the file as the secret it contains — and mind where you run it, since the CLI does not check whether that directory is shared or version-controlled.
 - `delete` removes accounts; **deleting an HD wallet cascades from the seed root** — all derived accounts of that seed go with it. The on-chain assets are untouched: re-import the mnemonic to regain access.
 - Losing the master password is unrecoverable locally; the escape hatch is always the mnemonic → `import mnemonic`.
 

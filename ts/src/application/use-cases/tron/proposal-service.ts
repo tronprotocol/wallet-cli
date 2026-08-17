@@ -84,9 +84,14 @@ export class TronProposalService {
     const gateway = this.gateways.get(network, "tron");
     const mode = governanceTransactionMode(this.pipeline, scope, input);
     const owner = scope.resolveAddress("tron");
-    const [parameters] = await Promise.all([
+    // Taken BEFORE submitting, and only when a confirmation is actually going to be awaited: it is
+    // the only way to tell a proposal that just appeared from one that was already there. A failure
+    // to read it must not block the write, so it degrades to "no snapshot" and the id is omitted.
+    const wantsId = scope.wait && mode.mode === "broadcast";
+    const [parameters, , before] = await Promise.all([
       gateway.getChainParameters(),
       assertWitness(gateway, owner),
+      wantsId ? proposalIdSnapshot(gateway).catch(() => undefined) : Promise.resolve(undefined),
     ]);
     const changes = parseChainParameterAssignments(input.set, parameters);
     const outcome = await this.pipeline.run({
@@ -105,8 +110,8 @@ export class TronProposalService {
       estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal creation uses bandwidth only" }),
     });
     const data = outcomeData(outcome);
-    const proposalId = outcome.stage === "confirmed"
-      ? await findCreatedProposal(gateway, owner, changes).catch(() => undefined)
+    const proposalId = outcome.stage === "confirmed" && before !== undefined
+      ? await findCreatedProposal(gateway, owner, changes, before, scope).catch(() => undefined)
       : undefined;
     return {
       kind: "proposal-create" as const,
@@ -243,16 +248,43 @@ function listView(proposal: TronProposal) {
   };
 }
 
+async function proposalIdSnapshot(gateway: TronGateway): Promise<Set<number>> {
+  return new Set((await gateway.getProposals()).map((proposal) => proposal.id));
+}
+
+/**
+ * The id of the proposal this call created, or nothing.
+ *
+ * The chain does not report it, so it has to be recognised in the list afterwards — and proposer
+ * plus parameter set does not identify it: on mainnet 10 of 106 proposals share both with another,
+ * because a rejected proposal gets re-submitted unchanged. `before` is what makes the difference
+ * decidable; without it the best available answer was "the highest id that matches", which is the
+ * OLD proposal whenever the list has not caught up with the confirmation yet.
+ *
+ * Anything other than exactly one new match is reported as unknown. A guessed id is worse than no
+ * id: it is handed straight to `proposal approve` and the irreversible `proposal delete`.
+ */
 async function findCreatedProposal(
   gateway: TronGateway,
   owner: string,
   changes: ChainParameterChange[],
+  before: Set<number>,
+  scope: TransactionScope,
 ): Promise<number | undefined> {
   const expected = new Map(changes.map((change) => [String(change.id), String(change.proposedValue)]));
   const matches = (await gateway.getProposals()).filter((proposal) =>
+    !before.has(proposal.id) &&
     proposal.proposerAddress === owner &&
     expected.size === Object.keys(proposal.parameters).length &&
     [...expected].every(([id, value]) => proposal.parameters[id] === value),
   );
-  return matches.sort((left, right) => right.id - left.id)[0]?.id;
+  if (matches.length === 1) return matches[0]!.id;
+  scope.warn(
+    matches.length === 0
+      ? "could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. "
+        + "Find it with `proposal list` — the transaction itself succeeded"
+      : `could not identify the created proposal: ${matches.length} new proposals match these parameters. `
+        + "Find it with `proposal list` before approving or deleting anything",
+  );
+  return undefined;
 }

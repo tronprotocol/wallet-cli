@@ -1,6 +1,7 @@
 import type { TxOutcome } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { TronGateway, TronTxInfo } from "../ports/chain/tron-gateway.js";
+import { authoritativeTxId } from "./broadcast-identity.js";
 
 const sleep = (milliseconds: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
@@ -57,18 +58,19 @@ export async function stageTronBroadcast(
   gateway: TronGateway,
   scope: TransactionScope,
   result: Record<string, unknown>,
+  local?: string,
 ): Promise<TxOutcome> {
-  const txId = String(result.txId ?? result.hash ?? "");
+  const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) => scope.warn(m));
   if (!scope.wait || !txId) {
     if (scope.wait && !txId) {
       scope.warn("--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)");
     }
-    return { stage: "submitted", ...result };
+    return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
   }
   const confirmed = await tronConfirmation(gateway, scope)(txId).catch(() => undefined);
   if (!confirmed) {
     scope.warn(`--wait: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`);
-    return { stage: "submitted", ...result };
+    return { stage: "submitted", ...result, txId };
   }
-  return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
+  return { stage: confirmed.failed ? "failed" : "confirmed", ...result, txId, ...confirmed };
 }

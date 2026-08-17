@@ -197,3 +197,43 @@ describe("TxPipeline permission/expiration binding guard", () => {
       .rejects.toMatchObject({ code: "invalid_option" });
   });
 });
+
+/**
+ * The pipeline's own broadcast path settles the same question as stageTronBroadcast: the id we
+ * derived from the signed bytes outranks the one the node echoes back, and a disagreement is
+ * surfaced rather than swallowed. Kept here as well as at the adapter because every family's
+ * writes come through this method, so the rule travels with the Broadcaster port.
+ */
+describe("TxPipeline reports the transaction id derived from the signed bytes", () => {
+  const LOCAL = "defbf1e676a7b53c03a30ec3e17e455175231dcf6165ae2a762d2d973f81dbc9";
+  const OTHER = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+
+  const broadcastWith = async (nodeTxId: string) => {
+    const warnings: string[] = [];
+    const signer: Signer = {
+      kind: "software", address: "TSender",
+      sign: async () => ({ txID: LOCAL }) as never,
+      signMessage: async () => "", signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+    };
+    const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
+    const outcome = await new TxPipeline(signers).run(params(signer, {
+      ctx: scope({ warn: (m: string) => warnings.push(String(m)) }),
+      broadcast: true,
+      mode: "broadcast",
+      broadcaster: { broadcast: async () => ({ txId: nodeTxId }) } as never,
+    }));
+    return { outcome, warnings };
+  };
+
+  it("prefers the derived id and warns when the node disagrees", async () => {
+    const { outcome, warnings } = await broadcastWith(OTHER);
+    expect(outcome).toMatchObject({ stage: "submitted", txId: LOCAL });
+    expect(warnings.join(" ")).toContain(OTHER);
+  });
+
+  it("says nothing when the node agrees", async () => {
+    const { outcome, warnings } = await broadcastWith(LOCAL);
+    expect(outcome).toMatchObject({ txId: LOCAL });
+    expect(warnings).toEqual([]);
+  });
+});

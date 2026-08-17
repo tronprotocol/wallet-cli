@@ -1,15 +1,17 @@
 # wallet-cli asset
 
-Issue and operate TRC10 tokens.
+Issue and manage TRC10 tokens.
 
-TRC10 is TRON's **chain-native** token type: the protocol itself tracks issuance, an ICO window and frozen supply, with no smart contract involved. That is why it is a group of its own — [`token`](../token/index.md) handles TRC20 contract tokens, and the two share almost no mechanics.
+TRC10 is TRON's **chain-native** token standard: issuance, the ICO sale, and frozen supply are protocol features, not contract code. That is what separates this group from [`token`](../token/index.md), which deals in TRC20 contract tokens — and from [`contract`](../contract/index.md), since a TRC10 has no contract at all.
 
-Two things shape everything in this group:
+Four facts shape everything here:
 
-- **An account may issue exactly one TRC10, ever.** `asset issue` burns a fee that is not refunded, and once it lands the account can never issue again. Only the description, URL and the two free-bandwidth limits stay changeable; supply, price, ICO dates, precision and the frozen tranches are fixed permanently.
-- **Transfer is not here.** Sending TRC10 is [`tx send`](../tx/send.md) with an asset id — the same command you use for everything else.
+- **One token per account, for life.** An account that has issued a TRC10 can never issue another. Getting it wrong means starting over with a different account.
+- **Issuance is final.** The issuance fee is burned, and only the description, URL, and the two free-bandwidth limits stay editable afterwards ([`asset update`](update.md)). Supply, precision, ICO rate, ICO window, and frozen tranches are fixed at issuance — the chain has no way to change them.
+- **Participation is the ICO, not a market.** [`asset participate`](participate.md) buys from the issuance at the fixed rate set when the token was created, inside its funding window. There is no order book here; TRX↔TRC10 trading lives in [`exchange`](../exchange/index.md).
+- **Transfers are not in this group.** Send a TRC10 with [`tx send --asset-id <id>`](../tx/send.md), the same as any other token.
 
-**Ledger cannot sign any of the write commands in this group.** The Ledger TRON app does not implement the TRC10 issuance contract types, so `issue`, `update`, `participate` and `unfreeze` require a software account and fail fast with `ledger_unsupported`. (TRC10 *transfer* via `tx send` does work on Ledger.)
+Amounts on the command line and in text output are in **whole tokens**; json carries the on-chain raw value (whole tokens × 10^precision).
 
 ## Synopsis
 
@@ -22,16 +24,12 @@ wallet-cli asset COMMAND
 | Command | Page | Description |
 |---|---|---|
 | `asset issue` | [issue.md](issue.md) | Issue a TRC10 and lock in its ICO terms |
-| `asset update` | [update.md](update.md) | Update the four mutable fields of your TRC10 |
-| `asset participate` | [participate.md](participate.md) | Buy into a TRC10's ICO at its fixed rate |
+| `asset update` | [update.md](update.md) | Change the four mutable fields |
+| `asset participate` | [participate.md](participate.md) | Buy into a token's ICO with TRX |
 | `asset unfreeze` | [unfreeze.md](unfreeze.md) | Release matured frozen supply |
-| `asset info` | [info.md](info.md) | Show one TRC10 in full |
-| `asset list` | [list.md](list.md) | List TRC10 tokens, one page at a time |
-
-## Units
-
-Command input and text output use **whole tokens**. JSON and the chain use **minimal units** — whole tokens scaled by the asset's `precision`. A token with `precision: 6` and a supply of 1,000,000,000 has an on-chain `total_supply` of `1000000000000000`.
+| `asset info` | [info.md](info.md) | Full detail of one TRC10 |
+| `asset list` | [list.md](list.md) | List every TRC10 on chain |
 
 ## See also
 
-[`token`](../token/index.md) (TRC20) · [`tx send`](../tx/send.md) (TRC10 transfer) · [`exchange`](../exchange/index.md) (trading TRC10 against TRX)
+[`tx send`](../tx/send.md) · [`token info`](../token/info.md) · [`exchange`](../exchange/index.md)

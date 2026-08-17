@@ -174,7 +174,7 @@ A record the client cannot reconcile with the chain stays visible and is labelle
 
 ## Exit status
 
-`0` success · `1` execution failure (`tronlink_credentials_missing`, `not_found` — txId not on the service, `not_authorized`, `already_signed`, `tx_expired`, `wrong_password`, `provider_error` — service error / rate limit) · `2` usage error (`invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
+`0` success · `1` execution failure (`tronlink_credentials_missing`, `not_found` — txId not on the service, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error / rate limit) · `2` usage error (`invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
 
 ## See also
 

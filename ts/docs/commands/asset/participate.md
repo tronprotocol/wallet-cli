@@ -1,78 +1,87 @@
 # wallet-cli asset participate
 
-Buy into a TRC10's ICO at its fixed rate.
+Buy into a TRC10's ICO with TRX.
 
 ## Synopsis
 
 ```
 wallet-cli asset participate <asset> --pay <trx>
-                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]] [--permission-id <n>] [options]
+                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                             [--permission-id <n>] [options]
 ```
 
 ## Description
 
-Buys tokens directly from an issuer during its ICO window, at the rate fixed when the token was issued. This is **participation in the issuance**, not a market trade — there is no counterparty, no order book and no price discovery. To trade a TRC10 against TRX at a market-ish price, see [`exchange trade`](../exchange/trade.md).
+Buys from a token's issuance inside its funding window, at the fixed rate set when it was issued. This is participation in the ICO, not a market trade — the tokens come out of the issuer's remaining supply, and the price is not negotiable. The issuer's address is resolved from the token, so there is nothing to pass for it.
 
-**`--pay` is the TRX you spend, not the tokens you receive.** The chain computes `floor(pay × num ÷ trx_num)` — multiply first, then truncate — and transfers your TRX in full, so a truncated remainder is not refunded. Paying too little to buy even one minimal unit is rejected before broadcast rather than sent and wasted.
+**`--pay` is the TRX you spend, not the tokens you receive.** You get `floor(pay × tokens ÷ trx)` where `trx:tokens` is the token's issued rate — the amount paid times the unit price, rounded down, since the chain multiplies before dividing on integers. The TRX is transferred in full, so any truncated remainder is not refunded; the loss is under 1 sun and cannot occur at all when the rate's `trxNum` is 1. If `--pay` is too small to buy even one unit, the command fails locally rather than broadcasting.
 
-The issuer's address is resolved from the token automatically; you never pass it.
+The acting account cannot be the token's own issuer.
 
-`<asset>` is a token id or a name. A purely numeric value is read as an id. Names are not unique on chain — a name matching more than one token is rejected with `ambiguous_asset_name` and the matching ids, so re-run with the id.
-
-**By default the command returns at submission**; `--wait` blocks until confirmed. The received amount is exact integer arithmetic from the token's fixed rate, so it is reported in both cases.
-
-**Ledger accounts are refused** (`ledger_unsupported`): the Ledger TRON app cannot decode `ParticipateAssetIssueContract`.
-
-## Arguments
-
-| Argument | Description |
-|---|---|
-| `<asset>` | **Required.** Token id or name; a numeric value is read as the id |
+**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--pay <string>` | **Required.** TRX to spend — not the number of tokens |
-| `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
+| `<asset>` | **Required.** Token id or name; an all-digit value is read as the id |
+| `--pay <trx>` | **Required.** TRX to spend (not a token count), > 0 |
+| `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
-| `--password-stdin` | Master password from stdin |
+| `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-Spend 100 TRX on token 1000124:
+In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
+Spend 100 TRX on a token issued at `1:100`:
 
 ```bash
-echo "$PW" | wallet-cli asset participate 1000124 --pay 100 \
-  --wait --password-stdin --network tron:nile
+echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile --wait --password-stdin
 ```
 
-Check what you would get before committing:
+```console
+✅ Participated in ICO
+  Asset        BetaToken  (id 1000124)
+  Issuer       TBeta9mR...8pLx
+  Participant  TQkXm4vN...5Zt7Uw (main)
+  Paid         100 TRX
+  Received     10,000 BetaToken
+  TxID         4c8...
+  Block        57,883,402
+  Fee          0 TRX  (301 bandwidth)
+  Status       success
+```
 
 ```bash
-echo "$PW" | wallet-cli asset participate 1000124 --pay 100 \
-  --dry-run --password-stdin --network tron:nile
+echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile --wait --password-stdin -o json
 ```
 
-## Errors
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":100000000,"receivedAmount":10000000000,"feeSun":0,"resource":{"netUsage":301,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+```
 
-| Code | Meaning |
+## Output
+
+`data` varies by stage:
+
+| Stage | Fields |
 |---|---|
-| `asset_not_found` | No TRC10 matches that id or name |
-| `ambiguous_asset_name` | The name matches several tokens; `details.assetIds` lists them |
-| `not_in_ico_window` | The funding window has not opened, or has closed |
-| `self_participation` | An issuer cannot buy into its own ICO |
-| `invalid_value` | `--pay` is not positive, or too small to buy one unit |
-| `ledger_unsupported` | The account is Ledger-backed; use a software account |
-| `watch_only_no_signer` | The account cannot sign |
-| `transaction_rejected` | The node refused it — e.g. the issuer has run out of sellable supply |
+| default (submit) | `kind: "asset-participate"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `participantAddress`, `paidSun`, `receivedAmount` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+
+`paidSun` is the TRX spent in sun; `receivedAmount` is the token amount in its smallest unit (text shows both in human units).
+
+## Exit status
+
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `insufficient_balance`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
 
 ## See also
 
-[`asset info`](info.md) · [`exchange trade`](../exchange/trade.md) · [`asset` group](index.md)
+[`asset info`](info.md) · [`tx send`](../tx/send.md) · [`exchange trade`](../exchange/trade.md) · [Script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed)

@@ -143,7 +143,7 @@ No `fee` is reported for `--transaction`: nothing was estimated, because the tra
 
 ## Exit status
 
-`0` success · `1` execution failure (`tx_integrity` — the three payload representations disagree, `invalid_transaction`, `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `wrong_password`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value`, `missing_option`).
+`0` success · `1` execution failure (`tx_integrity` — the three payload representations disagree, `invalid_transaction`, `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value`, `missing_option`).
 
 ## See also
 

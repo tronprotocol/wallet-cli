@@ -90,7 +90,7 @@ echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:nile --
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`name_already_set`, `id_already_set`, `id_taken`, `watch_only_no_signer`, `wrong_password`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`, `invalid_option` — malformed or missing name/id).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`name_already_set`, `id_already_set`, `id_taken`, `watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`, `invalid_option` — malformed or missing name/id).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_set_postcheck_mismatch` / `account_set_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

@@ -13,6 +13,7 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { stageTronBroadcast, tronConfirmation } from "../../services/tron-confirmation.js";
+import { localTxId } from "../../services/broadcast-identity.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
@@ -101,7 +102,7 @@ export class TronTransactionService {
     const result = await gateway.broadcast(signed);
     return {
       kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result)),
+      ...(await stageTronBroadcast(gateway, scope, result, localTxId(signed))),
     };
   }
 
