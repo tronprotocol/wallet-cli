@@ -38,12 +38,22 @@ describe("every registered positional command rejects its --<field> spelling", (
       secretPaths: {},
       startedAt: Date.now(),
     });
+    // These two overrides are load-bearing, and only on a developer machine: `composeCliRuntime`
+    // wires the real TtyBackend, which finds the controlling terminal and prompts on /dev/tty. The
+    // `--account` case below dispatches `backup`/`delete`, whose passwordMode primes the master
+    // password — with a real TTY that blocks forever (CI has no terminal, so it passes there).
+    // Both lines are needed: dispatch prompts through deps.prompter, priming through deps.secrets'
+    // own prompter reference. Any prompt reaching the backend is a bug in this test's assumptions,
+    // so the backend throws rather than silently answering "" and passing for the wrong reason.
+    const unreachable = (site: string) => () => {
+      throw new Error(`positional-contract test must not prompt (${site})`);
+    };
     const prompter = new Prompter({
       isTTY: () => false,
-      async question() { return ""; },
-      async readKey() { return { name: "return" }; },
+      question: unreachable("question"),
+      readKey: unreachable("readKey"),
       write() {},
-      beginRaw() {},
+      beginRaw: unreachable("beginRaw"),
       endRaw() {},
     });
     runtime.deps.prompter = prompter;

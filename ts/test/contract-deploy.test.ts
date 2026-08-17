@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Keystore } from "../src/adapters/outbound/keystore/index.js";
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js";
+import { DETACHED } from "./detached.js";
 
 // Regression coverage for issue #2: `contract deploy` constructor params.
 //   • --constructor-sig was a dead flag (types come from the ABI); it was removed.
@@ -80,9 +81,10 @@ function deploy(
   const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...globals, ...local], {
     input: PW + "\n",
     encoding: "utf8",
-    env: { ...process.env, WALLET_CLI_HOME: HOME, NO_COLOR: "1", WALLET_CLI_NO_TTY: "1" },
+    env: { ...process.env, WALLET_CLI_HOME: HOME, NO_COLOR: "1" },
     timeout: opts.timeoutMs ?? 18_000,
-  });
+    ...DETACHED,
+  } as SpawnSyncOptionsWithStringEncoding);
   return JSON.parse(r.stdout);
 }
 
