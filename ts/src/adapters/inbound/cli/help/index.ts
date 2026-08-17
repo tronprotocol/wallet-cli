@@ -100,7 +100,8 @@ export class HelpService {
   }
 
   /** top-level overview: first release presents TRON as the product surface.
-   * Docker-style three groups: Common (高频入口) / Management (链上资源名词) / Commands (本机治理). */
+   * Docker-style three groups: Common (high-frequency entry points) / Management (on-chain resource
+   * nouns) / Commands (local governance). */
   #renderRoot(): string {
     const common = [
       ["create", "Create a new HD wallet (BIP39 seed)", ""],
@@ -165,7 +166,7 @@ export class HelpService {
     ] as const;
     const optionRow = row(Math.max(...optionRows.map(([name]) => name.length)) + 2);
 
-    // Usage first, description after (: 描述统一在 Usage 之后); root Usage is the inline form.
+    // Usage first, description after; root Usage is the inline form.
     const lines = [
       `${bold("Usage:")}  wallet-cli [OPTIONS] COMMAND`,
       "",
@@ -202,7 +203,7 @@ export class HelpService {
     return this.#renderGroup(group, rows);
   }
 
-  /** shared group skeleton (群组层): inline Usage → description → verb list → footer. */
+  /** shared group skeleton: inline Usage → description → verb list → footer. */
   #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string]>): string {
     // Width is the longest verb, uncapped: a cap cannot shorten an over-long verb, it only stops
     // padEnd from reaching it — so every summary in the group loses its column the moment one verb
@@ -257,7 +258,7 @@ export class HelpService {
     });
   }
 
-  /** shared leaf skeleton (叶子层): Usage → description → Requires → Options (incl. stdin channel) → Global options → Examples. */
+  /** shared leaf skeleton: Usage → description → Requires → Options (incl. stdin channel) → Global options → Examples. */
   #renderLeaf(c: {
     path: string[];
     summary?: string;
@@ -526,7 +527,7 @@ function globalFlagLine(g: GlobalFlag): string {
   return `  ${globalFlagHead(g).padEnd(26)} ${g.description}${g.description && tag ? "  " : ""}${tag}`.trimEnd();
 }
 
-// Group (群组层) descriptions, keyed by the registry group head. Usually one line; a group whose
+// Group descriptions, keyed by the registry group head. Usually one line; a group whose
 // behavior warrants it may span multiple lines (embed "\n"). Only groups that surface a
 // `<group> --help` page need an entry; absent → the description line is omitted.
 const GROUP_DESCRIPTIONS: Record<string, string> = {
