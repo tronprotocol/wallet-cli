@@ -3,7 +3,14 @@ import { z } from "zod";
 import { CommandRegistry } from "./index.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 
-const spec: ChainSpec = { path: ["block"], network: "optional", wallet: "none", auth: "none", examples: [], baseFields: z.object({}) };
+const spec: ChainSpec = {
+  path: ["block"],
+  network: "optional",
+  wallet: "none",
+  auth: "none",
+  examples: [],
+  baseFields: z.object({}),
+};
 const tron: FamilyBinding = { run: async () => ({ block: {} }) };
 
 describe("CommandRegistry.addChain", () => {

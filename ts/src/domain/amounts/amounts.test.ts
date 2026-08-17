@@ -51,10 +51,12 @@ describe("toBaseUnits", () => {
     });
 
     it("uses the caller's option name in both messages", () => {
-      expect(() => toBaseUnits("1.1234567", 6, "TRX", "--min-received"))
-        .toThrow("--min-received has too many decimal places for TRX (max 6)");
-      expect(() => toBaseUnits("abc", 6, "TRX", "--min-received"))
-        .toThrow("--min-received must be a non-negative decimal TRX amount");
+      expect(() => toBaseUnits("1.1234567", 6, "TRX", "--min-received")).toThrow(
+        "--min-received has too many decimal places for TRX (max 6)",
+      );
+      expect(() => toBaseUnits("abc", 6, "TRX", "--min-received")).toThrow(
+        "--min-received must be a non-negative decimal TRX amount",
+      );
     });
 
     it("still returns the converted value when the input is fine", () => {

@@ -49,7 +49,10 @@ export function slippageFloor(predicted: bigint, percent: number): bigint {
     throw new UsageError("invalid_value", "--slippage must be greater than 0 and less than 100");
   }
   if (predicted <= 0n) {
-    throw new UsageError("invalid_value", "this trade is too small to return anything at the current reserves");
+    throw new UsageError(
+      "invalid_value",
+      "this trade is too small to return anything at the current reserves",
+    );
   }
   // basis points keep the percentage in integer arithmetic; fractions finer than 0.01% round down.
   const bps = BigInt(Math.round((100 - percent) * 100));
@@ -62,7 +65,11 @@ export function slippageFloor(predicted: bigint, percent: number): bigint {
  * `floor(otherReserve × quant / thisReserve)` in integer arithmetic. Exact, so callers may reject
  * on it.
  */
-export function proportionalOther(thisReserve: bigint, otherReserve: bigint, quant: bigint): bigint {
+export function proportionalOther(
+  thisReserve: bigint,
+  otherReserve: bigint,
+  quant: bigint,
+): bigint {
   if (thisReserve <= 0n) return 0n;
   return (otherReserve * quant) / thisReserve;
 }
@@ -74,7 +81,11 @@ export function proportionalOther(thisReserve: bigint, otherReserve: bigint, qua
  * Reproduced here for documentation and messages only — the check itself is left to the node,
  * because which of the two hardfork variants is active cannot be read from an RPC.
  */
-export function withdrawIsPrecise(thisReserve: bigint, otherReserve: bigint, quant: bigint): boolean {
+export function withdrawIsPrecise(
+  thisReserve: bigint,
+  otherReserve: bigint,
+  quant: bigint,
+): boolean {
   const other = proportionalOther(thisReserve, otherReserve, quant);
   if (other <= 0n) return false;
   // quotient at 4 dp, half-up, in integer arithmetic: round(otherReserve*quant*10^4 / thisReserve)

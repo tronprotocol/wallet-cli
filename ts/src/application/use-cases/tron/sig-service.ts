@@ -12,11 +12,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import { obtainSignature } from "../../services/signing/obtain-signature.js";
-import {
-  assertNotExpired,
-  expirationOf,
-  transactionContract,
-} from "./transaction-artifact.js";
+import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
 
 export interface TronSignOptions {
   /** Bind an authorization decision to the exact signer before any signature interaction. */
@@ -56,12 +52,15 @@ export class TronSigService {
     const signedHex = gateway.encodeTransactionHex(signed);
     const decoded = gateway.decodeTransactionHex(signedHex);
     if (decoded.txID !== originalTxId || decoded.raw_data_hex !== originalRawDataHex) {
-      throw new ChainError("invalid_transaction", "signer changed the transaction raw_data or txID");
+      throw new ChainError(
+        "invalid_transaction",
+        "signer changed the transaction raw_data or txID",
+      );
     }
     const current = decoded.signature ?? [];
     if (
-      current.length !== previousSignatures.length + 1
-      || previousSignatures.some((signature, index) => current[index] !== signature)
+      current.length !== previousSignatures.length + 1 ||
+      previousSignatures.some((signature, index) => current[index] !== signature)
     ) {
       throw new ChainError(
         "signing_rejected",

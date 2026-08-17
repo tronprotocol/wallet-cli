@@ -30,7 +30,10 @@ import {
   tokenRemoveTronBinding,
 } from "../../adapters/inbound/cli/commands/token.js";
 import { messageSignSpec, messageSignBinding } from "../../adapters/inbound/cli/commands/shared.js";
-import { typedDataSignSpec, typedDataSignBinding } from "../../adapters/inbound/cli/commands/typed-data.js";
+import {
+  typedDataSignSpec,
+  typedDataSignBinding,
+} from "../../adapters/inbound/cli/commands/typed-data.js";
 import {
   permissionShowSpec,
   permissionShowTronBinding,
@@ -169,7 +172,10 @@ export interface TronChainCommandDependencies {
   recipients: RecipientResolver;
 }
 
-export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainCommandDependencies): void {
+export function registerTronChainCommands(
+  reg: CommandRegistry,
+  deps: TronChainCommandDependencies,
+): void {
   const account = new TronAccountService(
     deps.gateways,
     new TronGridHistoryReader(deps.timeoutMs),
@@ -193,12 +199,7 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
     deps.gateways,
     multisig,
   );
-  const gasfree = new GasFreeService(
-    deps.gasfree,
-    deps.gateways,
-    deps.signers,
-    deps.recipients,
-  );
+  const gasfree = new GasFreeService(deps.gasfree, deps.gateways, deps.signers, deps.recipients);
   const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const asset = new TronAssetService(deps.gateways, deps.transactions);
@@ -225,18 +226,13 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
-  reg.addChain(txSignSpec, "tron", txSignTronBinding(
-    transaction,
-    signing,
-    multisig,
-    new SecureTransactionArtifactWriter(),
-  ));
-  reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(
-    txTronLinkMultisigSpec,
+    txSignSpec,
     "tron",
-    txTronLinkMultisigBinding(multisigCollaboration),
+    txSignTronBinding(transaction, signing, multisig, new SecureTransactionArtifactWriter()),
   );
+  reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
+  reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(multisigCollaboration));
   reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
   reg.addChain(gasFreeTransferSpec, "tron", gasFreeTransferTronBinding(gasfree));
   reg.addChain(gasFreeTraceSpec, "tron", gasFreeTraceTronBinding(gasfree));
@@ -267,8 +263,16 @@ export function registerTronChainCommands(reg: CommandRegistry, deps: TronChainC
   reg.addChain(contractDeploySpec, "tron", contractDeployTronBinding(contract));
   reg.addChain(contractInfoSpec, "tron", contractInfoTronBinding(contract));
   reg.addChain(contractClearAbiSpec, "tron", contractClearAbiTronBinding(contract));
-  reg.addChain(contractSetOriginEnergyLimitSpec, "tron", contractSetOriginEnergyLimitTronBinding(contract));
-  reg.addChain(contractSetUserResourcePercentSpec, "tron", contractSetUserResourcePercentTronBinding(contract));
+  reg.addChain(
+    contractSetOriginEnergyLimitSpec,
+    "tron",
+    contractSetOriginEnergyLimitTronBinding(contract),
+  );
+  reg.addChain(
+    contractSetUserResourcePercentSpec,
+    "tron",
+    contractSetUserResourcePercentTronBinding(contract),
+  );
   reg.addChain(contractCreate2Spec, "tron", contractCreate2TronBinding(contract));
   reg.addChain(proposalListSpec, "tron", proposalListTronBinding(proposal));
   reg.addChain(proposalShowSpec, "tron", proposalShowTronBinding(proposal));

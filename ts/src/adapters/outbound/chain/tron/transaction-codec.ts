@@ -2,7 +2,10 @@ import { utils as tronUtils } from "tronweb";
 import { ChainError } from "../../../../domain/errors/index.js";
 import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
 import { decodeOverriddenContract, encodeOverriddenContract } from "./asset-contract-codec.js";
-import { proposalCreateTxJsonToPbExact, updateEnergyLimitTxJsonToPbExact } from "./proposal-protobuf.js";
+import {
+  proposalCreateTxJsonToPbExact,
+  updateEnergyLimitTxJsonToPbExact,
+} from "./proposal-protobuf.js";
 
 const MAX_TRANSACTION_BYTES = 512 * 1024;
 const SIGNATURE_BYTES = 65;
@@ -78,9 +81,11 @@ function normalizeHash(value: unknown, field: string): string {
 }
 
 function transactionProto(): TransactionProtoConstructor {
-  const proto = (globalThis as typeof globalThis & {
-    TronWebProto?: { Transaction?: TransactionProtoConstructor };
-  }).TronWebProto?.Transaction;
+  const proto = (
+    globalThis as typeof globalThis & {
+      TronWebProto?: { Transaction?: TransactionProtoConstructor };
+    }
+  ).TronWebProto?.Transaction;
   if (!proto) {
     throw new ChainError(
       "provider_error",
@@ -95,7 +100,8 @@ export function normalizeTransactionHex(input: string): string {
   if (typeof input !== "string") return invalidTransaction("transaction hex must be text");
   const normalized = input.trim().replace(/^0x/i, "");
   if (normalized.length === 0) return invalidTransaction("transaction hex is empty");
-  if (normalized.length % 2 !== 0) return invalidTransaction("transaction hex must have an even length");
+  if (normalized.length % 2 !== 0)
+    return invalidTransaction("transaction hex must have an even length");
   if (!/^[0-9a-fA-F]+$/.test(normalized)) {
     return invalidTransaction("transaction hex contains non-hex characters");
   }
@@ -107,7 +113,8 @@ export function normalizeTransactionHex(input: string): string {
 
 function appendSignatures(pb: ProtobufTransaction, signatures: unknown): void {
   if (signatures === undefined) return;
-  if (!Array.isArray(signatures)) return invalidTransaction("transaction signatures must be an array");
+  if (!Array.isArray(signatures))
+    return invalidTransaction("transaction signatures must be an array");
   for (const signature of signatures) {
     if (typeof signature !== "string" || !/^(?:0x)?[0-9a-fA-F]+$/.test(signature)) {
       return invalidTransaction("transaction signature must be hex");
@@ -128,7 +135,9 @@ const RESOURCE_CODE_NAMES: readonly string[] = ["BANDWIDTH", "ENERGY", "TRON_POW
  * bytes would then be missing the field and read as forged. Map it back to the name; the
  * raw_data_hex / txID equality checks below remain the arbiter of whether the result is accepted.
  */
-function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<TronTransactionArtifact> {
+function withNamedEnums(
+  candidate: Partial<TronTransactionArtifact>,
+): Partial<TronTransactionArtifact> {
   const contract = candidate.raw_data?.contract[0];
   const value = contract?.parameter?.value;
   const resource = value?.resource;
@@ -139,10 +148,12 @@ function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<Tr
     ...candidate,
     raw_data: {
       ...candidate.raw_data!,
-      contract: [{
-        ...contract!,
-        parameter: { ...contract!.parameter, value: { ...value, resource: name } },
-      }],
+      contract: [
+        {
+          ...contract!,
+          parameter: { ...contract!.parameter, value: { ...value, resource: name } },
+        },
+      ],
     },
   };
 }
@@ -156,12 +167,15 @@ function withNamedEnums(candidate: Partial<TronTransactionArtifact>): Partial<Tr
  * produces protobuf, or one caller silently emits bytes that disagree with what was signed. That is
  * exactly how `--build-only` shipped broken for the governance commands.
  */
-const GOVERNANCE_ENCODERS: Readonly<Record<string, (transaction: unknown) => unknown>> = Object.freeze({
-  ProposalCreateContract: proposalCreateTxJsonToPbExact,
-  UpdateEnergyLimitContract: updateEnergyLimitTxJsonToPbExact,
-});
+const GOVERNANCE_ENCODERS: Readonly<Record<string, (transaction: unknown) => unknown>> =
+  Object.freeze({
+    ProposalCreateContract: proposalCreateTxJsonToPbExact,
+    UpdateEnergyLimitContract: updateEnergyLimitTxJsonToPbExact,
+  });
 
-function encodeOverridden(candidate: Partial<TronTransactionArtifact>): ProtobufTransaction | undefined {
+function encodeOverridden(
+  candidate: Partial<TronTransactionArtifact>,
+): ProtobufTransaction | undefined {
   const type = candidate.raw_data?.contract?.[0]?.type;
   if (typeof type === "string") {
     const governance = GOVERNANCE_ENCODERS[type];
@@ -196,7 +210,9 @@ function toProtobuf(candidate: Partial<TronTransactionArtifact>): ProtobufTransa
  */
 export function rawDataHexOf(transaction: unknown): string {
   const candidate = withNamedEnums(transaction as Partial<TronTransactionArtifact>);
-  const pb = encodeOverridden(candidate) ?? (tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction);
+  const pb =
+    encodeOverridden(candidate) ??
+    (tronUtils.transaction.txJsonToPb(candidate) as ProtobufTransaction);
   return tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase();
 }
 
@@ -206,7 +222,11 @@ export function encodeTransactionHex(transaction: unknown): string {
     return invalidTransaction("transaction must be an object");
   }
   let candidate = transaction as Partial<TronTransactionArtifact>;
-  if (!candidate.raw_data || !Array.isArray(candidate.raw_data.contract) || candidate.raw_data.contract.length !== 1) {
+  if (
+    !candidate.raw_data ||
+    !Array.isArray(candidate.raw_data.contract) ||
+    candidate.raw_data.contract.length !== 1
+  ) {
     return invalidTransaction("exactly one contract is required per transaction");
   }
   candidate = withNamedEnums(candidate);
@@ -262,13 +282,18 @@ export function decodeTransactionHex(input: string): TronTransactionArtifact {
     rawData = overridden;
   } else {
     try {
-      rawData = tronUtils.deserializeTx.deserializeTransaction(contractType, rawDataHex) as TronTransactionArtifact["raw_data"];
+      rawData = tronUtils.deserializeTx.deserializeTransaction(
+        contractType,
+        rawDataHex,
+      ) as TronTransactionArtifact["raw_data"];
     } catch {
       return invalidTransaction(`TRON contract type ${contractType} cannot be decoded losslessly`);
     }
   }
   const txID = tronUtils.transaction.txPbToTxID(pb).replace(/^0x/i, "").toLowerCase();
-  const signature = pb.getSignatureList_asU8().map((value) => Buffer.from(value).toString("hex").toLowerCase());
+  const signature = pb
+    .getSignatureList_asU8()
+    .map((value) => Buffer.from(value).toString("hex").toLowerCase());
   if (signature.some((value) => value.length !== SIGNATURE_BYTES * 2)) {
     return invalidTransaction("transaction contains a malformed signature");
   }
@@ -292,7 +317,10 @@ export function decodeTransactionHex(input: string): TronTransactionArtifact {
  * not an independent field — any raw_data mutation moves the contract, so a carried-over
  * `contract_address` would name a contract that never gets deployed.
  */
-function deriveContractAddress(txId: string, contract: { parameter?: { value?: Record<string, unknown> } }): string {
+function deriveContractAddress(
+  txId: string,
+  contract: { parameter?: { value?: Record<string, unknown> } },
+): string {
   const owner = contract.parameter?.value?.owner_address;
   if (typeof owner !== "string" || !/^41[0-9a-fA-F]{40}$/.test(owner)) {
     return invalidTransaction("CreateSmartContract owner_address must be a 21-byte hex address");
@@ -321,7 +349,10 @@ export function refreshTransactionIdentity(transaction: unknown): TronTransactio
     raw_data_hex: tronUtils.transaction.txPbToRawDataHex(pb).toLowerCase(),
   };
   const deployment = refreshed.raw_data.contract[0];
-  if (typeof refreshed.contract_address === "string" && deployment?.type === "CreateSmartContract") {
+  if (
+    typeof refreshed.contract_address === "string" &&
+    deployment?.type === "CreateSmartContract"
+  ) {
     refreshed.contract_address = deriveContractAddress(refreshed.txID, deployment);
   }
   decodeTransactionHex(encodeTransactionHex(refreshed));

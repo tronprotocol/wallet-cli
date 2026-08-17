@@ -16,14 +16,16 @@ import type { TronContractService } from "../../../../application/use-cases/tron
  */
 
 function deployWith(input: { abi: string; params?: string }) {
-  const deploy = vi.fn(async (_ctx: unknown, _net: unknown, _input: { parameters: unknown[] }) =>
-    ({ kind: "tx-receipt" as const }));
+  const deploy = vi.fn(async (_ctx: unknown, _net: unknown, _input: { parameters: unknown[] }) => ({
+    kind: "tx-receipt" as const,
+  }));
   const binding = contractDeployTronBinding({ deploy } as unknown as TronContractService);
-  const run = () => binding.run(
-    {} as never,
-    {} as never,
-    { bytecode: "6080", feeLimit: "1000000", ...input } as never,
-  );
+  const run = () =>
+    binding.run(
+      {} as never,
+      {} as never,
+      { bytecode: "6080", feeLimit: "1000000", ...input } as never,
+    );
   return { run, deploy };
 }
 
@@ -95,7 +97,9 @@ describe("contract deploy — ABI constructor guard", () => {
   });
 
   it("passes an { entrys } wrapper whose constructor is well-formed", async () => {
-    const abi = JSON.stringify({ entrys: [{ type: "constructor", stateMutability: "nonpayable" }] });
+    const abi = JSON.stringify({
+      entrys: [{ type: "constructor", stateMutability: "nonpayable" }],
+    });
     const { run, deploy } = deployWith({ abi });
     await expect(run()).resolves.toBeDefined();
     expect(deploy).toHaveBeenCalledOnce();
@@ -119,7 +123,10 @@ describe("contract deploy — --params form guard", () => {
   const ABI = ctor({ stateMutability: "nonpayable" });
 
   it("passes raw positional values, the documented deploy form", async () => {
-    const { run, deploy } = deployWith({ abi: ABI, params: '[100, "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"]' });
+    const { run, deploy } = deployWith({
+      abi: ABI,
+      params: '[100, "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"]',
+    });
     await expect(run()).resolves.toBeDefined();
     expect(deploy.mock.calls[0]![2]).toMatchObject({
       parameters: [100, "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"],

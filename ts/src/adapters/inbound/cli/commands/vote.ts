@@ -6,12 +6,19 @@ import { TextFormatters } from "../render/index.js";
 
 // repeatable flag: the arity layer sets yargs `array: true`, so `--for` always arrives as a
 // string[] (single or repeated) — no preprocess needed to normalize.
-const voteForField = z.array(z.string().min(1)).min(1).max(30)
-  .describe("witness address = vote count (positive integer); repeatable; the set replaces all prior votes (at least 1, at most 30 entries)");
+const voteForField = z
+  .array(z.string().min(1))
+  .min(1)
+  .max(30)
+  .describe(
+    "witness address = vote count (positive integer); repeatable; the set replaces all prior votes (at least 1, at most 30 entries)",
+  );
 
 export const voteCastSpec: ChainSpec = {
   path: ["vote", "cast"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "vote.cast",
   summary: "Cast or replace your full SR vote allocation",
@@ -33,15 +40,21 @@ export const voteCastTronBinding = (svc: TronVoteService): FamilyBinding => ({
 
 export const voteListSpec: ChainSpec = {
   path: ["vote", "list"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "vote.list",
   summary: "List super representatives and candidates",
   description: "List super representatives (elected by default) with votes, APR, and reward ratio.",
   baseFields: z.object({
-    limit: z.coerce.number().int().positive().max(127).default(27)
+    limit: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(127)
+      .default(27)
       .describe("number of ranks to return; max 127"),
-    candidates: z.boolean().default(false)
-      .describe("include non-elected candidates"),
+    candidates: z.boolean().default(false).describe("include non-elected candidates"),
   }),
   examples: [
     { cmd: "wallet-cli vote list" },
@@ -56,7 +69,9 @@ export const voteListTronBinding = (svc: TronVoteService): FamilyBinding => ({
 
 export const voteStatusSpec: ChainSpec = {
   path: ["vote", "status"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "vote.status",
   summary: "Show current votes, voting power, and reward overview",
   description:

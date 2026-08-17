@@ -2,7 +2,10 @@
 import type { ZodObject, ZodRawShape, ZodType } from "zod";
 import type { ChainFamily } from "../../../../domain/family/index.js";
 import type { NetworkDescriptor } from "../../../../domain/types/network.js";
-import type { NetworkRequirement, WalletRequirement } from "../../../../application/contracts/index.js";
+import type {
+  NetworkRequirement,
+  WalletRequirement,
+} from "../../../../application/contracts/index.js";
 import type { ExecutionContext } from "./execution-context.js";
 
 export interface Example {
@@ -118,7 +121,7 @@ export interface FamilyBinding<I = any, O = any> {
 
 /** Neutral, service-free declaration of a logical chain command. Generic over O, the single
  *  family-agnostic View every family's run returns. */
-export interface ChainSpec<I = any, O = any> {
+export interface ChainSpec<_I = any, O = any> {
   path: string[];
   network: Exclude<NetworkRequirement, "none">;
   wallet: WalletRequirement;

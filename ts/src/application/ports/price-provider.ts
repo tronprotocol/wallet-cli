@@ -3,4 +3,3 @@ export interface PriceProvider {
   nativeUsd(networkId: string): Promise<number | null>;
   tokenUsd(networkId: string, contracts: string[]): Promise<Map<string, number | null>>;
 }
-

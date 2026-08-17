@@ -15,7 +15,6 @@ import {
   outcomeData,
   transactionMode,
   transactionRequiresSigner,
-  type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
@@ -36,7 +35,8 @@ export class TronContractService {
     return {
       contract,
       method,
-      result: await this.gateways.get(network, "tron")
+      result: await this.gateways
+        .get(network, "tron")
         .triggerConstantContract(contract, method, parameters),
     };
   }
@@ -62,13 +62,12 @@ export class TronContractService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: async (from) => gateway.triggerSmartContract(
-          from,
-          input.contract,
-          input.method,
-          input.parameters,
-          { feeLimit: input.feeLimit, callValue: input.callValueSun, permissionId: input.permissionId },
-        ),
+      build: async (from) =>
+        gateway.triggerSmartContract(from, input.contract, input.method, input.parameters, {
+          feeLimit: input.feeLimit,
+          callValue: input.callValueSun,
+          permissionId: input.permissionId,
+        }),
       estimate: async () => {
         const estimate = await gateway.estimateResources(
           scope.resolveAddress("tron"),
@@ -154,11 +153,8 @@ export class TronContractService {
       network,
       input,
       "contract-clear-abi",
-      (gateway, owner) => gateway.buildClearContractAbi(
-        owner,
-        input.address,
-        { permissionId: input.permissionId },
-      ),
+      (gateway, owner) =>
+        gateway.buildClearContractAbi(owner, input.address, { permissionId: input.permissionId }),
       {},
     );
   }
@@ -173,12 +169,10 @@ export class TronContractService {
       network,
       input,
       "contract-set-origin-energy-limit",
-      (gateway, owner) => gateway.buildUpdateOriginEnergyLimit(
-        owner,
-        input.address,
-        input.energy,
-        { permissionId: input.permissionId },
-      ),
+      (gateway, owner) =>
+        gateway.buildUpdateOriginEnergyLimit(owner, input.address, input.energy, {
+          permissionId: input.permissionId,
+        }),
       { originEnergyLimit: exactIntegerView(input.energy) },
     );
   }
@@ -193,12 +187,10 @@ export class TronContractService {
       network,
       input,
       "contract-set-user-resource-percent",
-      (gateway, owner) => gateway.buildUpdateUserResourcePercent(
-        owner,
-        input.address,
-        input.percent,
-        { permissionId: input.permissionId },
-      ),
+      (gateway, owner) =>
+        gateway.buildUpdateUserResourcePercent(owner, input.address, input.percent, {
+          permissionId: input.permissionId,
+        }),
       { consumeUserResourcePercent: input.percent },
     );
   }
@@ -249,7 +241,10 @@ export class TronContractService {
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
       build: async (address) => await build(gateway, address),
-      estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "contract governance uses bandwidth only" }),
+      estimate: async (_tx: UnsignedTx) => ({
+        feeModel: "tron-resource",
+        note: "contract governance uses bandwidth only",
+      }),
     });
     const data = outcomeData(outcome);
     const resource = transactionResource(data);
@@ -282,19 +277,22 @@ function warnIfFeeLimitLikelyInsufficient(
   if (BigInt(feeLimit) >= recommendedCapSun) return;
 
   scope.warn(
-    `fee limit ${feeLimit} SUN is likely insufficient for the estimate of `
-      + `${energy} energy at ${energyPriceSun} SUN/energy `
-      + `(recommended cap ~${recommendedCapSun} SUN); staked/delegated energy and `
-      + "contract energy sharing may change the actual TRX burned",
+    `fee limit ${feeLimit} SUN is likely insufficient for the estimate of ` +
+      `${energy} energy at ${energyPriceSun} SUN/energy ` +
+      `(recommended cap ~${recommendedCapSun} SUN); staked/delegated energy and ` +
+      "contract energy sharing may change the actual TRX burned",
   );
 }
 
 function positiveInteger(value: unknown): bigint | undefined {
-  const text = typeof value === "bigint"
-    ? value.toString()
-    : typeof value === "number" && Number.isSafeInteger(value)
-      ? String(value)
-      : typeof value === "string" ? value : "";
+  const text =
+    typeof value === "bigint"
+      ? value.toString()
+      : typeof value === "number" && Number.isSafeInteger(value)
+        ? String(value)
+        : typeof value === "string"
+          ? value
+          : "";
   return /^[1-9]\d*$/.test(text) ? BigInt(text) : undefined;
 }
 

@@ -40,34 +40,90 @@ export interface GlobalFlagSpec {
 }
 
 export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
-  { name: "output", alias: "o", kind: "value", valueType: "string", choices: ["text", "json"],
-    description: "result format", defaultValue: "config.defaultOutput (built-in: text)" },
-  { name: "network", kind: "value", valueType: "string",
-    description: "canonical network id, e.g. tron:mainnet, tron:nile, tron:shasta; chain commands fall back to config.defaultNetwork when omitted" },
-  { name: "account", kind: "value", valueType: "string",
-    description: "accountId, label, or address for wallet-bound commands; falls back to the active account set by use" },
-  { name: "timeout", kind: "value", valueType: "number", field: "timeoutMs", min: 1,
-    description: "per node, service, or device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 60000)" },
-  { name: "verbose", alias: "v", kind: "boolean",
-    description: "show extra diagnostic output", defaultValue: false },
+  {
+    name: "output",
+    alias: "o",
+    kind: "value",
+    valueType: "string",
+    choices: ["text", "json"],
+    description: "result format",
+    defaultValue: "config.defaultOutput (built-in: text)",
+  },
+  {
+    name: "network",
+    kind: "value",
+    valueType: "string",
+    description:
+      "canonical network id, e.g. tron:mainnet, tron:nile, tron:shasta; chain commands fall back to config.defaultNetwork when omitted",
+  },
+  {
+    name: "account",
+    kind: "value",
+    valueType: "string",
+    description:
+      "accountId, label, or address for wallet-bound commands; falls back to the active account set by use",
+  },
+  {
+    name: "timeout",
+    kind: "value",
+    valueType: "number",
+    field: "timeoutMs",
+    min: 1,
+    description: "per node, service, or device call timeout, in milliseconds",
+    defaultValue: "config.timeoutMs (built-in: 60000)",
+  },
+  {
+    name: "verbose",
+    alias: "v",
+    kind: "boolean",
+    description: "show extra diagnostic output",
+    defaultValue: false,
+  },
   // Shown verbatim on every submitting command, including `gasfree transfer`, which submits to the
   // GasFree service rather than broadcasting and returns a trace id — so this stays on "submitted".
-  { name: "wait", kind: "boolean",
-    description: "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking", defaultValue: false },
-  { name: "wait-timeout", kind: "value", valueType: "number", field: "waitTimeoutMs",
-    description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt", defaultValue: "config.waitTimeoutMs (built-in: 60000)" },
-  { name: "password-stdin", kind: "secret-stdin", secretKey: "password",
-    description: "read the master password from stdin (fd 0); only one *-stdin flag can consume stdin per run" },
+  {
+    name: "wait",
+    kind: "boolean",
+    description:
+      "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking",
+    defaultValue: false,
+  },
+  {
+    name: "wait-timeout",
+    kind: "value",
+    valueType: "number",
+    field: "waitTimeoutMs",
+    description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt",
+    defaultValue: "config.waitTimeoutMs (built-in: 60000)",
+  },
+  {
+    name: "password-stdin",
+    kind: "secret-stdin",
+    secretKey: "password",
+    description:
+      "read the master password from stdin (fd 0); only one *-stdin flag can consume stdin per run",
+  },
   // NB: mnemonic / private-key / new-password have NO stdin flag — those secrets are TTY-only
   // (import mnemonic/private-key, change-password are interactive setup ops; see secretsTtyOnly).
-  { name: "tx-stdin", kind: "secret-stdin", secretKey: "tx", commandScoped: true,
-    description: "read the signed transaction JSON from stdin (fd 0)" },
-  { name: "message-stdin", kind: "secret-stdin", secretKey: "message", commandScoped: true,
-    description: "read the message bytes/text from stdin (fd 0)" },
+  {
+    name: "tx-stdin",
+    kind: "secret-stdin",
+    secretKey: "tx",
+    commandScoped: true,
+    description: "read the signed transaction JSON from stdin (fd 0)",
+  },
+  {
+    name: "message-stdin",
+    kind: "secret-stdin",
+    secretKey: "message",
+    commandScoped: true,
+    description: "read the message bytes/text from stdin (fd 0)",
+  },
 ];
 
 /** kebab → camel default; the `field` override wins when the runtime Globals key differs from the flag. */
-export const globalFlagField = (name: string): string => name.replace(/-([a-z0-9])/g, (_m, c) => c.toUpperCase());
+export const globalFlagField = (name: string): string =>
+  name.replace(/-([a-z0-9])/g, (_m, c) => c.toUpperCase());
 const specField = (f: GlobalFlagSpec): string => f.field ?? globalFlagField(f.name);
 
 /** value-flag spec keyed by its runtime Globals field, for coercion. */
@@ -76,9 +132,7 @@ const VALUE_SPEC_BY_FIELD: Record<string, GlobalFlagSpec> = Object.fromEntries(
 );
 
 /** Result of coercing a value flag: a validated value, or the reason it was rejected. */
-export type GlobalCoercion =
-  | { ok: true; value: string | number }
-  | { ok: false; reason: string };
+export type GlobalCoercion = { ok: true; value: string | number } | { ok: false; reason: string };
 
 /**
  * Coerce a raw value-flag string per its spec. A rejected value is `{ ok:false, reason }`, NOT a

@@ -3,7 +3,12 @@ import { renderErrorDetails } from "./error-details.js";
 
 describe("renderErrorDetails", () => {
   const matches = [
-    { assetId: "1000123", issuerAddress: "TQkXm4vN", totalSupply: "1000000000000000", precision: 6 },
+    {
+      assetId: "1000123",
+      issuerAddress: "TQkXm4vN",
+      totalSupply: "1000000000000000",
+      precision: 6,
+    },
     { assetId: "1000488", issuerAddress: "TZx9kP2m", totalSupply: "5000000000", precision: 2 },
   ];
 

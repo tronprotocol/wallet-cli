@@ -17,12 +17,16 @@ import { TextFormatters } from "../render/index.js";
 const LEDGER_NOTE =
   "The Ledger TRON app cannot decode TRC10 issuance contracts, so this command needs a software account.";
 
-const assetReference = z.string().min(1)
+const assetReference = z
+  .string()
+  .min(1)
   .describe("token id or name; a numeric value is read as the id");
 
 export const assetIssueSpec: ChainSpec = {
   path: ["asset", "issue"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "asset.issue",
   summary: "Issue a TRC10 token and lock in its ICO terms",
@@ -33,36 +37,57 @@ export const assetIssueSpec: ChainSpec = {
     "free bandwidth limits stay changeable afterward (see 'asset update'); everything\n" +
     "else is fixed at issuance. Note --price is converted using --precision, so the\n" +
     "same --price at a different --precision yields a different on-chain rate.",
-  requires: ["an account that has never issued a TRC10, with balance >= the issuance fee", LEDGER_NOTE],
+  requires: [
+    "an account that has never issued a TRC10, with balance >= the issuance fee",
+    LEDGER_NOTE,
+  ],
   baseFields: z.object({
     name: z.string().min(1).describe("token name, 1-32 visible ASCII chars"),
     supply: z.string().min(1).describe("total supply, in whole tokens"),
     price: z.string().min(1).describe("ICO rate in whole TRX to whole tokens, e.g. 1:100"),
-    start: z.string().min(1)
-      .describe("ICO start, YYYY-MM-DD or \"YYYY-MM-DD HH:mm:ss\", read as UTC; must be in the future"),
+    start: z
+      .string()
+      .min(1)
+      .describe(
+        'ICO start, YYYY-MM-DD or "YYYY-MM-DD HH:mm:ss", read as UTC; must be in the future',
+      ),
     end: z.string().min(1).describe("ICO end, same format, must be after --start"),
     url: z.string().describe("project page, must not be empty"),
     abbr: z.string().optional().describe("token abbreviation"),
     precision: z.coerce.number().int().min(0).max(6).default(0).describe("decimal places"),
     description: z.string().optional().describe("short description, up to 200 bytes"),
-    freeNetPerAccount: z.coerce.number().int().min(0).optional()
+    freeNetPerAccount: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
       .describe("free bandwidth each holder may use"),
-    publicFreeNet: z.coerce.number().int().min(0).optional()
+    publicFreeNet: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
       .describe("shared free bandwidth pool for holders"),
     // repeatable: the arity layer sets yargs `array: true`, so this always arrives as string[]
-    freeze: z.array(z.string().min(1)).optional()
+    freeze: z
+      .array(z.string().min(1))
+      .optional()
       .describe("frozen tranche <amount>:<days>, amount in whole tokens; repeatable"),
     ...txModeFields,
   }),
-  examples: [{
-    cmd: "wallet-cli asset issue --name MyToken --supply 1000000000 --price 1:100 --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --wait",
-  }],
+  examples: [
+    {
+      cmd: "wallet-cli asset issue --name MyToken --supply 1000000000 --price 1:100 --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --wait",
+    },
+  ],
   formatText: TextFormatters.txReceipt,
 };
 
 export const assetUpdateSpec: ChainSpec = {
   path: ["asset", "update"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "asset.update",
   summary: "Update the mutable fields of the TRC10 you issued",
@@ -77,9 +102,17 @@ export const assetUpdateSpec: ChainSpec = {
   baseFields: z.object({
     description: z.string().optional().describe("new description, up to 200 bytes"),
     url: z.string().optional().describe("new project page, must not be empty"),
-    freeNetPerAccount: z.coerce.number().int().min(0).optional()
+    freeNetPerAccount: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
       .describe("free bandwidth each holder may use"),
-    publicFreeNet: z.coerce.number().int().min(0).optional()
+    publicFreeNet: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .optional()
       .describe("shared free bandwidth pool for holders"),
     ...txModeFields,
   }),
@@ -89,7 +122,9 @@ export const assetUpdateSpec: ChainSpec = {
 
 export const assetParticipateSpec: ChainSpec = {
   path: ["asset", "participate"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "asset.participate",
   summary: "Buy into a TRC10's ICO at its fixed rate",
@@ -114,7 +149,9 @@ export const assetParticipateSpec: ChainSpec = {
 
 export const assetUnfreezeSpec: ChainSpec = {
   path: ["asset", "unfreeze"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "asset.unfreeze",
   summary: "Release the matured frozen supply of the TRC10 you issued",
@@ -132,7 +169,9 @@ export const assetUnfreezeSpec: ChainSpec = {
 
 export const assetInfoSpec: ChainSpec = {
   path: ["asset", "info"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "asset.info",
   summary: "Show a TRC10 in full",
   description:
@@ -146,7 +185,9 @@ export const assetInfoSpec: ChainSpec = {
   positionals: [{ field: "assetRef", placeholder: "asset" }],
   baseFields: z.object({
     assetRef: assetReference.optional(),
-    issuer: Schemas.addressFor("tron").optional().describe("look up the token issued by this address"),
+    issuer: Schemas.addressFor("tron")
+      .optional()
+      .describe("look up the token issued by this address"),
   }),
   examples: [
     { cmd: "wallet-cli asset info 1000123" },
@@ -158,7 +199,9 @@ export const assetInfoSpec: ChainSpec = {
 
 export const assetListSpec: ChainSpec = {
   path: ["asset", "list"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "asset.list",
   summary: "List TRC10 tokens, one page at a time",
   description:
@@ -168,7 +211,12 @@ export const assetListSpec: ChainSpec = {
     "chain does not return one without transferring every record.\n" +
     "Use 'asset info' for the full detail of one token.",
   baseFields: z.object({
-    limit: z.coerce.number().int().positive().max(1000).default(10)
+    limit: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(1000)
+      .default(10)
       .describe("max tokens to return"),
     offset: z.coerce.number().int().min(0).default(0).describe("pagination offset"),
   }),
@@ -179,12 +227,20 @@ export const assetListSpec: ChainSpec = {
   formatText: TextFormatters.assetList,
 };
 
-export function assetDefinitions(svc: TronAssetService): Array<{ spec: ChainSpec; binding: FamilyBinding }> {
+export function assetDefinitions(
+  svc: TronAssetService,
+): Array<{ spec: ChainSpec; binding: FamilyBinding }> {
   return [
     { spec: assetIssueSpec, binding: { run: (ctx, net, input) => svc.issue(ctx, net, input) } },
     { spec: assetUpdateSpec, binding: { run: (ctx, net, input) => svc.update(ctx, net, input) } },
-    { spec: assetParticipateSpec, binding: { run: (ctx, net, input) => svc.participate(ctx, net, input) } },
-    { spec: assetUnfreezeSpec, binding: { run: (ctx, net, input) => svc.unfreeze(ctx, net, input) } },
+    {
+      spec: assetParticipateSpec,
+      binding: { run: (ctx, net, input) => svc.participate(ctx, net, input) },
+    },
+    {
+      spec: assetUnfreezeSpec,
+      binding: { run: (ctx, net, input) => svc.unfreeze(ctx, net, input) },
+    },
     { spec: assetInfoSpec, binding: { run: (_ctx, net, input) => svc.info(net, input) } },
     { spec: assetListSpec, binding: { run: (_ctx, net, input) => svc.list(net, input) } },
   ];

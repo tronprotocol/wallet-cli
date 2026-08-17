@@ -6,15 +6,21 @@ import { TextFormatters } from "../render/index.js";
 import { tokenSelector } from "./token-selector.js";
 
 const selectorFields = z.object({
-  contract: Schemas.addressFor("tron").optional()
+  contract: Schemas.addressFor("tron")
+    .optional()
     .describe("TRC20 contract address; provide exactly one of --contract or --asset-id"),
-  assetId: z.string().regex(/^\d+$/).optional()
+  assetId: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
     .describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
 });
 
 export const tokenBalanceSpec: ChainSpec = {
   path: ["token", "balance"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "account.balance.token",
   summary: "Show a single token balance (--contract / --asset-id)",
   baseFields: selectorFields,
@@ -29,7 +35,9 @@ export const tokenBalanceTronBinding = (svc: TronTokenService): FamilyBinding =>
 
 export const tokenInfoSpec: ChainSpec = {
   path: ["token", "info"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "account.balance.token",
   summary: "Show token metadata (name/symbol/decimals/totalSupply)",
   baseFields: selectorFields,
@@ -44,7 +52,9 @@ export const tokenInfoTronBinding = (svc: TronTokenService): FamilyBinding => ({
 
 export const tokenAddSpec: ChainSpec = {
   path: ["token", "add"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "token.tokenbook",
   summary: "Add a token to the address book (fetches symbol/decimals)",
   baseFields: selectorFields,
@@ -59,7 +69,9 @@ export const tokenAddTronBinding = (svc: TronTokenService): FamilyBinding => ({
 
 export const tokenListSpec: ChainSpec = {
   path: ["token", "list"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "token.tokenbook",
   summary: "List the address book (official + user)",
   baseFields: z.object({}),
@@ -73,7 +85,9 @@ export const tokenListTronBinding = (svc: TronTokenService): FamilyBinding => ({
 
 export const tokenRemoveSpec: ChainSpec = {
   path: ["token", "remove"],
-  network: "optional", wallet: "optional", auth: "none",
+  network: "optional",
+  wallet: "optional",
+  auth: "none",
   capability: "token.tokenbook",
   summary: "Remove a user-added token from the address book",
   baseFields: selectorFields,

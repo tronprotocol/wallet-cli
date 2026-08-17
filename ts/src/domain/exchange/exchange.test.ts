@@ -76,8 +76,9 @@ describe("slippage floor", () => {
 describe("proportional inject / withdraw", () => {
   it("computes the other side the way the actuator does — multiply, then floor", () => {
     // 10,000 TRX / 500,000 tokens, inject 1,000 TRX → 50,000 tokens
-    expect(proportionalOther(10_000n * TRX, 500_000n * 1_000_000n, 1_000n * TRX))
-      .toBe(50_000n * 1_000_000n);
+    expect(proportionalOther(10_000n * TRX, 500_000n * 1_000_000n, 1_000n * TRX)).toBe(
+      50_000n * 1_000_000n,
+    );
   });
 
   it("returns zero when the amount is too small for the ratio", () => {

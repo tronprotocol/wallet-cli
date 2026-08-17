@@ -2,10 +2,7 @@ import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
 import { ConfigLoader, NetworkRegistry } from "../adapters/outbound/config/index.js";
 import { YamlConfigDocument } from "../adapters/outbound/config/yaml-config-document.js";
-import {
-  CAP_SUMMARIES,
-  TRAIT_SUMMARIES,
-} from "../adapters/outbound/config/builtins.js";
+import { CAP_SUMMARIES, TRAIT_SUMMARIES } from "../adapters/outbound/config/builtins.js";
 import { AtomicFileStore } from "../adapters/outbound/persistence/fs/index.js";
 import { SecureBackupWriter } from "../adapters/outbound/persistence/backup-writer.js";
 import { FileBackupRecordStore } from "../adapters/outbound/persistence/backup-records.js";
@@ -28,7 +25,7 @@ import { TargetResolver } from "../application/services/target/index.js";
 import { TxPipeline } from "../application/services/pipeline/index.js";
 import { ConfigService } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
-import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
+import { familyMap } from "./family-registry.js";
 import { registerTronChainCommands } from "./families/tron.js";
 import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
 import { GasFreeClient } from "../adapters/outbound/gasfree/client.js";
@@ -60,9 +57,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
 
   const root = ConfigLoader.resolveRoot();
   const store = new AtomicFileStore();
-  const configService = new ConfigService(
-    new YamlConfigDocument(ConfigLoader.configPath(), store),
-  );
+  const configService = new ConfigService(new YamlConfigDocument(ConfigLoader.configPath(), store));
   const networkRegistry = new NetworkRegistry(config);
   const prompter = createPrompter();
   const secrets = new SecretResolver(streams, options.secretPaths, prompter);
@@ -100,10 +95,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerNetworkCommands(registry);
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
-  registerAddressCommands(
-    registry,
-    new AddressService(new SecureKeypairWriter(root)),
-  );
+  registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
   registerTronChainCommands(registry, {
     gateways: gatewayProvider,
     tokens: tokenBook,

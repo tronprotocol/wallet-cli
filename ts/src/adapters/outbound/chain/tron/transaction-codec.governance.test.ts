@@ -28,10 +28,12 @@ function tx(type: string, value: Record<string, unknown>) {
   return {
     visible: false,
     raw_data: {
-      contract: [{
-        parameter: { value, type_url: `type.googleapis.com/protocol.${type}` },
-        type,
-      }],
+      contract: [
+        {
+          parameter: { value, type_url: `type.googleapis.com/protocol.${type}` },
+          type,
+        },
+      ],
       ...REF,
     },
   };
@@ -64,12 +66,14 @@ describe("governance contracts encode identically on both protobuf paths", () =>
     // The exact encoders feed a zero placeholder to tronweb and then replace the Any payload; if a
     // path skipped that replacement the value would silently serialise as 0.
     const hex = rawDataHexOf(tx(type, value as Record<string, unknown>));
-    const zeroed = rawDataHexOf(tx(
-      type,
-      type === "UpdateEnergyLimitContract"
-        ? { owner_address: OWNER_HEX, contract_address: CONTRACT_HEX, origin_energy_limit: 0 }
-        : { owner_address: OWNER_HEX, parameters: [{ key: 0, value: 0 }] },
-    ));
+    const zeroed = rawDataHexOf(
+      tx(
+        type,
+        type === "UpdateEnergyLimitContract"
+          ? { owner_address: OWNER_HEX, contract_address: CONTRACT_HEX, origin_energy_limit: 0 }
+          : { owner_address: OWNER_HEX, parameters: [{ key: 0, value: 0 }] },
+      ),
+    );
     expect(hex).not.toBe(zeroed);
   });
 

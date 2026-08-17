@@ -25,12 +25,15 @@ describe("parseTronAssetResponse", () => {
   });
 
   it("keeps int64 max exact — the value that rendered as an impossible 9223372036854776000", () => {
-    expect(parseTronAssetResponse('{"total_supply": 9223372036854775807}').total_supply)
-      .toBe("9223372036854775807");
+    expect(parseTronAssetResponse('{"total_supply": 9223372036854775807}').total_supply).toBe(
+      "9223372036854775807",
+    );
   });
 
   it("normalizes safe quantities to strings too, so the read model has one stable shape", () => {
-    const asset = parseTronAssetResponse('{"total_supply": 1000000, "frozen_supply": [{"frozen_amount": 2, "frozen_days": 1}]}');
+    const asset = parseTronAssetResponse(
+      '{"total_supply": 1000000, "frozen_supply": [{"frozen_amount": 2, "frozen_days": 1}]}',
+    );
     expect(asset.total_supply).toBe("1000000");
     expect(asset.frozen_supply?.[0]?.frozen_amount).toBe("2");
   });
@@ -60,7 +63,9 @@ describe("parseTronAssetResponse", () => {
   });
 
   it("keeps the owner address in the hex form the address helper expects", () => {
-    expect(parseTronAssetResponse('{"owner_address": "418225f3aa48a2d30643a64410abb1e914dfa0bd2f"}').owner_address)
-      .toBe("418225f3aa48a2d30643a64410abb1e914dfa0bd2f");
+    expect(
+      parseTronAssetResponse('{"owner_address": "418225f3aa48a2d30643a64410abb1e914dfa0bd2f"}')
+        .owner_address,
+    ).toBe("418225f3aa48a2d30643a64410abb1e914dfa0bd2f");
   });
 });

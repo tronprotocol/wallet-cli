@@ -1,21 +1,12 @@
 import type { ContactRepository } from "../ports/contact-repository.js";
-import type {
-  ContactEntry,
-  ContactListView,
-  ContactView,
-} from "../../domain/types/index.js";
-import {
-  contactNameKey,
-  createContact,
-} from "../../domain/contact/index.js";
+import type { ContactEntry, ContactListView, ContactView } from "../../domain/types/index.js";
+import { contactNameKey, createContact } from "../../domain/contact/index.js";
 
 export class ContactService {
   constructor(private readonly contacts: ContactRepository) {}
 
   add(name: string, address: string, note?: string): ContactView {
-    return publicContact(
-      this.contacts.add(createContact("tron", name, address, note)),
-    );
+    return publicContact(this.contacts.add(createContact("tron", name, address, note)));
   }
 
   list(): ContactListView {
@@ -23,9 +14,7 @@ export class ContactService {
   }
 
   remove(name: string): ContactView {
-    return publicContact(
-      this.contacts.remove("tron", contactNameKey(name)),
-    );
+    return publicContact(this.contacts.remove("tron", contactNameKey(name)));
   }
 }
 

@@ -37,8 +37,14 @@ describe("wallet-cli --help lists every registered top-level command", () => {
     });
     let text = "";
     const stream = {
-      result(t: string) { text = t; },
-      diagnostic() {}, errorLine() {}, event() {}, readStdinOnce: () => "", warnings: () => [],
+      result(t: string) {
+        text = t;
+      },
+      diagnostic() {},
+      errorLine() {},
+      event() {},
+      readStdinOnce: () => "",
+      warnings: () => [],
     } as unknown as StreamManager;
     new HelpService(runtime.registry, stream, "0.0.0").handleMeta(["--help"]);
     // every command's FIRST path segment — the name a user types to explore further
@@ -52,7 +58,8 @@ describe("wallet-cli --help lists every registered top-level command", () => {
     const { text, heads } = rootHelp();
     // match the listing column only, so a name appearing inside prose cannot mask a missing row
     const listed = new Set(
-      text.split("\n")
+      text
+        .split("\n")
         .map((line) => /^ {2}([a-z][a-z0-9-]*)\s{2,}\S/.exec(line)?.[1])
         .filter((name): name is string => name !== undefined),
     );
@@ -62,7 +69,9 @@ describe("wallet-cli --help lists every registered top-level command", () => {
   it("covers the v4.12.0 additions specifically", () => {
     const { text } = rootHelp();
     for (const group of ["asset", "exchange", "proposal", "witness"]) {
-      expect(text, `${group} missing from wallet-cli --help`).toMatch(new RegExp(`^ {2}${group}\\s{2,}\\S`, "m"));
+      expect(text, `${group} missing from wallet-cli --help`).toMatch(
+        new RegExp(`^ {2}${group}\\s{2,}\\S`, "m"),
+      );
     }
   });
 });

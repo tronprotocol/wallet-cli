@@ -35,12 +35,13 @@ export function normalizeContractResponses(contract: unknown, info: unknown): Tr
   const contractView = ContractResponseSchema.parse(contract);
   const infoView = ContractResponseSchema.parse(info);
   const abi = contractView.abi ?? infoView.abi ?? contractView.ABI ?? infoView.ABI;
-  const entries = Array.isArray(abi) ? abi : abi?.entrys ?? [];
+  const entries = Array.isArray(abi) ? abi : (abi?.entrys ?? []);
   const methods = entries
     .filter((entry) => entry.type === "Function" || entry.type === "function")
     .map((entry) => entry.name)
     .filter((name): name is string => typeof name === "string" && name.length > 0);
-  const rawContract = contract && typeof contract === "object" ? contract as Record<string, unknown> : {};
+  const rawContract =
+    contract && typeof contract === "object" ? (contract as Record<string, unknown>) : {};
   const origin = rawContract.origin_address ?? rawContract.originAddress;
   return {
     name: contractView.name ?? infoView.name,

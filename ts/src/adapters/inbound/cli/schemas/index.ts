@@ -11,12 +11,16 @@ import { addressCodec } from "../../../../domain/family/index.js";
 export const Schemas = {
   /** the single, family-parametrised address validator (no per-family hardcoded aliases). */
   addressFor: (family: ChainFamily) =>
-    z.string().refine((v) => addressCodec(family).validate(v), { message: `invalid ${family} address` }),
+    z
+      .string()
+      .refine((v) => addressCodec(family).validate(v), { message: `invalid ${family} address` }),
   /** non-negative big integer as a string (wei/sun are always safe as strings). */
   uintString: () => z.string().regex(/^\d+$/, "must be a non-negative integer string"),
   /** positive big integer as a string (rejects 0); for fee limits, lock periods, etc. */
   positiveIntString: () =>
-    z.string().regex(/^\d+$/, "must be a positive integer string")
+    z
+      .string()
+      .regex(/^\d+$/, "must be a positive integer string")
       // regex-based, never BigInt: zod keeps running refinements after the regex fails,
       // so a throwing check (e.g. BigInt("1.5")) would escape safeParse.
       .refine((v) => !/^0+$/.test(v), { message: "must be greater than zero" }),

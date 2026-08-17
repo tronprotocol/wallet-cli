@@ -12,7 +12,12 @@ describe("FAMILY_RENDER parity", () => {
     expect(FAMILY_RENDER.tron.addressLabel).toBe("TRON address");
   });
   it("tron txInfoRows include Energy + Fee in TRX", () => {
-    const rows = FAMILY_RENDER.tron.txInfoRows({ txid: "t", status: "SUCCESS", feeSun: "1000000", energyUsed: 5 } as any);
+    const rows = FAMILY_RENDER.tron.txInfoRows({
+      txid: "t",
+      status: "SUCCESS",
+      feeSun: "1000000",
+      energyUsed: 5,
+    } as any);
     expect(rows).toContainEqual(["Fee", "1 TRX"]);
     expect(rows.map((r) => r[0])).toContain("Energy");
   });

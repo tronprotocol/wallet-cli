@@ -23,24 +23,43 @@ export interface ResolvedTransactionMode {
 export function transactionMode(input: TransactionModeInput): ResolvedTransactionMode {
   const selected = [input.dryRun, input.signOnly, input.buildOnly].filter(Boolean).length;
   if (selected > 1) {
-    throw new UsageError("invalid_option", "choose at most one of --dry-run, --sign-only, --build-only");
+    throw new UsageError(
+      "invalid_option",
+      "choose at most one of --dry-run, --sign-only, --build-only",
+    );
   }
   const permissionId = input.permissionId ?? 0;
   if (!Number.isInteger(permissionId) || permissionId < 0 || permissionId > 9) {
     throw new UsageError("invalid_option", "--permission-id must be an integer from 0 to 9");
   }
   if (input.expiration !== undefined) {
-    if (!Number.isInteger(input.expiration) || input.expiration < 1 || input.expiration > 86_400_000) {
-      throw new UsageError("invalid_option", "--expiration must be an integer from 1 to 86400000 milliseconds");
+    if (
+      !Number.isInteger(input.expiration) ||
+      input.expiration < 1 ||
+      input.expiration > 86_400_000
+    ) {
+      throw new UsageError(
+        "invalid_option",
+        "--expiration must be an integer from 1 to 86400000 milliseconds",
+      );
     }
     if (!input.signOnly && !input.buildOnly) {
-      throw new UsageError("invalid_option", "--expiration is only valid with --sign-only or --build-only");
+      throw new UsageError(
+        "invalid_option",
+        "--expiration is only valid with --sign-only or --build-only",
+      );
     }
   }
-  const common = { permissionId, ...(input.expiration === undefined ? {} : { expiration: input.expiration }) };
-  if (input.dryRun) return { mode: "dry-run", dryRun: true, buildOnly: false, broadcast: false, ...common };
-  if (input.buildOnly) return { mode: "build-only", dryRun: false, buildOnly: true, broadcast: false, ...common };
-  if (input.signOnly) return { mode: "sign-only", dryRun: false, buildOnly: false, broadcast: false, ...common };
+  const common = {
+    permissionId,
+    ...(input.expiration === undefined ? {} : { expiration: input.expiration }),
+  };
+  if (input.dryRun)
+    return { mode: "dry-run", dryRun: true, buildOnly: false, broadcast: false, ...common };
+  if (input.buildOnly)
+    return { mode: "build-only", dryRun: false, buildOnly: true, broadcast: false, ...common };
+  if (input.signOnly)
+    return { mode: "sign-only", dryRun: false, buildOnly: false, broadcast: false, ...common };
   return { mode: "broadcast", dryRun: false, buildOnly: false, broadcast: true, ...common };
 }
 

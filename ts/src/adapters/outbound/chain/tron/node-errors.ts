@@ -23,7 +23,8 @@ const RULES: Array<{ match: RegExp; rejection: NodeRejection }> = [
     match: /^Not precise enough$/i,
     rejection: {
       code: "precision_loss",
-      message: "the amount does not divide this pair's reserve ratio precisely enough; round it and try again",
+      message:
+        "the amount does not divide this pair's reserve ratio precisely enough; round it and try again",
     },
   },
   {
@@ -31,7 +32,8 @@ const RULES: Array<{ match: RegExp; rejection: NodeRejection }> = [
     match: /token required must greater than expected/i,
     rejection: {
       code: "slippage_exceeded",
-      message: "the trade would have returned less than the floor you set, so the chain reverted it; only bandwidth was spent",
+      message:
+        "the trade would have returned less than the floor you set, so the chain reverted it; only bandwidth was spent",
     },
   },
   {
@@ -54,7 +56,8 @@ const RULES: Array<{ match: RegExp; rejection: NodeRejection }> = [
  * `Contract validate error : ExchangeTransactionContract is rejected`. Strip that wrapper so the
  * rules can stay anchored to the actuator's actual wording instead of matching loosely.
  */
-const ENVELOPE = /^(?:Contract validate error\s*:\s*|Contract validate error\s*|contract validate error\s*:\s*)/i;
+const ENVELOPE =
+  /^(?:Contract validate error\s*:\s*|Contract validate error\s*|contract validate error\s*:\s*)/i;
 
 /** the code and message a node rejection should surface as, or undefined to keep the default. */
 export function classifyNodeRejection(reason: string): NodeRejection | undefined {

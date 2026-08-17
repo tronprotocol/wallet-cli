@@ -55,7 +55,10 @@ export class TronProposalService {
       .sort((left, right) => right.id - left.id)
       .map((proposal) => listView(proposal));
     const total = views.length;
-    const proposalsPage = views.slice(input.offset, input.limit === undefined ? undefined : input.offset + input.limit);
+    const proposalsPage = views.slice(
+      input.offset,
+      input.limit === undefined ? undefined : input.offset + input.limit,
+    );
     return {
       approvalThreshold,
       proposals: proposalsPage,
@@ -102,17 +105,22 @@ export class TronProposalService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
-      build: async (address) => gateway.buildProposalCreate(
+      build: async (address) =>
+        gateway.buildProposalCreate(
           address,
           changes.map((change) => ({ key: change.id, value: change.proposedValue })),
           { permissionId: input.permissionId },
         ),
-      estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal creation uses bandwidth only" }),
+      estimate: async (_tx: UnsignedTx) => ({
+        feeModel: "tron-resource",
+        note: "proposal creation uses bandwidth only",
+      }),
     });
     const data = outcomeData(outcome);
-    const proposalId = outcome.stage === "confirmed" && before !== undefined
-      ? await findCreatedProposal(gateway, owner, changes, before, scope).catch(() => undefined)
-      : undefined;
+    const proposalId =
+      outcome.stage === "confirmed" && before !== undefined
+        ? await findCreatedProposal(gateway, owner, changes, before, scope).catch(() => undefined)
+        : undefined;
     return {
       kind: "proposal-create" as const,
       ...data,
@@ -149,8 +157,14 @@ export class TronProposalService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
-      build: async (address) => gateway.buildProposalApprove(address, input.id, addApproval, { permissionId: input.permissionId }),
-      estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal approval uses bandwidth only" }),
+      build: async (address) =>
+        gateway.buildProposalApprove(address, input.id, addApproval, {
+          permissionId: input.permissionId,
+        }),
+      estimate: async (_tx: UnsignedTx) => ({
+        feeModel: "tron-resource",
+        note: "proposal approval uses bandwidth only",
+      }),
     });
     const data = outcomeData(outcome);
     return {
@@ -178,7 +192,10 @@ export class TronProposalService {
     }
     assertProposalOpen(proposal);
     if (proposal.proposerAddress !== owner) {
-      throw new ChainError("not_proposal_owner", `only ${proposal.proposerAddress} can delete proposal #${input.id}`);
+      throw new ChainError(
+        "not_proposal_owner",
+        `only ${proposal.proposerAddress} can delete proposal #${input.id}`,
+      );
     }
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -188,8 +205,12 @@ export class TronProposalService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
-      build: async (address) => gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),
-      estimate: async (_tx: UnsignedTx) => ({ feeModel: "tron-resource", note: "proposal deletion uses bandwidth only" }),
+      build: async (address) =>
+        gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),
+      estimate: async (_tx: UnsignedTx) => ({
+        feeModel: "tron-resource",
+        note: "proposal deletion uses bandwidth only",
+      }),
     });
     const data = outcomeData(outcome);
     return {
@@ -203,7 +224,7 @@ export class TronProposalService {
 }
 
 async function assertWitness(gateway: TronGateway, address: string): Promise<void> {
-  if (!await gateway.getWitness(address)) {
+  if (!(await gateway.getWitness(address))) {
     throw new ChainError("not_a_witness", `${address} is not a registered witness`);
   }
 }
@@ -216,7 +237,10 @@ async function requireProposal(gateway: TronGateway, id: number): Promise<TronPr
 
 function assertProposalOpen(proposal: TronProposal): void {
   if (proposal.state !== "PENDING" || proposal.expirationTime <= Date.now()) {
-    throw new ChainError("proposal_expired", `proposal #${proposal.id} is no longer in its voting window`);
+    throw new ChainError(
+      "proposal_expired",
+      `proposal #${proposal.id} is no longer in its voting window`,
+    );
   }
 }
 
@@ -228,13 +252,17 @@ function threshold(activeWitnessCount: number): number {
   return activeWitnessCount > 0 ? Math.max(1, Math.floor(activeWitnessCount * 0.7)) : 18;
 }
 
-function stateName(state: TronProposal["state"]): "voting" | "approved" | "disapproved" | "canceled" {
-  return ({
-    PENDING: "voting",
-    APPROVED: "approved",
-    DISAPPROVED: "disapproved",
-    CANCELED: "canceled",
-  } as const)[state];
+function stateName(
+  state: TronProposal["state"],
+): "voting" | "approved" | "disapproved" | "canceled" {
+  return (
+    {
+      PENDING: "voting",
+      APPROVED: "approved",
+      DISAPPROVED: "disapproved",
+      CANCELED: "canceled",
+    } as const
+  )[state];
 }
 
 function listView(proposal: TronProposal) {
@@ -271,20 +299,23 @@ async function findCreatedProposal(
   before: Set<number>,
   scope: TransactionScope,
 ): Promise<number | undefined> {
-  const expected = new Map(changes.map((change) => [String(change.id), String(change.proposedValue)]));
-  const matches = (await gateway.getProposals()).filter((proposal) =>
-    !before.has(proposal.id) &&
-    proposal.proposerAddress === owner &&
-    expected.size === Object.keys(proposal.parameters).length &&
-    [...expected].every(([id, value]) => proposal.parameters[id] === value),
+  const expected = new Map(
+    changes.map((change) => [String(change.id), String(change.proposedValue)]),
+  );
+  const matches = (await gateway.getProposals()).filter(
+    (proposal) =>
+      !before.has(proposal.id) &&
+      proposal.proposerAddress === owner &&
+      expected.size === Object.keys(proposal.parameters).length &&
+      [...expected].every(([id, value]) => proposal.parameters[id] === value),
   );
   if (matches.length === 1) return matches[0]!.id;
   scope.warn(
     matches.length === 0
-      ? "could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. "
-        + "Find it with `proposal list` — the transaction itself succeeded"
-      : `could not identify the created proposal: ${matches.length} new proposals match these parameters. `
-        + "Find it with `proposal list` before approving or deleting anything",
+      ? "could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. " +
+          "Find it with `proposal list` — the transaction itself succeeded"
+      : `could not identify the created proposal: ${matches.length} new proposals match these parameters. ` +
+          "Find it with `proposal list` before approving or deleting anything",
   );
   return undefined;
 }

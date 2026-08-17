@@ -19,7 +19,13 @@ import { sanitizeText } from "../render/scalars.js";
 
 export interface OutputFormatter {
   /** the single result frame for the caller to hand to streams.result. */
-  success(command: string, net: NetworkDescriptor | undefined, data: unknown, formatText?: TextFormatter, accountLabel?: string): string;
+  success(
+    command: string,
+    net: NetworkDescriptor | undefined,
+    data: unknown,
+    formatText?: TextFormatter,
+    accountLabel?: string,
+  ): string;
   /** terminal error output (JSON envelope to stdout, or short line to stderr). */
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void;
   /** intermediate progress frame for streams.event; null = this mode does not show it. */
@@ -41,12 +47,12 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
   success(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
     // JSON mode always uses the envelope; the account label is a text-mode display nicety.
     const paged = extractPagination(data);
-    return toJson(OutputEnvelope.success(
-      command,
-      net,
-      paged.data,
-      { ...this.meta(), ...(paged.pagination ? { pagination: paged.pagination } : {}) },
-    ));
+    return toJson(
+      OutputEnvelope.success(command, net, paged.data, {
+        ...this.meta(),
+        ...(paged.pagination ? { pagination: paged.pagination } : {}),
+      }),
+    );
   }
 
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void {
@@ -80,7 +86,8 @@ function extractPagination(data: unknown): { data: unknown; pagination?: Paginat
   if (
     !Number.isInteger(pagination.offset) ||
     !(pagination.limit === null || Number.isInteger(pagination.limit))
-  ) return { data };
+  )
+    return { data };
   const normalized: Pagination = {
     offset: Number(pagination.offset),
     limit: pagination.limit === null ? null : Number(pagination.limit),
@@ -94,7 +101,13 @@ function extractPagination(data: unknown): { data: unknown; pagination?: Paginat
 class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
   // Text mode: strip terminal control bytes from every frame so a hostile wallet label or remote
   // token/RPC metadata value cannot inject ANSI/OSC sequences (CLI-OUT-001). JSON mode stays raw.
-  success(command: string, net: NetworkDescriptor | undefined, data: unknown, formatText?: TextFormatter, accountLabel?: string): string {
+  success(
+    command: string,
+    net: NetworkDescriptor | undefined,
+    data: unknown,
+    formatText?: TextFormatter,
+    accountLabel?: string,
+  ): string {
     const env = OutputEnvelope.success(command, net, data, this.meta());
     const custom = formatText?.(env.data, { command: env.command, net, accountLabel });
     return sanitizeText(custom ?? renderGenericText(env.command, net, env.data));
@@ -128,15 +141,23 @@ function renderEvent(e: ProgressEvent): string {
   switch (e.type) {
     case "awaiting_device":
       switch (e.reason) {
-        case "sign": return "⧖ review and approve the transaction on your device";
-        case "open_app": return "⧖ confirm on your device to open the app";
-        case "unlock": return "⧖ unlock your device with your PIN";
+        case "sign":
+          return "⧖ review and approve the transaction on your device";
+        case "open_app":
+          return "⧖ confirm on your device to open the app";
+        case "unlock":
+          return "⧖ unlock your device with your PIN";
       }
     // eslint-disable-next-line no-fallthrough
-    case "deriving-address": return "deriving address from your device…";
-    case "pre-verify-address": return `compare with your device: ${e.address}`;
-    case "signed": return "✓ signed; broadcasting…";
-    case "broadcasting": return "broadcasting…";
-    case "dry-run": return "dry run (transaction not broadcast)";
+    case "deriving-address":
+      return "deriving address from your device…";
+    case "pre-verify-address":
+      return `compare with your device: ${e.address}`;
+    case "signed":
+      return "✓ signed; broadcasting…";
+    case "broadcasting":
+      return "broadcasting…";
+    case "dry-run":
+      return "dry run (transaction not broadcast)";
   }
 }

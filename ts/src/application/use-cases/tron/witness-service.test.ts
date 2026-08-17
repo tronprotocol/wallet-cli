@@ -6,11 +6,22 @@ import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
 
-const NET: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] };
+const NET: NetworkDescriptor = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+};
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const scope: TransactionScope = {
-  activeAccount: "wlt_test.0", resolveAddress: () => OWNER,
-  timeoutMs: 60_000, wait: false, waitTimeoutMs: 60_000, emit: () => {}, warn: () => {},
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => OWNER,
+  timeoutMs: 60_000,
+  wait: false,
+  waitTimeoutMs: 60_000,
+  emit: () => {},
+  warn: () => {},
 };
 
 function createService(gateway: Partial<TronGateway>) {
@@ -27,7 +38,9 @@ function createService(gateway: Partial<TronGateway>) {
     { get: () => concrete } as unknown as ChainGatewayProvider,
     pipeline,
   );
-  return Object.assign(service, { assertCanSign }) as TronWitnessService & { assertCanSign: typeof assertCanSign };
+  return Object.assign(service, { assertCanSign }) as TronWitnessService & {
+    assertCanSign: typeof assertCanSign;
+  };
 }
 
 describe("TronWitnessService", () => {
@@ -39,9 +52,12 @@ describe("TronWitnessService", () => {
       getChainParameters: async () => [{ key: "getAccountUpgradeCost", value: 9_999_000_000 }],
       buildWitnessCreate: build,
     });
-    await expect(service.create(scope, NET, {
-      url: "https://sr.example", permissionId: 2,
-    })).resolves.toMatchObject({
+    await expect(
+      service.create(scope, NET, {
+        url: "https://sr.example",
+        permissionId: 2,
+      }),
+    ).resolves.toMatchObject({
       kind: "witness-create",
       feeSun: "9999000000",
       registrationFeeSun: "9999000000",
@@ -57,8 +73,9 @@ describe("TronWitnessService", () => {
       getChainParameters: async () => [{ key: "getAccountUpgradeCost", value: 9_999_000_000 }],
       buildWitnessCreate: build,
     });
-    await expect(service.create(scope, NET, { url: "https://sr.example", permissionId: 0 }))
-      .rejects.toMatchObject({ code: "insufficient_balance" });
+    await expect(
+      service.create(scope, NET, { url: "https://sr.example", permissionId: 0 }),
+    ).rejects.toMatchObject({ code: "insufficient_balance" });
     expect(build).not.toHaveBeenCalled();
   });
 
@@ -68,11 +85,11 @@ describe("TronWitnessService", () => {
       getWitness: async () => ({ address: OWNER, voteCount: "1" }),
       buildWitnessSetBrokerage: build,
     });
-    await expect(service.setBrokerage(scope, NET, { percent: 20, permissionId: 0 }))
-      .resolves.toMatchObject({ brokerage: 20 });
+    await expect(
+      service.setBrokerage(scope, NET, { percent: 20, permissionId: 0 }),
+    ).resolves.toMatchObject({ brokerage: 20 });
     expect(build).toHaveBeenCalledWith(OWNER, 20, { permissionId: 0 });
   });
-
 
   it("refuses an unactivated account before demanding the registration fee", async () => {
     const build = vi.fn(async () => ({}));
@@ -82,8 +99,9 @@ describe("TronWitnessService", () => {
       getChainParameters: async () => [{ key: "getAccountUpgradeCost", value: 9_999_000_000 }],
       buildWitnessCreate: build,
     });
-    await expect(service.create(scope, NET, { url: "https://sr.example" }))
-      .rejects.toMatchObject({ code: "account_not_active" });
+    await expect(service.create(scope, NET, { url: "https://sr.example" })).rejects.toMatchObject({
+      code: "account_not_active",
+    });
     expect(build).not.toHaveBeenCalled();
   });
 
@@ -93,14 +111,25 @@ describe("TronWitnessService", () => {
   // because the flag is passed at each call site and is easy to drop in one of them.
   describe("Ledger accounts", () => {
     const cases = [
-      ["create", (s: ReturnType<typeof createService>) => s.create(scope, NET, { url: "https://sr.example" })],
-      ["update", (s: ReturnType<typeof createService>) => s.update(scope, NET, { url: "https://sr.example" })],
-      ["set-brokerage", (s: ReturnType<typeof createService>) => s.setBrokerage(scope, NET, { percent: 20 })],
+      [
+        "create",
+        (s: ReturnType<typeof createService>) =>
+          s.create(scope, NET, { url: "https://sr.example" }),
+      ],
+      [
+        "update",
+        (s: ReturnType<typeof createService>) =>
+          s.update(scope, NET, { url: "https://sr.example" }),
+      ],
+      [
+        "set-brokerage",
+        (s: ReturnType<typeof createService>) => s.setBrokerage(scope, NET, { percent: 20 }),
+      ],
     ] as const;
 
     it.each(cases)("`witness %s` demands a software signer", async (_label, call) => {
       const service = createService({
-        getWitness: async () => ({ address: OWNER, voteCount: "0", url: "u" } as never),
+        getWitness: async () => ({ address: OWNER, voteCount: "0", url: "u" }) as never,
         getAccount: async () => ({ address: OWNER, balance: "10000000000" }),
         getChainParameters: async () => [{ key: "getAccountUpgradeCost", value: 9_999_000_000 }],
         buildWitnessCreate: async () => ({}) as never,
@@ -108,7 +137,9 @@ describe("TronWitnessService", () => {
         buildWitnessSetBrokerage: async () => ({}) as never,
       });
       await call(service).catch(() => undefined); // `create` rejects with already_witness; irrelevant here
-      expect(service.assertCanSign).toHaveBeenCalledWith(scope.activeAccount, "tron", { requireSoftware: true });
+      expect(service.assertCanSign).toHaveBeenCalledWith(scope.activeAccount, "tron", {
+        requireSoftware: true,
+      });
     });
   });
 });

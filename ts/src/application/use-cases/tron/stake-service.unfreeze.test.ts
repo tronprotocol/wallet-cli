@@ -4,7 +4,13 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-const net = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] } as NetworkDescriptor;
+const net = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+} as NetworkDescriptor;
 const OWNER = "TQkDWJimyBEhkFcqEfCWNbb6tMDwmH1234";
 const scope = { activeAccount: {}, resolveAddress: () => OWNER } as never;
 
@@ -72,7 +78,10 @@ describe("TronStakeService.unfreeze pre-flight", () => {
       buildUnfreezeV2,
     };
 
-    const result = await svc(gateway).unfreeze(scope, net, { amountSun: "1000000", resource: "energy" });
+    const result = await svc(gateway).unfreeze(scope, net, {
+      amountSun: "1000000",
+      resource: "energy",
+    });
     expect(buildUnfreezeV2).toHaveBeenCalledWith(OWNER, "1000000", "ENERGY");
     expect(result).toMatchObject({ kind: "stake-unfreeze", txId: "0xdeadbeef" });
   });
@@ -99,7 +108,10 @@ describe("TronStakeService.freeze pre-flight", () => {
       buildFreezeV2,
     };
 
-    const result = await svc(gateway).freeze(scope, net, { amountSun: "2000000", resource: "energy" });
+    const result = await svc(gateway).freeze(scope, net, {
+      amountSun: "2000000",
+      resource: "energy",
+    });
     expect(buildFreezeV2).toHaveBeenCalledWith(OWNER, "2000000", "ENERGY");
     expect(result).toMatchObject({ kind: "stake-freeze", txId: "0xdeadbeef" });
   });

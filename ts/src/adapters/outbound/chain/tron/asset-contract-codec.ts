@@ -25,7 +25,10 @@ import { ChainError } from "../../../../domain/errors/index.js";
 import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
 
 /** contract types whose TronWeb serialiser we replace. */
-export const OVERRIDDEN_ENCODE_TYPES = Object.freeze(["AssetIssueContract", "UnfreezeAssetContract"]);
+export const OVERRIDDEN_ENCODE_TYPES = Object.freeze([
+  "AssetIssueContract",
+  "UnfreezeAssetContract",
+]);
 /** contract types TronWeb cannot deserialise at all. */
 export const OVERRIDDEN_DECODE_TYPES = Object.freeze(["UnfreezeAssetContract"]);
 
@@ -181,23 +184,27 @@ function buildAssetIssue(value: Record<string, unknown>): ProtoMessage {
   message.setVoteScore(intField(value.vote_score, "vote_score", 0));
   if (value.precision) message.setPrecision(intField(value.precision, "precision"));
   if (value.public_latest_free_net_time) {
-    message.setPublicLatestFreeNetTime(intField(value.public_latest_free_net_time, "public_latest_free_net_time"));
+    message.setPublicLatestFreeNetTime(
+      intField(value.public_latest_free_net_time, "public_latest_free_net_time"),
+    );
   }
   if (value.description) message.setDescription(textBytes(value.description));
   if (value.url) message.setUrl(textBytes(value.url));
-  message.setPublicFreeAssetNetUsage(intField(value.public_free_asset_net_usage, "public_free_asset_net_usage", 0));
+  message.setPublicFreeAssetNetUsage(
+    intField(value.public_free_asset_net_usage, "public_free_asset_net_usage", 0),
+  );
   message.setFreeAssetNetLimit(intField(value.free_asset_net_limit, "free_asset_net_limit", 0));
-  message.setPublicFreeAssetNetLimit(intField(value.public_free_asset_net_limit, "public_free_asset_net_limit", 0));
+  message.setPublicFreeAssetNetLimit(
+    intField(value.public_free_asset_net_limit, "public_free_asset_net_limit", 0),
+  );
 
   const supply = value.frozen_supply;
   // TronWeb accepts either a list or a single tranche object; keep both shapes working.
-  const tranches = supply === undefined || supply === null
-    ? []
-    : Array.isArray(supply)
-      ? supply
-      : [supply];
+  const tranches =
+    supply === undefined || supply === null ? [] : Array.isArray(supply) ? supply : [supply];
   for (const tranche of tranches as Array<Record<string, unknown>>) {
-    if (!tranche || typeof tranche !== "object") return invalid("AssetIssueContract.frozen_supply entry must be an object");
+    if (!tranche || typeof tranche !== "object")
+      return invalid("AssetIssueContract.frozen_supply entry must be an object");
     const frozen = new AssetIssue.FrozenSupply!();
     frozen.setFrozenAmount(intField(tranche.frozen_amount, "frozen_supply.frozen_amount"));
     frozen.setFrozenDays(intField(tranche.frozen_days, "frozen_supply.frozen_days"));
@@ -221,20 +228,23 @@ export function encodeOverriddenContract(
   if (typeof type !== "string" || !OVERRIDDEN_ENCODE_TYPES.includes(type)) return undefined;
 
   const value = (contract?.parameter?.value ?? {}) as Record<string, unknown>;
-  const message = type === "UnfreezeAssetContract" ? buildUnfreezeAsset(value) : buildAssetIssue(value);
+  const message =
+    type === "UnfreezeAssetContract" ? buildUnfreezeAsset(value) : buildAssetIssue(value);
 
   const envelope = {
     ...candidate,
     raw_data: {
       ...candidate.raw_data!,
-      contract: [{
-        ...contract!,
-        parameter: {
-          value: { owner_address: value.owner_address },
-          type_url: `type.googleapis.com/protocol.${ENVELOPE_TYPE}`,
+      contract: [
+        {
+          ...contract!,
+          parameter: {
+            value: { owner_address: value.owner_address },
+            type_url: `type.googleapis.com/protocol.${ENVELOPE_TYPE}`,
+          },
+          type: ENVELOPE_TYPE,
         },
-        type: ENVELOPE_TYPE,
-      }],
+      ],
     },
   };
 
@@ -307,14 +317,16 @@ export function decodeOverriddenContract(
 
   const hex = (bytes: Uint8Array) => tronUtils.bytes.byteArray2hexStr(Array.from(bytes) as never);
   return {
-    contract: [{
-      parameter: {
-        value: { owner_address: hex(message.getOwnerAddress_asU8()) },
-        type_url: contract.getParameter().getTypeUrl(),
+    contract: [
+      {
+        parameter: {
+          value: { owner_address: hex(message.getOwnerAddress_asU8()) },
+          type_url: contract.getParameter().getTypeUrl(),
+        },
+        type: contractType,
+        Permission_id: contract.getPermissionId(),
       },
-      type: contractType,
-      Permission_id: contract.getPermissionId(),
-    }],
+    ],
     data: hex(raw.getData_asU8()),
     fee_limit: raw.getFeeLimit(),
     ref_block_bytes: hex(raw.getRefBlockBytes_asU8()),

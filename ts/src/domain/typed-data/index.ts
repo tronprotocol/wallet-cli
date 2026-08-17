@@ -41,39 +41,57 @@ function isReferencedType(types: Record<string, TypedDataField[]>, name: string)
 export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (!isObject(raw)) throw new UsageError("invalid_value", "typed data must be a JSON object");
   const { domain, types, primaryType } = raw;
-  if (!isObject(domain)) throw new UsageError("invalid_value", "typed data `domain` must be an object");
-  if (!isObject(types)) throw new UsageError("invalid_value", "typed data `types` must be an object");
+  if (!isObject(domain))
+    throw new UsageError("invalid_value", "typed data `domain` must be an object");
+  if (!isObject(types))
+    throw new UsageError("invalid_value", "typed data `types` must be an object");
 
   const message = raw.message ?? raw.value;
-  if (!isObject(message)) throw new UsageError("invalid_value", "typed data `message` must be an object");
+  if (!isObject(message))
+    throw new UsageError("invalid_value", "typed data `message` must be an object");
 
   const structs: Record<string, TypedDataField[]> = {};
   for (const [name, fields] of Object.entries(types)) {
     if (name === "EIP712Domain") continue;
     if (!Array.isArray(fields)) {
-      throw new UsageError("invalid_value", `typed data type \`${name}\` must be an array of fields`);
+      throw new UsageError(
+        "invalid_value",
+        `typed data type \`${name}\` must be an array of fields`,
+      );
     }
     for (const f of fields) {
       if (!isObject(f) || typeof f.name !== "string" || typeof f.type !== "string") {
-        throw new UsageError("invalid_value", `typed data type \`${name}\` has a field without a name/type`);
+        throw new UsageError(
+          "invalid_value",
+          `typed data type \`${name}\` has a field without a name/type`,
+        );
       }
     }
     structs[name] = fields as TypedDataField[];
   }
   if (Object.keys(structs).length === 0) {
-    throw new UsageError("invalid_value", "typed data `types` must declare at least one struct type besides EIP712Domain");
+    throw new UsageError(
+      "invalid_value",
+      "typed data `types` must declare at least one struct type besides EIP712Domain",
+    );
   }
   if (primaryType !== undefined && typeof primaryType !== "string") {
     throw new UsageError("invalid_value", "typed data `primaryType` must be a string");
   }
   if (typeof primaryType === "string" && !(primaryType in structs)) {
-    throw new UsageError("invalid_value", `typed data \`primaryType\` "${primaryType}" is not declared in types`);
+    throw new UsageError(
+      "invalid_value",
+      `typed data \`primaryType\` "${primaryType}" is not declared in types`,
+    );
   }
   // The signed message is always the root struct — the one no other struct references. A supplied
   // primaryType that IS referenced (directly or through an array field) is nested, so it can never be
   // what gets signed; reject it rather than sign the root while echoing the caller's nested type.
   if (typeof primaryType === "string" && isReferencedType(structs, primaryType)) {
-    throw new UsageError("invalid_value", `typed data \`primaryType\` "${primaryType}" is not a root type; it is referenced as a field type, so it cannot be the message root`);
+    throw new UsageError(
+      "invalid_value",
+      `typed data \`primaryType\` "${primaryType}" is not a root type; it is referenced as a field type, so it cannot be the message root`,
+    );
   }
 
   return { domain, types: structs, ...(primaryType === undefined ? {} : { primaryType }), message };

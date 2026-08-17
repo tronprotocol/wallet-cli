@@ -26,7 +26,15 @@ export interface FamilyMeta {
 }
 
 export const FAMILIES: Record<ChainFamily, FamilyMeta> = {
-  tron: { family: "tron", nativeUnit: "sun", nativeSymbol: "TRX", nativeDecimals: 6, coinType: 195, codec: new TronAddress(), ledger: { app: "tron" } },
+  tron: {
+    family: "tron",
+    nativeUnit: "sun",
+    nativeSymbol: "TRX",
+    nativeDecimals: 6,
+    coinType: 195,
+    codec: new TronAddress(),
+    ledger: { app: "tron" },
+  },
 };
 
 /** every known family, in declaration order. */

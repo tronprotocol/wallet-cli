@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.wallet-cli/
+.private/
+package-lock.json
+
+# hand-authored prose: tables and wrapping are deliberate, Prettier reflows them
+*.md

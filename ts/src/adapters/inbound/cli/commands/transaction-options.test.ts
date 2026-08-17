@@ -88,7 +88,9 @@ describe("reference pages keep up with the shared transaction options", () => {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory()
         ? pages(join(directory, entry.name))
-        : entry.name.endsWith(".md") ? [join(directory, entry.name)] : []
+        : entry.name.endsWith(".md")
+          ? [join(directory, entry.name)]
+          : [],
     );
   }
 
@@ -103,7 +105,12 @@ describe("reference pages keep up with the shared transaction options", () => {
     expect(key).toBeTruthy();
 
     const behind = pages(DOCS)
-      .map((path) => ({ path, rows: readFileSync(path, "utf8").split("\n").filter((l) => l.startsWith("| `--permission-id")) }))
+      .map((path) => ({
+        path,
+        rows: readFileSync(path, "utf8")
+          .split("\n")
+          .filter((l) => l.startsWith("| `--permission-id")),
+      }))
       .filter(({ rows }) => rows.some((row) => !row.includes(key!)))
       .map(({ path }) => relative(DOCS, path));
 
@@ -112,8 +119,15 @@ describe("reference pages keep up with the shared transaction options", () => {
 
   it("every --expiration row gives the readable cap and the omitted-case default", () => {
     const behind = pages(DOCS)
-      .map((path) => ({ path, rows: readFileSync(path, "utf8").split("\n").filter((l) => l.startsWith("| `--expiration")) }))
-      .filter(({ rows }) => rows.some((row) => !(row.includes("24h") && /node default.*60s/.test(row))))
+      .map((path) => ({
+        path,
+        rows: readFileSync(path, "utf8")
+          .split("\n")
+          .filter((l) => l.startsWith("| `--expiration")),
+      }))
+      .filter(({ rows }) =>
+        rows.some((row) => !(row.includes("24h") && /node default.*60s/.test(row))),
+      )
       .map(({ path }) => relative(DOCS, path));
 
     expect(behind).toEqual([]);

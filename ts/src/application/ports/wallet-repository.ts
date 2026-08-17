@@ -16,14 +16,13 @@ export interface WalletRepository extends AccountStore {
     address: string;
     label?: string;
   }): MutationResult;
-  registerWatch(input: {
-    family: ChainFamily;
-    address: string;
-    label?: string;
-  }): MutationResult;
+  registerWatch(input: { family: ChainFamily; address: string; label?: string }): MutationResult;
   addAccount(walletId: string, index?: number): MutationResult;
   resolveWallet(idOrLabel: string): Wallet;
-  rename(refOrLabel: string, label: string): {
+  rename(
+    refOrLabel: string,
+    label: string,
+  ): {
     accountId: AccountRef;
     previousLabel?: string;
     label: string;

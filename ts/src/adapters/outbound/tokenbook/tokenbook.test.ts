@@ -8,11 +8,29 @@ import type { TokenEntry } from "../../../domain/types/index.js";
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // official mainnet
 const NILE_OFFICIAL: TokenEntry[] = [
-  { kind: "trc20", id: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf", symbol: "USDT", decimals: 6, name: "Tether USD" },
-  { kind: "trc20", id: "TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt", symbol: "USDD", decimals: 18, name: "Usdd Stablecoin" },
+  {
+    kind: "trc20",
+    id: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+    symbol: "USDT",
+    decimals: 6,
+    name: "Tether USD",
+  },
+  {
+    kind: "trc20",
+    id: "TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt",
+    symbol: "USDD",
+    decimals: 18,
+    name: "Usdd Stablecoin",
+  },
 ];
 const REF = "wlt_abc.0";
-const customToken: TokenEntry = { kind: "trc20", id: "TCustomContractXXXXXXXXXXXXXXXXXXXX", symbol: "CUS", decimals: 8, name: "Custom" };
+const customToken: TokenEntry = {
+  kind: "trc20",
+  id: "TCustomContractXXXXXXXXXXXXXXXXXXXX",
+  symbol: "CUS",
+  decimals: 8,
+  name: "Custom",
+};
 
 function freshBook() {
   return new TokenBook(mkdtempSync(join(tmpdir(), "tb-")), new AtomicFileStore());
@@ -49,12 +67,18 @@ describe("TokenBook", () => {
     ]);
 
     const onMainnet = tb.effective("tron:mainnet", REF);
-    expect(onMainnet.map((t) => `${t.source}:${t.symbol}`))
-      .toEqual(["official:USDT", "official:USDC", "official:USDD"]);
+    expect(onMainnet.map((t) => `${t.source}:${t.symbol}`)).toEqual([
+      "official:USDT",
+      "official:USDC",
+      "official:USDD",
+    ]);
   });
 
   it("add() of an official token → token_already_listed", () => {
-    expectCode(() => tb.add("tron:mainnet", REF, { kind: "trc20", id: USDT, symbol: "USDT", decimals: 6 }), "token_already_listed");
+    expectCode(
+      () => tb.add("tron:mainnet", REF, { kind: "trc20", id: USDT, symbol: "USDT", decimals: 6 }),
+      "token_already_listed",
+    );
   });
 
   it("add() of an existing user token refreshes metadata idempotently", () => {

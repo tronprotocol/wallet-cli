@@ -6,7 +6,13 @@ import type { TronGateway, TronProposal } from "../../ports/chain/tron-gateway.j
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
 import { TronProposalService } from "./proposal-service.js";
 
-const NET: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] };
+const NET: NetworkDescriptor = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+};
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const OTHER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 const scope: TransactionScope = {
@@ -19,17 +25,22 @@ const scope: TransactionScope = {
   warn: () => {},
 };
 
-function createService(gateway: Partial<TronGateway>, run?: (params: TxPipelineParams) => Promise<never>) {
+function createService(
+  gateway: Partial<TronGateway>,
+  run?: (params: TxPipelineParams) => Promise<never>,
+) {
   const concrete = gateway as TronGateway;
   const gateways = { get: () => concrete } as unknown as ChainGatewayProvider;
   const captured: TxPipelineParams[] = [];
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: run ?? (async (params: TxPipelineParams) => {
-      captured.push(params);
-      await params.build(OWNER);
-      return { stage: "submitted", txId: "tx-proposal" } as never;
-    }),
+    run:
+      run ??
+      (async (params: TxPipelineParams) => {
+        captured.push(params);
+        await params.build(OWNER);
+        return { stage: "submitted", txId: "tx-proposal" } as never;
+      }),
   } as unknown as TxPipeline;
   return { service: new TronProposalService(gateways, pipeline), pipeline, captured };
 }
@@ -38,24 +49,56 @@ describe("TronProposalService", () => {
   it("filters active proposals, sorts ids, paginates, and uses Java's 70% threshold", async () => {
     const now = Date.now();
     const { service } = createService({
-      getProposals: async () => ([
-        { id: 1, proposerAddress: OWNER, parameters: { "3": "15" }, expirationTime: now - 1, createTime: now - 2, approvals: [], state: "DISAPPROVED" },
-        { id: 3, proposerAddress: OWNER, parameters: { "3": "15", "2": "200000" }, expirationTime: now + 60_000, createTime: now, approvals: [OTHER], state: "PENDING" },
-        { id: 2, proposerAddress: OTHER, parameters: { "20": "1" }, expirationTime: now + 60_000, createTime: now, approvals: [], state: "PENDING" },
-      ] as TronProposal[]),
+      getProposals: async () =>
+        [
+          {
+            id: 1,
+            proposerAddress: OWNER,
+            parameters: { "3": "15" },
+            expirationTime: now - 1,
+            createTime: now - 2,
+            approvals: [],
+            state: "DISAPPROVED",
+          },
+          {
+            id: 3,
+            proposerAddress: OWNER,
+            parameters: { "3": "15", "2": "200000" },
+            expirationTime: now + 60_000,
+            createTime: now,
+            approvals: [OTHER],
+            state: "PENDING",
+          },
+          {
+            id: 2,
+            proposerAddress: OTHER,
+            parameters: { "20": "1" },
+            expirationTime: now + 60_000,
+            createTime: now,
+            approvals: [],
+            state: "PENDING",
+          },
+        ] as TronProposal[],
       // no getChainParameters stub: listing must not reach for the values in effect now.
-      getWitnesses: async () => Array.from({ length: 27 }, (_, index) => ({ address: `${OWNER}${index}`, voteCount: "0" })),
+      getWitnesses: async () =>
+        Array.from({ length: 27 }, (_, index) => ({ address: `${OWNER}${index}`, voteCount: "0" })),
     });
 
-    await expect(service.list(NET, { state: "active", offset: 1, limit: 1 })).resolves.toMatchObject({
+    await expect(
+      service.list(NET, { state: "active", offset: 1, limit: 1 }),
+    ).resolves.toMatchObject({
       approvalThreshold: 18,
       pagination: { offset: 1, limit: 1, total: 2 },
-      proposals: [{ id: 2, state: "voting", parameters: [{ id: 20, name: "getAllowMultiSign", value: 1 }] }],
+      proposals: [
+        { id: 2, state: "voting", parameters: [{ id: 20, name: "getAllowMultiSign", value: 1 }] },
+      ],
     });
   });
 
   it("maps --cancel to Java is_add_approval=false and preserves permission/expiration", async () => {
-    const build = vi.fn(async () => ({ raw_data: { contract: [{ type: "ProposalApproveContract" }] } }));
+    const build = vi.fn(async () => ({
+      raw_data: { contract: [{ type: "ProposalApproveContract" }] },
+    }));
     const { service, captured } = createService({
       getProposal: async () => ({
         id: 47,
@@ -67,17 +110,20 @@ describe("TronProposalService", () => {
         state: "PENDING",
       }),
       getWitness: async () => ({ address: OWNER, voteCount: "1" }),
-      getWitnesses: async () => Array.from({ length: 27 }, () => ({ address: OTHER, voteCount: "1" })),
+      getWitnesses: async () =>
+        Array.from({ length: 27 }, () => ({ address: OTHER, voteCount: "1" })),
       buildProposalApprove: build,
     });
 
-    await expect(service.approve(scope, NET, {
-      id: 47,
-      cancel: true,
-      permissionId: 2,
-      expiration: 120_000,
-      signOnly: true,
-    })).resolves.toMatchObject({ addApproval: false, approvals: 0, approvalThreshold: 18 });
+    await expect(
+      service.approve(scope, NET, {
+        id: 47,
+        cancel: true,
+        permissionId: 2,
+        expiration: 120_000,
+        signOnly: true,
+      }),
+    ).resolves.toMatchObject({ addApproval: false, approvals: 0, approvalThreshold: 18 });
     expect(build).toHaveBeenCalledWith(OWNER, 47, false, { permissionId: 2 });
     expect(captured[0]).toMatchObject({ permissionId: 2, expiration: 120_000 });
     expect(typeof captured[0]!.prepare).toBe("function");
@@ -90,9 +136,12 @@ describe("TronProposalService", () => {
       getWitness: async () => null,
       buildProposalCreate: build,
     });
-    await expect(service.create(scope, NET, {
-      set: ["getTransactionFee=15"], permissionId: 0,
-    })).rejects.toMatchObject({ code: "not_a_witness" });
+    await expect(
+      service.create(scope, NET, {
+        set: ["getTransactionFee=15"],
+        permissionId: 0,
+      }),
+    ).rejects.toMatchObject({ code: "not_a_witness" });
     expect(build).not.toHaveBeenCalled();
   });
 
@@ -109,8 +158,9 @@ describe("TronProposalService", () => {
       }),
       getWitness: async () => ({ address: OWNER, voteCount: "1" }),
     });
-    await expect(service.delete(scope, NET, { id: 48, permissionId: 0 }))
-      .rejects.toMatchObject({ code: "not_proposal_owner" });
+    await expect(service.delete(scope, NET, { id: 48, permissionId: 0 })).rejects.toMatchObject({
+      code: "not_proposal_owner",
+    });
   });
 });
 
@@ -132,24 +182,36 @@ describe("TronProposalService", () => {
  */
 describe("proposal create --wait identifies the proposal it created, or admits it cannot", () => {
   const PARAMS = { "3": "15" };
-  const proposal = (id: number, over: Partial<TronProposal> = {}): TronProposal => ({
-    id, proposerAddress: OWNER, parameters: PARAMS,
-    expirationTime: Date.now() + 60_000, createTime: Date.now(), approvals: [], state: "PENDING",
-    ...over,
-  } as TronProposal);
+  const proposal = (id: number, over: Partial<TronProposal> = {}): TronProposal =>
+    ({
+      id,
+      proposerAddress: OWNER,
+      parameters: PARAMS,
+      expirationTime: Date.now() + 60_000,
+      createTime: Date.now(),
+      approvals: [],
+      state: "PENDING",
+      ...over,
+    }) as TronProposal;
 
   function harness(listings: TronProposal[][]) {
     const calls: number[] = [];
     const warnings: string[] = [];
-    const waiting = { ...scope, wait: true, warn: (m: string) => warnings.push(String(m)) } as typeof scope;
+    const waiting = {
+      ...scope,
+      wait: true,
+      warn: (m: string) => warnings.push(String(m)),
+    } as typeof scope;
     const { service } = createService(
       {
         getChainParameters: async () => [{ key: "getTransactionFee", value: 10 }],
         getWitness: async () => ({ address: OWNER, voteCount: "1" }),
-        buildProposalCreate: async () => ({ raw_data: { contract: [{ type: "ProposalCreateContract" }] } }),
+        buildProposalCreate: async () => ({
+          raw_data: { contract: [{ type: "ProposalCreateContract" }] },
+        }),
         getProposals: async () => listings[Math.min(calls.push(1) - 1, listings.length - 1)]!,
       },
-      async () => ({ stage: "confirmed", txId: "tx", confirmed: true } as never),
+      async () => ({ stage: "confirmed", txId: "tx", confirmed: true }) as never,
     );
     return { service, waiting, warnings, listCalls: () => calls.length };
   }
@@ -164,7 +226,9 @@ describe("proposal create --wait identifies the proposal it created, or admits i
   it("admits it cannot tell when the list has not caught up, instead of naming the old one", async () => {
     // The realistic failure: nothing new is listed yet, but a prior identical proposal is.
     const h = harness([[proposal(41)], [proposal(41)]]);
-    const out = await h.service.create(h.waiting, NET, { set: ["getTransactionFee=15"] } as never) as { proposalId?: number };
+    const out = (await h.service.create(h.waiting, NET, {
+      set: ["getTransactionFee=15"],
+    } as never)) as { proposalId?: number };
 
     expect(out.proposalId).toBeUndefined();
     expect(h.warnings.join(" ")).toMatch(/could not|unable|not identify/i);
@@ -172,7 +236,9 @@ describe("proposal create --wait identifies the proposal it created, or admits i
 
   it("admits it cannot tell when two identical proposals appeared at once", async () => {
     const h = harness([[proposal(41)], [proposal(41), proposal(42), proposal(43)]]);
-    const out = await h.service.create(h.waiting, NET, { set: ["getTransactionFee=15"] } as never) as { proposalId?: number };
+    const out = (await h.service.create(h.waiting, NET, {
+      set: ["getTransactionFee=15"],
+    } as never)) as { proposalId?: number };
 
     expect(out.proposalId).toBeUndefined();
     expect(h.warnings.join(" ")).toBeTruthy();

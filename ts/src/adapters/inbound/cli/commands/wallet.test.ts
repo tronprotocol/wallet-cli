@@ -1,8 +1,7 @@
-import { describe, it, expect , vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { z } from "zod";
 import { Keystore } from "../../../outbound/keystore/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { SecretResolver } from "../input/secret/index.js";
@@ -11,17 +10,17 @@ import { Prompter } from "../input/prompt/index.js";
 import { ConfigLoader, NetworkRegistry } from "../../../outbound/config/index.js";
 import { buildExecutionContext, RuntimeDeps } from "../context/index.js";
 import { createOutputFormatter } from "../output/index.js";
-import { registerWalletCommands, walletImportLedgerFields, walletImportLedgerInput } from "./wallet.js";
+import { registerWalletCommands } from "./wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import { commandId } from "../command-id.js";
 import { isChainCommand } from "../contracts/index.js";
 import type { CommandDefinition, Globals } from "../contracts/index.js";
-import { Derivation } from "../../../../domain/derivation/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 
 // Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
-vi.mock("@noble/hashes/scrypt.js", async () =>
-  import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
+vi.mock(
+  "@noble/hashes/scrypt.js",
+  async () => import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
 
 // ── test constants ─────────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ interface FakePromptOpts {
 }
 
 function makeFakeBackend(opts: FakePromptOpts = {}): ConstructorParameters<typeof Prompter>[0] {
-  const { tty = true, hiddenAnswers = [], confirmResult = true, confirmAnswer } = opts;
+  const { tty = true, hiddenAnswers = [], confirmAnswer } = opts;
   let hiddenIdx = 0;
 
   return {
@@ -51,7 +50,9 @@ function makeFakeBackend(opts: FakePromptOpts = {}): ConstructorParameters<typeo
       // confirm prompts are not hidden
       return confirmAnswer ?? "";
     },
-    async readKey() { return { name: "return" }; },
+    async readKey() {
+      return { name: "return" };
+    },
     write(_s: string) {},
     beginRaw() {},
     endRaw() {},
@@ -76,7 +77,15 @@ function buildTestDeps(opts: FakePromptOpts & { root?: string } = {}): {
   const config = ConfigLoader.load();
   const networkRegistry = new NetworkRegistry(config);
   const formatter = createOutputFormatter("text", streams, Date.now());
-  const deps: RuntimeDeps = { config, networkRegistry, streams, secrets, keystore: ks, prompter, formatter };
+  const deps: RuntimeDeps = {
+    config,
+    networkRegistry,
+    streams,
+    secrets,
+    keystore: ks,
+    prompter,
+    formatter,
+  };
   return { deps, ks, prompter, streams, secrets };
 }
 
@@ -105,10 +114,14 @@ function buildServices(ks: Keystore) {
 
 /** Resolve a command by its derived canonical id (e.g. "create", "import.mnemonic"). */
 function getCmd(registry: CommandRegistry, id: string): CommandDefinition | null {
-  const cmd = registry.all().find((c) => commandId(isChainCommand(c) ? { path: c.spec.path } : c) === id) ?? null;
+  const cmd =
+    registry.all().find((c) => commandId(isChainCommand(c) ? { path: c.spec.path } : c) === id) ??
+    null;
   if (!cmd) throw new Error(`command not found: ${id}`);
-  if (isChainCommand(cmd)) throw new Error(`wallet command unexpectedly uses a chain definition: ${id}`);
-  if (cmd.network !== "none") throw new Error(`wallet command unexpectedly requires a network: ${id}`);
+  if (isChainCommand(cmd))
+    throw new Error(`wallet command unexpectedly uses a chain definition: ${id}`);
+  if (cmd.network !== "none")
+    throw new Error(`wallet command unexpectedly requires a network: ${id}`);
   return cmd;
 }
 
@@ -132,10 +145,14 @@ async function runCmd(
 
 describe("wallet create", () => {
   it("creates an account with a tron address", async () => {
-    const { result, ks } = await runCmd("create", {}, {
-      tty: true,
-      hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD],
-    });
+    const { result, ks } = await runCmd(
+      "create",
+      {},
+      {
+        tty: true,
+        hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD],
+      },
+    );
     expect(result).toBeDefined();
     expect(result.accountId).toMatch(/^wlt_/);
     expect(result.addresses?.tron?.startsWith("T")).toBe(true);
@@ -145,7 +162,10 @@ describe("wallet create", () => {
 
   it("createFields schema does NOT have a words key", async () => {
     // We verify the schema at runtime by checking the registered command's fields
-    const { deps, ks } = buildTestDeps({ tty: true, hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD] });
+    const { ks } = buildTestDeps({
+      tty: true,
+      hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD],
+    });
     const registry = new CommandRegistry();
     registerWalletCommands(registry, buildServices(ks));
     const cmd = getCmd(registry, "create")!;
@@ -306,7 +326,7 @@ describe("wallet delete", () => {
 
   it("throws tty_required when --yes is omitted and not a TTY", async () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-delete-notty-test-"));
-    const { deps, ks, secrets } = buildTestDeps({
+    buildTestDeps({
       root,
       tty: false,
     });
@@ -317,8 +337,12 @@ describe("wallet delete", () => {
     const streams2 = new StreamManager("text", false);
     const fakeBackend2 = {
       isTTY: () => true,
-      async question(_p: string, hidden: boolean) { return VALID_PASSWORD; },
-      async readKey() { return { name: "return" }; },
+      async question(_p: string, _hidden: boolean) {
+        return VALID_PASSWORD;
+      },
+      async readKey() {
+        return { name: "return" };
+      },
       write(_s: string) {},
       beginRaw() {},
       endRaw() {},
@@ -334,8 +358,12 @@ describe("wallet delete", () => {
     const streamsNT = new StreamManager("text", false);
     const fakeBackendNT = {
       isTTY: () => false,
-      async question(_p: string, _hidden: boolean) { return ""; },
-      async readKey() { return { name: "return" }; },
+      async question(_p: string, _hidden: boolean) {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
       write(_s: string) {},
       beginRaw() {},
       endRaw() {},
@@ -351,8 +379,13 @@ describe("wallet delete", () => {
     const networkRegistry = new NetworkRegistry(config);
     const formatter = createOutputFormatter("text", streamsNT, Date.now());
     const depsNT: RuntimeDeps = {
-      config, networkRegistry, streams: streamsNT, secrets: secretsNT,
-      keystore: ksNT, prompter: prompterNT, formatter,
+      config,
+      networkRegistry,
+      streams: streamsNT,
+      secrets: secretsNT,
+      keystore: ksNT,
+      prompter: prompterNT,
+      formatter,
     };
     const ctxNT = buildExecutionContext(buildGlobals(), depsNT);
     const registryNT = new CommandRegistry();

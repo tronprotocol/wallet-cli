@@ -47,7 +47,8 @@ export class TronWitnessService {
       gateway.getAccount(owner),
       gateway.getChainParameters(),
     ]);
-    if (witness) throw new ChainError("already_witness", `${owner} is already a registered witness`);
+    if (witness)
+      throw new ChainError("already_witness", `${owner} is already a registered witness`);
     // "Activated" means the node returned a record carrying an address. Testing for an EMPTY object
     // is not the same thing: a node that answers with a stub (just `address`, no balance) would pass
     // that check and the user would get an opaque node rejection instead of `account_not_active`.
@@ -73,7 +74,8 @@ export class TronWitnessService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
-      build: async (address) => gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
+      build: async (address) =>
+        gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
         feeModel: "tron-resource",
         feeSun: registrationFeeSun.toString(),
@@ -102,13 +104,18 @@ export class TronWitnessService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
-      build: async (address) => gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
+      build: async (address) =>
+        gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
       estimate: bandwidthEstimate,
     });
     return witnessReceipt("witness-update", outcomeData(outcome), owner, { url: input.url });
   }
 
-  async setBrokerage(scope: TransactionScope, network: NetworkDescriptor, input: WitnessBrokerageInput) {
+  async setBrokerage(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: WitnessBrokerageInput,
+  ) {
     const gateway = this.gateways.get(network, "tron");
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
@@ -121,15 +128,20 @@ export class TronWitnessService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
-      build: async (address) => gateway.buildWitnessSetBrokerage(address, input.percent, { permissionId: input.permissionId }),
+      build: async (address) =>
+        gateway.buildWitnessSetBrokerage(address, input.percent, {
+          permissionId: input.permissionId,
+        }),
       estimate: bandwidthEstimate,
     });
-    return witnessReceipt("witness-set-brokerage", outcomeData(outcome), owner, { brokerage: input.percent });
+    return witnessReceipt("witness-set-brokerage", outcomeData(outcome), owner, {
+      brokerage: input.percent,
+    });
   }
 }
 
 async function requireWitness(gateway: TronGateway, address: string): Promise<void> {
-  if (!await gateway.getWitness(address)) {
+  if (!(await gateway.getWitness(address))) {
     throw new ChainError("not_a_witness", `${address} is not a registered witness`);
   }
 }

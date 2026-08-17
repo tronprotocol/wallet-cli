@@ -78,7 +78,8 @@ export class WalletService {
 
   current(requestedAccount?: string) {
     const account = requestedAccount ?? this.wallets.activeAccount();
-    if (!account) throw new WalletError("missing_wallet_address", "no active account; import one first");
+    if (!account)
+      throw new WalletError("missing_wallet_address", "no active account; import one first");
     return this.wallets.describe(account);
   }
 
@@ -96,11 +97,17 @@ export class WalletService {
     // sub-account refs: labels/refs point at an account, and the seed (not an account) is the root.
     const id = seedId.trim();
     if (!/^wlt_[^.]+$/.test(id)) {
-      throw new UsageError("invalid_value", `--seed-id takes a seed id (wlt_…), not '${seedId}'; copy it from the HD group header in \`list\``);
+      throw new UsageError(
+        "invalid_value",
+        `--seed-id takes a seed id (wlt_…), not '${seedId}'; copy it from the HD group header in \`list\``,
+      );
     }
     const wallet = this.wallets.resolveWallet(id);
     if (wallet.source.type !== "seed") {
-      throw new UsageError("invalid_value", `${wallet.source.type} wallet is not HD; derive needs a seed wallet`);
+      throw new UsageError(
+        "invalid_value",
+        `${wallet.source.type} wallet is not HD; derive needs a seed wallet`,
+      );
     }
     const baseLabel = this.wallets.describe(`${wallet.id}.0`).label; // the wallet's name (index-0 label)
     const result = this.wallets.addAccount(wallet.id, index);
@@ -147,7 +154,7 @@ export class WalletService {
     };
 
     let secretType: "mnemonic" | "privateKey";
-    let passphraseSet = false;
+    let passphraseSet: boolean;
     let payload: Record<string, unknown>;
     if (source.type === "seed") {
       const revealed = this.wallets.revealMnemonic(source.vaultId);
@@ -183,11 +190,20 @@ export class WalletService {
     const file = this.backups.write(
       descriptor.accountId,
       requestedPath,
-      KeystoreV3.encrypt(privateKey, masterPassword, tronHexAddress(descriptor.addresses[KEYSTORE_FAMILY]!)),
+      KeystoreV3.encrypt(
+        privateKey,
+        masterPassword,
+        tronHexAddress(descriptor.addresses[KEYSTORE_FAMILY]!),
+      ),
       "keystore",
     );
     this.#recordExport("backup --keystore", descriptor, file.out);
-    return { ...descriptor, secretType: "privateKey" as const, format: "keystore" as const, ...file };
+    return {
+      ...descriptor,
+      secretType: "privateKey" as const,
+      format: "keystore" as const,
+      ...file,
+    };
   }
 
   /**
@@ -203,7 +219,9 @@ export class WalletService {
     const addresses = derivePrivAddresses(privateKey);
     const clash = this.wallets
       .list()
-      .find((a) => CHAIN_FAMILIES.some((f) => a.addresses[f] !== undefined && a.addresses[f] === addresses[f]));
+      .find((a) =>
+        CHAIN_FAMILIES.some((f) => a.addresses[f] !== undefined && a.addresses[f] === addresses[f]),
+      );
     if (clash) {
       throw new WalletError(
         "account_exists",
@@ -222,10 +240,18 @@ export class WalletService {
       if (query.to !== undefined && r.timestamp > query.to) return false;
       // Records are snapshots, so an account is matched by either identity it was logged under —
       // a since-renamed account still matches on accountId, a re-imported one on its address.
-      if (target && r.accountId !== target.accountId && r.account !== target.addresses[KEYSTORE_FAMILY]) return false;
+      if (
+        target &&
+        r.accountId !== target.accountId &&
+        r.account !== target.addresses[KEYSTORE_FAMILY]
+      )
+        return false;
       return true;
     });
-    const records = matched.slice(offset, query.limit === undefined ? undefined : offset + query.limit);
+    const records = matched.slice(
+      offset,
+      query.limit === undefined ? undefined : offset + query.limit,
+    );
     return {
       records,
       pagination: { offset, limit: query.limit ?? null, total: matched.length },
@@ -258,7 +284,15 @@ export class WalletService {
    * find and shred. Without `--out` that is a timestamped file in the process's working directory,
    * which nobody can guess — so the path travels with the error rather than being lost with it.
    */
-  #recordExport(operation: BackupRecord["operation"], descriptor: { accountId: string; label?: string | null; addresses: Partial<Record<ChainFamily, string>> }, out: string) {
+  #recordExport(
+    operation: BackupRecord["operation"],
+    descriptor: {
+      accountId: string;
+      label?: string | null;
+      addresses: Partial<Record<ChainFamily, string>>;
+    },
+    out: string,
+  ) {
     try {
       this.#appendExport(operation, descriptor, out);
     } catch (error) {
@@ -270,7 +304,15 @@ export class WalletService {
     }
   }
 
-  #appendExport(operation: BackupRecord["operation"], descriptor: { accountId: string; label?: string | null; addresses: Partial<Record<ChainFamily, string>> }, out: string) {
+  #appendExport(
+    operation: BackupRecord["operation"],
+    descriptor: {
+      accountId: string;
+      label?: string | null;
+      addresses: Partial<Record<ChainFamily, string>>;
+    },
+    out: string,
+  ) {
     this.backupRecordStore.append({
       operation,
       accountId: descriptor.accountId,

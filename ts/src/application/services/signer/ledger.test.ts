@@ -4,8 +4,12 @@ import type { Ledger } from "../../../adapters/outbound/ledger/index.js";
 
 function fakeLedger(over: Partial<Ledger>): Ledger {
   return {
-    async appConfig() { return { version: "1.0.0", ready: true }; },
-    async getAddress() { return "0xCACHED"; },
+    async appConfig() {
+      return { version: "1.0.0", ready: true };
+    },
+    async getAddress() {
+      return "0xCACHED";
+    },
     ...over,
   } as unknown as Ledger;
 }
@@ -19,7 +23,12 @@ describe("LedgerSigner.precheck", () => {
   });
 
   it("rejects with wrong_device_seed when the on-device address differs", async () => {
-    const signer = new LedgerSigner(fakeLedger({ getAddress: async () => "0xOTHER" }), "tron", PATH, "0xCACHED");
+    const signer = new LedgerSigner(
+      fakeLedger({ getAddress: async () => "0xOTHER" }),
+      "tron",
+      PATH,
+      "0xCACHED",
+    );
     await expect(signer.precheck()).rejects.toMatchObject({ code: "wrong_device_seed" });
   });
 

@@ -22,9 +22,7 @@ describe("encoding convert", () => {
   it("derives the same address from compressed and uncompressed public keys", () => {
     const secret = Uint8Array.from([...new Uint8Array(31), 1]);
     const compressed = bytesToHex(secp256k1.getPublicKey(secret, true));
-    const uncompressed = bytesToHex(
-      secp256k1.getPublicKey(secret, false),
-    );
+    const uncompressed = bytesToHex(secp256k1.getPublicKey(secret, false));
 
     expect(convertEncoding(compressed)).toMatchObject({
       inputType: "public-key",
@@ -55,21 +53,13 @@ describe("encoding convert", () => {
   });
 
   it("fails closed for bad checksums, bad curve points, and EIP-55 errors", () => {
-    expect(() =>
-      convertEncoding("TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")
-    ).toThrow(/checksum/);
-    expect(() =>
-      convertEncoding("0x7E5F4552091A69125d5dfCb7b8C2659029395Bdf")
-    ).toThrow(/EIP-55/);
-    expect(() => convertEncoding(`04${"00".repeat(64)}`)).toThrow(
-      /secp256k1/,
-    );
+    expect(() => convertEncoding("TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")).toThrow(/checksum/);
+    expect(() => convertEncoding("0x7E5F4552091A69125d5dfCb7b8C2659029395Bdf")).toThrow(/EIP-55/);
+    expect(() => convertEncoding(`04${"00".repeat(64)}`)).toThrow(/secp256k1/);
   });
 
   it("rejects private-key-shaped data in hex and Base64", () => {
     expect(() => convertEncoding("11".repeat(32))).toThrow(/private key/);
-    expect(() =>
-      convertEncoding(Buffer.alloc(32, 0x11).toString("base64"))
-    ).toThrow(/private key/);
+    expect(() => convertEncoding(Buffer.alloc(32, 0x11).toString("base64"))).toThrow(/private key/);
   });
 });

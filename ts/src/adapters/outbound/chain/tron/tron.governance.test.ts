@@ -14,7 +14,9 @@ describe("TronRpcClient governance builders", () => {
       expiration: 2_000_000,
       timestamp: 1_000_000,
     });
-    const transaction = await client.buildUpdateOriginEnergyLimit(OWNER, CONTRACT, 50_000_000, { permissionId: 2 });
+    const transaction = await client.buildUpdateOriginEnergyLimit(OWNER, CONTRACT, 50_000_000, {
+      permissionId: 2,
+    });
 
     expect(transaction.raw_data.contract[0]).toMatchObject({
       type: "UpdateEnergyLimitContract",
@@ -35,11 +37,14 @@ describe("TronRpcClient governance builders", () => {
   it("refuses an origin energy limit no json number can hold exactly", async () => {
     const client = new TronRpcClient("http://127.0.0.1:1");
     vi.spyOn(client.tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
-      ref_block_bytes: "1234", ref_block_hash: "0011223344556677",
-      expiration: 2_000_000, timestamp: 1_000_000,
+      ref_block_bytes: "1234",
+      ref_block_hash: "0011223344556677",
+      expiration: 2_000_000,
+      timestamp: 1_000_000,
     });
-    await expect(client.buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "9223372036854775807"))
-      .rejects.toMatchObject({ code: "invalid_amount" });
+    await expect(
+      client.buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "9223372036854775807"),
+    ).rejects.toMatchObject({ code: "invalid_amount" });
   });
 
   it("builds and integrity-checks a proposal value above Number.MAX_SAFE_INTEGER", async () => {
@@ -57,8 +62,7 @@ describe("TronRpcClient governance builders", () => {
     const value = transaction.raw_data.contract[0]!.parameter.value as unknown as {
       parameters: Array<{ value: unknown }>;
     };
-    expect(value.parameters[0]!.value)
-      .toBe("9223372036854775807");
+    expect(value.parameters[0]!.value).toBe("9223372036854775807");
     expect(() => assertTronTxIntegrity(transaction)).not.toThrow();
   });
 });

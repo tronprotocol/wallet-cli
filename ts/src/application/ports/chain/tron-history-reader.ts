@@ -19,4 +19,3 @@ export interface TronHistoryReader {
     query: TronHistoryQuery,
   ): Promise<TronHistoryResult>;
 }
-

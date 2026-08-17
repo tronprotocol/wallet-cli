@@ -57,6 +57,8 @@ describe("TxPipeline.signOnly", () => {
     const p = pipelineWith({ kind: "software", address: "T1", sign: async () => ({}) }, () => {
       throw new Error("watch-only");
     });
-    await expect(p.signOnly({ ctx: scope, net, account: "main", tx: TX })).rejects.toThrow(/watch-only/);
+    await expect(p.signOnly({ ctx: scope, net, account: "main", tx: TX })).rejects.toThrow(
+      /watch-only/,
+    );
   });
 });

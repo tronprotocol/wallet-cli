@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SecureBackupWriter } from "./backup-writer.js";
@@ -88,8 +96,9 @@ describe("SecureBackupWriter", () => {
     () => {
       const target = "/dev/null/account.backup";
 
-      expect(() => writer.write("acct-1", target, { secret: "x" }))
-        .toThrowError(expect.objectContaining({ code: "io_error" }));
+      expect(() => writer.write("acct-1", target, { secret: "x" })).toThrowError(
+        expect.objectContaining({ code: "io_error" }),
+      );
       expect(existsSync(target)).toBe(false);
     },
   );

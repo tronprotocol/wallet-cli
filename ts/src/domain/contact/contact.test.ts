@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  contactNameKey,
-  contactNote,
-  createContact,
-} from "./index.js";
+import { contactNameKey, contactNote, createContact } from "./index.js";
 
 const ADDRESS = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 
@@ -28,12 +24,8 @@ describe("contact validation", () => {
   });
 
   it("rejects an invalid Base58Check address", () => {
-    expect(() =>
-      createContact(
-        "tron",
-        "alice",
-        "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX",
-      )
-    ).toThrow(/Base58Check/);
+    expect(() => createContact("tron", "alice", "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")).toThrow(
+      /Base58Check/,
+    );
   });
 });

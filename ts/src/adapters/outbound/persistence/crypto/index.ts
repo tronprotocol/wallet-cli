@@ -8,7 +8,12 @@
  * existing wallet: it must not drift.
  */
 import { randomBytes, bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import type { Bytes, CryptoParams, KeystoreBlob, KeystoreType } from "../../../../domain/types/index.js";
+import type {
+  Bytes,
+  CryptoParams,
+  KeystoreBlob,
+  KeystoreType,
+} from "../../../../domain/types/index.js";
 import { SCRYPT_STANDARD, Web3Crypto } from "../../../../domain/keystore/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 

@@ -22,14 +22,16 @@ function unsignedHex(expiration = NOW + 60_000): string {
   return encodeTransactionHex({
     visible: false,
     raw_data: {
-      contract: [{
-        parameter: {
-          value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount: 1 },
-          type_url: "type.googleapis.com/protocol.TransferContract",
+      contract: [
+        {
+          parameter: {
+            value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount: 1 },
+            type_url: "type.googleapis.com/protocol.TransferContract",
+          },
+          type: "TransferContract",
+          Permission_id: 2,
         },
-        type: "TransferContract",
-        Permission_id: 2,
-      }],
+      ],
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       timestamp: NOW,
@@ -56,16 +58,18 @@ function setup(signerOverride?: Signer) {
     encodeTransactionHex,
     decodeTransaction: () => ({ kind: "trx", from: A, to: B, rawAmount: "1" }),
   } as unknown as TronGateway;
-  const signer = signerOverride ?? {
-    kind: "software",
-    address: A,
-    sign: vi.fn(async (transaction) => ({
-      ...transaction,
-      signature: [...(transaction.signature ?? []), SIGNATURE],
-    })),
-    signMessage: async () => "",
-    signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
-  } as Signer;
+  const signer =
+    signerOverride ??
+    ({
+      kind: "software",
+      address: A,
+      sign: vi.fn(async (transaction) => ({
+        ...transaction,
+        signature: [...(transaction.signature ?? []), SIGNATURE],
+      })),
+      signMessage: async () => "",
+      signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+    } as Signer);
   const signers = {
     assertCanSign: vi.fn(),
     resolve: vi.fn(() => signer),
@@ -97,8 +101,9 @@ describe("TRON artifact signing", () => {
 
   it("rejects an expired artifact before invoking the signer", async () => {
     const { service, signer } = setup();
-    await expect(service.sign(scope(), NETWORK, unsignedHex(NOW)))
-      .rejects.toMatchObject({ code: "tx_expired" });
+    await expect(service.sign(scope(), NETWORK, unsignedHex(NOW))).rejects.toMatchObject({
+      code: "tx_expired",
+    });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
@@ -114,8 +119,9 @@ describe("TRON artifact signing", () => {
       signMessage: async () => "",
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     } as Signer;
-    await expect(setup(signer).service.sign(scope(), NETWORK, unsignedHex()))
-      .rejects.toMatchObject({ code: "invalid_transaction" });
+    await expect(setup(signer).service.sign(scope(), NETWORK, unsignedHex())).rejects.toMatchObject(
+      { code: "invalid_transaction" },
+    );
   });
 
   it("rejects an unexpected signer before asking it to sign", async () => {
@@ -126,12 +132,9 @@ describe("TRON artifact signing", () => {
       signMessage: async () => "",
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     } as Signer;
-    await expect(setup(signer).service.sign(
-      scope(),
-      NETWORK,
-      unsignedHex(),
-      { expectedSigner: A },
-    )).rejects.toMatchObject({ code: "signing_rejected" });
+    await expect(
+      setup(signer).service.sign(scope(), NETWORK, unsignedHex(), { expectedSigner: A }),
+    ).rejects.toMatchObject({ code: "signing_rejected" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 });

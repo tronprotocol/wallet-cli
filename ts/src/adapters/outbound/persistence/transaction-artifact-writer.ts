@@ -22,7 +22,10 @@ export class SecureTransactionArtifactWriter implements TransactionArtifactWrite
     try {
       const current = lstatSync(path, { throwIfNoEntry: false });
       if (current?.isSymbolicLink()) {
-        throw new ExecutionError("io_error", "refusing to replace a symbolic-link transaction artifact");
+        throw new ExecutionError(
+          "io_error",
+          "refusing to replace a symbolic-link transaction artifact",
+        );
       }
       const dir = dirname(path);
       mkdirSync(dir, { recursive: true });
@@ -55,7 +58,10 @@ export class SecureTransactionArtifactWriter implements TransactionArtifactWrite
       }
     } catch (error) {
       if (error instanceof ExecutionError) throw error;
-      throw new ExecutionError("io_error", `could not write transaction artifact: ${(error as Error).message}`);
+      throw new ExecutionError(
+        "io_error",
+        `could not write transaction artifact: ${(error as Error).message}`,
+      );
     }
   }
 }

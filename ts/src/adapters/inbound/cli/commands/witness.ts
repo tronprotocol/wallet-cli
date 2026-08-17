@@ -4,7 +4,10 @@ import type { TronWitnessService } from "../../../../application/use-cases/tron/
 import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
-const witnessUrl = z.string().trim().min(1)
+const witnessUrl = z
+  .string()
+  .trim()
+  .min(1)
   .refine((value) => Buffer.byteLength(value, "utf8") <= 256, "must not exceed 256 UTF-8 bytes")
   .describe("candidate information-page URL (max 256 UTF-8 bytes)");
 
@@ -57,7 +60,12 @@ export const witnessSetBrokerageSpec: ChainSpec = {
     "distributed to voters; the value is not reversed from Java wallet-cli brokerage.",
   requires: ["a registered witness account"],
   baseFields: z.object({
-    percent: z.coerce.number().int().min(0).max(100).describe("percentage retained by the SR (0-100)"),
+    percent: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .describe("percentage retained by the SR (0-100)"),
     ...governanceTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli witness set-brokerage 20 --wait" }],

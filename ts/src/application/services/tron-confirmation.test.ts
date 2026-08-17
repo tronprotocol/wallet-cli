@@ -22,7 +22,9 @@ function scope(over: Partial<TransactionScope> = {}): TransactionScope & { warni
 }
 
 function gateway(info: TronTxInfo | undefined): TronGateway {
-  return { getTransactionInfoById: async () => info ?? ({} as TronTxInfo) } as unknown as TronGateway;
+  return {
+    getTransactionInfoById: async () => info ?? ({} as TronTxInfo),
+  } as unknown as TronGateway;
 }
 
 describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () => {
@@ -86,7 +88,12 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
 
   it("stays silent when the node agrees, whatever case it uses", async () => {
     const s = scope({ wait: false });
-    const staged = await stageTronBroadcast(gateway(undefined), s, { txId: LOCAL.toUpperCase() }, LOCAL);
+    const staged = await stageTronBroadcast(
+      gateway(undefined),
+      s,
+      { txId: LOCAL.toUpperCase() },
+      LOCAL,
+    );
 
     expect(staged).toMatchObject({ txId: LOCAL });
     expect(s.warnings).toEqual([]);
@@ -108,8 +115,9 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
 
   it("falls back to the node's id when the signed transaction carries none", async () => {
     const s = scope({ wait: false });
-    expect(await stageTronBroadcast(gateway(undefined), s, { txId: OTHER }, undefined))
-      .toMatchObject({ txId: OTHER });
+    expect(
+      await stageTronBroadcast(gateway(undefined), s, { txId: OTHER }, undefined),
+    ).toMatchObject({ txId: OTHER });
     expect(s.warnings).toEqual([]);
   });
 });

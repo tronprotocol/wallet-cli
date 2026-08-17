@@ -17,7 +17,7 @@ export class YamlConfigDocument implements ConfigDocumentRepository {
   ): T {
     return this.files.withLock(this.path, () => {
       const current = existsSync(this.path)
-        ? (parse(readFileSync(this.path, "utf8")) ?? {}) as Record<string, unknown>
+        ? ((parse(readFileSync(this.path, "utf8")) ?? {}) as Record<string, unknown>)
         : {};
       const { document, result } = change(current);
       this.files.writeText(this.path, stringify(document));
@@ -25,4 +25,3 @@ export class YamlConfigDocument implements ConfigDocumentRepository {
     });
   }
 }
-

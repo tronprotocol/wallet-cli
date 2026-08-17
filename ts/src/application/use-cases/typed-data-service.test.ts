@@ -10,7 +10,10 @@ const PAYLOAD = {
 };
 
 function serviceWith(signer: Partial<Signer>, assertCanSign = () => {}) {
-  return new TypedDataService({ resolve: () => signer as Signer, assertCanSign } as unknown as SignerResolver);
+  return new TypedDataService({
+    resolve: () => signer as Signer,
+    assertCanSign,
+  } as unknown as SignerResolver);
 }
 
 const scope = () => ({
@@ -35,11 +38,14 @@ describe("TypedDataService", () => {
   it("returns the signature with the signing address and echoed primaryType", async () => {
     const s = scope();
     const out = await serviceWith(signing).sign(s as never, "tron", "main", PAYLOAD);
-    expect(out).toEqual({ address: "TSigner", primaryType: "Order", digest: "0xdig", signature: "0xsig" });
+    expect(out).toEqual({
+      address: "TSigner",
+      primaryType: "Order",
+      digest: "0xdig",
+      signature: "0xsig",
+    });
     expect(s.warnings).toEqual([]);
   });
-
-
 
   it("prechecks and announces a device signer", async () => {
     const s = scope();

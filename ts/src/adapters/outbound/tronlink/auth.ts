@@ -13,7 +13,7 @@ export function canonicalTronLinkQuery(parameters: Readonly<Record<string, strin
     throw new ChainError("provider_error", "TronLink signature parameters are empty");
   }
   return entries
-    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([key, value]) => `${key}=${value}`)
     .join("&");
 }
@@ -25,7 +25,8 @@ export function signTronLinkRequest(
   parameters: Readonly<Record<string, string>>,
   secretKey: string,
 ): { canonical: string; signature: string } {
-  if (!secretKey) throw new ChainError("provider_error", "TronLink multi-sign secret key is not configured");
+  if (!secretKey)
+    throw new ChainError("provider_error", "TronLink multi-sign secret key is not configured");
   if (!/^\/[a-z0-9/_-]+$/i.test(path)) {
     throw new ChainError("provider_error", "invalid TronLink request path");
   }

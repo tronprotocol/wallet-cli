@@ -4,17 +4,15 @@ import type { CommandRegistry } from "../registry/index.js";
 import type { ContactService } from "../../../../application/use-cases/contact-service.js";
 import { TextFormatters } from "../render/index.js";
 
-export function registerContactCommands(
-  registry: CommandRegistry,
-  service: ContactService,
-): void {
+export function registerContactCommands(registry: CommandRegistry, service: ContactService): void {
   const addFields = z.object({
-    name: z.string().min(1).max(256)
+    name: z
+      .string()
+      .min(1)
+      .max(256)
       .describe("local name for this recipient; usable anywhere an address is accepted"),
-    address: z.string().min(1).max(128)
-      .describe("recipient address to store under this name"),
-    note: z.string().max(512).optional()
-      .describe("free-form note, up to 128 safe characters"),
+    address: z.string().min(1).max(128).describe("recipient address to store under this name"),
+    note: z.string().max(512).optional().describe("free-form note, up to 128 safe characters"),
   });
   registry.add({
     path: ["contact", "add"],
@@ -27,12 +25,13 @@ export function registerContactCommands(
       "Add a locally stored TRON recipient. The Base58Check address is validated and the name can then be used by tx send and gasfree transfer.",
     fields: addFields,
     input: addFields,
-    examples: [{
-      cmd: "wallet-cli contact add alice TBy6... --note 'Alice mainnet'",
-    }],
+    examples: [
+      {
+        cmd: "wallet-cli contact add alice TBy6... --note 'Alice mainnet'",
+      },
+    ],
     formatText: TextFormatters.contactAdd,
-    run: async (_context, _network, input) =>
-      service.add(input.name, input.address, input.note),
+    run: async (_context, _network, input) => service.add(input.name, input.address, input.note),
   } satisfies CommandDefinition);
 
   const empty = z.object({});
@@ -42,8 +41,7 @@ export function registerContactCommands(
     wallet: "none",
     auth: "none",
     summary: "List recipients",
-    description:
-      "List every recipient in the local plaintext address book.",
+    description: "List every recipient in the local plaintext address book.",
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli contact list" }],

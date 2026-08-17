@@ -7,26 +7,30 @@ import type { TronMultisigService } from "../../../../application/use-cases/tron
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
 import type { TransactionArtifactWriter } from "../../../../application/ports/transaction-artifact-writer.js";
 import { Schemas } from "../schemas/index.js";
-import {
-  amountSelector,
-  txModeFields,
-  unifiedAmountFields,
-} from "./shared.js";
+import { amountSelector, txModeFields, unifiedAmountFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 
 // baseFields today (single family). When EVM lands, move feeLimit/assetId/contract into the TRON
 // binding.fields and put gasPrice/gasLimit/nonce into the EVM binding.fields (spec §4 base/delta).
 const sendFields = z.object({
-  to: z.string().trim().min(1).max(128)
+  to: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
     .describe("recipient TRON base58 address or local contact name"),
-  token: z.string().min(1).optional()
-    .describe("token symbol from the address book"),
-  contract: Schemas.addressFor("tron").optional()
+  token: z.string().min(1).optional().describe("token symbol from the address book"),
+  contract: Schemas.addressFor("tron")
+    .optional()
     .describe("TRC20 contract address; omit with --asset-id for native TRX"),
-  assetId: z.string().regex(/^\d+$/).optional()
+  assetId: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
     .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
-  feeLimit: Schemas.positiveIntString().default("100000000")
+  feeLimit: Schemas.positiveIntString()
+    .default("100000000")
     .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
   ...unifiedAmountFields(
     "human amount: TRX for native, token units for TRC20/TRC10",
@@ -37,7 +41,9 @@ const sendFields = z.object({
 
 export const txSendSpec: ChainSpec = {
   path: ["tx", "send"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "tx.send",
   summary: "Send native TRX or TRC20/TRC10 tokens with human --amount",
@@ -45,7 +51,11 @@ export const txSendSpec: ChainSpec = {
   exclusive: [
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
     // omitting all three is the native-TRX path, so this set is optional as a whole.
-    { label: "which asset to send; omit for native TRX", flags: ["token", "contract", "asset-id"], select: "at-most-one" },
+    {
+      label: "which asset to send; omit for native TRX",
+      flags: ["token", "contract", "asset-id"],
+      select: "at-most-one",
+    },
   ],
   baseRefine: amountSelector,
   examples: [
@@ -65,22 +75,39 @@ export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding =>
 const broadcastFields = z.object({
   transaction: z.string().optional().describe("signed TRON transaction JSON"),
   hex: z.string().min(2).optional().describe("complete signed protocol.Transaction hex"),
-  file: z.string().min(1).optional().describe("file containing complete signed protocol.Transaction hex"),
-  dryRun: z.boolean().default(false)
-    .describe("validate signatures, threshold, expiration, and dynamic multi-sign fee without broadcasting"),
+  file: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("file containing complete signed protocol.Transaction hex"),
+  dryRun: z
+    .boolean()
+    .default(false)
+    .describe(
+      "validate signatures, threshold, expiration, and dynamic multi-sign fee without broadcasting",
+    ),
 });
 
 export const txBroadcastSpec: ChainSpec = {
   path: ["tx", "broadcast"],
   stdin: "tx",
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   broadcasts: true,
   capability: "tx.broadcast",
   summary: "Validate and broadcast a presigned JSON or protobuf-hex transaction",
   baseFields: broadcastFields,
-  exclusive: [{ label: "the signed transaction to broadcast", flags: ["transaction", "tx-stdin", "hex", "file"] }],
+  exclusive: [
+    {
+      label: "the signed transaction to broadcast",
+      flags: ["transaction", "tx-stdin", "hex", "file"],
+    },
+  ],
   baseRefine: (input, context) => {
-    if ([input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1) {
+    if (
+      [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1
+    ) {
       context.addIssue({
         code: "custom",
         path: ["transaction"],
@@ -106,7 +133,8 @@ export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBind
       "provide exactly one of --transaction, --tx-stdin, --hex, or --file",
     );
     if (input.hex || input.file) {
-      const hex = input.hex ?? readBoundedTextFile(input.file, 1024 * 1024 + 4096, "transaction hex file");
+      const hex =
+        input.hex ?? readBoundedTextFile(input.file, 1024 * 1024 + 4096, "transaction hex file");
       return service.broadcastHex(ctx, net, hex, input.dryRun);
     }
     const raw = ctx.secrets.pick(input.transaction, "tx", "transaction");
@@ -130,10 +158,13 @@ const approvalsFields = z.object(artifactFields);
 
 export const txApprovalsSpec: ChainSpec = {
   path: ["tx", "approvals"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "tx.multisig.local",
   summary: "Show permission, signature approvals, current weight, and expiration",
-  description: "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
+  description:
+    "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
   baseFields: approvalsFields,
   exclusive: [{ label: "the transaction to inspect", flags: ["hex", "file"] }],
   baseRefine: hexOrFileRefine,
@@ -146,17 +177,30 @@ export const txApprovalsTronBinding = (service: TronMultisigService): FamilyBind
 });
 
 const signFields = z.object({
-  transaction: z.string().min(1).optional()
+  transaction: z
+    .string()
+    .min(1)
+    .optional()
     .describe("unsigned TRON transaction JSON; retained for direct single-signature compatibility"),
   ...artifactFields,
-  offline: z.boolean().default(false)
-    .describe("sign locally without contacting a node; skips the signer-permission and approval-weight checks"),
-  out: z.string().min(1).optional().describe("atomically write co-signed transaction hex to this file"),
+  offline: z
+    .boolean()
+    .default(false)
+    .describe(
+      "sign locally without contacting a node; skips the signer-permission and approval-weight checks",
+    ),
+  out: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("atomically write co-signed transaction hex to this file"),
 });
 
 export const txSignSpec: ChainSpec = {
   path: ["tx", "sign"],
-  network: "optional", wallet: "optional", auth: "required",
+  network: "optional",
+  wallet: "optional",
+  auth: "required",
   broadcasts: false,
   capability: "tx.sign",
   summary: "Sign transaction JSON or append a signature to transaction hex",
@@ -170,7 +214,9 @@ export const txSignSpec: ChainSpec = {
   // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
   baseRefine: (input, context) => {
-    if ([input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1) {
+    if (
+      [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
+    ) {
       context.addIssue({
         code: "custom",
         path: ["transaction"],
@@ -178,14 +224,24 @@ export const txSignSpec: ChainSpec = {
       });
     }
     if (input.out && input.transaction) {
-      context.addIssue({ code: "custom", path: ["out"], message: "--out is only valid with --hex or --file" });
+      context.addIssue({
+        code: "custom",
+        path: ["out"],
+        message: "--out is only valid with --hex or --file",
+      });
     }
     if (input.offline && input.transaction) {
-      context.addIssue({ code: "custom", path: ["offline"], message: "--offline is only valid with --hex or --file" });
+      context.addIssue({
+        code: "custom",
+        path: ["offline"],
+        message: "--offline is only valid with --hex or --file",
+      });
     }
   },
   examples: [
-    { cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'` },
+    {
+      cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
+    },
     { cmd: "wallet-cli tx sign --file partially-signed.hex --out signed.hex --password-stdin" },
     { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
   ],
@@ -199,7 +255,10 @@ export const txSignTronBinding = (
   writer: TransactionArtifactWriter,
 ): FamilyBinding => ({
   run: async (ctx, net, input) => {
-    exactlyOne([input.transaction, input.hex, input.file], "provide exactly one of --transaction, --hex, or --file");
+    exactlyOne(
+      [input.transaction, input.hex, input.file],
+      "provide exactly one of --transaction, --hex, or --file",
+    );
     if (!input.transaction) {
       const hex = hexInput(input);
       const result = input.offline
@@ -209,8 +268,10 @@ export const txSignTronBinding = (
       writer.write(input.out, result.hex);
       return { ...result, out: input.out };
     }
-    if (input.out) throw new UsageError("invalid_option", "--out is only valid with --hex or --file");
-    if (input.offline) throw new UsageError("invalid_option", "--offline is only valid with --hex or --file");
+    if (input.out)
+      throw new UsageError("invalid_option", "--out is only valid with --hex or --file");
+    if (input.offline)
+      throw new UsageError("invalid_option", "--offline is only valid with --hex or --file");
     let tx: unknown;
     try {
       tx = JSON.parse(input.transaction);
@@ -222,19 +283,38 @@ export const txSignTronBinding = (
 });
 
 const tronLinkMultisigFields = z.object({
-  create: z.boolean().default(false)
+  create: z
+    .boolean()
+    .default(false)
     .describe("sign one unsigned transaction and open a TronLink signature collection with it"),
-  hex: z.string().min(2).optional().describe("unsigned protocol.Transaction hex used with --create"),
-  file: z.string().min(1).optional().describe("file containing unsigned transaction hex used with --create"),
-  sign: z.string().regex(/^(?:0x)?[0-9a-fA-F]{64}$/).optional()
+  hex: z
+    .string()
+    .min(2)
+    .optional()
+    .describe("unsigned protocol.Transaction hex used with --create"),
+  file: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("file containing unsigned transaction hex used with --create"),
+  sign: z
+    .string()
+    .regex(/^(?:0x)?[0-9a-fA-F]{64}$/)
+    .optional()
     .describe("fetch and co-sign one pending TronLink transaction by txId"),
-  watch: z.boolean().default(false)
-    .describe("keep a WebSocket open and report only the count of transactions awaiting this account"),
+  watch: z
+    .boolean()
+    .default(false)
+    .describe(
+      "keep a WebSocket open and report only the count of transactions awaiting this account",
+    ),
 });
 
 export const txTronLinkMultisigSpec: ChainSpec = {
   path: ["tx", "multisig"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   capability: "tx.multisig.tronlink",
   summary: "Coordinate multi-signature collection through the TronLink service",
   description:
@@ -246,7 +326,13 @@ export const txTronLinkMultisigSpec: ChainSpec = {
     "TronLink service credentials — config tronlinkSecretId / tronlinkSecretKey / tronlinkChannel",
   ],
   baseFields: tronLinkMultisigFields,
-  exclusive: [{ label: "which mode to run; omit all three to list", flags: ["create", "sign", "watch"], select: "at-most-one" }],
+  exclusive: [
+    {
+      label: "which mode to run; omit all three to list",
+      flags: ["create", "sign", "watch"],
+      select: "at-most-one",
+    },
+  ],
   baseRefine: tronLinkMultisigRefine,
   examples: [
     { cmd: "wallet-cli tx multisig" },
@@ -257,7 +343,9 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   formatText: TextFormatters.txTronLinkMultisig,
 };
 
-export const txTronLinkMultisigBinding = (service: TronMultisigCollaborationService): FamilyBinding => ({
+export const txTronLinkMultisigBinding = (
+  service: TronMultisigCollaborationService,
+): FamilyBinding => ({
   run: async (ctx, network, input) => {
     const address = ctx.resolveAddress("tron");
     if (input.create) return service.create(ctx, network, hexInput(input));
@@ -286,7 +374,9 @@ const statusFields = z.object({ txid: z.string().min(1).describe("TRON transacti
 
 export const txStatusSpec: ChainSpec = {
   path: ["tx", "status"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   summary: "Show confirmation status of a transaction",
   baseFields: statusFields,
   examples: [{ cmd: "wallet-cli tx status --txid abc123" }],
@@ -301,7 +391,9 @@ const infoFields = z.object({ txid: z.string().min(1).describe("TRON transaction
 
 export const txInfoSpec: ChainSpec = {
   path: ["tx", "info"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   summary: "Show full transaction detail + receipt",
   baseFields: infoFields,
   examples: [{ cmd: "wallet-cli tx info --txid abc123" }],
@@ -316,8 +408,9 @@ function tokenOptional(
   value: { token?: string; contract?: string; assetId?: string },
   context: z.RefinementCtx,
 ): void {
-  const count = [value.token, value.contract, value.assetId]
-    .filter((candidate) => candidate !== undefined).length;
+  const count = [value.token, value.contract, value.assetId].filter(
+    (candidate) => candidate !== undefined,
+  ).length;
   if (count > 1) {
     context.addIssue({
       code: "custom",
@@ -329,7 +422,11 @@ function tokenOptional(
 
 function hexOrFileRefine(value: { hex?: string; file?: string }, context: z.RefinementCtx): void {
   if ([value.hex, value.file].filter((entry) => entry !== undefined).length !== 1) {
-    context.addIssue({ code: "custom", path: ["hex"], message: "provide exactly one of --hex or --file" });
+    context.addIssue({
+      code: "custom",
+      path: ["hex"],
+      message: "provide exactly one of --hex or --file",
+    });
   }
 }
 

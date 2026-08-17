@@ -23,9 +23,9 @@ export async function warnOnPostCheck(
   } catch (error) {
     scope.warn({
       code: `${code}_unavailable`,
-      message: `the transaction is confirmed on chain, but the follow-up check could not be read: ${
-        redactErrorMessage(error instanceof Error ? error.message : String(error))
-      }`,
+      message: `the transaction is confirmed on chain, but the follow-up check could not be read: ${redactErrorMessage(
+        error instanceof Error ? error.message : String(error),
+      )}`,
     });
     return;
   }

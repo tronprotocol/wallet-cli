@@ -42,23 +42,33 @@ describe("TronRpcClient.buildUpdateOriginEnergyLimit", () => {
   });
 
   it("keeps a numeric input a number", async () => {
-    const value = contractValue(await client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, 5_000_000));
+    const value = contractValue(
+      await client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, 5_000_000),
+    );
     expect(value.origin_energy_limit).toBe(5_000_000);
   });
 
   it("accepts a limit above tronweb's own 10,000,000 ceiling — the reason we build locally", async () => {
-    const value = contractValue(await client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "50000000"));
+    const value = contractValue(
+      await client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "50000000"),
+    );
     expect(value.origin_energy_limit).toBe(50_000_000);
   });
 
   it("refuses a limit no json number can hold exactly, rather than losing precision silently", async () => {
-    await expect(client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "9007199254740993"))
-      .rejects.toMatchObject({ code: "invalid_amount" });
+    await expect(
+      client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "9007199254740993"),
+    ).rejects.toMatchObject({ code: "invalid_amount" });
   });
 
   it("still binds the addresses and emits a self-consistent txID / raw_data_hex", async () => {
-    const tx = await client().buildUpdateOriginEnergyLimit(OWNER, CONTRACT, "12000000") as unknown as {
-      txID: string; raw_data_hex: string;
+    const tx = (await client().buildUpdateOriginEnergyLimit(
+      OWNER,
+      CONTRACT,
+      "12000000",
+    )) as unknown as {
+      txID: string;
+      raw_data_hex: string;
     };
     const value = contractValue(tx);
     expect(value.owner_address).toBe("418c7145112ac207cc95544a930c769d468d01cd4e");

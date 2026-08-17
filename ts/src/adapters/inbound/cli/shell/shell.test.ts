@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import {
-  bindGroupedPositionals,
-  gapFillRequiredFields,
-  isInteractiveCommand,
-} from "./index.js";
+import { bindGroupedPositionals, gapFillRequiredFields, isInteractiveCommand } from "./index.js";
 import { accountRef } from "../arity/index.js";
 import type { CommandDefinition } from "../contracts/index.js";
 import type { Prompter as PrompterType } from "../input/prompt/index.js";
@@ -16,10 +12,12 @@ describe("grouped leaf positionals", () => {
   };
 
   it("binds args to the resolved leaf's declared fields", () => {
-    expect(bindGroupedPositionals(command, {
-      verb: "add",
-      args: ["alice", "Taddress"],
-    })).toMatchObject({
+    expect(
+      bindGroupedPositionals(command, {
+        verb: "add",
+        args: ["alice", "Taddress"],
+      }),
+    ).toMatchObject({
       verb: "add",
       name: "alice",
       address: "Taddress",
@@ -30,13 +28,13 @@ describe("grouped leaf positionals", () => {
     expect(() =>
       bindGroupedPositionals(command, {
         args: ["alice", "Taddress", "extra"],
-      })
+      }),
     ).toThrow(/too many positional/);
     expect(() =>
       bindGroupedPositionals(command, {
         args: ["alice"],
         name: "bob",
-      })
+      }),
     ).toThrow(/both positionally/);
   });
 });
@@ -55,24 +53,48 @@ function makeFakePrompter(opts: FakePrompterOpts = {}): PrompterType & {
 } {
   const { tty = true, textAnswers = [], selectAnswers = [] } = opts;
   const textCalls: Array<{ label: string }> = [];
-  const selectCalls: Array<{ label: string; choices: Array<{ value: string; label: string }> }> = [];
+  const selectCalls: Array<{ label: string; choices: Array<{ value: string; label: string }> }> =
+    [];
 
   return {
-    isTTY: () => tty, textCalls, selectCalls, async text(o: { label: string; validate?: (v: string) => string | null }) {
+    isTTY: () => tty,
+    textCalls,
+    selectCalls,
+    async text(o: { label: string; validate?: (v: string) => string | null }) {
       textCalls.push({ label: o.label });
       return textAnswers.shift() ?? "";
-    }, async hidden(_o: { label: string }) { return ""; }, async confirm(_o: { label: string }) { return false; }, async select(o: { label: string; choices: Array<{ value: string; label: string }> }) {
+    },
+    async hidden(_o: { label: string }) {
+      return "";
+    },
+    async confirm(_o: { label: string }) {
+      return false;
+    },
+    async select(o: { label: string; choices: Array<{ value: string; label: string }> }) {
       selectCalls.push({ label: o.label, choices: o.choices });
       return (selectAnswers.shift() ?? o.choices[0]?.value ?? "") as any;
-    }, } as any;
+    },
+  } as any;
 }
 
 // ── minimal command builder for gapFillRequiredFields tests ──────────────────
 
-function makeCmd(shape: z.ZodRawShape, opts: Partial<Pick<CommandDefinition, "auth" | "wallet" | "network">> = {}): CommandDefinition {
+function makeCmd(
+  shape: z.ZodRawShape,
+  opts: Partial<Pick<CommandDefinition, "auth" | "wallet" | "network">> = {},
+): CommandDefinition {
   const fields = z.object(shape);
   return {
-    path: ["cmd"], network: "none", wallet: "none", auth: "none", fields, input: fields, examples: [], run: async () => ({}), ...opts, } as unknown as CommandDefinition;
+    path: ["cmd"],
+    network: "none",
+    wallet: "none",
+    auth: "none",
+    fields,
+    input: fields,
+    examples: [],
+    run: async () => ({}),
+    ...opts,
+  } as unknown as CommandDefinition;
 }
 
 // ── isInteractiveCommand ─────────────────────────────────────────────────────
@@ -84,7 +106,9 @@ describe("isInteractiveCommand", () => {
 
   it("disables interaction by default (script-safe)", () => {
     expect(isInteractiveCommand({} as unknown as CommandDefinition)).toBe(false);
-    expect(isInteractiveCommand({ interactive: false } as unknown as CommandDefinition)).toBe(false);
+    expect(isInteractiveCommand({ interactive: false } as unknown as CommandDefinition)).toBe(
+      false,
+    );
   });
 });
 
@@ -165,14 +189,32 @@ describe("gapFillRequiredFields", () => {
 
   it("does not prompt optional Ledger locators; missing locator enters command-level selection", async () => {
     const cmd = makeCmd({
-      app: z.enum(["tron", "ethereum"]), index: z.number().optional(), path: z.string().optional(), address: z.string().optional(), scanLimit: z.number().optional(), label: z.string().optional(), });
-    cmd.promptHints = { label: "default-label", index: "skip", path: "skip", address: "skip", scanLimit: "skip" };
+      app: z.enum(["tron", "ethereum"]),
+      index: z.number().optional(),
+      path: z.string().optional(),
+      address: z.string().optional(),
+      scanLimit: z.number().optional(),
+      label: z.string().optional(),
+    });
+    cmd.promptHints = {
+      label: "default-label",
+      index: "skip",
+      path: "skip",
+      address: "skip",
+      scanLimit: "skip",
+    };
     const argv: Record<string, unknown> = {};
-    const prompter = makeFakePrompter({ tty: true, selectAnswers: ["tron"], textAnswers: ["cold"] });
+    const prompter = makeFakePrompter({
+      tty: true,
+      selectAnswers: ["tron"],
+      textAnswers: ["cold"],
+    });
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv).toEqual({ app: "tron", label: "cold" });
     expect(prompter.selectCalls).toHaveLength(1);
-    expect(prompter.textCalls.map((c) => c.label)[0]).toMatch(/^Label \(default: wallet_[0-9a-f]{6}\)$/);
+    expect(prompter.textCalls.map((c) => c.label)[0]).toMatch(
+      /^Label \(default: wallet_[0-9a-f]{6}\)$/,
+    );
   });
 
   it("does NOT prompt for an optional boolean flag", async () => {
@@ -198,7 +240,9 @@ describe("gapFillRequiredFields", () => {
     const argv: Record<string, unknown> = {};
     const prompter = makeFakePrompter({ tty: true, selectAnswers: ["wlt_b.0"] });
     const choices = () => [
-      { value: "wlt_a.0", label: "main [active]" }, { value: "wlt_b.0", label: "cold" }, ];
+      { value: "wlt_a.0", label: "main [active]" },
+      { value: "wlt_b.0", label: "cold" },
+    ];
     await gapFillRequiredFields(cmd, argv, prompter, choices);
     expect(argv.account).toBe("wlt_b.0");
     expect(prompter.selectCalls).toHaveLength(1);
@@ -249,13 +293,17 @@ import { Prompter } from "../input/prompt/index.js";
 // ── positional parsing end-to-end ─────────────────────────────────────────────
 
 describe("grouped positional parsing through yargs", () => {
-  function positionalFixture(tokens: string[]): { shellOpts: ShellOptions; seen: () => unknown } {
+  function positionalFixture(_tokens: string[]): { shellOpts: ShellOptions; seen: () => unknown } {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-test-"));
     const store = new AtomicFileStore();
     const prompter = new Prompter({
       isTTY: () => false,
-      async question() { return ""; },
-      async readKey() { return { name: "return" }; },
+      async question() {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
       write() {},
       beginRaw() {},
       endRaw() {},
@@ -272,41 +320,70 @@ describe("grouped positional parsing through yargs", () => {
     // two leaves under one head → the `<head> [verb] [args..]` group form
     registry.add({
       path: ["encoding", "convert"],
-      network: "none", wallet: "none", auth: "none",
+      network: "none",
+      wallet: "none",
+      auth: "none",
       positionals: [{ field: "input" }],
-      fields, input: fields, examples: [],
-      run: async (_ctx: any, _net: any, input: any) => { received = input.input; return {}; },
+      fields,
+      input: fields,
+      examples: [],
+      run: async (_ctx: any, _net: any, input: any) => {
+        received = input.input;
+        return {};
+      },
     } as unknown as CommandDefinition);
     registry.add({
       path: ["encoding", "other"],
-      network: "none", wallet: "none", auth: "none",
-      fields: z.object({}), input: z.object({}), examples: [],
+      network: "none",
+      wallet: "none",
+      auth: "none",
+      fields: z.object({}),
+      input: z.object({}),
+      examples: [],
       run: async () => ({}),
     } as unknown as CommandDefinition);
     // mirrors `use [account]`: positional field named after the global --account flag
     const acctFields = z.object({ account: z.string().min(1) });
     registry.add({
       path: ["acct"],
-      network: "none", wallet: "none", auth: "none",
+      network: "none",
+      wallet: "none",
+      auth: "none",
       positionals: [{ field: "account" }],
-      fields: acctFields, input: acctFields, examples: [],
-      run: async (_ctx: any, _net: any, input: any) => { received = input.account; return {}; },
+      fields: acctFields,
+      input: acctFields,
+      examples: [],
+      run: async (_ctx: any, _net: any, input: any) => {
+        received = input.account;
+        return {};
+      },
     } as unknown as CommandDefinition);
     const pairFields = z.object({ first: z.string(), second: z.string() });
     registry.add({
       path: ["pair"],
-      network: "none", wallet: "none", auth: "none",
+      network: "none",
+      wallet: "none",
+      auth: "none",
       positionals: [{ field: "first" }, { field: "second" }],
-      fields: pairFields, input: pairFields, examples: [],
+      fields: pairFields,
+      input: pairFields,
+      examples: [],
       run: async () => ({}),
     } as unknown as CommandDefinition);
     // single-segment leaf: yargs binds the positional by field name, no `args..` capture
     registry.add({
       path: ["cfg"],
-      network: "none", wallet: "none", auth: "none",
+      network: "none",
+      wallet: "none",
+      auth: "none",
       positionals: [{ field: "input" }],
-      fields, input: fields, examples: [],
-      run: async (_ctx: any, _net: any, input: any) => { received = input.input; return {}; },
+      fields,
+      input: fields,
+      examples: [],
+      run: async (_ctx: any, _net: any, input: any) => {
+        received = input.input;
+        return {};
+      },
     } as unknown as CommandDefinition);
 
     const formatter = createOutputFormatter("text", streams, Date.now());
@@ -348,8 +425,10 @@ describe("grouped positional parsing through yargs", () => {
     ["positional and flag together", ["encoding", "convert", "0xcafe", "--input", "0xdeadbeef"]],
   ])("rejects the --<field> spelling of a positional (%s)", async (_name, tokens) => {
     const { shellOpts } = positionalFixture(tokens);
-    await expect(buildCli(shellOpts).parseAsync(tokens))
-      .rejects.toMatchObject({ code: "invalid_option", message: /unknown option\(s\): --input/ });
+    await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
+      code: "invalid_option",
+      message: /unknown option\(s\): --input/,
+    });
   });
 
   it("still accepts the positional form on a single-segment leaf", async () => {
@@ -369,16 +448,18 @@ describe("grouped positional parsing through yargs", () => {
   it("names every flagged positional in one message", async () => {
     const tokens = ["pair", "--first", "a", "--second", "b"];
     const { shellOpts } = positionalFixture(tokens);
-    await expect(buildCli(shellOpts).parseAsync(tokens))
-      .rejects.toMatchObject({ message: /unknown option\(s\): --first, --second/ });
+    await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
+      message: /unknown option\(s\): --first, --second/,
+    });
   });
 
   it("leaves a command that declares no positionals alone", async () => {
     const tokens = ["encoding", "other", "--nope"];
     const { shellOpts } = positionalFixture(tokens);
     // still rejected, but by assertKnownFlags — not by the positional guard
-    await expect(buildCli(shellOpts).parseAsync(tokens))
-      .rejects.toMatchObject({ message: /unknown option\(s\): --nope/ });
+    await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
+      message: /unknown option\(s\): --nope/,
+    });
   });
 
   // The token scan must not mistake a flag-shaped *value* for a flag the user typed. Both ways of
@@ -415,8 +496,12 @@ describe("dispatch password-prime wiring", () => {
     // Fake prompter that is a TTY and responds with a valid password for primePassword
     const fakeBackend = {
       isTTY: () => true,
-      async question(_prompt: string, _hidden: boolean) { return "Abcdef1!"; },
-      async readKey() { return { name: "return" }; },
+      async question(_prompt: string, _hidden: boolean) {
+        return "Abcdef1!";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
       write(_s: string) {},
       beginRaw() {},
       endRaw() {},
@@ -444,7 +529,10 @@ describe("dispatch password-prime wiring", () => {
       fields: z.object({}),
       input: z.object({}),
       examples: [],
-      async run(_ctx: any, _net: any, _input: any) { ran = true; return {}; },
+      async run(_ctx: any, _net: any, _input: any) {
+        ran = true;
+        return {};
+      },
     } as unknown as CommandDefinition);
 
     const startedAt = Date.now();
@@ -484,8 +572,12 @@ describe("dispatch password-prime wiring", () => {
     const store = new AtomicFileStore();
     const fakeBackend = {
       isTTY: () => false,
-      async question(_prompt: string, _hidden: boolean) { return ""; },
-      async readKey() { return { name: "return" }; },
+      async question(_prompt: string, _hidden: boolean) {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
       write(_s: string) {},
       beginRaw() {},
       endRaw() {},
@@ -531,17 +623,23 @@ describe("dispatch password-prime wiring", () => {
 
   it("does NOT eager-unlock and runs a key-free auth=required command without a password", async () => {
     let ran = false;
-    const { shellOpts, spyPrime } = lazyAuthFixture(async () => { ran = true; return {}; });
+    const { shellOpts, spyPrime } = lazyAuthFixture(async () => {
+      ran = true;
+      return {};
+    });
     await buildCli(shellOpts).parseAsync(["test-auth-nopw"]);
     expect(ran).toBe(true);
     expect(spyPrime).not.toHaveBeenCalled();
   });
 
   it("demands the password lazily when an auth=required command actually uses the key", async () => {
-    const { shellOpts, spyPrime } = lazyAuthFixture(async (secrets) => { secrets.masterPassword(); return {}; });
-    await expect(
-      buildCli(shellOpts).parseAsync(["test-auth-nopw"])
-    ).rejects.toMatchObject({ code: "auth_required" });
+    const { shellOpts, spyPrime } = lazyAuthFixture(async (secrets) => {
+      secrets.masterPassword();
+      return {};
+    });
+    await expect(buildCli(shellOpts).parseAsync(["test-auth-nopw"])).rejects.toMatchObject({
+      code: "auth_required",
+    });
     expect(spyPrime).not.toHaveBeenCalled();
   });
 });

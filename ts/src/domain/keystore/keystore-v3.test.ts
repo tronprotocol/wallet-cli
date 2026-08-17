@@ -85,7 +85,9 @@ describe("KeystoreV3.encrypt", () => {
   });
 
   it("refuses a payload that is not a 32-byte private key", () => {
-    expect(() => KeystoreV3.encrypt(KEY.slice(0, 16), PW, ADDRESS)).toThrowError(/32-byte private key/);
+    expect(() => KeystoreV3.encrypt(KEY.slice(0, 16), PW, ADDRESS)).toThrowError(
+      /32-byte private key/,
+    );
   });
 });
 
@@ -99,7 +101,9 @@ describe("KeystoreV3.decrypt", () => {
   });
 
   it("reports a wrong file password distinctly from a malformed file", () => {
-    expect(() => KeystoreV3.decrypt(lightV3(), "not-the-password")).toThrowError(/incorrect keystore file password/);
+    expect(() => KeystoreV3.decrypt(lightV3(), "not-the-password")).toThrowError(
+      /incorrect keystore file password/,
+    );
     try {
       KeystoreV3.decrypt(lightV3(), "not-the-password");
     } catch (e: any) {
@@ -109,11 +113,31 @@ describe("KeystoreV3.decrypt", () => {
 
   it.each([
     ["a non-object", 42, /not a JSON object/],
-    ["our own version-1 vault blob", { version: 1, type: "raw-privkey", id: "key_x", crypto: lightV3().crypto }, /version must be 3/],
-    ["an unsupported cipher", { ...lightV3(), crypto: { ...lightV3().crypto, cipher: "aes-256-gcm" } }, /unsupported cipher/],
-    ["an unknown kdf", { ...lightV3(), crypto: { ...lightV3().crypto, kdf: "argon2" } }, /unsupported kdf/],
-    ["a non-hex ciphertext", { ...lightV3(), crypto: { ...lightV3().crypto, ciphertext: "zz" } }, /ciphertext is not a hex string/],
-    ["a missing crypto section", { version: 3, id: "x", address: ADDRESS }, /missing crypto section/],
+    [
+      "our own version-1 vault blob",
+      { version: 1, type: "raw-privkey", id: "key_x", crypto: lightV3().crypto },
+      /version must be 3/,
+    ],
+    [
+      "an unsupported cipher",
+      { ...lightV3(), crypto: { ...lightV3().crypto, cipher: "aes-256-gcm" } },
+      /unsupported cipher/,
+    ],
+    [
+      "an unknown kdf",
+      { ...lightV3(), crypto: { ...lightV3().crypto, kdf: "argon2" } },
+      /unsupported kdf/,
+    ],
+    [
+      "a non-hex ciphertext",
+      { ...lightV3(), crypto: { ...lightV3().crypto, ciphertext: "zz" } },
+      /ciphertext is not a hex string/,
+    ],
+    [
+      "a missing crypto section",
+      { version: 3, id: "x", address: ADDRESS },
+      /missing crypto section/,
+    ],
   ])("rejects %s before the password is used", (_label, file, message) => {
     expect(() => KeystoreV3.decrypt(file, PW)).toThrowError(message as RegExp);
     try {
@@ -153,12 +177,14 @@ describe("V3 import rejects a derived key too short to authenticate the password
   const shortDklen = (kdf: "pbkdf2" | "scrypt", password: string) => {
     const salt = new Uint8Array(32).fill(11);
     const iv = new Uint8Array(16).fill(13);
-    const kdfparams = kdf === "pbkdf2"
-      ? { c: 1, prf: "hmac-sha256", dklen: 16, salt: bytesToHex(salt) }
-      : { n: 1024, r: 8, p: 1, dklen: 16, salt: bytesToHex(salt) };
-    const dk = kdf === "pbkdf2"
-      ? pbkdf2(sha256, utf8ToBytes(password), salt, { c: 1, dkLen: 16 })
-      : Web3Crypto.scryptKey(password, salt, { n: 1024, r: 8, p: 1, dklen: 16 });
+    const kdfparams =
+      kdf === "pbkdf2"
+        ? { c: 1, prf: "hmac-sha256", dklen: 16, salt: bytesToHex(salt) }
+        : { n: 1024, r: 8, p: 1, dklen: 16, salt: bytesToHex(salt) };
+    const dk =
+      kdf === "pbkdf2"
+        ? pbkdf2(sha256, utf8ToBytes(password), salt, { c: 1, dkLen: 16 })
+        : Web3Crypto.scryptKey(password, salt, { n: 1024, r: 8, p: 1, dklen: 16 });
     const ciphertext = ctr(dk.slice(0, 16), iv).encrypt(KEY);
     return {
       version: 3,
@@ -177,17 +203,19 @@ describe("V3 import rejects a derived key too short to authenticate the password
   };
 
   it.each(["pbkdf2", "scrypt"] as const)("refuses a %s file declaring dklen 16", (kdf) => {
-    expect(() => KeystoreV3.decrypt(shortDklen(kdf, PW), PW))
-      .toThrowError(/dklen/i);
+    expect(() => KeystoreV3.decrypt(shortDklen(kdf, PW), PW)).toThrowError(/dklen/i);
   });
 
   // The decisive property: without the guard BOTH of these succeed, each yielding a different key.
-  it.each(["pbkdf2", "scrypt"] as const)("refuses a %s file under any password, not just the wrong one", (kdf) => {
-    const file = shortDklen(kdf, PW);
-    for (const attempt of [PW, "completely-different-password", ""]) {
-      expect(() => KeystoreV3.decrypt(file, attempt)).toThrowError(/dklen/i);
-    }
-  });
+  it.each(["pbkdf2", "scrypt"] as const)(
+    "refuses a %s file under any password, not just the wrong one",
+    (kdf) => {
+      const file = shortDklen(kdf, PW);
+      for (const attempt of [PW, "completely-different-password", ""]) {
+        expect(() => KeystoreV3.decrypt(file, attempt)).toThrowError(/dklen/i);
+      }
+    },
+  );
 
   it("still accepts the standard dklen 32", () => {
     expect(KeystoreV3.decrypt(lightV3(), PW)).toEqual(KEY);
@@ -221,8 +249,9 @@ describe("V3 import compares the MAC by value, not by how it was written", () =>
   });
 
   it("still rejects a wrong password as a wrong password", () => {
-    expect(() => KeystoreV3.decrypt(lightV3(), "not-the-password"))
-      .toThrowError(/incorrect keystore file password/);
+    expect(() => KeystoreV3.decrypt(lightV3(), "not-the-password")).toThrowError(
+      /incorrect keystore file password/,
+    );
   });
 
   it.each([

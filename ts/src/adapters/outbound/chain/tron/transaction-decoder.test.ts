@@ -11,11 +11,13 @@ function transaction(type: string, value: Record<string, unknown>) {
 
 describe("decodeTronTransaction", () => {
   it("decodes a native transfer without network IO", () => {
-    const decoded = decodeTronTransaction(transaction("TransferContract", {
-      owner_address: OWNER,
-      to_address: RECIPIENT,
-      amount: 1_000_000,
-    }));
+    const decoded = decodeTronTransaction(
+      transaction("TransferContract", {
+        owner_address: OWNER,
+        to_address: RECIPIENT,
+        amount: 1_000_000,
+      }),
+    );
     expect(decoded).toMatchObject({ kind: "trx", rawAmount: "1000000" });
     expect(decoded.from).toMatch(/^T/);
     expect(decoded.to).toMatch(/^T/);
@@ -24,21 +26,27 @@ describe("decodeTronTransaction", () => {
   it("decodes TRC20 transfer calldata", () => {
     const addressWord = `${"0".repeat(24)}${"22".repeat(20)}`;
     const amountWord = 25n.toString(16).padStart(64, "0");
-    const decoded = decodeTronTransaction(transaction("TriggerSmartContract", {
-      owner_address: OWNER,
-      contract_address: TOKEN,
-      data: `a9059cbb${addressWord}${amountWord}`,
-    }));
+    const decoded = decodeTronTransaction(
+      transaction("TriggerSmartContract", {
+        owner_address: OWNER,
+        contract_address: TOKEN,
+        data: `a9059cbb${addressWord}${amountWord}`,
+      }),
+    );
     expect(decoded).toMatchObject({ kind: "trc20", rawAmount: "25" });
     expect(decoded.tokenContract).toMatch(/^T/);
     expect(decoded.to).toMatch(/^T/);
   });
 
   it("classifies non-transfer smart contract calls without decoding arguments", () => {
-    expect(decodeTronTransaction(transaction("TriggerSmartContract", {
-      owner_address: OWNER,
-      contract_address: TOKEN,
-      data: "70a08231",
-    }))).toMatchObject({ kind: "contract" });
+    expect(
+      decodeTronTransaction(
+        transaction("TriggerSmartContract", {
+          owner_address: OWNER,
+          contract_address: TOKEN,
+          data: "70a08231",
+        }),
+      ),
+    ).toMatchObject({ kind: "contract" });
   });
 });

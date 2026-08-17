@@ -42,8 +42,13 @@ describe("FileBackupRecordStore", () => {
   it(`keeps only the most recent ${BACKUP_RECORD_LIMIT}, dropping the oldest`, () => {
     // Seeded directly: an append is a locked, fsynced rewrite, so 1000 of them would only measure
     // disk. The retention rule is what matters, and one append past the cap exercises it.
-    const seeded = Array.from({ length: BACKUP_RECORD_LIMIT }, (_v, i) => record(BACKUP_RECORD_LIMIT - i));
-    writeFileSync(join(root, "backup-records.json"), JSON.stringify({ version: 1, records: seeded }));
+    const seeded = Array.from({ length: BACKUP_RECORD_LIMIT }, (_v, i) =>
+      record(BACKUP_RECORD_LIMIT - i),
+    );
+    writeFileSync(
+      join(root, "backup-records.json"),
+      JSON.stringify({ version: 1, records: seeded }),
+    );
 
     store.append(record(0));
     const listed = store.list();
@@ -80,7 +85,9 @@ describe("FileBackupRecordStore", () => {
 
     expect(store.list()).toEqual([]);
 
-    const quarantined = readdirSync(root).filter((f) => f.startsWith("backup-records.json.unreadable"));
+    const quarantined = readdirSync(root).filter((f) =>
+      f.startsWith("backup-records.json.unreadable"),
+    );
     expect(quarantined).toHaveLength(1);
     expect(JSON.parse(readFileSync(join(root, quarantined[0]!), "utf8"))).toEqual(content);
   });
@@ -92,7 +99,9 @@ describe("FileBackupRecordStore", () => {
     store.append(record(1));
 
     expect(store.list()).toEqual([record(1)]);
-    const quarantined = readdirSync(root).filter((f) => f.startsWith("backup-records.json.unreadable"));
+    const quarantined = readdirSync(root).filter((f) =>
+      f.startsWith("backup-records.json.unreadable"),
+    );
     expect(JSON.parse(readFileSync(join(root, quarantined[0]!), "utf8"))).toEqual(original);
   });
 
@@ -100,6 +109,8 @@ describe("FileBackupRecordStore", () => {
   it("still refuses to touch a file that is not json at all", () => {
     writeFileSync(join(root, "backup-records.json"), '{"version":1,"records":[');
     expect(() => store.list()).toThrowError();
-    expect(readFileSync(join(root, "backup-records.json"), "utf8")).toBe('{"version":1,"records":[');
+    expect(readFileSync(join(root, "backup-records.json"), "utf8")).toBe(
+      '{"version":1,"records":[',
+    );
   });
 });

@@ -109,9 +109,8 @@ const names: ReadonlyArray<readonly [number, string]> = [
 ];
 
 const booleanIds = new Set([
-  9, 10, 14, 15, 16, 18, 20, 21, 24, 25, 26, 30, 32, 35, 39, 40, 41, 44,
-  48, 49, 51, 52, 53, 59, 60, 63, 65, 66, 67, 69, 71, 72, 76, 77, 79, 81,
-  83, 87, 88, 89, 94, 95, 96, 97, 98,
+  9, 10, 14, 15, 16, 18, 20, 21, 24, 25, 26, 30, 32, 35, 39, 40, 41, 44, 48, 49, 51, 52, 53, 59, 60,
+  63, 65, 66, 67, 69, 71, 72, 76, 77, 79, 81, 83, 87, 88, 89, 94, 95, 96, 97, 98,
 ]);
 
 const ranges = new Map<number, readonly [bigint, bigint]>([
@@ -152,10 +151,19 @@ const units: Readonly<Record<string, string>> = {
   getProposalExpireTime: "ms",
 };
 
-export const CHAIN_PARAMETER_CATALOG: readonly ChainParameterDefinition[] = names.map(([id, name]) => {
-  const [min, max] = ranges.get(id) ?? [0n, INT64_MAX];
-  return { id, name, unit: units[name] ?? "", min, max, ...(booleanIds.has(id) ? { allowed: BOOL } : {}) };
-});
+export const CHAIN_PARAMETER_CATALOG: readonly ChainParameterDefinition[] = names.map(
+  ([id, name]) => {
+    const [min, max] = ranges.get(id) ?? [0n, INT64_MAX];
+    return {
+      id,
+      name,
+      unit: units[name] ?? "",
+      min,
+      max,
+      ...(booleanIds.has(id) ? { allowed: BOOL } : {}),
+    };
+  },
+);
 
 const byId = new Map(CHAIN_PARAMETER_CATALOG.map((entry) => [entry.id, entry]));
 const byName = new Map(CHAIN_PARAMETER_CATALOG.map((entry) => [entry.name.toLowerCase(), entry]));
@@ -177,7 +185,10 @@ export function parseChainParameterAssignments(
   for (const assignment of assignments) {
     const separator = assignment.indexOf("=");
     if (separator <= 0 || separator === assignment.length - 1) {
-      throw new UsageError("invalid_value", `invalid --set '${assignment}'; expected <name|id>=<value>`);
+      throw new UsageError(
+        "invalid_value",
+        `invalid --set '${assignment}'; expected <name|id>=<value>`,
+      );
     }
     const key = assignment.slice(0, separator).trim();
     const rawValue = assignment.slice(separator + 1).trim();
@@ -188,7 +199,10 @@ export function parseChainParameterAssignments(
     }
     const value = BigInt(rawValue);
     if (definition.allowed && !definition.allowed.includes(value)) {
-      throw new UsageError("invalid_value", `${definition.name} must be ${definition.allowed.join(" or ")}`);
+      throw new UsageError(
+        "invalid_value",
+        `${definition.name} must be ${definition.allowed.join(" or ")}`,
+      );
     }
     if (!definition.allowed && (value < definition.min || value > definition.max)) {
       throw new UsageError(
@@ -215,9 +229,8 @@ export function proposalParameters(
     .map(([rawId, rawValue]) => {
       const id = Number(rawId);
       const definition = byId.get(id);
-      const value = /^-?\d+$/.test(rawValue) && BigInt(rawValue) <= MAX_SAFE
-        ? Number(rawValue)
-        : rawValue;
+      const value =
+        /^-?\d+$/.test(rawValue) && BigInt(rawValue) <= MAX_SAFE ? Number(rawValue) : rawValue;
       return {
         id,
         name: definition?.name ?? `parameter-${id}`,

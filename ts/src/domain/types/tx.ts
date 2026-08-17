@@ -54,7 +54,14 @@ export type TxOutcome =
   | { stage: "plan"; tx: UnsignedTx; fee: FeeReport }
   | { stage: "built"; tx: UnsignedTx; hex: string; fee: FeeReport }
   // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
-  | { stage: "signed"; signed: SignedTx; hex?: string; fee?: FeeReport; address?: string; txId?: string }
+  | {
+      stage: "signed";
+      signed: SignedTx;
+      hex?: string;
+      fee?: FeeReport;
+      address?: string;
+      txId?: string;
+    }
   | ({ stage: BroadcastStage } & BroadcastResult);
 
 // ════════════════════ per-command typed text outputs ══════════════════════
@@ -80,21 +87,50 @@ export interface TxStatusView {
 }
 
 /** decoded transfer parties of a tx (best-effort from the raw tx). */
-export interface TxParties { from?: string; to?: string; amount?: string; symbol?: string; contract?: string }
+export interface TxParties {
+  from?: string;
+  to?: string;
+  amount?: string;
+  symbol?: string;
+  contract?: string;
+}
 
 /** which action a broadcast receipt describes — drives the summary verb + extra rows.
  *  A typed discriminant replaces matching on the stringly command id. */
 export type TxReceiptKind =
-  | "send" | "broadcast" | "sign"
-  | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
-  | "contract-send" | "contract-deploy"
-  | "proposal-create" | "proposal-approve" | "proposal-delete"
-  | "witness-create" | "witness-update" | "witness-set-brokerage"
-  | "contract-clear-abi" | "contract-set-origin-energy-limit" | "contract-set-user-resource-percent"
-  | "vote-cast" | "reward-withdraw" | "permission-update"
-  | "account-activate" | "account-set"
-  | "asset-issue" | "asset-update" | "asset-participate" | "asset-unfreeze"
-  | "exchange-create" | "exchange-inject" | "exchange-withdraw" | "exchange-trade";
+  | "send"
+  | "broadcast"
+  | "sign"
+  | "stake-freeze"
+  | "stake-unfreeze"
+  | "stake-delegate"
+  | "stake-undelegate"
+  | "stake-withdraw"
+  | "stake-cancel"
+  | "contract-send"
+  | "contract-deploy"
+  | "proposal-create"
+  | "proposal-approve"
+  | "proposal-delete"
+  | "witness-create"
+  | "witness-update"
+  | "witness-set-brokerage"
+  | "contract-clear-abi"
+  | "contract-set-origin-energy-limit"
+  | "contract-set-user-resource-percent"
+  | "vote-cast"
+  | "reward-withdraw"
+  | "permission-update"
+  | "account-activate"
+  | "account-set"
+  | "asset-issue"
+  | "asset-update"
+  | "asset-participate"
+  | "asset-unfreeze"
+  | "exchange-create"
+  | "exchange-inject"
+  | "exchange-withdraw"
+  | "exchange-trade";
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).

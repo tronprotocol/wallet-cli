@@ -17,13 +17,15 @@ const UNFREEZE_FIXTURE = {
     ref_block_hash: "0d5c9f3c08da6358",
     expiration: 1_786_286_820_000,
     timestamp: 1_786_286_760_381,
-    contract: [{
-      parameter: {
-        value: { owner_address: "417e95e45f5a60cc45f2d0afe37ee9f77fb8ce9fff" },
-        type_url: "type.googleapis.com/protocol.UnfreezeAssetContract",
+    contract: [
+      {
+        parameter: {
+          value: { owner_address: "417e95e45f5a60cc45f2d0afe37ee9f77fb8ce9fff" },
+          type_url: "type.googleapis.com/protocol.UnfreezeAssetContract",
+        },
+        type: "UnfreezeAssetContract",
       },
-      type: "UnfreezeAssetContract",
-    }],
+    ],
   },
   raw_data_hex:
     "0a02f7c422080d5c9f3c08da635840a095f7b7fe335a51080e124d0a32747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e556e667265657a654173736574436f6e747261637412170a15417e95e45f5a60cc45f2d0afe37ee9f77fb8ce9fff70bdc3f3b7fe33",
@@ -43,26 +45,28 @@ function issueFixture(frozenSupply: Array<{ frozen_amount: number; frozen_days: 
       ref_block_bytes: "f7c4",
       ref_block_hash: "0d5c9f3c08da6358",
       expiration: 1_786_286_820_000,
-      contract: [{
-        parameter: {
-          value: {
-            owner_address: ISSUER,
-            name: "4d79546f6b656e",
-            abbr: "4d544b",
-            total_supply: 1_000_000_000_000_000,
-            frozen_supply: frozenSupply,
-            trx_num: 1,
-            precision: 6,
-            num: 100,
-            start_time: 1_800_000_000_000,
-            end_time: 1_800_900_000_000,
-            description: "44656d6f205452433130",
-            url: "68747470733a2f2f6d79746f6b656e2e696f",
+      contract: [
+        {
+          parameter: {
+            value: {
+              owner_address: ISSUER,
+              name: "4d79546f6b656e",
+              abbr: "4d544b",
+              total_supply: 1_000_000_000_000_000,
+              frozen_supply: frozenSupply,
+              trx_num: 1,
+              precision: 6,
+              num: 100,
+              start_time: 1_800_000_000_000,
+              end_time: 1_800_900_000_000,
+              description: "44656d6f205452433130",
+              url: "68747470733a2f2f6d79746f6b656e2e696f",
+            },
+            type_url: "type.googleapis.com/protocol.AssetIssueContract",
           },
-          type_url: "type.googleapis.com/protocol.AssetIssueContract",
+          type: "AssetIssueContract",
         },
-        type: "AssetIssueContract",
-      }],
+      ],
     },
   };
 }
@@ -125,8 +129,9 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
   it("decodes UnfreezeAssetContract back to its own type and owner", () => {
     const decoded = decodeTransactionHex(encodeTransactionHex(UNFREEZE_FIXTURE));
     expect(decoded.raw_data.contract[0]?.type).toBe("UnfreezeAssetContract");
-    expect(decoded.raw_data.contract[0]?.parameter?.type_url)
-      .toBe("type.googleapis.com/protocol.UnfreezeAssetContract");
+    expect(decoded.raw_data.contract[0]?.parameter?.type_url).toBe(
+      "type.googleapis.com/protocol.UnfreezeAssetContract",
+    );
     expect(decoded.raw_data.contract[0]?.parameter?.value?.owner_address)
       // TronWeb's own deserialisers emit upper-case hex addresses; ours matches them.
       .toBe("417E95E45F5A60CC45F2D0AFE37EE9F77FB8CE9FFF");
@@ -153,16 +158,26 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
 
   it("rejects an AssetIssueContract whose raw_data_hex disagrees with its tranches", () => {
     // the node's three-tranche bytes, but raw_data claiming only the first tranche
-    expect(() => encodeTransactionHex({
-      ...ISSUE_THREE,
-      raw_data: { ...ISSUE_THREE.raw_data, contract: [{
-        ...ISSUE_THREE.raw_data.contract[0]!,
-        parameter: {
-          ...ISSUE_THREE.raw_data.contract[0]!.parameter,
-          value: { ...ISSUE_THREE.raw_data.contract[0]!.parameter.value, frozen_supply: [THREE_TRANCHES[0]!] },
+    expect(() =>
+      encodeTransactionHex({
+        ...ISSUE_THREE,
+        raw_data: {
+          ...ISSUE_THREE.raw_data,
+          contract: [
+            {
+              ...ISSUE_THREE.raw_data.contract[0]!,
+              parameter: {
+                ...ISSUE_THREE.raw_data.contract[0]!.parameter,
+                value: {
+                  ...ISSUE_THREE.raw_data.contract[0]!.parameter.value,
+                  frozen_supply: [THREE_TRANCHES[0]!],
+                },
+              },
+            },
+          ],
         },
-      }] },
-    })).toThrow(/raw_data_hex does not match raw_data/);
+      }),
+    ).toThrow(/raw_data_hex does not match raw_data/);
   });
 
   /**
@@ -171,8 +186,9 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
    */
   it("documents that TronWeb's own serialiser still drops tranches after the first", () => {
     const viaTronWeb = tronUtils.transaction.txJsonToPb(ISSUE_THREE as never);
-    expect(tronUtils.transaction.txPbToRawDataHex(viaTronWeb).toLowerCase())
-      .not.toBe(ISSUE_THREE.raw_data_hex);
+    expect(tronUtils.transaction.txPbToRawDataHex(viaTronWeb).toLowerCase()).not.toBe(
+      ISSUE_THREE.raw_data_hex,
+    );
 
     // ...and that it cannot build an UnfreezeAssetContract at all.
     expect(() => tronUtils.transaction.txJsonToPb(UNFREEZE_FIXTURE as never)).toThrow();

@@ -6,10 +6,16 @@ import { TextFormatters } from "../render/index.js";
 
 export const blockSpec: ChainSpec = {
   path: ["block"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   positionals: [{ field: "number" }],
   summary: "Get a block (latest if omitted)",
-  baseFields: z.object({ number: Schemas.uintString().optional().describe("block number to fetch, in block height; omit to fetch the latest block") }),
+  baseFields: z.object({
+    number: Schemas.uintString()
+      .optional()
+      .describe("block number to fetch, in block height; omit to fetch the latest block"),
+  }),
   examples: [{ cmd: "wallet-cli block" }, { cmd: "wallet-cli block 12345" }],
   formatText: TextFormatters.block,
 };

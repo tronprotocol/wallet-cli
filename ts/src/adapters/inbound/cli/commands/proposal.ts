@@ -7,7 +7,9 @@ import { TextFormatters } from "../render/index.js";
 
 export const proposalListSpec: ChainSpec = {
   path: ["proposal", "list"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "proposal.read",
   summary: "List on-chain governance proposals",
   description:
@@ -16,7 +18,8 @@ export const proposalListSpec: ChainSpec = {
     "value column is what the proposal sets, not the current value on chain — see\n" +
     "'chain params' for those. Active proposals are shown by default.",
   baseFields: z.object({
-    state: ciEnum(["active", "all"]).default("active")
+    state: ciEnum(["active", "all"])
+      .default("active")
       .describe("active voting proposals, or all proposal history"),
     limit: z.coerce.number().int().positive().optional().describe("maximum proposals to return"),
     offset: z.coerce.number().int().min(0).default(0).describe("pagination offset"),
@@ -34,7 +37,9 @@ export const proposalListTronBinding = (service: TronProposalService): FamilyBin
 
 export const proposalShowSpec: ChainSpec = {
   path: ["proposal", "show"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "proposal.read",
   positionals: [{ field: "id" }],
   summary: "Show one governance proposal",
@@ -76,13 +81,17 @@ export const proposalCreateSpec: ChainSpec = {
     "witnesses can create proposals; --set accepts the chain-parameter name or numeric id.",
   requires: ["a registered witness account"],
   baseFields: z.object({
-    set: z.array(z.string().min(3)).min(1)
+    set: z
+      .array(z.string().min(3))
+      .min(1)
       .describe("<name|id>=<value>; repeatable; duplicate ids use the last value"),
     ...governanceTxModeFields,
   }),
   examples: [
     { cmd: "wallet-cli proposal create --set getTransactionFee=15 --wait" },
-    { cmd: "wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --wait" },
+    {
+      cmd: "wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --wait",
+    },
   ],
 };
 

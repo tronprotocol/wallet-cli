@@ -155,10 +155,18 @@ export class TronExchangeService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: (from) => gateway.buildExchangeCreate(
-        from, firstTokenId, String(firstAmount), secondTokenId, String(secondAmount),
-      ),
-      estimate: async () => ({ feeModel: "tron-resource", note: "creation burns the chain's exchange create fee" }),
+      build: (from) =>
+        gateway.buildExchangeCreate(
+          from,
+          firstTokenId,
+          String(firstAmount),
+          secondTokenId,
+          String(secondAmount),
+        ),
+      estimate: async () => ({
+        feeModel: "tron-resource",
+        note: "creation burns the chain's exchange create fee",
+      }),
     });
     const data = outcomeData(outcome);
     return {
@@ -183,7 +191,11 @@ export class TronExchangeService {
     return this.#liquidity(scope, network, input, "inject");
   }
 
-  async withdraw(scope: TransactionScope, network: NetworkDescriptor, input: ExchangeLiquidityInput) {
+  async withdraw(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: ExchangeLiquidityInput,
+  ) {
     return this.#liquidity(scope, network, input, "withdraw");
   }
 
@@ -212,10 +224,18 @@ export class TronExchangeService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: (from) => gateway.buildExchangeTrade(
-        from, exchange.exchangeId, sides.tokenId, String(sellQuant), String(floor),
-      ),
-      estimate: async () => ({ feeModel: "tron-resource", note: "a trade uses bandwidth only — the protocol takes no fee" }),
+      build: (from) =>
+        gateway.buildExchangeTrade(
+          from,
+          exchange.exchangeId,
+          sides.tokenId,
+          String(sellQuant),
+          String(floor),
+        ),
+      estimate: async () => ({
+        feeModel: "tron-resource",
+        note: "a trade uses bandwidth only — the protocol takes no fee",
+      }),
     });
     const data = outcomeData(outcome);
     return {
@@ -232,7 +252,9 @@ export class TronExchangeService {
       receivedLabel: buyMeta.label,
       receivedDecimals: buyMeta.decimals,
       // the realised amount exists only in the receipt; our own figure stays labelled an estimate
-      ...(data.exchangeReceived === undefined ? {} : { receivedQuant: String(data.exchangeReceived) }),
+      ...(data.exchangeReceived === undefined
+        ? {}
+        : { receivedQuant: String(data.exchangeReceived) }),
       estimatedReceivedQuant: String(predicted),
       minReceivedQuant: String(floor),
     };
@@ -286,15 +308,17 @@ export class TronExchangeService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: (from) => action === "inject"
-        ? gateway.buildExchangeInject(from, exchange.exchangeId, sides.tokenId, String(quant))
-        : gateway.buildExchangeWithdraw(from, exchange.exchangeId, sides.tokenId, String(quant)),
+      build: (from) =>
+        action === "inject"
+          ? gateway.buildExchangeInject(from, exchange.exchangeId, sides.tokenId, String(quant))
+          : gateway.buildExchangeWithdraw(from, exchange.exchangeId, sides.tokenId, String(quant)),
       estimate: async () => ({ feeModel: "tron-resource", note: `${action} uses bandwidth only` }),
     });
     const data = outcomeData(outcome);
     // The receipt states the other side authoritatively; before confirmation our own exact figure
     // stands, and reserves after are pre-state ± the amounts, so no extra read is needed.
-    const realisedOther = action === "inject" ? data.exchangeInjectedOther : data.exchangeWithdrawnOther;
+    const realisedOther =
+      action === "inject" ? data.exchangeInjectedOther : data.exchangeWithdrawnOther;
     const otherFinal = realisedOther === undefined ? otherQuant : BigInt(String(realisedOther));
     const sign = action === "inject" ? 1n : -1n;
     return {
@@ -356,31 +380,48 @@ export class TronExchangeService {
 
   /** exactly one of --amount (whole tokens, needs the token's precision) or --raw-amount. */
   #amount(input: AmountInput, meta: TokenMeta, flag: string): bigint {
-    const given = [input.amount !== undefined, input.rawAmount !== undefined].filter(Boolean).length;
+    const given = [input.amount !== undefined, input.rawAmount !== undefined].filter(
+      Boolean,
+    ).length;
     if (given !== 1) {
-      throw new UsageError("invalid_option", `provide exactly one of ${flag} or ${flag.replace("--", "--raw-")}`);
+      throw new UsageError(
+        "invalid_option",
+        `provide exactly one of ${flag} or ${flag.replace("--", "--raw-")}`,
+      );
     }
-    const raw = input.amount !== undefined
-      ? toBaseUnits(input.amount, meta.decimals, meta.label)
-      : input.rawAmount!;
+    const raw =
+      input.amount !== undefined
+        ? toBaseUnits(input.amount, meta.decimals, meta.label)
+        : input.rawAmount!;
     const value = BigInt(raw);
     if (value <= 0n) throw new UsageError("invalid_value", `${flag} must be greater than zero`);
     return value;
   }
 
   /** `--amounts a:b` / `--raw-amounts a:b`, one half per side of the pair. */
-  async #pairAmounts(input: ExchangeCreateInput, first: TokenMeta, second: TokenMeta): Promise<[bigint, bigint]> {
-    const given = [input.amounts !== undefined, input.rawAmounts !== undefined].filter(Boolean).length;
+  async #pairAmounts(
+    input: ExchangeCreateInput,
+    first: TokenMeta,
+    second: TokenMeta,
+  ): Promise<[bigint, bigint]> {
+    const given = [input.amounts !== undefined, input.rawAmounts !== undefined].filter(
+      Boolean,
+    ).length;
     if (given !== 1) {
       throw new UsageError("invalid_option", "provide exactly one of --amounts or --raw-amounts");
     }
     const flag = input.amounts !== undefined ? "--amounts" : "--raw-amounts";
     const [a, b] = splitPair((input.amounts ?? input.rawAmounts)!, flag);
     const convert = (value: string, meta: TokenMeta): bigint => {
-      const raw = input.amounts !== undefined ? toBaseUnits(value.trim(), meta.decimals, meta.label) : value.trim();
-      if (!/^\d+$/.test(raw)) throw new UsageError("invalid_value", `${flag} must hold two whole numbers`);
+      const raw =
+        input.amounts !== undefined
+          ? toBaseUnits(value.trim(), meta.decimals, meta.label)
+          : value.trim();
+      if (!/^\d+$/.test(raw))
+        throw new UsageError("invalid_value", `${flag} must hold two whole numbers`);
       const parsed = BigInt(raw);
-      if (parsed <= 0n) throw new UsageError("invalid_value", `${flag} sides must both be greater than zero`);
+      if (parsed <= 0n)
+        throw new UsageError("invalid_value", `${flag} sides must both be greater than zero`);
       return parsed;
     };
     return [convert(a, first), convert(b, second)];
@@ -403,16 +444,21 @@ export class TronExchangeService {
       input.slippage !== undefined,
     ].filter(Boolean).length;
     if (given > 1) {
-      throw new UsageError("invalid_option", "choose at most one of --min-received, --raw-min-received, --slippage");
+      throw new UsageError(
+        "invalid_option",
+        "choose at most one of --min-received, --raw-min-received, --slippage",
+      );
     }
     if (input.minReceived !== undefined) {
-      return BigInt(toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, "--min-received"));
+      return BigInt(
+        toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, "--min-received"),
+      );
     }
     if (input.rawMinReceived !== undefined) return BigInt(input.rawMinReceived);
     if (input.slippage !== undefined) return slippageFloor(predicted, input.slippage);
     scope.warn(
       "no slippage protection: this trade accepts any non-zero return at any price. " +
-      "Pass --slippage or --min-received to set a floor.",
+        "Pass --slippage or --min-received to set a floor.",
     );
     return UNPROTECTED_FLOOR;
   }

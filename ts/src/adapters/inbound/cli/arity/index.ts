@@ -52,13 +52,22 @@ export function camelToKebab(s: string): string {
   return s.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 }
 
-function unwrap(schema: ZodType): { base: ZodType; optional: boolean; hasDefault: boolean; defaultValue?: unknown; description?: string } {
+function unwrap(schema: ZodType): {
+  base: ZodType;
+  optional: boolean;
+  hasDefault: boolean;
+  defaultValue?: unknown;
+  description?: string;
+} {
   let s: any = schema;
   let optional = false;
   let hasDefault = false;
   let defaultValue: unknown;
   let description: string | undefined = s?.description;
-  while (s?.def && (s.def.type === "optional" || s.def.type === "default" || s.def.type === "nullable")) {
+  while (
+    s?.def &&
+    (s.def.type === "optional" || s.def.type === "default" || s.def.type === "nullable")
+  ) {
     if (s.def.type === "optional" || s.def.type === "nullable") optional = true;
     if (s.def.type === "default") {
       hasDefault = true;
@@ -109,7 +118,11 @@ export function introspectFields(fields: ZodObject<ZodRawShape>): FieldInfo[] {
 /** literal options of an enum field (after unwrapping optional/default), else undefined. */
 export function enumOptions(schema: ZodType): string[] | undefined {
   const { base } = unwrap(schema as ZodType);
-  let def = (base as unknown as { def?: { type?: string; entries?: Record<string, string>; out?: { def?: any } } }).def;
+  let def = (
+    base as unknown as {
+      def?: { type?: string; entries?: Record<string, string>; out?: { def?: any } };
+    }
+  ).def;
   // ciEnum() wraps the enum in a preprocess pipe; the literals live on the pipe's output side.
   if (def?.type === "pipe") def = def.out?.def;
   if (def?.type !== "enum" || !def.entries) return undefined;

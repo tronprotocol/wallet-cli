@@ -52,20 +52,29 @@ describe("tx sign binding", () => {
         return { kind: "sign" };
       },
     };
-    await txSignTronBinding(svc as never, {} as never, {} as never, {} as never)
-      .run(ctx, net, { transaction: '{"txID":"abc"}' });
+    await txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+      transaction: '{"txID":"abc"}',
+    });
     expect(received).toEqual({ txID: "abc" });
   });
 
   it("rejects malformed JSON with invalid_value", async () => {
     const svc = { sign: async () => ({}) };
-    await expect(txSignTronBinding(svc as never, {} as never, {} as never, {} as never)
-      .run(ctx, net, { transaction: "not json" }))
-      .rejects.toMatchObject({ code: "invalid_value" });
+    await expect(
+      txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+        transaction: "not json",
+      }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
   const offlineSigner = () => ({
-    sign: async () => ({ kind: "tx-sign", hex: "beef", signer: "T1", checked: false, transaction: {} }),
+    sign: async () => ({
+      kind: "tx-sign",
+      hex: "beef",
+      signer: "T1",
+      checked: false,
+      transaction: {},
+    }),
   });
   const checkedSigner = () => ({
     signChecked: async () => ({
@@ -78,36 +87,69 @@ describe("tx sign binding", () => {
       approval: {},
     }),
   });
-  const rejectOffline = { sign: async () => { throw new Error("unexpected offline route"); } };
-  const rejectChecked = { signChecked: async () => { throw new Error("unexpected checked route"); } };
+  const rejectOffline = {
+    sign: async () => {
+      throw new Error("unexpected offline route");
+    },
+  };
+  const rejectChecked = {
+    signChecked: async () => {
+      throw new Error("unexpected checked route");
+    },
+  };
 
   // Default: verify signer permission and resulting weight online (doc §3.2.1). A co-signer who is
   // not in the permission group, or who already signed, must fail before a signature is produced —
   // not silently emit a hex that only `tx broadcast` will reject, after it has been passed on.
   it("routes hex signing through the multisig authorization service by default", async () => {
-    await expect(txSignTronBinding({} as never, rejectOffline as never, checkedSigner() as never, {} as never)
-      .run(ctx, net, { hex: "abcd", offline: false }))
-      .resolves.toMatchObject({ checked: true, signerWeight: 1 });
+    await expect(
+      txSignTronBinding(
+        {} as never,
+        rejectOffline as never,
+        checkedSigner() as never,
+        {} as never,
+      ).run(ctx, net, { hex: "abcd", offline: false }),
+    ).resolves.toMatchObject({ checked: true, signerWeight: 1 });
   });
 
   it("treats an absent --offline exactly like --offline false", async () => {
-    await expect(txSignTronBinding({} as never, rejectOffline as never, checkedSigner() as never, {} as never)
-      .run(ctx, net, { hex: "abcd" }))
-      .resolves.toMatchObject({ checked: true });
+    await expect(
+      txSignTronBinding(
+        {} as never,
+        rejectOffline as never,
+        checkedSigner() as never,
+        {} as never,
+      ).run(ctx, net, { hex: "abcd" }),
+    ).resolves.toMatchObject({ checked: true });
   });
 
   it("routes --offline through the local signing service, never touching the node", async () => {
-    await expect(txSignTronBinding({} as never, offlineSigner() as never, rejectChecked as never, {} as never)
-      .run(ctx, net, { hex: "abcd", offline: true }))
-      .resolves.toMatchObject({ checked: false });
+    await expect(
+      txSignTronBinding(
+        {} as never,
+        offlineSigner() as never,
+        rejectChecked as never,
+        {} as never,
+      ).run(ctx, net, { hex: "abcd", offline: true }),
+    ).resolves.toMatchObject({ checked: false });
   });
 
   it("writes --out on both routes", async () => {
-    for (const input of [{ hex: "abcd", out: "signed.hex" }, { hex: "abcd", out: "signed.hex", offline: true }]) {
+    for (const input of [
+      { hex: "abcd", out: "signed.hex" },
+      { hex: "abcd", out: "signed.hex", offline: true },
+    ]) {
       let written: unknown;
-      const writer = { write: (path: string, hex: string) => { written = { path, hex }; } };
+      const writer = {
+        write: (path: string, hex: string) => {
+          written = { path, hex };
+        },
+      };
       const result = await txSignTronBinding(
-        {} as never, offlineSigner() as never, checkedSigner() as never, writer as never,
+        {} as never,
+        offlineSigner() as never,
+        checkedSigner() as never,
+        writer as never,
       ).run(ctx, net, input);
       expect(written).toEqual({ path: "signed.hex", hex: "beef" });
       expect(result).toMatchObject({ out: "signed.hex", hex: "beef" });
@@ -116,9 +158,12 @@ describe("tx sign binding", () => {
 
   it("rejects --offline with the JSON payload route, which has no online check to skip", async () => {
     const svc = { sign: async () => ({ kind: "sign" }) };
-    await expect(txSignTronBinding(svc as never, {} as never, {} as never, {} as never)
-      .run(ctx, net, { transaction: "{}", offline: true }))
-      .rejects.toMatchObject({ code: "invalid_option" });
+    await expect(
+      txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+        transaction: "{}",
+        offline: true,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_option" });
   });
 });
 
@@ -127,10 +172,19 @@ describe("tx sign binding", () => {
 // new `kind:"tx-sign"` shape appears only for --hex/--file, which did not exist in 4.10.0.
 describe("tx sign 4.10.0 JSON compatibility", () => {
   it("returns the transaction service result unwrapped and unannotated", async () => {
-    const legacy = { kind: "sign", mode: "sign-only", signed: { txID: "abc" }, address: "T1", txId: "abc" };
+    const legacy = {
+      kind: "sign",
+      mode: "sign-only",
+      signed: { txID: "abc" },
+      address: "T1",
+      txId: "abc",
+    };
     const svc = { sign: async () => legacy };
-    const result = await txSignTronBinding(svc as never, {} as never, {} as never, {} as never)
-      .run(ctx, net, { transaction: '{"txID":"abc"}' });
+    const result = await txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(
+      ctx,
+      net,
+      { transaction: '{"txID":"abc"}' },
+    );
     expect(result).toEqual(legacy);
     expect(result).not.toHaveProperty("checked");
     expect(result).not.toHaveProperty("approval");
@@ -164,20 +218,22 @@ describe("tx send exclusive groups", () => {
   });
 
   it("states each exclusivity once — in the group, not also in a field description", () => {
-    const descriptions = Object.values(txSendSpec.baseFields.shape)
-      .map((field) => (field as { description?: string }).description ?? "");
+    const descriptions = Object.values(txSendSpec.baseFields.shape).map(
+      (field) => (field as { description?: string }).description ?? "",
+    );
     expect(descriptions.filter((d) => d.includes("mutually exclusive"))).toEqual([]);
   });
 });
 
 describe("tx broadcast binding", () => {
-  const broadcastContext = (stdin?: string, wait = false) => ({
-    wait,
-    secrets: {
-      has: (kind: string) => kind === "tx" && stdin !== undefined,
-      pick: (inline: string | undefined) => inline ?? stdin,
-    },
-  }) as never;
+  const broadcastContext = (stdin?: string, wait = false) =>
+    ({
+      wait,
+      secrets: {
+        has: (kind: string) => kind === "tx" && stdin !== undefined,
+        pick: (inline: string | undefined) => inline ?? stdin,
+      },
+    }) as never;
 
   it("retains JSON/stdin inputs and adds hex/file inputs", () => {
     expect(txBroadcastSpec.baseFields.safeParse({ transaction: "{}" }).success).toBe(true);
@@ -190,10 +246,14 @@ describe("tx broadcast binding", () => {
   // description is a second copy that drifts the moment an input is added or renamed.
   it("declares every input in one exclusive group and nowhere else", () => {
     expect(txBroadcastSpec.exclusive).toEqual([
-      { label: "the signed transaction to broadcast", flags: ["transaction", "tx-stdin", "hex", "file"] },
+      {
+        label: "the signed transaction to broadcast",
+        flags: ["transaction", "tx-stdin", "hex", "file"],
+      },
     ]);
-    const descriptions = Object.values(txBroadcastSpec.baseFields.shape)
-      .map((field) => (field as { description?: string }).description ?? "");
+    const descriptions = Object.values(txBroadcastSpec.baseFields.shape).map(
+      (field) => (field as { description?: string }).description ?? "",
+    );
     expect(descriptions.filter((d) => d.includes("mutually exclusive"))).toEqual([]);
   });
 
@@ -207,9 +267,12 @@ describe("tx broadcast binding", () => {
         throw new Error("unexpected JSON route");
       },
     };
-    await expect(txBroadcastTronBinding(service as never)
-      .run(broadcastContext(), net, { hex: "aabb", dryRun: true }))
-      .resolves.toEqual({ hex: "aabb", dryRun: true });
+    await expect(
+      txBroadcastTronBinding(service as never).run(broadcastContext(), net, {
+        hex: "aabb",
+        dryRun: true,
+      }),
+    ).resolves.toEqual({ hex: "aabb", dryRun: true });
   });
 
   it("routes the retained --tx-stdin JSON source", async () => {
@@ -223,27 +286,39 @@ describe("tx broadcast binding", () => {
         return { txId: "abc" };
       },
     };
-    await txBroadcastTronBinding(service as never)
-      .run(broadcastContext('{"txID":"abc"}'), net, { dryRun: false });
+    await txBroadcastTronBinding(service as never).run(broadcastContext('{"txID":"abc"}'), net, {
+      dryRun: false,
+    });
     expect(received).toEqual({ txID: "abc" });
   });
 
   it("rejects ambiguous input and --wait with --dry-run", async () => {
     const service = { broadcastHex: async () => ({}), broadcastJson: async () => ({}) };
-    await expect(txBroadcastTronBinding(service as never)
-      .run(broadcastContext(), net, { transaction: "{}", hex: "aabb", dryRun: false }))
-      .rejects.toMatchObject({ code: "invalid_option" });
-    await expect(txBroadcastTronBinding(service as never)
-      .run(broadcastContext(undefined, true), net, { hex: "aabb", dryRun: true }))
-      .rejects.toMatchObject({ code: "invalid_option" });
+    await expect(
+      txBroadcastTronBinding(service as never).run(broadcastContext(), net, {
+        transaction: "{}",
+        hex: "aabb",
+        dryRun: false,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_option" });
+    await expect(
+      txBroadcastTronBinding(service as never).run(broadcastContext(undefined, true), net, {
+        hex: "aabb",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_option" });
   });
 });
 
 describe("tx multisig spec", () => {
   it("supports list, unsigned create, sign, and WebSocket watch modes", () => {
     expect(txTronLinkMultisigSpec.baseFields.safeParse({}).success).toBe(true);
-    expect(txTronLinkMultisigSpec.baseFields.safeParse({ create: true, hex: "aabb" }).success).toBe(true);
-    expect(txTronLinkMultisigSpec.baseFields.safeParse({ sign: "ab".repeat(32) }).success).toBe(true);
+    expect(txTronLinkMultisigSpec.baseFields.safeParse({ create: true, hex: "aabb" }).success).toBe(
+      true,
+    );
+    expect(txTronLinkMultisigSpec.baseFields.safeParse({ sign: "ab".repeat(32) }).success).toBe(
+      true,
+    );
     expect(txTronLinkMultisigSpec.baseFields.safeParse({ watch: true }).success).toBe(true);
   });
 

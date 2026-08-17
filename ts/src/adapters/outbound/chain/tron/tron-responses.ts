@@ -56,7 +56,10 @@ const TronContractSchema = z.looseObject({
 
 const TronTxSchema = objectish(
   z.looseObject({
-    ret: z.array(z.looseObject({ contractRet: optStr })).optional().catch(undefined),
+    ret: z
+      .array(z.looseObject({ contractRet: optStr }))
+      .optional()
+      .catch(undefined),
     raw_data: z
       .looseObject({ contract: z.array(TronContractSchema).optional().catch(undefined) })
       .optional()

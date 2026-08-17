@@ -8,7 +8,16 @@ import { join } from "node:path";
 import { randomBytes, hexToBytes } from "@noble/hashes/utils.js";
 import { base32crockford } from "@scure/base";
 import type {
-  AccountDescriptor, AccountRef, Bytes, ChainFamily, KeystoreBlob, MutationResult, Source, Wallet, WalletsFile } from "../../../domain/types/index.js";
+  AccountDescriptor,
+  AccountRef,
+  Bytes,
+  ChainFamily,
+  KeystoreBlob,
+  MutationResult,
+  Source,
+  Wallet,
+  WalletsFile,
+} from "../../../domain/types/index.js";
 import { CryptoEnvelope } from "../persistence/crypto/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { familyOf, CHAIN_FAMILIES } from "../../../domain/family/index.js";
@@ -32,7 +41,13 @@ import {
 
 // public data-model helpers used by upper layers (signer/context) — re-exported here so they
 // keep importing from the keystore barrel.
-export { accountIndices, accountRef, decodeVault, encodeVault, walletAddress } from "../../../domain/wallet/index.js";
+export {
+  accountIndices,
+  accountRef,
+  decodeVault,
+  encodeVault,
+  walletAddress,
+} from "../../../domain/wallet/index.js";
 
 type IdPrefix = "wlt" | "vlt" | "key";
 
@@ -92,11 +107,20 @@ export class Keystore {
         this.#assertPassword({ createIfAbsent: true });
         // persist passphrase inside the encrypted vault so decryptSeed reconstructs the SAME
         // seed (otherwise the displayed address and the signing key would diverge).
-        this.#writeBlob("vaults", CryptoEnvelope.encrypt(encodeVault(entropy, p.passphrase), password, vaultId, "bip39-seed"));
+        this.#writeBlob(
+          "vaults",
+          CryptoEnvelope.encrypt(
+            encodeVault(entropy, p.passphrase),
+            password,
+            vaultId,
+            "bip39-seed",
+          ),
+        );
         source = { type: "seed", vaultId, addresses: { "0": addr0 } };
       } else {
         const pk = hexToBytes(p.secret.trim().replace(/^0x/, ""));
-        if (pk.length !== 32) throw new WalletError("invalid_value", "private key must be 32 bytes");
+        if (pk.length !== 32)
+          throw new WalletError("invalid_value", "private key must be 32 bytes");
         const addr = derivePrivAddresses(pk);
         const dup = findByAddress(file, addr);
         if (dup) {
@@ -120,12 +144,20 @@ export class Keystore {
     });
   }
 
-  registerLedger(p: { family: ChainFamily; path: string; address: string; label?: string }): MutationResult {
+  registerLedger(p: {
+    family: ChainFamily;
+    path: string;
+    address: string;
+    label?: string;
+  }): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       // ledger is single-chain watch-only; the dedup key is (family, path), not address
       // (a hardware account stays distinct from a software one sharing the same key).
-      const dup = findBySource(file, (s) => s.type === "ledger" && s.family === p.family && s.path === p.path);
+      const dup = findBySource(
+        file,
+        (s) => s.type === "ledger" && s.family === p.family && s.path === p.path,
+      );
       if (dup) {
         file.activeAccount = dup;
         this.#write(file);
@@ -151,7 +183,10 @@ export class Keystore {
       const file = this.#read();
       // watch is secret-less; like ledger it stays distinct from a software account with the
       // same address — the dedup key is (family, address), see findWatchByAddress.
-      const dup = findBySource(file, (s) => s.type === "watch" && s.family === p.family && s.address === p.address);
+      const dup = findBySource(
+        file,
+        (s) => s.type === "watch" && s.family === p.family && s.address === p.address,
+      );
       if (dup) {
         file.activeAccount = dup;
         this.#write(file);
@@ -181,10 +216,14 @@ export class Keystore {
       if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${walletId}`);
       // only seed wallets are HD: privateKey has no derivation, ledger must be re-imported per path.
       if (wallet.source.type !== "seed") {
-        const hint = wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
-        throw new WalletError("invalid_value", `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`);
+        const hint =
+          wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
+        throw new WalletError(
+          "invalid_value",
+          `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`,
+        );
       }
-      const next = index ?? ((Math.max(-1, ...accountIndices(wallet.source)) + 1) | 0);
+      const next = index ?? (Math.max(-1, ...accountIndices(wallet.source)) + 1) | 0;
       const key = String(next);
       let created = false;
       if (!wallet.source.addresses[key]) {
@@ -238,7 +277,10 @@ export class Keystore {
     return wallet;
   }
 
-  rename(refOrLabel: string, label: string): { accountId: AccountRef; previousLabel?: string; label: string } {
+  rename(
+    refOrLabel: string,
+    label: string,
+  ): { accountId: AccountRef; previousLabel?: string; label: string } {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const ref = this.#toRef(file, refOrLabel);
@@ -305,7 +347,12 @@ export class Keystore {
 
   /** delete an account/wallet. Reports what scope was removed, whether a secret blob was
    *  destroyed, and the active account afterwards (re-pointed if the old active is gone). */
-  delete(refOrWallet: string): { accountId: AccountRef; scope: "account" | "wallet"; secretRemoved: boolean; newActive: AccountRef | null } {
+  delete(refOrWallet: string): {
+    accountId: AccountRef;
+    scope: "account" | "wallet";
+    secretRemoved: boolean;
+    newActive: AccountRef | null;
+  } {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const ref = this.#toRef(file, refOrWallet);
@@ -332,11 +379,21 @@ export class Keystore {
           this.#removeBlobFiles(wallet.source);
           secretRemoved = true;
         }
-        if (file.activeAccount === ref || (remaining.length === 0 && file.activeAccount?.split(".")[0] === walletId)) {
-          file.activeAccount = file.wallets.length ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!)) : null;
+        if (
+          file.activeAccount === ref ||
+          (remaining.length === 0 && file.activeAccount?.split(".")[0] === walletId)
+        ) {
+          file.activeAccount = file.wallets.length
+            ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!))
+            : null;
         }
         this.#write(file);
-        return { accountId: ref, scope: remaining.length === 0 ? "wallet" : "account", secretRemoved, newActive: file.activeAccount };
+        return {
+          accountId: ref,
+          scope: remaining.length === 0 ? "wallet" : "account",
+          secretRemoved,
+          newActive: file.activeAccount,
+        };
       }
 
       // wallet-level delete: remove the wallet, all its accounts/labels and its secret blob.
@@ -345,11 +402,18 @@ export class Keystore {
         if (k === walletId || k.startsWith(`${walletId}.`)) delete file.labels[k];
       }
       if (file.activeAccount && file.activeAccount.split(".")[0] === walletId) {
-        file.activeAccount = file.wallets.length ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!)) : null;
+        file.activeAccount = file.wallets.length
+          ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!))
+          : null;
       }
       this.#removeBlobFiles(wallet.source);
       this.#write(file);
-      return { accountId: walletId!, scope: "wallet", secretRemoved: SOURCE_KINDS[wallet.source.type].hasSecret, newActive: file.activeAccount };
+      return {
+        accountId: walletId!,
+        scope: "wallet",
+        secretRemoved: SOURCE_KINDS[wallet.source.type].hasSecret,
+        newActive: file.activeAccount,
+      };
     });
   }
 
@@ -376,7 +440,10 @@ export class Keystore {
     return this.store.withLock(this.walletsPath, () => {
       const verifier = this.store.readJson<KeystoreBlob>(this.#verifierPath());
       if (!verifier) {
-        throw new WalletError("no_software_wallet", "no software wallet; no master password set; nothing to change");
+        throw new WalletError(
+          "no_software_wallet",
+          "no software wallet; no master password set; nothing to change",
+        );
       }
       CryptoEnvelope.decrypt(verifier, oldPassword); // MAC mismatch → auth_failed (wrong old password)
 
@@ -386,7 +453,7 @@ export class Keystore {
       for (const w of file.wallets) {
         const s = w.source;
         if (s.type !== "seed" && s.type !== "privateKey") continue;
-        const dir = s.type === "seed" ? "vaults" as const : "keys" as const;
+        const dir = s.type === "seed" ? ("vaults" as const) : ("keys" as const);
         const id = s.type === "seed" ? s.vaultId : s.keyId;
         const path = this.#blobPath(dir, id);
         const blob = this.store.readJson<KeystoreBlob>(path);
@@ -398,7 +465,10 @@ export class Keystore {
         }
         const plaintext = CryptoEnvelope.decrypt(blob, oldPassword);
         try {
-          entries.push({ path, value: CryptoEnvelope.encrypt(plaintext, newPassword, id, blob.type) });
+          entries.push({
+            path,
+            value: CryptoEnvelope.encrypt(plaintext, newPassword, id, blob.type),
+          });
         } finally {
           plaintext.fill(0); // scrub the decrypted secret from memory as soon as it is re-wrapped
         }
@@ -418,7 +488,11 @@ export class Keystore {
         // is already accurate; let it through unmasked.
         if (e instanceof ExecutionError) throw e;
         // Otherwise writeJsonAll rolled back cleanly: every keystore file is unchanged.
-        throw new ExecutionError("io_error", "failed to write re-encrypted keystores; rolled back, the old password remains in effect", { error: String(e) });
+        throw new ExecutionError(
+          "io_error",
+          "failed to write re-encrypted keystores; rolled back, the old password remains in effect",
+          { error: String(e) },
+        );
       }
       return { wallets: labels, count: labels.length };
     });
@@ -492,11 +566,17 @@ export class Keystore {
   #removeBlobFiles(source: Source): void {
     // ledger keeps no local blob; nothing to unlink.
     const path =
-      source.type === "seed" ? this.#blobPath("vaults", source.vaultId)
-      : source.type === "privateKey" ? this.#blobPath("keys", source.keyId)
-      : undefined;
+      source.type === "seed"
+        ? this.#blobPath("vaults", source.vaultId)
+        : source.type === "privateKey"
+          ? this.#blobPath("keys", source.keyId)
+          : undefined;
     if (path && existsSync(path)) {
-      try { unlinkSync(path); } catch { /* best-effort */ }
+      try {
+        unlinkSync(path);
+      } catch {
+        /* best-effort */
+      }
     }
   }
 
@@ -520,25 +600,34 @@ export class Keystore {
           if (CHAIN_FAMILIES.some((f) => addr[f] === v)) hits.push(accountRefOf(w, index));
         }
       }
-      if (hits.length === 0) throw new WalletError("invalid_value", `no account with address ${input}`);
+      if (hits.length === 0)
+        throw new WalletError("invalid_value", `no account with address ${input}`);
       if (hits.length > 1) {
-        throw new UsageError("invalid_value", `address ${input} matches multiple accounts: ${hits.join(", ")}`);
+        throw new UsageError(
+          "invalid_value",
+          `address ${input} matches multiple accounts: ${hits.join(", ")}`,
+        );
       }
       return hits[0]!;
     }
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),
     );
-    if (matches.length === 0) throw new WalletError("invalid_value", `no account labelled '${input}'`);
+    if (matches.length === 0)
+      throw new WalletError("invalid_value", `no account labelled '${input}'`);
     if (matches.length > 1) {
-      throw new UsageError("invalid_value", `label '${input}' is ambiguous: ${matches.map((m) => m[0]).join(", ")}`);
+      throw new UsageError(
+        "invalid_value",
+        `label '${input}' is ambiguous: ${matches.map((m) => m[0]).join(", ")}`,
+      );
     }
     return matches[0]![0];
   }
 
   #assignLabel(file: WalletsFile, ref: AccountRef, label?: string): void {
     const value = (label ?? this.#defaultLabel(file)).trim();
-    if (value.startsWith("wlt_")) throw new UsageError("invalid_value", "label must not start with 'wlt_'");
+    if (value.startsWith("wlt_"))
+      throw new UsageError("invalid_value", "label must not start with 'wlt_'");
     for (const [k, existing] of Object.entries(file.labels)) {
       if (existing.trim().toLowerCase() === value.toLowerCase() && k !== ref) {
         throw new UsageError("invalid_value", `label '${value}' already in use by ${k}`);

@@ -247,7 +247,7 @@ export interface TronDelegatedResource {
 
 /** getnodeinfo subset the CLI consumes; best-effort — public gateways may omit fields. */
 export interface TronNodeInfo {
-  block?: string;          // "Num:84120345,ID:…"
+  block?: string; // "Num:84120345,ID:…"
   solidityBlock?: string;
   currentConnectCount?: number;
   activeConnectCount?: number;
@@ -278,7 +278,10 @@ export interface TronGateway extends Broadcaster {
   encodeTransactionHex(transaction: UnsignedTx): string;
   decodeTransactionHex(hex: string): TronTransactionArtifact;
   getAccountPermissions(address: string): Promise<AccountPermissionsView>;
-  buildAccountPermissionUpdate(owner: string, permissions: AccountPermissionsView): Promise<UnsignedTx>;
+  buildAccountPermissionUpdate(
+    owner: string,
+    permissions: AccountPermissionsView,
+  ): Promise<UnsignedTx>;
   getSignWeight(transaction: UnsignedTx): Promise<TronSignWeight>;
   getApprovedList(transaction: UnsignedTx): Promise<string[]>;
   broadcastHex(hex: string): Promise<BroadcastResult>;
@@ -354,8 +357,18 @@ export interface TronGateway extends Broadcaster {
     secondTokenId: string,
     secondBalance: string,
   ): Promise<UnsignedTx>;
-  buildExchangeInject(owner: string, exchangeId: number, tokenId: string, quant: string): Promise<UnsignedTx>;
-  buildExchangeWithdraw(owner: string, exchangeId: number, tokenId: string, quant: string): Promise<UnsignedTx>;
+  buildExchangeInject(
+    owner: string,
+    exchangeId: number,
+    tokenId: string,
+    quant: string,
+  ): Promise<UnsignedTx>;
+  buildExchangeWithdraw(
+    owner: string,
+    exchangeId: number,
+    tokenId: string,
+    quant: string,
+  ): Promise<UnsignedTx>;
   /** `expected` is the on-chain slippage floor: below it the trade reverts. */
   buildExchangeTrade(
     owner: string,
@@ -410,8 +423,16 @@ export interface TronGateway extends Broadcaster {
     proposalId: number,
     options?: TronTransactionBuildOptions,
   ): Promise<UnsignedTx>;
-  buildWitnessCreate(owner: string, url: string, options?: TronTransactionBuildOptions): Promise<UnsignedTx>;
-  buildWitnessUpdate(owner: string, url: string, options?: TronTransactionBuildOptions): Promise<UnsignedTx>;
+  buildWitnessCreate(
+    owner: string,
+    url: string,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
+  buildWitnessUpdate(
+    owner: string,
+    url: string,
+    options?: TronTransactionBuildOptions,
+  ): Promise<UnsignedTx>;
   buildWitnessSetBrokerage(
     owner: string,
     brokerage: number,
@@ -434,7 +455,13 @@ export interface TronGateway extends Broadcaster {
   ): Promise<UnsignedTx>;
   deployContract(
     from: string,
-    input: { abi: unknown; bytecode: string; feeLimit: string; parameters?: unknown[]; permissionId?: number },
+    input: {
+      abi: unknown;
+      bytecode: string;
+      feeLimit: string;
+      parameters?: unknown[];
+      permissionId?: number;
+    },
   ): Promise<UnsignedTx>;
   getContract(address: string): Promise<unknown>;
   getContractInfo(address: string): Promise<unknown>;

@@ -34,7 +34,10 @@ function gcd(a: bigint, b: bigint): bigint {
  */
 export function icoRate(trx: bigint, tokens: bigint, precision: number): IcoRate {
   if (trx <= 0n || tokens <= 0n) {
-    throw new UsageError("invalid_value", "--price needs a positive TRX amount and a positive token amount");
+    throw new UsageError(
+      "invalid_value",
+      "--price needs a positive TRX amount and a positive token amount",
+    );
   }
   if (!Number.isInteger(precision) || precision < 0 || precision > 6) {
     throw new UsageError("invalid_value", "--precision must be an integer between 0 and 6");
@@ -48,7 +51,7 @@ export function icoRate(trx: bigint, tokens: bigint, precision: number): IcoRate
     throw new UsageError(
       "invalid_value",
       `--price cannot be represented on chain at precision ${precision}: it reduces to ${reducedTrxNum}:${reducedNum}, ` +
-      "and both sides must fit in a 32-bit integer. Use a simpler ratio.",
+        "and both sides must fit in a 32-bit integer. Use a simpler ratio.",
     );
   }
   return { trxNum: Number(reducedTrxNum), num: Number(reducedNum) };

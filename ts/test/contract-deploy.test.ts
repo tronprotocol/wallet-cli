@@ -27,11 +27,16 @@ const PW = "testpw123A";
 
 // Minimal init code whose runtime ignores appended constructor args (a known-good Nile deploy
 // payload). Declaring a constructor in the ABI is what drives client-side arg encoding.
-const ABI = JSON.stringify([{
-  type: "constructor",
-  stateMutability: "nonpayable",
-  inputs: [{ name: "cap", type: "uint256" }, { name: "owner", type: "address" }],
-}]);
+const ABI = JSON.stringify([
+  {
+    type: "constructor",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "cap", type: "uint256" },
+      { name: "owner", type: "address" },
+    ],
+  },
+]);
 const BYTECODE =
   "6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea2646970667358fe";
 const ARG_ADDR = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -40,14 +45,16 @@ const ENC_CAP = "0".repeat(62) + "64"; // uint256(100)
 const ENC_OWNER = "74472e7d35395a6b5add427eecb7f4b62ad2b071"; // ARG_ADDR as a 20-byte EVM address
 
 const RAW_PARAMS = `[100, "${ARG_ADDR}"]`;
-const TYPED_PARAMS =
-  `[{"type":"uint256","value":"100"},{"type":"address","value":"${ARG_ADDR}"}]`;
+const TYPED_PARAMS = `[{"type":"uint256","value":"100"},{"type":"address","value":"${ARG_ADDR}"}]`;
 
 let HOME: string;
 
 function seed(secret: string) {
-  new Keystore(HOME, new AtomicFileStore(), () => PW)
-    .import({ secret, type: "privateKey", label: "deployer" });
+  new Keystore(HOME, new AtomicFileStore(), () => PW).import({
+    secret,
+    type: "privateKey",
+    label: "deployer",
+  });
 }
 
 function deploy(
@@ -57,9 +64,16 @@ function deploy(
   const globals = ["--output", "json", "--network", "tron:nile"];
   if (opts.wait) globals.push("--wait"); // --wait is a global flag (before the subcommand)
   const local = [
-    "contract", "deploy",
-    "--abi", ABI, "--bytecode", BYTECODE, "--fee-limit", "1000000000",
-    "--params", params,
+    "contract",
+    "deploy",
+    "--abi",
+    ABI,
+    "--bytecode",
+    BYTECODE,
+    "--fee-limit",
+    "1000000000",
+    "--params",
+    params,
   ];
   if (opts.dryRun) local.push("--dry-run");
   local.push("--password-stdin");

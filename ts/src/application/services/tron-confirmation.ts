@@ -24,7 +24,8 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
   if (info.assetIssueID !== undefined) result.assetIssueID = info.assetIssueID;
   if (info.unfreeze_amount !== undefined) result.unfreezeAmount = info.unfreeze_amount;
   if (info.exchange_id !== undefined) result.exchangeId = info.exchange_id;
-  if (info.exchange_received_amount !== undefined) result.exchangeReceived = info.exchange_received_amount;
+  if (info.exchange_received_amount !== undefined)
+    result.exchangeReceived = info.exchange_received_amount;
   if (info.exchange_inject_another_amount !== undefined) {
     result.exchangeInjectedOther = info.exchange_inject_another_amount;
   }
@@ -32,9 +33,8 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
     result.exchangeWithdrawnOther = info.exchange_withdraw_another_amount;
   }
   if (receipt.result !== undefined) result.result = receipt.result;
-  result.failed = receipt.result !== undefined &&
-    receipt.result !== "SUCCESS" &&
-    receipt.result !== "DEFAULT";
+  result.failed =
+    receipt.result !== undefined && receipt.result !== "SUCCESS" && receipt.result !== "DEFAULT";
   return result;
 }
 
@@ -60,16 +60,22 @@ export async function stageTronBroadcast(
   result: Record<string, unknown>,
   local?: string,
 ): Promise<TxOutcome> {
-  const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) => scope.warn(m));
+  const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
+    scope.warn(m),
+  );
   if (!scope.wait || !txId) {
     if (scope.wait && !txId) {
-      scope.warn("--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)");
+      scope.warn(
+        "--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)",
+      );
     }
     return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
   }
   const confirmed = await tronConfirmation(gateway, scope)(txId).catch(() => undefined);
   if (!confirmed) {
-    scope.warn(`--wait: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`);
+    scope.warn(
+      `--wait: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
+    );
     return { stage: "submitted", ...result, txId };
   }
   return { stage: confirmed.failed ? "failed" : "confirmed", ...result, txId, ...confirmed };

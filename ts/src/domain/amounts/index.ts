@@ -32,14 +32,25 @@ export function fromBaseUnits(value: string | number | bigint, decimals: number)
  * `--amount` sent the caller to fix a flag they had not typed — one that, on `asset participate`,
  * does not exist. Callers whose option really is `--amount` need not pass it.
  */
-export function toBaseUnits(value: string, decimals: number, unitLabel: string, flag = "--amount"): string {
+export function toBaseUnits(
+  value: string,
+  decimals: number,
+  unitLabel: string,
+  flag = "--amount",
+): string {
   const v = value.trim();
   if (!/^\d+(\.\d+)?$/.test(v)) {
-    throw new UsageError("invalid_amount", `${flag} must be a non-negative decimal ${unitLabel} amount`);
+    throw new UsageError(
+      "invalid_amount",
+      `${flag} must be a non-negative decimal ${unitLabel} amount`,
+    );
   }
   const [whole, frac = ""] = v.split(".");
   if (frac.length > decimals) {
-    throw new UsageError("invalid_amount", `${flag} has too many decimal places for ${unitLabel} (max ${decimals})`);
+    throw new UsageError(
+      "invalid_amount",
+      `${flag} has too many decimal places for ${unitLabel} (max ${decimals})`,
+    );
   }
   const digits = `${whole}${frac.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");
   return digits === "" ? "0" : digits;

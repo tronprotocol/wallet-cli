@@ -6,7 +6,13 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronAsset, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 
-const NET: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] };
+const NET: NetworkDescriptor = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+};
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const OWNER_HEX = "4174472e7d35395a6b5add427eecb7f4b62ad2b071"; // == OWNER
 const OTHER_HEX = "419756bae210f6e9591f311613cff8f19d6cef3971";
@@ -74,22 +80,29 @@ describe("asset issue", () => {
   it("refuses an account that has already issued, before the fee is burned", async () => {
     const build = vi.fn();
     const svc = service({ getAssetByIssuer: async () => asset(), buildAssetIssue: build });
-    await expect(svc.issue(scope, NET, { ...ISSUE })).rejects.toMatchObject({ code: "already_issued_asset" });
+    await expect(svc.issue(scope, NET, { ...ISSUE })).rejects.toMatchObject({
+      code: "already_issued_asset",
+    });
     expect(build).not.toHaveBeenCalled();
   });
 
   it("scales supply and tranches by precision and reduces the price", async () => {
     let issuance: Record<string, unknown> | undefined;
-    const svc = service({
-      getAssetByIssuer: async () => undefined,
-      buildAssetIssue: (async (_owner: string, i: Record<string, unknown>) => {
-        issuance = i;
-        return {} as never;
-      }) as never,
-    }, { run: async (p: { build: (o: string) => Promise<unknown> }) => {
-      await p.build(OWNER);
-      return { stage: "submitted", txId: "txid" } as never;
-    } });
+    const svc = service(
+      {
+        getAssetByIssuer: async () => undefined,
+        buildAssetIssue: (async (_owner: string, i: Record<string, unknown>) => {
+          issuance = i;
+          return {} as never;
+        }) as never,
+      },
+      {
+        run: async (p: { build: (o: string) => Promise<unknown> }) => {
+          await p.build(OWNER);
+          return { stage: "submitted", txId: "txid" } as never;
+        },
+      },
+    );
 
     await svc.issue(scope, NET, { ...ISSUE, freeze: ["100000000:30", "50000000:90"] });
     expect(issuance).toMatchObject({
@@ -105,39 +118,56 @@ describe("asset issue", () => {
 
   it("reads --start/--end as UTC and requires a future, ordered window", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
-    await expect(svc.issue(scope, NET, { ...ISSUE, start: "2020-01-01" }))
-      .rejects.toThrow(/--start must be in the future/);
-    await expect(svc.issue(scope, NET, { ...ISSUE, start: "2028-02-01", end: "2028-01-01" }))
-      .rejects.toThrow(/--end must be later/);
-    await expect(svc.issue(scope, NET, { ...ISSUE, start: "2028-13-01" }))
-      .rejects.toThrow(/not a real date/);
+    await expect(svc.issue(scope, NET, { ...ISSUE, start: "2020-01-01" })).rejects.toThrow(
+      /--start must be in the future/,
+    );
+    await expect(
+      svc.issue(scope, NET, { ...ISSUE, start: "2028-02-01", end: "2028-01-01" }),
+    ).rejects.toThrow(/--end must be later/);
+    await expect(svc.issue(scope, NET, { ...ISSUE, start: "2028-13-01" })).rejects.toThrow(
+      /not a real date/,
+    );
   });
 
   it("rejects names the chain cannot hold", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
     for (const name of ["My Token", "代币", "", "x".repeat(33)]) {
-      await expect(svc.issue(scope, NET, { ...ISSUE, name })).rejects.toMatchObject({ code: "invalid_asset_name" });
+      await expect(svc.issue(scope, NET, { ...ISSUE, name })).rejects.toMatchObject({
+        code: "invalid_asset_name",
+      });
     }
   });
 
   it("requires a non-empty url and bounds the text fields", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
-    await expect(svc.issue(scope, NET, { ...ISSUE, url: "" })).rejects.toThrow(/--url must not be empty/);
-    await expect(svc.issue(scope, NET, { ...ISSUE, description: "d".repeat(201) }))
-      .rejects.toThrow(/--description must be at most 200 bytes/);
+    await expect(svc.issue(scope, NET, { ...ISSUE, url: "" })).rejects.toThrow(
+      /--url must not be empty/,
+    );
+    await expect(svc.issue(scope, NET, { ...ISSUE, description: "d".repeat(201) })).rejects.toThrow(
+      /--description must be at most 200 bytes/,
+    );
   });
 });
 
 describe("asset update", () => {
   it("rewrites unspecified fields with their current chain values", async () => {
     let update: Record<string, unknown> | undefined;
-    const svc = service({
-      getAssetByIssuer: async () => asset({ free_asset_net_limit: 7, public_free_asset_net_limit: 9 }),
-      buildAssetUpdate: (async (_o: string, u: Record<string, unknown>) => { update = u; return {} as never; }) as never,
-    }, { run: async (p: { build: (o: string) => Promise<unknown> }) => {
-      await p.build(OWNER);
-      return { stage: "submitted", txId: "txid" } as never;
-    } });
+    const svc = service(
+      {
+        getAssetByIssuer: async () =>
+          asset({ free_asset_net_limit: 7, public_free_asset_net_limit: 9 }),
+        buildAssetUpdate: (async (_o: string, u: Record<string, unknown>) => {
+          update = u;
+          return {} as never;
+        }) as never,
+      },
+      {
+        run: async (p: { build: (o: string) => Promise<unknown> }) => {
+          await p.build(OWNER);
+          return { stage: "submitted", txId: "txid" } as never;
+        },
+      },
+    );
 
     await svc.update(scope, NET, { url: "https://mytoken.io/v2" });
     // the chain overwrites all four; omitting a flag must not blank the field
@@ -150,10 +180,14 @@ describe("asset update", () => {
   });
 
   it("requires at least one field and an account that has issued", async () => {
-    await expect(service({ getAssetByIssuer: async () => asset() }).update(scope, NET, {}))
-      .rejects.toThrow(/at least one of/);
-    await expect(service({ getAssetByIssuer: async () => undefined }).update(scope, NET, { url: "https://x.io" }))
-      .rejects.toMatchObject({ code: "not_an_issuer" });
+    await expect(
+      service({ getAssetByIssuer: async () => asset() }).update(scope, NET, {}),
+    ).rejects.toThrow(/at least one of/);
+    await expect(
+      service({ getAssetByIssuer: async () => undefined }).update(scope, NET, {
+        url: "https://x.io",
+      }),
+    ).rejects.toMatchObject({ code: "not_an_issuer" });
   });
 });
 
@@ -170,35 +204,49 @@ describe("asset participate", () => {
 
   it("refuses the issuer's own ICO", async () => {
     const svc = service({ getAssetById: async () => asset({ owner_address: OWNER_HEX }) });
-    await expect(svc.participate(scope, NET, input)).rejects.toMatchObject({ code: "self_participation" });
+    await expect(svc.participate(scope, NET, input)).rejects.toMatchObject({
+      code: "self_participation",
+    });
   });
 
   it("refuses outside the funding window", async () => {
     for (const window of [{ start_time: NOW + 1 }, { end_time: NOW }]) {
-      const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX, ...window }) });
-      await expect(svc.participate(scope, NET, input)).rejects.toMatchObject({ code: "not_in_ico_window" });
+      const svc = service({
+        getAssetById: async () => asset({ owner_address: OTHER_HEX, ...window }),
+      });
+      await expect(svc.participate(scope, NET, input)).rejects.toMatchObject({
+        code: "not_in_ico_window",
+      });
     }
   });
 
   it("accepts a fractional TRX payment — TRX has 6 decimals", async () => {
     const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX }) });
-    await expect(svc.participate(scope, NET, { assetRef: "1000123", pay: "10.5" }))
-      .resolves.toMatchObject({ paidSun: "10500000", receivedAmount: "1050000000" });
+    await expect(
+      svc.participate(scope, NET, { assetRef: "1000123", pay: "10.5" }),
+    ).resolves.toMatchObject({ paidSun: "10500000", receivedAmount: "1050000000" });
   });
 
   it("refuses a payment too small to buy one unit", async () => {
     // at 1 sun per 0.5 minimal units, the smallest possible payment buys nothing
-    const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX, trx_num: 2, num: 1 }) });
-    await expect(svc.participate(scope, NET, { assetRef: "1000123", pay: "0.000001" }))
-      .rejects.toThrow(/too small to buy even one unit/);
+    const svc = service({
+      getAssetById: async () => asset({ owner_address: OTHER_HEX, trx_num: 2, num: 1 }),
+    });
+    await expect(
+      svc.participate(scope, NET, { assetRef: "1000123", pay: "0.000001" }),
+    ).rejects.toThrow(/too small to buy even one unit/);
   });
 
   it("reports an ambiguous name rather than guessing", async () => {
     const svc = service({
       getAssetsByName: async () => [asset({ id: "1000123" }), asset({ id: "1000488" })],
     });
-    await expect(svc.participate(scope, NET, { assetRef: "MyToken", pay: "100" }))
-      .rejects.toMatchObject({ code: "ambiguous_asset_name", details: { assetIds: ["1000123", "1000488"] } });
+    await expect(
+      svc.participate(scope, NET, { assetRef: "MyToken", pay: "100" }),
+    ).rejects.toMatchObject({
+      code: "ambiguous_asset_name",
+      details: { assetIds: ["1000123", "1000488"] },
+    });
   });
 });
 
@@ -208,7 +256,12 @@ describe("ambiguous asset names", () => {
   it("carries the queried name, the ids, and one comparable row per match", async () => {
     const svc = service({
       getAssetsByName: async () => [
-        asset({ id: "1000123", owner_address: OTHER_HEX, total_supply: "1000000000", precision: 6 }),
+        asset({
+          id: "1000123",
+          owner_address: OTHER_HEX,
+          total_supply: "1000000000",
+          precision: 6,
+        }),
         asset({ id: "1000488", owner_address: OWNER_HEX, total_supply: "50000000", precision: 2 }),
       ],
     });
@@ -227,7 +280,9 @@ describe("ambiguous asset names", () => {
 
   it("resolves a name matching exactly one asset instead of erroring", async () => {
     const svc = service({ getAssetsByName: async () => [asset({ id: "1000123" })] });
-    await expect(svc.info(NET, { assetRef: "MyToken" })).resolves.toMatchObject({ assetId: "1000123" });
+    await expect(svc.info(NET, { assetRef: "MyToken" })).resolves.toMatchObject({
+      assetId: "1000123",
+    });
   });
 });
 
@@ -239,7 +294,9 @@ describe("asset unfreeze", () => {
 
   it("releases every matured tranche and reports what stays frozen", async () => {
     const start = NOW - 60 * 86_400_000; // 60 days ago: first tranche matured, second not
-    const svc = service({ getAssetByIssuer: async () => asset({ start_time: start, frozen_supply: tranches }) });
+    const svc = service({
+      getAssetByIssuer: async () => asset({ start_time: start, frozen_supply: tranches }),
+    });
     await expect(svc.unfreeze(scope, NET, {})).resolves.toMatchObject({
       releasedAmount: "100000000000000",
       stillFrozenAmount: "50000000000000",
@@ -247,15 +304,25 @@ describe("asset unfreeze", () => {
   });
 
   it("refuses when nothing has matured, naming the earliest unlock", async () => {
-    const svc = service({ getAssetByIssuer: async () => asset({ start_time: NOW, frozen_supply: tranches }) });
-    await expect(svc.unfreeze(scope, NET, {})).rejects.toMatchObject({ code: "not_yet_unfreezable" });
+    const svc = service({
+      getAssetByIssuer: async () => asset({ start_time: NOW, frozen_supply: tranches }),
+    });
+    await expect(svc.unfreeze(scope, NET, {})).rejects.toMatchObject({
+      code: "not_yet_unfreezable",
+    });
   });
 
   it("distinguishes no frozen supply from not being an issuer", async () => {
-    await expect(service({ getAssetByIssuer: async () => asset({ frozen_supply: [] }) }).unfreeze(scope, NET, {}))
-      .rejects.toMatchObject({ code: "no_frozen_supply" });
-    await expect(service({ getAssetByIssuer: async () => undefined }).unfreeze(scope, NET, {}))
-      .rejects.toMatchObject({ code: "not_an_issuer" });
+    await expect(
+      service({ getAssetByIssuer: async () => asset({ frozen_supply: [] }) }).unfreeze(
+        scope,
+        NET,
+        {},
+      ),
+    ).rejects.toMatchObject({ code: "no_frozen_supply" });
+    await expect(
+      service({ getAssetByIssuer: async () => undefined }).unfreeze(scope, NET, {}),
+    ).rejects.toMatchObject({ code: "not_an_issuer" });
   });
 
   it("prefers the confirmed receipt amount over our own projection", async () => {
@@ -272,7 +339,8 @@ describe("asset info / list", () => {
   it("returns one asset with its ICO terms and tranche unlock times", async () => {
     const start = 1_800_000_000_000;
     const svc = service({
-      getAssetById: async () => asset({ start_time: start, frozen_supply: [{ frozen_amount: "5", frozen_days: 30 }] }),
+      getAssetById: async () =>
+        asset({ start_time: start, frozen_supply: [{ frozen_amount: "5", frozen_days: 30 }] }),
     });
     await expect(svc.info(NET, { assetRef: "1000123" })).resolves.toMatchObject({
       assetId: "1000123",
@@ -290,7 +358,9 @@ describe("asset info / list", () => {
 
   it("errors on an unknown reference rather than returning an empty result", async () => {
     const svc = service({ getAssetById: async () => undefined });
-    await expect(svc.info(NET, { assetRef: "999" })).rejects.toMatchObject({ code: "asset_not_found" });
+    await expect(svc.info(NET, { assetRef: "999" })).rejects.toMatchObject({
+      code: "asset_not_found",
+    });
   });
 
   it("pages server-side and reports only offset and limit", async () => {
@@ -314,8 +384,10 @@ describe("asset info / list", () => {
  */
 describe("asset issue rejects an impossible time instead of rolling it over", () => {
   const issueWith = (start: string) =>
-    service({ getAssetByIssuer: async () => undefined, buildAssetIssue: async () => ({}) as never })
-      .issue(scope, NET, { ...ISSUE, start, end: "2031-01-01", dryRun: true } as never);
+    service({
+      getAssetByIssuer: async () => undefined,
+      buildAssetIssue: async () => ({}) as never,
+    }).issue(scope, NET, { ...ISSUE, start, end: "2031-01-01", dryRun: true } as never);
 
   it.each([
     ["60 minutes", "2030-01-01 12:60:00"],

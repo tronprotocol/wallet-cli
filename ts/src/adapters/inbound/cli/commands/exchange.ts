@@ -30,7 +30,9 @@ const amountFields = (side: string) => ({
 
 export const exchangeCreateSpec: ChainSpec = {
   path: ["exchange", "create"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "exchange.create",
   summary: "Create a Bancor pair and seed both sides",
@@ -41,13 +43,22 @@ export const exchangeCreateSpec: ChainSpec = {
     "another account. The creation fee is burned, and both initial amounts leave your\n" +
     "account on top of it.\n\n" +
     "Either side may be TRX or a TRC10 id; the two must differ. The ratio of the two\n" +
-    "initial amounts is the pair's starting price. Sides keep the order you type.\n\n" + NO_NAMES,
+    "initial amounts is the pair's starting price. Sides keep the order you type.\n\n" +
+    NO_NAMES,
   requires: ["an account with enough TRX for the fee and enough of both tokens"],
   exclusive: [{ label: "how to size both sides", flags: ["amounts", "raw-amounts"] }],
   baseFields: z.object({
     pair: z.string().min(1).describe("the two sides as <a>:<b>, TRX or a TRC10 id"),
-    amounts: z.string().min(1).optional().describe("amount for each side as <a>:<b>, in whole tokens"),
-    rawAmounts: z.string().min(1).optional().describe("amount for each side as <a>:<b>, in minimal units"),
+    amounts: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("amount for each side as <a>:<b>, in whole tokens"),
+    rawAmounts: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("amount for each side as <a>:<b>, in minimal units"),
     ...txModeFields,
   }),
   examples: [
@@ -58,7 +69,9 @@ export const exchangeCreateSpec: ChainSpec = {
 
 export const exchangeInjectSpec: ChainSpec = {
   path: ["exchange", "inject"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "exchange.inject",
   summary: "Add liquidity to a pair you created",
@@ -66,7 +79,8 @@ export const exchangeInjectSpec: ChainSpec = {
     "Add liquidity to an exchange pair, in proportion to its current reserves.\n\n" +
     "You name one side and its amount; the other side is computed from the current\n" +
     "ratio and debited as well, so you need enough of BOTH tokens. Only the account\n" +
-    "that created the pair can do this.\n\n" + NO_NAMES,
+    "that created the pair can do this.\n\n" +
+    NO_NAMES,
   requires: ["the account that created the pair, holding enough of both tokens"],
   positionals: [{ field: "id" }],
   exclusive: [{ label: "how to size the amount", flags: ["amount", "raw-amount"] }],
@@ -82,7 +96,9 @@ export const exchangeInjectSpec: ChainSpec = {
 
 export const exchangeWithdrawSpec: ChainSpec = {
   path: ["exchange", "withdraw"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "exchange.withdraw",
   summary: "Take liquidity out of a pair you created",
@@ -92,7 +108,8 @@ export const exchangeWithdrawSpec: ChainSpec = {
     "returned as well. Only the account that created the pair can do this.\n\n" +
     "Amounts that do not divide cleanly by the reserve ratio are rejected on chain\n" +
     "for lack of precision (the quotient must be exact to within 0.01%) — round the\n" +
-    "amount and try again.\n\n" + NO_NAMES,
+    "amount and try again.\n\n" +
+    NO_NAMES,
   requires: ["the account that created the pair"],
   positionals: [{ field: "id" }],
   exclusive: [{ label: "how to size the amount", flags: ["amount", "raw-amount"] }],
@@ -108,7 +125,9 @@ export const exchangeWithdrawSpec: ChainSpec = {
 
 export const exchangeTradeSpec: ChainSpec = {
   path: ["exchange", "trade"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "exchange.trade",
   summary: "Swap one side of a pair for the other",
@@ -120,36 +139,56 @@ export const exchangeTradeSpec: ChainSpec = {
     "less, it reverts and you lose only the bandwidth. --slippage derives that floor\n" +
     "from the reserves at build time, less the percentage you give.\n\n" +
     "WITH NEITHER FLAG THERE IS NO SLIPPAGE PROTECTION: the trade accepts any\n" +
-    "non-zero return at any price, and the response carries a warning saying so.\n\n" + NO_NAMES,
+    "non-zero return at any price, and the response carries a warning saying so.\n\n" +
+    NO_NAMES,
   requires: ["an account holding enough of the token being sold"],
   positionals: [{ field: "id" }],
   exclusive: [
     { label: "how to size the amount", flags: ["amount", "raw-amount"] },
-    { label: "slippage protection (omit for none)", flags: ["min-received", "raw-min-received", "slippage"], select: "at-most-one" },
+    {
+      label: "slippage protection (omit for none)",
+      flags: ["min-received", "raw-min-received", "slippage"],
+      select: "at-most-one",
+    },
   ],
   baseFields: z.object({
     id: exchangeId,
     sell: tokenField("the side you are selling"),
     ...amountFields("how much to sell"),
-    minReceived: z.string().min(1).optional()
+    minReceived: z
+      .string()
+      .min(1)
+      .optional()
       .describe("lowest acceptable return, in whole tokens; below this the trade reverts"),
-    rawMinReceived: z.string().regex(/^\d+$/).optional()
+    rawMinReceived: z
+      .string()
+      .regex(/^\d+$/)
+      .optional()
       .describe("lowest acceptable return, in minimal units"),
-    slippage: z.coerce.number().gt(0).lt(100).optional()
+    slippage: z.coerce
+      .number()
+      .gt(0)
+      .lt(100)
+      .optional()
       .describe("derive the floor from current reserves, less this percentage"),
     ...txModeFields,
   }),
   examples: [
     { cmd: "wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --wait" },
     { cmd: "wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --wait" },
-    { cmd: "wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --dry-run", note: "price it first" },
+    {
+      cmd: "wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --dry-run",
+      note: "price it first",
+    },
   ],
   formatText: TextFormatters.txReceipt,
 };
 
 export const exchangeShowSpec: ChainSpec = {
   path: ["exchange", "show"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "exchange.show",
   summary: "Show one exchange pair",
   description:
@@ -166,7 +205,9 @@ export const exchangeShowSpec: ChainSpec = {
 
 export const exchangeListSpec: ChainSpec = {
   path: ["exchange", "list"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "exchange.list",
   summary: "List exchange pairs, one page at a time",
   description:
@@ -187,11 +228,22 @@ export const exchangeListSpec: ChainSpec = {
   formatText: TextFormatters.exchangeList,
 };
 
-export function exchangeDefinitions(svc: TronExchangeService): Array<{ spec: ChainSpec; binding: FamilyBinding }> {
+export function exchangeDefinitions(
+  svc: TronExchangeService,
+): Array<{ spec: ChainSpec; binding: FamilyBinding }> {
   return [
-    { spec: exchangeCreateSpec, binding: { run: (ctx, net, input) => svc.create(ctx, net, input) } },
-    { spec: exchangeInjectSpec, binding: { run: (ctx, net, input) => svc.inject(ctx, net, input) } },
-    { spec: exchangeWithdrawSpec, binding: { run: (ctx, net, input) => svc.withdraw(ctx, net, input) } },
+    {
+      spec: exchangeCreateSpec,
+      binding: { run: (ctx, net, input) => svc.create(ctx, net, input) },
+    },
+    {
+      spec: exchangeInjectSpec,
+      binding: { run: (ctx, net, input) => svc.inject(ctx, net, input) },
+    },
+    {
+      spec: exchangeWithdrawSpec,
+      binding: { run: (ctx, net, input) => svc.withdraw(ctx, net, input) },
+    },
     { spec: exchangeTradeSpec, binding: { run: (ctx, net, input) => svc.trade(ctx, net, input) } },
     { spec: exchangeShowSpec, binding: { run: (_ctx, net, input) => svc.show(net, input) } },
     { spec: exchangeListSpec, binding: { run: (_ctx, net, input) => svc.list(net, input) } },

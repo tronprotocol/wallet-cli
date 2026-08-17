@@ -14,12 +14,7 @@ export function contactNameKey(input: string): string {
 export function contactName(input: string): string {
   const value = input.trim();
   const length = Array.from(value).length;
-  if (
-    length < 1
-    || length > 64
-    || UNSAFE_TEXT.test(value)
-    || TRON_SHAPED.test(value)
-  ) {
+  if (length < 1 || length > 64 || UNSAFE_TEXT.test(value) || TRON_SHAPED.test(value)) {
     throw new UsageError(
       "invalid_value",
       "contact name must be 1-64 safe characters and must not resemble a TRON address",
@@ -32,10 +27,7 @@ export function contactNote(input?: string): string | null {
   if (input === undefined) return null;
   const value = input.trim();
   if (Array.from(value).length > 128 || UNSAFE_TEXT.test(value)) {
-    throw new UsageError(
-      "invalid_value",
-      "contact note must contain at most 128 safe characters",
-    );
+    throw new UsageError("invalid_value", "contact note must contain at most 128 safe characters");
   }
   return value || null;
 }

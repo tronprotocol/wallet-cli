@@ -31,10 +31,13 @@ const MAINNET_106 = JSON.stringify({
 });
 
 function stubNode(body: string) {
-  const fetch = vi.fn(async () => new Response(body, {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  }));
+  const fetch = vi.fn(
+    async () =>
+      new Response(body, {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+  );
   vi.stubGlobal("fetch", fetch);
   return fetch;
 }
@@ -53,34 +56,45 @@ describe("TronRpcClient.getProposals", () => {
   });
 
   it("keeps every entry of a multi-parameter proposal", async () => {
-    stubNode(JSON.stringify({
-      proposals: [{
-        proposal_id: 7,
-        proposer_address: "41456798cb4ab28109d8cc643cd7da7bd6069ceae9",
-        parameters: [{ key: 3, value: 15 }, { key: 2, value: 200000 }],
-        expiration_time: 1,
-        create_time: 0,
-        approvals: [],
-        state: "PENDING",
-      }],
-    }));
+    stubNode(
+      JSON.stringify({
+        proposals: [
+          {
+            proposal_id: 7,
+            proposer_address: "41456798cb4ab28109d8cc643cd7da7bd6069ceae9",
+            parameters: [
+              { key: 3, value: 15 },
+              { key: 2, value: 200000 },
+            ],
+            expiration_time: 1,
+            create_time: 0,
+            approvals: [],
+            state: "PENDING",
+          },
+        ],
+      }),
+    );
     const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
     expect(proposal!.parameters).toEqual({ "3": "15", "2": "200000" });
   });
 
   // tronweb's typings describe a map; accepted so a different gateway cannot regress the group.
   it("also accepts a parameter map keyed by id", async () => {
-    stubNode(JSON.stringify({
-      proposals: [{
-        proposal_id: 8,
-        proposer_address: "41456798cb4ab28109d8cc643cd7da7bd6069ceae9",
-        parameters: { "3": 15 },
-        expiration_time: 1,
-        create_time: 0,
-        approvals: [],
-        state: "PENDING",
-      }],
-    }));
+    stubNode(
+      JSON.stringify({
+        proposals: [
+          {
+            proposal_id: 8,
+            proposer_address: "41456798cb4ab28109d8cc643cd7da7bd6069ceae9",
+            parameters: { "3": 15 },
+            expiration_time: 1,
+            create_time: 0,
+            approvals: [],
+            state: "PENDING",
+          },
+        ],
+      }),
+    );
     const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
     expect(proposal!.parameters).toEqual({ "3": "15" });
   });
@@ -104,16 +118,20 @@ describe("TronRpcClient.getProposals", () => {
   });
 
   it("yields no changes — not a crash — when the node omits parameters entirely", async () => {
-    stubNode(JSON.stringify({
-      proposals: [{
-        proposal_id: 10,
-        proposer_address: "41456798cb4ab28109d8cc643cd7da7bd6069ceae9",
-        expiration_time: 1,
-        create_time: 0,
-        approvals: [],
-        state: "CANCELED",
-      }],
-    }));
+    stubNode(
+      JSON.stringify({
+        proposals: [
+          {
+            proposal_id: 10,
+            proposer_address: "41456798cb4ab28109d8cc643cd7da7bd6069ceae9",
+            expiration_time: 1,
+            create_time: 0,
+            approvals: [],
+            state: "CANCELED",
+          },
+        ],
+      }),
+    );
     const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
     expect(proposal!.parameters).toEqual({});
   });

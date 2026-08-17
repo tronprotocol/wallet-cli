@@ -23,8 +23,8 @@ export function authoritativeTxId(
   // rather than the value is what made a valid keystore look like a wrong password (CR-033).
   if (nodeId && nodeId.toLowerCase() !== local.toLowerCase()) {
     warn(
-      `the node reported transaction id ${nodeId} for a transaction whose id is ${local}; `
-      + "using the id derived from the signed transaction. The node is misreporting or faulty",
+      `the node reported transaction id ${nodeId} for a transaction whose id is ${local}; ` +
+        "using the id derived from the signed transaction. The node is misreporting or faulty",
     );
   }
   return local;

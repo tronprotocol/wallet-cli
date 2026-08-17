@@ -4,7 +4,11 @@
  * `capability` the target network lacks. Command existence is CommandRegistry's job;
  * family↔network mismatch is CliShell's.
  */
-import type { CapabilityDescriptor, NetworkDescriptor, NetworkId } from "../../../domain/types/index.js";
+import type {
+  CapabilityDescriptor,
+  NetworkDescriptor,
+  NetworkId,
+} from "../../../domain/types/index.js";
 import type { ExecutionPolicy } from "../../contracts/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 
@@ -15,7 +19,11 @@ export class CapabilityRegistry {
   register(networkId: NetworkId, caps: CapabilityDescriptor[]): void {
     const cur = this.#byNetwork.get(networkId) ?? [];
     const seen = new Set(cur.map((d) => d.key));
-    for (const d of caps) if (!seen.has(d.key)) { cur.push(d); seen.add(d.key); }
+    for (const d of caps)
+      if (!seen.has(d.key)) {
+        cur.push(d);
+        seen.add(d.key);
+      }
     this.#byNetwork.set(networkId, cur);
   }
 

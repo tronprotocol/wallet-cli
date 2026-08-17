@@ -21,7 +21,13 @@ import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { ctr } from "@noble/ciphers/aes.js";
-import { randomBytes, bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from "@noble/hashes/utils.js";
+import {
+  randomBytes,
+  bytesToHex,
+  hexToBytes,
+  utf8ToBytes,
+  concatBytes,
+} from "@noble/hashes/utils.js";
 import type { Bytes } from "../types/index.js";
 import { ExecutionError, UsageError } from "../errors/index.js";
 
@@ -31,7 +37,11 @@ export const SCRYPT_STANDARD = { n: 262144, r: 8, p: 1, dklen: 32 } as const;
 const PRIVATE_KEY_BYTES = 32;
 
 export const Web3Crypto = {
-  scryptKey(password: string, salt: Bytes, p: { n: number; r: number; p: number; dklen: number }): Bytes {
+  scryptKey(
+    password: string,
+    salt: Bytes,
+    p: { n: number; r: number; p: number; dklen: number },
+  ): Bytes {
     return scrypt(utf8ToBytes(password), salt, { N: p.n, r: p.r, p: p.p, dkLen: p.dklen });
   },
 
@@ -62,14 +72,18 @@ export interface KeystoreV3File {
   };
 }
 
-const invalid = (why: string) => new UsageError("invalid_keystore", `not a valid V3 keystore: ${why}`);
+const invalid = (why: string) =>
+  new UsageError("invalid_keystore", `not a valid V3 keystore: ${why}`);
 
 export const KeystoreV3 = {
   /** Wrap ONE raw private key as a V3 file. `hexAddress` is recorded for other wallets to display;
    *  it is never trusted on the way back in (the key is the truth — see `decrypt`). */
   encrypt(privateKey: Bytes, password: string, hexAddress: string): KeystoreV3File {
     if (privateKey.length !== PRIVATE_KEY_BYTES) {
-      throw new ExecutionError("encoding_error", `a keystore holds a ${PRIVATE_KEY_BYTES}-byte private key, got ${privateKey.length}`);
+      throw new ExecutionError(
+        "encoding_error",
+        `a keystore holds a ${PRIVATE_KEY_BYTES}-byte private key, got ${privateKey.length}`,
+      );
     }
     const salt = randomBytes(32);
     const iv = randomBytes(16);
@@ -103,7 +117,10 @@ export const KeystoreV3 = {
     if (c.cipher !== "aes-128-ctr") throw invalid(`unsupported cipher ${JSON.stringify(c.cipher)}`);
 
     const ciphertext = hexField(c.ciphertext, "crypto.ciphertext");
-    const iv = hexField(asRecord(c.cipherparams, "missing crypto.cipherparams").iv, "crypto.cipherparams.iv");
+    const iv = hexField(
+      asRecord(c.cipherparams, "missing crypto.cipherparams").iv,
+      "crypto.cipherparams.iv",
+    );
     const dk = deriveKey(c, password);
 
     // Through hexField like every other hex field, then compared as BYTES: `A1B2` and `a1b2` are the
@@ -118,7 +135,9 @@ export const KeystoreV3 = {
     // A V3 keystore carries exactly one private key. Anything else (a re-wrapped seed vault, a
     // truncated file) decrypts and MACs fine yet is not a key — reject it rather than import junk.
     if (plaintext.length !== PRIVATE_KEY_BYTES) {
-      throw invalid(`decrypted payload is ${plaintext.length} bytes, expected a ${PRIVATE_KEY_BYTES}-byte private key`);
+      throw invalid(
+        `decrypted payload is ${plaintext.length} bytes, expected a ${PRIVATE_KEY_BYTES}-byte private key`,
+      );
     }
     return plaintext;
   },
@@ -135,7 +154,9 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
   // pbkdf2 path ignores dklen and derives 32; its scrypt path throws), so this is parity, not
   // divergence.
   if (dklen < PRIVATE_KEY_BYTES) {
-    throw invalid(`crypto.kdfparams.dklen must be at least ${PRIVATE_KEY_BYTES}, got ${dklen}: a shorter derived key cannot bind the MAC to the password`);
+    throw invalid(
+      `crypto.kdfparams.dklen must be at least ${PRIVATE_KEY_BYTES}, got ${dklen}: a shorter derived key cannot bind the MAC to the password`,
+    );
   }
   if (c.kdf === "scrypt") {
     return Web3Crypto.scryptKey(password, salt, {
@@ -146,8 +167,12 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
     });
   }
   if (c.kdf === "pbkdf2") {
-    if (p.prf !== undefined && p.prf !== "hmac-sha256") throw invalid(`unsupported pbkdf2 prf ${JSON.stringify(p.prf)}`);
-    return pbkdf2(sha256, utf8ToBytes(password), salt, { c: intField(p.c, "crypto.kdfparams.c"), dkLen: dklen });
+    if (p.prf !== undefined && p.prf !== "hmac-sha256")
+      throw invalid(`unsupported pbkdf2 prf ${JSON.stringify(p.prf)}`);
+    return pbkdf2(sha256, utf8ToBytes(password), salt, {
+      c: intField(p.c, "crypto.kdfparams.c"),
+      dkLen: dklen,
+    });
   }
   throw invalid(`unsupported kdf ${JSON.stringify(c.kdf)}`);
 }
@@ -171,6 +196,7 @@ function hexField(value: unknown, field: string): Bytes {
 }
 
 function intField(value: unknown, field: string): number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) throw invalid(`${field} is not a positive integer`);
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
+    throw invalid(`${field} is not a positive integer`);
   return value;
 }

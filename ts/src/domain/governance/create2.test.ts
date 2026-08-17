@@ -22,9 +22,11 @@ describe("computeTronCreate2Address", () => {
   });
 
   it("rejects Ethereum-style hex salts and an invalid deployer", () => {
-    expect(() => computeTronCreate2Address(DEPLOYER, "6000", "0x01"))
-      .toThrowError(expect.objectContaining({ code: "invalid_value" }));
-    expect(() => computeTronCreate2Address("0x0000000000000000000000000000000000000000", "6000", "1"))
-      .toThrowError(expect.objectContaining({ code: "invalid_address" }));
+    expect(() => computeTronCreate2Address(DEPLOYER, "6000", "0x01")).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+    expect(() =>
+      computeTronCreate2Address("0x0000000000000000000000000000000000000000", "6000", "1"),
+    ).toThrowError(expect.objectContaining({ code: "invalid_address" }));
   });
 });

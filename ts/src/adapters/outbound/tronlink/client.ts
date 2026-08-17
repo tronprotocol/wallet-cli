@@ -136,7 +136,9 @@ export class TronLinkClient implements TronLinkCollaborationPort {
         const bytes = rawDataBytes(data);
         if (bytes.byteLength > MAX_RESPONSE_BYTES) {
           socket.close(1009, "message too large");
-          return finish(new ChainError("provider_error", "TronLink WebSocket message exceeds 1 MiB"));
+          return finish(
+            new ChainError("provider_error", "TronLink WebSocket message exceeds 1 MiB"),
+          );
         }
         try {
           onMessage(normalizeLossless(parseLosslessJson(bytes.toString("utf8"))));
@@ -149,12 +151,14 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       });
       socket.once("close", (code) => {
         if (signal.aborted || code === 1000) return finish();
-        finish(new TransportError(
-          "provider_error",
-          opened
-            ? `TronLink WebSocket closed unexpectedly (code ${code})`
-            : "TronLink WebSocket handshake failed",
-        ));
+        finish(
+          new TransportError(
+            "provider_error",
+            opened
+              ? `TronLink WebSocket closed unexpectedly (code ${code})`
+              : "TronLink WebSocket handshake failed",
+          ),
+        );
       });
     });
   }
@@ -201,7 +205,11 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       });
       if (!response.ok) throw httpError(response);
       const contentLength = response.headers.get("content-length");
-      if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_RESPONSE_BYTES) {
+      if (
+        contentLength &&
+        /^\d+$/.test(contentLength) &&
+        Number(contentLength) > MAX_RESPONSE_BYTES
+      ) {
         throw new ChainError("provider_error", "TronLink response exceeds the 1 MiB limit");
       }
       const text = await readBoundedText(response, MAX_RESPONSE_BYTES);
@@ -209,7 +217,10 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       try {
         root = normalizeLossless(parseLosslessJson(text));
       } catch {
-        throw new ChainError("provider_error", "TronLink collaboration service returned malformed JSON");
+        throw new ChainError(
+          "provider_error",
+          "TronLink collaboration service returned malformed JSON",
+        );
       }
       return unwrapBusinessResponse(root);
     } catch (error) {
@@ -233,23 +244,42 @@ function httpError(response: Response): CliError {
       status: 429,
     });
   }
-  return new TransportError("provider_error", `TronLink collaboration service returned HTTP ${response.status}`, {
-    status: response.status,
-  });
+  return new TransportError(
+    "provider_error",
+    `TronLink collaboration service returned HTTP ${response.status}`,
+    {
+      status: response.status,
+    },
+  );
 }
 
 function tronLinkEndpoint(network: NetworkDescriptor): string {
   if (!network.tronlinkHttpEndpoint) {
-    throw new UsageError("unsupported_network", `network ${network.id} has no TronLink collaboration endpoint`);
+    throw new UsageError(
+      "unsupported_network",
+      `network ${network.id} has no TronLink collaboration endpoint`,
+    );
   }
   let parsed: URL;
   try {
     parsed = new URL(network.tronlinkHttpEndpoint);
   } catch {
-    throw new UsageError("invalid_config", `network ${network.id} has an invalid TronLink endpoint`);
+    throw new UsageError(
+      "invalid_config",
+      `network ${network.id} has an invalid TronLink endpoint`,
+    );
   }
-  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
-    throw new UsageError("invalid_config", "TronLink endpoint must be HTTPS without credentials, query, or fragment");
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new UsageError(
+      "invalid_config",
+      "TronLink endpoint must be HTTPS without credentials, query, or fragment",
+    );
   }
   return parsed.toString().replace(/\/+$/, "");
 }
@@ -265,7 +295,8 @@ async function readBoundedText(response: Response, maximum: number): Promise<str
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > maximum) throw new ChainError("provider_error", "TronLink response exceeds the 1 MiB limit");
+      if (size > maximum)
+        throw new ChainError("provider_error", "TronLink response exceeds the 1 MiB limit");
       text += decoder.decode(value, { stream: true });
     }
     return text + decoder.decode();
@@ -299,7 +330,10 @@ function parsePage(value: unknown, requestedLimit: number): TronLinkRemotePage {
   const data = record(value, "data");
   const total = safeInteger(data.range_total, "data.range_total", 0);
   if (!Array.isArray(data.data) || data.data.length > requestedLimit) {
-    throw new ChainError("provider_error", "TronLink response contains an invalid transaction page");
+    throw new ChainError(
+      "provider_error",
+      "TronLink response contains an invalid transaction page",
+    );
   }
   const records = data.data.map((value, index) => {
     const item = record(value, `data.data[${index}]`);
@@ -343,7 +377,9 @@ function normalizeLossless(value: unknown): unknown {
   }
   if (Array.isArray(value)) return value.map(normalizeLossless);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeLossless(item)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeLossless(item)]),
+    );
   }
   return value;
 }

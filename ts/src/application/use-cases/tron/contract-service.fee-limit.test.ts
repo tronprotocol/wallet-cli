@@ -32,9 +32,7 @@ describe("TronContractService.send fee-limit guidance", () => {
       })),
     } as unknown as TronGateway;
     const pipeline = {
-      async run(params: {
-        estimate: (tx: unknown) => Promise<Record<string, unknown>>;
-      }) {
+      async run(params: { estimate: (tx: unknown) => Promise<Record<string, unknown>> }) {
         const fee = await params.estimate({});
         return { stage: "plan", tx: { txID: "plan" }, fee };
       },

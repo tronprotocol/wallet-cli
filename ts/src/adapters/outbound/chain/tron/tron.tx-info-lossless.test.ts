@@ -13,10 +13,13 @@ import { TronRpcClient } from "./tron.js";
  */
 function nodeReturns(body: string) {
   const calls: Array<{ url: string; body: unknown }> = [];
-  vi.stubGlobal("fetch", vi.fn(async (url: string, init: { body: string }) => {
-    calls.push({ url, body: JSON.parse(init.body) });
-    return { ok: true, status: 200, text: async () => body } as never;
-  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: { body: string }) => {
+      calls.push({ url, body: JSON.parse(init.body) });
+      return { ok: true, status: 200, text: async () => body } as never;
+    }),
+  );
   return calls;
 }
 

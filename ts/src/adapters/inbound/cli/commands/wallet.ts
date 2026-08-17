@@ -2,61 +2,100 @@
  * Wallet root commands — create/import/list/current/use/backup. Not chain-bound; no --network.
  * Calls WalletService rather than the transaction pipeline.
  */
-import { existsSync } from "node:fs"
-import { z } from "zod"
-import type { CommandDefinition } from "../contracts/index.js"
-import { Schemas } from "../schemas/index.js"
-import { CommandRegistry } from "../registry/index.js"
-import { accountRef, camelToKebab, ciEnum } from "../arity/index.js"
-import type { LedgerDevice } from "../../../../application/ports/ledger-device.js"
-import type { QrEncoder } from "../../../../application/ports/qr-encoder.js"
-import type { WalletService } from "../../../../application/use-cases/wallet-service.js"
-import { resolveLedgerPath, selectLedgerPath } from "../../../../application/services/ledger-account.js"
-import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js"
-import { UsageError } from "../../../../domain/errors/index.js"
-import { passwordPolicyErrors } from "../input/prompt/validators.js"
-import { readBoundedTextFile } from "./artifact.js"
-import { TextFormatters } from "../render/index.js"
+import { existsSync } from "node:fs";
+import { z } from "zod";
+import type { CommandDefinition } from "../contracts/index.js";
+import { Schemas } from "../schemas/index.js";
+import { CommandRegistry } from "../registry/index.js";
+import { accountRef, camelToKebab, ciEnum } from "../arity/index.js";
+import type { LedgerDevice } from "../../../../application/ports/ledger-device.js";
+import type { QrEncoder } from "../../../../application/ports/qr-encoder.js";
+import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
+import {
+  resolveLedgerPath,
+  selectLedgerPath,
+} from "../../../../application/services/ledger-account.js";
+import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
+import { UsageError } from "../../../../domain/errors/index.js";
+import { passwordPolicyErrors } from "../input/prompt/validators.js";
+import { readBoundedTextFile } from "./artifact.js";
+import { TextFormatters } from "../render/index.js";
 
 // ── wallet import-ledger contract (module scope so it can be unit-tested) ───────
 // The selectable Ledger apps are the families with a wired Ledger app (FAMILIES[f].ledger);
 // the enum drives both --help and the interactive prompt.
-const LEDGER_APP_BY_FAMILY: Partial<Record<ChainFamily, string>> = Object.fromEntries(CHAIN_FAMILIES.flatMap((f) => (FAMILIES[f].ledger ? [[f, FAMILIES[f].ledger!.app]] : [])))
-const FAMILY_BY_LEDGER_APP: Record<string, ChainFamily> = Object.fromEntries((Object.entries(LEDGER_APP_BY_FAMILY) as [ChainFamily, string][]).map(([f, app]) => [app, f]))
-const LEDGER_APPS = CHAIN_FAMILIES.map((f) => LEDGER_APP_BY_FAMILY[f]).filter((a): a is string => a !== undefined) as [string, ...string[]]
+const LEDGER_APP_BY_FAMILY: Partial<Record<ChainFamily, string>> = Object.fromEntries(
+  CHAIN_FAMILIES.flatMap((f) => (FAMILIES[f].ledger ? [[f, FAMILIES[f].ledger!.app]] : [])),
+);
+const FAMILY_BY_LEDGER_APP: Record<string, ChainFamily> = Object.fromEntries(
+  (Object.entries(LEDGER_APP_BY_FAMILY) as [ChainFamily, string][]).map(([f, app]) => [app, f]),
+);
+const LEDGER_APPS = CHAIN_FAMILIES.map((f) => LEDGER_APP_BY_FAMILY[f]).filter(
+  (a): a is string => a !== undefined,
+) as [string, ...string[]];
 export const walletImportLedgerFields = z.object({
-  app: ciEnum(LEDGER_APPS).describe("Ledger app to open on the device, selecting the address-derivation scheme"),
+  app: ciEnum(LEDGER_APPS).describe(
+    "Ledger app to open on the device, selecting the address-derivation scheme",
+  ),
   index: z.coerce
     .number()
     .int()
     .nonnegative()
     .optional()
-    .describe("HD account index to import; omit with no --path/--address to use index 0; mutually exclusive with --path and --address"),
-  path: z.string().optional().describe("explicit BIP32 derivation path, e.g. m/44'/195'/0'/0/0 for TRON; mutually exclusive with --index and --address"),
-  address: z.string().optional().describe("known address to locate by bounded scan; mutually exclusive with --index and --path"),
-  scanLimit: z.coerce.number().int().positive().optional().describe("number of account indexes to scan when using --address, in indexes; omit to scan 20 indexes"),
-  label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
-})
+    .describe(
+      "HD account index to import; omit with no --path/--address to use index 0; mutually exclusive with --path and --address",
+    ),
+  path: z
+    .string()
+    .optional()
+    .describe(
+      "explicit BIP32 derivation path, e.g. m/44'/195'/0'/0/0 for TRON; mutually exclusive with --index and --address",
+    ),
+  address: z
+    .string()
+    .optional()
+    .describe(
+      "known address to locate by bounded scan; mutually exclusive with --index and --path",
+    ),
+  scanLimit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      "number of account indexes to scan when using --address, in indexes; omit to scan 20 indexes",
+    ),
+  label: Schemas.label()
+    .optional()
+    .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
+});
 /** --index / --path / --address are mutually exclusive (at most one locator). */
 export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, c) => {
-  const locators = [v.index !== undefined, v.path !== undefined, v.address !== undefined].filter(Boolean).length
-  if (locators > 1) c.addIssue({ code: "custom", path: ["index"], message: "--index, --path and --address are mutually exclusive" })
-})
+  const locators = [v.index !== undefined, v.path !== undefined, v.address !== undefined].filter(
+    Boolean,
+  ).length;
+  if (locators > 1)
+    c.addIssue({
+      code: "custom",
+      path: ["index"],
+      message: "--index, --path and --address are mutually exclusive",
+    });
+});
 
 // ── import keystore file reading ───────────────────────────────────────────────
 // A V3 keystore is a small JSON document; the cap only exists to refuse a file that plainly is not
 // one before it is read into memory.
-const KEYSTORE_MAX_BYTES = 64 * 1024
+const KEYSTORE_MAX_BYTES = 64 * 1024;
 
 /** the parsed JSON of a keystore file. Distinguishes "no such file" from "not a keystore" so the
  *  caller learns which of the two mistakes they made. */
 function readKeystoreFile(path: string): unknown {
-  if (!existsSync(path)) throw new UsageError("keystore_not_found", `no keystore file at ${path}`)
-  const raw = readBoundedTextFile(path, KEYSTORE_MAX_BYTES, "keystore file")
+  if (!existsSync(path)) throw new UsageError("keystore_not_found", `no keystore file at ${path}`);
+  const raw = readBoundedTextFile(path, KEYSTORE_MAX_BYTES, "keystore file");
   try {
-    return JSON.parse(raw) as unknown
+    return JSON.parse(raw) as unknown;
   } catch {
-    throw new UsageError("invalid_keystore", `${path} is not valid JSON`)
+    throw new UsageError("invalid_keystore", `${path} is not valid JSON`);
   }
 }
 
@@ -64,29 +103,31 @@ function readKeystoreFile(path: string): unknown {
 // `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss`, always read as UTC — the log is written in UTC, and a
 // local-time reading would silently shift a boundary by the machine's offset. A bare date means that
 // day's 00:00:00 (both bounds are inclusive instants, not day ranges).
-const UTC_DATETIME = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}):(\d{2}))?$/
+const UTC_DATETIME = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2}):(\d{2}))?$/;
 
 /** the ISO-8601 instant a bound denotes, or undefined when the bound was not given. */
 function utcInstant(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined
-  const [, y, mo, d, h = "00", mi = "00", s = "00"] = UTC_DATETIME.exec(value)!
-  return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`
+  if (value === undefined) return undefined;
+  const [, y, mo, d, h = "00", mi = "00", s = "00"] = UTC_DATETIME.exec(value)!;
+  return `${y}-${mo}-${d}T${h}:${mi}:${s}Z`;
 }
 
 function utcDateTime(describe: string) {
   return z
     .string()
     .refine((v) => {
-      const m = UTC_DATETIME.exec(v)
-      if (!m) return false
+      const m = UTC_DATETIME.exec(v);
+      if (!m) return false;
       // Reject impossible calendar values (2026-02-31, 25:00:00): Date normalises them silently, so
       // compare the round-trip instead of trusting the parse.
-      const iso = utcInstant(v)!
-      const parsed = new Date(iso)
-      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().replace(/\.\d{3}Z$/, "Z") === iso
+      const iso = utcInstant(v)!;
+      const parsed = new Date(iso);
+      return (
+        !Number.isNaN(parsed.getTime()) && parsed.toISOString().replace(/\.\d{3}Z$/, "Z") === iso
+      );
     }, "expected YYYY-MM-DD or 'YYYY-MM-DD HH:mm:ss' (UTC)")
     .optional()
-    .describe(`${describe}; format YYYY-MM-DD or 'YYYY-MM-DD HH:mm:ss', parsed as UTC`)
+    .describe(`${describe}; format YYYY-MM-DD or 'YYYY-MM-DD HH:mm:ss', parsed as UTC`);
 }
 
 export function registerWalletCommands(
@@ -97,13 +138,15 @@ export function registerWalletCommands(
     qr?: QrEncoder;
   },
 ): void {
-  const wallets = services.walletService
-  const empty = z.object({})
+  const wallets = services.walletService;
+  const empty = z.object({});
 
   // ── create ───────────────────────────────────────────────────────────────
   const createFields = z.object({
-    label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
-  })
+    label: Schemas.label()
+      .optional()
+      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
+  });
   reg.add({
     path: ["create"],
     network: "none",
@@ -116,19 +159,24 @@ export function registerWalletCommands(
     fields: createFields,
     input: createFields,
     examples: [{ cmd: "wallet-cli create --label main" }],
-    formatText: TextFormatters.walletCreated("Created", ["Recovery phrase is encrypted locally and was not printed.", "Run `backup` soon and store the file offline."]),
+    formatText: TextFormatters.walletCreated("Created", [
+      "Recovery phrase is encrypted locally and was not printed.",
+      "Run `backup` soon and store the file offline.",
+    ]),
     run: async (_ctx, _net, input) => {
-      return wallets.create(input.label)
+      return wallets.create(input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── import mnemonic ───────────────────────────────────────────────────────
   // BIP39 passphrase intentionally NOT exposed in phase 1 ; plumbing stays.
   const importMnemonicFields = z.object({
     label: Schemas.label()
       .optional()
-      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; the mnemonic is entered interactively (hidden)"),
-  })
+      .describe(
+        "human-friendly unique account label, 1-64 chars; omit to auto-generate; the mnemonic is entered interactively (hidden)",
+      ),
+  });
   reg.add({
     path: ["import", "mnemonic"],
     network: "none",
@@ -145,19 +193,23 @@ export function registerWalletCommands(
     fields: importMnemonicFields,
     input: importMnemonicFields,
     examples: [{ cmd: "wallet-cli import mnemonic --label main" }],
-    formatText: TextFormatters.walletCreated("Imported", ["Recovery phrase was read from hidden input and was not printed."]),
+    formatText: TextFormatters.walletCreated("Imported", [
+      "Recovery phrase was read from hidden input and was not printed.",
+    ]),
     run: async (ctx, _net, input) => {
-      const secret = await ctx.secrets.resolveSecret("mnemonic")
-      return wallets.importMnemonic(secret, input.label)
+      const secret = await ctx.secrets.resolveSecret("mnemonic");
+      return wallets.importMnemonic(secret, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── import private-key ────────────────────────────────────────────────────
   const importPrivateKeyFields = z.object({
     label: Schemas.label()
       .optional()
-      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; the private key is entered interactively (hidden)"),
-  })
+      .describe(
+        "human-friendly unique account label, 1-64 chars; omit to auto-generate; the private key is entered interactively (hidden)",
+      ),
+  });
   reg.add({
     path: ["import", "private-key"],
     network: "none",
@@ -174,12 +226,14 @@ export function registerWalletCommands(
     fields: importPrivateKeyFields,
     input: importPrivateKeyFields,
     examples: [{ cmd: "wallet-cli import private-key --label hot" }],
-    formatText: TextFormatters.walletCreated("Imported", ["Private key was read from hidden input and was not printed."]),
+    formatText: TextFormatters.walletCreated("Imported", [
+      "Private key was read from hidden input and was not printed.",
+    ]),
     run: async (ctx, _net, input) => {
-      const secret = await ctx.secrets.resolveSecret("privateKey")
-      return wallets.importPrivateKey(secret, input.label)
+      const secret = await ctx.secrets.resolveSecret("privateKey");
+      return wallets.importPrivateKey(secret, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── import keystore ───────────────────────────────────────────────────────
   // Two independent passwords, both hidden-TTY-only: the FILE's own password (to decrypt it) and our
@@ -191,8 +245,10 @@ export function registerWalletCommands(
   // correct, and uniform with the other TTY-only commands: there is no prompt to save there.
   const importKeystoreFields = z.object({
     path: z.string().min(1).describe("path to the keystore JSON file"),
-    label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
-  })
+    label: Schemas.label()
+      .optional()
+      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
+  });
   reg.add({
     path: ["import", "keystore"],
     network: "none",
@@ -217,15 +273,19 @@ export function registerWalletCommands(
       { cmd: "wallet-cli import keystore ./tronlink-export.json" },
       { cmd: "wallet-cli import keystore ./tronlink-export.json --label imported" },
     ],
-    formatText: TextFormatters.walletCreated("Imported", ["The keystore password was read from hidden input and was not printed."]),
+    formatText: TextFormatters.walletCreated("Imported", [
+      "The keystore password was read from hidden input and was not printed.",
+    ]),
     run: async (ctx, _net, input) => {
-      const file = readKeystoreFile(input.path)
-      const mode = wallets.isInitialized() ? "verify" : "set"
-      await ctx.secrets.primePassword({ mode, verify: (pw) => wallets.verifyPassword(pw) })
-      const keystorePassword = await ctx.prompt.hidden({ label: "Keystore file password (hidden)" })
-      return wallets.importKeystore(file, keystorePassword, input.label)
+      const file = readKeystoreFile(input.path);
+      const mode = wallets.isInitialized() ? "verify" : "set";
+      await ctx.secrets.primePassword({ mode, verify: (pw) => wallets.verifyPassword(pw) });
+      const keystorePassword = await ctx.prompt.hidden({
+        label: "Keystore file password (hidden)",
+      });
+      return wallets.importKeystore(file, keystorePassword, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── import ledger ─────────────────────────────────────────────────────────
   reg.add({
@@ -234,7 +294,13 @@ export function registerWalletCommands(
     wallet: "none",
     auth: "none",
     interactive: true,
-    promptHints: { label: "default-label", index: "skip", path: "skip", address: "skip", scanLimit: "skip" },
+    promptHints: {
+      label: "default-label",
+      index: "skip",
+      path: "skip",
+      address: "skip",
+      scanLimit: "skip",
+    },
     requires: ["a connected, unlocked Ledger with the selected app (--app) open"],
     summary: "Register a Ledger account (watch-only; signs on device)",
     fields: walletImportLedgerFields,
@@ -242,19 +308,28 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli import ledger --app tron --index 0 --label cold" }],
     formatText: TextFormatters.walletLedger,
     run: async (ctx, _net, input) => {
-      const family: ChainFamily = FAMILY_BY_LEDGER_APP[input.app]!
-      const hasLocator = input.index !== undefined || input.path !== undefined || input.address !== undefined
-      const path = hasLocator || !ctx.prompt.isTTY() ? await resolveLedgerPath(services.ledger, family, input) : await selectLedgerPath(services.ledger, family, ctx.prompt)
-      ctx.emit({ type: "deriving-address" })
-      return wallets.importLedger(family, path, input.label)
+      const family: ChainFamily = FAMILY_BY_LEDGER_APP[input.app]!;
+      const hasLocator =
+        input.index !== undefined || input.path !== undefined || input.address !== undefined;
+      const path =
+        hasLocator || !ctx.prompt.isTTY()
+          ? await resolveLedgerPath(services.ledger, family, input)
+          : await selectLedgerPath(services.ledger, family, ctx.prompt);
+      ctx.emit({ type: "deriving-address" });
+      return wallets.importLedger(family, path, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── import watch ──────────────────────────────────────────────────────────
   const importWatchFields = z.object({
-    address: z.string().min(1).describe("watch-only address to track; format: TRON base58 T...; family is auto-detected"),
-    label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
-  })
+    address: z
+      .string()
+      .min(1)
+      .describe("watch-only address to track; format: TRON base58 T...; family is auto-detected"),
+    label: Schemas.label()
+      .optional()
+      .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
+  });
   reg.add({
     path: ["import", "watch"],
     network: "none",
@@ -268,9 +343,9 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli import watch --address T... --label team-vault" }],
     formatText: TextFormatters.walletWatch,
     run: async (_ctx, _net, input) => {
-      return wallets.importWatch(input.address, input.label)
+      return wallets.importWatch(input.address, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── list ─────────────────────────────────────────────────────────────────
   reg.add({
@@ -284,10 +359,15 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli list --output json" }],
     formatText: TextFormatters.walletList,
     run: async () => wallets.list(),
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── use ──────────────────────────────────────────────────────────────────
-  const setActiveFields = z.object({ account: z.string().min(1).describe("accountId, label, or address to make active for future commands") })
+  const setActiveFields = z.object({
+    account: z
+      .string()
+      .min(1)
+      .describe("accountId, label, or address to make active for future commands"),
+  });
   reg.add({
     path: ["use"],
     network: "none",
@@ -300,15 +380,19 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli use main" }],
     formatText: TextFormatters.walletUse,
     run: async (_ctx, _net, input) => {
-      return wallets.use(input.account)
+      return wallets.use(input.account);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── current ───────────────────────────────────────────────────────────────
   const currentFields = z.object({
-    qr: z.boolean().default(false)
-      .describe("render a terminal receive QR containing exactly the selected TRON address; text TTY only"),
-  })
+    qr: z
+      .boolean()
+      .default(false)
+      .describe(
+        "render a terminal receive QR containing exactly the selected TRON address; text TTY only",
+      ),
+  });
   reg.add({
     path: ["current"],
     network: "none",
@@ -326,35 +410,32 @@ export function registerWalletCommands(
     ],
     formatText: TextFormatters.walletCurrent,
     run: async (context, _network, input) => {
-      const descriptor = wallets.current(context.activeAccount)
-      if (!input.qr || context.output !== "text") return descriptor
-      const address = descriptor.addresses.tron
+      const descriptor = wallets.current(context.activeAccount);
+      if (!input.qr || context.output !== "text") return descriptor;
+      const address = descriptor.addresses.tron;
       if (!address) {
-        throw new UsageError(
-          "invalid_value",
-          "selected account has no TRON receive address",
-        )
+        throw new UsageError("invalid_value", "selected account has no TRON receive address");
       }
-      const qr = services.qr?.encode(address) ?? null
+      const qr = services.qr?.encode(address) ?? null;
       if (!qr) {
         context.warn(
           "terminal is non-interactive or too narrow for a complete QR code; showing the full address only",
-        )
-        return descriptor
+        );
+        return descriptor;
       }
       return {
         ...descriptor,
         receiveQr: qr,
         receiveAddress: address,
-      }
+      };
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── rename ────────────────────────────────────────────────────────────────
   const renameFields = z.object({
     account: z.string().min(1).describe("accountId, current label, or address to rename"),
     label: Schemas.label().describe("new unique label, 1-64 chars"),
-  })
+  });
   reg.add({
     path: ["rename"],
     network: "none",
@@ -367,17 +448,31 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli rename main --label primary" }],
     formatText: TextFormatters.walletRename,
     run: async (_ctx, _net, input) => {
-      return wallets.rename(input.account, input.label)
+      return wallets.rename(input.account, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── derive ────────────────────────────────────────────────────────────────
   // Wallet-level op: --seed-id picks the HD wallet directly by its seed id. No --account/active.
   const addAccountFields = z.object({
-    seedId: z.string().min(1).describe("seed id (wlt_…) of the HD wallet to derive from — shown as the HD group header in `list`"),
-    index: z.coerce.number().int().nonnegative().optional().describe("explicit HD account index, in account index; omit to use the next free index"),
-    label: Schemas.label().optional().describe("label for the new derived account, 1-64 chars; omit to auto-generate <wallet-name>-<index>"),
-  })
+    seedId: z
+      .string()
+      .min(1)
+      .describe(
+        "seed id (wlt_…) of the HD wallet to derive from — shown as the HD group header in `list`",
+      ),
+    index: z.coerce
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe("explicit HD account index, in account index; omit to use the next free index"),
+    label: Schemas.label()
+      .optional()
+      .describe(
+        "label for the new derived account, 1-64 chars; omit to auto-generate <wallet-name>-<index>",
+      ),
+  });
   reg.add({
     path: ["derive"],
     network: "none",
@@ -389,15 +484,18 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli derive --seed-id wlt_ab12cd34" }],
     formatText: TextFormatters.walletDerive,
     run: async (_ctx, _net, input) => {
-      return wallets.derive(input.seedId, input.index, input.label)
+      return wallets.derive(input.seedId, input.index, input.label);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── delete ────────────────────────────────────────────────────────────────
   const deleteFields = z.object({
     account: accountRef("account or wallet to delete, addressed by accountId, label, or address"),
-    yes: z.boolean().default(false).describe("skip the interactive confirmation; required for non-TTY deletion"),
-  })
+    yes: z
+      .boolean()
+      .default(false)
+      .describe("skip the interactive confirmation; required for non-TTY deletion"),
+  });
   reg.add({
     path: ["delete"],
     network: "none",
@@ -413,17 +511,23 @@ export function registerWalletCommands(
     run: async (ctx, _net, input) => {
       if (!input.yes) {
         if (!ctx.prompt.isTTY()) {
-          throw new UsageError("tty_required", "deletion needs confirmation: pass --yes or run in a terminal")
+          throw new UsageError(
+            "tty_required",
+            "deletion needs confirmation: pass --yes or run in a terminal",
+          );
         }
-        const d = wallets.describe(input.account)
-        const expect = d.label ?? d.accountId
-        const kind = d.label ? "label" : "account"
-        const ok = await ctx.prompt.confirm({ label: `Delete ${expect}? Type the exact ${kind} "${expect}" to confirm`, expect })
-        if (!ok) throw new UsageError("aborted", "deletion not confirmed")
+        const d = wallets.describe(input.account);
+        const expect = d.label ?? d.accountId;
+        const kind = d.label ? "label" : "account";
+        const ok = await ctx.prompt.confirm({
+          label: `Delete ${expect}? Type the exact ${kind} "${expect}" to confirm`,
+          expect,
+        });
+        if (!ok) throw new UsageError("aborted", "deletion not confirmed");
       }
-      return wallets.delete(input.account)
+      return wallets.delete(input.account);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── backup ────────────────────────────────────────────────────────────────
   // Writes the secret + metadata to a 0600 FILE (never stdout/envelope): the secret stays off
@@ -439,45 +543,68 @@ export function registerWalletCommands(
       "account or wallet to export, addressed by accountId, label, or address; with --records, the account whose exports to list",
       { optional: true },
     ),
-    keystore: z.boolean().default(false)
-      .describe("export as a standard Web3 keystore JSON (importable by TronLink and others, encrypted with your master password) instead of the native format"),
+    keystore: z
+      .boolean()
+      .default(false)
+      .describe(
+        "export as a standard Web3 keystore JSON (importable by TronLink and others, encrypted with your master password) instead of the native format",
+      ),
     out: z
       .string()
       .optional()
-      .describe("output file path; omit to write ./<accountId>-<timestamp>.json in the current directory (.keystore.json with --keystore); file is created with mode 0600 and never overwritten"),
-    records: z.boolean().default(false)
+      .describe(
+        "output file path; omit to write ./<accountId>-<timestamp>.json in the current directory (.keystore.json with --keystore); file is created with mode 0600 and never overwritten",
+      ),
+    records: z
+      .boolean()
+      .default(false)
       .describe("list past secret exports instead of exporting anything"),
     from: utcDateTime("with --records: only records at or after this UTC time"),
     to: utcDateTime("with --records: only records at or before this UTC time"),
-    limit: z.coerce.number().int().positive().optional()
+    limit: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
       .describe("with --records: maximum records to return; omit for all"),
     // Optional, not .default(0): a default makes "not given" indistinguishable from "given as 0"
     // in the refine below, which is how --offset alone slipped past the --records guard. The 0
     // lives in backupRecords (query.offset ?? 0), so the emitted pagination is unchanged.
-    offset: z.coerce.number().int().min(0).optional()
-      .describe("with --records: pagination offset"),
-  })
-  const RECORD_FILTERS = ["from", "to", "limit", "offset"] as const
+    offset: z.coerce.number().int().min(0).optional().describe("with --records: pagination offset"),
+  });
+  const RECORD_FILTERS = ["from", "to", "limit", "offset"] as const;
   const backupInput = backupFields.superRefine((v, c) => {
     if (v.records) {
       // --keystore/--out describe an export; --records exports nothing, so accepting them would
       // silently ignore what the caller asked for.
       for (const flag of ["keystore", "out"] as const) {
         if (v[flag] !== undefined && v[flag] !== false) {
-          c.addIssue({ code: "custom", path: [flag], message: `--${camelToKebab(flag)} exports a file; it cannot be combined with --records` })
+          c.addIssue({
+            code: "custom",
+            path: [flag],
+            message: `--${camelToKebab(flag)} exports a file; it cannot be combined with --records`,
+          });
         }
       }
-      return
+      return;
     }
     if (v.account === undefined) {
-      c.addIssue({ code: "custom", path: ["account"], message: "an account is required unless --records is given" })
+      c.addIssue({
+        code: "custom",
+        path: ["account"],
+        message: "an account is required unless --records is given",
+      });
     }
     for (const flag of RECORD_FILTERS) {
       if (v[flag] !== undefined) {
-        c.addIssue({ code: "custom", path: [flag], message: `--${flag} filters the export log; it needs --records` })
+        c.addIssue({
+          code: "custom",
+          path: [flag],
+          message: `--${flag} filters the export log; it needs --records`,
+        });
       }
     }
-  })
+  });
   reg.add({
     path: ["backup"],
     network: "none",
@@ -520,25 +647,30 @@ export function registerWalletCommands(
           limit: input.limit,
           offset: input.offset,
           account: input.account,
-        })
+        });
       }
-      const account = input.account! // guaranteed by backupInput's refine
-      wallets.assertExportable(account)
-      await ctx.secrets.primePassword({ mode: "verify", verify: (pw) => wallets.verifyPassword(pw) })
+      const account = input.account!; // guaranteed by backupInput's refine
+      wallets.assertExportable(account);
+      await ctx.secrets.primePassword({
+        mode: "verify",
+        verify: (pw) => wallets.verifyPassword(pw),
+      });
       return input.keystore
         ? wallets.backupKeystore(account, input.out, ctx.secrets.read("password"))
-        : wallets.backup(account, input.out)
+        : wallets.backup(account, input.out);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 
   // ── change-password ───────────────────────────────────────────────────────
   // Verify old, prompt for the new one, confirm, then re-encrypt every software wallet keystore.
   // TTY-only (secretsTtyOnly): both passwords are entered interactively — no stdin source, no argv.
   // Sibling of `backup` — both are password-gated keystore secret operations.
   const changePasswordFields = z.object({
-    yes: z.boolean().default(false)
+    yes: z
+      .boolean()
+      .default(false)
       .describe("skip the confirmation prompt; required in non-TTY use"),
-  })
+  });
   reg.add({
     path: ["change-password"],
     network: "none",
@@ -560,37 +692,46 @@ export function registerWalletCommands(
     run: async (ctx, _net, input) => {
       // old password: already verified and primed by dispatch (passwordMode: "verify"), from the TTY.
       // secretsTtyOnly guarantees a TTY here (dispatch rejects --password-stdin / fails fast otherwise).
-      const oldPassword = ctx.secrets.read("password")
+      const oldPassword = ctx.secrets.read("password");
 
       const newPassword = await ctx.prompt.hidden({
         label: "New master password (hidden)",
         confirm: true,
         confirmLabel: "Confirm new password",
-        validate: (s) => { const e = passwordPolicyErrors(s); return e.length ? e.join("; ") : null },
-      })
+        validate: (s) => {
+          const e = passwordPolicyErrors(s);
+          return e.length ? e.join("; ") : null;
+        },
+      });
       if (newPassword === oldPassword) {
-        throw new UsageError("invalid_value", "the new password must differ from the current one")
+        throw new UsageError("invalid_value", "the new password must differ from the current one");
       }
 
       if (!input.yes) {
         if (!ctx.prompt.isTTY()) {
-          throw new UsageError("tty_required", "password change needs confirmation: pass --yes or run in a terminal")
+          throw new UsageError(
+            "tty_required",
+            "password change needs confirmation: pass --yes or run in a terminal",
+          );
         }
-        const count = countSoftwareWallets(wallets)
-        const ok = await ctx.prompt.confirm({ label: `Re-encrypt ${count} software wallet(s) with the new password?` })
-        if (!ok) throw new UsageError("aborted", "password change not confirmed")
+        const count = countSoftwareWallets(wallets);
+        const ok = await ctx.prompt.confirm({
+          label: `Re-encrypt ${count} software wallet(s) with the new password?`,
+        });
+        if (!ok) throw new UsageError("aborted", "password change not confirmed");
       }
-      return wallets.changePassword(oldPassword, newPassword)
+      return wallets.changePassword(oldPassword, newPassword);
     },
-  } satisfies CommandDefinition)
+  } satisfies CommandDefinition);
 }
 
 /** distinct software (seed/privateKey) wallets — the N in the change-password confirm prompt. */
 function countSoftwareWallets(wallets: WalletService): number {
   const ids = new Set(
-    wallets.list()
+    wallets
+      .list()
       .filter((a) => a.type === "seed" || a.type === "privateKey")
       .map((a) => a.accountId.split(".")[0]),
-  )
-  return ids.size
+  );
+  return ids.size;
 }

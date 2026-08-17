@@ -69,8 +69,8 @@ function assertConstructorEncodable(abi: unknown): void {
     if (typeof e.stateMutability !== "string") {
       throw new UsageError(
         "invalid_value",
-        '--abi constructor entry needs a string "stateMutability" ("nonpayable" or "payable"); '
-        + "solc emits it — add it by hand if the ABI was trimmed or came from solc < 0.5",
+        '--abi constructor entry needs a string "stateMutability" ("nonpayable" or "payable"); ' +
+          "solc emits it — add it by hand if the ABI was trimmed or came from solc < 0.5",
       );
     }
   }
@@ -89,20 +89,24 @@ function assertConstructorEncodable(abi: unknown): void {
  */
 function deployParameters(raw: string | undefined): unknown[] {
   const values = jsonArray(raw);
-  const allTyped = values.length > 0 && values.every((v) => {
-    if (!v || typeof v !== "object" || Array.isArray(v)) return false;
-    const keys = Object.keys(v);
-    return keys.length === 2
-      && keys.includes("type")
-      && keys.includes("value")
-      && typeof (v as { type: unknown }).type === "string"
-      && (v as { type: string }).type !== "";
-  });
+  const allTyped =
+    values.length > 0 &&
+    values.every((v) => {
+      if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+      const keys = Object.keys(v);
+      return (
+        keys.length === 2 &&
+        keys.includes("type") &&
+        keys.includes("value") &&
+        typeof (v as { type: unknown }).type === "string" &&
+        (v as { type: string }).type !== ""
+      );
+    });
   if (allTyped) {
     throw new UsageError(
       "invalid_value",
-      '--params takes raw positional values for deploy (e.g. [100, "T..."]); {"type","value"} '
-      + "entries are the `contract call`/`send` form — deploy reads the types from the ABI constructor",
+      '--params takes raw positional values for deploy (e.g. [100, "T..."]); {"type","value"} ' +
+        "entries are the `contract call`/`send` form — deploy reads the types from the ABI constructor",
     );
   }
   return values;
@@ -111,84 +115,108 @@ function deployParameters(raw: string | undefined): unknown[] {
 const callFields = z.object({
   contract: Schemas.addressFor("tron").describe("TRON contract address"),
   method: z.string().min(1).describe("function signature, e.g. balanceOf(address)"),
-  params: z.string().optional()
+  params: z
+    .string()
+    .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
 });
 
 export const contractCallSpec: ChainSpec = {
   path: ["contract", "call"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "contract.call",
   summary: "Read-only call (triggerConstantContract)",
   baseFields: callFields,
-  examples: [{
-    cmd: `wallet-cli contract call --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
-  }],
+  examples: [
+    {
+      cmd: `wallet-cli contract call --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
+    },
+  ],
   formatText: TextFormatters.contractCall,
 };
 
 export const contractCallTronBinding = (svc: TronContractService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.call(
-    net, input.contract, input.method, typedParams(input.params),
-  ),
+  run: async (_ctx, net, input) =>
+    svc.call(net, input.contract, input.method, typedParams(input.params)),
 });
 
 const sendFields = z.object({
   contract: Schemas.addressFor("tron").describe("TRON contract address"),
   method: z.string().min(1).describe("function signature, e.g. transfer(address,uint256)"),
-  params: z.string().optional()
+  params: z
+    .string()
+    .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
-  callValueSun: Schemas.uintString().default("0")
+  callValueSun: Schemas.uintString()
+    .default("0")
     .describe("native TRX attached to the call, in SUN"),
-  feeLimit: Schemas.positiveIntString().default("100000000")
+  feeLimit: Schemas.positiveIntString()
+    .default("100000000")
     .describe("maximum energy fee to burn, in SUN"),
   ...governanceTxModeFields,
 });
 
 export const contractSendSpec: ChainSpec = {
   path: ["contract", "send"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "contract.call",
   summary: "State-changing call (triggerSmartContract)",
   baseFields: sendFields,
   baseRefine: governanceTxRefine,
-  examples: [{
-    cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
-  }],
+  examples: [
+    {
+      cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
+    },
+  ],
   formatText: TextFormatters.txReceipt,
 };
 
 export const contractSendTronBinding = (svc: TronContractService): FamilyBinding => ({
-  run: async (ctx, net, input) => svc.send(ctx, net, {
-    ...input,
-    parameters: typedParams(input.params),
-  }),
+  run: async (ctx, net, input) =>
+    svc.send(ctx, net, {
+      ...input,
+      parameters: typedParams(input.params),
+    }),
 });
 
 const deployFields = z.object({
   abi: z.string().min(1).describe("contract ABI as a JSON array string"),
   bytecode: z.string().min(1).describe("compiled contract bytecode as hex, 0x-prefixed or bare"),
   feeLimit: Schemas.positiveIntString().describe("maximum energy fee to burn, in SUN"),
-  params: z.string().optional()
-    .describe("constructor args as a JSON array of raw positional values, e.g. [100, \"T...\"]; types are taken from the ABI constructor; omit to pass no constructor args"),
+  params: z
+    .string()
+    .optional()
+    .describe(
+      'constructor args as a JSON array of raw positional values, e.g. [100, "T..."]; types are taken from the ABI constructor; omit to pass no constructor args',
+    ),
   ...governanceTxModeFields,
 });
 
 export const contractDeploySpec: ChainSpec = {
   path: ["contract", "deploy"],
-  network: "optional", wallet: "optional", auth: "conditional",
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
   broadcasts: true,
   capability: "contract.deploy",
   summary: "Deploy a smart contract",
   // The Ledger TRON app firmware rejects CreateSmartContract (APDU 0x6a80), even with
   // blind-signing enabled; software accounts sign and deploy it fine.
-  requires: ["a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type"],
+  requires: [
+    "a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type",
+  ],
   baseFields: deployFields,
   baseRefine: governanceTxRefine,
-  examples: [{
-    cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000 --params '[100, \"T...\"]'",
-  }],
+  examples: [
+    {
+      cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000 --params '[100, \"T...\"]'",
+    },
+  ],
   formatText: TextFormatters.txReceipt,
 };
 
@@ -215,7 +243,9 @@ const infoFields = z.object({
 
 export const contractInfoSpec: ChainSpec = {
   path: ["contract", "info"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "contract.call",
   summary: "Show contract ABI + metadata",
   baseFields: infoFields,
@@ -237,7 +267,9 @@ const contractGovernanceBase = {
   formatText: TextFormatters.governanceReceipt,
 };
 
-const governedContract = Schemas.addressFor("tron").describe("contract address; the selected account must be its deployer");
+const governedContract = Schemas.addressFor("tron").describe(
+  "contract address; the selected account must be its deployer",
+);
 
 export const contractClearAbiSpec: ChainSpec = {
   path: ["contract", "clear-abi"],
@@ -278,7 +310,9 @@ export const contractSetOriginEnergyLimitSpec: ChainSpec = {
   examples: [{ cmd: "wallet-cli contract set-origin-energy-limit TQ5... 50000000 --wait" }],
 };
 
-export const contractSetOriginEnergyLimitTronBinding = (svc: TronContractService): FamilyBinding => ({
+export const contractSetOriginEnergyLimitTronBinding = (
+  svc: TronContractService,
+): FamilyBinding => ({
   run: async (ctx, net, input) => svc.setOriginEnergyLimit(ctx, net, input),
 });
 
@@ -293,14 +327,20 @@ export const contractSetUserResourcePercentSpec: ChainSpec = {
   requires: ["the contract deployer account"],
   baseFields: z.object({
     address: governedContract,
-    percent: z.coerce.number().int().min(0).max(100)
+    percent: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(100)
       .describe("percentage of energy paid by the caller (0-100)"),
     ...governanceTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli contract set-user-resource-percent TQ5... 100 --wait" }],
 };
 
-export const contractSetUserResourcePercentTronBinding = (svc: TronContractService): FamilyBinding => ({
+export const contractSetUserResourcePercentTronBinding = (
+  svc: TronContractService,
+): FamilyBinding => ({
   run: async (ctx, net, input) => svc.setUserResourcePercent(ctx, net, input),
 });
 
@@ -312,7 +352,9 @@ function create2Refine(value: { code?: string; codeFile?: string }, ctx: z.Refin
 
 export const contractCreate2Spec: ChainSpec = {
   path: ["contract", "create2"],
-  network: "optional", wallet: "none", auth: "none",
+  network: "optional",
+  wallet: "none",
+  auth: "none",
   capability: "contract.create2",
   summary: "Compute a TVM CREATE2 contract address locally",
   description:
@@ -320,13 +362,21 @@ export const contractCreate2Spec: ChainSpec = {
     "bytecode with constructor arguments appended; salt is a signed decimal 64-bit integer.",
   baseFields: z.object({
     deployer: Schemas.addressFor("tron").describe("account or factory contract performing CREATE2"),
-    code: z.string().optional().describe("creation bytecode as hex; whitespace and an optional 0x prefix are stripped"),
+    code: z
+      .string()
+      .optional()
+      .describe("creation bytecode as hex; whitespace and an optional 0x prefix are stripped"),
     codeFile: z.string().min(1).optional().describe("path containing creation bytecode hex"),
-    salt: z.string().regex(/^-?\d+$/).describe("signed decimal 64-bit salt"),
+    salt: z
+      .string()
+      .regex(/^-?\d+$/)
+      .describe("signed decimal 64-bit salt"),
   }),
   baseRefine: create2Refine,
   examples: [
-    { cmd: "wallet-cli contract create2 --deployer TQk... --code-file ./Token.creation.hex --salt 1" },
+    {
+      cmd: "wallet-cli contract create2 --deployer TQk... --code-file ./Token.creation.hex --salt 1",
+    },
     { cmd: "wallet-cli contract create2 --deployer TQk... --code 60806040 --salt 255" },
   ],
   formatText: TextFormatters.contractCreate2,
@@ -340,7 +390,8 @@ export const contractCreate2TronBinding = (svc: TronContractService): FamilyBind
         code = await readFile(input.codeFile, "utf8");
       } catch (error) {
         const codeValue = (error as NodeJS.ErrnoException).code;
-        if (codeValue === "ENOENT") throw new UsageError("file_not_found", `code file not found: ${input.codeFile}`);
+        if (codeValue === "ENOENT")
+          throw new UsageError("file_not_found", `code file not found: ${input.codeFile}`);
         throw new UsageError("invalid_value", `cannot read code file: ${input.codeFile}`);
       }
     }

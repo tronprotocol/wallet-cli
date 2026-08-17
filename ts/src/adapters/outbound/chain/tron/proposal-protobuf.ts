@@ -19,7 +19,8 @@ type Json = Record<string, unknown>;
 
 export function proposalCreateTxJsonToPbExact(transaction: unknown): any {
   const source = transaction as { raw_data?: { contract?: Json[] }; visible?: boolean };
-  if (!Array.isArray(source?.raw_data?.contract)) throw new Error("missing proposal transaction contracts");
+  if (!Array.isArray(source?.raw_data?.contract))
+    throw new Error("missing proposal transaction contracts");
   const clone = JSON.parse(JSON.stringify(transaction)) as typeof source;
   const clonedContracts = clone.raw_data!.contract!;
 
@@ -50,25 +51,33 @@ export function proposalCreateTxCheckExact(transaction: unknown): boolean {
   const expected = String((transaction as { raw_data_hex?: unknown })?.raw_data_hex ?? "")
     .replace(/^0x/, "")
     .toLowerCase();
-  return expected.length > 0 &&
-    tronUtils.transaction.txPbToRawDataHex(proposalCreateTxJsonToPbExact(transaction)).toLowerCase() === expected;
+  return (
+    expected.length > 0 &&
+    tronUtils.transaction
+      .txPbToRawDataHex(proposalCreateTxJsonToPbExact(transaction))
+      .toLowerCase() === expected
+  );
 }
 
 /** Exact UpdateEnergyLimitContract int64 encoder; TronWeb's builder both narrows to number and
  * applies an obsolete 10M policy cap that is not part of the Java protocol builder. */
 export function updateEnergyLimitTxJsonToPbExact(transaction: unknown): any {
   const source = transaction as { raw_data?: { contract?: Json[] } };
-  if (!Array.isArray(source?.raw_data?.contract)) throw new Error("missing energy-limit transaction contracts");
+  if (!Array.isArray(source?.raw_data?.contract))
+    throw new Error("missing energy-limit transaction contracts");
   const clone = JSON.parse(JSON.stringify(transaction)) as typeof source;
   const exactPayloads = new Map<number, Uint8Array>();
   source.raw_data.contract.forEach((contract, index) => {
     if (contract.type !== "UpdateEnergyLimitContract") return;
     const value = asObject(asObject(contract.parameter).value);
-    exactPayloads.set(index, encodeUpdateEnergyLimit(
-      String(value.owner_address ?? ""),
-      String(value.contract_address ?? ""),
-      decimal(value.origin_energy_limit, "origin energy limit"),
-    ));
+    exactPayloads.set(
+      index,
+      encodeUpdateEnergyLimit(
+        String(value.owner_address ?? ""),
+        String(value.contract_address ?? ""),
+        decimal(value.origin_energy_limit, "origin energy limit"),
+      ),
+    );
     const clonedValue = asObject(asObject(clone.raw_data!.contract![index]!.parameter).value);
     clonedValue.origin_energy_limit = 0;
   });
@@ -82,15 +91,22 @@ export function updateEnergyLimitTxCheckExact(transaction: unknown): boolean {
   const expected = String((transaction as { raw_data_hex?: unknown })?.raw_data_hex ?? "")
     .replace(/^0x/, "")
     .toLowerCase();
-  return expected.length > 0 &&
-    tronUtils.transaction.txPbToRawDataHex(updateEnergyLimitTxJsonToPbExact(transaction)).toLowerCase() === expected;
+  return (
+    expected.length > 0 &&
+    tronUtils.transaction
+      .txPbToRawDataHex(updateEnergyLimitTxJsonToPbExact(transaction))
+      .toLowerCase() === expected
+  );
 }
 
 function proposalEntries(value: unknown): ProposalParameter[] {
   if (Array.isArray(value)) {
     return value.map((entry) => {
       const object = asObject(entry);
-      return { key: decimal(object.key, "parameter id"), value: decimal(object.value, "parameter value") };
+      return {
+        key: decimal(object.key, "parameter id"),
+        value: decimal(object.value, "parameter value"),
+      };
     });
   }
   if (value && typeof value === "object") {
@@ -110,7 +126,9 @@ function encodeProposalCreate(ownerAddress: string, parameters: ProposalParamete
   for (const parameter of parameters) {
     selected.set(int64(parameter.key, "parameter id"), int64(parameter.value, "parameter value"));
   }
-  const sorted = [...selected.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+  const sorted = [...selected.entries()].sort(([left], [right]) =>
+    left < right ? -1 : left > right ? 1 : 0,
+  );
   for (const [key, value] of sorted) {
     const entry = concatBytes(tag(1, 0), varint64(key), tag(2, 0), varint64(value));
     fields.push(lengthDelimited(2, entry));
@@ -170,7 +188,8 @@ function decimal(value: unknown, label: string): string {
 }
 
 function asObject(value: unknown): Json {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("malformed proposal transaction");
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("malformed proposal transaction");
   return value as Json;
 }
 

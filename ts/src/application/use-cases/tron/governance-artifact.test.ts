@@ -8,12 +8,23 @@ import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
 
-const NET: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] };
+const NET: NetworkDescriptor = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+};
 const OWNER = "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB";
 const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 const scope: TransactionScope = {
-  activeAccount: "wlt_test.0", resolveAddress: () => OWNER,
-  timeoutMs: 60_000, wait: false, waitTimeoutMs: 60_000, emit: () => {}, warn: () => {},
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => OWNER,
+  timeoutMs: 60_000,
+  wait: false,
+  waitTimeoutMs: 60_000,
+  emit: () => {},
+  warn: () => {},
 };
 
 /**
@@ -34,20 +45,42 @@ function harness(overrides: Partial<TronGateway> = {}) {
       { key: "getAccountUpgradeCost", value: 9_999_000_000 },
       { key: "getMaintenanceTimeInterval", value: 1_800_000 },
     ],
-    getProposals: async () => [{
-      id: 7, proposerAddress: OWNER, parameters: { "0": "100000" },
-      expirationTime: Date.now() + 600_000, createTime: Date.now(), approvals: [], state: "PENDING" as const,
-    }],
+    getProposals: async () => [
+      {
+        id: 7,
+        proposerAddress: OWNER,
+        parameters: { "0": "100000" },
+        expirationTime: Date.now() + 600_000,
+        createTime: Date.now(),
+        approvals: [],
+        state: "PENDING" as const,
+      },
+    ],
     getWitnesses: async () => [{ address: OWNER, voteCount: "1", url: "u" }],
-    getContractMetadata: async () => ({ name: "t", methods: [], originAddress: OWNER, contract: {}, info: {} }),
-    getProposal: async () => ({
-      id: 7, proposerAddress: OWNER, parameters: { "0": "100000" },
-      expirationTime: Date.now() + 600_000, createTime: Date.now(), approvals: [], state: "PENDING" as const,
+    getContractMetadata: async () => ({
+      name: "t",
+      methods: [],
+      originAddress: OWNER,
+      contract: {},
+      info: {},
     }),
-    buildWitnessCreate: async () => ({}), buildWitnessUpdate: async () => ({}),
-    buildWitnessSetBrokerage: async () => ({}), buildProposalCreate: async () => ({}),
-    buildProposalApprove: async () => ({}), buildProposalDelete: async () => ({}),
-    buildClearContractAbi: async () => ({}), buildUpdateOriginEnergyLimit: async () => ({}),
+    getProposal: async () => ({
+      id: 7,
+      proposerAddress: OWNER,
+      parameters: { "0": "100000" },
+      expirationTime: Date.now() + 600_000,
+      createTime: Date.now(),
+      approvals: [],
+      state: "PENDING" as const,
+    }),
+    buildWitnessCreate: async () => ({}),
+    buildWitnessUpdate: async () => ({}),
+    buildWitnessSetBrokerage: async () => ({}),
+    buildProposalCreate: async () => ({}),
+    buildProposalApprove: async () => ({}),
+    buildProposalDelete: async () => ({}),
+    buildClearContractAbi: async () => ({}),
+    buildUpdateOriginEnergyLimit: async () => ({}),
     buildUpdateUserResourcePercent: async () => ({}),
     ...overrides,
   } as unknown as TronGateway;
@@ -73,12 +106,21 @@ describe("every governance write supplies the --build-only / --sign-only artifac
   const calls: Array<[string, (h: ReturnType<typeof harness>) => Promise<unknown>]> = [
     ["witness update", (h) => h.witness.update(scope, NET, { url: "https://sr.example" })],
     ["witness set-brokerage", (h) => h.witness.setBrokerage(scope, NET, { percent: 20 })],
-    ["proposal create", (h) => h.proposal.create(scope, NET, { set: ["getMaintenanceTimeInterval=100000"] } as never)],
+    [
+      "proposal create",
+      (h) => h.proposal.create(scope, NET, { set: ["getMaintenanceTimeInterval=100000"] } as never),
+    ],
     ["proposal approve", (h) => h.proposal.approve(scope, NET, { id: 7 } as never)],
     ["proposal delete", (h) => h.proposal.delete(scope, NET, { id: 7 } as never)],
     ["contract clear-abi", (h) => h.contract.clearAbi(scope, NET, { address: CONTRACT })],
-    ["contract set-origin-energy-limit", (h) => h.contract.setOriginEnergyLimit(scope, NET, { address: CONTRACT, energy: "15000000" })],
-    ["contract set-user-resource-percent", (h) => h.contract.setUserResourcePercent(scope, NET, { address: CONTRACT, percent: 60 })],
+    [
+      "contract set-origin-energy-limit",
+      (h) => h.contract.setOriginEnergyLimit(scope, NET, { address: CONTRACT, energy: "15000000" }),
+    ],
+    [
+      "contract set-user-resource-percent",
+      (h) => h.contract.setUserResourcePercent(scope, NET, { address: CONTRACT, percent: 60 }),
+    ],
   ];
 
   it.each(calls)("`%s` passes artifact", async (_label, call) => {

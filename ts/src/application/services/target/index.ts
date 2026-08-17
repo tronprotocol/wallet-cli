@@ -18,7 +18,10 @@ export interface ResolvedTarget {
 export class TargetResolver {
   constructor(private readonly deps: TargetResolverDeps) {}
 
-  resolveNetwork(selection: ExecutionSelection): { network: NetworkDescriptor; reason: "explicit-network" | "default-network" } {
+  resolveNetwork(selection: ExecutionSelection): {
+    network: NetworkDescriptor;
+    reason: "explicit-network" | "default-network";
+  } {
     const explicit = selection.network && selection.network.trim() !== "";
     const network = explicit
       ? this.deps.networkRegistry.resolve(selection.network)
@@ -40,9 +43,11 @@ export class TargetResolver {
       );
     }
 
-    const accountFamily = policy.wallet !== "none" ? this.#singleFamilyAccount(selection) : undefined;
+    const accountFamily =
+      policy.wallet !== "none" ? this.#singleFamilyAccount(selection) : undefined;
     if (accountFamily && accountFamily !== network.family) {
-      const source = reason === "explicit-network" ? `network ${network.id}` : `default network ${network.id}`;
+      const source =
+        reason === "explicit-network" ? `network ${network.id}` : `default network ${network.id}`;
       throw new UsageError(
         "network_family_mismatch",
         `selected account is ${accountFamily}-only but ${source} is ${network.family}; pass --network for a ${accountFamily} network or change defaultNetwork`,

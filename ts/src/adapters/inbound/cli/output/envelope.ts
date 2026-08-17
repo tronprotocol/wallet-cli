@@ -4,7 +4,7 @@
  * Pure (no I/O); the formatter turns the envelope into strings.
  */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import type { ChainView, ErrorEnvelope, Meta, ResultEnvelope, WarningItem } from "../contracts/index.js";
+import type { ChainView, ErrorEnvelope, Meta, ResultEnvelope } from "../contracts/index.js";
 
 type CliErrorEnvelopeShape = { code: string; message: string; details?: object };
 

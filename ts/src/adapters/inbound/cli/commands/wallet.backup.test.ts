@@ -23,8 +23,9 @@ import { registerWalletCommands } from "./wallet.js";
 import type { SessionRef } from "../contracts/index.js";
 
 // Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
-vi.mock("@noble/hashes/scrypt.js", async () =>
-  import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
+vi.mock(
+  "@noble/hashes/scrypt.js",
+  async () => import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
 
 const VALID_MNEMONIC = "test test test test test test test test test test test junk";
@@ -37,8 +38,12 @@ function fixture(opts: { tty: boolean }) {
   const streams = new StreamManager("text", false);
   const prompter = new Prompter({
     isTTY: () => opts.tty,
-    async question(_prompt: string, _hidden: boolean) { return VALID_PASSWORD; },
-    async readKey() { return { name: "return" }; },
+    async question(_prompt: string, _hidden: boolean) {
+      return VALID_PASSWORD;
+    },
+    async readKey() {
+      return { name: "return" };
+    },
     write() {},
     beginRaw() {},
     endRaw() {},
@@ -82,8 +87,9 @@ describe("backup password gating", () => {
       address: LEDGER_ADDRESS,
     });
 
-    await expect(buildCli(shellOpts).parseAsync(["backup", accountId]))
-      .rejects.toMatchObject({ code: "not_exportable" });
+    await expect(buildCli(shellOpts).parseAsync(["backup", accountId])).rejects.toMatchObject({
+      code: "not_exportable",
+    });
     expect(spyPrime).not.toHaveBeenCalled();
   });
 
@@ -107,12 +113,18 @@ describe("backup password gating", () => {
  * reads as a plain pagination flag, so a default value would hide it from the guard entirely.
  */
 describe("backup --records flag gating", () => {
-  for (const args of [["--from", "2026-08-01"], ["--to", "2026-08-01"], ["--limit", "5"], ["--offset", "5"]]) {
+  for (const args of [
+    ["--from", "2026-08-01"],
+    ["--to", "2026-08-01"],
+    ["--limit", "5"],
+    ["--offset", "5"],
+  ]) {
     it(`rejects ${args[0]} without --records`, async () => {
       const { shellOpts, spyPrime } = fixture({ tty: false });
 
-      await expect(buildCli(shellOpts).parseAsync(["backup", "main", ...args]))
-        .rejects.toMatchObject({ code: "invalid_value" });
+      await expect(
+        buildCli(shellOpts).parseAsync(["backup", "main", ...args]),
+      ).rejects.toMatchObject({ code: "invalid_value" });
       expect(spyPrime).not.toHaveBeenCalled();
     });
   }

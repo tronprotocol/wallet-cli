@@ -7,7 +7,8 @@ type Obj = Record<string, unknown>;
 export const GovernanceFormatters = {
   proposalList: ((data) => renderProposalList(asObj(data))) satisfies TextFormatter,
   proposalShow: ((data) => renderProposalShow(asObj(data))) satisfies TextFormatter,
-  governanceReceipt: ((data, ctx) => renderGovernanceReceipt(asObj(data), ctx)) satisfies TextFormatter,
+  governanceReceipt: ((data, ctx) =>
+    renderGovernanceReceipt(asObj(data), ctx)) satisfies TextFormatter,
   contractCreate2: ((data) => {
     const d = asObj(data);
     return titled("Contract address (CREATE2)", [
@@ -65,9 +66,10 @@ function renderProposalShow(data: Obj): string {
   const valueWidth = width(parameters.map((parameter) => changeValue(parameter.value)));
   return [
     body,
-    ...parameters.map((parameter) =>
-      `    ${String(parameter.name ?? "").padEnd(nameWidth)}   ${changeValue(parameter.value).padStart(valueWidth)}`
-      + (parameter.unit ? `   ${String(parameter.unit)}` : ""),
+    ...parameters.map(
+      (parameter) =>
+        `    ${String(parameter.name ?? "").padEnd(nameWidth)}   ${changeValue(parameter.value).padStart(valueWidth)}` +
+        (parameter.unit ? `   ${String(parameter.unit)}` : ""),
     ),
   ].join("\n");
 }
@@ -101,14 +103,21 @@ function renderGovernanceReceipt(data: Obj, ctx: TextRenderContext): string {
     fields.push(["Block", data.blockNumber === undefined ? "" : formatInt(data.blockNumber)]);
     fields.push(["Fee", confirmedFee(data)]);
     fields.push(["Status", stage === "failed" ? "failed" : "success"]);
-    return appendChanges(receipt(stage === "failed" ? "❌" : ok(), pastLabel(kind, Boolean(data.addApproval)), fields), data);
+    return appendChanges(
+      receipt(stage === "failed" ? "❌" : ok(), pastLabel(kind, Boolean(data.addApproval)), fields),
+      data,
+    );
   }
   fields.push(["Status", "submitted — pending confirmation"]);
-  return appendChanges(receipt(pending(), pastLabel(kind, Boolean(data.addApproval)), fields), data);
+  return appendChanges(
+    receipt(pending(), pastLabel(kind, Boolean(data.addApproval)), fields),
+    data,
+  );
 }
 
 function governanceRows(data: Obj, ctx: TextRenderContext): Array<[string, string]> {
-  const address = (value: unknown) => value ? `${String(value)}${ctx.accountLabel ? ` (${ctx.accountLabel})` : ""}` : "";
+  const address = (value: unknown) =>
+    value ? `${String(value)}${ctx.accountLabel ? ` (${ctx.accountLabel})` : ""}` : "";
   switch (String(data.kind ?? "")) {
     case "proposal-create":
       return [
@@ -122,14 +131,26 @@ function governanceRows(data: Obj, ctx: TextRenderContext): Array<[string, strin
         ["Approvals", `${formatInt(data.approvals)} / ${formatInt(data.approvalThreshold)}`],
       ];
     case "proposal-delete":
-      return [["Proposal", `#${String(data.proposalId ?? "")}`], ["Proposer", address(data.proposerAddress)]];
+      return [
+        ["Proposal", `#${String(data.proposalId ?? "")}`],
+        ["Proposer", address(data.proposerAddress)],
+      ];
     case "witness-create":
     case "witness-update":
-      return [["Witness", address(data.witnessAddress)], ["Url", String(data.url ?? "")]];
+      return [
+        ["Witness", address(data.witnessAddress)],
+        ["Url", String(data.url ?? "")],
+      ];
     case "witness-set-brokerage":
-      return [["Witness", address(data.witnessAddress)], ["Brokerage", `${String(data.brokerage ?? "")}%`]];
+      return [
+        ["Witness", address(data.witnessAddress)],
+        ["Brokerage", `${String(data.brokerage ?? "")}%`],
+      ];
     case "contract-clear-abi":
-      return [["Contract", String(data.contractAddress ?? "")], ["Deployer", address(data.deployerAddress)]];
+      return [
+        ["Contract", String(data.contractAddress ?? "")],
+        ["Deployer", address(data.deployerAddress)],
+      ];
     case "contract-set-origin-energy-limit":
       return [
         ["Contract", String(data.contractAddress ?? "")],
@@ -156,40 +177,45 @@ function appendChanges(rendered: string, data: Obj): string {
   return [
     rendered,
     `  Parameter changes (${changes.length})`,
-    ...changes.map((change) =>
-      `    ${String(change.name ?? "").padEnd(nameWidth)}   ${changeValue(change.currentValue).padStart(fromWidth)}`
-      + ` → ${changeValue(change.proposedValue).padStart(toWidth)}`
-      + (change.unit ? `   ${String(change.unit)}` : ""),
+    ...changes.map(
+      (change) =>
+        `    ${String(change.name ?? "").padEnd(nameWidth)}   ${changeValue(change.currentValue).padStart(fromWidth)}` +
+        ` → ${changeValue(change.proposedValue).padStart(toWidth)}` +
+        (change.unit ? `   ${String(change.unit)}` : ""),
     ),
   ].join("\n");
 }
 
 function actionLabel(kind: string, addApproval: boolean): string {
-  return {
-    "proposal-create": "proposal create",
-    "proposal-approve": addApproval ? "proposal approval" : "approval cancellation",
-    "proposal-delete": "proposal delete",
-    "witness-create": "witness registration",
-    "witness-update": "witness update",
-    "witness-set-brokerage": "brokerage update",
-    "contract-clear-abi": "ABI clear",
-    "contract-set-origin-energy-limit": "origin energy limit update",
-    "contract-set-user-resource-percent": "user resource ratio update",
-  }[kind] ?? kind;
+  return (
+    {
+      "proposal-create": "proposal create",
+      "proposal-approve": addApproval ? "proposal approval" : "approval cancellation",
+      "proposal-delete": "proposal delete",
+      "witness-create": "witness registration",
+      "witness-update": "witness update",
+      "witness-set-brokerage": "brokerage update",
+      "contract-clear-abi": "ABI clear",
+      "contract-set-origin-energy-limit": "origin energy limit update",
+      "contract-set-user-resource-percent": "user resource ratio update",
+    }[kind] ?? kind
+  );
 }
 
 function pastLabel(kind: string, addApproval: boolean): string {
-  return {
-    "proposal-create": "Proposal created",
-    "proposal-approve": addApproval ? "Proposal approved" : "Approval canceled",
-    "proposal-delete": "Proposal deleted",
-    "witness-create": "Witness registered",
-    "witness-update": "Witness updated",
-    "witness-set-brokerage": "Brokerage set",
-    "contract-clear-abi": "ABI cleared",
-    "contract-set-origin-energy-limit": "Origin energy limit set",
-    "contract-set-user-resource-percent": "User pay ratio set",
-  }[kind] ?? kind;
+  return (
+    {
+      "proposal-create": "Proposal created",
+      "proposal-approve": addApproval ? "Proposal approved" : "Approval canceled",
+      "proposal-delete": "Proposal deleted",
+      "witness-create": "Witness registered",
+      "witness-update": "Witness updated",
+      "witness-set-brokerage": "Brokerage set",
+      "contract-clear-abi": "ABI cleared",
+      "contract-set-origin-energy-limit": "Origin energy limit set",
+      "contract-set-user-resource-percent": "User pay ratio set",
+    }[kind] ?? kind
+  );
 }
 
 function estimateFee(data: Obj): string {
@@ -200,7 +226,8 @@ function estimateFee(data: Obj): string {
 
 function confirmedFee(data: Obj): string {
   const resource = asObj(data.resource);
-  const bandwidth = resource.netUsage === undefined ? "" : `  (${formatInt(resource.netUsage)} bandwidth)`;
+  const bandwidth =
+    resource.netUsage === undefined ? "" : `  (${formatInt(resource.netUsage)} bandwidth)`;
   const feeSun = data.feeSun ?? (data.kind === "witness-create" ? data.registrationFeeSun : 0);
   return `${formatSun(feeSun)} TRX${bandwidth}`;
 }
@@ -223,16 +250,18 @@ function width(values: string[]): number {
 
 /** Column-aligned rows; numeric columns are right-aligned so digits line up down the page. */
 function table(headers: string[], rows: string[][], align: Align[]): string[] {
-  const widths = headers.map((header, index) => Math.max(
-    header.length,
-    ...rows.map((row) => String(row[index] ?? "").length),
-  ));
-  const line = (cells: string[]) => `  ${cells
-    .map((cell, index) => align[index] === "right"
-      ? String(cell).padStart(widths[index] ?? 0)
-      : String(cell).padEnd(widths[index] ?? 0))
-    .join("   ")
-    .trimEnd()}`;
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => String(row[index] ?? "").length)),
+  );
+  const line = (cells: string[]) =>
+    `  ${cells
+      .map((cell, index) =>
+        align[index] === "right"
+          ? String(cell).padStart(widths[index] ?? 0)
+          : String(cell).padEnd(widths[index] ?? 0),
+      )
+      .join("   ")
+      .trimEnd()}`;
   return [line(headers), ...rows.map(line)];
 }
 

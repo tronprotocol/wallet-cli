@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { passwordPolicyErrors, isValidPrivateKeyHex, isValidMnemonic, PASSWORD_SPECIALS } from "./validators.js";
+import {
+  passwordPolicyErrors,
+  isValidPrivateKeyHex,
+  isValidMnemonic,
+  PASSWORD_SPECIALS,
+} from "./validators.js";
 
 describe("passwordPolicyErrors", () => {
   it("accepts a strong password", () => {
@@ -32,9 +37,15 @@ describe("isValidPrivateKeyHex", () => {
 
 describe("isValidMnemonic", () => {
   it("accepts a valid 12-word phrase", () => {
-    expect(isValidMnemonic("legal winner thank year wave sausage worth useful legal winner thank yellow")).toBe(true);
+    expect(
+      isValidMnemonic(
+        "legal winner thank year wave sausage worth useful legal winner thank yellow",
+      ),
+    ).toBe(true);
   });
   it("rejects garbage", () => {
-    expect(isValidMnemonic("not a real mnemonic phrase at all nope nope nope nope nope")).toBe(false);
+    expect(isValidMnemonic("not a real mnemonic phrase at all nope nope nope nope nope")).toBe(
+      false,
+    );
   });
 });

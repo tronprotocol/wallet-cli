@@ -25,8 +25,9 @@ import { registerWalletCommands } from "./wallet.js";
 import type { SessionRef } from "../contracts/index.js";
 
 // Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
-vi.mock("@noble/hashes/scrypt.js", async () =>
-  import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
+vi.mock(
+  "@noble/hashes/scrypt.js",
+  async () => import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
 
 const VALID_MNEMONIC = "test test test test test test test test test test test junk";
@@ -57,7 +58,9 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
       // the keystore file's own password is a distinct prompt from the master password
       return /keystore/i.test(prompt) ? KEYSTORE_PW : VALID_PASSWORD;
     },
-    async readKey() { return { name: "return" }; },
+    async readKey() {
+      return { name: "return" };
+    },
     write() {},
     beginRaw() {},
     endRaw() {},
@@ -85,7 +88,7 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
           return { out, fileMode: "0600" as const, bytes: 491 };
         },
       },
-      { append: () => {}, list: () => (opts.records ?? []) },
+      { append: () => {}, list: () => opts.records ?? [] },
     ),
     ledger: {} as any,
   } as any);
@@ -106,7 +109,11 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
 }
 
 /** an account whose secret can be exported, with the master password already established. */
-async function seedWallet(f: ReturnType<typeof fixture>, secret = VALID_MNEMONIC, type: "seed" | "privateKey" = "seed") {
+async function seedWallet(
+  f: ReturnType<typeof fixture>,
+  secret = VALID_MNEMONIC,
+  type: "seed" | "privateKey" = "seed",
+) {
   await f.secrets.primePassword({ mode: "set" });
   const { accountId } = f.keystore.import({ secret, type, label: "main" });
   f.secrets.clearPrimed();
@@ -124,7 +131,12 @@ describe("backup --keystore", () => {
 
     const env = f.envelope();
     expect(env.command).toBe("backup");
-    expect(env.data).toMatchObject({ accountId, format: "keystore", secretType: "privateKey", fileMode: "0600" });
+    expect(env.data).toMatchObject({
+      accountId,
+      format: "keystore",
+      secretType: "privateKey",
+      fileMode: "0600",
+    });
     expect(KeystoreV3.decrypt(f.writes[0]!.payload, VALID_PASSWORD)).toHaveLength(32);
   });
 
@@ -139,7 +151,13 @@ describe("backup --keystore", () => {
   it("honours an explicit --out path", async () => {
     const f = fixture({ tty: true });
     const accountId = await seedWallet(f);
-    await buildCli(f.shellOpts).parseAsync(["backup", accountId, "--keystore", "--out", "./main.keystore.json"]);
+    await buildCli(f.shellOpts).parseAsync([
+      "backup",
+      accountId,
+      "--keystore",
+      "--out",
+      "./main.keystore.json",
+    ]);
     expect(f.envelope().data.out).toBe("./main.keystore.json");
   });
 });
@@ -169,7 +187,10 @@ describe("backup --records", () => {
   // The service returns `pagination` inside its view; the json formatter lifts it into envelope
   // `meta` (and removes it from `data`) whenever it carries a full offset/limit/total triple.
   it("returns records, with pagination lifted into envelope meta", async () => {
-    const f = fixture({ tty: false, records: [record({ out: "./1.json" }), record({ out: "./2.json" })] });
+    const f = fixture({
+      tty: false,
+      records: [record({ out: "./1.json" }), record({ out: "./2.json" })],
+    });
     await buildCli(f.shellOpts).parseAsync(["backup", "--records", "--limit", "1"]);
     const env = f.envelope();
     expect(env.data.records.map((r: BackupRecord) => r.out)).toEqual(["./1.json"]);
@@ -179,15 +200,21 @@ describe("backup --records", () => {
 
   it("rejects export flags, which it could only ignore", async () => {
     const f = fixture({ tty: false, records: [] });
-    for (const argv of [["backup", "--records", "--keystore"], ["backup", "--records", "--out", "./x.json"]]) {
-      await expect(buildCli(f.shellOpts).parseAsync(argv)).rejects.toMatchObject({ code: "invalid_value" });
+    for (const argv of [
+      ["backup", "--records", "--keystore"],
+      ["backup", "--records", "--out", "./x.json"],
+    ]) {
+      await expect(buildCli(f.shellOpts).parseAsync(argv)).rejects.toMatchObject({
+        code: "invalid_value",
+      });
     }
   });
 
   it("rejects record filters when not in records mode", async () => {
     const f = fixture({ tty: false });
-    await expect(buildCli(f.shellOpts).parseAsync(["backup", "main", "--from", "2026-08-01"]))
-      .rejects.toMatchObject({ code: "invalid_value" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["backup", "main", "--from", "2026-08-01"]),
+    ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
   it.each([
@@ -197,8 +224,9 @@ describe("backup --records", () => {
     ["a local-time offset", "2026-08-01T00:00:00+08:00"],
   ])("rejects %s in --from", async (_label, value) => {
     const f = fixture({ tty: false, records: [] });
-    await expect(buildCli(f.shellOpts).parseAsync(["backup", "--records", "--from", value]))
-      .rejects.toMatchObject({ code: "invalid_value" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["backup", "--records", "--from", value]),
+    ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
   it("accepts both accepted time spellings", async () => {
@@ -211,14 +239,26 @@ describe("backup --records", () => {
 
   it("requires an account when NOT in records mode and no TTY can be asked", async () => {
     const f = fixture({ tty: false });
-    await expect(buildCli(f.shellOpts).parseAsync(["backup"])).rejects.toMatchObject({ code: "invalid_value" });
+    await expect(buildCli(f.shellOpts).parseAsync(["backup"])).rejects.toMatchObject({
+      code: "invalid_value",
+    });
   });
 });
 
 describe("import keystore", () => {
-  function keystoreFile(root: string, name = "export.json", keyHex = RAW_KEY, password = KEYSTORE_PW) {
+  function keystoreFile(
+    root: string,
+    name = "export.json",
+    keyHex = RAW_KEY,
+    password = KEYSTORE_PW,
+  ) {
     const path = join(root, name);
-    writeFileSync(path, JSON.stringify(KeystoreV3.encrypt(Buffer.from(keyHex, "hex"), password, `41${"00".repeat(20)}`)));
+    writeFileSync(
+      path,
+      JSON.stringify(
+        KeystoreV3.encrypt(Buffer.from(keyHex, "hex"), password, `41${"00".repeat(20)}`),
+      ),
+    );
     return path;
   }
 
@@ -230,7 +270,13 @@ describe("import keystore", () => {
 
     const env = f.envelope();
     expect(env.command).toBe("import.keystore");
-    expect(env.data).toMatchObject({ status: "created", label: "imported", type: "privateKey", index: null, active: true });
+    expect(env.data).toMatchObject({
+      status: "created",
+      label: "imported",
+      type: "privateKey",
+      index: null,
+      active: true,
+    });
   });
 
   it("asks for the master password and the keystore's own password, separately", async () => {
@@ -242,35 +288,44 @@ describe("import keystore", () => {
 
   it("refuses to run without a TTY — both passwords are hidden-input only", async () => {
     const f = fixture({ tty: false });
-    await expect(buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]))
-      .rejects.toMatchObject({ code: "tty_required" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]),
+    ).rejects.toMatchObject({ code: "tty_required" });
   });
 
   it("reports a missing file distinctly from a malformed one, before asking for any password", async () => {
     const f = fixture({ tty: true });
-    await expect(buildCli(f.shellOpts).parseAsync(["import", "keystore", join(f.root, "nope.json")]))
-      .rejects.toMatchObject({ code: "keystore_not_found" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["import", "keystore", join(f.root, "nope.json")]),
+    ).rejects.toMatchObject({ code: "keystore_not_found" });
     expect(f.spyPrime).not.toHaveBeenCalled();
 
     const bad = join(f.root, "bad.json");
     writeFileSync(bad, "{not json");
-    await expect(buildCli(f.shellOpts).parseAsync(["import", "keystore", bad]))
-      .rejects.toMatchObject({ code: "invalid_keystore" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["import", "keystore", bad]),
+    ).rejects.toMatchObject({ code: "invalid_keystore" });
   });
 
   it("rejects a version-1 blob of ours as not a keystore", async () => {
     const f = fixture({ tty: true });
     const path = join(f.root, "vault.json");
-    const { crypto } = KeystoreV3.encrypt(Buffer.from(RAW_KEY, "hex"), KEYSTORE_PW, `41${"00".repeat(20)}`);
+    const { crypto } = KeystoreV3.encrypt(
+      Buffer.from(RAW_KEY, "hex"),
+      KEYSTORE_PW,
+      `41${"00".repeat(20)}`,
+    );
     writeFileSync(path, JSON.stringify({ version: 1, type: "raw-privkey", id: "key_x", crypto }));
-    await expect(buildCli(f.shellOpts).parseAsync(["import", "keystore", path]))
-      .rejects.toMatchObject({ code: "invalid_keystore" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["import", "keystore", path]),
+    ).rejects.toMatchObject({ code: "invalid_keystore" });
   });
 
   it("refuses a same-address account with account_exists", async () => {
     const f = fixture({ tty: true });
     await seedWallet(f, RAW_KEY, "privateKey");
-    await expect(buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]))
-      .rejects.toMatchObject({ code: "account_exists" });
+    await expect(
+      buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]),
+    ).rejects.toMatchObject({ code: "account_exists" });
   });
 });

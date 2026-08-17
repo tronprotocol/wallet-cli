@@ -12,7 +12,10 @@ describe("enumOptions", () => {
   });
   it("descends ciEnum's preprocess pipe to find the literals (through default/optional)", () => {
     expect(enumOptions(ciEnum(["energy", "bandwidth"]))).toEqual(["energy", "bandwidth"]);
-    expect(enumOptions(ciEnum(["energy", "bandwidth"]).default("bandwidth"))).toEqual(["energy", "bandwidth"]);
+    expect(enumOptions(ciEnum(["energy", "bandwidth"]).default("bandwidth"))).toEqual([
+      "energy",
+      "bandwidth",
+    ]);
     expect(enumOptions(ciEnum(["native", "token"]).optional())).toEqual(["native", "token"]);
   });
 });

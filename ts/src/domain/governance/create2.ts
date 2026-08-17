@@ -49,9 +49,10 @@ export function computeTronCreate2Address(
   payload[0] = 0x41;
   payload.set(digest.slice(12), 1);
 
-  const safeSalt = salt >= BigInt(Number.MIN_SAFE_INTEGER) && salt <= BigInt(Number.MAX_SAFE_INTEGER)
-    ? Number(salt)
-    : salt.toString();
+  const safeSalt =
+    salt >= BigInt(Number.MIN_SAFE_INTEGER) && salt <= BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number(salt)
+      : salt.toString();
   return {
     deployerAddress,
     salt: safeSalt,

@@ -50,7 +50,11 @@ describe("TRC10 ICO rate", () => {
   });
 
   it("round-trips price → chain pair → price", () => {
-    for (const [trx, tokens, precision] of [[1n, 100n, 6], [3n, 7n, 2], [10_000n, 1n, 4]] as const) {
+    for (const [trx, tokens, precision] of [
+      [1n, 100n, 6],
+      [3n, 7n, 2],
+      [10_000n, 1n, 4],
+    ] as const) {
       expect(icoPriceLabel(icoRate(trx, tokens, precision), precision)).toEqual({ trx, tokens });
     }
   });

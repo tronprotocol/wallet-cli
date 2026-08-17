@@ -1,15 +1,15 @@
-import { hideBin } from "yargs/helpers"
-import type { ExitCode, OutputMode } from "../domain/types/index.js"
-import { normalizeError, UsageError } from "../domain/errors/index.js"
-import { redactErrorMessage } from "../domain/errors/redact.js"
-import { HelpService, hasMeta } from "../adapters/inbound/cli/help/index.js"
-import { buildCli } from "../adapters/inbound/cli/shell/index.js"
-import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js"
-import { StreamManager } from "../adapters/inbound/cli/stream/index.js"
-import { hasCommand, parseGlobals } from "./argv.js"
-import { composeCliRuntime } from "./composition.js"
+import { hideBin } from "yargs/helpers";
+import type { ExitCode, OutputMode } from "../domain/types/index.js";
+import { normalizeError, UsageError } from "../domain/errors/index.js";
+import { redactErrorMessage } from "../domain/errors/redact.js";
+import { HelpService, hasMeta } from "../adapters/inbound/cli/help/index.js";
+import { buildCli } from "../adapters/inbound/cli/shell/index.js";
+import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js";
+import { StreamManager } from "../adapters/inbound/cli/stream/index.js";
+import { hasCommand, parseGlobals } from "./argv.js";
+import { composeCliRuntime } from "./composition.js";
 
-export const VERSION = "4.12.0"
+export const VERSION = "4.12.0";
 
 /**
  * Report a failure raised while the composition root was still being built — an unreadable,
@@ -24,42 +24,49 @@ export const VERSION = "4.12.0"
  * may sit next to a service credential, so it is classified to a generic `internal_error` rather
  * than surfaced.
  */
-function reportBootstrapFailure(error: unknown, globals: { output?: OutputMode; verbose?: boolean }, startedAt: number): ExitCode {
-  const output = globals.output ?? "text"
-  const normalized = normalizeError(error)
-  const streams = new StreamManager(output, globals.verbose ?? false)
+function reportBootstrapFailure(
+  error: unknown,
+  globals: { output?: OutputMode; verbose?: boolean },
+  startedAt: number,
+): ExitCode {
+  const output = globals.output ?? "text";
+  const normalized = normalizeError(error);
+  const streams = new StreamManager(output, globals.verbose ?? false);
   if (normalized.code === "internal_error") {
     // same --verbose-gated escape hatch the main path offers, minus paths/URLs
-    streams.diagnostic("debug", `bootstrap error: ${redactErrorMessage(String(error))}`)
+    streams.diagnostic("debug", `bootstrap error: ${redactErrorMessage(String(error))}`);
   }
-  createOutputFormatter(output, streams, startedAt).error(normalized)
-  return normalized.exitCode()
+  createOutputFormatter(output, streams, startedAt).error(normalized);
+  return normalized.exitCode();
 }
 
 /** Execute one CLI invocation. Dependency construction is delegated to the composition root. */
 export async function main(argv: string[]): Promise<ExitCode> {
-  const startedAt = Date.now()
-  const tokens = hideBin(argv)
-  const { globals, secretPaths, invalid } = parseGlobals(tokens)
+  const startedAt = Date.now();
+  const tokens = hideBin(argv);
+  const { globals, secretPaths, invalid } = parseGlobals(tokens);
 
-  let runtime: ReturnType<typeof composeCliRuntime>
+  let runtime: ReturnType<typeof composeCliRuntime>;
   try {
-    runtime = composeCliRuntime({ globals, secretPaths, startedAt })
+    runtime = composeCliRuntime({ globals, secretPaths, startedAt });
   } catch (error) {
-    return reportBootstrapFailure(error, globals, startedAt)
+    return reportBootstrapFailure(error, globals, startedAt);
   }
 
   try {
     if (hasMeta(tokens) || !hasCommand(tokens)) {
-      const help = new HelpService(runtime.registry, runtime.streams, VERSION)
-      return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"])
+      const help = new HelpService(runtime.registry, runtime.streams, VERSION);
+      return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]);
     }
 
     // A supplied global flag with an out-of-range/invalid value is a usage error — never a silent
     // fall-back to the default. Reported before any command dispatch, so no RPC is attempted.
     if (invalid.length > 0) {
-      const bad = invalid[0]!
-      throw new UsageError("invalid_value", `invalid ${bad.flag} value "${bad.value}": ${bad.reason}`)
+      const bad = invalid[0]!;
+      throw new UsageError(
+        "invalid_value",
+        `invalid ${bad.flag} value "${bad.value}": ${bad.reason}`,
+      );
     }
 
     const cli = buildCli({
@@ -71,21 +78,21 @@ export async function main(argv: string[]): Promise<ExitCode> {
       streams: runtime.streams,
       formatter: runtime.formatter,
       session: runtime.session,
-    })
-    await cli.parseAsync(tokens)
-    return 0
+    });
+    await cli.parseAsync(tokens);
+    return 0;
   } catch (error) {
-    const normalized = normalizeError(error)
+    const normalized = normalizeError(error);
     if (normalized.code === "internal_error") {
-      runtime.streams.diagnostic("debug", `internal error: ${String(error)}`)
+      runtime.streams.diagnostic("debug", `internal error: ${String(error)}`);
     }
     runtime.formatter.error(normalized, {
       commandId: runtime.session.current?.commandId,
       net: runtime.session.current?.net,
-    })
-    return normalized.exitCode()
+    });
+    return normalized.exitCode();
   } finally {
-    runtime.deps.secrets.clearPrimed() // release cached secrets at end of the invocation
-    runtime.prompter.close()
+    runtime.deps.secrets.clearPrimed(); // release cached secrets at end of the invocation
+    runtime.prompter.close();
   }
 }

@@ -19,14 +19,24 @@ import { TronContractService } from "./contract-service.js";
  * These tests drive the REAL `TxPipeline`. The other governance suites pass a fake pipeline that
  * records params, which is exactly why the guard never fired in test: only the real one has it.
  */
-const NET: NetworkDescriptor = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] };
+const NET: NetworkDescriptor = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+};
 const OWNER = "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB";
 const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0" as never,
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000, wait: false, waitTimeoutMs: 60_000, emit: () => {}, warn: () => {},
+  timeoutMs: 60_000,
+  wait: false,
+  waitTimeoutMs: 60_000,
+  emit: () => {},
+  warn: () => {},
 };
 
 function harness(overrides: Partial<TronGateway> = {}) {
@@ -34,12 +44,18 @@ function harness(overrides: Partial<TronGateway> = {}) {
   // Mirrors the observable half of the real `prepareTransaction`: binds Permission_id and sets
   // expiration relative to the transaction's own timestamp. Clones, because the real one does
   // (`structuredClone`) and because `built` is shared across the cases below.
-  const prepareTransaction = vi.fn((tx: unknown, options: { permissionId: number; expiration?: number }) => {
-    const prepared = structuredClone(tx) as typeof built & { raw_data: { contract: Array<{ Permission_id?: number }> } };
-    if (options.permissionId !== 0) prepared.raw_data.contract[0]!.Permission_id = options.permissionId;
-    if (options.expiration !== undefined) prepared.raw_data.expiration = prepared.raw_data.timestamp + options.expiration;
-    return prepared;
-  });
+  const prepareTransaction = vi.fn(
+    (tx: unknown, options: { permissionId: number; expiration?: number }) => {
+      const prepared = structuredClone(tx) as typeof built & {
+        raw_data: { contract: Array<{ Permission_id?: number }> };
+      };
+      if (options.permissionId !== 0)
+        prepared.raw_data.contract[0]!.Permission_id = options.permissionId;
+      if (options.expiration !== undefined)
+        prepared.raw_data.expiration = prepared.raw_data.timestamp + options.expiration;
+      return prepared;
+    },
+  );
   const gateway = {
     encodeTransactionHex: vi.fn(() => "0a02deadbeef"),
     prepareTransaction,
@@ -49,20 +65,42 @@ function harness(overrides: Partial<TronGateway> = {}) {
       { key: "getAccountUpgradeCost", value: 9_999_000_000 },
       { key: "getMaintenanceTimeInterval", value: 1_800_000 },
     ],
-    getProposals: async () => [{
-      id: 7, proposerAddress: OWNER, parameters: { "0": "100000" },
-      expirationTime: Date.now() + 600_000, createTime: Date.now(), approvals: [], state: "PENDING" as const,
-    }],
+    getProposals: async () => [
+      {
+        id: 7,
+        proposerAddress: OWNER,
+        parameters: { "0": "100000" },
+        expirationTime: Date.now() + 600_000,
+        createTime: Date.now(),
+        approvals: [],
+        state: "PENDING" as const,
+      },
+    ],
     getProposal: async () => ({
-      id: 7, proposerAddress: OWNER, parameters: { "0": "100000" },
-      expirationTime: Date.now() + 600_000, createTime: Date.now(), approvals: [], state: "PENDING" as const,
+      id: 7,
+      proposerAddress: OWNER,
+      parameters: { "0": "100000" },
+      expirationTime: Date.now() + 600_000,
+      createTime: Date.now(),
+      approvals: [],
+      state: "PENDING" as const,
     }),
     getWitnesses: async () => [{ address: OWNER, voteCount: "1", url: "u" }],
-    getContractMetadata: async () => ({ name: "t", methods: [], originAddress: OWNER, contract: {}, info: {} }),
-    buildWitnessCreate: async () => built, buildWitnessUpdate: async () => built,
-    buildWitnessSetBrokerage: async () => built, buildProposalCreate: async () => built,
-    buildProposalApprove: async () => built, buildProposalDelete: async () => built,
-    buildClearContractAbi: async () => built, buildUpdateOriginEnergyLimit: async () => built,
+    getContractMetadata: async () => ({
+      name: "t",
+      methods: [],
+      originAddress: OWNER,
+      contract: {},
+      info: {},
+    }),
+    buildWitnessCreate: async () => built,
+    buildWitnessUpdate: async () => built,
+    buildWitnessSetBrokerage: async () => built,
+    buildProposalCreate: async () => built,
+    buildProposalApprove: async () => built,
+    buildProposalDelete: async () => built,
+    buildClearContractAbi: async () => built,
+    buildUpdateOriginEnergyLimit: async () => built,
     buildUpdateUserResourcePercent: async () => built,
     ...overrides,
   } as unknown as TronGateway;
@@ -89,30 +127,64 @@ function harness(overrides: Partial<TronGateway> = {}) {
 type Call = (h: ReturnType<typeof harness>, opts: Record<string, unknown>) => Promise<unknown>;
 
 const WRITES: Array<[string, Call]> = [
-  ["witness update", (h, o) => h.witness.update(scope, NET, { url: "https://sr.example", ...o } as never)],
-  ["witness set-brokerage", (h, o) => h.witness.setBrokerage(scope, NET, { percent: 20, ...o } as never)],
-  ["proposal create", (h, o) => h.proposal.create(scope, NET, { set: ["getMaintenanceTimeInterval=100000"], ...o } as never)],
+  [
+    "witness update",
+    (h, o) => h.witness.update(scope, NET, { url: "https://sr.example", ...o } as never),
+  ],
+  [
+    "witness set-brokerage",
+    (h, o) => h.witness.setBrokerage(scope, NET, { percent: 20, ...o } as never),
+  ],
+  [
+    "proposal create",
+    (h, o) =>
+      h.proposal.create(scope, NET, { set: ["getMaintenanceTimeInterval=100000"], ...o } as never),
+  ],
   ["proposal approve", (h, o) => h.proposal.approve(scope, NET, { id: 7, ...o } as never)],
   ["proposal delete", (h, o) => h.proposal.delete(scope, NET, { id: 7, ...o } as never)],
-  ["contract clear-abi", (h, o) => h.contract.clearAbi(scope, NET, { address: CONTRACT, ...o } as never)],
-  ["contract set-origin-energy-limit", (h, o) => h.contract.setOriginEnergyLimit(scope, NET, { address: CONTRACT, energy: "15000000", ...o } as never)],
-  ["contract set-user-resource-percent", (h, o) => h.contract.setUserResourcePercent(scope, NET, { address: CONTRACT, percent: 60, ...o } as never)],
+  [
+    "contract clear-abi",
+    (h, o) => h.contract.clearAbi(scope, NET, { address: CONTRACT, ...o } as never),
+  ],
+  [
+    "contract set-origin-energy-limit",
+    (h, o) =>
+      h.contract.setOriginEnergyLimit(scope, NET, {
+        address: CONTRACT,
+        energy: "15000000",
+        ...o,
+      } as never),
+  ],
+  [
+    "contract set-user-resource-percent",
+    (h, o) =>
+      h.contract.setUserResourcePercent(scope, NET, {
+        address: CONTRACT,
+        percent: 60,
+        ...o,
+      } as never),
+  ],
 ];
 
 describe("governance writes accept --permission-id through the real pipeline", () => {
   it.each(WRITES)("`%s` builds with --permission-id 2", async (_label, call) => {
     const h = harness();
-    const result = await call(h, { permissionId: 2, buildOnly: true }) as { hex?: string };
+    const result = (await call(h, { permissionId: 2, buildOnly: true })) as { hex?: string };
     expect(result.hex).toBe("0a02deadbeef");
-    expect(h.prepareTransaction).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ permissionId: 2 }));
+    expect(h.prepareTransaction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ permissionId: 2 }),
+    );
   });
 
   // The ninth write; it burns 9999 TRX so it needs a gateway that reports "not yet a witness".
   it("`witness create` builds with --permission-id 2", async () => {
     const h = harness({ getWitness: async () => null });
-    const result = await h.witness.create(
-      scope, NET, { url: "https://sr.example", permissionId: 2, buildOnly: true } as never,
-    ) as { hex?: string };
+    const result = (await h.witness.create(scope, NET, {
+      url: "https://sr.example",
+      permissionId: 2,
+      buildOnly: true,
+    } as never)) as { hex?: string };
     expect(result.hex).toBe("0a02deadbeef");
   });
 });
@@ -120,9 +192,12 @@ describe("governance writes accept --permission-id through the real pipeline", (
 describe("governance writes accept --expiration through the real pipeline", () => {
   it.each(WRITES)("`%s` builds with --expiration 60000", async (_label, call) => {
     const h = harness();
-    const result = await call(h, { expiration: 60_000, buildOnly: true }) as { hex?: string };
+    const result = (await call(h, { expiration: 60_000, buildOnly: true })) as { hex?: string };
     expect(result.hex).toBe("0a02deadbeef");
-    expect(h.prepareTransaction).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ expiration: 60_000 }));
+    expect(h.prepareTransaction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ expiration: 60_000 }),
+    );
   });
 });
 
@@ -164,9 +239,11 @@ describe("--expiration means the same on governance as everywhere else", () => {
     } as unknown as TronGateway;
 
     const signer: Signer = {
-      kind: "software", address: OWNER,
+      kind: "software",
+      address: OWNER,
       sign: async (tx) => tx as never,
-      signMessage: async () => "", signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+      signMessage: async () => "",
+      signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
     const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
     const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
@@ -176,12 +253,17 @@ describe("--expiration means the same on governance as everywhere else", () => {
   it.each([
     ["60 seconds", 60_000],
     ["24 hours", 86_400_000],
-  ])("`proposal create --expiration` expires that long after the transaction timestamp: %s", async (_l, ms) => {
-    const service = await realGatewayHarness();
-    const out = await service.create(scope, NET, {
-      set: ["getMaintenanceTimeInterval=100000"], expiration: ms, buildOnly: true,
-    } as never) as unknown as { tx: { raw_data: { timestamp: number; expiration: number } } };
+  ])(
+    "`proposal create --expiration` expires that long after the transaction timestamp: %s",
+    async (_l, ms) => {
+      const service = await realGatewayHarness();
+      const out = (await service.create(scope, NET, {
+        set: ["getMaintenanceTimeInterval=100000"],
+        expiration: ms,
+        buildOnly: true,
+      } as never)) as unknown as { tx: { raw_data: { timestamp: number; expiration: number } } };
 
-    expect(out.tx.raw_data.expiration - out.tx.raw_data.timestamp).toBe(ms);
-  });
+      expect(out.tx.raw_data.expiration - out.tx.raw_data.timestamp).toBe(ms);
+    },
+  );
 });
