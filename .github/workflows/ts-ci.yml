@@ -4,9 +4,13 @@ on:
   pull_request:
     branches:
       - "**"
+  # Topic branches are covered by the pull_request trigger above; pushing to one would otherwise
+  # start a second, identical run (a different concurrency key, so neither cancels the other).
   push:
     branches:
-      - "**"
+      - develop
+      - master
+      - "release_*"
   workflow_dispatch:
 
 permissions:
