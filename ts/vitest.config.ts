@@ -9,19 +9,21 @@ export default defineConfig({
           name: "unit",
           environment: "node",
           include: ["src/**/*.test.ts"],
+          testTimeout: 20_000,
+          hookTimeout: 20_000,
         },
       },
       {
-        // Golden tests spawn a fresh `tsx src/index.ts` per case, which cold-transpiles the
+        // Golden tests spawn a fresh `node --import tsx src/index.ts` per case, which cold-transpiles the
         // whole CLI import graph each time. Under parallel CPU load a single spawn can take far
         // longer than vitest's default 5s testTimeout, causing intermittent timeout failures.
-        // Give this suite generous timeouts so transient slowness doesn't flake the run.
+        // Keep this suite above the child-process guard so hangs fail with subprocess details.
         test: {
           name: "golden",
           environment: "node",
           include: ["test/**/*.test.ts"],
-          testTimeout: 30_000,
-          hookTimeout: 30_000,
+          testTimeout: 20_000,
+          hookTimeout: 20_000,
         },
       },
     ],

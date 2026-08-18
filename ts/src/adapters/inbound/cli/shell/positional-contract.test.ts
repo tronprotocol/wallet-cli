@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { buildCli, type ShellOptions } from "./index.js";
 import { isChainCommand, type SessionRef } from "../contracts/index.js";
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
+import { Prompter } from "../input/prompt/index.js";
+import { SecretResolver } from "../input/secret/index.js";
 
 /**
  * The other shell tests drive synthetic command definitions, which proves the mechanism but not
@@ -31,11 +33,32 @@ describe("every registered positional command rejects its --<field> spelling", (
   // fresh per invocation: StreamManager permits one result emission, so a runtime cannot be shared
   // across commands that actually run.
   function newRuntime() {
-    return composeCliRuntime({
+    const runtime = composeCliRuntime({
       globals: { output: "json", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
     });
+    // These two overrides are load-bearing, and only on a developer machine: `composeCliRuntime`
+    // wires the real TtyBackend, which finds the controlling terminal and prompts on /dev/tty. The
+    // `--account` case below dispatches `backup`/`delete`, whose passwordMode primes the master
+    // password — with a real TTY that blocks forever (CI has no terminal, so it passes there).
+    // Both lines are needed: dispatch prompts through deps.prompter, priming through deps.secrets'
+    // own prompter reference. Any prompt reaching the backend is a bug in this test's assumptions,
+    // so the backend throws rather than silently answering "" and passing for the wrong reason.
+    const unreachable = (site: string) => () => {
+      throw new Error(`positional-contract test must not prompt (${site})`);
+    };
+    const prompter = new Prompter({
+      isTTY: () => false,
+      question: unreachable("question"),
+      readKey: unreachable("readKey"),
+      write() {},
+      beginRaw: unreachable("beginRaw"),
+      endRaw() {},
+    });
+    runtime.deps.prompter = prompter;
+    runtime.deps.secrets = new SecretResolver(runtime.streams, {}, prompter);
+    return runtime;
   }
 
   function shellOpts(): ShellOptions {

@@ -1,0 +1,67 @@
+name: TypeScript CI
+
+on:
+  pull_request:
+    branches:
+      - "**"
+  # Topic branches are covered by the pull_request trigger above; pushing to one would otherwise
+  # start a second, identical run (a different concurrency key, so neither cancels the other).
+  push:
+    branches:
+      - develop
+      - master
+      - "release_*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ts-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality / Node ${{ matrix.node }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - "22"
+          - "24"
+
+    defaults:
+      run:
+        working-directory: ts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: ts/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check architecture boundaries
+        run: npm run depcruise
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build npm bundle
+        run: npm run build
+
+      - name: Validate npm package contents
+        run: npm pack --dry-run

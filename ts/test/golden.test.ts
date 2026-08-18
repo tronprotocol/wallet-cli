@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +7,7 @@ import { Keystore } from "../src/adapters/outbound/keystore/index.js";
 import { TokenBook } from "../src/adapters/outbound/tokenbook/index.js";
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js";
 import type { TokenEntry } from "../src/domain/types/index.js";
+import { DETACHED } from "./detached.js";
 
 const ENTRY = join(process.cwd(), "src", "index.ts");
 const MNEMONIC = "test test test test test test test test test test test junk";
@@ -33,7 +34,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     finalArgs.push("--password-stdin");
     stdin = (opts.password ?? DEFAULT_PW) + "\n";
   }
-  // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
+  // 18s < the suite's 20s testTimeout: a genuinely hung subprocess errors here with a clear
   // signal instead of silently eating the whole test budget.
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.
@@ -41,8 +42,9 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     input: stdin,
     encoding: "utf8",
     env,
-    timeout: 25_000,
-  });
+    timeout: 18_000,
+    ...DETACHED,
+  } as SpawnSyncOptionsWithStringEncoding);
   let json: any;
   try {
     json = JSON.parse(r.stdout);
