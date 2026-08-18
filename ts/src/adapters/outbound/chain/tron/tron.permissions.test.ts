@@ -11,22 +11,26 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("TronRpcClient account permission boundary", () => {
   it("binds permission and expiration before signing, then recomputes tx identity", () => {
-    const original = decodeTransactionHex(encodeTransactionHex({
-      visible: false,
-      raw_data: {
-        contract: [{
-          type: "TransferContract",
-          parameter: {
-            type_url: "type.googleapis.com/protocol.TransferContract",
-            value: { owner_address: A_HEX, to_address: B_HEX, amount: 1 },
-          },
-        }],
-        ref_block_bytes: "1234",
-        ref_block_hash: "0011223344556677",
-        timestamp: 1_900_000_000_000,
-        expiration: 1_900_000_060_000,
-      },
-    }));
+    const original = decodeTransactionHex(
+      encodeTransactionHex({
+        visible: false,
+        raw_data: {
+          contract: [
+            {
+              type: "TransferContract",
+              parameter: {
+                type_url: "type.googleapis.com/protocol.TransferContract",
+                value: { owner_address: A_HEX, to_address: B_HEX, amount: 1 },
+              },
+            },
+          ],
+          ref_block_bytes: "1234",
+          ref_block_hash: "0011223344556677",
+          timestamp: 1_900_000_000_000,
+          expiration: 1_900_000_060_000,
+        },
+      }),
+    );
     const prepared = new TronRpcClient("https://node.invalid", 100).prepareTransaction(original, {
       permissionId: 2,
       expiration: 86_400_000,
@@ -40,37 +44,58 @@ describe("TronRpcClient account permission boundary", () => {
   });
 
   it("normalizes node addresses and decodes active operation bitmaps", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      address: A_HEX,
-      owner_permission: {
-        id: 0,
-        permission_name: "owner",
-        threshold: 2,
-        keys: [{ address: A_HEX, weight: 1 }, { address: B_HEX, weight: 1 }],
-      },
-      active_permission: [{
-        id: 2,
-        permission_name: "finance",
-        threshold: 1,
-        operations: "0600008000000000000000000000000000000000000000000000000000000000",
-        keys: [{ address: A_HEX, weight: 1 }],
-      }],
-    }), { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              address: A_HEX,
+              owner_permission: {
+                id: 0,
+                permission_name: "owner",
+                threshold: 2,
+                keys: [
+                  { address: A_HEX, weight: 1 },
+                  { address: B_HEX, weight: 1 },
+                ],
+              },
+              active_permission: [
+                {
+                  id: 2,
+                  permission_name: "finance",
+                  threshold: 1,
+                  operations: "0600008000000000000000000000000000000000000000000000000000000000",
+                  keys: [{ address: A_HEX, weight: 1 }],
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
 
-    const permissions = await new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A);
+    const permissions = await new TronRpcClient("https://node.invalid", 100).getAccountPermissions(
+      A,
+    );
     expect(permissions).toMatchObject({
       address: A,
       owner: {
         id: 0,
         threshold: 2,
-        keys: [{ address: A, weight: 1, local: null }, { address: B, weight: 1, local: null }],
+        keys: [
+          { address: A, weight: 1, local: null },
+          { address: B, weight: 1, local: null },
+        ],
       },
       witness: null,
-      actives: [{
-        id: 2,
-        name: "finance",
-        operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
-      }],
+      actives: [
+        {
+          id: 2,
+          name: "finance",
+          operations: ["TransferContract", "TransferAssetContract", "TriggerSmartContract"],
+        },
+      ],
     });
   });
 
@@ -84,30 +109,32 @@ describe("TronRpcClient account permission boundary", () => {
         keys: [{ address: A_HEX, weight: 1 }],
       },
     } as never);
-    const transaction = decodeTransactionHex(encodeTransactionHex({
-      visible: false,
-      raw_data: {
-        contract: [{
-          type: "TransferContract",
-          parameter: {
-            type_url: "type.googleapis.com/protocol.TransferContract",
-            value: {
-              owner_address: A_HEX,
-              to_address: B_HEX,
-              amount: 1,
+    const transaction = decodeTransactionHex(
+      encodeTransactionHex({
+        visible: false,
+        raw_data: {
+          contract: [
+            {
+              type: "TransferContract",
+              parameter: {
+                type_url: "type.googleapis.com/protocol.TransferContract",
+                value: {
+                  owner_address: A_HEX,
+                  to_address: B_HEX,
+                  amount: 1,
+                },
+              },
             },
-          },
-        }],
-        ref_block_bytes: "1234",
-        ref_block_hash: "0011223344556677",
-        timestamp: 1_900_000_000_000,
-        expiration: 1_900_000_060_000,
-      },
-    }));
+          ],
+          ref_block_bytes: "1234",
+          ref_block_hash: "0011223344556677",
+          timestamp: 1_900_000_000_000,
+          expiration: 1_900_000_060_000,
+        },
+      }),
+    );
 
-    await expect(
-      client.getSignWeight(transaction),
-    ).resolves.toMatchObject({
+    await expect(client.getSignWeight(transaction)).resolves.toMatchObject({
       permission: {
         id: 0,
         threshold: 1,
@@ -120,14 +147,23 @@ describe("TronRpcClient account permission boundary", () => {
   });
 
   it("maps an empty account response to not_found", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
-    await expect(new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A))
-      .rejects.toMatchObject({ code: "not_found" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })),
+    );
+    await expect(
+      new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A),
+    ).rejects.toMatchObject({ code: "not_found" });
   });
 
   it("materializes protocol default owner/active groups when explicit permissions are absent", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ address: A_HEX }), { status: 200 })));
-    const permissions = await new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ address: A_HEX }), { status: 200 })),
+    );
+    const permissions = await new TronRpcClient("https://node.invalid", 100).getAccountPermissions(
+      A,
+    );
     expect(permissions).toMatchObject({
       owner: { id: 0, threshold: 1, keys: [{ address: A, weight: 1 }] },
       actives: [{ id: 2, name: "active", threshold: 1 }],
@@ -137,17 +173,27 @@ describe("TronRpcClient account permission boundary", () => {
   });
 
   it("fails closed on impossible node permission state", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      address: A_HEX,
-      owner_permission: {
-        id: 0,
-        permission_name: "owner",
-        threshold: 2,
-        keys: [{ address: A_HEX, weight: 1 }],
-      },
-      active_permission: [],
-    }), { status: 200 })));
-    await expect(new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A))
-      .rejects.toMatchObject({ code: "provider_error" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              address: A_HEX,
+              owner_permission: {
+                id: 0,
+                permission_name: "owner",
+                threshold: 2,
+                keys: [{ address: A_HEX, weight: 1 }],
+              },
+              active_permission: [],
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
+    await expect(
+      new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A),
+    ).rejects.toMatchObject({ code: "provider_error" });
   });
 });

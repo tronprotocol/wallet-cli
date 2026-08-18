@@ -47,15 +47,11 @@ export class GasFreeService {
     private readonly signers: SignerResolver,
     private readonly recipients: RecipientResolver,
     private readonly clock: () => number = () => Date.now(),
-    private readonly sleep: (milliseconds: number) => Promise<void> = (
-      milliseconds,
-    ) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+    private readonly sleep: (milliseconds: number) => Promise<void> = (milliseconds) =>
+      new Promise((resolve) => setTimeout(resolve, milliseconds)),
   ) {}
 
-  async info(
-    scope: TransactionScope,
-    network: NetworkDescriptor,
-  ): Promise<GasFreeInfoView> {
+  async info(scope: TransactionScope, network: NetworkDescriptor): Promise<GasFreeInfoView> {
     const owner = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
     const [addressInfo, tokens] = await Promise.all([
@@ -68,16 +64,14 @@ export class GasFreeService {
         "GasFree address response owner does not match the selected account",
       );
     }
-    const byAddress = new Map(
-      tokens.map((token) => [token.tokenAddress, token]),
-    );
+    const byAddress = new Map(tokens.map((token) => [token.tokenAddress, token]));
     const views = await Promise.all(
       addressInfo.assets.map(async (asset) => {
         const token = byAddress.get(asset.tokenAddress);
         if (
-          !token
-          || token.activateFee !== asset.activateFee
-          || token.transferFee !== asset.transferFee
+          !token ||
+          token.activateFee !== asset.activateFee ||
+          token.transferFee !== asset.transferFee
         ) {
           throw new ChainError(
             "gasfree_integrity",
@@ -90,10 +84,7 @@ export class GasFreeService {
           decimals: token.decimals,
           activateFee: token.activateFee,
           transferFee: token.transferFee,
-          balance: await gateway.getTrc20Balance(
-            token.tokenAddress,
-            addressInfo.gasFreeAddress,
-          ),
+          balance: await gateway.getTrc20Balance(token.tokenAddress, addressInfo.gasFreeAddress),
         };
       }),
     );
@@ -112,20 +103,14 @@ export class GasFreeService {
     input: GasFreeTransferInput,
   ): Promise<GasFreeTransferView> {
     if (input.dryRun && scope.wait) {
-      throw new UsageError(
-        "invalid_option",
-        "--wait cannot be used with --dry-run",
-      );
+      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
     }
     if (!input.dryRun) {
       this.signers.assertCanSign(scope.activeAccount, "tron");
     }
     const metadata = network.gasfree;
     if (!metadata) {
-      throw new UsageError(
-        "unsupported_network",
-        `network ${network.id} does not support GasFree`,
-      );
+      throw new UsageError("unsupported_network", `network ${network.id} does not support GasFree`);
     }
     const owner = scope.resolveAddress("tron");
     const recipient = this.recipients.resolve("tron", input.to);
@@ -152,20 +137,14 @@ export class GasFreeService {
     const asset = selectAsset(addressInfo, token);
     const value = toBaseUnits(input.amount, token.decimals, token.symbol);
     if (BigInt(value) <= 0n) {
-      throw new UsageError(
-        "invalid_amount",
-        "--amount must be greater than zero",
-      );
+      throw new UsageError("invalid_amount", "--amount must be greater than zero");
     }
     const activateFee = addressInfo.active ? "0" : asset.activateFee;
     // Java signs the upper bound activateFee + transferFee even after activation.
     const authorizedMaxFee = add(asset.activateFee, asset.transferFee);
     const totalDeducted = add(value, activateFee, asset.transferFee);
     const gateway = this.gateways.get(network, "tron");
-    const balance = await gateway.getTrc20Balance(
-      token.tokenAddress,
-      addressInfo.gasFreeAddress,
-    );
+    const balance = await gateway.getTrc20Balance(token.tokenAddress, addressInfo.gasFreeAddress);
     if (BigInt(balance) < BigInt(totalDeducted)) {
       throw new ChainError(
         "insufficient_token_balance",
@@ -185,17 +164,8 @@ export class GasFreeService {
       nonce: addressInfo.nonce,
     };
     const base: GasFreeTransferView = {
-      ...transferView(
-        "dry-run",
-        authorization,
-        token,
-        addressInfo,
-        activateFee,
-        totalDeducted,
-      ),
-      ...(recipient.contactName
-        ? { toContact: recipient.contactName }
-        : {}),
+      ...transferView("dry-run", authorization, token, addressInfo, activateFee, totalDeducted),
+      ...(recipient.contactName ? { toContact: recipient.contactName } : {}),
     };
     if (input.dryRun) return base;
     if (addressInfo.allowSubmit === false) {
@@ -217,19 +187,14 @@ export class GasFreeService {
       verifyingContract: metadata.verifyingContract,
     };
     const expectedDigest = gasFreeDigest(domain, authorization);
-    const signed = await obtainSignature(
-      signer,
-      scope,
-      (options) => signer.signTypedData(
-        gasFreeTypedData(domain, authorization),
-        options,
-      ),
+    const signed = await obtainSignature(signer, scope, (options) =>
+      signer.signTypedData(gasFreeTypedData(domain, authorization), options),
     );
     const reportedDigest = signed.digest.replace(/^0x/i, "").toLowerCase();
     if (
-      !/^[0-9a-f]{64}$/.test(reportedDigest)
-      || reportedDigest !== bytesToHex(expectedDigest)
-      || signed.primaryType !== "PermitTransfer"
+      !/^[0-9a-f]{64}$/.test(reportedDigest) ||
+      reportedDigest !== bytesToHex(expectedDigest) ||
+      signed.primaryType !== "PermitTransfer"
     ) {
       throw new ChainError(
         "signing_rejected",
@@ -242,10 +207,7 @@ export class GasFreeService {
       signature = normalizeGasFreeSignature(signed.signature);
       recovered = recoverGasFreeSigner(expectedDigest, signature);
     } catch {
-      throw new ChainError(
-        "signing_rejected",
-        "GasFree signer returned an invalid signature",
-      );
+      throw new ChainError("signing_rejected", "GasFree signer returned an invalid signature");
     }
     if (recovered !== owner) {
       throw new ChainError(
@@ -276,10 +238,8 @@ export class GasFreeService {
     // #wait has already warned with the precise reason it stopped.
     if (!terminal) return accepted;
     const settledAmount = terminal.txnAmount ?? accepted.amount;
-    const settledServiceFee =
-      terminal.txnTransferFee ?? accepted.serviceFee;
-    const settledActivateFee =
-      terminal.txnActivateFee ?? accepted.activateFee;
+    const settledServiceFee = terminal.txnTransferFee ?? accepted.serviceFee;
+    const settledActivateFee = terminal.txnActivateFee ?? accepted.activateFee;
     return {
       ...accepted,
       stage: terminal.state === "SUCCEED" ? "confirmed" : "failed",
@@ -288,19 +248,13 @@ export class GasFreeService {
       serviceFee: settledServiceFee,
       activateFee: settledActivateFee,
       totalDeducted:
-        terminal.txnTotalCost
-        ?? add(settledAmount, settledServiceFee, settledActivateFee),
+        terminal.txnTotalCost ?? add(settledAmount, settledServiceFee, settledActivateFee),
       ...(terminal.txnHash ? { txId: terminal.txnHash } : {}),
-      ...(terminal.failureReason
-        ? { failureReason: terminal.failureReason }
-        : {}),
+      ...(terminal.failureReason ? { failureReason: terminal.failureReason } : {}),
     };
   }
 
-  async trace(
-    network: NetworkDescriptor,
-    traceId: string,
-  ): Promise<GasFreeTraceView> {
+  async trace(network: NetworkDescriptor, traceId: string): Promise<GasFreeTraceView> {
     const record = await this.provider.trace(network, traceId);
     assertFeeIntegrity(record, record.maxFee);
     const token = (await this.#tokens(network)).find(
@@ -312,10 +266,8 @@ export class GasFreeService {
         "trace token is not in the current GasFree token configuration",
       );
     }
-    const serviceFee =
-      record.txnTransferFee ?? record.estimatedTransferFee ?? "0";
-    const activateFee =
-      record.txnActivateFee ?? record.estimatedActivateFee ?? "0";
+    const serviceFee = record.txnTransferFee ?? record.estimatedTransferFee ?? "0";
+    const activateFee = record.txnActivateFee ?? record.estimatedActivateFee ?? "0";
     return {
       traceId: record.id,
       state: record.state,
@@ -327,36 +279,31 @@ export class GasFreeService {
       serviceFee,
       activateFee,
       totalDeducted:
-        record.txnTotalCost
-        ?? record.estimatedTotalCost
-        ?? add(record.amount, serviceFee, activateFee),
+        record.txnTotalCost ??
+        record.estimatedTotalCost ??
+        add(record.amount, serviceFee, activateFee),
       from: record.gasFreeAddress,
       owner: record.accountAddress,
       to: record.targetAddress,
       nonce: record.nonce,
-      ...(record.failureReason
-        ? { failureReason: record.failureReason }
-        : {}),
+      ...(record.failureReason ? { failureReason: record.failureReason } : {}),
     };
   }
 
-  async #tokens(
-    network: NetworkDescriptor,
-  ): Promise<ResolvedGasFreeToken[]> {
+  async #tokens(network: NetworkDescriptor): Promise<ResolvedGasFreeToken[]> {
     const gateway = this.gateways.get(network, "tron");
     const tokens = await this.provider.listTokens(network);
     return Promise.all(
       tokens.map(async (token) => {
         const info = await gateway.getTokenInfo(token.tokenAddress);
-        const symbol =
-          typeof info.symbol === "string" ? info.symbol : undefined;
+        const symbol = typeof info.symbol === "string" ? info.symbol : undefined;
         const decimals = info.decimals;
         if (
-          !symbol
-          || decimals === undefined
-          || !Number.isInteger(decimals)
-          || decimals < 0
-          || decimals > 255
+          !symbol ||
+          decimals === undefined ||
+          !Number.isInteger(decimals) ||
+          decimals < 0 ||
+          decimals > 255
         ) {
           throw new ChainError(
             "gasfree_integrity",
@@ -364,8 +311,8 @@ export class GasFreeService {
           );
         }
         if (
-          (token.symbol !== undefined && token.symbol !== symbol)
-          || (token.decimals !== undefined && token.decimals !== decimals)
+          (token.symbol !== undefined && token.symbol !== symbol) ||
+          (token.decimals !== undefined && token.decimals !== decimals)
         ) {
           throw new ChainError(
             "gasfree_integrity",
@@ -447,52 +394,30 @@ export class GasFreeService {
 
 /** Transport-level flakiness the provider will plausibly recover from inside the wait deadline. */
 function isRetryablePoll(error: unknown): boolean {
-  return error instanceof TransportError
-    || (error instanceof CliError && error.code === "timeout");
+  return error instanceof TransportError || (error instanceof CliError && error.code === "timeout");
 }
 
-function selectToken(
-  tokens: ResolvedGasFreeToken[],
-  symbol: string,
-): ResolvedGasFreeToken {
-  const matches = tokens.filter(
-    (token) => token.symbol.toLowerCase() === symbol.toLowerCase(),
-  );
+function selectToken(tokens: ResolvedGasFreeToken[], symbol: string): ResolvedGasFreeToken {
+  const matches = tokens.filter((token) => token.symbol.toLowerCase() === symbol.toLowerCase());
   if (matches.length === 0) {
-    throw new UsageError(
-      "unsupported_token",
-      `GasFree provider does not support token: ${symbol}`,
-    );
+    throw new UsageError("unsupported_token", `GasFree provider does not support token: ${symbol}`);
   }
   if (matches.length > 1) {
-    throw new ChainError(
-      "gasfree_integrity",
-      `GasFree token symbol is ambiguous: ${symbol}`,
-    );
+    throw new ChainError("gasfree_integrity", `GasFree token symbol is ambiguous: ${symbol}`);
   }
   return matches[0]!;
 }
 
 /** Java selects the first provider returned by the authenticated configuration endpoint. */
-function selectProvider(
-  providers: GasFreeProviderConfig[],
-): GasFreeProviderConfig {
+function selectProvider(providers: GasFreeProviderConfig[]): GasFreeProviderConfig {
   if (providers.length === 0) {
-    throw new ChainError(
-      "gasfree_integrity",
-      "GasFree provider configuration is empty",
-    );
+    throw new ChainError("gasfree_integrity", "GasFree provider configuration is empty");
   }
   return providers[0]!;
 }
 
-function selectAsset(
-  address: GasFreeAddressInfo,
-  token: ResolvedGasFreeToken,
-) {
-  const matches = address.assets.filter(
-    (asset) => asset.tokenAddress === token.tokenAddress,
-  );
+function selectAsset(address: GasFreeAddressInfo, token: ResolvedGasFreeToken) {
+  const matches = address.assets.filter((asset) => asset.tokenAddress === token.tokenAddress);
   if (matches.length !== 1) {
     throw new ChainError(
       "gasfree_integrity",
@@ -500,14 +425,8 @@ function selectAsset(
     );
   }
   const asset = matches[0]!;
-  if (
-    asset.activateFee !== token.activateFee
-    || asset.transferFee !== token.transferFee
-  ) {
-    throw new ChainError(
-      "gasfree_integrity",
-      "GasFree fee metadata disagrees across endpoints",
-    );
+  if (asset.activateFee !== token.activateFee || asset.transferFee !== token.transferFee) {
+    throw new ChainError("gasfree_integrity", "GasFree fee metadata disagrees across endpoints");
   }
   return asset;
 }
@@ -548,22 +467,20 @@ function assertAccepted(
   context?: object,
 ): void {
   const deadlineMatches =
-    record.expiredAt === undefined
-    || record.expiredAt === authorization.deadline
-    || record.expiredAt === `${authorization.deadline}000`;
+    record.expiredAt === undefined ||
+    record.expiredAt === authorization.deadline ||
+    record.expiredAt === `${authorization.deadline}000`;
   if (
-    record.tokenAddress !== authorization.token
-    || record.providerAddress !== authorization.serviceProvider
-    || record.accountAddress !== authorization.user
-    || record.targetAddress !== authorization.receiver
-    || record.gasFreeAddress !== gasFreeAddress
-    || record.amount !== authorization.value
-    || record.nonce !== authorization.nonce
-    || (record.maxFee !== undefined
-      && record.maxFee !== authorization.maxFee)
-    || !deadlineMatches
-    || (record.txnAmount !== undefined
-      && record.txnAmount !== authorization.value)
+    record.tokenAddress !== authorization.token ||
+    record.providerAddress !== authorization.serviceProvider ||
+    record.accountAddress !== authorization.user ||
+    record.targetAddress !== authorization.receiver ||
+    record.gasFreeAddress !== gasFreeAddress ||
+    record.amount !== authorization.value ||
+    record.nonce !== authorization.nonce ||
+    (record.maxFee !== undefined && record.maxFee !== authorization.maxFee) ||
+    !deadlineMatches ||
+    (record.txnAmount !== undefined && record.txnAmount !== authorization.value)
   ) {
     throw new ChainError(
       "gasfree_integrity",
@@ -575,10 +492,7 @@ function assertAccepted(
 }
 
 /** Provider estimates and final charges are untrusted until bounded by signed maxFee. */
-function assertFeeIntegrity(
-  record: GasFreeTransferRecord,
-  authorizedMaxFee?: string,
-): void {
+function assertFeeIntegrity(record: GasFreeTransferRecord, authorizedMaxFee?: string): void {
   const feeSets = [
     [
       record.estimatedTransferFee,
@@ -586,34 +500,25 @@ function assertFeeIntegrity(
       record.estimatedTotalFee,
       record.estimatedTotalCost,
     ],
-    [
-      record.txnTransferFee,
-      record.txnActivateFee,
-      record.txnTotalFee,
-      record.txnTotalCost,
-    ],
+    [record.txnTransferFee, record.txnActivateFee, record.txnTotalFee, record.txnTotalCost],
   ] as const;
   for (const [transfer, activate, totalFee, totalCost] of feeSets) {
     const componentTotal =
       transfer !== undefined && activate !== undefined
         ? BigInt(transfer) + BigInt(activate)
         : undefined;
-    const observedTotal =
-      totalFee === undefined ? componentTotal : BigInt(totalFee);
+    const observedTotal = totalFee === undefined ? componentTotal : BigInt(totalFee);
     if (
-      observedTotal !== undefined
-      && authorizedMaxFee !== undefined
-      && observedTotal > BigInt(authorizedMaxFee)
+      observedTotal !== undefined &&
+      authorizedMaxFee !== undefined &&
+      observedTotal > BigInt(authorizedMaxFee)
     ) {
-      throw new ChainError(
-        "gasfree_integrity",
-        "GasFree provider fee exceeds the signed maxFee",
-      );
+      throw new ChainError("gasfree_integrity", "GasFree provider fee exceeds the signed maxFee");
     }
     if (
-      componentTotal !== undefined
-      && totalFee !== undefined
-      && componentTotal !== BigInt(totalFee)
+      componentTotal !== undefined &&
+      totalFee !== undefined &&
+      componentTotal !== BigInt(totalFee)
     ) {
       throw new ChainError(
         "gasfree_integrity",
@@ -621,9 +526,9 @@ function assertFeeIntegrity(
       );
     }
     if (
-      observedTotal !== undefined
-      && totalCost !== undefined
-      && BigInt(record.amount) + observedTotal !== BigInt(totalCost)
+      observedTotal !== undefined &&
+      totalCost !== undefined &&
+      BigInt(record.amount) + observedTotal !== BigInt(totalCost)
     ) {
       throw new ChainError(
         "gasfree_integrity",
@@ -634,9 +539,7 @@ function assertFeeIntegrity(
 }
 
 function add(...values: string[]): string {
-  return values
-    .reduce((sum, value) => sum + BigInt(value), 0n)
-    .toString();
+  return values.reduce((sum, value) => sum + BigInt(value), 0n).toString();
 }
 
 function stateRank(state: GasFreeTransferRecord["state"]): number {

@@ -1,31 +1,36 @@
 /**
- * CryptoEnvelope — Web3-style keystore blob: scrypt → aes-128-ctr → keccak MAC.
+ * CryptoEnvelope — our private at-rest blob: scrypt → aes-128-ctr → keccak MAC.
  * Each blob carries its own salt+iv; one master password derives a distinct key per file.
+ *
+ * `version: 1` with a `type` tag is OUR wrapper, not the interoperable Web3 V3 file — a seed blob's
+ * plaintext is an encoded vault, not a bare key. The shared construction lives in domain/keystore;
+ * the exportable V3 format is `KeystoreV3` there. This wrapper is live on-disk data for every
+ * existing wallet: it must not drift.
  */
-import { scrypt } from "@noble/hashes/scrypt.js";
-import { keccak_256 } from "@noble/hashes/sha3.js";
-import { ctr } from "@noble/ciphers/aes.js";
-import { randomBytes, bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from "@noble/hashes/utils.js";
-import type { Bytes, CryptoParams, KeystoreBlob, KeystoreType } from "../../../../domain/types/index.js";
+import { randomBytes, bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import type {
+  Bytes,
+  CryptoParams,
+  KeystoreBlob,
+  KeystoreType,
+} from "../../../../domain/types/index.js";
+import { SCRYPT_STANDARD, Web3Crypto } from "../../../../domain/keystore/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 
-const KDF = { n: 262144, r: 8, p: 1, dklen: 32 } as const;
+const KDF = SCRYPT_STANDARD;
 
 function deriveKey(password: string, salt: Bytes): Bytes {
-  return scrypt(utf8ToBytes(password), salt, { N: KDF.n, r: KDF.r, p: KDF.p, dkLen: KDF.dklen });
+  return Web3Crypto.scryptKey(password, salt, KDF);
 }
 
-function mac(dk: Bytes, ciphertext: Bytes): Bytes {
-  // keccak256(dk[16:32] || ciphertext)
-  return keccak_256(concatBytes(dk.slice(16, 32), ciphertext));
-}
+const mac = Web3Crypto.mac;
 
 export class CryptoEnvelope {
   static encrypt(plaintext: Bytes, password: string, id: string, type: KeystoreType): KeystoreBlob {
     const salt = randomBytes(32);
     const iv = randomBytes(16);
     const dk = deriveKey(password, salt);
-    const ciphertext = ctr(dk.slice(0, 16), iv).encrypt(plaintext);
+    const ciphertext = Web3Crypto.crypt(dk, iv, plaintext);
     const crypto: CryptoParams = {
       cipher: "aes-128-ctr",
       ciphertext: bytesToHex(ciphertext),
@@ -39,17 +44,11 @@ export class CryptoEnvelope {
 
   static decrypt(blob: KeystoreBlob, password: string): Bytes {
     const c = blob.crypto;
-    const salt = hexToBytes(c.kdfparams.salt);
-    const dk = scrypt(utf8ToBytes(password), salt, {
-      N: c.kdfparams.n,
-      r: c.kdfparams.r,
-      p: c.kdfparams.p,
-      dkLen: c.kdfparams.dklen,
-    });
+    const dk = Web3Crypto.scryptKey(password, hexToBytes(c.kdfparams.salt), c.kdfparams);
     const ciphertext = hexToBytes(c.ciphertext);
     if (bytesToHex(mac(dk, ciphertext)) !== c.mac) {
       throw new ExecutionError("auth_failed", "incorrect master password");
     }
-    return ctr(dk.slice(0, 16), hexToBytes(c.cipherparams.iv)).decrypt(ciphertext);
+    return Web3Crypto.crypt(dk, hexToBytes(c.cipherparams.iv), ciphertext);
   }
 }

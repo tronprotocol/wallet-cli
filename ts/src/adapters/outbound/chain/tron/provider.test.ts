@@ -4,12 +4,22 @@ import { TronRpcClient } from "./tron.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 const net = (family: "tron"): NetworkDescriptor =>
-  ({ id: `${family}-net`, family, httpEndpoint: "http://x", aliases: [], chainId: "1", capabilities: [] } as any);
+  ({
+    id: `${family}-net`,
+    family,
+    httpEndpoint: "http://x",
+    aliases: [],
+    chainId: "1",
+    capabilities: [],
+  }) as any;
 
 describe("ChainGatewayRegistry injected factories", () => {
-  const p = new ChainGatewayRegistry({
-    tron: (n, timeoutMs) => new TronRpcClient(n.httpEndpoint ?? "", timeoutMs),
-  }, 60_000);
+  const p = new ChainGatewayRegistry(
+    {
+      tron: (n, timeoutMs) => new TronRpcClient(n.httpEndpoint ?? "", timeoutMs),
+    },
+    60_000,
+  );
   it("dispatches the tron factory and caches by net id", () => {
     expect(p.get(net("tron"), "tron")).toBeInstanceOf(TronRpcClient);
     expect(p.client(net("tron"))).toBe(p.client(net("tron"))); // cached

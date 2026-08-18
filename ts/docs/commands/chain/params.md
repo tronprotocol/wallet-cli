@@ -52,12 +52,13 @@ wallet-cli chain params --network tron:nile
 ```
 
 ```console
-Key                          Value
-getEnergyFee                 210 SUN
-getTransactionFee            1,000 SUN
-getCreateAccountFee          100,000 SUN
-getWitnessPayPerBlock        16,000,000 SUN
-getMaintenanceTimeInterval   21,600,000 ms
+| Key                        | Value          |
+| -------------------------- | -------------- |
+| getEnergyFee               | 210 SUN        |
+| getTransactionFee          | 1,000 SUN      |
+| getCreateAccountFee        | 100,000 SUN    |
+| getWitnessPayPerBlock      | 16,000,000 SUN |
+| getMaintenanceTimeInterval | 21,600,000 ms  |
 ```
 
 ```bash

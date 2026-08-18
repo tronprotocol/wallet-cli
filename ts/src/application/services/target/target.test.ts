@@ -4,13 +4,28 @@ import type { ExecutionPolicy } from "../../contracts/index.js";
 import { TargetResolver } from "./index.js";
 
 const networks: Record<string, NetworkDescriptor> = {
-  "tron:mainnet": { id: "tron:mainnet", family: "tron", chainId: "mainnet", aliases: ["tron"], capabilities: [] },
+  "tron:mainnet": {
+    id: "tron:mainnet",
+    family: "tron",
+    chainId: "mainnet",
+    aliases: ["tron"],
+    capabilities: [],
+  },
   // synthetic non-tron network: exercises the cross-family rejection branches even though
   // only the tron family ships today (cast through unknown since ChainFamily is tron-only).
-  "evm:1": ({ id: "evm:1", family: "evm", chainId: "1", aliases: ["eth"], capabilities: [] } as unknown as NetworkDescriptor),
+  "evm:1": {
+    id: "evm:1",
+    family: "evm",
+    chainId: "1",
+    aliases: ["eth"],
+    capabilities: [],
+  } as unknown as NetworkDescriptor,
 };
 
-function policy(family: ChainFamily, wallet: ExecutionPolicy["wallet"] = "optional"): ExecutionPolicy {
+function policy(
+  family: ChainFamily,
+  wallet: ExecutionPolicy["wallet"] = "optional",
+): ExecutionPolicy {
   return {
     family,
     network: "optional",
@@ -18,7 +33,10 @@ function policy(family: ChainFamily, wallet: ExecutionPolicy["wallet"] = "option
   };
 }
 
-function resolver(defaultNetwork = "tron:mainnet", activeSource?: { type: "watch" | "ledger"; family: ChainFamily }) {
+function resolver(
+  defaultNetwork = "tron:mainnet",
+  activeSource?: { type: "watch" | "ledger"; family: ChainFamily },
+) {
   const networkRegistry = {
     resolve(id: string | undefined) {
       const found = Object.values(networks).find((n) => n.id === id);
@@ -60,15 +78,13 @@ describe("TargetResolver", () => {
   });
 
   it("rejects a command implementation that does not support the selected network family", () => {
-    expect(() =>
-      resolver("tron:mainnet").resolve(policy("evm" as any), {}),
-    ).toThrow(/evm-only.*tron:mainnet/);
+    expect(() => resolver("tron:mainnet").resolve(policy("evm" as any), {})).toThrow(
+      /evm-only.*tron:mainnet/,
+    );
   });
 
   it("rejects a single-family account on a mismatched default network", () => {
     const r = resolver("tron:mainnet", { type: "watch", family: "evm" as any });
-    expect(() => r.resolve(policy("tron"), {})).toThrow(
-      /selected account is evm-only/,
-    );
+    expect(() => r.resolve(policy("tron"), {})).toThrow(/selected account is evm-only/);
   });
 });

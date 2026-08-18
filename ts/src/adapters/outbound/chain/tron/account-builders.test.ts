@@ -29,9 +29,7 @@ describe("TRON local account transaction builders", () => {
   it("builds AccountCreateContract with the exact owner and target", async () => {
     const gateway = client();
     const transaction = await gateway.buildAccountCreate(OWNER, TARGET);
-    const decoded = gateway.decodeTransactionHex(
-      gateway.encodeTransactionHex(transaction),
-    );
+    const decoded = gateway.decodeTransactionHex(gateway.encodeTransactionHex(transaction));
 
     expect(decoded.raw_data.contract[0]?.type).toBe("AccountCreateContract");
     expect(valueOf(decoded)).toMatchObject({
@@ -44,9 +42,7 @@ describe("TRON local account transaction builders", () => {
     const gateway = client();
     const name = "金库-A";
     const transaction = await gateway.buildAccountUpdate(OWNER, name);
-    const decoded = gateway.decodeTransactionHex(
-      gateway.encodeTransactionHex(transaction),
-    );
+    const decoded = gateway.decodeTransactionHex(gateway.encodeTransactionHex(transaction));
 
     expect(decoded.raw_data.contract[0]?.type).toBe("AccountUpdateContract");
     expect(String(valueOf(decoded).account_name).toLowerCase()).toBe(
@@ -60,9 +56,7 @@ describe("TRON local account transaction builders", () => {
     expect(Buffer.byteLength(accountId, "utf8")).toBe(30);
 
     const transaction = await gateway.buildSetAccountId(OWNER, accountId);
-    const decoded = gateway.decodeTransactionHex(
-      gateway.encodeTransactionHex(transaction),
-    );
+    const decoded = gateway.decodeTransactionHex(gateway.encodeTransactionHex(transaction));
 
     expect(decoded.raw_data.contract[0]?.type).toBe("SetAccountIdContract");
     expect(String(valueOf(decoded).account_id).toLowerCase()).toBe(

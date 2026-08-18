@@ -1,9 +1,20 @@
-import type { AccountRef, EffectiveTokenEntry, NetworkDescriptor, TxInfoView, TxParties, TxStatusView } from "../../../domain/types/index.js";
+import type {
+  AccountRef,
+  EffectiveTokenEntry,
+  NetworkDescriptor,
+  TxInfoView,
+  TxParties,
+  TxStatusView,
+} from "../../../domain/types/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { DecodedTronTransaction, TronGateway, TronTxInfo } from "../../ports/chain/tron-gateway.js";
+import type {
+  DecodedTronTransaction,
+  TronGateway,
+  TronTxInfo,
+} from "../../ports/chain/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
@@ -13,6 +24,7 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { stageTronBroadcast, tronConfirmation } from "../../services/tron-confirmation.js";
+import { localTxId } from "../../services/broadcast-identity.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
@@ -38,12 +50,7 @@ export class TronTransactionService {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
     const recipient = this.recipients.resolve("tron", input.to);
-    const resolved = await this.resolveTransfer(
-      gateway,
-      network.id,
-      scope.activeAccount,
-      input,
-    );
+    const resolved = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -52,19 +59,39 @@ export class TronTransactionService {
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
       confirm: tronConfirmation(gateway, scope),
-      build: (from) => resolved.contract
-        ? gateway.buildTrc20Transfer(from, recipient.address, resolved.contract, resolved.rawAmount, input.feeLimit)
-        : resolved.assetId
-          ? gateway.buildTrc10Transfer(from, recipient.address, resolved.assetId, resolved.rawAmount)
-          : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount),
-      estimate: () => resolved.contract
-        ? gateway.estimateResources(scope.resolveAddress("tron"), resolved.contract, "transfer(address,uint256)", [
-            { type: "address", value: recipient.address },
-            { type: "uint256", value: resolved.rawAmount },
-          ])
-        : Promise.resolve(resolved.assetId
-          ? { feeModel: "tron-resource", note: "TRC10 transfer uses bandwidth only" }
-          : { feeModel: "tron-resource", bandwidthBurnSunIfNoFreeze: 100000 }),
+      build: (from) =>
+        resolved.contract
+          ? gateway.buildTrc20Transfer(
+              from,
+              recipient.address,
+              resolved.contract,
+              resolved.rawAmount,
+              input.feeLimit,
+            )
+          : resolved.assetId
+            ? gateway.buildTrc10Transfer(
+                from,
+                recipient.address,
+                resolved.assetId,
+                resolved.rawAmount,
+              )
+            : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount),
+      estimate: () =>
+        resolved.contract
+          ? gateway.estimateResources(
+              scope.resolveAddress("tron"),
+              resolved.contract,
+              "transfer(address,uint256)",
+              [
+                { type: "address", value: recipient.address },
+                { type: "uint256", value: resolved.rawAmount },
+              ],
+            )
+          : Promise.resolve(
+              resolved.assetId
+                ? { feeModel: "tron-resource", note: "TRC10 transfer uses bandwidth only" }
+                : { feeModel: "tron-resource", bandwidthBurnSunIfNoFreeze: 100000 },
+            ),
     });
     return {
       kind: "send" as const,
@@ -75,9 +102,7 @@ export class TronTransactionService {
       contract: resolved.contract,
       assetId: resolved.assetId,
       to: recipient.address,
-      ...(recipient.contactName
-        ? { toContact: recipient.contactName }
-        : {}),
+      ...(recipient.contactName ? { toContact: recipient.contactName } : {}),
     };
   }
 
@@ -101,7 +126,7 @@ export class TronTransactionService {
     const result = await gateway.broadcast(signed);
     return {
       kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result)),
+      ...(await stageTronBroadcast(gateway, scope, result, localTxId(signed))),
     };
   }
 
@@ -113,7 +138,10 @@ export class TronTransactionService {
     // getTransactionInfo (full-node unconfirmed view) fills in ~one block after inclusion (~3s),
     // not after solidification — that's what promotes pending → confirmed/failed.
     const [exists, info] = await Promise.all([
-      gateway.getTransactionById(txid).then((tx) => tx?.txID !== undefined, () => false),
+      gateway.getTransactionById(txid).then(
+        (tx) => tx?.txID !== undefined,
+        () => false,
+      ),
       gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
     ]);
     const confirmed = info.blockNumber !== undefined;
@@ -145,10 +173,14 @@ export class TronTransactionService {
   }
 
   private lookupToken(networkId: string, account: AccountRef, symbol: string): EffectiveTokenEntry {
-    const matches = this.tokens.effective(networkId, account)
+    const matches = this.tokens
+      .effective(networkId, account)
       .filter((token) => token.symbol.toLowerCase() === symbol.toLowerCase());
     if (matches.length === 0) {
-      throw new UsageError("token_not_in_book", `token symbol not in address book on ${networkId}: ${symbol}`);
+      throw new UsageError(
+        "token_not_in_book",
+        `token symbol not in address book on ${networkId}: ${symbol}`,
+      );
     }
     if (matches.length > 1) {
       throw new UsageError(
@@ -195,7 +227,10 @@ export class TronTransactionService {
         if (!tokenSymbol && typeof info.symbol === "string") tokenSymbol = info.symbol;
       }
       if (decimals === undefined) {
-        throw new UsageError("token_metadata_unavailable", `could not read decimals for ${contract}`);
+        throw new UsageError(
+          "token_metadata_unavailable",
+          `could not read decimals for ${contract}`,
+        );
       }
       return {
         contract,
@@ -221,7 +256,10 @@ export class TronTransactionService {
     return { rawAmount: input.rawAmount ?? toBaseUnits(input.amount!, 6, "TRX") };
   }
 
-  private async enrichParties(gateway: TronGateway, decoded: DecodedTronTransaction): Promise<TxParties> {
+  private async enrichParties(
+    gateway: TronGateway,
+    decoded: DecodedTronTransaction,
+  ): Promise<TxParties> {
     if (decoded.kind === "trx") {
       return {
         from: decoded.from,
@@ -242,10 +280,16 @@ export class TronTransactionService {
           to: decoded.to,
           contract: decoded.tokenContract,
           symbol: typeof token.symbol === "string" ? token.symbol : undefined,
-          amount: decimals === undefined ? decoded.rawAmount : fromBaseUnits(decoded.rawAmount, decimals),
+          amount:
+            decimals === undefined ? decoded.rawAmount : fromBaseUnits(decoded.rawAmount, decimals),
         };
       } catch {
-        return { from: decoded.from, to: decoded.to, contract: decoded.tokenContract, amount: decoded.rawAmount };
+        return {
+          from: decoded.from,
+          to: decoded.to,
+          contract: decoded.tokenContract,
+          amount: decoded.rawAmount,
+        };
       }
     }
     return { from: decoded.from, contract: decoded.tokenContract };

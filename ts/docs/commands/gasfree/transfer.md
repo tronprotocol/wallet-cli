@@ -79,7 +79,7 @@ wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 
 ```
 
 ```console
-📋 Dry run — GasFree transfer 25 USDT (not submitted)
+⏳ Dry run — GasFree transfer 25 USDT (not submitted)
   From      TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw  (GasFree address, not activated)
   To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
   Fee       1.5 USDT  (0.5 service + 1.0 activation)
@@ -105,7 +105,7 @@ A provider-side failure still leaves the envelope at `success: true` and exit `0
 
 ## Exit status
 
-`0` submitted (or dry-run) · `1` execution failure (`gasfree_credentials_missing`, `insufficient_token_balance` — token balance < amount + service fee [+ activation fee], `unsupported_token`, `gasfree_rejected` — the provider declined the authorization, `gasfree_integrity` — the provider's fee metadata disagreed with itself, `watch_only_no_signer`, `wrong_password`, `auth_failed`, `signing_rejected`, `provider_error`) · `2` usage error (`invalid_value`, `invalid_amount`).
+`0` submitted (or dry-run) · `1` execution failure (`gasfree_credentials_missing`, `insufficient_token_balance` — token balance < amount + service fee [+ activation fee], `unsupported_token`, `gasfree_rejected` — the provider declined the authorization, `gasfree_integrity` — the provider's fee metadata disagreed with itself, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `provider_error`) · `2` usage error (`invalid_value`, `invalid_amount`).
 
 ## See also
 

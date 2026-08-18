@@ -1,4 +1,7 @@
-import type { AccountPermissionsView, PermissionGroupView } from "../../../../domain/types/index.js";
+import type {
+  AccountPermissionsView,
+  PermissionGroupView,
+} from "../../../../domain/types/index.js";
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
 import { formatInt, formatSun } from "./scalars.js";
 import { fail, ok, pending, receipt, type Pair } from "./layout.js";
@@ -20,7 +23,9 @@ function operationLines(labels: string[]): string[] {
 }
 
 function permissionCard(permission: PermissionGroupView, active = false): string {
-  const activePermission = active ? permission as AccountPermissionsView["actives"][number] : undefined;
+  const activePermission = active
+    ? (permission as AccountPermissionsView["actives"][number])
+    : undefined;
   const lines = [
     `Permission Name   ${permission.name}  (id ${permission.id}${active ? ", active" : ""})`,
   ];
@@ -37,7 +42,9 @@ function permissionCard(permission: PermissionGroupView, active = false): string
   lines.push(`Threshold         ${formatInt(permission.threshold)}`);
   lines.push("Authorized To     Address                             Weight");
   for (const key of permission.keys) {
-    lines.push(`                  ${key.address}  ${String(key.weight).padStart(6)}${key.local ? `  (this wallet: ${key.local})` : ""}`);
+    lines.push(
+      `                  ${key.address}  ${String(key.weight).padStart(6)}${key.local ? `  (this wallet: ${key.local})` : ""}`,
+    );
   }
   return lines.join("\n");
 }
@@ -54,7 +61,8 @@ function renderPermissions(value: AccountPermissionsView, ctx?: TextRenderContex
 }
 
 function updateReceipt(value: any): string {
-  if ((value.mode === "build-only" || value.mode === "sign-only") && value.hex) return String(value.hex);
+  if ((value.mode === "build-only" || value.mode === "sign-only") && value.hex)
+    return String(value.hex);
   const pairs: Pair[] = [];
   if (value.txId) pairs.push(["TxID", String(value.txId)]);
   if (value.blockNumber !== undefined) pairs.push(["Block", `#${formatInt(value.blockNumber)}`]);
@@ -64,17 +72,19 @@ function updateReceipt(value: any): string {
   else if (value.stage === "submitted") pairs.push(["Status", "pending — not yet on-chain"]);
   else if (value.stage === "failed") pairs.push(["Status", String(value.result ?? "failed")]);
   else if (value.stage === "confirmed") pairs.push(["Status", "success"]);
-  const header = value.mode === "dry-run"
-    ? receipt(pending(), "Permission update dry run", pairs)
-    : value.stage === "failed"
-      ? receipt(fail(), "Permission update failed", pairs)
-      : value.stage === "confirmed"
-        ? receipt(ok(), "Permissions updated", pairs)
-        : receipt(pending(), "Permission update submitted", pairs);
+  const header =
+    value.mode === "dry-run"
+      ? receipt(pending(), "Permission update dry run", pairs)
+      : value.stage === "failed"
+        ? receipt(fail(), "Permission update failed", pairs)
+        : value.stage === "confirmed"
+          ? receipt(ok(), "Permissions updated", pairs)
+          : receipt(pending(), "Permission update submitted", pairs);
   return value.permissions ? `${header}\n\n${renderPermissions(value.permissions)}` : header;
 }
 
 export const PermissionFormatters = {
-  permissionShow: ((value, ctx) => renderPermissions(value, ctx)) satisfies TextFormatter<AccountPermissionsView>,
+  permissionShow: ((value, ctx) =>
+    renderPermissions(value, ctx)) satisfies TextFormatter<AccountPermissionsView>,
   permissionUpdate: ((value) => updateReceipt(value)) satisfies TextFormatter,
 };

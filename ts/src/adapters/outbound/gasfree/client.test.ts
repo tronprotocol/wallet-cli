@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  Config,
-  NetworkDescriptor,
-} from "../../../domain/types/index.js";
+import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import { GasFreeClient } from "./client.js";
 
 const NETWORK = {
@@ -32,19 +29,16 @@ function response(data: unknown, status = 200): Response {
 
 describe("GasFreeClient", () => {
   it("signs the exact Java path and parses uints losslessly", async () => {
-    const fetcher = vi.fn(
-      async (_url: string | URL | Request, init?: RequestInit) => {
-        expect(init?.headers).toMatchObject({
-          Timestamp: "1700000000",
-          Authorization:
-            "ApiKey test-key:0nyrTDAIARSlT+WxH69ILaVpOZ7UTkEBwEH8uxR5B2I=",
-        });
-        return new Response(
-          '{"code":200,"data":{"tokens":[{"tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","activateFee":900719925474099312345,"transferFee":2000,"symbol":"USDT","decimals":6}]}}',
-          { status: 200 },
-        );
-      },
-    );
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.headers).toMatchObject({
+        Timestamp: "1700000000",
+        Authorization: "ApiKey test-key:0nyrTDAIARSlT+WxH69ILaVpOZ7UTkEBwEH8uxR5B2I=",
+      });
+      return new Response(
+        '{"code":200,"data":{"tokens":[{"tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","activateFee":900719925474099312345,"transferFee":2000,"symbol":"USDT","decimals":6}]}}',
+        { status: 200 },
+      );
+    });
     const client = new GasFreeClient(
       CONFIG,
       1000,
@@ -59,27 +53,25 @@ describe("GasFreeClient", () => {
   });
 
   it("serializes uint256 values as JSON numbers and never retries POST", async () => {
-    const fetcher = vi.fn(
-      async (_url: string | URL | Request, init?: RequestInit) => {
-        expect(init?.body).toContain('"value":900719925474099312345');
-        return response({
-          code: 200,
-          data: {
-            id: "6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0",
-            state: "WAITING",
-            tokenAddress: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
-            providerAddress: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
-            accountAddress: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
-            gasFreeAddress: "TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
-            targetAddress: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
-            amount: 900719925474099312345n.toString(),
-            maxFee: 2000000,
-            nonce: 8,
-            expiredAt: 1747909695000,
-          },
-        });
-      },
-    );
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.body).toContain('"value":900719925474099312345');
+      return response({
+        code: 200,
+        data: {
+          id: "6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0",
+          state: "WAITING",
+          tokenAddress: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+          providerAddress: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+          accountAddress: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+          gasFreeAddress: "TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+          targetAddress: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+          amount: 900719925474099312345n.toString(),
+          maxFee: 2000000,
+          nonce: 8,
+          expiredAt: 1747909695000,
+        },
+      });
+    });
     const client = new GasFreeClient(
       CONFIG,
       1000,
@@ -111,17 +103,15 @@ describe("GasFreeClient", () => {
     await expect(client.listTokens(NETWORK)).rejects.toMatchObject({
       code: "gasfree_auth_failed",
     });
-    await expect(client.listTokens(NETWORK)).rejects.not.toThrow(
-      /test-secret|test-key/,
-    );
+    await expect(client.listTokens(NETWORK)).rejects.not.toThrow(/test-secret|test-key/);
   });
 
   it("rejects unsupported networks before sending credentials", async () => {
     const fetcher = vi.fn();
     const client = new GasFreeClient(CONFIG, 1000, fetcher as typeof fetch);
-    await expect(
-      client.listTokens({ ...NETWORK, gasfree: undefined }),
-    ).rejects.toMatchObject({ code: "unsupported_network" });
+    await expect(client.listTokens({ ...NETWORK, gasfree: undefined })).rejects.toMatchObject({
+      code: "unsupported_network",
+    });
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

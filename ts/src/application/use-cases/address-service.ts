@@ -2,10 +2,7 @@ import { randomBytes } from "node:crypto";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { KeypairWriter } from "../ports/keypair-writer.js";
-import {
-  evmAddressFromPublicKey,
-  TronAddress,
-} from "../../domain/address/index.js";
+import { evmAddressFromPublicKey, TronAddress } from "../../domain/address/index.js";
 import { ExecutionError } from "../../domain/errors/index.js";
 
 const MAX_SCALAR_ATTEMPTS = 128;
@@ -18,26 +15,16 @@ export class AddressService {
 
   generate(input: { out?: string; printSecret: boolean }) {
     let privateKey: Uint8Array | undefined;
-    for (
-      let attempt = 0;
-      attempt < MAX_SCALAR_ATTEMPTS;
-      attempt += 1
-    ) {
+    for (let attempt = 0; attempt < MAX_SCALAR_ATTEMPTS; attempt += 1) {
       const candidate = this.random(32);
-      if (
-        candidate.length === 32
-        && secp256k1.utils.isValidSecretKey(candidate)
-      ) {
+      if (candidate.length === 32 && secp256k1.utils.isValidSecretKey(candidate)) {
         privateKey = candidate;
         break;
       }
       candidate.fill(0);
     }
     if (!privateKey) {
-      throw new ExecutionError(
-        "entropy_failure",
-        "could not obtain a valid secp256k1 private key",
-      );
+      throw new ExecutionError("entropy_failure", "could not obtain a valid secp256k1 private key");
     }
 
     const publicKey = secp256k1.getPublicKey(privateKey, false);

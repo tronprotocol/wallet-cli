@@ -32,21 +32,14 @@ export class SecureKeypairWriter implements KeypairWriter {
     try {
       descriptor = openSync(
         target,
-        constants.O_WRONLY
-          | constants.O_CREAT
-          | constants.O_EXCL
-          | (constants.O_NOFOLLOW ?? 0),
+        constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
         0o600,
       );
       // O_EXCL guarantees this open is what brought the file into existence, so from here on a
       // failure leaves OUR unfinished file behind — and it is ours to remove.
       created = true;
       fchmodSync(descriptor, 0o600);
-      writeFileSync(
-        descriptor,
-        `${JSON.stringify(value, null, 2)}\n`,
-        "utf8",
-      );
+      writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`, "utf8");
       fsyncSync(descriptor);
       closeSync(descriptor);
       descriptor = undefined;
@@ -65,10 +58,7 @@ export class SecureKeypairWriter implements KeypairWriter {
       // Refusing an existing target is deterministic input, not a runtime fault — same code, class,
       // and exit status the backup writer uses for the identical O_EXCL conflict.
       if (code === "EEXIST" || code === "ELOOP") {
-        throw new UsageError(
-          "output_exists",
-          `refusing to overwrite existing file: ${target}`,
-        );
+        throw new UsageError("output_exists", `refusing to overwrite existing file: ${target}`);
       }
       // Without this, a half-written file stays at the final path and O_EXCL rejects every retry
       // with output_exists — a transient disk error would become a permanent, manual-fix deadlock.
@@ -79,10 +69,7 @@ export class SecureKeypairWriter implements KeypairWriter {
           // best effort: the write error below is the one worth reporting
         }
       }
-      throw new ExecutionError(
-        "io_error",
-        `could not write keypair file: ${target}`,
-      );
+      throw new ExecutionError("io_error", `could not write keypair file: ${target}`);
     }
   }
 }

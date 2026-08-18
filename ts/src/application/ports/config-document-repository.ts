@@ -7,4 +7,3 @@ export interface ConfigDocumentRepository {
     },
   ): T;
 }
-

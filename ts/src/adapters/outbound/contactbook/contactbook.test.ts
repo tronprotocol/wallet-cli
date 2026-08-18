@@ -37,9 +37,7 @@ describe("ContactBook", () => {
     book.add(createContact("tron", "Alice", ADDRESS, "Treasury"));
 
     expect(book.find("tron", "alice")?.name).toBe("Alice");
-    expect(() =>
-      book.add(createContact("tron", "ＡＬＩＣＥ", OTHER))
-    ).toThrow(/already exists/);
+    expect(() => book.add(createContact("tron", "ＡＬＩＣＥ", OTHER))).toThrow(/already exists/);
     const path = join(directory, "contacts.json");
     if (process.platform !== "win32") {
       expect(lstatSync(path).mode & 0o777).toBe(0o600);
@@ -65,16 +63,12 @@ describe("ContactBook", () => {
     () => {
       const directory = root();
       const external = join(directory, "external.json");
-      writeFileSync(
-        external,
-        JSON.stringify({ version: 1, entries: {} }),
-        { mode: 0o600 },
-      );
+      writeFileSync(external, JSON.stringify({ version: 1, entries: {} }), { mode: 0o600 });
       symlinkSync(external, join(directory, "contacts.json"));
 
-      expect(() =>
-        new ContactBook(directory, new AtomicFileStore()).list("tron")
-      ).toThrow(/symbolic link/);
+      expect(() => new ContactBook(directory, new AtomicFileStore()).list("tron")).toThrow(
+        /symbolic link/,
+      );
     },
   );
 
@@ -85,20 +79,22 @@ describe("ContactBook", () => {
       JSON.stringify({
         version: 1,
         entries: {
-          tron: [{
-            family: "tron",
-            name: "Alice",
-            nameKey: "bob",
-            address: ADDRESS,
-            note: null,
-          }],
+          tron: [
+            {
+              family: "tron",
+              name: "Alice",
+              nameKey: "bob",
+              address: ADDRESS,
+              note: null,
+            },
+          ],
         },
       }),
       { mode: 0o600 },
     );
 
-    expect(() =>
-      new ContactBook(directory, new AtomicFileStore()).list("tron")
-    ).toThrow(/invalid schema/);
+    expect(() => new ContactBook(directory, new AtomicFileStore()).list("tron")).toThrow(
+      /invalid schema/,
+    );
   });
 });

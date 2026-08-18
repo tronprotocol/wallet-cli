@@ -30,7 +30,8 @@ module.exports = {
     {
       name: "inbound-does-not-know-outbound",
       severity: "error",
-      comment: "CLI adapters call application ports/use-cases; bootstrap/composition supplies outbound implementations",
+      comment:
+        "CLI adapters call application ports/use-cases; bootstrap/composition supplies outbound implementations",
       from: { path: "^src/adapters/inbound/", pathNot: "\\.test\\.ts$" },
       to: { path: "^src/(adapters/outbound|bootstrap)/" },
     },

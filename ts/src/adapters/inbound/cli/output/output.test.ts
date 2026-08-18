@@ -10,13 +10,22 @@ import { renderGenericText, TextFormatters } from "../render/index.js";
 function capture(output: "text" | "json") {
   const out: string[] = [];
   const err: string[] = [];
-  const sm = new StreamManager(output, false, (s) => out.push(s), (s) => err.push(s));
+  const sm = new StreamManager(
+    output,
+    false,
+    (s) => out.push(s),
+    (s) => err.push(s),
+  );
   return { sm, out, err };
 }
 
 const cmd = { path: ["account", "balance"] } as unknown as CommandDefinition;
 const net: NetworkDescriptor = {
-  id: "tron:nile", family: "tron", chainId: "nile", aliases: ["nile"], capabilities: [],
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: ["nile"],
+  capabilities: [],
 };
 
 describe("createOutputFormatter (json)", () => {
@@ -46,6 +55,76 @@ describe("createOutputFormatter (json)", () => {
     const f = createOutputFormatter("json", sm, 0);
     const frame = f.event({ type: "awaiting_device", reason: "sign" });
     expect(JSON.parse(frame!)).toEqual({ type: "awaiting_device", reason: "sign" });
+  });
+
+  it("moves pagination into JSON envelope metadata", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(
+      f.success("proposal.list", net, {
+        approvalThreshold: 18,
+        proposals: [],
+        pagination: { offset: 10, limit: 5, total: 42 },
+      }),
+    );
+    expect(env.data).toEqual({ approvalThreshold: 18, proposals: [] });
+    expect(env.meta.pagination).toEqual({ offset: 10, limit: 5, total: 42 });
+  });
+
+  // The commands whose endpoint reports no count (asset list / exchange list) must land in the SAME
+  // place as those that do — otherwise one envelope carries one concept in two locations, decided by
+  // whether a total happens to be knowable.
+  it("moves pagination into metadata even when no total is knowable, as total: null", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(
+      f.success("asset.list", net, {
+        assets: [{ assetId: "1000001" }],
+        pagination: { offset: 0, limit: 10 },
+      }),
+    );
+    expect(env.data).toEqual({ assets: [{ assetId: "1000001" }] });
+    expect(env.meta.pagination).toEqual({ offset: 0, limit: 10, total: null });
+  });
+
+  it("keeps both window keys present so null is the only 'unknown' signal", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(
+      f.success("backup.records", undefined, {
+        records: [],
+        pagination: { offset: 0, limit: null, total: 0 },
+      }),
+    );
+    expect(Object.keys(env.meta.pagination).sort()).toEqual(["limit", "offset", "total"]);
+    expect(env.meta.pagination).toEqual({ offset: 0, limit: null, total: 0 });
+  });
+
+  it("leaves a `pagination` field that is not a window untouched in data", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("some.command", net, { pagination: { mode: "cursor" } }));
+    expect(env.data).toEqual({ pagination: { mode: "cursor" } });
+    expect(env.meta.pagination).toBeUndefined();
+  });
+
+  it("carries no pagination key at all for an unpaginated command", () => {
+    const { sm } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    const env = JSON.parse(f.success("account.info", net, { address: "T..." }));
+    expect(env.meta).not.toHaveProperty("pagination");
+  });
+
+  // Text mode titles read the window from the view model, so it must NOT be stripped there.
+  it("leaves pagination in the view model for text renderers", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const seen: unknown[] = [];
+    f.success("asset.list", net, { assets: [], pagination: { offset: 0, limit: 10 } }, (data) => {
+      seen.push((data as { pagination?: unknown }).pagination);
+      return "rendered";
+    });
+    expect(seen).toEqual([{ offset: 0, limit: 10 }]);
   });
 });
 
@@ -90,14 +169,19 @@ describe("createOutputFormatter (text)", () => {
         "Run `backup` soon and store the file offline.",
       ]),
     } as unknown as CommandDefinition;
-    const text = f.success(commandId(walletCmd), undefined, {
-      status: "created",
-      accountId: "wlt_abc.0",
-      label: "main",
-      type: "seed",
-      active: true,
-      addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
-    }, walletCmd.formatText);
+    const text = f.success(
+      commandId(walletCmd),
+      undefined,
+      {
+        status: "created",
+        accountId: "wlt_abc.0",
+        label: "main",
+        type: "seed",
+        active: true,
+        addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
+      },
+      walletCmd.formatText,
+    );
     expect(text).toContain("Created wallet");
     expect(text).toContain("main");
     expect(text).toContain("Run `backup`");
@@ -112,13 +196,18 @@ describe("createOutputFormatter (text)", () => {
         "Private key was read from hidden input and was not printed.",
       ]),
     } as unknown as CommandDefinition;
-    const text = f.success(commandId(walletCmd), undefined, {
-      status: "existing",
-      accountId: "wlt_abc.0",
-      label: "main",
-      type: "seed",
-      addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
-    }, walletCmd.formatText);
+    const text = f.success(
+      commandId(walletCmd),
+      undefined,
+      {
+        status: "existing",
+        accountId: "wlt_abc.0",
+        label: "main",
+        type: "seed",
+        addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
+      },
+      walletCmd.formatText,
+    );
     // icon and label live in separate ANSI spans, so assert on the pieces (not a fused substring).
     expect(text).toContain("⚠");
     expect(text).toContain("Existing wallet");
@@ -164,16 +253,24 @@ describe("createOutputFormatter (text)", () => {
   it("renders backup metadata without secret material", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);
-    const backupCmd = { path: ["backup"], formatText: TextFormatters.walletBackup } as unknown as CommandDefinition;
-    const text = f.success(commandId(backupCmd), undefined, {
-      accountId: "wlt_abc.0",
-      secretType: "mnemonic",
-      out: "/tmp/main-backup.json",
-      fileMode: "0600",
-      bytes: 512,
-      mnemonic: "test test test test test test test test test test test junk",
-      privateKey: "00".repeat(32),
-    }, backupCmd.formatText);
+    const backupCmd = {
+      path: ["backup"],
+      formatText: TextFormatters.walletBackup,
+    } as unknown as CommandDefinition;
+    const text = f.success(
+      commandId(backupCmd),
+      undefined,
+      {
+        accountId: "wlt_abc.0",
+        secretType: "mnemonic",
+        out: "/tmp/main-backup.json",
+        fileMode: "0600",
+        bytes: 512,
+        mnemonic: "test test test test test test test test test test test junk",
+        privateKey: "00".repeat(32),
+      },
+      backupCmd.formatText,
+    );
     expect(text).toContain("/tmp/main-backup.json");
     expect(text).not.toContain("test test");
     expect(text).not.toContain("000000");
@@ -184,9 +281,9 @@ describe("createOutputFormatter (text)", () => {
 // security summaries a user reads before approving. Bidi controls are not control BYTES, so the
 // C0/C1 strip lets them through — and U+202E reorders everything printed after it.
 describe("invisible formatting in untrusted display fields", () => {
-  const RLO = String.fromCharCode(0x202E);
+  const RLO = String.fromCharCode(0x202e);
   const LRI = String.fromCharCode(0x2066);
-  const ZWSP = String.fromCharCode(0x200B);
+  const ZWSP = String.fromCharCode(0x200b);
 
   it("marks bidi controls in text mode so reordering cannot hide", () => {
     const { sm } = capture("text");
@@ -224,13 +321,14 @@ describe("invisible formatting in untrusted display fields", () => {
 
   it("also covers error lines and progress events", () => {
     const { sm, err } = capture("text");
-    createOutputFormatter("text", sm, 0)
-      .error(new UsageError("invalid_value", `bad ${RLO} value`));
+    createOutputFormatter("text", sm, 0).error(new UsageError("invalid_value", `bad ${RLO} value`));
     expect(err[0]).toContain("<U+202E>");
 
     const { sm: sm2 } = capture("text");
-    const frame = createOutputFormatter("text", sm2, 0)
-      .event({ type: "pre-verify-address", address: `T1${RLO}abc` });
+    const frame = createOutputFormatter("text", sm2, 0).event({
+      type: "pre-verify-address",
+      address: `T1${RLO}abc`,
+    });
     expect(frame).toContain("<U+202E>");
   });
 });

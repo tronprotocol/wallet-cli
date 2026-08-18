@@ -1,6 +1,6 @@
 /**
  * Layout primitives — structural composition of label/value blocks and tables,
- * plus status glyphs. The "§0.4 字段独占一行" vocabulary; no scalar or domain knowledge.
+ * plus status glyphs. The "§0.4 one field per line" vocabulary; no scalar or domain knowledge.
  */
 export type Obj = Record<string, unknown>;
 export type Pair = [string, string];
@@ -32,16 +32,27 @@ export function titled(title: string, pairs: Pair[]): string {
 export function table(headers: string[], rows: string[][]): string {
   const all = [headers, ...rows];
   const widths = headers.map((_, i) => Math.max(...all.map((row) => String(row[i] ?? "").length)));
-  const fmt = (row: string[]) => `| ${row.map((cell, i) => String(cell ?? "").padEnd(widths[i] ?? 0)).join(" | ")} |`;
+  const fmt = (row: string[]) =>
+    `| ${row.map((cell, i) => String(cell ?? "").padEnd(widths[i] ?? 0)).join(" | ")} |`;
   return [fmt(headers), fmt(widths.map((w) => "-".repeat(w))), ...rows.map(fmt)].join("\n");
 }
 
 export function asObj(v: unknown): Obj {
-  return v && typeof v === "object" && !Array.isArray(v) ? v as Obj : {};
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : {};
 }
 
-export function ok(): string { return "✅"; }
-export function fail(): string { return "❌"; }
-export function pending(): string { return "⏳"; }
-export function warn(): string { return "⚠️"; }
-export function unknown(): string { return "❓"; }
+export function ok(): string {
+  return "✅";
+}
+export function fail(): string {
+  return "❌";
+}
+export function pending(): string {
+  return "⏳";
+}
+export function warn(): string {
+  return "⚠️";
+}
+export function unknown(): string {
+  return "❓";
+}

@@ -76,18 +76,16 @@ describe("ConfigLoader TronLink credentials", () => {
     });
   });
 
-  it.runIf(process.platform !== "win32")("rejects credentials in a group/world-readable file", () => {
-    expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644)))
-      .toThrow(/mode 0600/);
-  });
+  it.runIf(process.platform !== "win32")(
+    "rejects credentials in a group/world-readable file",
+    () => {
+      expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644))).toThrow(/mode 0600/);
+    },
+  );
 });
 
 describe("ConfigLoader GasFree credentials", () => {
-  const credentials = [
-    "gasfreeApiKey: TEST",
-    "gasfreeApiSecret: TESTTESTTEST",
-    "",
-  ].join("\n");
+  const credentials = ["gasfreeApiKey: TEST", "gasfreeApiSecret: TESTTESTTEST", ""].join("\n");
 
   it("loads credentials only from a private config file", () => {
     expect(ConfigLoader.load(envWithConfig(credentials, 0o600))).toMatchObject({
@@ -99,8 +97,7 @@ describe("ConfigLoader GasFree credentials", () => {
   it.runIf(process.platform !== "win32")(
     "rejects credentials in a group/world-readable file",
     () => {
-      expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644)))
-        .toThrow(/mode 0600/);
+      expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644))).toThrow(/mode 0600/);
     },
   );
 });
@@ -109,12 +106,15 @@ describe("ConfigLoader GasFree credentials", () => {
 // file content (YAML parse) or OS detail, and a credential can sit on the very line that failed.
 describe("ConfigLoader unreadable/malformed config", () => {
   it("classifies malformed YAML without echoing the file content", () => {
-    const env = envWithConfig([
-      'gasfreeApiSecret: "SUPERSECRET123"',
-      'defaultNetwork: "unterminated',
-      "  bad: [1,2",
-      "",
-    ].join("\n"), 0o600);
+    const env = envWithConfig(
+      [
+        'gasfreeApiSecret: "SUPERSECRET123"',
+        'defaultNetwork: "unterminated',
+        "  bad: [1,2",
+        "",
+      ].join("\n"),
+      0o600,
+    );
 
     let thrown: unknown;
     try {
@@ -135,7 +135,8 @@ describe("ConfigLoader unreadable/malformed config", () => {
     const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
     mkdirSync(join(root, "config.yaml"));
 
-    expect(() => ConfigLoader.load({ ...process.env, WALLET_CLI_HOME: root }))
-      .toThrow(/cannot be read/);
+    expect(() => ConfigLoader.load({ ...process.env, WALLET_CLI_HOME: root })).toThrow(
+      /cannot be read/,
+    );
   });
 });

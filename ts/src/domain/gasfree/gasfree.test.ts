@@ -53,16 +53,19 @@ describe("GasFree Java-compatible TIP-712", () => {
     );
     expect(digest).toBe(`0x${bytesToHex(gasFreeDigest(DOMAIN, AUTHORIZATION))}`);
     expect(normalizeGasFreeSignature(SIGNATURE)).toBe(SIGNATURE.slice(2));
-    expect(recoverGasFreeSigner(gasFreeDigest(DOMAIN, AUTHORIZATION), SIGNATURE))
-      .toBe(AUTHORIZATION.user);
+    expect(recoverGasFreeSigner(gasFreeDigest(DOMAIN, AUTHORIZATION), SIGNATURE)).toBe(
+      AUTHORIZATION.user,
+    );
   });
 
   it("derives the same TRON address from compressed and uncompressed keys", () => {
     const privateKey = hexToBytes(`${"00".repeat(31)}01`);
     const address = new TronAddress();
-    expect(address.fromPublicKey(secp256k1.getPublicKey(privateKey, true)))
-      .toBe(AUTHORIZATION.user);
-    expect(address.fromPublicKey(secp256k1.getPublicKey(privateKey, false)))
-      .toBe(AUTHORIZATION.user);
+    expect(address.fromPublicKey(secp256k1.getPublicKey(privateKey, true))).toBe(
+      AUTHORIZATION.user,
+    );
+    expect(address.fromPublicKey(secp256k1.getPublicKey(privateKey, false))).toBe(
+      AUTHORIZATION.user,
+    );
   });
 });

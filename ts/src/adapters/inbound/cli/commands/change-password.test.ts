@@ -38,18 +38,25 @@ function setup(opts: { newPrompt?: string; confirm?: boolean } = {}) {
 describe("change-password command (TTY-only)", () => {
   it("prompts for the new password and returns the changePassword receipt", async () => {
     const { command, ctx, changePassword } = setup();
-    await expect(command.run(ctx, undefined, { yes: true })).resolves.toEqual({ wallets: ["seed", "hot"], count: 2 });
+    await expect(command.run(ctx, undefined, { yes: true })).resolves.toEqual({
+      wallets: ["seed", "hot"],
+      count: 2,
+    });
     expect(changePassword).toHaveBeenCalledWith(OLD, NEW);
   });
 
   it("rejects a new password equal to the old password", async () => {
     const { command, ctx } = setup({ newPrompt: OLD });
-    await expect(command.run(ctx, undefined, { yes: true })).rejects.toMatchObject({ code: "invalid_value" });
+    await expect(command.run(ctx, undefined, { yes: true })).rejects.toMatchObject({
+      code: "invalid_value",
+    });
   });
 
   it("returns aborted when the confirmation is declined", async () => {
     const { command, ctx } = setup({ confirm: false });
-    await expect(command.run(ctx, undefined, { yes: false })).rejects.toMatchObject({ code: "aborted" });
+    await expect(command.run(ctx, undefined, { yes: false })).rejects.toMatchObject({
+      code: "aborted",
+    });
   });
 
   it("skips the confirmation prompt with --yes", async () => {

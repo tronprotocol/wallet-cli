@@ -14,10 +14,10 @@
 
 This repository holds **two independent implementations** that share the same purpose but target different users:
 
-- **[Java](java/README.md)** — the original, full-featured reference CLI. An interactive prompt (REPL) for people who want the complete TRON feature surface.
+- **[Java](java/README.md)** — the original, full-featured reference CLI. An interactive prompt (REPL) you drive by hand.
 - **[TypeScript](ts/README.md)** — an agent-first rewrite for automation. Standard subcommands with a stable JSON envelope, built for scripts, CI, and AI agents.
 
-Both manage the same kind of wallet on the same networks — your address is identical regardless of which you use. They differ in how you install and drive them, and in how much of TRON they cover. Pick one and read its own README for depth; this page gives you the basics of each so you can choose.
+Both manage the same kind of wallet on the same networks — your address is identical regardless of which you use. They cover the same TRON feature surface and differ in how you install and drive them. Pick one and read its own README for depth; this page gives you the basics of each so you can choose.
 
 ## At a glance
 
@@ -31,7 +31,7 @@ Both manage the same kind of wallet on the same networks — your address is ide
 | **Output for scripts** | Human-readable text.                                                                                                           | Stable JSON via `-o json` ([`wallet-cli.result.v1`](ts/docs/machine-interface.md)) + fixed exit codes (`0`/`1`/`2`).                                                                                                                                        |
 | **Config / networks**  | `config.conf` (net type + full node), or `SwitchNetwork` at runtime. Mainnet · Nile · Shasta · custom.                         | `--network` flag / `config` command. `tron:mainnet` · `tron:nile` · `tron:shasta`.                                                                                                                                                                          |
 | **Signing**            | Software keystore · Ledger.                                                                                                    | Encrypted local keystore · Ledger. Secrets never via argv/env.                                                                                                                                                                                              |
-| **Feature scope**      | **The full surface** — everything in the TypeScript column, plus TRC10 token issuance and on-chain DEX & governance/proposals. | **Core wallet ops** — HD wallets, TRX/TRC20/TRC10 transfers, staking & delegation, voting & rewards, contract call/deploy, multi-sig, GasFree transfers, message signing, and on-chain queries. |
+| **Feature scope**      | **The full surface** — wallets and transfers, staking, voting and rewards, governance, contracts, TRC10, and the on-chain exchange. | **The full surface** — HD wallets, TRX/TRC20/TRC10 transfers, staking & delegation, voting & rewards, governance proposals & super-representative operation, contract call/deploy/governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries. |
 | **Best for**           | People at a terminal who want every TRON capability.                                                                           | Scripting, CI pipelines, and AI agents.                                                                                                                                                                                                                     |
 | **Full docs**          | [java/README.md](java/README.md)                                                                                               | [ts/README.md](ts/README.md)                                                                                                                                                                                                                                |
 
@@ -49,7 +49,7 @@ $ java -jar wallet-cli.jar        # opens the interactive prompt
 > GetBalance                      # TRX balance
 ```
 
-Full setup (config.conf, connecting to a node), the complete A–Z command list, and features like GasFree and multi-sig live in **[java/README.md](java/README.md)** — jump to [Setup](java/README.md#setup), [Quickstart](java/README.md#quickstart), [Commands](java/README.md#commands), or [GasFree](java/README.md#gasfree).
+Full setup (config.conf, connecting to a node), the complete A–Z command list, and features like GasFree and multi-sig live in **[java/README.md](java/README.md)** — jump to [Setup](java/README.md#setup), [Quickstart](java/README.md#quickstart), [Commands](java/README.md#commands), or [GasFree](java/README.md#contracts-gasfree--chain-data).
 
 ## TypeScript — get a taste
 
@@ -72,5 +72,5 @@ Every command has a reference page, and the JSON contract, exit codes, and agent
 ## Which should I use?
 
 - **Scripting, CI, or building an AI agent?** → the [TypeScript version](ts/README.md) — the JSON envelope and deterministic exit codes exist for exactly this.
-- **Working interactively and want the complete TRON toolkit** — TRC10 issuance, or on-chain DEX/governance/proposals? → the [Java version](java/README.md).
+- **Working interactively** — one long-running session at a `>` prompt, with the wallet unlocked once for the whole session? → the [Java version](java/README.md).
 - **Just sending TRX/tokens or staking from your own machine?** → either works; the TypeScript CLI is the lighter install (`npm install -g`, no build step).

@@ -11,7 +11,8 @@ export function passwordPolicyErrors(pw: string): string[] {
   if (!/[a-z]/.test(pw)) errs.push("must include a lowercase letter");
   if (!/[0-9]/.test(pw)) errs.push("must include a digit");
   const specials = new Set(PASSWORD_SPECIALS);
-  if (![...pw].some((c) => specials.has(c))) errs.push(`must include a special character (${PASSWORD_SPECIALS})`);
+  if (![...pw].some((c) => specials.has(c)))
+    errs.push(`must include a special character (${PASSWORD_SPECIALS})`);
   return errs;
 }
 

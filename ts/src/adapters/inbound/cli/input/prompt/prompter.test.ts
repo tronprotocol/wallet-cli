@@ -5,11 +5,23 @@ class FakeBackend implements PromptBackend {
   out = "";
   #answers: string[];
   #keys: KeyEvent[];
-  constructor(answers: string[] = [], keys: KeyEvent[] = []) { this.#answers = answers; this.#keys = keys; }
-  isTTY() { return true; }
-  async question(prompt: string, _hidden: boolean) { this.out += prompt; return this.#answers.shift() ?? ""; }
-  async readKey() { return this.#keys.shift() ?? { name: "return" }; }
-  write(s: string) { this.out += s; }
+  constructor(answers: string[] = [], keys: KeyEvent[] = []) {
+    this.#answers = answers;
+    this.#keys = keys;
+  }
+  isTTY() {
+    return true;
+  }
+  async question(prompt: string, _hidden: boolean) {
+    this.out += prompt;
+    return this.#answers.shift() ?? "";
+  }
+  async readKey() {
+    return this.#keys.shift() ?? { name: "return" };
+  }
+  write(s: string) {
+    this.out += s;
+  }
   beginRaw() {}
   endRaw() {}
 }
@@ -44,7 +56,10 @@ describe("Prompter.hidden", () => {
   it("re-prompts on validate failure", async () => {
     const be = new FakeBackend(["weak", "Abcdef1!"]);
     const p = new Prompter(be);
-    const v = await p.hidden({ label: "pw", validate: (s) => (s.length >= 8 ? null : "too short") });
+    const v = await p.hidden({
+      label: "pw",
+      validate: (s) => (s.length >= 8 ? null : "too short"),
+    });
     expect(v).toBe("Abcdef1!");
   });
 });
@@ -62,7 +77,13 @@ describe("Prompter.select", () => {
   it("arrows to an item and returns its value on enter", async () => {
     const be = new FakeBackend([], [{ name: "down" }, { name: "return" }]);
     const p = new Prompter(be);
-    const v = await p.select({ label: "pick", choices: [{ value: "a", label: "A" }, { value: "b", label: "B" }] });
+    const v = await p.select({
+      label: "pick",
+      choices: [
+        { value: "a", label: "A" },
+        { value: "b", label: "B" },
+      ],
+    });
     expect(v).toBe("b");
   });
   it("loads more when arrowing past the last item", async () => {
@@ -72,7 +93,13 @@ describe("Prompter.select", () => {
     const v = await p.select({
       label: "pick",
       choices: [{ value: "x0", label: "0" }],
-      loadMore: async () => { loaded = true; return [{ value: "x0", label: "0" }, { value: "x1", label: "1" }]; },
+      loadMore: async () => {
+        loaded = true;
+        return [
+          { value: "x0", label: "0" },
+          { value: "x1", label: "1" },
+        ];
+      },
     });
     expect(loaded).toBe(true);
     expect(v).toBe("x1");
@@ -83,7 +110,10 @@ describe("Prompter.select", () => {
     const v = await p.select({
       label: "pick",
       choices: [{ value: "x0", label: "0" }],
-      loadMore: async () => [{ value: "x0", label: "0" }, { value: "x1", label: "1" }],
+      loadMore: async () => [
+        { value: "x0", label: "0" },
+        { value: "x1", label: "1" },
+      ],
     });
     expect(v).toBe("x1");
   });

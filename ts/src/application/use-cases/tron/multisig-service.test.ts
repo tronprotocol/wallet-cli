@@ -24,14 +24,16 @@ function unsignedHex(expiration = NOW + 60_000): string {
   return encodeTransactionHex({
     visible: false,
     raw_data: {
-      contract: [{
-        parameter: {
-          value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount: 1 },
-          type_url: "type.googleapis.com/protocol.TransferContract",
+      contract: [
+        {
+          parameter: {
+            value: { owner_address: OWNER_HEX, to_address: TO_HEX, amount: 1 },
+            type_url: "type.googleapis.com/protocol.TransferContract",
+          },
+          type: "TransferContract",
+          Permission_id: 2,
         },
-        type: "TransferContract",
-        Permission_id: 2,
-      }],
+      ],
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       timestamp: NOW,
@@ -55,11 +57,15 @@ function fakeGateway(overrides: Partial<TronGateway> = {}): TronGateway {
         name: "active",
         threshold: 2,
         operationsHex: encodeOperations(["TransferContract"]),
-        keys: [{ address: A, weight: 1 }, { address: B, weight: 1 }],
+        keys: [
+          { address: A, weight: 1 },
+          { address: B, weight: 1 },
+        ],
       },
       approvedList: approvals(transaction),
       currentWeight: approvals(transaction).length,
-      resultCode: approvals(transaction).length >= 2 ? "ENOUGH_PERMISSION" : "NOT_ENOUGH_PERMISSION",
+      resultCode:
+        approvals(transaction).length >= 2 ? "ENOUGH_PERMISSION" : "NOT_ENOUGH_PERMISSION",
     })),
     getApprovedList: vi.fn(async (transaction) => approvals(transaction)),
     getMultiSignFee: vi.fn(async () => 1_000_000),
@@ -141,8 +147,9 @@ describe("local TRON multi-signature workflow", () => {
       signMessage: async () => "",
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
-    await expect(service(fakeGateway(), signer).signChecked(scope(), NETWORK, unsignedHex(NOW)))
-      .rejects.toMatchObject({ code: "tx_expired" });
+    await expect(
+      service(fakeGateway(), signer).signChecked(scope(), NETWORK, unsignedHex(NOW)),
+    ).rejects.toMatchObject({ code: "tx_expired" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
@@ -165,8 +172,9 @@ describe("local TRON multi-signature workflow", () => {
     const outsider = "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8";
     const signer = spySigner(outsider);
     const scoped = { ...scope(), resolveAddress: () => outsider } as TransactionScope;
-    await expect(service(fakeGateway(), signer).signChecked(scoped, NETWORK, unsignedHex()))
-      .rejects.toMatchObject({ code: "not_authorized" });
+    await expect(
+      service(fakeGateway(), signer).signChecked(scoped, NETWORK, unsignedHex()),
+    ).rejects.toMatchObject({ code: "not_authorized" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
@@ -177,8 +185,9 @@ describe("local TRON multi-signature workflow", () => {
       ...decodeTransactionHex(unsignedHex()),
       signature: [SIG_B],
     } as never);
-    await expect(service(fakeGateway(), signer).signChecked(scope(), NETWORK, alreadySigned))
-      .rejects.toMatchObject({ code: "already_signed" });
+    await expect(
+      service(fakeGateway(), signer).signChecked(scope(), NETWORK, alreadySigned),
+    ).rejects.toMatchObject({ code: "already_signed" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
@@ -190,15 +199,17 @@ describe("local TRON multi-signature workflow", () => {
       signMessage: async () => "",
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
-    await expect(service(fakeGateway(), signer).signChecked(scope(), NETWORK, unsignedHex()))
-      .rejects.toMatchObject({ code: "signing_rejected" });
+    await expect(
+      service(fakeGateway(), signer).signChecked(scope(), NETWORK, unsignedHex()),
+    ).rejects.toMatchObject({ code: "signing_rejected" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
   it("requires threshold before broadcast and reports the dynamic multi-sign fee", async () => {
     const gateway = fakeGateway();
-    await expect(service(gateway).broadcastHex(scope(), NETWORK, unsignedHex(), false))
-      .rejects.toMatchObject({ code: "not_authorized" });
+    await expect(
+      service(gateway).broadcastHex(scope(), NETWORK, unsignedHex(), false),
+    ).rejects.toMatchObject({ code: "not_authorized" });
 
     const multiSigned = encodeTransactionHex({
       ...decodeTransactionHex(unsignedHex()),
@@ -214,7 +225,8 @@ describe("local TRON multi-signature workflow", () => {
 
   it("fails closed when the two node approval endpoints disagree", async () => {
     const gateway = fakeGateway({ getApprovedList: vi.fn(async () => [B]) });
-    await expect(service(gateway).approvals(NETWORK, unsignedHex()))
-      .rejects.toMatchObject({ code: "provider_error" });
+    await expect(service(gateway).approvals(NETWORK, unsignedHex())).rejects.toMatchObject({
+      code: "provider_error",
+    });
   });
 });

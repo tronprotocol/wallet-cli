@@ -1,6 +1,10 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import type { Config, NetworkDescriptor, TronTransactionArtifact } from "../../../domain/types/index.js";
+import type {
+  Config,
+  NetworkDescriptor,
+  TronTransactionArtifact,
+} from "../../../domain/types/index.js";
 import { signTronLinkRequest } from "./auth.js";
 import { TronLinkClient } from "./client.js";
 
@@ -29,7 +33,9 @@ function response(data: unknown, status = 200): Response {
 class FakeSocket extends EventEmitter {
   readyState = 0;
   sent: string[] = [];
-  send(data: string) { this.sent.push(data); }
+  send(data: string) {
+    this.sent.push(data);
+  }
   close(code = 1000) {
     this.readyState = 3;
     this.emit("close", code);
@@ -47,8 +53,15 @@ class FakeSocket extends EventEmitter {
 describe("TronLink REST/WebSocket collaboration adapter", () => {
   it("matches Java GET signing while leaving filters outside the signed set", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
-      response({ code: 0, data: { range_total: 0, data: [] } }));
-    const client = new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch, () => NOW, () => UUID);
+      response({ code: 0, data: { range_total: 0, data: [] } }),
+    );
+    const client = new TronLinkClient(
+      CONFIG,
+      1_000,
+      fetchMock as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
     await client.list(NETWORK, ADDRESS, { state: 0, isSigned: false, start: 20, limit: 10 });
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
@@ -56,14 +69,19 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(calledUrl.searchParams.get("state")).toBe("0");
     expect(calledUrl.searchParams.get("is_sign")).toBe("false");
     expect(calledUrl.searchParams.get("sign")).toBe(
-      signTronLinkRequest("GET", "/multi/list", {
-        sign_version: "v1",
-        channel: "wallet-cli",
-        secret_id: "sid",
-        ts: String(NOW),
-        uuid: UUID,
-        address: ADDRESS,
-      }, "super-secret").signature,
+      signTronLinkRequest(
+        "GET",
+        "/multi/list",
+        {
+          sign_version: "v1",
+          channel: "wallet-cli",
+          secret_id: "sid",
+          ts: String(NOW),
+          uuid: UUID,
+          address: ADDRESS,
+        },
+        "super-secret",
+      ).signature,
     );
   });
 
@@ -71,31 +89,56 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
   // with code 4000, so pin the signed set rather than only the body.
   it("signs POSTs over the fixed auth set plus address, and nothing else", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
-      response({ code: 0, data: {} }));
-    const client = new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch, () => NOW, () => UUID);
+      response({ code: 0, data: {} }),
+    );
+    const client = new TronLinkClient(
+      CONFIG,
+      1_000,
+      fetchMock as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
     await client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact);
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(calledUrl.pathname).toBe("/multi/transaction");
-    expect([...calledUrl.searchParams.keys()].sort()).toEqual(
-      ["address", "channel", "secret_id", "sign", "sign_version", "ts", "uuid"],
-    );
+    expect([...calledUrl.searchParams.keys()].sort()).toEqual([
+      "address",
+      "channel",
+      "secret_id",
+      "sign",
+      "sign_version",
+      "ts",
+      "uuid",
+    ]);
     expect(calledUrl.searchParams.get("sign")).toBe(
-      signTronLinkRequest("POST", "/multi/transaction", {
-        sign_version: "v1",
-        channel: "wallet-cli",
-        secret_id: "sid",
-        ts: String(NOW),
-        uuid: UUID,
-        address: ADDRESS,
-      }, "super-secret").signature,
+      signTronLinkRequest(
+        "POST",
+        "/multi/transaction",
+        {
+          sign_version: "v1",
+          channel: "wallet-cli",
+          secret_id: "sid",
+          ts: String(NOW),
+          uuid: UUID,
+          address: ADDRESS,
+        },
+        "super-secret",
+      ).signature,
     );
   });
 
   it("submits the complete accumulated transaction for a signing step", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
-      response({ code: 0, data: {} }));
-    const client = new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch, () => NOW, () => UUID);
+      response({ code: 0, data: {} }),
+    );
+    const client = new TronLinkClient(
+      CONFIG,
+      1_000,
+      fetchMock as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
     const transaction = {
       visible: true,
       txID: "ab".repeat(32),
@@ -103,7 +146,10 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       raw_data_hex: "00",
     } as TronTransactionArtifact;
     await client.submit(NETWORK, ADDRESS, transaction);
-    expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({ address: ADDRESS, transaction });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({
+      address: ADDRESS,
+      transaction,
+    });
   });
 
   it("uses the official /multi/socket path and sends the v1 address subscription", async () => {
@@ -124,7 +170,9 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       () => UUID,
       factory,
     );
-    const watching = client.watch(NETWORK, ADDRESS, controller.signal, (message) => messages.push(message));
+    const watching = client.watch(NETWORK, ADDRESS, controller.signal, (message) =>
+      messages.push(message),
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(connectedUrl?.pathname).toBe("/multi/socket");
     expect(connectedUrl?.searchParams.get("address")).toBe(ADDRESS);
@@ -140,28 +188,40 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
   // or a stale signature (20305). Carry the service's own wording through to the caller.
   it("carries the service's rejection message into the error details", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
-      response({ code: 4000, message: "Authentication failed." }));
-    const client = new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch, () => NOW, () => UUID);
-    await expect(client.list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
-      .rejects.toMatchObject({
-        code: "provider_error",
-        details: { code: 4000, providerMessage: "Authentication failed." },
-      });
+      response({ code: 4000, message: "Authentication failed." }),
+    );
+    const client = new TronLinkClient(
+      CONFIG,
+      1_000,
+      fetchMock as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
+    await expect(
+      client.list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }),
+    ).rejects.toMatchObject({
+      code: "provider_error",
+      details: { code: 4000, providerMessage: "Authentication failed." },
+    });
   });
 
   it("bounds the service message and drops non-string or control-character noise", async () => {
     const noisy = `x\u0000y\u001b[31m${"z".repeat(400)}`;
-    const client = (body: unknown) => new TronLinkClient(
-      CONFIG,
-      1_000,
-      (vi.fn(async () => response(body)) as unknown) as typeof fetch,
-      () => NOW,
-      () => UUID,
-    );
+    const client = (body: unknown) =>
+      new TronLinkClient(
+        CONFIG,
+        1_000,
+        vi.fn(async () => response(body)) as unknown as typeof fetch,
+        () => NOW,
+        () => UUID,
+      );
     let rejection: { details?: { providerMessage?: string } } = {};
     try {
-      await client({ code: 20004, message: noisy })
-        .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 });
+      await client({ code: 20004, message: noisy }).list(NETWORK, ADDRESS, {
+        state: 255,
+        start: 0,
+        limit: 20,
+      });
     } catch (error) {
       rejection = error as { details?: { providerMessage?: string } };
     }
@@ -170,24 +230,40 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(message).not.toMatch(/[\u0000-\u001f]/);
     expect(message.startsWith("xy[31mzzz")).toBe(true);
 
-    await expect(client({ code: 20004, message: { nested: true } })
-      .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
-      .rejects.toMatchObject({ code: "provider_error", details: { code: 20004 } });
-    await expect(client({ code: 20004, message: { nested: true } })
-      .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
-      .rejects.not.toHaveProperty("details.providerMessage");
+    await expect(
+      client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
+        state: 255,
+        start: 0,
+        limit: 20,
+      }),
+    ).rejects.toMatchObject({ code: "provider_error", details: { code: 20004 } });
+    await expect(
+      client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
+        state: 255,
+        start: 0,
+        limit: 20,
+      }),
+    ).rejects.not.toHaveProperty("details.providerMessage");
   });
 
   it("requires complete credentials and rejects insecure endpoints before a request", async () => {
     const fetchMock = vi.fn();
-    await expect(new TronLinkClient({} as Config, 1_000, fetchMock as typeof fetch)
-      .list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }))
-      .rejects.toMatchObject({ code: "tronlink_credentials_missing" });
+    await expect(
+      new TronLinkClient({} as Config, 1_000, fetchMock as typeof fetch).list(NETWORK, ADDRESS, {
+        state: 255,
+        start: 0,
+        limit: 20,
+      }),
+    ).rejects.toMatchObject({ code: "tronlink_credentials_missing" });
 
     const insecure = { ...NETWORK, tronlinkHttpEndpoint: "http://api.walletadapter.org" };
-    await expect(new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch)
-      .list(insecure, ADDRESS, { state: 255, start: 0, limit: 20 }))
-      .rejects.toMatchObject({ code: "invalid_config" });
+    await expect(
+      new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch).list(insecure, ADDRESS, {
+        state: 255,
+        start: 0,
+        limit: 20,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_config" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

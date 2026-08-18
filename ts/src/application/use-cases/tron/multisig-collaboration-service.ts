@@ -12,7 +12,6 @@ import type {
   TronLinkMultisigTransactionView,
   TronLinkSignatureProgressView,
   TronTransactionArtifact,
-  TxApprovalView,
 } from "../../../domain/types/index.js";
 import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
@@ -86,11 +85,7 @@ export class TronMultisigCollaborationService {
    * Opening a collection and casting its first signature are one act: the service has no empty
    * collection, and derives the initial weight from the signature the transaction arrives with.
    */
-  async create(
-    scope: TransactionScope,
-    network: NetworkDescriptor,
-    unsignedHex: string,
-  ) {
+  async create(scope: TransactionScope, network: NetworkDescriptor, unsignedHex: string) {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(unsignedHex);
     if ((transaction.signature?.length ?? 0) !== 0) {
@@ -100,7 +95,11 @@ export class TronMultisigCollaborationService {
     // signChecked rejects an expired transaction, a signer outside the permission group, and a
     // repeat signature — the whole precondition set this collection needs.
     const signed = await this.multisig.signChecked(scope, network, unsignedHex);
-    await this.collaboration.submit(network, signed.signer, visibleTransaction(gateway, signed.hex));
+    await this.collaboration.submit(
+      network,
+      signed.signer,
+      visibleTransaction(gateway, signed.hex),
+    );
     return {
       action: "create" as const,
       accepted: true as const,
@@ -111,24 +110,30 @@ export class TronMultisigCollaborationService {
     };
   }
 
-  async sign(
-    scope: TransactionScope,
-    network: NetworkDescriptor,
-    txId: string,
-  ) {
+  async sign(scope: TransactionScope, network: NetworkDescriptor, txId: string) {
     const address = scope.resolveAddress("tron");
     const remote = await this.#find(network, address, normalizeTxId(txId));
     if (remote.view.expired) throw new ChainError("tx_expired", "transaction has expired");
     if (remote.view.state !== "pending") {
       if (remote.view.signedByCurrentAccount) {
-        throw new ChainError("already_signed", "this account has already signed the TronLink transaction");
+        throw new ChainError(
+          "already_signed",
+          "this account has already signed the TronLink transaction",
+        );
       }
-      throw new ChainError("invalid_value", `TronLink transaction is ${remote.view.state}, not pending`);
+      throw new ChainError(
+        "invalid_value",
+        `TronLink transaction is ${remote.view.state}, not pending`,
+      );
     }
 
     const signed = await this.multisig.signChecked(scope, network, remote.hex);
     const gateway = this.gateways.get(network, "tron");
-    await this.collaboration.submit(network, signed.signer, visibleTransaction(gateway, signed.hex));
+    await this.collaboration.submit(
+      network,
+      signed.signer,
+      visibleTransaction(gateway, signed.hex),
+    );
     return {
       action: "sign" as const,
       accepted: true as const,
@@ -151,8 +156,10 @@ export class TronMultisigCollaborationService {
       const count = payload.filter((entry) => {
         if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
         const record = entry as Record<string, unknown>;
-        return booleanFlag(record.is_sign, "is_sign") === false
-          && safeInteger(record.state, "state", 0) === 0;
+        return (
+          booleanFlag(record.is_sign, "is_sign") === false &&
+          safeInteger(record.state, "state", 0) === 0
+        );
       }).length;
       if (count > 0) {
         notifications += 1;
@@ -218,13 +225,19 @@ export class TronMultisigCollaborationService {
       );
     }
     if (transaction.txID !== hash) {
-      throw new ChainError("provider_error", "TronLink record hash does not match transaction raw_data");
+      throw new ChainError(
+        "provider_error",
+        "TronLink record hash does not match transaction raw_data",
+      );
     }
 
     const contract = transaction.raw_data.contract[0];
     const contractType = stringValue(remote.contract_type, "contract_type");
     if (!contract || contract.type !== contractType) {
-      throw new ChainError("provider_error", "TronLink contract_type does not match transaction raw_data");
+      throw new ChainError(
+        "provider_error",
+        "TronLink contract_type does not match transaction raw_data",
+      );
     }
     const txOwner = normalizedAddress(
       contract.parameter?.value?.owner_address,
@@ -238,10 +251,17 @@ export class TronMultisigCollaborationService {
       this.#address,
     );
     if (metadataOwner !== txOwner) {
-      throw new ChainError("provider_error", "TronLink owner metadata does not match transaction raw_data");
+      throw new ChainError(
+        "provider_error",
+        "TronLink owner metadata does not match transaction raw_data",
+      );
     }
 
-    const originator = normalizedAddress(remote.originator_address, "originator_address", this.#address);
+    const originator = normalizedAddress(
+      remote.originator_address,
+      "originator_address",
+      this.#address,
+    );
     const stateCode = safeInteger(remote.state, "state", 0);
     const isSigned = booleanFlag(remote.is_sign, "is_sign");
     const state = recordState(stateCode, isSigned);
@@ -250,7 +270,10 @@ export class TronMultisigCollaborationService {
     const signatureProgress = progress(remote.signature_progress, this.#address);
     const currentProgress = signatureProgress.find((item) => item.address === currentAddress);
     if (!currentProgress) {
-      throw new ChainError("not_authorized", "selected account is not a signer in this TronLink transaction");
+      throw new ChainError(
+        "not_authorized",
+        "selected account is not a signer in this TronLink transaction",
+      );
     }
     if (currentProgress.signed !== isSigned) {
       throw new ChainError("provider_error", "TronLink is_sign disagrees with signature_progress");
@@ -259,11 +282,17 @@ export class TronMultisigCollaborationService {
       .filter((item) => item.signed)
       .reduce((sum, item) => sum + item.weight, 0);
     if (!Number.isSafeInteger(signedWeight) || signedWeight !== currentWeight) {
-      throw new ChainError("provider_error", "TronLink current_weight disagrees with signature_progress");
+      throw new ChainError(
+        "provider_error",
+        "TronLink current_weight disagrees with signature_progress",
+      );
     }
     const signatures = transaction.signature?.length ?? 0;
     if (signatureProgress.filter((item) => item.signed).length !== signatures) {
-      throw new ChainError("provider_error", "TronLink signature_progress disagrees with transaction signatures");
+      throw new ChainError(
+        "provider_error",
+        "TronLink signature_progress disagrees with transaction signatures",
+      );
     }
 
     const createdAt = safeInteger(transaction.raw_data.timestamp, "transaction timestamp", 0);
@@ -316,15 +345,15 @@ export class TronMultisigCollaborationService {
       .map((entry) => entry.address);
     const approved = new Set(approval.approved.map((entry) => entry.address));
     if (
-      approval.txId !== remote.view.txId
-      || approval.contractType !== remote.view.contractType
-      || approval.currentWeight !== remote.view.currentWeight
-      || approval.permission.id !== remote.view.permission.id
-      || approval.permission.threshold !== remote.view.permission.threshold
-      || approval.signatures !== remote.view.signatures
-      || approval.expiration !== remote.view.expiration
-      || approved.size !== signedProgress.length
-      || signedProgress.some((address) => !approved.has(address))
+      approval.txId !== remote.view.txId ||
+      approval.contractType !== remote.view.contractType ||
+      approval.currentWeight !== remote.view.currentWeight ||
+      approval.permission.id !== remote.view.permission.id ||
+      approval.permission.threshold !== remote.view.permission.threshold ||
+      approval.signatures !== remote.view.signatures ||
+      approval.expiration !== remote.view.expiration ||
+      approved.size !== signedProgress.length ||
+      signedProgress.some((address) => !approved.has(address))
     ) {
       throw new ChainError(
         "provider_error",
@@ -391,8 +420,10 @@ function reason(error: unknown): string {
 }
 
 function isChainDisagreement(error: unknown): error is ChainError {
-  return error instanceof ChainError
-    && (error.code === "provider_error" || error.code === "not_authorized");
+  return (
+    error instanceof ChainError &&
+    (error.code === "provider_error" || error.code === "not_authorized")
+  );
 }
 
 /** Convert address fields to visible=true JSON, then prove that protobuf bytes are unchanged. */
@@ -401,7 +432,10 @@ function visibleTransaction(gateway: TronGateway, hex: string): TronTransactionA
   convertAddressFields(transaction);
   transaction.visible = true;
   if (gateway.encodeTransactionHex(transaction) !== hex.trim().replace(/^0x/i, "").toLowerCase()) {
-    throw new ChainError("provider_error", "visible transaction projection changed transaction bytes");
+    throw new ChainError(
+      "provider_error",
+      "visible transaction projection changed transaction bytes",
+    );
   }
   return transaction;
 }
@@ -428,9 +462,16 @@ function progress(value: unknown, addressCodec: TronAddress): TronLinkSignatureP
   const addresses = new Set<string>();
   return value.map((entry, index) => {
     const item = objectValue(entry, `signature_progress[${index}]`);
-    const address = normalizedAddress(item.address, `signature_progress[${index}].address`, addressCodec);
+    const address = normalizedAddress(
+      item.address,
+      `signature_progress[${index}].address`,
+      addressCodec,
+    );
     if (addresses.has(address)) {
-      throw new ChainError("provider_error", "TronLink signature_progress contains duplicate addresses");
+      throw new ChainError(
+        "provider_error",
+        "TronLink signature_progress contains duplicate addresses",
+      );
     }
     addresses.add(address);
     const weight = safeInteger(item.weight, `signature_progress[${index}].weight`, 1);

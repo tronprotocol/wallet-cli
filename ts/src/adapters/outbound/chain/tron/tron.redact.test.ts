@@ -22,7 +22,11 @@ describe("TronRpcClient error redaction (I-03)", () => {
   it("node-reject path redacts the decoded reject message", async () => {
     const client = new TronRpcClient("http://localhost:1", 200);
     client.tronweb.trx.sendRawTransaction = (() =>
-      Promise.resolve({ result: false, code: "SIGERROR", message: Buffer.from(SECRET_URL).toString("hex") })) as never;
+      Promise.resolve({
+        result: false,
+        code: "SIGERROR",
+        message: Buffer.from(SECRET_URL).toString("hex"),
+      })) as never;
 
     const err = await client.broadcast(SIGNED).catch((e) => e as Error);
     expect(err.message).toContain("TRON broadcast rejected:");

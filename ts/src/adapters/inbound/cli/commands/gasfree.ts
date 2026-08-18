@@ -9,9 +9,7 @@ export const gasFreeInfoSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   capability: "gasfree.info",
-  requires: [
-    "config gasfreeApiKey / gasfreeApiSecret",
-  ],
+  requires: ["config gasfreeApiKey / gasfreeApiSecret"],
   summary: "Show GasFree address, activation status, nonce, balances, and fees",
   description:
     "Show this account's GasFree address, activation status, nonce, supported tokens, balances, and current token-denominated fees.",
@@ -20,25 +18,30 @@ export const gasFreeInfoSpec: ChainSpec = {
   formatText: TextFormatters.gasFreeInfo,
 };
 
-export const gasFreeInfoTronBinding = (
-  service: GasFreeService,
-): FamilyBinding => ({
+export const gasFreeInfoTronBinding = (service: GasFreeService): FamilyBinding => ({
   run: async (context, network) => service.info(context, network),
 });
 
 const transferFields = z.object({
-  to: z.string().trim().min(1).max(128)
-    .describe("recipient TRON address or local contact name"),
-  amount: z.string().regex(/^\d+(\.\d+)?$/, "must be a positive decimal amount")
-    .refine(
-      (value) => !/^0+(\.0+)?$/.test(value),
-      "must be greater than zero",
-    )
+  to: z.string().trim().min(1).max(128).describe("recipient TRON address or local contact name"),
+  amount: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/, "must be a positive decimal amount")
+    .refine((value) => !/^0+(\.0+)?$/.test(value), "must be greater than zero")
     .describe("human token amount to transfer, in token units"),
-  token: z.string().trim().min(1).max(32).default("USDT")
+  token: z
+    .string()
+    .trim()
+    .min(1)
+    .max(32)
+    .default("USDT")
     .describe("token symbol supported by the GasFree provider"),
-  dryRun: z.boolean().default(false)
-    .describe("check token balance and the fee breakdown without unlocking, signing, or submitting"),
+  dryRun: z
+    .boolean()
+    .default(false)
+    .describe(
+      "check token balance and the fee breakdown without unlocking, signing, or submitting",
+    ),
 });
 
 export const gasFreeTransferSpec: ChainSpec = {
@@ -48,9 +51,7 @@ export const gasFreeTransferSpec: ChainSpec = {
   auth: "conditional",
   broadcasts: true,
   capability: "gasfree.transfer",
-  requires: [
-    "config gasfreeApiKey / gasfreeApiSecret",
-  ],
+  requires: ["config gasfreeApiKey / gasfreeApiSecret"],
   summary: "Sign and submit a TIP-712 GasFree token transfer",
   description:
     "Sign a GasFree PermitTransfer and submit it to the provider. No TRX is needed; --dry-run checks the token balance and fee breakdown without unlocking or signing.",
@@ -75,15 +76,16 @@ export const gasFreeTransferSpec: ChainSpec = {
   formatText: TextFormatters.gasFreeTransfer,
 };
 
-export const gasFreeTransferTronBinding = (
-  service: GasFreeService,
-): FamilyBinding => ({
-  run: async (context, network, input) =>
-    service.transfer(context, network, input),
+export const gasFreeTransferTronBinding = (service: GasFreeService): FamilyBinding => ({
+  run: async (context, network, input) => service.transfer(context, network, input),
 });
 
 const traceFields = z.object({
-  traceId: z.string().trim().min(1).max(128)
+  traceId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
     .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
     .describe("trace id returned by `gasfree transfer`"),
 });
@@ -94,9 +96,7 @@ export const gasFreeTraceSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "gasfree.trace",
-  requires: [
-    "config gasfreeApiKey / gasfreeApiSecret",
-  ],
+  requires: ["config gasfreeApiKey / gasfreeApiSecret"],
   positionals: [{ field: "traceId", placeholder: "traceId" }],
   summary: "Track a GasFree transfer by provider trace id",
   description:
@@ -110,9 +110,6 @@ export const gasFreeTraceSpec: ChainSpec = {
   formatText: TextFormatters.gasFreeTrace,
 };
 
-export const gasFreeTraceTronBinding = (
-  service: GasFreeService,
-): FamilyBinding => ({
-  run: async (_context, network, input) =>
-    service.trace(network, input.traceId),
+export const gasFreeTraceTronBinding = (service: GasFreeService): FamilyBinding => ({
+  run: async (_context, network, input) => service.trace(network, input.traceId),
 });

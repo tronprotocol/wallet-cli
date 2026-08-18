@@ -19,17 +19,15 @@ function service(opts: { tx?: TronTx | Error; info?: TronTxInfo }) {
     },
   } as unknown as TronGateway;
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
-  return new TronTransactionService(
-    gateways,
-    {} as never,
-    {} as never,
-    {} as never,
-  );
+  return new TronTransactionService(gateways, {} as never, {} as never, {} as never);
 }
 
 describe("TronTransactionService.status — four-state", () => {
   it("confirmed: node knows tx + block + SUCCESS receipt", async () => {
-    const s = await service({ tx: { txID: "abc" } as TronTx, info: { blockNumber: 42, receipt: { result: "SUCCESS" } } }).status(NET, "abc");
+    const s = await service({
+      tx: { txID: "abc" } as TronTx,
+      info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
+    }).status(NET, "abc");
     expect(s.state).toBe("confirmed");
     expect(s.confirmed).toBe(true);
     expect(s.failed).toBe(false);
@@ -37,7 +35,10 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("failed: has block but receipt result ≠ SUCCESS", async () => {
-    const s = await service({ tx: { txID: "abc" } as TronTx, info: { blockNumber: 42, receipt: { result: "REVERT" } } }).status(NET, "abc");
+    const s = await service({
+      tx: { txID: "abc" } as TronTx,
+      info: { blockNumber: 42, receipt: { result: "REVERT" } },
+    }).status(NET, "abc");
     expect(s.state).toBe("failed");
     expect(s.failed).toBe(true);
   });
@@ -50,7 +51,10 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("not_found: node throws Transaction not found and no info", async () => {
-    const s = await service({ tx: new Error("Transaction not found"), info: {} }).status(NET, "abc");
+    const s = await service({ tx: new Error("Transaction not found"), info: {} }).status(
+      NET,
+      "abc",
+    );
     expect(s.state).toBe("not_found");
     expect(s.confirmed).toBe(false);
   });

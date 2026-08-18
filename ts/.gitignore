@@ -5,3 +5,6 @@ dist/
 .env
 .private/
 docs/superpowers
+docs/qa
+docs/adr
+CONTEXT.md

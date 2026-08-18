@@ -29,7 +29,10 @@ export class TronPermissionService {
 
   async show(network: NetworkDescriptor, address: string): Promise<AccountPermissionsView> {
     const permissions = await this.gateways.get(network, "tron").getAccountPermissions(address);
-    return annotateLocalPermissionKeys(permissions, buildLocalPermissionInventory(this.accounts.list()));
+    return annotateLocalPermissionKeys(
+      permissions,
+      buildLocalPermissionInventory(this.accounts.list()),
+    );
   }
 
   async update(
@@ -86,7 +89,11 @@ export class TronPermissionService {
           ? undefined
           : "confirmed transaction permissions differ from the requested canonical structure";
       });
-    } else if (outcome.stage === "plan" || outcome.stage === "built" || outcome.stage === "signed") {
+    } else if (
+      outcome.stage === "plan" ||
+      outcome.stage === "built" ||
+      outcome.stage === "signed"
+    ) {
       resultPermissions = permissions;
     }
     return {

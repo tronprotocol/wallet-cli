@@ -1,13 +1,7 @@
 import type { ContactRepository } from "../ports/contact-repository.js";
-import type {
-  ChainFamily,
-  ResolvedRecipient,
-} from "../../domain/types/index.js";
+import type { ChainFamily, ResolvedRecipient } from "../../domain/types/index.js";
 import { TronAddress } from "../../domain/address/index.js";
-import {
-  contactNameKey,
-  resemblesTronAddress,
-} from "../../domain/contact/index.js";
+import { contactNameKey, resemblesTronAddress } from "../../domain/contact/index.js";
 import { UsageError } from "../../domain/errors/index.js";
 
 export class RecipientResolver {
@@ -29,10 +23,7 @@ export class RecipientResolver {
     }
     const entry = this.contacts.find(family, contactNameKey(value));
     if (!entry) {
-      throw new UsageError(
-        "contact_not_found",
-        `contact not found: ${value}`,
-      );
+      throw new UsageError("contact_not_found", `contact not found: ${value}`);
     }
     return { address: entry.address, contactName: entry.name };
   }

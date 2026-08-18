@@ -11,22 +11,24 @@ function deployment(overrides: Record<string, unknown> = {}) {
     raw_data_hex: "",
     contract_address: STALE,
     raw_data: {
-      contract: [{
-        type: "CreateSmartContract",
-        parameter: {
-          type_url: "type.googleapis.com/protocol.CreateSmartContract",
-          value: {
-            owner_address: OWNER,
-            new_contract: {
-              origin_address: OWNER,
-              abi: { entrys: [] },
-              bytecode: "6080604052",
-              consume_user_resource_percent: 100,
-              origin_energy_limit: 10_000_000,
+      contract: [
+        {
+          type: "CreateSmartContract",
+          parameter: {
+            type_url: "type.googleapis.com/protocol.CreateSmartContract",
+            value: {
+              owner_address: OWNER,
+              new_contract: {
+                origin_address: OWNER,
+                abi: { entrys: [] },
+                bytecode: "6080604052",
+                consume_user_resource_percent: 100,
+                origin_energy_limit: 10_000_000,
+              },
             },
           },
         },
-      }],
+      ],
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       timestamp: 1_900_000_000_000,
@@ -66,7 +68,8 @@ describe("refreshTransactionIdentity — deployment address", () => {
 
   it("refuses to derive an address when the owner is absent", () => {
     const broken = deployment();
-    delete (broken.raw_data.contract[0]!.parameter.value as { owner_address?: string }).owner_address;
+    delete (broken.raw_data.contract[0]!.parameter.value as { owner_address?: string })
+      .owner_address;
     expect(() => refreshTransactionIdentity(broken)).toThrowError(/owner_address/);
   });
 });

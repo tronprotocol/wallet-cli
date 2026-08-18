@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
-vi.mock("@noble/hashes/scrypt.js", async () =>
-  import("../../../adapters/outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
+vi.mock(
+  "@noble/hashes/scrypt.js",
+  async () =>
+    import("../../../adapters/outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -56,7 +58,11 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("assertCanSign with requireSoftware rejects a Ledger account (ledger_unsupported)", () => {
-    const ref = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: "Tledger1" }).accountId;
+    const ref = ks.registerLedger({
+      family: "tron",
+      path: "m/44'/195'/0'/0/0",
+      address: "Tledger1",
+    }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.assertCanSign(ref, "tron", { requireSoftware: true });
@@ -67,7 +73,11 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("assertCanSign without requireSoftware still allows a Ledger account", () => {
-    const ref = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: "Tledger2" }).accountId;
+    const ref = ks.registerLedger({
+      family: "tron",
+      path: "m/44'/195'/0'/0/0",
+      address: "Tledger2",
+    }).accountId;
     expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
   });
 });

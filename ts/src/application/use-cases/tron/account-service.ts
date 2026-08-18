@@ -1,4 +1,8 @@
-import type { ChainFamily, EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
+import type {
+  ChainFamily,
+  EffectiveTokenEntry,
+  NetworkDescriptor,
+} from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits } from "../../../domain/amounts/index.js";
@@ -81,10 +85,7 @@ export class TronAccountService {
     input: TransactionModeInput & { address: string },
   ) {
     if (!ADDRESS.validate(input.address)) {
-      throw new UsageError(
-        "invalid_value",
-        "--address must be a valid TRON address",
-      );
+      throw new UsageError("invalid_value", "--address must be a valid TRON address");
     }
     // The Ledger TRON app has no parser for AccountCreateContract (app-tron src/parse.c falls
     // through to `default: return USTREAM_FAULT`), so the device answers 0x6a80 — and no app
@@ -107,8 +108,8 @@ export class TronAccountService {
       gateway.getNativeBalance(payer),
     ]);
     if (
-      (mode.mode === "dry-run" || mode.mode === "broadcast")
-      && BigInt(balanceSun) < BigInt(fee.minimumFeeSun)
+      (mode.mode === "dry-run" || mode.mode === "broadcast") &&
+      BigInt(balanceSun) < BigInt(fee.minimumFeeSun)
     ) {
       throw new ChainError(
         "insufficient_balance",
@@ -149,12 +150,9 @@ export class TronAccountService {
     input: TransactionModeInput & { name?: string; id?: string },
   ) {
     if ((input.name === undefined) === (input.id === undefined)) {
-      throw new UsageError(
-        "invalid_option",
-        "provide exactly one of --name or --id",
-      );
+      throw new UsageError("invalid_option", "provide exactly one of --name or --id");
     }
-    const field = input.name !== undefined ? "name" as const : "id" as const;
+    const field = input.name !== undefined ? ("name" as const) : ("id" as const);
     // Same parser gap as `activate`, but only for --id: the app implements AccountUpdateContract
     // (--name) and not SetAccountIdContract, so the two fields differ in what a Ledger can sign.
     if (transactionRequiresSigner(input)) {
@@ -165,13 +163,9 @@ export class TronAccountService {
     const gateway = this.gateways.get(network, "tron");
     const account = await gateway.getAccount(address);
     if (!accountExists(account, address)) {
-      throw new ChainError(
-        "not_found",
-        `TRON account is not activated: ${address}`,
-      );
+      throw new ChainError("not_found", `TRON account is not activated: ${address}`);
     }
-    const current =
-      field === "name" ? account.account_name : account.account_id;
+    const current = field === "name" ? account.account_name : account.account_id;
     if (accountTextIsSet(current, field)) {
       throw new ChainError(
         field === "name" ? "name_already_set" : "id_already_set",
@@ -181,10 +175,7 @@ export class TronAccountService {
     if (field === "id") {
       const taken = await gateway.getAccountById(value);
       if (accountExists(taken)) {
-        throw new ChainError(
-          "id_taken",
-          `account id is already in use: ${value}`,
-        );
+        throw new ChainError("id_taken", `account id is already in use: ${value}`);
       }
     }
     const outcome = await this.pipeline.run({
@@ -207,8 +198,7 @@ export class TronAccountService {
     if (outcome.stage === "confirmed" && !outcome.failed) {
       await warnOnPostCheck(scope, "account_set_postcheck", async () => {
         const updated = await gateway.getAccount(address);
-        const raw =
-          field === "name" ? updated.account_name : updated.account_id;
+        const raw = field === "name" ? updated.account_name : updated.account_id;
         return decodeAccountText(raw, field) === value
           ? undefined
           : `confirmed account ${field} does not match the submitted value`;
@@ -270,15 +260,18 @@ export class TronAccountService {
       gateway.getNativeBalance(address),
       // per-token best-effort: one unreadable token (delisted, bad contract, RPC hiccup) must not
       // sink the whole portfolio — degrade that row to balanceUnavailable instead.
-      Promise.all(tokens.map((token) =>
-        (token.kind === "trc10"
-          ? gateway.getTrc10Balance(token.id, address)
-          : gateway.getTrc20Balance(token.id, address)
-        ).then((raw) => ({ raw }) as const)
-          // best-effort: swallow the raw downstream error (may carry endpoint/key) — degrade to a
-          // stable reason instead of leaking it into the success payload (audit I-06).
-          .catch(() => ({ unavailable: true }) as const),
-      )),
+      Promise.all(
+        tokens.map((token) =>
+          (token.kind === "trc10"
+            ? gateway.getTrc10Balance(token.id, address)
+            : gateway.getTrc20Balance(token.id, address)
+          )
+            .then((raw) => ({ raw }) as const)
+            // best-effort: swallow the raw downstream error (may carry endpoint/key) — degrade to a
+            // stable reason instead of leaking it into the success payload (audit I-06).
+            .catch(() => ({ unavailable: true }) as const),
+        ),
+      ),
     ]);
 
     let priceUnavailable = false;
@@ -311,7 +304,7 @@ export class TronAccountService {
           token.symbol,
           token.decimals,
           result.raw,
-          token.kind === "trc20" ? tokenPrices.get(token.id) ?? null : null,
+          token.kind === "trc20" ? (tokenPrices.get(token.id) ?? null) : null,
           extra,
         );
       }),
@@ -335,18 +328,15 @@ async function accountCreateFee(gateway: TronGateway) {
   const parameters = await gateway.getChainParameters();
   const find = (key: string): bigint => {
     const value = parameters.find((entry) => entry.key === key)?.value;
-    if (!Number.isSafeInteger(value) || value! < 0) {
-      throw new ChainError(
-        "provider_error",
-        `chain parameter is unavailable: ${key}`,
-      );
+    // `value` is typed `string | number` since the gateway port widened; isSafeInteger already
+    // rejects every non-number, so Number() here is a cast for the compiler, not a behaviour change.
+    if (!Number.isSafeInteger(value) || Number(value) < 0) {
+      throw new ChainError("provider_error", `chain parameter is unavailable: ${key}`);
     }
     return BigInt(value!);
   };
   const createAccountFeeSun = find("getCreateAccountFee");
-  const systemContractFeeSun = find(
-    "getCreateNewAccountFeeInSystemContract",
-  );
+  const systemContractFeeSun = find("getCreateNewAccountFeeInSystemContract");
   return {
     feeModel: "tron-resource" as const,
     createAccountFeeSun: createAccountFeeSun.toString(),
@@ -358,11 +348,7 @@ async function accountCreateFee(gateway: TronGateway) {
 function validateAccountText(field: "name" | "id", input: string): string {
   const bytes = Buffer.byteLength(input, "utf8");
   const minimum = field === "id" ? 8 : 1;
-  if (
-    bytes < minimum
-    || bytes > 32
-    || /[\p{Cc}\p{Cf}]/u.test(input)
-  ) {
+  if (bytes < minimum || bytes > 32 || /[\p{Cc}\p{Cf}]/u.test(input)) {
     throw new UsageError(
       "invalid_value",
       field === "id"
@@ -377,17 +363,11 @@ function accountExists(account: TronAccount, expected?: string): boolean {
   const raw = account.address;
   if (raw === undefined || raw === null || raw === "") return false;
   if (typeof raw !== "string") {
-    throw new ChainError(
-      "provider_error",
-      "TRON node returned a malformed account address",
-    );
+    throw new ChainError("provider_error", "TRON node returned a malformed account address");
   }
   const normalized = tronHexToBase58(raw);
   if (!ADDRESS.validate(normalized)) {
-    throw new ChainError(
-      "provider_error",
-      "TRON node returned an invalid account address",
-    );
+    throw new ChainError("provider_error", "TRON node returned an invalid account address");
   }
   if (expected !== undefined && normalized !== expected) {
     throw new ChainError(
@@ -398,40 +378,22 @@ function accountExists(account: TronAccount, expected?: string): boolean {
   return true;
 }
 
-function accountTextIsSet(
-  value: unknown,
-  field: "name" | "id",
-): boolean {
+function accountTextIsSet(value: unknown, field: "name" | "id"): boolean {
   if (value === undefined || value === null || value === "") return false;
   if (typeof value !== "string") {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned malformed account_${field}`,
-    );
+    throw new ChainError("provider_error", `TRON node returned malformed account_${field}`);
   }
   return true;
 }
 
-function decodeAccountText(
-  value: unknown,
-  field: "name" | "id",
-): string | undefined {
+function decodeAccountText(value: unknown, field: "name" | "id"): string | undefined {
   if (value === undefined || value === null || value === "") return undefined;
-  if (
-    typeof value !== "string"
-    || !/^(?:[0-9a-fA-F]{2})+$/.test(value)
-  ) {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned malformed account_${field}`,
-    );
+  if (typeof value !== "string" || !/^(?:[0-9a-fA-F]{2})+$/.test(value)) {
+    throw new ChainError("provider_error", `TRON node returned malformed account_${field}`);
   }
   const decoded = Buffer.from(value, "hex").toString("utf8");
   if (Buffer.from(decoded, "utf8").toString("hex") !== value.toLowerCase()) {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned invalid UTF-8 account_${field}`,
-    );
+    throw new ChainError("provider_error", `TRON node returned invalid UTF-8 account_${field}`);
   }
   return decoded;
 }

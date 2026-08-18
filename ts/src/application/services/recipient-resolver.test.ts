@@ -7,15 +7,16 @@ const ALICE = "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT";
 
 describe("RecipientResolver", () => {
   const repository = {
-    find: (_family: string, key: string) => key === "alice"
-      ? {
-          family: "tron",
-          name: "Alice",
-          nameKey: "alice",
-          address: ALICE,
-          note: null,
-        }
-      : undefined,
+    find: (_family: string, key: string) =>
+      key === "alice"
+        ? {
+            family: "tron",
+            name: "Alice",
+            nameKey: "alice",
+            address: ALICE,
+            note: null,
+          }
+        : undefined,
   } as ContactRepository;
   const resolver = new RecipientResolver(repository);
 
@@ -28,9 +29,9 @@ describe("RecipientResolver", () => {
   });
 
   it("never falls back to a contact for a mistyped address-shaped value", () => {
-    expect(() =>
-      resolver.resolve("tron", "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")
-    ).toThrow(/checksum/);
+    expect(() => resolver.resolve("tron", "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")).toThrow(
+      /checksum/,
+    );
   });
 
   it("returns a stable contact_not_found error for an unknown name", () => {

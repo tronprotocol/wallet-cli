@@ -37,26 +37,31 @@ const REJECT_NO_RESULT_FIELD = {
 describe("TronRpcClient broadcast guard — node rejection must never read as accepted", () => {
   it("broadcast throws when the node rejects without a `result` field", async () => {
     const client = new TronRpcClient("http://localhost:1", 200);
-    client.tronweb.trx.sendRawTransaction = (() => Promise.resolve(REJECT_NO_RESULT_FIELD)) as never;
+    client.tronweb.trx.sendRawTransaction = (() =>
+      Promise.resolve(REJECT_NO_RESULT_FIELD)) as never;
 
     await expect(client.broadcast(SIGNED)).rejects.toMatchObject({ code: "transaction_rejected" });
   });
 
   it("broadcastHex throws when the node rejects without a `result` field", async () => {
     const client = new TronRpcClient("http://localhost:1", 200);
-    client.tronweb.trx.sendHexTransaction = (() => Promise.resolve(REJECT_NO_RESULT_FIELD)) as never;
+    client.tronweb.trx.sendHexTransaction = (() =>
+      Promise.resolve(REJECT_NO_RESULT_FIELD)) as never;
 
-    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({ code: "transaction_rejected" });
+    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+      code: "transaction_rejected",
+    });
   });
 
   // The guard is a white-list, so the failure mode it introduces is over-rejection. Both accepted
   // shapes are pinned here; note they differ (the hex endpoint also returns code:"SUCCESS").
   it("broadcast accepts the captured {result:true, txid} response", async () => {
     const client = new TronRpcClient("http://localhost:1", 200);
-    client.tronweb.trx.sendRawTransaction = (() => Promise.resolve({
-      result: true,
-      txid: "0d10b8f45a67f953034721ec7108721d17964a83a60a501c45db868816762431",
-    })) as never;
+    client.tronweb.trx.sendRawTransaction = (() =>
+      Promise.resolve({
+        result: true,
+        txid: "0d10b8f45a67f953034721ec7108721d17964a83a60a501c45db868816762431",
+      })) as never;
 
     await expect(client.broadcast(SIGNED)).resolves.toEqual({
       txId: "0d10b8f45a67f953034721ec7108721d17964a83a60a501c45db868816762431",
@@ -65,12 +70,13 @@ describe("TronRpcClient broadcast guard — node rejection must never read as ac
 
   it("broadcastHex accepts the captured {result:true, code:'SUCCESS', txid} response", async () => {
     const client = new TronRpcClient("http://localhost:1", 200);
-    client.tronweb.trx.sendHexTransaction = (() => Promise.resolve({
-      result: true,
-      code: "SUCCESS",
-      message: "",
-      txid: "1ca0b2a5bb7f39546c696f04de6a4ebac9e14b45deca9d9244d3e0fdba9144b3",
-    })) as never;
+    client.tronweb.trx.sendHexTransaction = (() =>
+      Promise.resolve({
+        result: true,
+        code: "SUCCESS",
+        message: "",
+        txid: "1ca0b2a5bb7f39546c696f04de6a4ebac9e14b45deca9d9244d3e0fdba9144b3",
+      })) as never;
 
     await expect(client.broadcastHex(SIGNED_HEX)).resolves.toEqual({
       txId: "1ca0b2a5bb7f39546c696f04de6a4ebac9e14b45deca9d9244d3e0fdba9144b3",

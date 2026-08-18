@@ -18,7 +18,9 @@ const NATIVE_TX = {
     contract: [
       {
         type: "TransferContract",
-        parameter: { value: { owner_address: "41a0...", to_address: "41b0...", amount: 1_000_000 } },
+        parameter: {
+          value: { owner_address: "41a0...", to_address: "41b0...", amount: 1_000_000 },
+        },
       },
     ],
     timestamp: 1_700_000_000_000,

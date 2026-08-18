@@ -38,7 +38,9 @@ export function accountRef(walletId: string, index: number | null): AccountRef {
 /** known account indices of a source — seed only (privateKey/ledger have none). */
 export function accountIndices(source: Source): number[] {
   if (source.type !== "seed") return [];
-  return Object.keys(source.addresses).map(Number).sort((a, b) => a - b);
+  return Object.keys(source.addresses)
+    .map(Number)
+    .sort((a, b) => a - b);
 }
 
 /**
@@ -84,7 +86,9 @@ export function decodeVault(plaintext: Bytes): { entropy: Bytes; passphrase?: st
 export function deriveSeedAddresses(seed: Bytes, index: number): ChainAddresses {
   const out = {} as Record<ChainFamily, string>;
   for (const f of CHAIN_FAMILIES) {
-    out[f] = addressCodec(f).fromPublicKey(Derivation.derive(seed, Derivation.path(f, index)).publicKey);
+    out[f] = addressCodec(f).fromPublicKey(
+      Derivation.derive(seed, Derivation.path(f, index)).publicKey,
+    );
   }
   return out;
 }
@@ -96,7 +100,9 @@ export function derivePrivAddresses(pk: Bytes): ChainAddresses {
 }
 
 /** (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk. */
-export function enumerateAddresses(w: Wallet): Array<{ index: number | null; addr: Partial<ChainAddresses> }> {
+export function enumerateAddresses(
+  w: Wallet,
+): Array<{ index: number | null; addr: Partial<ChainAddresses> }> {
   const s = w.source;
   if (s.type === "seed") {
     return accountIndices(s).map((i) => ({ index: i, addr: s.addresses[String(i)]! }));

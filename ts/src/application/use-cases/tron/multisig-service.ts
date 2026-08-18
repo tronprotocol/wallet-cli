@@ -10,17 +10,14 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import { stageTronBroadcast } from "../../services/tron-confirmation.js";
+import { localTxId } from "../../services/broadcast-identity.js";
 import type { TronSigService } from "./sig-service.js";
 import {
   assertThresholdReached,
   assertTronSignerAuthorized,
   authorizationState,
 } from "./multisig-authorization.js";
-import {
-  assertNotExpired,
-  expirationOf,
-  transactionContract,
-} from "./transaction-artifact.js";
+import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
 
 export class TronMultisigService {
   constructor(
@@ -48,7 +45,10 @@ export class TronMultisigService {
     const approval = await this.#approvalFor(gateway, gateway.decodeTransactionHex(signed.hex));
     const approvedSigner = approval.approved.find((approved) => approved.address === signed.signer);
     if (!approvedSigner) {
-      throw new ChainError("signing_rejected", "node did not recognize the newly appended signature");
+      throw new ChainError(
+        "signing_rejected",
+        "node did not recognize the newly appended signature",
+      );
     }
     return {
       ...signed,
@@ -58,18 +58,28 @@ export class TronMultisigService {
     };
   }
 
-  async broadcastHex(scope: TransactionScope, network: NetworkDescriptor, hex: string, dryRun: boolean) {
+  async broadcastHex(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    hex: string,
+    dryRun: boolean,
+  ) {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(hex);
     const approval = await this.#assertBroadcastable(gateway, transaction);
     const multiSignFeeSun = approval.signatures > 1 ? await gateway.getMultiSignFee() : 0;
     if (dryRun) {
-      return { kind: "broadcast" as const, mode: "dry-run" as const, transaction: approval, multiSignFeeSun };
+      return {
+        kind: "broadcast" as const,
+        mode: "dry-run" as const,
+        transaction: approval,
+        multiSignFeeSun,
+      };
     }
     const result = await gateway.broadcastHex(hex);
     return {
       kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result)),
+      ...(await stageTronBroadcast(gateway, scope, result, localTxId(transaction))),
       transaction: approval,
       multiSignFeeSun,
     };
@@ -92,7 +102,10 @@ export class TronMultisigService {
     return approval;
   }
 
-  async #approvalFor(gateway: TronGateway, transaction: TronTransactionArtifact): Promise<TxApprovalView> {
+  async #approvalFor(
+    gateway: TronGateway,
+    transaction: TronTransactionArtifact,
+  ): Promise<TxApprovalView> {
     const { weight, approved, permission } = await authorizationState(gateway, transaction);
     const expiration = expirationOf(transaction);
     const contractType = transactionContract(transaction).type;

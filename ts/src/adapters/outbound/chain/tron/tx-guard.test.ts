@@ -17,7 +17,9 @@ describe("assertBuiltTx — locally-built transaction tripwire", () => {
   });
 
   it("rejects a transaction that carries more than one contract", () => {
-    const tx = { raw_data: { contract: [{ type: "TransferContract" }, { type: "TransferContract" }] } };
+    const tx = {
+      raw_data: { contract: [{ type: "TransferContract" }, { type: "TransferContract" }] },
+    };
     expectReject(() => assertBuiltTx(tx, "TransferContract"));
   });
 

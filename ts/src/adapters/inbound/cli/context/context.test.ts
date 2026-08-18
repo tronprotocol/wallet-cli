@@ -7,7 +7,12 @@ import type { Globals } from "../contracts/index.js";
 function ctxWith(output: "text" | "json", overrides: Partial<Globals> = {}) {
   const out: string[] = [];
   const err: string[] = [];
-  const sm = new StreamManager(output, false, (s) => out.push(s), (s) => err.push(s));
+  const sm = new StreamManager(
+    output,
+    false,
+    (s) => out.push(s),
+    (s) => err.push(s),
+  );
   const formatter = createOutputFormatter(output, sm, 0);
   const globals = { output, verbose: false, ...overrides } as Globals;
   // only streams + formatter are exercised by emit(); the rest is lazily used elsewhere.

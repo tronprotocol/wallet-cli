@@ -4,7 +4,13 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-const net = { id: "tron:nile", family: "tron", chainId: "nile", aliases: [], capabilities: [] } as NetworkDescriptor;
+const net = {
+  id: "tron:nile",
+  family: "tron",
+  chainId: "nile",
+  aliases: [],
+  capabilities: [],
+} as NetworkDescriptor;
 const OWNER = "TQkDWJimyBEhkFcqEfCWNbb6tMDwmH1234";
 const scope = { activeAccount: {}, resolveAddress: () => OWNER } as never;
 

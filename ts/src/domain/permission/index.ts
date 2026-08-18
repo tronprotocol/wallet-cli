@@ -28,10 +28,18 @@ export const TRON_OPERATIONS: readonly TronOperation[] = Object.freeze([
   { contractTypeId: 2, contractType: "TransferAssetContract", label: "Transfer TRC10" },
   { contractTypeId: 3, contractType: "VoteAssetContract", label: "Vote for TRC10 [unused]" },
   { contractTypeId: 4, contractType: "VoteWitnessContract", label: "Vote" },
-  { contractTypeId: 5, contractType: "WitnessCreateContract", label: "Apply to Become a SR Candidate" },
+  {
+    contractTypeId: 5,
+    contractType: "WitnessCreateContract",
+    label: "Apply to Become a SR Candidate",
+  },
   { contractTypeId: 6, contractType: "AssetIssueContract", label: "Issue TRC10" },
   { contractTypeId: 8, contractType: "WitnessUpdateContract", label: "Update SR Info" },
-  { contractTypeId: 9, contractType: "ParticipateAssetIssueContract", label: "Participate in TRC10 Issuance" },
+  {
+    contractTypeId: 9,
+    contractType: "ParticipateAssetIssueContract",
+    label: "Participate in TRC10 Issuance",
+  },
   { contractTypeId: 10, contractType: "AccountUpdateContract", label: "Update Account Name" },
   { contractTypeId: 11, contractType: "FreezeBalanceContract", label: "TRX Stake (1.0)" },
   { contractTypeId: 12, contractType: "UnfreezeBalanceContract", label: "TRX Unstake (1.0)" },
@@ -46,28 +54,68 @@ export const TRON_OPERATIONS: readonly TronOperation[] = Object.freeze([
   { contractTypeId: 30, contractType: "CreateSmartContract", label: "Create Smart Contract" },
   { contractTypeId: 31, contractType: "TriggerSmartContract", label: "Trigger Smart Contract" },
   { contractTypeId: 32, contractType: "GetContract", label: "Get Contract" },
-  { contractTypeId: 33, contractType: "UpdateSettingContract", label: "Update Contract Parameters" },
-  { contractTypeId: 41, contractType: "ExchangeCreateContract", label: "Create Bancor Transaction" },
-  { contractTypeId: 42, contractType: "ExchangeInjectContract", label: "Inject Assets into Bancor Transaction" },
-  { contractTypeId: 43, contractType: "ExchangeWithdrawContract", label: "Withdraw Assets from Bancor Transaction" },
-  { contractTypeId: 44, contractType: "ExchangeTransactionContract", label: "Execute Bancor Transaction" },
-  { contractTypeId: 45, contractType: "UpdateEnergyLimitContract", label: "Update Contract Energy Limit" },
-  { contractTypeId: 46, contractType: "AccountPermissionUpdateContract", label: "Update Account Permissions" },
+  {
+    contractTypeId: 33,
+    contractType: "UpdateSettingContract",
+    label: "Update Contract Parameters",
+  },
+  {
+    contractTypeId: 41,
+    contractType: "ExchangeCreateContract",
+    label: "Create Bancor Transaction",
+  },
+  {
+    contractTypeId: 42,
+    contractType: "ExchangeInjectContract",
+    label: "Inject Assets into Bancor Transaction",
+  },
+  {
+    contractTypeId: 43,
+    contractType: "ExchangeWithdrawContract",
+    label: "Withdraw Assets from Bancor Transaction",
+  },
+  {
+    contractTypeId: 44,
+    contractType: "ExchangeTransactionContract",
+    label: "Execute Bancor Transaction",
+  },
+  {
+    contractTypeId: 45,
+    contractType: "UpdateEnergyLimitContract",
+    label: "Update Contract Energy Limit",
+  },
+  {
+    contractTypeId: 46,
+    contractType: "AccountPermissionUpdateContract",
+    label: "Update Account Permissions",
+  },
   { contractTypeId: 48, contractType: "ClearABIContract", label: "Clear Contract ABI" },
-  { contractTypeId: 49, contractType: "UpdateBrokerageContract", label: "Update SR Commission Ratio" },
+  {
+    contractTypeId: 49,
+    contractType: "UpdateBrokerageContract",
+    label: "Update SR Commission Ratio",
+  },
   { contractTypeId: 51, contractType: "ShieldedTransferContract", label: "Shielded Transfer" },
   { contractTypeId: 52, contractType: "MarketSellAssetContract", label: "Market Sell Asset" },
   { contractTypeId: 53, contractType: "MarketCancelOrderContract", label: "Market Cancel Order" },
   { contractTypeId: 54, contractType: "FreezeBalanceV2Contract", label: "TRX Stake (2.0)" },
   { contractTypeId: 55, contractType: "UnfreezeBalanceV2Contract", label: "TRX Unstake (2.0)" },
-  { contractTypeId: 56, contractType: "WithdrawExpireUnfreezeContract", label: "Withdraw Unstaked TRX" },
+  {
+    contractTypeId: 56,
+    contractType: "WithdrawExpireUnfreezeContract",
+    label: "Withdraw Unstaked TRX",
+  },
   { contractTypeId: 57, contractType: "DelegateResourceContract", label: "Delegate Resources" },
   { contractTypeId: 58, contractType: "UnDelegateResourceContract", label: "Reclaim Resources" },
   { contractTypeId: 59, contractType: "CancelAllUnfreezeV2Contract", label: "Cancel Unstake" },
 ]);
 
-const operationByType = new Map(TRON_OPERATIONS.map((operation) => [operation.contractType, operation]));
-const operationById = new Map(TRON_OPERATIONS.map((operation) => [operation.contractTypeId, operation]));
+const operationByType = new Map(
+  TRON_OPERATIONS.map((operation) => [operation.contractType, operation]),
+);
+const operationById = new Map(
+  TRON_OPERATIONS.map((operation) => [operation.contractTypeId, operation]),
+);
 
 function invalidPermission(message: string, details?: object): never {
   throw new UsageError("invalid_permission", message, details);
@@ -89,7 +137,11 @@ function safePositiveInteger(value: unknown, field: string): number {
     text = value.toString();
   } else if (typeof value === "string" && /^(?:0|[1-9][0-9]*)$/.test(value)) {
     text = value;
-  } else if (value && typeof value === "object" && typeof (value as { toString?: unknown }).toString === "function") {
+  } else if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as { toString?: unknown }).toString === "function"
+  ) {
     text = String(value);
   } else {
     return invalidPermission(`${field} must be an integer`);
@@ -111,19 +163,23 @@ function exactInteger(value: unknown, expected: number, field: string): number {
 
 function permissionName(value: unknown, fallback: string, field: string): string {
   const name = value === undefined ? fallback : value;
-  if (typeof name !== "string" || name.length === 0) return invalidPermission(`${field} must not be empty`);
+  if (typeof name !== "string" || name.length === 0)
+    return invalidPermission(`${field} must not be empty`);
   if (Buffer.byteLength(name, "utf8") > MAX_PERMISSION_NAME_BYTES) {
     return invalidPermission(`${field} must be at most ${MAX_PERMISSION_NAME_BYTES} UTF-8 bytes`);
   }
-  if (/\p{Cc}/u.test(name)) return invalidPermission(`${field} must not contain control characters`);
+  if (/\p{Cc}/u.test(name))
+    return invalidPermission(`${field} must not contain control characters`);
   return name;
 }
 
 function keys(value: unknown, field: string, exactCount?: number): PermissionKeyView[] {
-  if (!Array.isArray(value)
-    || value.length < 1
-    || value.length > MAX_KEYS
-    || (exactCount !== undefined && value.length !== exactCount)) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > MAX_KEYS ||
+    (exactCount !== undefined && value.length !== exactCount)
+  ) {
     return invalidPermission(
       exactCount === undefined
         ? `${field} must contain 1 to ${MAX_KEYS} keys`
@@ -154,7 +210,8 @@ function group(value: unknown, kind: "owner" | "witness", expectedId: 0 | 1): Pe
   const parsedKeys = keys(input.keys, `${kind}.keys`, kind === "witness" ? 1 : undefined);
   const threshold = safePositiveInteger(input.threshold, `${kind}.threshold`);
   const total = parsedKeys.reduce((sum, key) => sum + BigInt(key.weight), 0n);
-  if (BigInt(threshold) > total) return invalidPermission(`${kind}.threshold exceeds the total key weight`);
+  if (BigInt(threshold) > total)
+    return invalidPermission(`${kind}.threshold exceeds the total key weight`);
   return {
     id: exactInteger(input.id, expectedId, `${kind}.id`),
     name: permissionName(input.name, kind, `${kind}.name`),
@@ -199,7 +256,8 @@ export function encodeOperations(contractTypes: readonly string[]): string {
   const bytes = Buffer.alloc(OPERATIONS_BYTES);
   const seen = new Set<string>();
   for (const contractType of contractTypes) {
-    if (typeof contractType !== "string") return invalidPermission("active.operations entries must be strings");
+    if (typeof contractType !== "string")
+      return invalidPermission("active.operations entries must be strings");
     if (seen.has(contractType)) continue;
     seen.add(contractType);
     const operation = operationByType.get(contractType);
@@ -214,7 +272,11 @@ function isEmptyUnknownList(value: unknown): boolean {
 }
 
 /** Require unnamed bitmap bits to be declared verbatim, so no set bit escapes human review. */
-function assertDeclaredUnknownOperations(value: unknown, actual: readonly number[], index: number): void {
+function assertDeclaredUnknownOperations(
+  value: unknown,
+  actual: readonly number[],
+  index: number,
+): void {
   const field = `actives[${index}].unknownOperationIds`;
   if (value === undefined) {
     if (actual.length === 0) return;
@@ -222,7 +284,10 @@ function assertDeclaredUnknownOperations(value: unknown, actual: readonly number
       `${field} must declare the unnamed contract types set in operationsHex: ${actual.join(", ")}`,
     );
   }
-  if (!Array.isArray(value) || value.some((id) => typeof id !== "number" || !Number.isSafeInteger(id))) {
+  if (
+    !Array.isArray(value) ||
+    value.some((id) => typeof id !== "number" || !Number.isSafeInteger(id))
+  ) {
     return invalidPermission(`${field} must be an array of integers`);
   }
   const declaredIds = value as number[];
@@ -230,7 +295,10 @@ function assertDeclaredUnknownOperations(value: unknown, actual: readonly number
     return invalidPermission(`${field} must not contain duplicate contract type ids`);
   }
   const declared = [...declaredIds].sort((a, b) => a - b);
-  if (declared.length !== actual.length || declared.some((id, position) => id !== actual[position])) {
+  if (
+    declared.length !== actual.length ||
+    declared.some((id, position) => id !== actual[position])
+  ) {
     return invalidPermission(
       `${field} does not match operationsHex: declared ${declared.join(", ") || "none"}, bitmap sets ${actual.join(", ") || "none"}`,
     );
@@ -239,7 +307,12 @@ function assertDeclaredUnknownOperations(value: unknown, actual: readonly number
 
 function activeGroup(value: unknown, index: number): ActivePermissionView {
   const input = ownRecord(value, `actives[${index}]`);
-  if (typeof input.id !== "number" || !Number.isSafeInteger(input.id) || input.id < 2 || input.id > 9) {
+  if (
+    typeof input.id !== "number" ||
+    !Number.isSafeInteger(input.id) ||
+    input.id < 2 ||
+    input.id > 9
+  ) {
     return invalidPermission(`actives[${index}].id must be an integer from 2 to 9`);
   }
   if (!Array.isArray(input.operations)) {
@@ -248,9 +321,10 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
   const declaredOperations = input.operations as string[];
   // A node may set bits for contract types this build has no name for. Those bits are real
   // permission scope, so `operations` alone cannot describe the bitmap — hence the empty-list case.
-  const encodedKnownOperations = declaredOperations.length === 0
-    ? "00".repeat(OPERATIONS_BYTES)
-    : encodeOperations(declaredOperations);
+  const encodedKnownOperations =
+    declaredOperations.length === 0
+      ? "00".repeat(OPERATIONS_BYTES)
+      : encodeOperations(declaredOperations);
   let operationsHex = encodedKnownOperations;
   if (input.operationsHex !== undefined) {
     if (typeof input.operationsHex !== "string") {
@@ -259,12 +333,14 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
     const supplied = decodeOperations(input.operationsHex);
     const known = decodeOperations(encodedKnownOperations);
     if (
-      supplied.operations.length !== known.operations.length
-      || supplied.operations.some((operation, operationIndex) => operation !== known.operations[operationIndex])
+      supplied.operations.length !== known.operations.length ||
+      supplied.operations.some(
+        (operation, operationIndex) => operation !== known.operations[operationIndex],
+      )
     ) {
       return invalidPermission(
-        `actives[${index}].operationsHex does not match operations; remove operationsHex to regenerate `
-        + "it from operations, or edit both together",
+        `actives[${index}].operationsHex does not match operations; remove operationsHex to regenerate ` +
+          "it from operations, or edit both together",
       );
     }
     // Every set bit must be declared somewhere a reviewer can read: named types in `operations`,
@@ -276,7 +352,10 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
     // produces — so it needs no bitmap to justify it. `permission show` always emits the field, and
     // demanding operationsHex alongside an empty list blocked the documented show/edit/update round
     // trip. Only a non-empty list still requires the bitmap it was read from.
-  } else if (input.unknownOperationIds !== undefined && !isEmptyUnknownList(input.unknownOperationIds)) {
+  } else if (
+    input.unknownOperationIds !== undefined &&
+    !isEmptyUnknownList(input.unknownOperationIds)
+  ) {
     return invalidPermission(
       `actives[${index}].unknownOperationIds requires operationsHex — operations cannot express unnamed contract types`,
     );
@@ -304,9 +383,16 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
 }
 
 /** Strictly validate and canonicalize the complete replacement structure. */
-export function validatePermissionStructure(value: unknown, expectedAddress?: string): AccountPermissionsView {
+export function validatePermissionStructure(
+  value: unknown,
+  expectedAddress?: string,
+): AccountPermissionsView {
   const input = ownRecord(value, "permission structure");
-  if (expectedAddress !== undefined && input.address !== undefined && input.address !== expectedAddress) {
+  if (
+    expectedAddress !== undefined &&
+    input.address !== undefined &&
+    input.address !== expectedAddress
+  ) {
     return invalidPermission("permission structure address does not match the selected account");
   }
   const address = expectedAddress ?? input.address;
@@ -314,9 +400,10 @@ export function validatePermissionStructure(value: unknown, expectedAddress?: st
     return invalidPermission("permission structure address is not a valid TRON address");
   }
   const owner = group(input.owner, "owner", 0);
-  const witness = input.witness === undefined || input.witness === null
-    ? null
-    : group(input.witness, "witness", 1);
+  const witness =
+    input.witness === undefined || input.witness === null
+      ? null
+      : group(input.witness, "witness", 1);
   const activeInput = input.actives ?? [];
   if (!Array.isArray(activeInput) || activeInput.length > MAX_ACTIVES) {
     return invalidPermission(`actives must contain at most ${MAX_ACTIVES} permission groups`);
@@ -333,7 +420,9 @@ export function validatePermissionStructure(value: unknown, expectedAddress?: st
 export type LocalPermissionInventory = ReadonlyMap<string, string>;
 
 /** Watch-only accounts are excluded because they cannot contribute a signature. */
-export function buildLocalPermissionInventory(accounts: readonly AccountDescriptor[]): LocalPermissionInventory {
+export function buildLocalPermissionInventory(
+  accounts: readonly AccountDescriptor[],
+): LocalPermissionInventory {
   const inventory = new Map<string, string>();
   for (const account of accounts) {
     if (account.type === "watch") continue;
@@ -365,14 +454,15 @@ export function permissionSafetyWarnings(
   inventory: LocalPermissionInventory,
 ): WarningView[] {
   const localOwnerWeight = permissions.owner.keys.reduce(
-    (sum, key) => inventory.has(key.address) ? sum + key.weight : sum,
+    (sum, key) => (inventory.has(key.address) ? sum + key.weight : sum),
     0,
   );
   const warnings: WarningView[] = [];
   if (localOwnerWeight === 0) {
     warnings.push({
       code: "owner_lockout",
-      message: "local signing keys hold no owner weight; applying this structure may permanently lock out this wallet",
+      message:
+        "local signing keys hold no owner weight; applying this structure may permanently lock out this wallet",
     });
   } else if (localOwnerWeight < permissions.owner.threshold) {
     warnings.push({

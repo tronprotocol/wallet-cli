@@ -38,7 +38,8 @@ export async function resolveLedgerPath(
     const limit = locator.scanLimit ?? DEFAULT_SCAN_LIMIT;
     for (let index = 0; index < limit; index++) {
       const path = Derivation.path(family, index);
-      if (await ledger.getAddress(family, path, { display: false }) === locator.address) return path;
+      if ((await ledger.getAddress(family, path, { display: false })) === locator.address)
+        return path;
     }
     throw new WalletError(
       "ledger_address_not_found",

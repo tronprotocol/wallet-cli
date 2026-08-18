@@ -2,7 +2,10 @@ import { ExecutionError } from "../../../../domain/errors/index.js";
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import type {
-  TronHistoryQuery, TronHistoryReader as HistoryPort, TronHistoryResult, } from "../../../../application/ports/chain/tron-history-reader.js";
+  TronHistoryQuery,
+  TronHistoryReader as HistoryPort,
+  TronHistoryResult,
+} from "../../../../application/ports/chain/tron-history-reader.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 export class TronGridHistoryReader implements HistoryPort {
@@ -15,7 +18,10 @@ export class TronGridHistoryReader implements HistoryPort {
   ): Promise<TronHistoryResult> {
     const endpoint = network.httpEndpoint;
     if (!endpoint) {
-      throw new ExecutionError("history_not_supported", "this network has no httpEndpoint configured");
+      throw new ExecutionError(
+        "history_not_supported",
+        "this network has no httpEndpoint configured",
+      );
     }
     const resource = query.only === "token" ? "transactions/trc20" : "transactions";
     const url = `${endpoint.replace(/\/$/, "")}/v1/accounts/${address}/${resource}?limit=${query.limit}&visible=true`;
@@ -34,7 +40,7 @@ export class TronGridHistoryReader implements HistoryPort {
         `account history is not supported on this endpoint (HTTP ${response.status})`,
       );
     }
-    const body = await response.json() as { data?: unknown[] };
+    const body = (await response.json()) as { data?: unknown[] };
     const records = (body.data ?? []).map((record) => this.normalize(record, address));
     return {
       address,
@@ -72,9 +78,7 @@ export class TronGridHistoryReader implements HistoryPort {
       txId: record?.transaction_id,
       time: record?.block_timestamp,
       type: record?.type ?? "Transfer",
-      amount: token.decimals !== undefined
-        ? fromBaseUnits(value, Number(token.decimals))
-        : value,
+      amount: token.decimals !== undefined ? fromBaseUnits(value, Number(token.decimals)) : value,
       symbol: token.symbol,
       from: record?.from,
       to: record?.to,
@@ -83,4 +87,3 @@ export class TronGridHistoryReader implements HistoryPort {
     };
   }
 }
-

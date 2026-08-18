@@ -54,7 +54,14 @@ export type TxOutcome =
   | { stage: "plan"; tx: UnsignedTx; fee: FeeReport }
   | { stage: "built"; tx: UnsignedTx; hex: string; fee: FeeReport }
   // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
-  | { stage: "signed"; signed: SignedTx; hex?: string; fee?: FeeReport; address?: string; txId?: string }
+  | {
+      stage: "signed";
+      signed: SignedTx;
+      hex?: string;
+      fee?: FeeReport;
+      address?: string;
+      txId?: string;
+    }
   | ({ stage: BroadcastStage } & BroadcastResult);
 
 // ════════════════════ per-command typed text outputs ══════════════════════
@@ -80,16 +87,50 @@ export interface TxStatusView {
 }
 
 /** decoded transfer parties of a tx (best-effort from the raw tx). */
-export interface TxParties { from?: string; to?: string; amount?: string; symbol?: string; contract?: string }
+export interface TxParties {
+  from?: string;
+  to?: string;
+  amount?: string;
+  symbol?: string;
+  contract?: string;
+}
 
 /** which action a broadcast receipt describes — drives the summary verb + extra rows.
  *  A typed discriminant replaces matching on the stringly command id. */
 export type TxReceiptKind =
-  | "send" | "broadcast" | "sign"
-  | "stake-freeze" | "stake-unfreeze" | "stake-delegate" | "stake-undelegate" | "stake-withdraw" | "stake-cancel"
-  | "contract-send" | "contract-deploy"
-  | "vote-cast" | "reward-withdraw" | "permission-update"
-  | "account-activate" | "account-set";
+  | "send"
+  | "broadcast"
+  | "sign"
+  | "stake-freeze"
+  | "stake-unfreeze"
+  | "stake-delegate"
+  | "stake-undelegate"
+  | "stake-withdraw"
+  | "stake-cancel"
+  | "contract-send"
+  | "contract-deploy"
+  | "proposal-create"
+  | "proposal-approve"
+  | "proposal-delete"
+  | "witness-create"
+  | "witness-update"
+  | "witness-set-brokerage"
+  | "contract-clear-abi"
+  | "contract-set-origin-energy-limit"
+  | "contract-set-user-resource-percent"
+  | "vote-cast"
+  | "reward-withdraw"
+  | "permission-update"
+  | "account-activate"
+  | "account-set"
+  | "asset-issue"
+  | "asset-update"
+  | "asset-participate"
+  | "asset-unfreeze"
+  | "exchange-create"
+  | "exchange-inject"
+  | "exchange-withdraw"
+  | "exchange-trade";
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
@@ -132,6 +173,60 @@ export interface TxReceiptView {
   // contract
   method?: string;
   contractAddress?: string;
+  // TRC10 assets — quantities in the asset's minimal units, rendered with `precision`
+  name?: string;
+  abbr?: string;
+  issuerAddress?: string;
+  participantAddress?: string;
+  precision?: number;
+  totalSupply?: string;
+  price?: string;
+  trxNum?: number;
+  num?: number;
+  startTime?: number;
+  endTime?: number;
+  url?: string;
+  description?: string;
+  freeAssetNetLimit?: number;
+  publicFreeAssetNetLimit?: number;
+  frozenSupply?: Array<{ amount: string; days: number }>;
+  paidSun?: string;
+  receivedAmount?: string;
+  // Bancor exchange — quantities in each token's minimal units, rendered with its own decimals
+  exchangeId?: number;
+  pair?: string;
+  creatorAddress?: string;
+  traderAddress?: string;
+  firstTokenId?: string;
+  firstTokenQuant?: string;
+  firstTokenLabel?: string;
+  firstTokenDecimals?: number;
+  secondTokenId?: string;
+  secondTokenQuant?: string;
+  secondTokenLabel?: string;
+  secondTokenDecimals?: number;
+  tokenId?: string;
+  tokenQuant?: string;
+  tokenLabel?: string;
+  tokenDecimals?: number;
+  otherTokenId?: string;
+  otherTokenQuant?: string;
+  otherTokenLabel?: string;
+  otherTokenDecimals?: number;
+  reserveAfter?: string;
+  otherReserveAfter?: string;
+  soldTokenId?: string;
+  soldQuant?: string;
+  soldLabel?: string;
+  soldDecimals?: number;
+  receivedTokenId?: string;
+  receivedQuant?: string;
+  receivedLabel?: string;
+  receivedDecimals?: number;
+  estimatedReceivedQuant?: string;
+  minReceivedQuant?: string;
+  releasedAmount?: string;
+  stillFrozenAmount?: string;
   // confirmed / failed on-chain numbers
   blockNumber?: number;
   energyUsed?: number;

@@ -18,7 +18,8 @@ describe("official TronLink multi-sign HMAC protocol", () => {
       "address=TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7&channel=wallet-cli&secret_id=sid-fixture&sign_version=v1&ts=1900000000000&uuid=00000000-0000-4000-8000-000000000001",
     );
     expect(signTronLinkRequest("get", "/multi/list", parameters, "key-fixture")).toEqual({
-      canonical: "GET/multi/list?address=TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7&channel=wallet-cli&secret_id=sid-fixture&sign_version=v1&ts=1900000000000&uuid=00000000-0000-4000-8000-000000000001",
+      canonical:
+        "GET/multi/list?address=TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7&channel=wallet-cli&secret_id=sid-fixture&sign_version=v1&ts=1900000000000&uuid=00000000-0000-4000-8000-000000000001",
       signature: "+Gs+Mg1+QpaPCd6/LjVDdvfcyCC7MOYpb+G1Z2QFqwU=",
     });
   });

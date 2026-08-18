@@ -23,11 +23,29 @@ describe("transactionMode", () => {
   });
 
   it("--dry-run → build + estimate only", () => {
-    expect(transactionMode({ dryRun: true })).toMatchObject({ mode: "dry-run", dryRun: true, broadcast: false });
+    expect(transactionMode({ dryRun: true })).toMatchObject({
+      mode: "dry-run",
+      dryRun: true,
+      broadcast: false,
+    });
   });
 
   it("--sign-only → sign, do not broadcast", () => {
-    expect(transactionMode({ signOnly: true })).toMatchObject({ mode: "sign-only", dryRun: false, broadcast: false });
+    expect(transactionMode({ signOnly: true })).toMatchObject({
+      mode: "sign-only",
+      dryRun: false,
+      broadcast: false,
+    });
+  });
+
+  it("--build-only → unsigned transaction without broadcast", () => {
+    expect(transactionMode({ buildOnly: true })).toEqual({
+      mode: "build-only",
+      dryRun: false,
+      buildOnly: true,
+      broadcast: false,
+      permissionId: 0,
+    });
   });
 
   it("--dry-run + --sign-only → invalid_option", () => {
@@ -35,7 +53,9 @@ describe("transactionMode", () => {
   });
 
   it("supports unsigned build artifacts and bounded expiration", () => {
-    expect(transactionMode({ buildOnly: true, permissionId: 2, expiration: 86_400_000 })).toMatchObject({
+    expect(
+      transactionMode({ buildOnly: true, permissionId: 2, expiration: 86_400_000 }),
+    ).toMatchObject({
       mode: "build-only",
       permissionId: 2,
       expiration: 86_400_000,

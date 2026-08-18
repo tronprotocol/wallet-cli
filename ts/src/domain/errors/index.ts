@@ -38,7 +38,8 @@ export class TransportError extends ExecutionError {}
 export class ChainError extends ExecutionError {}
 export class WalletError extends ExecutionError {}
 
-const YARGS_USAGE = /Not enough non-option arguments|Missing required argument|Unknown argument|Invalid values|Did you mean|Not enough arguments|Too many non-option/i;
+const YARGS_USAGE =
+  /Not enough non-option arguments|Missing required argument|Unknown argument|Invalid values|Did you mean|Not enough arguments|Too many non-option/i;
 
 /**
  * classify — the "classify" half of the classify↔render split. Coerces any thrown value from the
@@ -50,7 +51,10 @@ const YARGS_USAGE = /Not enough non-option arguments|Missing required argument|U
 export function classifyError(e: unknown): CliError {
   if (e instanceof CliError) return e;
   if (e instanceof Error && e.name === "AbortError") {
-    return new ChainError("timeout", "operation aborted (timed out waiting for the device or network)");
+    return new ChainError(
+      "timeout",
+      "operation aborted (timed out waiting for the device or network)",
+    );
   }
   if (e instanceof Error && YARGS_USAGE.test(e.message)) {
     return new UsageError("usage_error", e.message); // yargs usage text contains no secrets

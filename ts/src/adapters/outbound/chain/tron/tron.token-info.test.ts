@@ -7,12 +7,14 @@ const word = (hex: string) => hex.padStart(64, "0");
 /** ABI encoding of a dynamic `string` return: offset, length, then padded utf8 bytes. */
 const dynamicString = (text: string) => {
   const bytes = Buffer.from(text, "utf8").toString("hex");
-  return word("20") + word((bytes.length / 2).toString(16))
-    + bytes.padEnd(Math.ceil(bytes.length / 64) * 64, "0");
+  return (
+    word("20") +
+    word((bytes.length / 2).toString(16)) +
+    bytes.padEnd(Math.ceil(bytes.length / 64) * 64, "0")
+  );
 };
 /** Legacy `bytes32` return: right-padded utf8 in a single word. */
-const bytes32 = (text: string) =>
-  Buffer.from(text, "utf8").toString("hex").padEnd(64, "0");
+const bytes32 = (text: string) => Buffer.from(text, "utf8").toString("hex").padEnd(64, "0");
 
 /**
  * Node response shapes, as measured against a live Nile node rather than assumed:
@@ -28,9 +30,7 @@ const bytes32 = (text: string) =>
  */
 const stub = (responses: Record<string, string>) => {
   const client = new TronRpcClient("http://localhost:1", 200);
-  client.tronweb.transactionBuilder.triggerConstantContract = ((
-    _contract: string, fn: string,
-  ) => {
+  client.tronweb.transactionBuilder.triggerConstantContract = ((_contract: string, fn: string) => {
     const hex = responses[fn];
     if (hex === undefined) {
       return Promise.resolve({
@@ -112,12 +112,15 @@ describe("TronRpcClient.getTokenInfo", () => {
   // A node outage used to surface as "this token has no metadata", which GasFree then escalated to
   // gasfree_integrity ("the provider is lying") and tx send reported as a usage error at exit 2.
   it("propagates a transport failure instead of reporting absent metadata", async () => {
-    await expect(unreachable().getTokenInfo(CONTRACT))
-      .rejects.toMatchObject({ code: "rpc_error", kind: "execution" });
+    await expect(unreachable().getTokenInfo(CONTRACT)).rejects.toMatchObject({
+      code: "rpc_error",
+      kind: "execution",
+    });
   });
 
   it("propagates 'no contract at this address' rather than blanking the fields", async () => {
-    await expect(notAContract().getTokenInfo(CONTRACT))
-      .rejects.toMatchObject({ code: "rpc_error" });
+    await expect(notAContract().getTokenInfo(CONTRACT)).rejects.toMatchObject({
+      code: "rpc_error",
+    });
   });
 });

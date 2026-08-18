@@ -41,4 +41,26 @@ describe("toBaseUnits", () => {
   it("rejects more fractional digits than the unit supports", () => {
     expect(() => toBaseUnits("1.1234567", 6, "TRX")).toThrow(/too many decimal places/);
   });
+
+  // The message has to name the option the caller actually typed: commands take a decimal amount
+  // under names of their own, and pointing at `--amount` sends them to fix a flag they never used.
+  describe("names the offending option", () => {
+    it("defaults to --amount for the commands whose option is that", () => {
+      expect(() => toBaseUnits("1.1234567", 6, "TRX")).toThrow(/^--amount has too many/);
+      expect(() => toBaseUnits("abc", 6, "TRX")).toThrow(/^--amount must be/);
+    });
+
+    it("uses the caller's option name in both messages", () => {
+      expect(() => toBaseUnits("1.1234567", 6, "TRX", "--min-received")).toThrow(
+        "--min-received has too many decimal places for TRX (max 6)",
+      );
+      expect(() => toBaseUnits("abc", 6, "TRX", "--min-received")).toThrow(
+        "--min-received must be a non-negative decimal TRX amount",
+      );
+    });
+
+    it("still returns the converted value when the input is fine", () => {
+      expect(toBaseUnits("1.5", 6, "TRX", "--min-received")).toBe("1500000");
+    });
+  });
 });

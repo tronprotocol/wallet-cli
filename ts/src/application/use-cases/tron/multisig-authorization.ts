@@ -8,9 +8,14 @@ import { assertNotExpired, transactionContract } from "./transaction-artifact.js
 
 function uniqueAddresses(addresses: readonly string[], field: string): Set<string> {
   const set = new Set(addresses);
-  if (set.size !== addresses.length
-    || addresses.some((address) => !addressCodec("tron").validate(address))) {
-    throw new ChainError("provider_error", `TRON node returned invalid or duplicate addresses in ${field}`);
+  if (
+    set.size !== addresses.length ||
+    addresses.some((address) => !addressCodec("tron").validate(address))
+  ) {
+    throw new ChainError(
+      "provider_error",
+      `TRON node returned invalid or duplicate addresses in ${field}`,
+    );
   }
   return set;
 }
@@ -36,24 +41,39 @@ function assertPermissionConsistent(
   }
   const permissionId = transactionContract(transaction).Permission_id ?? 0;
   if (weight.permission.id !== permissionId) {
-    throw new ChainError("provider_error", "node resolved a different permission id for the transaction");
+    throw new ChainError(
+      "provider_error",
+      "node resolved a different permission id for the transaction",
+    );
   }
   const fromWeight = uniqueAddresses(weight.approvedList, "getsignweight.approved_list");
   const fromApproved = uniqueAddresses(approved, "getapprovedlist.approved_list");
-  if (fromWeight.size !== fromApproved.size || [...fromWeight].some((address) => !fromApproved.has(address))) {
-    throw new ChainError("provider_error", "getsignweight and getapprovedlist returned different approvals");
+  if (
+    fromWeight.size !== fromApproved.size ||
+    [...fromWeight].some((address) => !fromApproved.has(address))
+  ) {
+    throw new ChainError(
+      "provider_error",
+      "getsignweight and getapprovedlist returned different approvals",
+    );
   }
   const keys = new Map(weight.permission.keys.map((key) => [key.address, key.weight]));
   let computedWeight = 0;
   for (const address of fromApproved) {
     const keyWeight = keys.get(address);
     if (keyWeight === undefined) {
-      throw new ChainError("provider_error", "node approved a signer outside the selected permission group");
+      throw new ChainError(
+        "provider_error",
+        "node approved a signer outside the selected permission group",
+      );
     }
     computedWeight += keyWeight;
   }
   if (computedWeight !== weight.currentWeight) {
-    throw new ChainError("provider_error", "node current_weight does not match approved signer weights");
+    throw new ChainError(
+      "provider_error",
+      "node current_weight does not match approved signer weights",
+    );
   }
 
   const contractType = transactionContract(transaction).type;
@@ -68,7 +88,10 @@ function assertPermissionConsistent(
       throw new ChainError("provider_error", "active permission has a malformed operations bitmap");
     }
     if (!operations.operations.includes(contractType)) {
-      throw new ChainError("not_authorized", `permission ${permissionId} does not allow ${contractType}`);
+      throw new ChainError(
+        "not_authorized",
+        `permission ${permissionId} does not allow ${contractType}`,
+      );
     }
   }
   return weight.permission;
@@ -111,7 +134,10 @@ export async function assertTronSignerAuthorized(
   const { weight, approved, permission } = await authorizationState(gateway, artifact);
   const key = permission.keys.find((entry) => entry.address === signerAddress);
   if (!key) {
-    throw new ChainError("not_authorized", "selected signer is not a key in the transaction permission group");
+    throw new ChainError(
+      "not_authorized",
+      "selected signer is not a key in the transaction permission group",
+    );
   }
   if (approved.includes(signerAddress)) {
     throw new ChainError("already_signed", "selected signer has already approved this transaction");

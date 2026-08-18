@@ -4,10 +4,14 @@
  * lives where its SDK dep does (tronweb for TRON); the runner composes them into the per-family
  * ADAPTERS table. Adding a chain = one more strategy here.
  */
-import { utils as tronUtils } from "tronweb"
-import type { SignStrategy, TypedDataPayload, TypedDataSignature } from "../../../../domain/types/index.js";
-import { ChainError } from "../../../../domain/errors/index.js"
-import { assertTronTxIntegrity } from "./tx-integrity.js"
+import { utils as tronUtils } from "tronweb";
+import type {
+  SignStrategy,
+  TypedDataPayload,
+  TypedDataSignature,
+} from "../../../../domain/types/index.js";
+import { ChainError } from "../../../../domain/errors/index.js";
+import { assertTronTxIntegrity } from "./tx-integrity.js";
 
 // Offline signing via TronWeb's static utils — no TronWeb instance, no fullHost, no network.
 // These are the same primitives the instance methods call internally:
@@ -15,27 +19,30 @@ import { assertTronTxIntegrity } from "./tx-integrity.js"
 // signTransaction wants a bare hex key; signMessage wants the 0x-prefixed key.
 export const tronSignStrategy: SignStrategy = {
   async sign(pkHex, tx) {
-    assertTronTxIntegrity(tx)
-    return tronUtils.crypto.signTransaction(pkHex.slice(2), tx as any)
+    assertTronTxIntegrity(tx);
+    return tronUtils.crypto.signTransaction(pkHex.slice(2), tx as any);
   },
   async signMessage(pkHex, message) {
     try {
-      return tronUtils.message.signMessage(message, pkHex)
+      return tronUtils.message.signMessage(message, pkHex);
     } catch (e) {
-      throw new ChainError("signing_rejected", `TRON message sign failed: ${(e as Error).message}`)
+      throw new ChainError("signing_rejected", `TRON message sign failed: ${(e as Error).message}`);
     }
   },
   async signTypedData(pkHex, payload: TypedDataPayload): Promise<TypedDataSignature> {
-    const { domain, types, message } = payload
+    const { domain, types, message } = payload;
     try {
-      const encoder = tronUtils.typedData.TypedDataEncoder
+      const encoder = tronUtils.typedData.TypedDataEncoder;
       return {
         signature: tronUtils.typedData.signTypedData(domain as any, types as any, message, pkHex),
         digest: encoder.hash(domain as any, types as any, message),
         primaryType: payload.primaryType ?? encoder.from(types as any).primaryType,
-      }
+      };
     } catch (e) {
-      throw new ChainError("signing_rejected", `TRON typed-data sign failed: ${(e as Error).message}`)
+      throw new ChainError(
+        "signing_rejected",
+        `TRON typed-data sign failed: ${(e as Error).message}`,
+      );
     }
   },
-}
+};

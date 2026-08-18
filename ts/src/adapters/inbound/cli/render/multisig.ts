@@ -14,9 +14,10 @@ function renderTronLink(value: TronLinkMultisigView): string {
   if ("transactions" in value) {
     const heading = `Multi-sig transactions — TronLink service (${value.total} total)`;
     // A table shorter than the total would otherwise read as a complete queue.
-    const omitted = value.unreadable > 0
-      ? `\n! ${formatInt(value.unreadable)} record(s) could not be decoded by this client and are not shown`
-      : "";
+    const omitted =
+      value.unreadable > 0
+        ? `\n! ${formatInt(value.unreadable)} record(s) could not be decoded by this client and are not shown`
+        : "";
     if (value.transactions.length === 0) return `${heading}\nNo transactions found.${omitted}`;
     const rows = value.transactions.map((transaction) => {
       const amount = transaction.rawAmount
@@ -26,9 +27,10 @@ function renderTronLink(value: TronLinkMultisigView): string {
         : "";
       // State is service history; validation is an independent local safety assessment.
       // Only a verified pending record may be promoted to an actionable "awaiting you" state.
-      const state = transaction.verified && transaction.awaitingMySignature
-        ? "awaiting you"
-        : transaction.state;
+      const state =
+        transaction.verified && transaction.awaitingMySignature
+          ? "awaiting you"
+          : transaction.state;
       return [
         transaction.txId,
         transaction.contractType,
@@ -75,8 +77,10 @@ function renderTronLink(value: TronLinkMultisigView): string {
 
 /** The service broadcasts on its own once the threshold is met, so confirm before broadcasting. */
 function thresholdHint(txId: string, hex: string): string {
-  return `\n! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid ${txId}` +
-    `\n  Not on chain: wallet-cli tx broadcast --hex ${hex}`;
+  return (
+    `\n! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid ${txId}` +
+    `\n  Not on chain: wallet-cli tx broadcast --hex ${hex}`
+  );
 }
 
 function renderSign(value: TxSignView): string {
@@ -89,9 +93,11 @@ function renderSign(value: TxSignView): string {
     ["Hex", artifact],
   ]);
   if (!value.checked || !value.approval) {
-    return `${action}\n\n${renderSignedTransaction(value.transaction)}\n` +
+    return (
+      `${action}\n\n${renderSignedTransaction(value.transaction)}\n` +
       "! Approval state was not checked online. Inspect it with: " +
-      `wallet-cli tx approvals ${value.out ? `--file ${value.out}` : "--hex <hex-above>"}`;
+      `wallet-cli tx approvals ${value.out ? `--file ${value.out}` : "--hex <hex-above>"}`
+    );
   }
   const next = value.approval.thresholdReached
     ? `\n! Broadcast it: wallet-cli tx broadcast ${value.out ? `--file ${value.out}` : "--hex <hex-above>"}`
@@ -100,7 +106,8 @@ function renderSign(value: TxSignView): string {
 }
 
 function renderSignedTransaction(value: TxSignTransactionView): string {
-  const permissionKind = value.permissionId === 0 ? "owner" : value.permissionId === 1 ? "witness" : "active";
+  const permissionKind =
+    value.permissionId === 0 ? "owner" : value.permissionId === 1 ? "witness" : "active";
   const label = value.operation ?? value.contractType;
   const type = !value.rawAmount
     ? label
@@ -116,7 +123,10 @@ function renderSignedTransaction(value: TxSignTransactionView): string {
     ["Signatures", formatInt(value.signatures)],
     ["Expires", `${formatAtWithRelative(value.expiration)}${value.expired ? " [EXPIRED]" : ""}`],
   ]);
-  return `Transaction (local inspection)\n${transaction.split("\n").map((line) => `  ${line}`).join("\n")}`;
+  return `Transaction (local inspection)\n${transaction
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n")}`;
 }
 
 export const MultisigFormatters = {

@@ -33,10 +33,11 @@ Voting power    1,500 TP  (used 1,000 / available 500)
 Claimable       12.345678 TRX
 
 Current votes (2)
-  Name             Votes  APR   Reward ratio  Address
-  TRONSCAN           600  4.8%  80%           TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g
-  Binance Staking    400  0%    0%            TT5W8MPbYJih9R586kTszb4LoybzUvCYm2
-! 400 votes are on an SR with 0% reward ratio — they earn you nothing
+| Name            | Votes | APR  | Reward ratio | Address                            |
+| --------------- | ----- | ---- | ------------ | ---------------------------------- |
+| TRONSCAN        | 600   | 4.8% | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
+| Binance Staking | 400   | 0%   | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+! 400 votes on Binance Staking earn nothing — 0% reward ratio
 ```
 
 ```bash

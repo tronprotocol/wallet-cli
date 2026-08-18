@@ -52,7 +52,7 @@ export class TronTokenService {
   }
 
   remove(scope: AccountScope, network: NetworkDescriptor, input: TokenSelector) {
-    const kind = input.contract ? "trc20" as const : "trc10" as const;
+    const kind = input.contract ? ("trc20" as const) : ("trc10" as const);
     const id = input.contract ?? input.assetId!;
     return {
       network: network.id,
@@ -70,9 +70,7 @@ export class TronTokenService {
         ? await gateway.getTokenInfo(input.contract)
         : await gateway.getTrc10Info(input.assetId!);
       const symbol = this.decodeMaybeHex(info.symbol ?? info.abbr ?? info.name);
-      const decimals = input.contract
-        ? info.decimals
-        : Number(info.precision ?? 0);
+      const decimals = input.contract ? info.decimals : Number(info.precision ?? 0);
       return {
         ...(symbol ? { symbol } : {}),
         ...(decimals !== undefined ? { decimals } : {}),

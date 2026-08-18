@@ -37,7 +37,9 @@ export class CoinGeckoPriceProvider implements PriceProvider {
         );
         if (!body || typeof body !== "object") return;
         // CoinGecko lowercases contract keys in its response; match case-insensitively.
-        const entry = Object.entries(body).find(([addr]) => addr.toLowerCase() === contract.toLowerCase());
+        const entry = Object.entries(body).find(
+          ([addr]) => addr.toLowerCase() === contract.toLowerCase(),
+        );
         if (entry) out.set(contract, num((entry[1] as { usd?: unknown })?.usd));
       }),
     );
@@ -47,7 +49,9 @@ export class CoinGeckoPriceProvider implements PriceProvider {
   /** best-effort GET → parsed JSON, or null on ANY failure (network, non-2xx, bad JSON). */
   async #get(path: string): Promise<any | null> {
     try {
-      const res = await fetch(`${this.baseUrl}${path}`, { signal: AbortSignal.timeout(this.timeoutMs) });
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
       if (!res.ok) return null;
       return await res.json();
     } catch {

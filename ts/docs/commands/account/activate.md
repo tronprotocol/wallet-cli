@@ -26,8 +26,8 @@ Requires the payer account and the master password via `--password-stdin`; watch
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only` |
-| `--permission-id <n>` | Permission group to sign with (default `0`) |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -88,7 +88,7 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `wrong_password`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_activate_postcheck_mismatch` / `account_activate_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

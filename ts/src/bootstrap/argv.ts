@@ -1,8 +1,5 @@
 import type { Globals } from "../adapters/inbound/cli/contracts/index.js";
-import {
-  coerceGlobalValue,
-  globalTokenMaps,
-} from "../adapters/inbound/cli/globals/index.js";
+import { coerceGlobalValue, globalTokenMaps } from "../adapters/inbound/cli/globals/index.js";
 import type { SecretPaths } from "../adapters/inbound/cli/input/secret/index.js";
 
 const {
@@ -19,9 +16,11 @@ export interface InvalidGlobal {
 }
 
 /** Pre-yargs scan needed to select output and secret channels before the CLI adapter is built. */
-export function parseGlobals(
-  tokens: string[],
-): { globals: Globals; secretPaths: SecretPaths; invalid: InvalidGlobal[] } {
+export function parseGlobals(tokens: string[]): {
+  globals: Globals;
+  secretPaths: SecretPaths;
+  invalid: InvalidGlobal[];
+} {
   const globals = { verbose: false } as Globals;
   const secretPaths: SecretPaths = {};
   const invalid: InvalidGlobal[] = [];

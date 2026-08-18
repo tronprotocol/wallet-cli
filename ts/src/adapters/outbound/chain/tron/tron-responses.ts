@@ -30,7 +30,13 @@ const TronTxInfoSchema = objectish(
     blockNumber: optNum,
     fee: optNum,
     receipt: z
-      .looseObject({ result: optStr, energy_usage_total: optNum })
+      .looseObject({
+        result: optStr,
+        energy_usage_total: optNum,
+        energy_fee: optNum,
+        net_usage: optNum,
+        net_fee: optNum,
+      })
       .optional()
       .catch(undefined),
   }),
@@ -50,7 +56,10 @@ const TronContractSchema = z.looseObject({
 
 const TronTxSchema = objectish(
   z.looseObject({
-    ret: z.array(z.looseObject({ contractRet: optStr })).optional().catch(undefined),
+    ret: z
+      .array(z.looseObject({ contractRet: optStr }))
+      .optional()
+      .catch(undefined),
     raw_data: z
       .looseObject({ contract: z.array(TronContractSchema).optional().catch(undefined) })
       .optional()

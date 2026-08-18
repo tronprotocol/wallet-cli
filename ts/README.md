@@ -7,7 +7,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
 - **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
-- **Covers the main TRON capabilities** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, smart-contract calls and deployment, multi-sig, GasFree transfers, message signing, and on-chain queries.
+- **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries.
 
 ## Table of contents
 
@@ -19,6 +19,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
   - [Transactions](#transactions)
   - [On-chain queries](#on-chain-queries)
   - [Tokens, contracts, staking, signing](#tokens-contracts-staking-signing)
+  - [Governance, TRC10, and the on-chain exchange](#governance-trc10-and-the-on-chain-exchange)
   - [Local tools and configuration](#local-tools-and-configuration)
 - [The contract, in one paragraph](#the-contract-in-one-paragraph)
 - [Understanding TRON mechanics](#understanding-tron-mechanics)
@@ -104,11 +105,11 @@ Create, import, and manage local wallets and accounts.
 | Command | Description |
 |---|---|
 | [`create`](docs/commands/create.md) | Create a new HD wallet (BIP39 seed) |
-| `import` | Import a wallet — [mnemonic](docs/commands/import/mnemonic.md) · [private-key](docs/commands/import/private-key.md) · [ledger](docs/commands/import/ledger.md) · [watch](docs/commands/import/watch.md)-only |
+| `import` | Import a wallet — [mnemonic](docs/commands/import/mnemonic.md) · [private-key](docs/commands/import/private-key.md) · [keystore](docs/commands/import/keystore.md) · [ledger](docs/commands/import/ledger.md) · [watch](docs/commands/import/watch.md)-only |
 | [`list`](docs/commands/list.md) | List wallets and accounts |
 | [`use`](docs/commands/use.md) · [`current`](docs/commands/current.md) | Set / show the active account (`current --qr` for a receive QR) |
 | [`derive`](docs/commands/derive.md) | Derive the next HD account from a seed wallet |
-| [`rename`](docs/commands/rename.md) · [`backup`](docs/commands/backup.md) · [`delete`](docs/commands/delete.md) | Rename, back up, or delete an account (backup writes secret + metadata, mode 0600) |
+| [`rename`](docs/commands/rename.md) · [`backup`](docs/commands/backup.md) · [`delete`](docs/commands/delete.md) | Rename, back up, or delete an account (backup writes secret + metadata, mode 0600; `--keystore` for Web3 keystore format, `--records` for the export audit log) |
 | [`change-password`](docs/commands/change-password.md) | Change the master password (re-encrypt all software keystores) |
 
 ### Transactions
@@ -138,16 +139,27 @@ Read account, block, and chain state.
 
 Token and contract operations, resource staking, voting rewards, message signing, and permissions.
 
+| Command                                                                                         | Description                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`token`](docs/commands/token/index.md)                                                         | Token address book and queries ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
+| [`contact`](docs/commands/contact/index.md)                                                     | Recipient contact book ([add](docs/commands/contact/add.md) · [list](docs/commands/contact/list.md) · [remove](docs/commands/contact/remove.md))                                                                                     |
+| [`contract`](docs/commands/contract/index.md)                                                   | Call, send, deploy, inspect, and govern contracts ([call](docs/commands/contract/call.md) · [send](docs/commands/contract/send.md) · [deploy](docs/commands/contract/deploy.md) · [info](docs/commands/contract/info.md) · [clear-abi](docs/commands/contract/clear-abi.md) · [set-origin-energy-limit](docs/commands/contract/set-origin-energy-limit.md) · [set-user-resource-percent](docs/commands/contract/set-user-resource-percent.md) · [create2](docs/commands/contract/create2.md)) |
+| [`stake`](docs/commands/stake/index.md)                                                         | Stake / delegate resources ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [info](docs/commands/stake/info.md), …)                            |
+| [`vote`](docs/commands/vote/index.md) · [`reward`](docs/commands/reward/index.md)               | Vote for super representatives and claim voting rewards                                                                                                                                                                              |
+| [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data                                                                                                                                                                          |
+| [`permission`](docs/commands/permission/index.md)                                               | View / update account permissions for multi-sig                                                                                                                                                                                      |
+| [`gasfree`](docs/commands/gasfree/index.md)                                                     | Gas-free token transfers via the GasFree service                                                                                                                                                                                     |
+
+### Governance, TRC10, and the on-chain exchange
+
+Chain governance, super-representative operation, and TRON's protocol-level TRC10 and Bancor exchange mechanics.
+
 | Command | Description |
 |---|---|
-| [`token`](docs/commands/token/index.md) | Token address book and queries ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
-| [`contact`](docs/commands/contact/index.md) | Recipient contact book ([add](docs/commands/contact/add.md) · [list](docs/commands/contact/list.md) · [remove](docs/commands/contact/remove.md)) |
-| [`contract`](docs/commands/contract/index.md) | Call, send, deploy, inspect contracts ([call](docs/commands/contract/call.md) · [send](docs/commands/contract/send.md) · [deploy](docs/commands/contract/deploy.md) · [info](docs/commands/contract/info.md)) |
-| [`stake`](docs/commands/stake/index.md) | Stake / delegate resources ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [info](docs/commands/stake/info.md), …) |
-| [`vote`](docs/commands/vote/index.md) · [`reward`](docs/commands/reward/index.md) | Vote for super representatives and claim voting rewards |
-| [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data |
-| [`permission`](docs/commands/permission/index.md) | View / update account permissions for multi-sig |
-| [`gasfree`](docs/commands/gasfree/index.md) | Gas-free token transfers via the GasFree service |
+| [`proposal`](docs/commands/proposal/index.md) | Chain-parameter proposals ([list](docs/commands/proposal/list.md) · [show](docs/commands/proposal/show.md) · [create](docs/commands/proposal/create.md) · [approve](docs/commands/proposal/approve.md) · [delete](docs/commands/proposal/delete.md)) — `list` / `show` are open to anyone, the write commands require a registered witness |
+| [`witness`](docs/commands/witness/index.md) | Register and operate a super representative ([create](docs/commands/witness/create.md) · [update](docs/commands/witness/update.md) · [set-brokerage](docs/commands/witness/set-brokerage.md)) |
+| [`asset`](docs/commands/asset/index.md) | Issue and manage TRC10 tokens ([issue](docs/commands/asset/issue.md) · [update](docs/commands/asset/update.md) · [participate](docs/commands/asset/participate.md) · [unfreeze](docs/commands/asset/unfreeze.md) · [info](docs/commands/asset/info.md) · [list](docs/commands/asset/list.md)); TRC10 transfers go through [`tx send`](docs/commands/tx/send.md) |
+| [`exchange`](docs/commands/exchange/index.md) | The protocol-level Bancor exchange between TRX and TRC10 ([create](docs/commands/exchange/create.md) · [inject](docs/commands/exchange/inject.md) · [withdraw](docs/commands/exchange/withdraw.md) · [trade](docs/commands/exchange/trade.md) · [show](docs/commands/exchange/show.md) · [list](docs/commands/exchange/list.md)) |
 
 ### Local tools and configuration
 
