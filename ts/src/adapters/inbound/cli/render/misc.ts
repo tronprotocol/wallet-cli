@@ -1,5 +1,5 @@
 import type { TextFormatter } from "../contracts/index.js";
-import { formatScalar, formatInt, formatUtc, num, methodName } from "./scalars.js";
+import { formatScalar, num, methodName } from "./scalars.js";
 import { type Obj, type Pair, asObj, kv, query, receipt, table, titled, ok } from "./layout.js";
 import { FAMILY_RENDER, renderFamily } from "./family.js";
 

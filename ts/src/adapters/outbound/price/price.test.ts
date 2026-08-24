@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { CoinGeckoPriceProvider, NullPriceProvider, createPriceProvider } from "./index.js";
+import { NullPriceProvider, createPriceProvider } from "./index.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();

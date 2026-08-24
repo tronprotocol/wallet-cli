@@ -1,6 +1,5 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
-import { UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";

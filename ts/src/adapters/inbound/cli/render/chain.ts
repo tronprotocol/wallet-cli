@@ -18,12 +18,6 @@ function parameterValue(key: string, value: unknown): string {
   return unit ? `${formatInt(value)} ${unit}` : String(value ?? "");
 }
 
-function timestamp(v: unknown): string {
-  const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0) return "—";
-  return new Date(n).toISOString().replace("T", " ").slice(0, 19);
-}
-
 export const ChainFormatters = {
   chainParams: ((data) => {
     const d = asObj(data);
