@@ -26,10 +26,10 @@ const sendFields = z.object({
   token: z.string().min(1).optional().describe("token symbol from the address book"),
   contract: Schemas.address()
     .optional()
-    .describe("token contract address; omit with --asset-id for a native-coin transfer"),
+    .describe("token contract address; omit for a native-coin transfer"),
   ...unifiedAmountFields(
-    "human amount: TRX for native, token units for TRC20/TRC10",
-    "raw integer amount in SUN or token base units",
+    "human amount: native coin for native transfers, token units for token transfers",
+    "raw integer amount in native base units or token base units",
   ),
   ...txModeFields,
 });
@@ -41,7 +41,7 @@ export const txSendSpec: ChainSpec = {
   auth: "conditional",
   broadcasts: true,
   capability: "tx.send",
-  summary: "Send the native coin or a token",
+  summary: "Send native coins or tokens with human --amount",
   description:
     "Send the native coin, or a token selected with --token / --contract.\n" +
     // §10.1: a command whose Options show BOTH families' tags must say what the tags mean —
