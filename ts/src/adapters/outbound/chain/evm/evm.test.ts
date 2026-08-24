@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { barBroadcasts } from "../../../../application/services/broadcast-guard.js";
 import { Transaction } from "ethers";
 import { EvmRpcClient } from "./evm.js";
 
@@ -405,6 +406,48 @@ describe("EvmRpcClient.estimateGas", () => {
     expect(gas).toBe("21000");
     expect(seen[0]).toMatchObject({ method: "eth_estimateGas" });
   });
+
+  /**
+   * QUANTITY fields must go out as `0x` hex. Everything above this port speaks decimal, and
+   * go-ethereum rejects a bare decimal while reth accepts it — so a decimal `value` against a
+   * load-balanced endpoint fails a fraction of requests and reads as a flaky network.
+   */
+  it("hex-encodes decimal quantities before they reach the node", async () => {
+    const seen = stubRpc("0x5208");
+    await new EvmRpcClient("https://node.example", 5_000).estimateGas({
+      from: ADDR,
+      to: TOKEN,
+      value: "0",
+      nonce: 15,
+      maxFeePerGas: "2033933954",
+      data: "0xa9059cbb",
+    });
+
+    expect((seen[0] as any).params[0]).toEqual({
+      from: ADDR,
+      to: TOKEN,
+      value: "0x0",
+      nonce: "0xf",
+      maxFeePerGas: "0x793b5e82",
+      // DATA, not QUANTITY: hex-encoding an address or calldata would be silent corruption.
+      data: "0xa9059cbb",
+    });
+  });
+
+  it("leaves a value that is already hex untouched", async () => {
+    const seen = stubRpc("0x5208");
+    await new EvmRpcClient("https://node.example", 5_000).estimateGas({ value: "0x1c" });
+
+    expect((seen[0] as any).params[0]).toEqual({ value: "0x1c" });
+  });
+
+  it("reports a quantity field that is not a number rather than sending it", async () => {
+    stubRpc("0x5208");
+
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000).estimateGas({ value: "lots" }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+  });
 });
 
 /**
@@ -437,6 +480,19 @@ describe("EvmRpcClient.sendRawTransaction", () => {
 
     expect(seen[0]).toMatchObject({ method: "eth_sendRawTransaction", params: [RAW] });
     expect(out).toEqual({ hash: HASH });
+  });
+
+  // The guard is the backstop for a family binding that drops --dry-run; it has to sit in front
+  // of the wire call, not merely exist.
+  it("refuses to reach the wire while broadcasting is barred", async () => {
+    const seen = stubResponse({ result: HASH });
+
+    await barBroadcasts("tx broadcast --dry-run", async () => {
+      await expect(
+        new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+    });
+    expect(seen).toHaveLength(0);
   });
 
   it("treats a result that is not a transaction hash as a rejection", async () => {
@@ -637,21 +693,65 @@ describe("EvmRpcClient contract-write encoding", () => {
     expect(data).toHaveLength(2 + 8 + 128);
   });
 
-  it("appends ABI-encoded constructor arguments to the bytecode", () => {
-    const abi = JSON.stringify([{ type: "constructor", inputs: [{ type: "uint256", name: "x" }] }]);
-    const data = client().encodeDeploy("0x6080", abi, [7]);
+  const WORD = (n: bigint) => n.toString(16).padStart(64, "0");
 
-    expect(data).toBe(`0x6080${(7n).toString(16).padStart(64, "0")}`);
+  it("appends ABI-encoded constructor arguments to the bytecode", () => {
+    const abi = [{ type: "constructor", inputs: [{ type: "uint256", name: "x" }] }];
+    const data = client().encodeDeploy("0x6080", { source: "abi", abi, values: [7] });
+
+    expect(data).toBe(`0x6080${WORD(7n)}`);
+  });
+
+  /**
+   * The defect this replaces: the EVM path encoded against an empty ABI, so ANY constructor
+   * argument failed with "expectedCount=0" and `--constructor-params` could not be used at all.
+   * Types now come from a signature when no ABI is available — the source `cast send --create`
+   * uses for the same situation.
+   */
+  it("encodes from a constructor signature when there is no ABI", () => {
+    const data = client().encodeDeploy("0x6080", {
+      source: "signature",
+      signature: "constructor(uint256)",
+      values: [7],
+      flag: "--constructor-signature",
+    });
+
+    expect(data).toBe(`0x6080${WORD(7n)}`);
+  });
+
+  it.each(["constructor(uint256)", "(uint256)", "uint256"])(
+    "accepts the signature written as %s",
+    (signature) => {
+      const data = client().encodeDeploy("0x6080", { source: "signature", signature, values: [7], flag: "--x" });
+
+      expect(data).toBe(`0x6080${WORD(7n)}`);
+    },
+  );
+
+  it("appends nothing when the constructor takes no arguments", () => {
+    expect(client().encodeDeploy("0x6080", { source: "none" })).toBe("0x6080");
   });
 
   it("accepts bare bytecode without a 0x prefix", () => {
-    const abi = JSON.stringify([{ type: "constructor", inputs: [] }]);
-    expect(client().encodeDeploy("6080", abi, [])).toBe("0x6080");
+    expect(client().encodeDeploy("6080", { source: "none" })).toBe("0x6080");
   });
 
   it("rejects constructor arguments that do not match the ABI", () => {
-    const abi = JSON.stringify([{ type: "constructor", inputs: [{ type: "address", name: "a" }] }]);
-    expect(() => client().encodeDeploy("0x6080", abi, ["not-an-address"])).toThrow();
+    const abi = [{ type: "constructor", inputs: [{ type: "address", name: "a" }] }];
+    expect(() =>
+      client().encodeDeploy("0x6080", { source: "abi", abi, values: ["not-an-address"] }),
+    ).toThrow(/the ABI/);
+  });
+
+  it("names the flag a bad signature came from", () => {
+    expect(() =>
+      client().encodeDeploy("0x6080", {
+        source: "signature",
+        signature: "constructor(uint256)",
+        values: [1, 2],
+        flag: "--constructor-args",
+      }),
+    ).toThrow(/--constructor-args/);
   });
 
   // CREATE derives the address from the sender and nonce alone, so it is known the moment the

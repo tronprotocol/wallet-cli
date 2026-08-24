@@ -46,6 +46,25 @@ const v1PrivateKeyDoc = {
   wallets: [{ id: "wlt_k", source: { type: "privateKey", keyId: "key_1", addresses: { tron: TRON_ADDR } } }],
 };
 
+/**
+ * Ledger is the case that matters most here: a real, signing-capable account that holds no local
+ * secret. Such a user may never have set a master password at all — `import ledger` / `import
+ * watch` do not ask for one, and a keystore file is never written — so a gate that demanded one
+ * would leave them with nothing to type and no way in. The upgrade must be silent, not merely
+ * quiet.
+ */
+const v1LedgerDoc = {
+  version: 1,
+  activeAccount: "wlt_l",
+  labels: { wlt_l: "nano" },
+  wallets: [
+    {
+      id: "wlt_l",
+      source: { type: "ledger", family: "tron", path: "m/44'/195'/0'/0/0", address: TRON_ADDR },
+    },
+  ],
+};
+
 // watch and ledger hold no secret anywhere, so this keystore migrates with no prompt at all.
 const v1WatchDoc = {
   version: 1,
@@ -92,6 +111,26 @@ describe("the startup migration gate is wired into main()", () => {
     const { walletsPath } = await runIn(v1WatchDoc, ["-o", "json", "list"]);
 
     expect(JSON.parse(readFileSync(`${walletsPath}.v1.bak`, "utf8"))).toEqual(v1WatchDoc);
+  });
+
+  it("migrates a Ledger-only keystore silently and runs the command", async () => {
+    const { code, walletsPath } = await runIn(v1LedgerDoc, ["-o", "json", "list"]);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(2);
+  });
+
+  it("needs the password once ANY wallet in the file holds a secret", async () => {
+    // needsPassword is per FILE, not per wallet: one seed alongside a Ledger account still means
+    // the file cannot be rewritten without decrypting something.
+    const mixed = {
+      ...v1LedgerDoc,
+      wallets: [...v1LedgerDoc.wallets, ...v1SeedDoc.wallets],
+    };
+    const { code, stdout } = await runIn(mixed, ["-o", "json", "list"]);
+
+    expect(JSON.parse(stdout).error.code).toBe("migration_required");
+    expect(code).toBe(2);
   });
 
   it("leaves --help reachable on a stale keystore", async () => {

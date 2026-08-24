@@ -5,9 +5,10 @@
  * `registerEvmChainCommands` binds the commands EVM can serve. Paths with no binding here still
  * refuse cleanly at dispatch (`family_mismatch`).
  *
- * Only the signing commands are bound so far. They need nothing from the chain — the family
- * difference is entirely inside `evmSignStrategy` — so they reuse the very same binding objects
- * the TRON family registers. Everything else waits on the EVM gateway's JSON-RPC surface.
+ * Twenty-one commands are bound: the two signing commands (which need nothing from the chain —
+ * the family difference lives entirely inside `evmSignStrategy` — and so reuse the very binding
+ * objects the TRON family registers), plus the account, block, chain, tx, token and contract
+ * commands that sit on the JSON-RPC gateway.
  */
 import { FAMILIES } from "../../domain/family/index.js";
 import { evmSignStrategy } from "../../adapters/outbound/chain/evm/signing-strategy.js";

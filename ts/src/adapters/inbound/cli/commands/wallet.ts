@@ -259,7 +259,7 @@ export function registerWalletCommands(
     positionals: [{ field: "path" }],
     promptHints: { label: "default-label" },
     requires: ["the keystore file's own password — entered interactively in a TTY"],
-    summary: "Import an account from a standard Web3 keystore JSON",
+    summary: "Import a Web3 keystore file",
     description:
       "Import a single account from a standard Web3 keystore JSON (as exported by TronLink or\n" +
       "'backup --keystore'), stored encrypted under your master password and made active. It carries\n" +
@@ -302,7 +302,7 @@ export function registerWalletCommands(
       scanLimit: "skip",
     },
     requires: ["a connected, unlocked Ledger with the selected app (--app) open"],
-    summary: "Register a Ledger account (watch-only; signs on device)",
+    summary: "Register a Ledger account",
     fields: walletImportLedgerFields,
     input: walletImportLedgerInput,
     examples: [{ cmd: "wallet-cli import ledger --app tron --index 0 --label cold" }],
@@ -325,7 +325,7 @@ export function registerWalletCommands(
     address: z
       .string()
       .min(1)
-      .describe("watch-only address to track; format: TRON base58 T...; family is auto-detected"),
+      .describe("watch-only address to track; TRON base58 (T...) or EVM hex (0x...), detected from the value"),
     label: Schemas.label()
       .optional()
       .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
@@ -337,7 +337,7 @@ export function registerWalletCommands(
     auth: "none",
     interactive: true,
     promptHints: { label: "default-label" },
-    summary: "Register a watch-only address (no secret)",
+    summary: "Register a watch-only address",
     fields: importWatchFields,
     input: importWatchFields,
     examples: [{ cmd: "wallet-cli import watch --address T... --label team-vault" }],
@@ -416,7 +416,7 @@ export function registerWalletCommands(
       .boolean()
       .default(false)
       .describe(
-        "render a terminal receive QR containing exactly the selected TRON address; text TTY only",
+        "render a terminal receive QR containing exactly the receive address for the selected network; text TTY only",
       ),
   });
   reg.add({
@@ -732,7 +732,10 @@ export function registerWalletCommands(
     passwordMode: "verify",
     interactive: true,
     secretsTtyOnly: true,
-    requires: ["the new master password — entered interactively in a TTY"],
+    // The prompt order is current-then-new, and §10.1 rule 4 makes Requires follow the order the
+    // user actually types. The generated line covers the current password, so the new one has to
+    // come after it.
+    requiresAfterAuth: ["the new master password — entered interactively in a TTY"],
     summary: "Change the master password (re-encrypt keystores)",
     description:
       "Change the master password. Re-encrypts every software wallet keystore with the\n" +

@@ -132,7 +132,10 @@ export const messageSignSpec: ChainSpec = {
   exclusive: [
     { label: "the message to sign", flags: ["message", "message-stdin"], select: "exactly-one" },
   ],
-  examples: [{ cmd: `wallet-cli message sign --message "hello"` }],
+  examples: [
+    { cmd: `wallet-cli message sign --message "hello" --network nile` },
+    { cmd: `wallet-cli message sign --message "hello" --network sepolia` },
+  ],
   formatText: TextFormatters.messageSign,
 };
 

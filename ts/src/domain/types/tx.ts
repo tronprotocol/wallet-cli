@@ -156,6 +156,8 @@ export interface TxReceiptView {
   hex?: string;
   transaction?: import("./multisig.js").TxApprovalView;
   multiSignFeeSun?: number;
+  /** pre-broadcast checks a dry run ran; a blocker throws, so these are what held or was skipped. */
+  checks?: Array<{ name: string; status: "ok" | "warning" | "skipped"; detail: string }>;
   // transfer / stake inputs
   rawAmount?: string;
   amountSun?: string | number;

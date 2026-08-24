@@ -37,7 +37,7 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   /** calldata for a `{type, value}` call, encoded without sending it. */
   encodeFunctionCall(signature: string, params: Array<{ type: string; value: unknown }>): string;
   /** deployment calldata: creation bytecode plus the constructor's ABI-encoded arguments. */
-  encodeDeploy(bytecode: string, abiJson: string, params: unknown[]): string;
+  encodeDeploy(bytecode: string, args: DeployConstructorArgs): string;
   /** where a CREATE deployment will land, from the sender and nonce alone. */
   contractAddressFor(from: string, nonce: string): string;
   /** calldata for an ERC-20 `transfer`; the amount is already in the token's base units. */
@@ -63,6 +63,24 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   /** best-effort ERC-20 metadata; a field the contract does not answer is absent, never defaulted. */
   getErc20Metadata(contract: string): Promise<{ symbol?: string; decimals?: number; name?: string }>;
 }
+
+/**
+ * How a deployment's constructor arguments are typed.
+ *
+ * The types never come from the values. They come from the compiler's own ABI when one is
+ * available, and otherwise from a signature the caller states explicitly — the same two sources
+ * `forge create` and `cast send --create` use. A mistyped argument encodes cleanly and deploys a
+ * contract built from the wrong arguments, and a deployment cannot be taken back, so the
+ * authoritative source is preferred and the fallback is an explicit declaration rather than a
+ * guess made from the shape of the values.
+ *
+ * `flag` names the option the signature came from, so an encoding failure can point at the thing
+ * the caller actually typed.
+ */
+export type DeployConstructorArgs =
+  | { source: "none" }
+  | { source: "abi"; abi: unknown; values: unknown[] }
+  | { source: "signature"; signature: string; values: unknown[]; flag: string };
 
 /** Family-keyed extension point. Add each new family gateway here without widening other ports. */
 export interface ChainGatewayMap {

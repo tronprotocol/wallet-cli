@@ -21,13 +21,16 @@ export const typedDataSignSpec: ChainSpec = {
   capability: "typedData.sign",
   summary: "Sign EIP-712 / TIP-712 structured data",
   description:
-    "Prints the signature, the digest that was signed, and the primary type.\n" +
+    "Sign an EIP-712 / TIP-712 typed-data payload with the selected account.\n" +
     "`EIP712Domain` in `types` is ignored, `value` is accepted for `message`, and TRON base58\n" +
     "addresses work in address fields.",
   baseFields: typedDataFields,
   examples: [
     {
-      cmd: `wallet-cli typed-data sign --typed-data '{"domain":{...},"types":{...},"message":{...}}'`,
+      cmd: `wallet-cli typed-data sign --typed-data '{"domain":{...},"types":{...},"message":{...}}' --network nile`,
+    },
+    {
+      cmd: `wallet-cli typed-data sign --typed-data '{"domain":{...},"types":{...},"message":{...}}' --network sepolia`,
     },
   ],
   formatText: TextFormatters.typedDataSign,

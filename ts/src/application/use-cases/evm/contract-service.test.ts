@@ -138,11 +138,9 @@ describe("EvmContractService.send", () => {
 });
 
 describe("EvmContractService.deploy", () => {
-  const ABI = JSON.stringify([{ type: "constructor", inputs: [] }]);
-
   it("builds a transaction with no recipient", async () => {
     const { service, built } = writeHarness();
-    await service.deploy(scope(), net, { abi: ABI, bytecode: "0x6080", params: [] } as never);
+    await service.deploy(scope(), net, { bytecode: "0x6080" } as never);
 
     expect(built[0]!.to).toBeUndefined();
     expect(built[0]!.data).toBe("0xdeploydata");
@@ -151,20 +149,37 @@ describe("EvmContractService.deploy", () => {
   it("reports the CREATE address derived from sender and nonce", async () => {
     const { service, gateway } = writeHarness();
     const out = (await service.deploy(scope(), net, {
-      abi: ABI,
       bytecode: "0x6080",
-      params: [],
     } as never)) as { contractAddress?: string };
 
     expect(gateway.contractAddressFor).toHaveBeenCalledWith(OWNER, "9");
     expect(out.contractAddress).toBe("0xDEPLOYED");
   });
 
-  it("refuses an ABI that is not JSON rather than deploying blind", async () => {
-    const { service } = writeHarness();
+  /**
+   * The service decides nothing about how the arguments are typed — it forwards the resolved
+   * source to the gateway. The defect this replaces was exactly a decision made here: the service
+   * substituted an empty ABI (`input.abi ?? "[]"`) whenever none was supplied, which on EVM was
+   * always, so every constructor argument failed with "expectedCount=0".
+   */
+  it("forwards the resolved constructor arguments to the encoder", async () => {
+    const { service, gateway } = writeHarness();
+    const constructorArgs = {
+      source: "signature" as const,
+      signature: "constructor(uint256)",
+      values: [42],
+      flag: "--constructor-args",
+    };
 
-    await expect(
-      service.deploy(scope(), net, { abi: "{not json", bytecode: "0x60" } as never),
-    ).rejects.toMatchObject({ code: "invalid_value" });
+    await service.deploy(scope(), net, { bytecode: "0x6080", constructorArgs } as never);
+
+    expect(gateway.encodeDeploy).toHaveBeenCalledWith("0x6080", constructorArgs);
+  });
+
+  it("says 'no arguments' rather than inventing an empty ABI when none were given", async () => {
+    const { service, gateway } = writeHarness();
+    await service.deploy(scope(), net, { bytecode: "0x6080" } as never);
+
+    expect(gateway.encodeDeploy).toHaveBeenCalledWith("0x6080", { source: "none" });
   });
 });

@@ -14,6 +14,7 @@ import { hexToBytes } from "@noble/hashes/utils.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
+import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
@@ -26,6 +27,8 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
+
+type EvmTokenMetadata = Awaited<ReturnType<EvmGateway["getErc20Metadata"]>>;
 
 export interface EvmSendInput extends TransactionModeInput {
   to: string;
@@ -53,7 +56,7 @@ export class EvmTransactionService {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
     const gateway = this.gateways.get(network, "evm");
     const recipient = this.recipients.resolve("evm", input.to);
-    const transfer = this.resolveTransfer(network.id, scope.activeAccount, input);
+    const transfer = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
 
     // The plan is produced while building and read back by the estimate hook. It is held here
     // rather than attached to the transaction: --dry-run and --build-only echo that object
@@ -100,7 +103,12 @@ export class EvmTransactionService {
    * 5_000_000 at six decimals, and using the native eighteen would overpay by a factor of a
    * trillion. `--raw-amount` is already in base units and is passed through untouched.
    */
-  private resolveTransfer(networkId: string, account: AccountRef, input: EvmSendInput) {
+  private async resolveTransfer(
+    gateway: EvmGateway,
+    networkId: string,
+    account: AccountRef,
+    input: EvmSendInput,
+  ) {
     let contract = input.contract;
     let decimals = input.decimals;
     let symbol: string | undefined;
@@ -126,9 +134,18 @@ export class EvmTransactionService {
       return { contract, decimals, symbol, rawAmount: toBaseUnits(input.amount!, native, "amount") };
     }
     if (decimals === undefined) {
+      // `--contract` names a token that need not be in the address book, so the contract itself
+      // is asked — the same fallback the TRON side makes for a bare --contract. Scaling by a
+      // guessed decimals would move the wrong amount by orders of magnitude, so an unreadable
+      // contract is an error, never a default.
+      const meta = await gateway.getErc20Metadata(contract).catch(() => ({}) as EvmTokenMetadata);
+      decimals = meta.decimals;
+      if (symbol === undefined) symbol = meta.symbol;
+    }
+    if (decimals === undefined) {
       throw new ExecutionError(
         "token_metadata_unavailable",
-        `could not establish decimals for ${contract}; add it with \`token add\` first`,
+        `could not establish decimals for ${contract}: it did not answer decimals() and is not in the address book. Add it with \`token add --contract ${contract}\`, or pass --raw-amount in base units.`,
       );
     }
     return {
@@ -182,10 +199,10 @@ export class EvmTransactionService {
         : Promise.resolve(String(input.nonce)),
       gateway.feeData(),
     ]);
-    const gasEstimate =
-      input.gasLimit ??
-      (await gateway.estimateGas({ from, ...call }).catch(() => undefined)) ??
-      "21000";
+    // No fallback: a failed estimate is the node saying something true about this transaction,
+    // and 21000 — the intrinsic cost of a plain value transfer — would sign an ERC-20 transfer
+    // that cannot succeed while reporting it as fine.
+    const gasEstimate = await resolveGasLimit(gateway, { from, ...call }, input.gasLimit);
 
     const plan = planEvmFee({
       ...fee,
@@ -242,12 +259,18 @@ export class EvmTransactionService {
    * transaction is a property of the transaction, and `authoritativeTxId` exists so a node cannot
    * name a different one for us to poll and quote back.
    */
-  async broadcast(scope: TransactionScope, network: NetworkDescriptor, hex: string) {
+  async broadcast(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    hex: string,
+    dryRun = false,
+  ) {
     const parsed = parseEvmTransaction(hex);
     if (parsed.signature === null) {
       throw new ChainError("invalid_transaction", "this transaction carries no signature");
     }
     const gateway = this.gateways.get(network, "evm");
+    if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
     const result = await gateway.sendRawTransaction(parsed.serialized);
     const txId = authoritativeTxId(parsed.hash ?? undefined, result.hash, (m) => scope.warn(m));
     const submitted = {
@@ -265,6 +288,115 @@ export class EvmTransactionService {
       return submitted;
     }
     return { ...submitted, stage: confirmed.failed ? ("failed" as const) : ("confirmed" as const), ...confirmed };
+  }
+
+  /**
+   * `tx broadcast --dry-run` — answer "would this go through?" without submitting it.
+   *
+   * TRON's dry run resolves the full approval state against the node, so this does the EVM
+   * equivalent rather than a bare parse: the three things that actually stop a signed EVM
+   * transaction are the wrong chain, a spent nonce and a balance that cannot cover value plus
+   * the fee ceiling. A blocker throws, so `--dry-run` exits non-zero on a transaction that would
+   * fail — the answer a script is asking for.
+   *
+   * The node reads are best-effort. An unreachable endpoint downgrades those checks to `skipped`
+   * with a warning instead of failing the command: a dry run that cannot reach a node is still
+   * worth more than no dry run, and reporting "cannot broadcast" would be a claim about the
+   * transaction that this code has not established.
+   */
+  async #dryRunBroadcast(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    gateway: EvmGateway,
+    parsed: Transaction,
+  ) {
+    const checks: Array<{ name: string; status: "ok" | "warning" | "skipped"; detail: string }> = [
+      { name: "signature", status: "ok", detail: `recovers to ${parsed.from ?? "an unknown signer"}` },
+    ];
+
+    // Local, and the cheapest way to catch a transaction signed for another chain: a replay of it
+    // here is impossible, so there is nothing to gain by asking a node first.
+    if (String(parsed.chainId) !== String(network.chainId)) {
+      throw new ChainError(
+        "chain_mismatch",
+        `this transaction is signed for chain ${parsed.chainId}, but ${network.id} is chain ${network.chainId}`,
+      );
+    }
+    checks.push({ name: "chainId", status: "ok", detail: `matches ${network.id}` });
+
+    const from = parsed.from;
+    const perGasCeiling = parsed.maxFeePerGas ?? parsed.gasPrice ?? 0n;
+    const maxCostWei = parsed.gasLimit * perGasCeiling;
+    const fee = {
+      feeModel: parsed.maxFeePerGas === null ? "legacy" : "eip1559",
+      maxCostWei: maxCostWei.toString(),
+      gasLimit: parsed.gasLimit.toString(),
+    };
+
+    const state =
+      from === null
+        ? undefined
+        : await Promise.all([
+            gateway.getTransactionCount(from, "latest"),
+            gateway.getTransactionCount(from, "pending"),
+            gateway.getNativeBalance(from),
+          ]).catch((e: unknown) => {
+            scope.warn(
+              `--dry-run: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
+            );
+            return undefined;
+          });
+
+    if (state === undefined) {
+      checks.push({ name: "nonce", status: "skipped", detail: "the node was not reachable" });
+      checks.push({ name: "balance", status: "skipped", detail: "the node was not reachable" });
+    } else {
+      const [latest, pending, balance] = state;
+      if (parsed.nonce < Number(latest)) {
+        throw new ChainError(
+          "nonce_too_low",
+          `nonce ${parsed.nonce} is already used; the account is at ${latest}`,
+        );
+      }
+      if (parsed.nonce > Number(pending)) {
+        checks.push({
+          name: "nonce",
+          status: "warning",
+          detail: `${parsed.nonce} is ahead of the account's next nonce ${pending}; it stays queued until the gap is filled`,
+        });
+        scope.warn(
+          `--dry-run: nonce ${parsed.nonce} leaves a gap after ${pending}; this transaction cannot be mined until the missing one is broadcast`,
+        );
+      } else {
+        checks.push({ name: "nonce", status: "ok", detail: `${parsed.nonce} is the next to be mined` });
+      }
+
+      const required = parsed.value + maxCostWei;
+      if (BigInt(balance) < required) {
+        throw new ChainError(
+          "insufficient_balance",
+          `the account holds ${balance} wei but this transaction needs ${required} wei (value ${parsed.value} + fee ceiling ${maxCostWei})`,
+        );
+      }
+      checks.push({
+        name: "balance",
+        status: "ok",
+        detail: `${balance} wei covers the ${required} wei this transaction can cost`,
+      });
+    }
+
+    const txId = parsed.hash ?? undefined;
+    return {
+      kind: "broadcast" as const,
+      mode: "dry-run" as const,
+      ...(txId === undefined ? {} : { txId, hash: txId }),
+      ...(from === null ? {} : { address: from }),
+      ...(parsed.to === null ? {} : { to: parsed.to }),
+      rawAmount: parsed.value.toString(),
+      fee,
+      tx: JSON.parse(JSON.stringify(parsed.toJSON())) as UnsignedTx,
+      checks,
+    };
   }
 
   /**

@@ -7,6 +7,7 @@
  */
 import {
   Interface,
+  type InterfaceAbi,
   Transaction,
   getCreateAddress,
   toUtf8String,
@@ -14,7 +15,11 @@ import {
 } from "ethers";
 import { ChainError } from "../../../../domain/errors/index.js";
 import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
-import type { EvmGateway } from "../../../../application/ports/chain/gateway-provider.js";
+import type {
+  DeployConstructorArgs,
+  EvmGateway,
+} from "../../../../application/ports/chain/gateway-provider.js";
+import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
 
 interface JsonRpcResponse {
   result?: unknown;
@@ -110,7 +115,7 @@ export class EvmRpcClient implements EvmGateway {
 
   /** the node's gas estimate for a transaction, as a decimal string. */
   async estimateGas(tx: Record<string, unknown>): Promise<string> {
-    return toDecimalString(await this.#call("eth_estimateGas", [tx]));
+    return toDecimalString(await this.#call("eth_estimateGas", [toRpcQuantities(tx)]));
   }
 
   /**
@@ -126,6 +131,7 @@ export class EvmRpcClient implements EvmGateway {
    * standing fact into an error.
    */
   async sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }> {
+    assertBroadcastAllowed();
     const body = await this.#send("eth_sendRawTransaction", [raw]);
     if (body.error) {
       const message = body.error.message ?? "";
@@ -212,6 +218,7 @@ export class EvmRpcClient implements EvmGateway {
    * (see `authoritativeTxId`), which is the whole reason the signer carries it.
    */
   async broadcast(signed: unknown): Promise<Record<string, unknown>> {
+    assertBroadcastAllowed();
     const raw = (signed as { raw?: unknown })?.raw;
     if (typeof raw !== "string" || raw === "") {
       throw new ChainError(
@@ -263,18 +270,22 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   /** deployment calldata: the creation bytecode with the constructor's ABI-encoded arguments. */
-  encodeDeploy(bytecode: string, abiJson: string, params: unknown[]): string {
-    let encodedArgs = "";
+  encodeDeploy(bytecode: string, args: DeployConstructorArgs): string {
+    const body = bytecode.trim().replace(/^0x/, "");
+    if (args.source === "none") return `0x${body}`;
     try {
-      const iface = new Interface(JSON.parse(abiJson));
-      encodedArgs = iface.encodeDeploy(params).replace(/^0x/, "");
+      const iface =
+        args.source === "abi"
+          ? new Interface(args.abi as InterfaceAbi)
+          : new Interface([normalizeConstructorSignature(args.signature)]);
+      return `0x${body}${iface.encodeDeploy(args.values).replace(/^0x/, "")}`;
     } catch (e) {
+      const from = args.source === "abi" ? "the ABI" : `${args.flag}`;
       throw new ChainError(
         "invalid_value",
-        `could not encode the constructor arguments: ${(e as Error).message}`,
+        `could not encode the constructor arguments against ${from}: ${(e as Error).message}`,
       );
     }
-    return `0x${bytecode.replace(/^0x/, "")}${encodedArgs}`;
   }
 
   /**
@@ -429,6 +440,55 @@ export class EvmRpcClient implements EvmGateway {
     }
     return body.result;
   }
+}
+
+/** Accept `constructor(uint256,string)`, `(uint256,string)` or a bare `uint256,string` — the
+ *  three ways someone writes the same thing — and hand ethers the one form it parses. */
+function normalizeConstructorSignature(signature: string): string {
+  const s = signature.trim();
+  if (s.startsWith("constructor")) return s;
+  return `constructor${s.startsWith("(") ? s : `(${s})`}`;
+}
+
+/**
+ * The outbound half of the EIP-1474 split: a transaction object leaving for the node.
+ *
+ * Everything above this port speaks decimal (see the EvmGateway doc comment), and a QUANTITY on
+ * the wire must be `0x`-prefixed. Node clients disagree about enforcing it — go-ethereum rejects
+ * a bare decimal, reth accepts it — so a load-balanced endpoint fronting both fails a fraction of
+ * requests and looks like an unreliable network rather than a malformed one.
+ *
+ * The field list is explicit rather than "anything that parses as a number": `to`, `from` and
+ * `data` are DATA, and hex-encoding an address would be silent corruption.
+ */
+const RPC_QUANTITY_FIELDS = [
+  "value",
+  "gas",
+  "gasLimit",
+  "gasPrice",
+  "maxFeePerGas",
+  "maxPriorityFeePerGas",
+  "maxFeePerBlobGas",
+  "nonce",
+] as const;
+
+function toRpcQuantities(tx: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...tx };
+  for (const field of RPC_QUANTITY_FIELDS) {
+    const value = out[field];
+    if (value === undefined || value === null) continue;
+    // Already hex (or something this function has no business rewriting) — leave it alone.
+    if (typeof value === "string" && value.startsWith("0x")) continue;
+    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "bigint") {
+      continue;
+    }
+    try {
+      out[field] = `0x${BigInt(value).toString(16)}`;
+    } catch {
+      throw new ChainError("invalid_value", `${field} is not a quantity: ${String(value)}`);
+    }
+  }
+  return out;
 }
 
 /**

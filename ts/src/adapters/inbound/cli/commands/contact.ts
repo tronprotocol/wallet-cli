@@ -20,7 +20,7 @@ export function registerContactCommands(registry: CommandRegistry, service: Cont
     wallet: "none",
     auth: "none",
     positionals: [{ field: "name" }, { field: "address" }],
-    summary: "Add a recipient",
+    summary: "Add a payee to the address book",
     description:
       "Add a locally stored recipient. The address is validated against the family it belongs to (T… = TRON, 0x… = EVM), and the name can then be used anywhere an address is accepted.",
     fields: addFields,
@@ -40,7 +40,7 @@ export function registerContactCommands(registry: CommandRegistry, service: Cont
     network: "none",
     wallet: "none",
     auth: "none",
-    summary: "List recipients",
+    summary: "List every contact",
     description: "List every recipient in the local plaintext address book.",
     fields: empty,
     input: empty,
@@ -58,7 +58,7 @@ export function registerContactCommands(registry: CommandRegistry, service: Cont
     wallet: "none",
     auth: "none",
     positionals: [{ field: "name" }],
-    summary: "Remove a recipient",
+    summary: "Remove a contact",
     description:
       "Remove one recipient from the local address book without changing any on-chain state.",
     fields: removeFields,

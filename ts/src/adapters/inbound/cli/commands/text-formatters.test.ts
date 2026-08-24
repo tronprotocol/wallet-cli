@@ -173,11 +173,14 @@ describe("stake/chain TRX amount formatting", () => {
       },
       ctx(),
     );
-    const chain = TextFormatters.chainPrices({
-      energy: { currentSunPerUnit: 210 },
-      bandwidth: { currentSunPerUnit: 1000 },
-      memoFeeSun: "1234456789",
-    });
+    const chain = TextFormatters.chainPrices(
+      {
+        energy: { currentSunPerUnit: 210 },
+        bandwidth: { currentSunPerUnit: 1000 },
+        memoFeeSun: "1234456789",
+      },
+      ctx(),
+    );
     expect(stake).toContain("1,234.456789 TRX");
     expect(chain).toContain("1,234.456789 TRX");
   });

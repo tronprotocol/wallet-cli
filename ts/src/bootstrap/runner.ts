@@ -1,4 +1,4 @@
-import { runMigrationGate } from "./migration-gate.js";
+import { runMigrationGate, type PendingUpgrade } from "./migration-gate.js";
 import { migrationSteps } from "./migration-steps.js";
 import { MigrationRunner } from "../adapters/outbound/persistence/migration.js";
 import { hideBin } from "yargs/helpers";
@@ -77,11 +77,25 @@ export async function main(argv: string[]): Promise<ExitCode> {
     await runMigrationGate(
       new MigrationRunner(runtime.store),
       migrationSteps(runtime.root, runtime.store),
-      async () => {
-        const { secrets, keystore, prompter } = runtime.deps;
-        if (!secrets.hasMasterPassword() && !prompter.isTTY()) return null;
-        await secrets.primePassword({ mode: "verify", verify: (pw) => keystore.verifyPassword(pw) });
-        return secrets.masterPassword();
+      {
+        confirm: async (pending) => {
+          const { secrets, prompter } = runtime.deps;
+          // --password-stdin already stated the intent, and there is no one to ask anyway.
+          if (secrets.hasMasterPassword()) return true;
+          // No terminal: fall through so password() raises migration_required, unchanged.
+          if (!prompter.isTTY()) return true;
+          for (const line of upgradeNotice(pending)) runtime.streams.diagnostic("info", line);
+          return prompter.confirm({ label: "Upgrade now?" });
+        },
+        password: async () => {
+          const { secrets, keystore, prompter } = runtime.deps;
+          if (!secrets.hasMasterPassword() && !prompter.isTTY()) return null;
+          await secrets.primePassword({
+            mode: "verify",
+            verify: (pw) => keystore.verifyPassword(pw),
+          });
+          return secrets.masterPassword();
+        },
       },
     );
 
@@ -111,4 +125,20 @@ export async function main(argv: string[]): Promise<ExitCode> {
     runtime.deps.secrets.clearPrimed(); // release cached secrets at end of the invocation
     runtime.prompter.close();
   }
+}
+
+/** Goes to stderr at `info`, so stdout stays reserved for command output. */
+export function upgradeNotice(pending: PendingUpgrade[]): string[] {
+  return [
+    "",
+    "This wallet was created by an earlier version of wallet-cli and must be upgraded",
+    "before any command can run.",
+    "",
+    ...pending.map((f) => `  ${f.path}   v${f.from} \u2192 v${f.to}`),
+    "",
+    ...pending.map((f) => `A copy of the current file is kept at\n  ${f.backup}\nand is never removed automatically. The upgrade runs once.`),
+    "",
+    "Release details: https://github.com/tronprotocol/wallet-cli/releases",
+    "",
+  ];
 }

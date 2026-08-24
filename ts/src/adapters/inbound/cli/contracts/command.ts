@@ -87,6 +87,11 @@ interface CommandDefinitionBase<I, O> {
   /** extra command-specific preconditions rendered in the help "Requires:" block, ahead of the
    *  auto-derived network/auth/account lines (e.g. a connected Ledger for `import ledger`). */
   requires?: string[];
+  /** preconditions that must render AFTER the auto-derived master-password line rather than
+   *  before it. §10.1 rule 4 orders same-class prerequisites by the order the user supplies
+   *  them, and `change-password` asks for the current password before the new one — so its
+   *  "new master password" line has to follow the generated one, not lead it. */
+  requiresAfterAuth?: string[];
   /** mutually-exclusive option sets, surfaced in help; see ExclusiveGroup. */
   exclusive?: ExclusiveGroup[];
   /** per-field zod object; feeds the arity adapter + HelpService. */

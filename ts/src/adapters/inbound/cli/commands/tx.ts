@@ -41,7 +41,12 @@ export const txSendSpec: ChainSpec = {
   auth: "conditional",
   broadcasts: true,
   capability: "tx.send",
-  summary: "Send native TRX or TRC20/TRC10 tokens with human --amount",
+  summary: "Send the native coin or a token",
+  description:
+    "Send the native coin, or a token selected with --token / --contract.\n" +
+    // §10.1: a command whose Options show BOTH families' tags must say what the tags mean —
+    // help has to be readable on its own, without the reader having seen the spec.
+    "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   exclusive: [
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
@@ -56,10 +61,11 @@ export const txSendSpec: ChainSpec = {
   ],
   baseRefine: amountSelector,
   examples: [
-    { cmd: "wallet-cli tx send --to T... --amount 1" },
-    { cmd: "wallet-cli tx send --to T... --token USDT --amount 5" },
-    { cmd: "wallet-cli tx send --to T... --contract TR7... --amount 5" },
-    { cmd: "wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000" },
+    { cmd: "wallet-cli tx send --to T... --amount 1 --network nile" },
+    { cmd: "wallet-cli tx send --to 0x742d... --amount 1 --network sepolia" },
+    { cmd: "wallet-cli tx send --to T... --token USDT --amount 5 --network nile" },
+    { cmd: "wallet-cli tx send --to 0x742d... --token USDC --amount 5 --network sepolia" },
+    { cmd: "wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network nile" },
   ],
   formatText: TextFormatters.txReceipt,
 };
@@ -115,7 +121,12 @@ export const txSignEvmBinding = (svc: EvmTransactionService): FamilyBinding => (
 });
 
 export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
-  run: async (ctx, net, input) => svc.broadcast(ctx, net, evmHexOnly(input)),
+  run: async (ctx, net, input) => {
+    if (input.dryRun && ctx.wait) {
+      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
+    }
+    return svc.broadcast(ctx, net, evmHexOnly(input), input.dryRun === true);
+  },
 });
 
 export const txSendEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
@@ -137,13 +148,13 @@ export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding =>
 });
 
 const broadcastFields = z.object({
-  transaction: z.string().optional().describe("signed TRON transaction JSON"),
-  hex: z.string().min(2).optional().describe("complete signed protocol.Transaction hex"),
+  transaction: z.string().optional().describe("signed transaction JSON"),
+  hex: z.string().min(2).optional().describe("signed transaction hex: protobuf hex for TRON, RLP for EVM"),
   file: z
     .string()
     .min(1)
     .optional()
-    .describe("file containing complete signed protocol.Transaction hex"),
+    .describe("file containing the signed transaction hex"),
   dryRun: z
     .boolean()
     .default(false)
@@ -160,7 +171,7 @@ export const txBroadcastSpec: ChainSpec = {
   auth: "none",
   broadcasts: true,
   capability: "tx.broadcast",
-  summary: "Validate and broadcast a presigned JSON or protobuf-hex transaction",
+  summary: "Broadcast a presigned transaction",
   baseFields: broadcastFields,
   exclusive: [
     {
@@ -180,8 +191,9 @@ export const txBroadcastSpec: ChainSpec = {
     }
   },
   examples: [
-    { cmd: "wallet-cli tx broadcast --tx-stdin < signed.json" },
-    { cmd: "wallet-cli tx broadcast --file signed.hex" },
+    { cmd: "wallet-cli tx broadcast --file signed.hex --network nile" },
+    { cmd: "wallet-cli tx broadcast --file signed.hex --network sepolia" },
+    { cmd: "wallet-cli tx broadcast --tx-stdin < signed.json --network nile" },
   ],
   formatText: TextFormatters.txReceipt,
 };
@@ -214,8 +226,8 @@ export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBind
 });
 
 const artifactFields = {
-  hex: z.string().min(2).optional().describe("complete protocol.Transaction hex"),
-  file: z.string().min(1).optional().describe("file containing complete protocol.Transaction hex"),
+  hex: z.string().min(2).optional().describe("transaction hex: protobuf hex for TRON, RLP for EVM"),
+  file: z.string().min(1).optional().describe("file containing the transaction hex"),
 };
 
 const approvalsFields = z.object(artifactFields);
@@ -226,7 +238,7 @@ export const txApprovalsSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "tx.multisig.local",
-  summary: "Show permission, signature approvals, current weight, and expiration",
+  summary: "Show collected signatures on a multi-sig transaction",
   description:
     "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
   baseFields: approvalsFields,
@@ -245,7 +257,7 @@ const signFields = z.object({
     .string()
     .min(1)
     .optional()
-    .describe("unsigned TRON transaction JSON; retained for direct single-signature compatibility"),
+    .describe("unsigned transaction JSON; TRON compatibility path, never checked online"),
   ...artifactFields,
   offline: z
     .boolean()
@@ -267,13 +279,17 @@ export const txSignSpec: ChainSpec = {
   auth: "required",
   broadcasts: false,
   capability: "tx.sign",
-  summary: "Sign transaction JSON or append a signature to transaction hex",
+  summary: "Sign a transaction built elsewhere",
+  // NOTE: the §6.2 spec block also promises "one built for another chain is rejected before it
+  // is signed". That check (`chain_id_mismatch`) is NOT implemented yet, so the sentence is
+  // deliberately absent — help must not promise a guard the code does not enforce.
   description:
-    "With --transaction, preserve the direct JSON signing flow. With --hex/--file, append exactly\n" +
-    "one signature while preserving prior signatures, verifying online that this account is in the\n" +
-    "transaction's permission group and has not already signed, and reporting the resulting\n" +
-    "approval weight. Add --offline to sign without contacting a node, which skips those checks.\n" +
-    "This command never broadcasts.",
+    "Sign a transaction that was built elsewhere and output the signed result; broadcast it\n" +
+    "later with `tx broadcast`. This command never broadcasts.\n" +
+    "On TRON, --hex/--file append one signature while preserving any already collected,\n" +
+    "checking online that this account is in the transaction's permission group and has not\n" +
+    "already signed, and reporting the resulting approval weight; --offline skips those checks.\n" +
+    "On EVM a transaction carries exactly one signature, so an already-signed one is refused.",
   baseFields: signFields,
   // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
@@ -306,7 +322,8 @@ export const txSignSpec: ChainSpec = {
     {
       cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
     },
-    { cmd: "wallet-cli tx sign --file partially-signed.hex --out signed.hex --password-stdin" },
+    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin" },
+    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin" },
     { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
   ],
   formatText: TextFormatters.txSign,
@@ -380,7 +397,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   wallet: "optional",
   auth: "conditional",
   capability: "tx.multisig.tronlink",
-  summary: "Coordinate multi-signature collection through the TronLink service",
+  summary: "Create / co-sign a multi-sig transaction",
   description:
     "With no mode flag, list service-managed transactions for the selected account. --create signs\n" +
     "an UNSIGNED transaction locally and submits it, which opens the collection at the first\n" +
@@ -434,7 +451,7 @@ export const txTronLinkMultisigBinding = (
   },
 });
 
-const statusFields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
+const statusFields = z.object({ txid: z.string().min(1).describe("transaction id/hash") });
 
 export const txStatusSpec: ChainSpec = {
   path: ["tx", "status"],
@@ -443,7 +460,10 @@ export const txStatusSpec: ChainSpec = {
   auth: "none",
   summary: "Show confirmation status of a transaction",
   baseFields: statusFields,
-  examples: [{ cmd: "wallet-cli tx status --txid abc123" }],
+  examples: [
+    { cmd: "wallet-cli tx status --txid abc123 --network nile" },
+    { cmd: "wallet-cli tx status --txid 0x9c4e... --network sepolia" },
+  ],
   formatText: TextFormatters.txStatus,
 };
 
@@ -455,7 +475,7 @@ export const txStatusEvmBinding = (svc: EvmTransactionService): FamilyBinding =>
   run: async (ctx, net, input) => svc.status(ctx, net, input.txid),
 });
 
-const infoFields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
+const infoFields = z.object({ txid: z.string().min(1).describe("transaction id/hash") });
 
 export const txInfoSpec: ChainSpec = {
   path: ["tx", "info"],
@@ -464,7 +484,10 @@ export const txInfoSpec: ChainSpec = {
   auth: "none",
   summary: "Show full transaction detail + receipt",
   baseFields: infoFields,
-  examples: [{ cmd: "wallet-cli tx info --txid abc123" }],
+  examples: [
+    { cmd: "wallet-cli tx info --txid abc123 --network nile" },
+    { cmd: "wallet-cli tx info --txid 0x9c4e... --network sepolia" },
+  ],
   formatText: TextFormatters.txInfo,
 };
 

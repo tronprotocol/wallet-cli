@@ -46,6 +46,7 @@ function harness(over: Partial<Record<string, unknown>> = {}) {
     }),
     estimateGas: vi.fn(async () => (over.gasEstimate as string) ?? "21000"),
     encodeErc20Transfer: vi.fn(() => "0xa9059cbb-encoded"),
+    getErc20Metadata: vi.fn(async () => (over.metadata as object) ?? { symbol: "TKN", decimals: 6 }),
   };
   const built: Record<string, unknown>[] = [];
   const pipeline = {
@@ -172,8 +173,11 @@ describe("EvmTransactionService.send — ERC-20 transfer", () => {
     expect(gateway.encodeErc20Transfer).toHaveBeenCalledWith(RECEIVER, "5000000");
   });
 
+  // This used to assert that a bare --contract ALWAYS failed, which is what the flag actually did
+  // — nothing resolved its decimals. The rule it should have been asserting is narrower: refuse
+  // when decimals cannot be established, from the book or from the contract itself.
   it("refuses a token transfer whose decimals it could not establish", async () => {
-    const { service } = harness();
+    const { service } = harness({ metadata: {} });
 
     await expect(
       service.send(scope(), SEPOLIA, { to: RECEIVER, contract: USDT, amount: "5" } as never),
@@ -204,6 +208,142 @@ describe("EvmTransactionService.send — the transaction it hands over", () => {
     } as never)) as { fee?: Record<string, unknown> };
 
     expect(out.fee).toMatchObject({ feeModel: "eip1559", maxCostWei: String(21000n * 210n) });
+  });
+});
+
+/**
+ * `--contract` without the token in the address book.
+ *
+ * The flag is offered on EVM but nothing resolved its decimals: the inbound layer has no
+ * --decimals flag and only `--token <symbol>` consulted the book, so `--contract 0x… --amount N`
+ * always failed as token_metadata_unavailable — even for a contract whose decimals() answers.
+ * TRON has always asked the contract in this case; EVM now does the same.
+ */
+describe("EvmTransactionService.send — --contract without a book entry", () => {
+  it("asks the contract for its decimals and scales by them", async () => {
+    const { service, built, gateway } = harness({
+      metadata: { symbol: "USDC", decimals: 6, name: "USD Coin" },
+    });
+
+    const out = (await service.send(scope(), SEPOLIA, {
+      to: RECEIVER,
+      contract: USDT,
+      amount: "0.5",
+      dryRun: true,
+    } as never)) as Record<string, unknown>;
+
+    expect(gateway.getErc20Metadata).toHaveBeenCalledWith(USDT);
+    // 0.5 at six decimals — scaled by the TOKEN's decimals, never the chain's eighteen.
+    expect(out.rawAmount).toBe("500000");
+    expect(out.decimals).toBe(6);
+    expect(out.symbol ?? out.token).toBe("USDC");
+    expect(built[0]).toMatchObject({ to: USDT });
+  });
+
+  it("refuses to guess when the contract does not answer decimals()", async () => {
+    const { service } = harness({ metadata: {} });
+
+    const error = await service
+      .send(scope(), SEPOLIA, {
+        to: RECEIVER,
+        contract: USDT,
+        amount: "0.5",
+        dryRun: true,
+      } as never)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({ code: "token_metadata_unavailable" });
+    expect(error.message).toMatch(/--raw-amount|token add/);
+  });
+
+  it("does not need decimals at all for --raw-amount", async () => {
+    const { service, gateway } = harness({ metadata: {} });
+
+    const out = (await service.send(scope(), SEPOLIA, {
+      to: RECEIVER,
+      contract: USDT,
+      rawAmount: "500000",
+      dryRun: true,
+    } as never)) as Record<string, unknown>;
+
+    expect(out.rawAmount).toBe("500000");
+    expect(gateway.getErc20Metadata).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A failed gas estimate.
+ *
+ * It used to be swallowed and replaced with 21000, so an ERC-20 transfer was signed with the gas
+ * limit of a plain value transfer and failed at broadcast — or, on a node that accepts an
+ * under-limit transaction, on-chain with the fee burned.
+ */
+describe("EvmTransactionService.send — gas estimation", () => {
+  it("surfaces the node's refusal instead of signing a guess", async () => {
+    const gateway = {
+      getTransactionCount: vi.fn(async () => "5"),
+      feeData: vi.fn(async () => ({ baseFeeWei: "100", gasPriceWei: "110" })),
+      estimateGas: vi.fn(async () => {
+        throw new Error("insufficient funds for transfer");
+      }),
+      encodeErc20Transfer: vi.fn(() => "0xa9059cbb-encoded"),
+    };
+    const failing = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      {
+        assertCanSign: vi.fn(),
+        run: vi.fn(async (params: TxPipelineParams) => ({
+          stage: "plan" as const,
+          tx: await params.build(OWNER),
+          fee: {},
+        })),
+      } as unknown as TxPipeline,
+      { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+    );
+
+    const error = await failing
+      .send(scope(), SEPOLIA, { to: RECEIVER, amount: "1", dryRun: true } as never)
+      .catch((e) => e);
+
+    expect(error).toMatchObject({ code: "invalid_option" });
+    expect(error.message).toMatch(/insufficient funds/);
+    expect(error.message).toMatch(/--gas-limit/);
+  });
+
+  it("takes --gas-limit as the way past a node that cannot estimate", async () => {
+    const gateway = {
+      getTransactionCount: vi.fn(async () => "5"),
+      feeData: vi.fn(async () => ({ baseFeeWei: "100", gasPriceWei: "110" })),
+      estimateGas: vi.fn(async () => {
+        throw new Error("execution reverted");
+      }),
+      encodeErc20Transfer: vi.fn(() => "0xa9059cbb-encoded"),
+    };
+    const built: unknown[] = [];
+    const service = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      {
+        assertCanSign: vi.fn(),
+        run: vi.fn(async (params: TxPipelineParams) => {
+          const tx = await params.build(OWNER);
+          built.push(tx);
+          return { stage: "plan" as const, tx, fee: {} };
+        }),
+      } as unknown as TxPipeline,
+      { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+    );
+
+    await service.send(scope(), SEPOLIA, {
+      to: RECEIVER,
+      amount: "1",
+      gasLimit: "90000",
+      dryRun: true,
+    } as never);
+
+    expect(built[0]).toMatchObject({ gasLimit: "90000" });
+    expect(gateway.estimateGas).not.toHaveBeenCalled();
   });
 });
 
@@ -317,6 +457,145 @@ describe("EvmTransactionService.broadcast", () => {
     const { service } = bcHarness();
 
     await expect(service.broadcast(scope(), SEPOLIA, "0xdeadbeef")).rejects.toMatchObject({
+      code: "invalid_transaction",
+    });
+  });
+});
+
+/**
+ * `tx broadcast --dry-run`.
+ *
+ * The flag promises the transaction is validated and NOT submitted; on EVM it used to submit it,
+ * irreversibly. The first test below is the one that matters — everything else describes what a
+ * dry run is worth once it stops spending money.
+ */
+describe("EvmTransactionService.broadcast --dry-run", () => {
+  const SIGNED =
+    "0x02f87383aa36a780830f424084793b5e8282520894000000000000000000000000000000000000dead87038d7ea4c6800080c001a02958ee6a65975b5f6c2067d08704bc367375ee3fd54f1a0b4cbbc2643ab6b95ca0044e8cb5dea54b08c8b43b68a842e75e4f6627caa3911e4f9e5119ca12c01fc9";
+  // What the fixture costs: nonce 0, value 1000000000000000 wei, gasLimit 21000 ×
+  // maxFeePerGas 2033933954 = 42712613034000 wei. Read off the fixture, not chosen.
+  const MAX_COST = 21000n * 2033933954n;
+  const VALUE = 1000000000000000n;
+  // The same transaction signed at nonce 5, for the gap case (ethers' own signTransaction).
+  const SIGNED_NONCE_5 =
+    "0x02f87383aa36a705830f4240847936a08282520894000000000000000000000000000000000000dead87038d7ea4c6800080c001a0c6bd6e2d48486d0f3cfc0afe941906ed4d2b1e0ddf0d7c420ce309cb71de850da0343d3b1e4e2818e022ad953505750198158dcbd378a50046758b24aafad18c9b";
+
+  function dryHarness(node: Partial<Record<string, unknown>> = {}) {
+    const gateway = {
+      sendRawTransaction: vi.fn(async () => ({ hash: `0x${"cd".repeat(32)}` })),
+      getTransactionCount: vi.fn(async (_a: string, block?: string) =>
+        block === "pending" ? "0" : "0",
+      ),
+      getNativeBalance: vi.fn(async () => String(VALUE + MAX_COST)),
+      ...node,
+    };
+    const warn = vi.fn();
+    const service = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      {} as never,
+      { resolve: vi.fn() } as never,
+    );
+    return { service, gateway, warn, scope: () => ({ ...scope(), warn }) as never };
+  }
+
+  it("does not submit the transaction", async () => {
+    const { service, gateway, scope } = dryHarness();
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<string, unknown>;
+
+    expect(gateway.sendRawTransaction).not.toHaveBeenCalled();
+    expect(out.mode).toBe("dry-run");
+    expect(out.stage).toBeUndefined();
+  });
+
+  it("reports the transaction it validated, without asking the node for its identity", async () => {
+    const { service, scope } = dryHarness();
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<string, unknown>;
+
+    expect(out.txId).toBe("0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026");
+    expect(out.rawAmount).toBe(String(VALUE));
+    expect(out.fee).toMatchObject({ feeModel: "eip1559", maxCostWei: String(MAX_COST) });
+    expect(out.checks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "chainId", status: "ok" })]),
+    );
+  });
+
+  it("rejects a transaction signed for another chain", async () => {
+    const { service, scope } = dryHarness();
+    const mainnet = { ...SEPOLIA, id: "evm:1", chainId: "1" };
+
+    await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
+      code: "chain_mismatch",
+    });
+  });
+
+  it("rejects a nonce the account has already spent", async () => {
+    const { service, scope } = dryHarness({
+      getTransactionCount: vi.fn(async () => "3"),
+    });
+
+    await expect(service.broadcast(scope(), SEPOLIA, SIGNED, true)).rejects.toMatchObject({
+      code: "nonce_too_low",
+    });
+  });
+
+  it("rejects a balance that cannot cover value plus the fee ceiling", async () => {
+    const { service, scope } = dryHarness({
+      getNativeBalance: vi.fn(async () => String(VALUE + MAX_COST - 1n)),
+    });
+
+    await expect(service.broadcast(scope(), SEPOLIA, SIGNED, true)).rejects.toMatchObject({
+      code: "insufficient_balance",
+    });
+  });
+
+  // A gap is not a rejection: the transaction is valid and will be mined once the missing nonce
+  // arrives. Failing here would deny something that can still happen.
+  it("warns rather than fails when the nonce leaves a gap", async () => {
+    const { service, scope, warn } = dryHarness({
+      getTransactionCount: vi.fn(async () => "2"),
+      getNativeBalance: vi.fn(async () => String(VALUE + 21000n * 2033623170n)),
+    });
+    const out = (await service.broadcast(
+      scope(),
+      SEPOLIA,
+      SIGNED_NONCE_5,
+      true,
+    )) as Record<string, unknown>;
+
+    expect(out.mode).toBe("dry-run");
+    expect(out.checks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "nonce", status: "warning" })]),
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("gap"));
+  });
+
+  // A dry run that cannot reach a node is still worth more than no dry run — but it must not
+  // claim the checks it could not make.
+  it("degrades to the local checks when the node is unreachable", async () => {
+    const { service, scope, warn } = dryHarness({
+      getTransactionCount: vi.fn(async () => {
+        throw new Error("connect ECONNREFUSED");
+      }),
+    });
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<string, unknown>;
+
+    expect(out.mode).toBe("dry-run");
+    expect(out.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "nonce", status: "skipped" }),
+        expect.objectContaining({ name: "balance", status: "skipped" }),
+      ]),
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("not checked"));
+  });
+
+  it("still refuses an unsigned transaction", async () => {
+    const { service, scope } = dryHarness();
+    const unsigned =
+      "0x02f083aa36a780830f4240847944848282520894000000000000000000000000000000000000dead87038d7ea4c6800080c0";
+
+    await expect(service.broadcast(scope(), SEPOLIA, unsigned, true)).rejects.toMatchObject({
       code: "invalid_transaction",
     });
   });

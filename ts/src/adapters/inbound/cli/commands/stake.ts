@@ -56,7 +56,7 @@ export function stakeDefinitions(
   return [
     stakeCommand(
       "freeze",
-      "Stake TRX for energy/bandwidth (FreezeBalanceV2)",
+      "Stake TRX for energy/bandwidth",
       (context, network, input) => service.freeze(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe("amount to freeze as staked TRX, in SUN"),
@@ -65,7 +65,7 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "unfreeze",
-      "Unstake TRX (UnfreezeBalanceV2)",
+      "Unstake TRX",
       (context, network, input) => service.unfreeze(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe("amount to unfreeze as staked TRX, in SUN"),
@@ -74,7 +74,7 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "withdraw",
-      "Withdraw expired unfrozen TRX (WithdrawExpireUnfreeze)",
+      "Withdraw expired unfrozen TRX",
       (context, network, input) => service.withdraw(context, network, input),
     ),
     stakeCommand(
@@ -92,7 +92,7 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "delegate",
-      "Delegate resource to another address (DelegateResourceV2)",
+      "Delegate resource to another address",
       (context, network, input) => service.delegate(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe(
@@ -125,7 +125,7 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "undelegate",
-      "Reclaim delegated resource (UnDelegateResourceV2)",
+      "Reclaim delegated resource",
       (context, network, input) => service.undelegate(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe(

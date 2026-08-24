@@ -17,6 +17,7 @@ import type {
 } from "../../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../../domain/resources/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
+import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
 import type {
   DecodedTronTransaction,
   TronContractParameter,
@@ -89,6 +90,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return account.balance ?? "0";
   }
   async broadcast(signed: SignedTx): Promise<BroadcastResult> {
+    assertBroadcastAllowed();
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
     try {
       // bound the RPC so a standalone `tx broadcast` (not routed through the pipeline) can't hang.
@@ -308,6 +310,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   async broadcastHex(input: string): Promise<BroadcastResult> {
+    assertBroadcastAllowed();
     const hex = normalizeTransactionHex(input);
     decodeTransactionHex(hex);
     const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));

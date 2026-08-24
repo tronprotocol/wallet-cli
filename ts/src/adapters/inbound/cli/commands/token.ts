@@ -45,9 +45,12 @@ export const tokenBalanceSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   capability: "account.balance.token",
-  summary: "Show a single token balance (--contract / --asset-id)",
+  summary: "Show a single token balance",
   baseFields: selectorFields,
-  examples: [{ cmd: "wallet-cli token balance --contract TR7..." }],
+  examples: [
+    { cmd: "wallet-cli token balance --contract TR7... --network nile" },
+    { cmd: "wallet-cli token balance --contract 0xA0b8... --network sepolia" },
+  ],
   formatText: TextFormatters.tokenBalance,
 };
 
@@ -82,9 +85,12 @@ export const tokenInfoSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "account.balance.token",
-  summary: "Show token metadata (name/symbol/decimals/totalSupply)",
+  summary: "Show token metadata",
   baseFields: selectorFields,
-  examples: [{ cmd: "wallet-cli token info --contract TR7..." }],
+  examples: [
+    { cmd: "wallet-cli token info --contract TR7... --network nile" },
+    { cmd: "wallet-cli token info --contract 0xA0b8... --network sepolia" },
+  ],
   formatText: TextFormatters.tokenInfo,
 };
 
@@ -99,9 +105,12 @@ export const tokenAddSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   capability: "token.tokenbook",
-  summary: "Add a token to the address book (fetches symbol/decimals)",
+  summary: "Add a token to the address book",
   baseFields: selectorFields,
-  examples: [{ cmd: "wallet-cli token add --contract TR7..." }],
+  examples: [
+    { cmd: "wallet-cli token add --contract TR7... --network nile" },
+    { cmd: "wallet-cli token add --contract 0xA0b8... --network sepolia" },
+  ],
   formatText: TextFormatters.tokenBookAdd,
 };
 
@@ -116,9 +125,12 @@ export const tokenListSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   capability: "token.tokenbook",
-  summary: "List the address book (official + user)",
+  summary: "List the address book",
   baseFields: z.object({}),
-  examples: [{ cmd: "wallet-cli token list" }],
+  examples: [
+    { cmd: "wallet-cli token list --network nile" },
+    { cmd: "wallet-cli token list --network sepolia" },
+  ],
   formatText: TextFormatters.tokenBookList,
 };
 
@@ -133,9 +145,12 @@ export const tokenRemoveSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   capability: "token.tokenbook",
-  summary: "Remove a user-added token from the address book",
+  summary: "Remove a user-added token",
   baseFields: selectorFields,
-  examples: [{ cmd: "wallet-cli token remove --contract TR7..." }],
+  examples: [
+    { cmd: "wallet-cli token remove --contract TR7... --network nile" },
+    { cmd: "wallet-cli token remove --contract 0xA0b8... --network sepolia" },
+  ],
   formatText: TextFormatters.tokenBookRemove,
 };
 

@@ -82,6 +82,12 @@ export function formatWei(v: unknown): string {
   return formatAmount(v, 18);
 }
 
+/** wei → gwei. Gas is quoted in gwei by every wallet and explorer, and by this CLI's own
+ *  --max-fee / --priority-fee flags; wei would be nine zeros longer for the same number. */
+export function formatGwei(v: unknown): string {
+  return formatAmount(v, 9);
+}
+
 export function formatTime(v: unknown): string {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return "";

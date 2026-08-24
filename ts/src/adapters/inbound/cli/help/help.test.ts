@@ -139,8 +139,10 @@ describe("shipped exclusive groups actually render", () => {
 });
 
 // The (tron) tag on the root listing tells a reader which groups disappear on a non-TRON network.
-// `chain` is assembled only in the tron family (bootstrap/families/tron.ts), like permission /
-// gasfree / stake / vote / reward — it was the one family-scoped group left untagged.
+// It is therefore a claim about the CURRENT bindings, and a stale one actively misleads: `chain`
+// carried (tron) for a whole release after `chain node` and `chain prices` gained EVM bindings,
+// telling every EVM reader that a group they could in fact use was closed to them. A group is
+// tagged only while EVERY command under it is bound to that one family.
 describe("root help family tags", () => {
   function rootRow(name: string): string {
     const stream = makeStream();
@@ -148,8 +150,14 @@ describe("root help family tags", () => {
     return (stream.last ?? "").split("\n").find((l) => l.trimStart().startsWith(`${name} `)) ?? "";
   }
 
-  it("tags chain as TRON-only, like every other family-scoped group", () => {
-    expect(rootRow("chain")).toMatch(/\(tron\)$/);
+  it("leaves chain untagged, because chain node / chain prices serve EVM too", () => {
+    expect(rootRow("chain")).not.toMatch(/\(tron\)$/);
+  });
+
+  it("still tags the groups that really are TRON-only", () => {
+    for (const group of ["permission", "gasfree", "stake", "vote", "reward"]) {
+      expect(rootRow(group)).toMatch(/\(tron\)$/);
+    }
   });
 
   it("leaves family-neutral groups untagged", () => {

@@ -12,13 +12,16 @@ export const chainPricesSpec: ChainSpec = {
   network: "optional",
   wallet: "none",
   auth: "none",
-  summary: "Transaction pricing for the selected network",
+  summary: "Current transaction unit prices",
   description:
     "Show what a transaction costs to send on this network. The fields are family-shaped:\n" +
     "TRON reports energy/bandwidth unit prices (in SUN; 1 TRX = 1,000,000 SUN) and the memo\n" +
     "fee. An EVM chain reports its fee model plus base/priority/gas price (in wei).",
   baseFields: z.object({}),
-  examples: [{ cmd: "wallet-cli chain prices" }],
+  examples: [
+    { cmd: "wallet-cli chain prices --network nile" },
+    { cmd: "wallet-cli chain prices --network sepolia" },
+  ],
   formatText: TextFormatters.chainPrices,
 };
 
@@ -35,13 +38,16 @@ export const chainNodeSpec: ChainSpec = {
   network: "optional",
   wallet: "none",
   auth: "none",
-  summary: "Connected node status (version / sync / peers)",
+  summary: "Connected node status",
   description:
     "Show the connected node's status: version, head/solid block height, sync state,\n" +
     'and peer connections. Useful to tell "node out of sync" from "problem with my\n' +
     'transaction". Fields the endpoint does not expose are shown as "—" (null in json).',
   baseFields: z.object({}),
-  examples: [{ cmd: "wallet-cli chain node" }],
+  examples: [
+    { cmd: "wallet-cli chain node --network nile" },
+    { cmd: "wallet-cli chain node --network sepolia" },
+  ],
   formatText: TextFormatters.chainNode,
 };
 

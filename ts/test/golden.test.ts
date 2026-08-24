@@ -77,7 +77,7 @@ describe("golden CLI — meta & introspection", () => {
   it("root --help shows the TRON first-release command surface", () => {
     const r = run(["--help"], { password: null });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("wallet-cli — CLI wallet for TRON.");
+    expect(r.stdout).toContain("wallet-cli — CLI wallet for TRON and EVM networks.");
     expect(r.stdout).toContain("Usage:  wallet-cli [OPTIONS] COMMAND");
     expect(r.stdout).toContain("Common Commands:");
     expect(r.stdout).toContain("Management Commands:");
@@ -92,7 +92,9 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toMatch(/^  encoding\s/m);
     expect(r.stdout).toMatch(/^  address\s/m);
     expect(r.stdout).toMatch(/^  contact\s/m);
-    expect(r.stdout).toContain("current account (--qr for a receive QR code)");
+    // The root row names the command, not its flags (§10.1: root descriptions are verb
+    // summaries). `--qr` stays discoverable one level down, in `current --help`.
+    expect(r.stdout).toMatch(/^  current\s+Show the current \(active\) account$/m);
     expect(r.stdout).not.toContain("Learn more:");
     expect(r.stdout).not.toMatch(/^  import watch\s/m);
     expect(r.stdout).not.toMatch(/^  account balance\s/m);
@@ -334,7 +336,10 @@ describe("golden CLI — command help contracts", () => {
   it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
     const r = run(["tx", "send", "--help"], { password: null });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("Send native TRX or TRC20/TRC10 tokens with human --amount");
+    // Leads with the imperative verb (§10.1 rule 1) and stays family-neutral; the human-unit
+    // --amount flag is what the E2 contract is really about, so assert it directly.
+    expect(r.stdout).toMatch(/^Send the native coin, or a token/m);
+    expect(r.stdout).toMatch(/^ +--amount <string> +human amount/m);
   });
 
   it("block --help documents the height as a positional arg, not a --number flag (H4)", () => {

@@ -12,12 +12,21 @@ export const blockSpec: ChainSpec = {
   auth: "none",
   positionals: [{ field: "number" }],
   summary: "Get a block (latest if omitted)",
+  description:
+    "Get a block, or the latest block when no height is given.\n" +
+    "JSON output is the node's own block object, so its shape differs by family: EVM reports\n" +
+    "hex quantities and second-precision timestamps, TRON decimal values and milliseconds.\n" +
+    "Text output is normalised across both.",
   baseFields: z.object({
     number: Schemas.uintString()
       .optional()
       .describe("block number to fetch, in block height; omit to fetch the latest block"),
   }),
-  examples: [{ cmd: "wallet-cli block" }, { cmd: "wallet-cli block 12345" }],
+  examples: [
+    { cmd: "wallet-cli block" },
+    { cmd: "wallet-cli block 12345 --network nile" },
+    { cmd: "wallet-cli block 12345 --network sepolia" },
+  ],
   formatText: TextFormatters.block,
 };
 

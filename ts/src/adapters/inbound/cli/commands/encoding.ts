@@ -25,7 +25,8 @@ export function registerEncodingCommands(
     positionals: [{ field: "input" }],
     summary: "Convert and validate address, hex, Base64, and Base58Check encodings",
     description:
-      "Auto-detect an address/public-key or generic encoding and print all equivalent forms. Runs locally; 32-byte private-key-shaped values are rejected from argv.",
+      "Auto-detect an address/public-key or generic encoding and print all equivalent forms. Runs locally; 32-byte private-key-shaped values are rejected from argv.\n" +
+      "The two address forms are encodings of one 20-byte key hash, not two derived accounts.",
     fields,
     input: fields,
     examples: [

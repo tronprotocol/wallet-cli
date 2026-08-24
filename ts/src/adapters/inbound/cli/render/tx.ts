@@ -59,7 +59,10 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     ]);
     // `tx broadcast --dry-run` resolves the full approval state to decide broadcastability; show
     // it rather than leaving text with a fee line while json carries permission and progress.
-    return r.transaction ? `${body}\n\n${renderApproval(r.transaction as TxApprovalView)}` : body;
+    if (r.transaction) return `${body}\n\n${renderApproval(r.transaction as TxApprovalView)}`;
+    // Families without an approval model (EVM) report which pre-broadcast checks actually ran —
+    // "skipped" is the row that matters, since a check that did not run proves nothing.
+    return r.checks?.length ? `${body}\n\n${renderChecks(r.checks)}` : body;
   }
   if (r.mode === "build-only") {
     return (
@@ -407,6 +410,12 @@ function receiptAmount(r: TxReceiptView, family: ChainFamily, symbol: string): s
   return "";
 }
 
+/** Pre-broadcast checks from a dry run, one row each. */
+function renderChecks(checks: NonNullable<TxReceiptView["checks"]>): string {
+  const mark = { ok: "✓", warning: "!", skipped: "–" } as const;
+  return ["Checks", ...checks.map((c) => `  ${mark[c.status]} ${c.name}: ${c.detail}`)].join("\n");
+}
+
 /** human label for an action kind, e.g. "send" → "tx send" (for dry-run/sign-only headers). */
 function actionLabel(kind: TxReceiptKind): string {
   switch (kind) {
@@ -497,6 +506,11 @@ function formatFee(fee: unknown, family: ChainFamily, symbol: string): string {
       const avail = f.availableEnergy === undefined ? undefined : Number(f.availableEnergy);
       const covered = avail !== undefined && avail >= energy ? " (covered by staked energy)" : "";
       return `~${energy.toLocaleString()} energy${covered}`;
+    }
+    // EVM fee plan: gasLimit × the per-gas ceiling. It is the most this transaction CAN cost,
+    // not what it will, so it is labelled as a ceiling rather than quoted as a charge.
+    if (f.maxCostWei !== undefined) {
+      return `\u2264 ${FAMILY_RENDER[family].feeFallback(f.maxCostWei, symbol)}`;
     }
     if (f.note) return String(f.note);
     // An unrecognised fee object must not reach feeFallback: that formats a scalar sun amount and

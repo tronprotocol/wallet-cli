@@ -1,11 +1,16 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
+import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
-import type { ChainGatewayProvider, EvmGateway } from "../../ports/chain/gateway-provider.js";
+import type {
+  ChainGatewayProvider,
+  DeployConstructorArgs,
+  EvmGateway,
+} from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -21,8 +26,9 @@ export interface EvmContractWriteInput extends TransactionModeInput {
   params?: unknown[];
   /** native coin sent along with the call, in whole coins (as `tx send --amount` is). */
   callValue?: string;
-  abi?: string;
   bytecode?: string;
+  /** how the constructor's arguments are typed and what they are; see DeployConstructorArgs. */
+  constructorArgs?: DeployConstructorArgs;
   gasLimit?: string;
   maxFee?: string;
   priorityFee?: string;
@@ -99,14 +105,7 @@ export class EvmContractService {
    */
   async deploy(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
     const gateway = this.gateways.get(network, "evm");
-    if (input.abi !== undefined) {
-      try {
-        JSON.parse(input.abi);
-      } catch {
-        throw new UsageError("invalid_value", "--abi must be valid JSON");
-      }
-    }
-    const data = gateway.encodeDeploy(input.bytecode!, input.abi ?? "[]", input.params ?? []);
+    const data = gateway.encodeDeploy(input.bytecode!, input.constructorArgs ?? { source: "none" });
     let contractAddress: string | undefined;
 
     const outcome = await this.#run(
@@ -153,14 +152,7 @@ export class EvmContractService {
           gateway.feeData(),
         ]);
         onNonce?.(from, nonce);
-        const gasEstimate =
-          input.gasLimit ?? (await gateway.estimateGas({ from, ...call }).catch(() => undefined));
-        if (gasEstimate === undefined) {
-          throw new UsageError(
-            "invalid_option",
-            "the node could not estimate gas for this call; pass --gas-limit to proceed",
-          );
-        }
+        const gasEstimate = await resolveGasLimit(gateway, { from, ...call }, input.gasLimit);
         const resolved = planEvmFee({
           ...fee,
           gasLimit: gasEstimate,

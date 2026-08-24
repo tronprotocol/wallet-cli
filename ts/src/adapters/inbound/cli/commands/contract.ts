@@ -3,11 +3,12 @@ import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
+import type { DeployConstructorArgs } from "../../../../application/ports/chain/gateway-provider.js";
 import type { EvmContractService } from "../../../../application/use-cases/evm/contract-service.js";
 import type { TronContractParameter } from "../../../../application/ports/chain/tron-gateway.js";
 import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
 import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
-import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
+import { governanceTxModeFields, governanceTxRefine, tronTxModeFields, txModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
@@ -122,11 +123,14 @@ export const contractCallSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "contract.call",
-  summary: "Read-only call (triggerConstantContract)",
+  summary: "Read-only contract call",
   baseFields: callFields,
   examples: [
     {
-      cmd: `wallet-cli contract call --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
+      cmd: `wallet-cli contract call --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]' --network nile`,
+    },
+    {
+      cmd: `wallet-cli contract call --contract 0xA0b8... --method "balanceOf(address)" --params '[{"type":"address","value":"0x742d..."}]' --network sepolia`,
     },
   ],
   formatText: TextFormatters.contractCall,
@@ -151,7 +155,13 @@ const sendFields = z.object({
     .string()
     .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
-  ...governanceTxModeFields,
+  ...txModeFields,
+  buildOnly: z
+    .boolean()
+    .default(false)
+    .describe(
+      "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+    ),
 });
 
 /** TRON prices a contract call in SUN and burns energy up to a fee limit; both flag names say so. */
@@ -162,6 +172,7 @@ const tronContractWriteFields = z.object({
   feeLimit: Schemas.positiveIntString()
     .default("100000000")
     .describe("maximum energy fee to burn, in SUN"),
+  ...tronTxModeFields,
 });
 
 /** EVM prices it in gas. `--call-value` is in whole coins, matching `tx send --amount`; the
@@ -208,12 +219,18 @@ export const contractSendSpec: ChainSpec = {
   auth: "conditional",
   broadcasts: true,
   capability: "contract.call",
-  summary: "State-changing call (triggerSmartContract)",
+  summary: "State-changing contract call",
+  description:
+    "Call a contract method that changes state, signing and broadcasting the transaction.\n" +
+    "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   baseRefine: governanceTxRefine,
   examples: [
     {
-      cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
+      cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]' --network nile`,
+    },
+    {
+      cmd: `wallet-cli contract send --contract 0xA0b8... --method "transfer(address,uint256)" --params '[...]' --network sepolia`,
     },
   ],
   formatText: TextFormatters.txReceipt,
@@ -238,15 +255,119 @@ async function creationBytecode(input: { code?: string; codeFile?: string }): Pr
   }
 }
 
+interface DeploySource {
+  bytecode: string;
+  /** present only when the source was an artifact; it is the compiler's own ABI. */
+  abi?: unknown;
+}
+
+/**
+ * A compiler artifact — the bytecode and the ABI, from the file the compiler already wrote.
+ *
+ * Every toolchain in both families emits the same two fields: Foundry (`out/X.sol/X.json`),
+ * Hardhat and its TRON plugin sunhat (`artifacts/…/X.json`), and TronBox
+ * (`build/contracts/X.json`). Only the bytecode's shape differs — Foundry nests it under
+ * `{object}`, the others store the string directly — so both are accepted.
+ *
+ * This matters most on TRON, where `--abi` is required: without it the caller has to open the
+ * artifact and paste a multi-kilobyte ABI onto the command line, which is transcription, not
+ * input. It also removes the one way a correct deployment can still go wrong — types typed by
+ * hand — because the ABI comes from the compiler that produced the bytecode.
+ */
+async function readArtifact(path: string): Promise<DeploySource> {
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new UsageError("file_not_found", `artifact not found: ${path}`);
+    }
+    throw new UsageError("invalid_value", `cannot read artifact: ${path}`);
+  }
+  let artifact: Record<string, any>;
+  try {
+    artifact = JSON.parse(text);
+  } catch {
+    throw new UsageError("invalid_value", `artifact is not valid JSON: ${path}`);
+  }
+  const bytecode =
+    artifact?.bytecode?.object ?? artifact?.bytecode ?? artifact?.evm?.bytecode?.object;
+  if (typeof bytecode !== "string") {
+    throw new UsageError(
+      "invalid_value",
+      `artifact has no creation bytecode: ${path} (looked at .bytecode.object, .bytecode and .evm.bytecode.object)`,
+    );
+  }
+  // solc emits "0x" for an interface or an abstract contract: a real artifact for something that
+  // cannot be deployed. Saying so beats letting an empty deployment reach the chain.
+  if (bytecode.replace(/^0x/, "") === "") {
+    throw new UsageError(
+      "invalid_value",
+      `artifact holds no deployable bytecode: ${path} — an interface or abstract contract cannot be deployed`,
+    );
+  }
+  return { bytecode, ...(artifact.abi === undefined ? {} : { abi: artifact.abi }) };
+}
+
+/** the bytecode, and the ABI when the caller pointed at an artifact. */
+async function deploySource(input: {
+  code?: string;
+  codeFile?: string;
+  artifact?: string;
+}): Promise<DeploySource> {
+  if (input.artifact) return readArtifact(input.artifact);
+  return { bytecode: await creationBytecode(input) };
+}
+
+interface DeployArgInput {
+  artifact?: string;
+  constructorSignature?: string;
+  constructorArgs?: string;
+  constructorParams?: string;
+}
+
+/** bare constructor values, from `--constructor-args` or unwrapped from `--constructor-params`. */
+function constructorValues(input: DeployArgInput): unknown[] {
+  if (input.constructorArgs !== undefined) return jsonArray(input.constructorArgs, "--constructor-args");
+  return typedConstructorParams(input.constructorParams).map((entry) => entry.value);
+}
+
+/**
+ * Where the constructor's TYPES come from, in order of authority: the compiler's ABI, then a
+ * signature the caller stated, then — only because it is the shape this command shipped with —
+ * the types inlined beside each value.
+ */
+function deployConstructorArgs(input: DeployArgInput, abi: unknown): DeployConstructorArgs {
+  const values = constructorValues(input);
+  if (abi !== undefined) return { source: "abi", abi, values };
+  if (input.constructorSignature !== undefined) {
+    return {
+      source: "signature",
+      signature: input.constructorSignature,
+      values,
+      flag: "--constructor-signature",
+    };
+  }
+  if (input.constructorParams === undefined) return { source: "none" };
+  const types = typedConstructorParams(input.constructorParams).map((entry) => entry.type);
+  return {
+    source: "signature",
+    signature: `constructor(${types.join(",")})`,
+    values,
+    flag: "--constructor-params",
+  };
+}
+
 export const contractDeployEvmBinding = (svc: EvmContractService): FamilyBinding => ({
   fields: evmGasFields,
-  run: async (ctx, net, input) =>
-    svc.deploy(ctx, net, {
+  run: async (ctx, net, input) => {
+    const source = await deploySource(input);
+    return svc.deploy(ctx, net, {
       ...withEvmFees(input),
-      bytecode: await creationBytecode(input),
-      // ethers encodes straight from the inline types; no ABI is involved.
-      params: typedConstructorParams(input.constructorParams),
-    }),
+      bytecode: source.bytecode,
+      constructorArgs: deployConstructorArgs(input, source.abi),
+    });
+  },
 });
 
 export const contractSendTronBinding = (svc: TronContractService): FamilyBinding => ({
@@ -260,43 +381,142 @@ export const contractSendTronBinding = (svc: TronContractService): FamilyBinding
 });
 
 const deployFields = z.object({
+  artifact: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "path to a compiler artifact (Foundry, Hardhat/sunhat, TronBox) holding both the bytecode and the ABI; the preferred source, because the constructor's types then come from the compiler",
+    ),
   code: z
     .string()
     .min(1)
     .optional()
-    .describe("contract creation bytecode, hex-encoded; provide exactly one of --code or --code-file"),
+    .describe("contract creation bytecode, hex-encoded; provide exactly one of --artifact, --code or --code-file"),
   codeFile: z
     .string()
     .min(1)
     .optional()
     .describe("path to a file holding the creation bytecode; bytecode often exceeds the shell's argument limit"),
+  constructorSignature: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'the constructor\'s types when there is no ABI, e.g. "constructor(uint256,string)"; not needed with --artifact, and not accepted on TRON, which needs the full ABI',
+    ),
+  constructorArgs: z
+    .string()
+    .optional()
+    .describe(
+      'constructor arguments as a JSON array of bare values, e.g. ["18","MyToken"]; the types come from --artifact, --constructor-signature, or --abi on TRON',
+    ),
   constructorParams: z
     .string()
     .optional()
     .describe(
-      'constructor arguments as a JSON array of {type,value} entries, e.g. [{"type":"uint8","value":"18"}]; omit to pass none',
+      'constructor arguments as a JSON array of {type,value} entries, e.g. [{"type":"uint8","value":"18"}]; prefer --constructor-args with --artifact',
     ),
-  ...governanceTxModeFields,
+  ...txModeFields,
+  buildOnly: z
+    .boolean()
+    .default(false)
+    .describe(
+      "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+    ),
 });
 
 /** the spec's two base rules: the shared governance modes, plus exactly one bytecode source.
  *  Written out rather than composed generically because the two refines read different field
  *  sets, and a generic combinator would have to erase one of their types to fit them together. */
 function deployRefine(
-  value: { code?: string; codeFile?: string; expiration?: number; buildOnly?: boolean },
+  value: {
+    artifact?: string;
+    code?: string;
+    codeFile?: string;
+    constructorSignature?: string;
+    constructorArgs?: string;
+    constructorParams?: string;
+    expiration?: number;
+    buildOnly?: boolean;
+  },
   ctx: z.RefinementCtx,
 ): void {
   governanceTxRefine(value as never, ctx);
   codeSourceRefine(value, ctx);
+  constructorArgsRefine(value, ctx);
+}
+
+/**
+ * The constructor's arguments must have exactly one form, and their types exactly one source.
+ *
+ * Both rules exist because the alternative is silence: two argument lists means one is ignored,
+ * and an ABI beside hand-written types means one of the two is not being used to encode. A
+ * deployment cannot be undone, so neither is left to a precedence rule the caller cannot see.
+ */
+function constructorArgsRefine(
+  value: {
+    artifact?: string;
+    abi?: string;
+    constructorSignature?: string;
+    constructorArgs?: string;
+    constructorParams?: string;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  if (value.constructorArgs !== undefined && value.constructorParams !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["constructorArgs"],
+      message: "--constructor-args and --constructor-params are mutually exclusive",
+    });
+  }
+  if (value.constructorParams !== undefined && value.artifact !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["constructorParams"],
+      message:
+        "with --artifact the types come from its ABI; pass the values with --constructor-args",
+    });
+  }
+  if (value.constructorSignature !== undefined && value.artifact !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["constructorSignature"],
+      message: "--constructor-signature is not needed with --artifact; its ABI declares the types",
+    });
+  }
+  // `--abi` counts here: it is TRON-only, and on TRON it is the type source — naming only the
+  // family-neutral flags would send a TRON caller to --constructor-signature, which TRON refuses.
+  if (
+    value.constructorArgs !== undefined &&
+    value.artifact === undefined &&
+    value.constructorSignature === undefined &&
+    value.abi === undefined
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["constructorArgs"],
+      message:
+        "--constructor-args needs the constructor's types: pass --artifact, or state them with --constructor-signature (--abi also declares them on TRON)",
+    });
+  }
 }
 
 /** exactly one bytecode source, matching the rule `contract create2` already applies. */
-function codeSourceRefine(value: { code?: string; codeFile?: string }, ctx: z.RefinementCtx): void {
-  if ([value.code !== undefined, value.codeFile !== undefined].filter(Boolean).length !== 1) {
+function codeSourceRefine(
+  value: { code?: string; codeFile?: string; artifact?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (
+    [value.code !== undefined, value.codeFile !== undefined, value.artifact !== undefined].filter(
+      Boolean,
+    ).length !== 1
+  ) {
     ctx.addIssue({
       code: "custom",
       path: ["code"],
-      message: "provide exactly one of --code or --code-file",
+      message: "provide exactly one of --artifact, --code or --code-file",
     });
   }
 }
@@ -311,11 +531,47 @@ function codeSourceRefine(value: { code?: string; codeFile?: string }, ctx: z.Re
  * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(tron)`.
  */
 const tronDeployFields = z.object({
-  abi: z.string().min(1).describe("contract ABI as a JSON array string"),
+  abi: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("contract ABI as a JSON array string; required unless --artifact supplies one"),
   feeLimit: Schemas.positiveIntString()
     .default("100000000")
     .describe("maximum energy fee to burn, in SUN"),
+  ...tronTxModeFields,
 });
+
+/** TronWeb needs the whole ABI, not just the constructor's types, so a signature cannot stand in
+ *  for it — the one place where the two families genuinely need different inputs. */
+function tronDeployRefine(
+  value: { abi?: string; artifact?: string; constructorSignature?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (value.abi === undefined && value.artifact === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["abi"],
+      message:
+        "TRON needs the contract's ABI to encode a deployment: pass --artifact, or --abi with the JSON",
+    });
+  }
+  if (value.abi !== undefined && value.artifact !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["abi"],
+      message: "--abi and --artifact both supply the ABI; pass one",
+    });
+  }
+  if (value.constructorSignature !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["constructorSignature"],
+      message:
+        "--constructor-signature has no effect on TRON: the node needs the full ABI, so pass --artifact or --abi",
+    });
+  }
+}
 
 export const contractDeploySpec: ChainSpec = {
   path: ["contract", "deploy"],
@@ -324,17 +580,25 @@ export const contractDeploySpec: ChainSpec = {
   auth: "conditional",
   broadcasts: true,
   capability: "contract.deploy",
-  summary: "Deploy a smart contract",
+  summary: "Deploy contract bytecode",
+  description:
+    "Deploy contract creation bytecode and report the new contract's address.\n" + "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
   // The Ledger TRON app firmware rejects CreateSmartContract (APDU 0x6a80), even with
   // blind-signing enabled; software accounts sign and deploy it fine.
   requires: [
-    "a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type",
+    "a software (non-Ledger) account (tron) — the Ledger TRON app cannot sign a contract deployment; the Ledger Ethereum app can",
   ],
   baseFields: deployFields,
   baseRefine: deployRefine,
   examples: [
     {
-      cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000 --params '[100, \"T...\"]'",
+      cmd: "wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '[\"18\",\"MyToken\"]' --network nile",
+    },
+    {
+      cmd: "wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '[\"18\",\"MyToken\"]' --network sepolia",
+    },
+    {
+      cmd: "wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '[\"18\",\"MyToken\"]' --network sepolia",
     },
   ],
   formatText: TextFormatters.txReceipt,
@@ -342,21 +606,25 @@ export const contractDeploySpec: ChainSpec = {
 
 export const contractDeployTronBinding = (svc: TronContractService): FamilyBinding => ({
   fields: tronDeployFields,
+  refine: tronDeployRefine,
   run: async (ctx, net, input) => {
-    let abi: unknown;
-    try {
-      abi = JSON.parse(input.abi);
-    } catch {
-      throw new UsageError("invalid_value", "--abi must be valid JSON");
+    const source = await deploySource(input);
+    let abi = source.abi;
+    if (abi === undefined) {
+      try {
+        abi = JSON.parse(input.abi);
+      } catch {
+        throw new UsageError("invalid_value", "--abi must be valid JSON");
+      }
     }
     assertConstructorEncodable(abi);
     return svc.deploy(ctx, net, {
       ...input,
       abi,
-      bytecode: await creationBytecode(input),
-      // TronWeb takes bare values beside the ABI, so the typed entries are unwrapped here. The
-      // TYPES still come from the ABI — the inline ones only decide what the caller meant.
-      parameters: typedConstructorParams(input.constructorParams).map((entry) => entry.value),
+      bytecode: source.bytecode,
+      // TronWeb takes bare values beside the ABI, so only the values travel. The TYPES come from
+      // the ABI in every case — which is why --artifact is the better way in.
+      parameters: constructorValues(input),
     });
   },
 });
@@ -399,7 +667,7 @@ export const contractClearAbiSpec: ChainSpec = {
   path: ["contract", "clear-abi"],
   ...contractGovernanceBase,
   positionals: [{ field: "address" }],
-  summary: "Irreversibly clear a contract's on-chain ABI",
+  summary: "Clear a contract's on-chain ABI",
   description:
     "Clear the ABI metadata stored on-chain. This is irreversible, but does not change the\n" +
     "contract bytecode or state. Only the contract deployer may perform the operation.",
@@ -416,7 +684,7 @@ export const contractSetOriginEnergyLimitSpec: ChainSpec = {
   path: ["contract", "set-origin-energy-limit"],
   ...contractGovernanceBase,
   positionals: [{ field: "address" }, { field: "energy" }],
-  summary: "Set the deployer's per-call energy contribution cap",
+  summary: "Set the deployer's energy cap",
   description:
     "Set origin_energy_limit, the maximum energy the deployer covers per call. The actual\n" +
     "contribution is also limited by the deployer's available staked energy.",
@@ -444,7 +712,7 @@ export const contractSetUserResourcePercentSpec: ChainSpec = {
   path: ["contract", "set-user-resource-percent"],
   ...contractGovernanceBase,
   positionals: [{ field: "address" }, { field: "percent" }],
-  summary: "Set the caller-paid energy percentage",
+  summary: "Set the caller-paid resource share",
   description:
     "Set consume_user_resource_percent. 100 means the caller pays all energy; 0 means the\n" +
     "deployer pays, subject to origin_energy_limit and available staked energy.",
@@ -480,7 +748,7 @@ export const contractCreate2Spec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "contract.create2",
-  summary: "Compute a TVM CREATE2 contract address locally",
+  summary: "Precompute a CREATE2 address",
   description:
     "Compute the TRON CREATE2 address locally without contacting a node. code must be creation\n" +
     "bytecode with constructor arguments appended; salt is a signed decimal 64-bit integer.",

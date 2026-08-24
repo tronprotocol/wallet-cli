@@ -1,6 +1,7 @@
 import type { TextFormatter } from "../contracts/index.js";
-import { formatDecimal, formatInt, formatSun } from "./scalars.js";
+import { formatInt } from "./scalars.js";
 import { asObj, query, table } from "./layout.js";
+import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 
 const KNOWN_UNITS: Record<string, "SUN" | "ms"> = {
   getEnergyFee: "SUN",
@@ -40,15 +41,13 @@ export const ChainFormatters = {
     );
   }) satisfies TextFormatter,
 
-  chainPrices: ((data) => {
+  // Both families price transactions, but in disjoint terms — TRON in SUN per energy/bandwidth
+  // unit, EVM in gwei per gas under a fee model the chain reports. The rows come from the family
+  // table; reading one family's keys out of the other's payload printed three empty TRON labels
+  // on EVM and none of the fee data that was there.
+  chainPrices: ((data, ctx) => {
     const d = asObj(data);
-    const energy = asObj(d.energy);
-    const bandwidth = asObj(d.bandwidth);
-    return query([
-      ["Energy price", `${formatInt(energy.currentSunPerUnit)} SUN / unit    (current)`],
-      ["Bandwidth price", `${formatInt(bandwidth.currentSunPerUnit)} SUN / unit  (current)`],
-      ["Memo fee", `${formatDecimal(formatSun(d.memoFeeSun))} TRX`],
-    ]);
+    return query(FAMILY_RENDER[renderFamily(ctx)].chainPricesRows(d, renderSymbol(ctx)));
   }) satisfies TextFormatter,
 
   chainNode: ((data) => {

@@ -20,6 +20,7 @@ import type {
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js";
+import { barBroadcasts } from "../../../../application/services/broadcast-guard.js";
 import { buildExecutionContext, type RuntimeDeps } from "../context/index.js";
 import { TargetResolver } from "../../../../application/services/target/index.js";
 import { OutputFormatter } from "../output/index.js";
@@ -283,7 +284,13 @@ async function executeChainCommand(
 
   const ctx = buildExecutionContext(globals, deps);
   if (spec.wallet !== "none") void ctx.activeAccount;
-  const data = await binding.run(ctx, net, input);
+  // --dry-run is declared on the shared spec but honoured by each family binding independently,
+  // so the promise is also enforced here: nothing reaches a Broadcaster for the duration.
+  const run = () => binding.run(ctx, net, input);
+  const data =
+    spec.broadcasts && (input as { dryRun?: unknown }).dryRun === true
+      ? await barBroadcasts(`${spec.path.join(" ")} --dry-run`, run)
+      : await run();
   streams.result(
     formatter.success(id, net, data, spec.formatText, activeAccountLabel(spec, ctx, deps)),
   );
