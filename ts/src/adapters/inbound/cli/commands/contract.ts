@@ -29,9 +29,9 @@ function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
   throw new UsageError("invalid_value", `${flag} must be a JSON array`);
 }
 
-// call/send parameters are ABI-encoded from {type, value} entries. Validate the shape at the
-// command boundary so a malformed entry fails as invalid_value here, not as an opaque encoder/RPC
-// error deep in TronWeb. (deploy params are raw positional values — they use jsonArray, not this.)
+// Contract parameters are ABI-encoded from {type, value} entries. Validate the shape at the
+// command boundary so a malformed entry fails as invalid_value here, not as an opaque family
+// encoder/RPC error later.
 const typedParam = z
   .object({ type: z.string().min(1), value: z.unknown() })
   .refine((e) => e.value !== undefined, { message: "value is required" });
@@ -86,17 +86,6 @@ function assertConstructorEncodable(abi: unknown): void {
   }
 }
 
-/**
- * Constructor args are RAW positional values here (`[100, "T..."]`) — types come from the ABI —
- * whereas `contract call` / `send` take `{type,value}` entries. TronWeb rejects the wrong one too,
- * but as ethers' `invalid BigNumberish value (argument="value", ...)`: an internal argument name
- * that collides with the user's own `value` key and reads like a bad number rather than a wrong
- * format. The two-format split is this CLI's own design, so name it in our own words.
- *
- * Only the unambiguous case is claimed — every entry an object with exactly `type` (a non-empty
- * string) and `value`. A mixed or partial array is left to TronWeb rather than guessed at, and a
- * genuine struct arg with those two field names can still be passed in positional array form.
- */
 /**
  * `--constructor-params` entries, as `{type, value}` — the same form `contract call` and
  * `contract send` take.
@@ -637,11 +626,6 @@ export const contractDeploySpec: ChainSpec = {
   description:
     "Deploy contract creation bytecode and report the new contract's address.\n" +
     "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
-  // The Ledger TRON app firmware rejects CreateSmartContract (APDU 0x6a80), even with
-  // blind-signing enabled; software accounts sign and deploy it fine.
-  requires: [
-    "a software (non-Ledger) account (tron) — the Ledger TRON app cannot sign a contract deployment; the Ledger Ethereum app can",
-  ],
   baseFields: deployFields,
   baseRefine: deployRefine,
   examples: [
