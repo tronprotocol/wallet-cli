@@ -517,7 +517,7 @@ export class EvmTransactionService {
             ...(receipt.blockNumber === undefined
               ? {}
               : { blockNumber: receipt.blockNumber as number }),
-            ...(receipt.gasUsed === undefined ? {} : { gasUsed: Number(receipt.gasUsed) }),
+            ...(receipt.gasUsed === undefined ? {} : { gasUsed: String(receipt.gasUsed) }),
             ...(receipt.feeWei === undefined ? {} : { feeWei: String(receipt.feeWei) }),
             ...(receipt.effectiveGasPriceWei === undefined
               ? {}

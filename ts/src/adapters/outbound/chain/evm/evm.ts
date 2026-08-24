@@ -14,6 +14,7 @@ import {
   type TransactionLike,
 } from "ethers";
 import { ChainError } from "../../../../domain/errors/index.js";
+import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
 import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
 import type {
   DeployConstructorArgs,
@@ -186,7 +187,13 @@ export class EvmRpcClient implements EvmGateway {
       ...(price === undefined ? {} : { effectiveGasPriceWei: price.toString(10) }),
       ...(r.blockNumber === undefined
         ? {}
-        : { blockNumber: Number(BigInt(String(r.blockNumber))) }),
+        : {
+            blockNumber: quantityToSafeNumber(
+              r.blockNumber,
+              "receipt blockNumber",
+              rpcIntegerError,
+            ),
+          }),
       ...(r.contractAddress === undefined || r.contractAddress === null
         ? {}
         : { contractAddress: r.contractAddress }),
@@ -322,7 +329,7 @@ export class EvmRpcClient implements EvmGateway {
    */
   contractAddressFor(from: string, nonce: string): string {
     try {
-      return getCreateAddress({ from, nonce: Number(nonce) });
+      return getCreateAddress({ from, nonce: decimalToSafeNumber(nonce, "nonce", valueError) });
     } catch (e) {
       throw new ChainError(
         "invalid_value",
@@ -465,7 +472,11 @@ export class EvmRpcClient implements EvmGateway {
     const raw = await this.#viewCall(contract, ERC20.encodeFunctionData("decimals", []));
     if (raw === undefined) return undefined;
     try {
-      return Number(ERC20.decodeFunctionResult("decimals", raw)[0]);
+      return decimalToSafeNumber(
+        String(ERC20.decodeFunctionResult("decimals", raw)[0]),
+        "decimals",
+        rpcIntegerError,
+      );
     } catch {
       // A value that is not a uint8 is the contract answering something else, not a node fault.
       return undefined;
@@ -537,6 +548,14 @@ function toRpcQuantities(tx: Record<string, unknown>): Record<string, unknown> {
     }
   }
   return out;
+}
+
+function rpcIntegerError(message: string) {
+  return new ChainError("rpc_error", message);
+}
+
+function valueError(message: string) {
+  return new ChainError("invalid_value", message);
 }
 
 /**

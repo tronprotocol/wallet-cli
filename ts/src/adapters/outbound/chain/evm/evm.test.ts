@@ -720,6 +720,14 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
 
     expect(r?.contractAddress).toBe("0xdead");
   });
+
+  it("rejects a block number that cannot be represented safely", async () => {
+    stubRpc({ status: "0x1", blockNumber: "0x20000000000000" });
+
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc"),
+    ).rejects.toMatchObject({ code: "rpc_error" });
+  });
 });
 
 describe("EvmRpcClient.encodeErc20Transfer", () => {
@@ -910,6 +918,10 @@ describe("EvmRpcClient contract-write encoding", () => {
 
     expect(addr).toMatch(/^0x[0-9a-fA-F]{40}$/);
     expect(client().contractAddressFor(ADDR, "1")).not.toBe(addr);
+  });
+
+  it("rejects a CREATE nonce that cannot be represented safely", () => {
+    expect(() => client().contractAddressFor(ADDR, "9007199254740993")).toThrow();
   });
 });
 

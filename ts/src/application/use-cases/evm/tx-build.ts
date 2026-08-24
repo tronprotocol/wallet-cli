@@ -1,5 +1,7 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
+import { UsageError } from "../../../domain/errors/index.js";
+import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
 import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
 
@@ -33,6 +35,10 @@ function overridesOf(input: EvmGasInput) {
   };
 }
 
+function invalidInteger(message: string) {
+  return new UsageError("invalid_value", message);
+}
+
 export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmBuildResult> {
   const { gateway, network, from, call, input } = request;
   const [nonce, fee] = await Promise.all([
@@ -57,8 +63,8 @@ export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmB
   return {
     tx: {
       ...call,
-      chainId: Number(network.chainId),
-      nonce: Number(nonce),
+      chainId: decimalToSafeNumber(network.chainId, "chainId", invalidInteger),
+      nonce: decimalToSafeNumber(nonce, "nonce", invalidInteger),
       gasLimit: plan.gasLimit,
       ...(plan.mode === "eip1559"
         ? { type: 2, maxFeePerGas: plan.maxFeeWei, maxPriorityFeePerGas: plan.priorityFeeWei }
