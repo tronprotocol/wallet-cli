@@ -45,7 +45,7 @@ export class HelpService {
 
     if (tokens.includes("--json-schema")) {
       if (concrete) {
-        const input = isChainCommand(concrete) ? mergedFields(concrete) : concrete.input;
+        const input = isChainCommand(concrete) ? mergedFields(concrete, family) : concrete.input;
         this.streams.result(JSON.stringify(z.toJSONSchema(input)));
         return 0;
       }
@@ -536,10 +536,13 @@ export class HelpService {
   }
 }
 
-function mergedFields(def: ChainCommandDefinition): ZodObject<ZodRawShape> {
+function mergedFields(
+  def: ChainCommandDefinition,
+  family?: ChainFamily,
+): ZodObject<ZodRawShape> {
   let shape = { ...def.spec.baseFields.shape };
-  for (const b of Object.values(def.families))
-    if (b?.fields) shape = { ...shape, ...b.fields.shape };
+  const bindings = family ? [def.families[family]] : Object.values(def.families);
+  for (const b of bindings) if (b?.fields) shape = { ...shape, ...b.fields.shape };
   return z.object(shape);
 }
 
