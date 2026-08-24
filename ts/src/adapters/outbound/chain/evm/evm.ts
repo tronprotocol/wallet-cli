@@ -360,20 +360,7 @@ export class EvmRpcClient implements EvmGateway {
     signature: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<string> {
-    let data: string;
-    try {
-      const iface = new Interface([`function ${signature}`]);
-      data = iface.encodeFunctionData(
-        signature.slice(0, signature.indexOf("(")),
-        params.map((p) => p.value),
-      );
-    } catch (e) {
-      throw new ChainError(
-        "invalid_value",
-        `could not encode ${signature}: ${(e as Error).message}`,
-      );
-    }
-    return this.call(contract, data);
+    return this.call(contract, this.encodeFunctionCall(signature, params));
   }
 
   /**
