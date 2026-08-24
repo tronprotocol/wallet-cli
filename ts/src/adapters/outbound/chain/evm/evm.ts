@@ -196,6 +196,10 @@ export class EvmRpcClient implements EvmGateway {
 
   /** the JSON-RPC envelope, unthrown — callers that classify errors themselves need to see it. */
   async #send(method: string, params: unknown[]): Promise<JsonRpcResponse> {
+    return this.#request(method, params);
+  }
+
+  async #request(method: string, params: unknown[]): Promise<JsonRpcResponse> {
     this.#id += 1;
     let response: { ok: boolean; status?: number; text(): Promise<string> };
     try {
@@ -211,7 +215,19 @@ export class EvmRpcClient implements EvmGateway {
     if (!response.ok) {
       throw new ChainError("rpc_error", `${method} failed: HTTP ${response.status}`);
     }
-    return JSON.parse(await response.text()) as JsonRpcResponse;
+    let body: unknown;
+    try {
+      body = JSON.parse(await response.text());
+    } catch (e) {
+      throw new ChainError(
+        "rpc_error",
+        `${method} returned malformed JSON: ${(e as Error).message}`,
+      );
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      throw new ChainError("rpc_error", `${method} returned a malformed JSON-RPC response`);
+    }
+    return body as JsonRpcResponse;
   }
 
   /** calldata for `transfer(address,uint256)`; the amount is already in the token's base units. */
@@ -470,22 +486,7 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   async #call(method: string, params: unknown[]): Promise<unknown> {
-    this.#id += 1;
-    let response: { ok: boolean; status?: number; text(): Promise<string> };
-    try {
-      response = await fetch(this.endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: this.#id, method, params }),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
-    } catch (e) {
-      throw new ChainError("rpc_error", `${method} failed: ${(e as Error).message}`);
-    }
-    if (!response.ok) {
-      throw new ChainError("rpc_error", `${method} failed: HTTP ${response.status}`);
-    }
-    const body = JSON.parse(await response.text()) as JsonRpcResponse;
+    const body = await this.#request(method, params);
     if (body.error) {
       throw new ChainError("rpc_error", `${method} failed: ${body.error.message}`);
     }

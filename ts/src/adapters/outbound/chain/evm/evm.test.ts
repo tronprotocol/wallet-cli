@@ -76,6 +76,17 @@ describe("EvmRpcClient.getNativeBalance", () => {
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
+  it("surfaces malformed JSON as rpc_error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, text: async () => "{not-json" })),
+    );
+
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR),
+    ).rejects.toMatchObject({ code: "rpc_error" });
+  });
+
   it("aborts a hung call at timeoutMs instead of hanging", async () => {
     vi.stubGlobal(
       "fetch",
