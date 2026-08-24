@@ -115,7 +115,9 @@ describe("HelpService --json-schema", () => {
 
     new HelpService(reg, stream, "9.9.9").handleMeta(["evm", "--json-schema"]);
 
-    const command = JSON.parse(stream.last!).commands.find((c: { id: string }) => c.id === "tx.send");
+    const command = JSON.parse(stream.last!).commands.find(
+      (c: { id: string }) => c.id === "tx.send",
+    );
     expect(command.inputSchema.properties).toHaveProperty("to");
     expect(command.inputSchema.properties).toHaveProperty("gasLimit");
     expect(command.inputSchema.properties).not.toHaveProperty("feeLimit");

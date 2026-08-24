@@ -50,9 +50,6 @@ export const MiscFormatters = {
   // `block` reports the node's RAW object, so the two families arrive in different shapes: TRON
   // nests its header and counts milliseconds, an EVM node is flat, hex and counts seconds.
   // Making that readable is this renderer's job — the JSON stays as the node sent it.
-  // `block` reports the node's RAW object, so the two families arrive in different shapes: TRON
-  // nests its header and counts milliseconds, an EVM node is flat, hex and counts seconds.
-  // Making that readable is this renderer's job — the JSON stays as the node sent it.
   block: ((data, ctx) => {
     const block = asObj(asObj(data).block);
     const header = asObj(asObj(block.block_header).raw_data);

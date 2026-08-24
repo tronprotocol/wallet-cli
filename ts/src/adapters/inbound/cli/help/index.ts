@@ -536,10 +536,7 @@ export class HelpService {
   }
 }
 
-function mergedFields(
-  def: ChainCommandDefinition,
-  family?: ChainFamily,
-): ZodObject<ZodRawShape> {
+function mergedFields(def: ChainCommandDefinition, family?: ChainFamily): ZodObject<ZodRawShape> {
   let shape = { ...def.spec.baseFields.shape };
   const bindings = family ? [def.families[family]] : Object.values(def.families);
   for (const b of bindings) if (b?.fields) shape = { ...shape, ...b.fields.shape };
