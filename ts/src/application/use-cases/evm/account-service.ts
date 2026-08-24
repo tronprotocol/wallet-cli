@@ -17,8 +17,8 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 export class EvmAccountService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
-    private readonly tokens?: TokenRepository,
-    private readonly prices?: PriceProvider,
+    private readonly tokens: TokenRepository,
+    private readonly prices: PriceProvider,
   ) {}
 
   /**
@@ -35,7 +35,7 @@ export class EvmAccountService {
   async portfolio(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("evm");
     const gateway = this.gateways.get(network, "evm");
-    const tokens = this.tokens!.effective(network.id, scope.activeAccount);
+    const tokens = this.tokens.effective(network.id, scope.activeAccount);
     const [nativeRaw, balances] = await Promise.all([
       gateway.getNativeBalance(address),
       Promise.all(
@@ -55,8 +55,8 @@ export class EvmAccountService {
     let tokenPrices = new Map<string, number | null>();
     try {
       [nativePrice, tokenPrices] = await Promise.all([
-        this.prices!.nativeUsd(network.id),
-        this.prices!.tokenUsd(
+        this.prices.nativeUsd(network.id),
+        this.prices.tokenUsd(
           network.id,
           tokens.map((token) => token.id),
         ),
@@ -87,7 +87,7 @@ export class EvmAccountService {
       network: network.id,
       account: scope.activeAccount,
       address,
-      priceSource: this.prices!.source,
+      priceSource: this.prices.source,
       ...(priceUnavailable ? { priceUnavailable: true, priceReason: "price_provider_error" } : {}),
       holdings,
       totalValueUsd: portfolioTotal(holdings),

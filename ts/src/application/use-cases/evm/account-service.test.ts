@@ -10,6 +10,8 @@ import { EvmAccountService } from "./account-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { TokenRepository } from "../../ports/token-repository.js";
+import type { PriceProvider } from "../../ports/price-provider.js";
 
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
 const net = {
@@ -19,6 +21,12 @@ const net = {
   chainId: "1",
   capabilities: [],
 } as NetworkDescriptor;
+const emptyTokens = { effective: () => [] } as unknown as TokenRepository;
+const nullPrices = {
+  source: "test",
+  nativeUsd: async () => null,
+  tokenUsd: async () => new Map<string, number | null>(),
+} satisfies PriceProvider;
 
 function service(over: { balance?: string; nonce?: string; code?: string } = {}) {
   const gateway = {
@@ -26,7 +34,11 @@ function service(over: { balance?: string; nonce?: string; code?: string } = {})
     getTransactionCount: async () => over.nonce ?? "0",
     getCode: async () => over.code ?? "0x",
   };
-  return new EvmAccountService({ get: () => gateway } as unknown as ChainGatewayProvider);
+  return new EvmAccountService(
+    { get: () => gateway } as unknown as ChainGatewayProvider,
+    emptyTokens,
+    nullPrices,
+  );
 }
 
 describe("EvmAccountService.info", () => {

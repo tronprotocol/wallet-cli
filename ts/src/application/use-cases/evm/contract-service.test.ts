@@ -24,7 +24,10 @@ function service(result = "0x") {
     },
   };
   return {
-    svc: new EvmContractService({ get: () => gateway } as unknown as ChainGatewayProvider),
+    svc: new EvmContractService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as unknown as TxPipeline,
+    ),
     seen,
   };
 }

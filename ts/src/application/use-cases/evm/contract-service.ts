@@ -43,7 +43,7 @@ export interface EvmContractWriteInput extends TransactionModeInput {
 export class EvmContractService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
-    private readonly pipeline?: TxPipeline,
+    private readonly pipeline: TxPipeline,
   ) {}
 
   /**
@@ -151,9 +151,9 @@ export class EvmContractService {
     call: Record<string, unknown>,
     onNonce?: (from: string, nonce: string) => void,
   ) {
-    if (transactionRequiresSigner(input)) this.pipeline!.assertCanSign(scope.activeAccount, "evm");
+    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
     let plan: Record<string, unknown> = {};
-    return this.pipeline!.run({
+    return this.pipeline.run({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
