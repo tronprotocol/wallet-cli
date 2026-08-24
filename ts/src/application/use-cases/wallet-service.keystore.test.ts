@@ -83,7 +83,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("exports an HD account's OWN derived key, not the seed", () => {
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
-    h.service.backupKeystore(accountId, undefined, PW);
+    h.service.backupKeystore(accountId, undefined, PW, "tron");
 
     const expected = Derivation.derive(
       Derivation.mnemonicToSeed(MNEMONIC),
@@ -102,7 +102,7 @@ describe("WalletService.backupKeystore", () => {
     const walletId = root.split(".")[0]!;
     const { accountId } = h.keystore.addAccount(walletId, 3);
 
-    h.service.backupKeystore(accountId, undefined, PW);
+    h.service.backupKeystore(accountId, undefined, PW, "tron");
     const expected = Derivation.derive(
       Derivation.mnemonicToSeed(MNEMONIC),
       Derivation.path("tron", 3),
@@ -114,7 +114,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("exports a privateKey wallet's stored key and records the account's TRON address", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "hot" });
-    const result = h.service.backupKeystore(accountId, undefined, PW);
+    const result = h.service.backupKeystore(accountId, undefined, PW, "tron");
 
     const file = h.writer.writes[0]!.payload as { address: string };
     expect(bytesToHex(KeystoreV3.decrypt(file, PW))).toBe(RAW_KEY);
@@ -124,7 +124,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("encrypts with the master password it was given, not with a fixed one", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
-    h.service.backupKeystore(accountId, undefined, "a-different-password");
+    h.service.backupKeystore(accountId, undefined, "a-different-password", "tron");
     expect(() => KeystoreV3.decrypt(h.writer.writes[0]!.payload, PW)).toThrowError(
       /incorrect keystore file password/,
     );
@@ -132,7 +132,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("asks the writer for the keystore filename shape and reports format: keystore", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
-    const result = h.service.backupKeystore(accountId, undefined, PW);
+    const result = h.service.backupKeystore(accountId, undefined, PW, "tron");
     expect(h.writer.writes[0]!.format).toBe("keystore");
     expect(result).toMatchObject({
       format: "keystore",
@@ -146,7 +146,7 @@ describe("WalletService.backupKeystore", () => {
       family: "tron",
       address: "TQ5NMqJjCu5zSvSHSsuMEwjZ8pmpBRhkHm",
     });
-    expect(() => h.service.backupKeystore(accountId, undefined, PW)).toThrowError(
+    expect(() => h.service.backupKeystore(accountId, undefined, PW, "tron")).toThrowError(
       /hold no exportable secret/,
     );
   });
@@ -176,7 +176,7 @@ describe("WalletService export audit log", () => {
 
   it("distinguishes a keystore export from a native one", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "hot" });
-    h.service.backupKeystore(accountId, "./hot.keystore.json", PW);
+    h.service.backupKeystore(accountId, "./hot.keystore.json", PW, "tron");
     expect(h.store.list()[0]).toMatchObject({
       operation: "backup --keystore",
       out: "./hot.keystore.json",
@@ -196,7 +196,7 @@ describe("WalletService export audit log", () => {
       h.store,
       () => NOW,
     );
-    expect(() => failing.backupKeystore(accountId, undefined, PW)).toThrowError();
+    expect(() => failing.backupKeystore(accountId, undefined, PW, "tron")).toThrowError();
     expect(h.store.list()).toEqual([]);
   });
 
@@ -395,7 +395,7 @@ describe("WalletService reports the file it wrote when the audit append fails", 
 
   it.each([
     ["native backup", (s: WalletService, id: string) => s.backup(id, undefined)],
-    ["keystore backup", (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW)],
+    ["keystore backup", (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW, "tron")],
   ])("%s still fails, but names the file it already committed", (_label, run) => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
@@ -409,5 +409,45 @@ describe("WalletService reports the file it wrote when the audit append fails", 
         "/tmp/exported-secret.json",
       );
     }
+  });
+});
+
+// §3.10's problem, restated: a seed account holds a DIFFERENT private key per family (§1.2 puts
+// TRON at coin 195 and EVM at coin 60). A V3 keystore holds exactly one key, so "export my
+// private key" has two answers and the wallet must be told which.
+describe("keystore export follows the selected network's family", () => {
+  const MNEMONIC = "test test test test test test test test test test test junk";
+  const seed = Derivation.mnemonicToSeed(MNEMONIC);
+
+  function exported(family: "tron" | "evm") {
+    const h = harness();
+    h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    h.service.backupKeystore("main", undefined, PW, family);
+    return h.writer.writes.at(-1)!.payload as { address: string };
+  }
+
+  it.each([
+    ["tron", "m/44'/195'/0'/0/0"],
+    ["evm", "m/44'/60'/0'/0/0"],
+  ])("encrypts the %s key, derived at %s", (family, path) => {
+    const file = exported(family as "tron" | "evm");
+    const expected = Derivation.derive(seed, path).privateKey;
+
+    expect(bytesToHex(KeystoreV3.decrypt(file, PW))).toBe(bytesToHex(expected));
+  });
+
+  // The two keys are genuinely different, so exporting the wrong one hands the user an address
+  // their wallet has never shown them.
+  it("exports two different keys for the two families", () => {
+    expect(KeystoreV3.decrypt(exported("tron"), PW)).not.toEqual(
+      KeystoreV3.decrypt(exported("evm"), PW),
+    );
+  });
+
+  // `address` is informational — every reader derives the real address from the key it decrypts
+  // (our own importer ignores it) — but writing the wrong family's encoding is still misleading.
+  it("writes the address in the exported family's own encoding", () => {
+    expect(exported("tron").address).toMatch(/^41[0-9a-f]{40}$/);
+    expect(exported("evm").address).toMatch(/^0x[0-9a-fA-F]{40}$/);
   });
 });

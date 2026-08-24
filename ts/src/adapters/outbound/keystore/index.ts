@@ -3,6 +3,7 @@
  * registry + root labels + selection (--account/--wallet). Atomic writes under lock.
  * BIP39 passphrase plumbed. Data shapes live in SharedTypes.
  */
+import { WALLETS_VERSION } from "../../../domain/migration/wallets-v2.js";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes, hexToBytes } from "@noble/hashes/utils.js";
@@ -71,7 +72,9 @@ export class Keystore {
   // ── registry IO ───────────────────────────────────────────────────────────
   #read(): WalletsFile {
     const f = this.store.readJson<WalletsFile>(this.walletsPath);
-    return f ?? { version: 1, activeAccount: null, wallets: [], labels: {} };
+    // Absent = a fresh keystore, so it is born CURRENT. This default is persisted on the first
+    // write, so a literal version here would stamp every new keystore stale (ADR-0008).
+    return f ?? { version: WALLETS_VERSION, activeAccount: null, wallets: [], labels: {} };
   }
   /** caller must already hold the wallets.json lock (mutators wrap in withLock). */
   #write(f: WalletsFile): void {
@@ -338,6 +341,7 @@ export class Keystore {
     if (s.type === "seed") {
       d.seedId = w.id; // the seed id `derive --seed` takes; also the `list` HD group header.
     }
+    d.derivationPath = derivationPathsOf(s, index);
     return d;
   }
 
@@ -643,4 +647,19 @@ export class Keystore {
     while (used.has(`wallet-${n}`)) n++;
     return `wallet-${n}`;
   }
+}
+
+/**
+ * The BIP44 path behind each of an account's addresses.
+ *   - seed: computed per family from the index — the templates differ (§1.2), which is exactly
+ *     what a caller cannot otherwise see.
+ *   - ledger: the single path the user picked on the device, for its one family.
+ *   - watch / privateKey: never derived, so `null` rather than an empty object.
+ */
+function derivationPathsOf(source: Source, index: number | null): Record<string, string> | null {
+  if (source.type === "seed" && index !== null) {
+    return Object.fromEntries(CHAIN_FAMILIES.map((f) => [f, Derivation.path(f, index)]));
+  }
+  if (source.type === "ledger") return { [source.family]: source.path };
+  return null;
 }

@@ -7,7 +7,7 @@ import {
   accountActivateSpec,
   accountActivateTronBinding,
   accountBalanceSpec,
-  accountBalanceTronBinding,
+  accountBalanceBinding,
   accountHistorySpec,
   accountHistoryTronBinding,
   accountInfoSpec,
@@ -25,7 +25,7 @@ import {
   tokenInfoSpec,
   tokenInfoTronBinding,
   tokenListSpec,
-  tokenListTronBinding,
+  tokenListBinding,
   tokenRemoveSpec,
   tokenRemoveTronBinding,
 } from "../../adapters/inbound/cli/commands/token.js";
@@ -59,7 +59,15 @@ import {
 import { stakeDefinitions } from "../../adapters/inbound/cli/commands/stake.js";
 import { assetDefinitions } from "../../adapters/inbound/cli/commands/asset.js";
 import { exchangeDefinitions } from "../../adapters/inbound/cli/commands/exchange.js";
-import { chainDefinitions } from "../../adapters/inbound/cli/commands/chain.js";
+import {
+  chainDefinitions,
+  chainNodeSpec,
+  chainNodeTronBinding,
+  chainPricesSpec,
+  chainPricesTronBinding,
+} from "../../adapters/inbound/cli/commands/chain.js";
+import type { AccountBalanceService } from "../../application/use-cases/account-balance-service.js";
+import type { TokenBookService } from "../../application/use-cases/token-book-service.js";
 import {
   voteCastSpec,
   voteCastTronBinding,
@@ -170,6 +178,8 @@ export interface TronChainCommandDependencies {
   tronlink: TronLinkCollaborationPort;
   gasfree: GasFreeProvider;
   recipients: RecipientResolver;
+  balances: AccountBalanceService;
+  tokenBook: TokenBookService;
 }
 
 export function registerTronChainCommands(
@@ -213,7 +223,7 @@ export function registerTronChainCommands(
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
   reg.addChain(accountActivateSpec, "tron", accountActivateTronBinding(account));
-  reg.addChain(accountBalanceSpec, "tron", accountBalanceTronBinding(account));
+  reg.addChain(accountBalanceSpec, "tron", accountBalanceBinding(deps.balances));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
   reg.addChain(accountHistorySpec, "tron", accountHistoryTronBinding(account));
   reg.addChain(accountPortfolioSpec, "tron", accountPortfolioTronBinding(account));
@@ -221,7 +231,7 @@ export function registerTronChainCommands(
   reg.addChain(tokenBalanceSpec, "tron", tokenBalanceTronBinding(token));
   reg.addChain(tokenInfoSpec, "tron", tokenInfoTronBinding(token));
   reg.addChain(tokenAddSpec, "tron", tokenAddTronBinding(token));
-  reg.addChain(tokenListSpec, "tron", tokenListTronBinding(token));
+  reg.addChain(tokenListSpec, "tron", tokenListBinding(deps.tokenBook));
   reg.addChain(tokenRemoveSpec, "tron", tokenRemoveTronBinding(token));
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
@@ -258,6 +268,8 @@ export function registerTronChainCommands(
   for (const definition of chainDefinitions(chain)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }
+  reg.addChain(chainNodeSpec, "tron", chainNodeTronBinding(chain));
+  reg.addChain(chainPricesSpec, "tron", chainPricesTronBinding(chain));
   reg.addChain(contractCallSpec, "tron", contractCallTronBinding(contract));
   reg.addChain(contractSendSpec, "tron", contractSendTronBinding(contract));
   reg.addChain(contractDeploySpec, "tron", contractDeployTronBinding(contract));

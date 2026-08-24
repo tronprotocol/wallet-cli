@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { WALLETS_VERSION } from "../../../domain/migration/wallets-v2.js";
 
 // Swap real scrypt (n=2^18, hundreds of ms/call) for a cheap deterministic KDF: this suite
 // exercises keystore *logic* over dozens of encrypt/decrypt cycles, not the KDF, which
@@ -7,7 +8,7 @@ vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
-import { mkdtempSync, readdirSync, renameSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -501,4 +502,55 @@ describe("changePassword", () => {
     expect(() => reopened.decryptKey(keyId)).not.toThrow();
     expect(residue(root)).toEqual([]);
   }, 15_000);
+});
+
+describe("wallets.json schema version", () => {
+  // The synthesised default is not just read, it is PERSISTED on first write. A literal 1 here
+  // would stamp every freshly created keystore as stale and send it straight to the migration
+  // gate on its very next run (ADR-0008).
+  it("stamps a newly created keystore at the current version", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.registerWatch({ family: "tron", address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6" });
+
+    const doc = JSON.parse(readFileSync(join(root, "wallets.json"), "utf8"));
+
+    expect(doc.version).toBe(WALLETS_VERSION);
+  });
+});
+
+describe("descriptor carries each family's derivation path", () => {
+  // §3.7: json had no path at all, so a user could not tell WHICH template an account used —
+  // and the two families deliberately use different ones (§1.2).
+  it("gives a seed account one path per family", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    ks.addAccount(ks.list()[0]!.seedId!, 2);
+
+    const account2 = ks.list().find((a) => a.index === 2)!;
+    expect(account2.derivationPath).toEqual({
+      tron: "m/44'/195'/2'/0/0",
+      evm: "m/44'/60'/0'/0/2",
+    });
+  });
+
+  // watch and private-key accounts were never derived from a template, so there is no path to
+  // report — null says that, where an omitted field would just look like a gap.
+  it("reports null for an account that was not derived", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.registerWatch({ family: "evm", address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" });
+
+    expect(ks.list()[0]!.derivationPath).toBeNull();
+  });
+
+  // A Ledger account IS derived, at a path the user chose on the device — and it is single-family.
+  it("gives a ledger account only its own family's path", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.registerLedger({ family: "tron", path: "m/44'/195'/5'/0/0", address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6" });
+
+    expect(ks.list()[0]!.derivationPath).toEqual({ tron: "m/44'/195'/5'/0/0" });
+  });
 });

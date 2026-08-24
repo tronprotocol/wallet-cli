@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { contactNameKey, contactNote, createContact } from "./index.js";
+import {
+  contactName,
+  contactNameKey,
+  contactNote,
+  createContact,
+  resemblesAddress,
+} from "./index.js";
 
 const ADDRESS = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 
@@ -24,8 +30,69 @@ describe("contact validation", () => {
   });
 
   it("rejects an invalid Base58Check address", () => {
+    // The message now names the family rather than the encoding, since each family validates
+    // against its own codec.
     expect(() => createContact("tron", "alice", "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")).toThrow(
-      /Base58Check/,
+      /valid tron address/,
     );
+  });
+});
+
+const TRON = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
+const EVM = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
+
+describe("createContact validates the address against its own family", () => {
+  it.each([
+    ["tron", TRON],
+    ["evm", EVM],
+  ])("accepts a %s address", (family, address) => {
+    expect(createContact(family as never, "friend", address)).toMatchObject({ family, address });
+  });
+
+  // Storing a TRON address under `evm` would make `--to friend` on an EVM network resolve to an
+  // address that does not exist there.
+  it.each([
+    ["tron", EVM],
+    ["evm", TRON],
+  ])("rejects an address belonging to another family (%s)", (family, address) => {
+    expect(() => createContact(family as never, "friend", address)).toThrow();
+  });
+
+  it("rejects an EVM address whose checksum does not hold", () => {
+    expect(() =>
+      createContact("evm" as never, "friend", "0xe2e1a54926527Fbb4E4420DE4c6BAb82beAEE24D"),
+    ).toThrow();
+  });
+});
+
+// A contact name that looks like an address is how a typo'd recipient becomes a silent redirect:
+// the address fails validation, falls through to a name lookup, and matches the impostor. The
+// TRON side has always been guarded; EVM must be too, before contacts can live in an evm bucket.
+describe("contact names may not impersonate an address of any family", () => {
+  it.each([
+    ["an EVM address", EVM],
+    ["a lowercase EVM address", EVM.toLowerCase()],
+    ["an uppercase EVM address", `0x${EVM.slice(2).toUpperCase()}`],
+  ])("rejects %s as a name", (_label, name) => {
+    expect(() => contactName(name)).toThrow(/must not resemble/);
+  });
+
+  it("still accepts ordinary names that merely start with 0x", () => {
+    expect(contactName("0x-not-an-address")).toBe("0x-not-an-address");
+  });
+});
+
+describe("resemblesAddress spots a near-miss of any family", () => {
+  it.each([
+    ["tron", TRON],
+    ["tron with a broken checksum", "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL7"],
+    ["evm", EVM],
+    ["evm with a broken checksum", "0xe2e1a54926527Fbb4E4420DE4c6BAb82beAEE24D"],
+  ])("is true for %s", (_label, value) => {
+    expect(resemblesAddress(value)).toBe(true);
+  });
+
+  it("is false for an ordinary name", () => {
+    expect(resemblesAddress("team-vault")).toBe(false);
   });
 });

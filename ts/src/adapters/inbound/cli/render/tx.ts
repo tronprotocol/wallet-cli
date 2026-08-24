@@ -20,7 +20,7 @@ import {
   methodName,
 } from "./scalars.js";
 import { type Pair, asObj, query, receipt, ok, fail, pending, unknown } from "./layout.js";
-import { FAMILY_RENDER, renderFamily } from "./family.js";
+import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 
 export const TxFormatters = {
   txReceipt: ((r, ctx?: TextRenderContext) =>
@@ -40,7 +40,7 @@ export const TxFormatters = {
     ]);
   }) satisfies TextFormatter<TxStatusView>,
   txInfo: ((r, ctx) => {
-    return query(FAMILY_RENDER[renderFamily(ctx)].txInfoRows(r));
+    return query(FAMILY_RENDER[renderFamily(ctx)].txInfoRows(r, renderSymbol(ctx)));
   }) satisfies TextFormatter<TxInfoView>,
 };
 
@@ -49,11 +49,12 @@ export const TxFormatters = {
  *  `family` in the payload, no stringly command-id matching, no alias probing. */
 function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx);
+  const symbol = renderSymbol(ctx);
   if (r.mode === "dry-run") {
     // receiptRows already states a multi-sign fee; only estimated fees need their own row here.
     const body = receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
       ...receiptRows(r),
-      ...(r.multiSignFeeSun === undefined ? [["Fee", formatFee(r.fee, family)] as Pair] : []),
+      ...(r.multiSignFeeSun === undefined ? [["Fee", formatFee(r.fee, family, symbol)] as Pair] : []),
       ["Tx", summarizeTx(r.tx ?? r.transaction)],
     ]);
     // `tx broadcast --dry-run` resolves the full approval state to decide broadcastability; show
@@ -64,7 +65,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     return (
       r.hex ??
       receipt(pending(), `Built ${actionLabel(r.kind)}`, [
-        ["Fee", formatFee(r.fee, family)],
+        ["Fee", formatFee(r.fee, family, symbol)],
         ["Tx", summarizeTx(r.tx)],
       ])
     );
@@ -75,13 +76,13 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
       ["Address", r.address ?? ""],
       ["TxID", String(r.txId ?? "")],
-      ["Fee", r.fee ? formatFee(r.fee, family) : ""],
+      ["Fee", r.fee ? formatFee(r.fee, family, symbol) : ""],
       ...signatureRows(r.signed),
     ]);
   }
   const txid = String(r.txId ?? r.hash ?? "");
   const stage = r.stage ?? "submitted";
-  const summary = receiptSummary(r, family);
+  const summary = receiptSummary(r, family, symbol);
   const pairs: Pair[] = [...receiptRows(r)];
   if (txid) pairs.push(["TxID", txid]);
 
@@ -134,7 +135,7 @@ function successStatus(kind: TxReceiptKind): string {
 }
 
 /** the verb-phrase summary for a broadcast receipt, by action kind. */
-function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
+function receiptSummary(r: TxReceiptView, family: ChainFamily, symbol: string): string {
   const stakeAmt = r.amountSun !== undefined ? `${formatSun(r.amountSun)} TRX` : "TRX";
   const resource = r.resource ? String(r.resource) : "";
   switch (r.kind) {
@@ -184,7 +185,7 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily): string {
     case "reward-withdraw":
       return "Withdrew voting/block rewards";
     case "send": {
-      const amount = receiptAmount(r, family);
+      const amount = receiptAmount(r, family, symbol);
       return amount ? `Sent ${amount}` : "Sent";
     }
     case "broadcast":
@@ -387,7 +388,7 @@ function receiptRows(r: TxReceiptView): Pair[] {
 
 /** broadcast-receipt amount: token-aware (symbol/decimals when known, else the contract/asset-id
  *  identifier for raw-amount sends), native smallest-unit → coin only when no token is involved. */
-function receiptAmount(r: TxReceiptView, family: ChainFamily): string {
+function receiptAmount(r: TxReceiptView, family: ChainFamily, symbol: string): string {
   if (r.rawAmount !== undefined && r.rawAmount !== null && r.rawAmount !== "") {
     const raw = String(r.rawAmount);
     const isToken = r.token !== undefined || r.contract !== undefined || r.assetId !== undefined;
@@ -400,7 +401,7 @@ function receiptAmount(r: TxReceiptView, family: ChainFamily): string {
         r.token ?? r.contract ?? (r.assetId !== undefined ? `asset ${String(r.assetId)}` : "");
       return label ? `${human} ${String(label)}` : human;
     }
-    return FAMILY_RENDER[family].nativeAmount(raw);
+    return FAMILY_RENDER[family].nativeAmount(raw, symbol);
   }
   if (r.amountSun) return `${formatSun(r.amountSun)} TRX`;
   return "";
@@ -479,7 +480,7 @@ function actionLabel(kind: TxReceiptKind): string {
   }
 }
 
-function formatFee(fee: unknown, family: ChainFamily): string {
+function formatFee(fee: unknown, family: ChainFamily, symbol: string): string {
   if (!fee) return "unknown";
   if (typeof fee === "object") {
     const f = asObj(fee);
@@ -503,7 +504,7 @@ function formatFee(fee: unknown, family: ChainFamily): string {
     // a fee shape added later from silently rendering as garbage instead of failing visibly.
     return "unknown";
   }
-  return FAMILY_RENDER[family].feeFallback(fee);
+  return FAMILY_RENDER[family].feeFallback(fee, symbol);
 }
 
 /** Signatures are the whole point of a sign-only receipt and the user has to copy them somewhere,

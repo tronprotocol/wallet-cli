@@ -5,11 +5,33 @@ import { tmpdir } from "node:os";
 import { main } from "./runner.js";
 import { parseGlobals, hasCommand } from "./argv.js";
 import { FAMILY_REGISTRY } from "./family-registry.js";
+import { CHAIN_FAMILIES } from "../domain/family/index.js";
+import { familyMap } from "./family-registry.js";
+import { ChainGatewayRegistry } from "../adapters/outbound/chain/tron/provider.js";
+import { EvmRpcClient } from "../adapters/outbound/chain/evm/evm.js";
 
 describe("FAMILY_REGISTRY (composition manifest)", () => {
-  it("registers the tron family for sign/rpc resolution + the user command surface", () => {
-    expect(FAMILY_REGISTRY.map((d) => d.meta.family)).toEqual(["tron"]);
+  it("registers every family for sign/rpc resolution + the user command surface", () => {
+    expect(FAMILY_REGISTRY.map((d) => d.meta.family)).toEqual(["tron", "evm"]);
   });
+
+  // familyMap() casts its Object.fromEntries result to a TOTAL Record<ChainFamily, T>, so a
+  // family present in the type union but missing a plugin type-checks fine and then hands out
+  // `undefined` at runtime — SoftwareSigner would fail with a bare TypeError on the strategy.
+  // tsc cannot catch this; these two assertions are the only thing that can.
+  it("leaves no family without a plugin", () => {
+    const registered = new Set(FAMILY_REGISTRY.map((d) => d.meta.family));
+    expect([...CHAIN_FAMILIES].filter((f) => !registered.has(f))).toEqual([]);
+  });
+
+  it.each(["signStrategy", "createGateway"] as const)(
+    "gives every family a %s",
+    (capability) => {
+      for (const plugin of FAMILY_REGISTRY) {
+        expect(plugin[capability], `${plugin.meta.family} is missing ${capability}`).toBeDefined();
+      }
+    },
+  );
 });
 
 describe("hasCommand (bare invocation → root help)", () => {
@@ -141,5 +163,27 @@ describe("bootstrap error boundary", () => {
 
     expect(code).toBe(2);
     expect(stderr).toMatch(/invalid_config/);
+  });
+});
+
+// The registry guard above proves a factory EXISTS; this proves the factory, the descriptor and
+// the gateway registry actually line up — that `--network sepolia` would reach a live client.
+describe("composition resolves a gateway per family", () => {
+  const gateways = () => new ChainGatewayRegistry(familyMap((p) => p.createGateway), 5_000);
+  const sepolia = {
+    id: "evm:11155111",
+    family: "evm" as const,
+    nativeSymbol: "ETH",
+    chainId: "11155111",
+    httpEndpoint: "https://sepolia.example",
+    capabilities: [],
+  };
+
+  it("builds an EVM JSON-RPC client for an evm network", () => {
+    expect(gateways().get(sepolia, "evm")).toBeInstanceOf(EvmRpcClient);
+  });
+
+  it("refuses to hand an evm network out as a tron gateway", () => {
+    expect(() => gateways().get(sepolia, "tron")).toThrow(/family mismatch/);
   });
 });

@@ -31,7 +31,7 @@ describe("message sign exclusive group", () => {
       activeAccount: "main",
       secrets: { pick: (inline: string | undefined) => inline ?? "from-stdin" },
     } as never;
-    await messageSignBinding(service as never).run(ctx, { family: "tron" } as never, {
+    await messageSignBinding(service as never).run(ctx, { family: "tron", nativeSymbol: "TRX" } as never, {
       message: "hello",
     });
     expect(received).toBe("hello");

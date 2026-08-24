@@ -102,11 +102,19 @@ interface CommandDefinitionBase<I, O> {
   commandIdFor?: (input: I) => string;
 }
 
-/** A neutral (family-less) command — wallet/config/meta operations that never receive a
- *  chain target. Networked commands are ChainCommandDefinitions. */
+/**
+ * A neutral (family-less) command — wallet/config/meta operations that are not dispatched by
+ * family. Networked *chain* commands are ChainCommandDefinitions.
+ *
+ * `network: "optional"` does not make it a chain command: it means the selected network is a
+ * DISPLAY SELECTOR (which family's address to show), not a target to act on. No node is
+ * contacted. Such a command must be `wallet: "none"`, or the target resolver's single-family
+ * ACCOUNT check applies and it would refuse to run whenever the active account's family differs
+ * from the network — wrong for a purely local listing.
+ */
 export interface CommandDefinition<I = any, O = any> extends CommandDefinitionBase<I, O> {
-  network: "none";
-  run(ctx: ExecutionContext, net: undefined, input: I): Promise<O>;
+  network: "none" | "optional";
+  run(ctx: ExecutionContext, net: NetworkDescriptor | undefined, input: I): Promise<O>;
 }
 
 /** One family's slice of a chain command: how it runs + its extra flags/validation.

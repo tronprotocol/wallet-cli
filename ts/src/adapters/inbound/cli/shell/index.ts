@@ -253,7 +253,7 @@ async function executeChainCommand(
   if (!binding) {
     const families = Object.keys(def.families).join(", ");
     throw new UsageError(
-      "network_family_mismatch",
+      "family_mismatch",
       `command ${spec.path.join(" ")} supports ${families} but selected network ${net.id} is ${net.family}`,
     );
   }
@@ -348,7 +348,7 @@ async function executeCommand(
   const ctx = buildExecutionContext(globals, deps);
   if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
 
-  const data = await cmd.run(ctx, undefined, input);
+  const data = await cmd.run(ctx, net, input);
   // A mode-switching command may report a more precise semantic id than its path (backup.records).
   const resultId = cmd.commandIdFor?.(input) ?? commandId(cmd);
   session.current = { commandId: resultId, net };
@@ -531,7 +531,7 @@ function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExe
   return { ...spec, fields };
 }
 
-function composeRefines(
+export function composeRefines(
   fields: ZodObject<ZodRawShape>,
   baseRefine?: (value: any, ctx: RefinementCtx) => void,
   familyRefine?: (value: any, ctx: RefinementCtx) => void,

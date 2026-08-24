@@ -1,19 +1,21 @@
 import type { TextFormatter } from "../contracts/index.js";
 import { formatScalar, formatInt, formatUtc, num, methodName } from "./scalars.js";
-import { type Obj, type Pair, asObj, kv, query, receipt, table, ok } from "./layout.js";
+import { type Obj, type Pair, asObj, kv, query, receipt, table, titled, ok } from "./layout.js";
 
 export const MiscFormatters = {
   config: ((data) => renderConfig(asObj(data))) satisfies TextFormatter,
   networks: ((data) =>
     table(
-      ["Network", "Family", "Chain", "Fee model"],
+      ["Network", "Alias", "Family", "Chain", "Fee model", "Endpoint"],
       (Array.isArray(data) ? data : [])
         .map(asObj)
         .map((n) => [
           String(n.id ?? ""),
+          String(n.alias ?? ""),
           String(n.family ?? ""),
           String(n.chainId ?? ""),
           String(n.feeModel ?? ""),
+          String(n.endpoint ?? ""),
         ]),
     )) satisfies TextFormatter,
 
@@ -42,11 +44,17 @@ export const MiscFormatters = {
       ["Signature", String(d.signature ?? "")],
     ]);
   }) satisfies TextFormatter,
-  block: ((data) => {
+  // `block` reports the node's RAW object, so the two families arrive in different shapes: TRON
+  // nests its header and counts milliseconds, an EVM node is flat, hex and counts seconds.
+  // Making that readable is this renderer's job — the JSON stays as the node sent it.
+  block: ((data, ctx) => {
     const block = asObj(asObj(data).block);
     const header = asObj(asObj(block.block_header).raw_data);
     const n = block.number ?? header.number;
-    const ts = block.timestamp ?? header.timestamp;
+    const raw = block.timestamp ?? header.timestamp;
+    // Seconds read as milliseconds would date every EVM block to 1970.
+    const ts =
+      ctx.net?.family === "evm" && raw !== undefined ? num(raw, 0) * 1000 : raw;
     const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
     return query([
       ["Number", n === undefined ? "" : `#${formatInt(n)}`],
@@ -97,16 +105,29 @@ function renderConfig(d: Obj): string {
       ["Value", configValue(d.value)],
     ]);
   }
-  if ("key" in d) return kv([[String(d.key), configValue(d.value)]], "");
+  if ("key" in d) {
+    // A map-valued key (networks, aliases) gets its own titled block; a scalar stays one line.
+    return isMap(d.value)
+      ? titled(String(d.key), Object.entries(d.value).map(([k, v]) => [k, configValue(v)] as Pair))
+      : kv([[String(d.key), configValue(d.value)]], "");
+  }
   return kv(
     Object.entries(d).map(([k, v]) => [k, configValue(v)] as Pair),
     "",
   );
 }
 
+/** a plain object value, i.e. one of the map-valued config keys. */
+function isMap(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
 /** config values keep their literal form (no thousands grouping, raw key names). */
 function configValue(v: unknown): string {
   if (Array.isArray(v)) return v.map(String).join(", ");
+  // In the whole-config overview a map is summarised by its keys — listing every value would
+  // bury the scalar settings under 7 networks and 7 aliases. Read the key itself for detail.
+  if (isMap(v)) return Object.keys(v).join(", ");
   return v === null || v === undefined ? "" : String(v);
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { mkdtempSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Keystore } from "../src/adapters/outbound/keystore/index.js";
@@ -112,10 +112,23 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // only the 3 TRON networks ship
-    expect(ids).toEqual(expect.arrayContaining(["tron:mainnet", "tron:nile", "tron:shasta"]));
-    expect(ids).toHaveLength(3);
-    expect(ids.some((id: string) => id.startsWith("evm:"))).toBe(false);
+    // Both families ship as of v4.13.0 (§2.2): 3 TRON + 4 EVM, each mainnet paired with a
+    // testnet. This assertion previously read "only the 3 TRON networks ship" — EVM was
+    // deliberately hidden then, and is deliberately exposed now.
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "tron:mainnet",
+        "tron:nile",
+        "tron:shasta",
+        "evm:1",
+        "evm:11155111",
+        "evm:56",
+        "evm:97",
+      ]),
+    );
+    expect(ids).toHaveLength(7);
+    // machine surfaces carry canonical ids only, never aliases (ADR-0010)
+    expect(ids.every((id: string) => /^(tron|evm):/.test(id))).toBe(true);
   });
 
   it("--json-schema emits an agent schema for a command", () => {
@@ -842,5 +855,68 @@ describe("golden CLI — v4.12 governance surface", () => {
     );
     expect(energy.status).toBe(2);
     expect(energy.json.error.code).toBe("invalid_value");
+  });
+});
+
+// ADR-0008. Every other migration test fakes something: the gate's unit tests fake the password
+// source, the step test calls migrate() directly. This is the only one that runs the real binary,
+// against a real encrypted vault, with the password arriving down fd 0 the way CI supplies it.
+describe("golden CLI — startup migration", () => {
+  /** a real v2 keystore wound back to what a pre-EVM one looked like on disk */
+  function windBackToV1() {
+    seedWallet();
+    const path = join(HOME, "wallets.json");
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    doc.version = 1;
+    for (const byIndex of Object.values(
+      doc.wallets[0].source.addresses as Record<string, Record<string, string>>,
+    )) {
+      delete byIndex.evm;
+    }
+    writeFileSync(path, JSON.stringify(doc));
+    return path;
+  }
+
+  it("migrates with the master password piped in, then runs the command", () => {
+    const path = windBackToV1();
+
+    const r = run(["--output", "json", "list"], { password: DEFAULT_PW });
+
+    expect(r.status).toBe(0);
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    expect(doc.version).toBe(2);
+    expect(doc.wallets[0].source.addresses["0"].evm).toMatch(/^0x[0-9a-fA-F]{40}$/);
+  });
+
+  it("leaves a pre-migration copy the user can fall back to", () => {
+    const path = windBackToV1();
+    run(["--output", "json", "list"], { password: DEFAULT_PW });
+
+    expect(JSON.parse(readFileSync(`${path}.v1.bak`, "utf8")).version).toBe(1);
+  });
+
+  it("refuses with migration_required when no password source is supplied", () => {
+    const path = windBackToV1();
+
+    const r = run(["--output", "json", "list"], { password: null });
+
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("migration_required");
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+
+  it("reports auth_failed for a wrong password rather than writing garbage", () => {
+    const path = windBackToV1();
+
+    const r = run(["--output", "json", "list"], { password: "wrongpw123A" });
+
+    expect(r.status).not.toBe(0);
+    expect(r.json.error.code).toBe("auth_failed");
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+
+  it("runs --help on a stale keystore without demanding anything", () => {
+    windBackToV1();
+    expect(run(["--help"], { password: null }).status).toBe(0);
   });
 });

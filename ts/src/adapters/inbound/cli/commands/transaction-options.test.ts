@@ -3,11 +3,15 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { z } from "zod";
 import { permissionUpdateSpec } from "./permission.js";
-import { governanceTxModeFields, txModeFields } from "./shared.js";
+import { governanceTxModeFields, tronTxModeFields, txModeFields } from "./shared.js";
+
+// --permission-id and --expiration are TRON multi-signature concepts and live on the TRON
+// binding's field set; these assertions are about their wording, which did not move.
+const txModeAndTron = { ...txModeFields, ...tronTxModeFields };
 
 describe("transaction option argv coercion", () => {
   it("accepts numeric --permission-id and --expiration values from argv", () => {
-    const parsed = z.object(txModeFields).parse({
+    const parsed = z.object(txModeAndTron).parse({
       buildOnly: true,
       permissionId: "2",
       expiration: "86400000",
@@ -34,8 +38,8 @@ describe("transaction option argv coercion", () => {
 // mean nor what the limits are. A co-signer reading `--help` could not tell which permission group
 // to pass, nor that the collection window they were extending is capped at 24h.
 describe("shared --permission-id / --expiration document their semantics", () => {
-  const describeOf = (name: keyof typeof txModeFields): string =>
-    (txModeFields[name] as { description?: string }).description ?? "";
+  const describeOf = (name: keyof typeof txModeAndTron): string =>
+    (txModeAndTron[name] as { description?: string }).description ?? "";
 
   it("spells out what a permission group id means", () => {
     const text = describeOf("permissionId");
@@ -45,7 +49,7 @@ describe("shared --permission-id / --expiration document their semantics", () =>
   });
 
   it("states the expiration cap, and quotes the number the schema actually enforces", () => {
-    const schema = z.object(txModeFields);
+    const schema = z.object(txModeAndTron);
     expect(schema.safeParse({ buildOnly: true, expiration: 86_400_000 }).success).toBe(true);
     expect(schema.safeParse({ buildOnly: true, expiration: 86_400_001 }).success).toBe(false);
     // the description must quote that same bound — a stale number here is worse than none
@@ -100,7 +104,7 @@ describe("reference pages keep up with the shared transaction options", () => {
   it("every --permission-id row carries the same value key the flag's help does", () => {
     // taken from the schema, not restated here: one wording, two surfaces
     const key = /\((0=owner[^)]*)\)/.exec(
-      (txModeFields.permissionId as { description?: string }).description ?? "",
+      (tronTxModeFields.permissionId as { description?: string }).description ?? "",
     )?.[1];
     expect(key).toBeTruthy();
 
@@ -157,9 +161,12 @@ describe("reference pages keep up with the shared transaction options", () => {
 describe("governance --permission-id shares the protocol bound with every other command", () => {
   const field = (fields: Record<string, unknown>) => z.object(fields as never);
 
-  it("rejects a permission id above the protocol maximum at the schema, as txModeFields does", () => {
+  it("rejects a permission id above the protocol maximum, as the TRON field set does", () => {
     expect(field(governanceTxModeFields).safeParse({ permissionId: "10" }).success).toBe(false);
-    expect(field(txModeFields).safeParse({ permissionId: "10" }).success).toBe(false);
+    // The bound lives with the flag, which is TRON-only: a permission group is a TRON concept,
+    // so the shared set no longer declares it at all.
+    expect(field(tronTxModeFields).safeParse({ permissionId: "10" }).success).toBe(false);
+    expect(Object.keys(txModeFields)).not.toContain("permissionId");
   });
 
   it("still accepts the whole valid range", () => {

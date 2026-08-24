@@ -249,6 +249,7 @@ export class HelpService {
       wallet: spec.wallet,
       broadcasts: spec.broadcasts,
       fields: introspectFields(mergedFields(def)),
+      fieldFamilies: fieldFamilies(def),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
       exclusive: spec.exclusive,
       examples: spec.examples,
@@ -268,6 +269,8 @@ export class HelpService {
     wallet: CommandDefinition["wallet"];
     broadcasts?: boolean;
     fields: FieldInfo[];
+    /** family-specific flags, so each can be marked with the family it belongs to. */
+    fieldFamilies?: Map<string, ChainFamily>;
     inputFlags: readonly GlobalFlag[];
     exclusive?: ChainSpec["exclusive"];
     examples: CommandDefinition["examples"];
@@ -330,12 +333,15 @@ export class HelpService {
     const posNames = new Set((c.positionals ?? []).map((p) => p.field));
     const flagFields = posNames.size ? c.fields.filter((f) => !posNames.has(f.name)) : c.fields;
     const optionRows: OptionRow[] = [
-      ...flagFields.map((f) => ({
-        key: f.kebab,
-        head: flagHead(f),
-        desc: f.description ?? "",
-        tag: flagTag(f),
-      })),
+      ...flagFields.map((f) => {
+        const family = c.fieldFamilies?.get(f.name);
+        return {
+          key: f.kebab,
+          head: flagHead(f),
+          desc: f.description ?? "",
+          tag: family ? `${flagTag(f)} (${family})` : flagTag(f),
+        };
+      }),
       ...c.inputFlags.map((g) => ({
         key: g.flag.replace(/^--/, ""),
         head: globalFlagHead(g),
@@ -451,6 +457,31 @@ function mergedFields(def: ChainCommandDefinition): ZodObject<ZodRawShape> {
   for (const b of Object.values(def.families))
     if (b?.fields) shape = { ...shape, ...b.fields.shape };
   return z.object(shape);
+}
+
+/**
+ * Which family a flag belongs to, for the flags that belong to exactly one.
+ *
+ * Help is static — `--network` does not shape it — so every family's flags are listed together
+ * and each says who it is for. A flag declared by more than one family, or present in
+ * baseFields, is shared: tagging it would imply a restriction that does not exist.
+ */
+function fieldFamilies(def: ChainCommandDefinition): Map<string, ChainFamily> {
+  const owners = new Map<string, ChainFamily[]>();
+  for (const [family, binding] of Object.entries(def.families) as [
+    ChainFamily,
+    ChainCommandDefinition["families"][ChainFamily],
+  ][]) {
+    for (const name of Object.keys(binding?.fields?.shape ?? {})) {
+      owners.set(name, [...(owners.get(name) ?? []), family]);
+    }
+  }
+  const shared = new Set(Object.keys(def.spec.baseFields.shape));
+  return new Map(
+    [...owners]
+      .filter(([name, families]) => families.length === 1 && !shared.has(name))
+      .map(([name, families]) => [name, families[0]!]),
+  );
 }
 
 function metaPositionals(tokens: string[]): string[] {

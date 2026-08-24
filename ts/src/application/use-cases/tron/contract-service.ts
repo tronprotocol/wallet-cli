@@ -1,7 +1,7 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronContractParameter } from "../../ports/chain/tron-gateway.js";
+import type { TronContractParameter, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { computeTronCreate2Address } from "../../../domain/governance/create2.js";
@@ -207,7 +207,7 @@ export class TronContractService {
       | "contract-clear-abi"
       | "contract-set-origin-energy-limit"
       | "contract-set-user-resource-percent",
-    build: (gateway: ReturnType<ChainGatewayProvider["get"]>, owner: string) => Promise<UnsignedTx>,
+    build: (gateway: TronGateway, owner: string) => Promise<UnsignedTx>,
     fields: Record<string, unknown>,
   ) {
     const gateway = this.gateways.get(network, "tron");

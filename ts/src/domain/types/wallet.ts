@@ -51,6 +51,13 @@ export interface AccountDescriptor {
   /** HD only: the seed id (wallet id, `wlt_…`) this account was derived from — the value `derive
    *  --seed` takes. Combined with `index`, tells which seed an account belongs to and its slot. */
   seedId?: string;
+  /**
+   * Which BIP44 template each of this account's addresses came from — one entry per family it
+   * has. `null` for an account that was never derived (watch, private-key), which is a different
+   * statement from an omitted field: it says "there is no path", not "we did not look".
+   * The two families use different templates (§1.2), so without this a user cannot tell which.
+   */
+  derivationPath?: Record<string, string> | null;
 }
 
 /** mutators that may hit an existing account report whether they actually created one. */

@@ -3,8 +3,10 @@ import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
+import type { EvmContractService } from "../../../../application/use-cases/evm/contract-service.js";
 import type { TronContractParameter } from "../../../../application/ports/chain/tron-gateway.js";
-import { Schemas } from "../schemas/index.js";
+import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
+import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
 import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
@@ -87,33 +89,26 @@ function assertConstructorEncodable(abi: unknown): void {
  * string) and `value`. A mixed or partial array is left to TronWeb rather than guessed at, and a
  * genuine struct arg with those two field names can still be passed in positional array form.
  */
-function deployParameters(raw: string | undefined): unknown[] {
-  const values = jsonArray(raw);
-  const allTyped =
-    values.length > 0 &&
-    values.every((v) => {
-      if (!v || typeof v !== "object" || Array.isArray(v)) return false;
-      const keys = Object.keys(v);
-      return (
-        keys.length === 2 &&
-        keys.includes("type") &&
-        keys.includes("value") &&
-        typeof (v as { type: unknown }).type === "string" &&
-        (v as { type: string }).type !== ""
-      );
-    });
-  if (allTyped) {
+/**
+ * `--constructor-params` entries, as `{type, value}` — the same form `contract call` and
+ * `contract send` take.
+ *
+ * Deploy used to take bare positional values here while its siblings took typed entries: one
+ * flag name, two incompatible formats. That is what §7.3 unified, so the guard that used to
+ * reject the typed form now rejects the bare one.
+ */
+function typedConstructorParams(raw: string | undefined): TronContractParameter[] {
+  const values = jsonArray(raw, "--constructor-params");
+  if (!z.array(typedParam).safeParse(values).success) {
     throw new UsageError(
       "invalid_value",
-      '--params takes raw positional values for deploy (e.g. [100, "T..."]); {"type","value"} ' +
-        "entries are the `contract call`/`send` form — deploy reads the types from the ABI constructor",
+      '--constructor-params entries must be {"type","value"} objects with a non-empty ABI type',
     );
   }
-  return values;
+  return values as TronContractParameter[];
 }
-
 const callFields = z.object({
-  contract: Schemas.addressFor("tron").describe("TRON contract address"),
+  contract: Schemas.address().describe("contract address"),
   method: z.string().min(1).describe("function signature, e.g. balanceOf(address)"),
   params: z
     .string()
@@ -138,24 +133,72 @@ export const contractCallSpec: ChainSpec = {
 };
 
 export const contractCallTronBinding = (svc: TronContractService): FamilyBinding => ({
+  refine: addressFieldsFor("tron", "contract"),
+  run: async (_ctx, net, input) =>
+    svc.call(net, input.contract, input.method, typedParams(input.params)),
+});
+
+export const contractCallEvmBinding = (svc: EvmContractService): FamilyBinding => ({
+  refine: addressFieldsFor("evm", "contract"),
   run: async (_ctx, net, input) =>
     svc.call(net, input.contract, input.method, typedParams(input.params)),
 });
 
 const sendFields = z.object({
-  contract: Schemas.addressFor("tron").describe("TRON contract address"),
+  contract: Schemas.address().describe("contract address"),
   method: z.string().min(1).describe("function signature, e.g. transfer(address,uint256)"),
   params: z
     .string()
     .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
+  ...governanceTxModeFields,
+});
+
+/** TRON prices a contract call in SUN and burns energy up to a fee limit; both flag names say so. */
+const tronContractWriteFields = z.object({
   callValueSun: Schemas.uintString()
     .default("0")
     .describe("native TRX attached to the call, in SUN"),
   feeLimit: Schemas.positiveIntString()
     .default("100000000")
     .describe("maximum energy fee to burn, in SUN"),
-  ...governanceTxModeFields,
+});
+
+/** EVM prices it in gas. `--call-value` is in whole coins, matching `tx send --amount`; the
+ *  per-gas fields are gwei, the unit every wallet and explorer uses. */
+const evmGasFields = z.object({
+  gasLimit: Schemas.positiveIntString()
+    .optional()
+    .describe("gas units to authorise; defaults to the node's estimate, unpadded"),
+  maxFee: z.string().optional().describe("maximum total fee per gas, in gwei (EIP-1559 only)"),
+  priorityFee: z.string().optional().describe("tip per gas, in gwei (EIP-1559 only)"),
+  nonce: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("transaction nonce; defaults to the account's pending nonce"),
+});
+
+/** `contract send` additionally takes a call value; `contract deploy` does not — a deployment's
+ *  value is always zero here, and offering a flag the command ignores is worse than omitting it. */
+const evmContractWriteFields = evmGasFields.extend({
+  callValue: z
+    .string()
+    .optional()
+    .describe("native coin to attach to the call, in whole coins (e.g. 0.1)"),
+});
+
+const evmContractWrite = {
+  fields: evmContractWriteFields,
+  refine: addressFieldsFor("evm", "contract"),
+};
+
+/** gwei on the flag, wei below it. */
+const withEvmFees = (input: Record<string, unknown>) => ({
+  ...input,
+  ...(input.maxFee === undefined ? {} : { maxFee: gweiToWei(String(input.maxFee)) }),
+  ...(input.priorityFee === undefined ? {} : { priorityFee: gweiToWei(String(input.priorityFee)) }),
 });
 
 export const contractSendSpec: ChainSpec = {
@@ -176,7 +219,39 @@ export const contractSendSpec: ChainSpec = {
   formatText: TextFormatters.txReceipt,
 };
 
+export const contractSendEvmBinding = (svc: EvmContractService): FamilyBinding => ({
+  ...evmContractWrite,
+  run: async (ctx, net, input) =>
+    svc.send(ctx, net, { ...withEvmFees(input), params: typedParams(input.params) }),
+});
+
+/** the creation bytecode, from `--code` or `--code-file`. */
+async function creationBytecode(input: { code?: string; codeFile?: string }): Promise<string> {
+  if (!input.codeFile) return input.code!;
+  try {
+    return await readFile(input.codeFile, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new UsageError("file_not_found", `code file not found: ${input.codeFile}`);
+    }
+    throw new UsageError("invalid_value", `cannot read code file: ${input.codeFile}`);
+  }
+}
+
+export const contractDeployEvmBinding = (svc: EvmContractService): FamilyBinding => ({
+  fields: evmGasFields,
+  run: async (ctx, net, input) =>
+    svc.deploy(ctx, net, {
+      ...withEvmFees(input),
+      bytecode: await creationBytecode(input),
+      // ethers encodes straight from the inline types; no ABI is involved.
+      params: typedConstructorParams(input.constructorParams),
+    }),
+});
+
 export const contractSendTronBinding = (svc: TronContractService): FamilyBinding => ({
+  fields: tronContractWriteFields,
+  refine: addressFieldsFor("tron", "contract"),
   run: async (ctx, net, input) =>
     svc.send(ctx, net, {
       ...input,
@@ -185,16 +260,61 @@ export const contractSendTronBinding = (svc: TronContractService): FamilyBinding
 });
 
 const deployFields = z.object({
-  abi: z.string().min(1).describe("contract ABI as a JSON array string"),
-  bytecode: z.string().min(1).describe("compiled contract bytecode as hex, 0x-prefixed or bare"),
-  feeLimit: Schemas.positiveIntString().describe("maximum energy fee to burn, in SUN"),
-  params: z
+  code: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("contract creation bytecode, hex-encoded; provide exactly one of --code or --code-file"),
+  codeFile: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("path to a file holding the creation bytecode; bytecode often exceeds the shell's argument limit"),
+  constructorParams: z
     .string()
     .optional()
     .describe(
-      'constructor args as a JSON array of raw positional values, e.g. [100, "T..."]; types are taken from the ABI constructor; omit to pass no constructor args',
+      'constructor arguments as a JSON array of {type,value} entries, e.g. [{"type":"uint8","value":"18"}]; omit to pass none',
     ),
   ...governanceTxModeFields,
+});
+
+/** the spec's two base rules: the shared governance modes, plus exactly one bytecode source.
+ *  Written out rather than composed generically because the two refines read different field
+ *  sets, and a generic combinator would have to erase one of their types to fit them together. */
+function deployRefine(
+  value: { code?: string; codeFile?: string; expiration?: number; buildOnly?: boolean },
+  ctx: z.RefinementCtx,
+): void {
+  governanceTxRefine(value as never, ctx);
+  codeSourceRefine(value, ctx);
+}
+
+/** exactly one bytecode source, matching the rule `contract create2` already applies. */
+function codeSourceRefine(value: { code?: string; codeFile?: string }, ctx: z.RefinementCtx): void {
+  if ([value.code !== undefined, value.codeFile !== undefined].filter(Boolean).length !== 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["code"],
+      message: "provide exactly one of --code or --code-file",
+    });
+  }
+}
+
+/**
+ * TRON's deploy inputs.
+ *
+ * `--abi` stays REQUIRED here rather than becoming optional: TronWeb's createSmartContract
+ * derives the constructor's types from the ABI and takes only bare values, so without it there
+ * is nothing to encode against. Synthesising an ABI from the caller's inline types would hand
+ * TronWeb something no one can check — a mistyped parameter would encode cleanly and deploy a
+ * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(tron)`.
+ */
+const tronDeployFields = z.object({
+  abi: z.string().min(1).describe("contract ABI as a JSON array string"),
+  feeLimit: Schemas.positiveIntString()
+    .default("100000000")
+    .describe("maximum energy fee to burn, in SUN"),
 });
 
 export const contractDeploySpec: ChainSpec = {
@@ -211,7 +331,7 @@ export const contractDeploySpec: ChainSpec = {
     "a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type",
   ],
   baseFields: deployFields,
-  baseRefine: governanceTxRefine,
+  baseRefine: deployRefine,
   examples: [
     {
       cmd: "wallet-cli contract deploy --abi '[...]' --bytecode 60... --fee-limit 1000000000 --params '[100, \"T...\"]'",
@@ -221,6 +341,7 @@ export const contractDeploySpec: ChainSpec = {
 };
 
 export const contractDeployTronBinding = (svc: TronContractService): FamilyBinding => ({
+  fields: tronDeployFields,
   run: async (ctx, net, input) => {
     let abi: unknown;
     try {
@@ -232,7 +353,10 @@ export const contractDeployTronBinding = (svc: TronContractService): FamilyBindi
     return svc.deploy(ctx, net, {
       ...input,
       abi,
-      parameters: deployParameters(input.params),
+      bytecode: await creationBytecode(input),
+      // TronWeb takes bare values beside the ABI, so the typed entries are unwrapped here. The
+      // TYPES still come from the ABI — the inline ones only decide what the caller meant.
+      parameters: typedConstructorParams(input.constructorParams).map((entry) => entry.value),
     });
   },
 });

@@ -3,7 +3,7 @@ import { Derivation } from "../../domain/derivation/index.js";
 import { CHAIN_FAMILIES, familyOf, type ChainFamily } from "../../domain/family/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
-import { tronHexAddress } from "../../domain/address/index.js";
+import { TronAddress, evmAddressFromPublicKey, tronHexAddress } from "../../domain/address/index.js";
 import type { Bytes } from "../../domain/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
@@ -184,22 +184,29 @@ export class WalletService {
    * so the file is an isolated account elsewhere and nothing can be derived from it. Moving a whole
    * seed is what the native `backup` (mnemonic) is for.
    */
-  backupKeystore(account: string, requestedPath: string | undefined, masterPassword: string) {
+  /**
+   * `family` selects WHICH key: a seed account holds a different one per family (§1.2 derives
+   * TRON at coin 195 and EVM at coin 60), and a V3 keystore holds exactly one. The caller passes
+   * the selected network's family; a privateKey account has only one key and ignores it.
+   */
+  backupKeystore(
+    account: string,
+    requestedPath: string | undefined,
+    masterPassword: string,
+    family: ChainFamily,
+  ) {
     const descriptor = this.wallets.describe(account);
-    const privateKey = this.#exportablePrivateKey(account);
+    const privateKey = this.#exportablePrivateKey(account, family);
     const file = this.backups.write(
       descriptor.accountId,
       requestedPath,
-      KeystoreV3.encrypt(
-        privateKey,
-        masterPassword,
-        tronHexAddress(descriptor.addresses[KEYSTORE_FAMILY]!),
-      ),
+      KeystoreV3.encrypt(privateKey, masterPassword, keystoreAddress(family, privateKey)),
       "keystore",
     );
     this.#recordExport("backup --keystore", descriptor, file.out);
     return {
       ...descriptor,
+      family,
       secretType: "privateKey" as const,
       format: "keystore" as const,
       ...file,
@@ -264,13 +271,14 @@ export class WalletService {
 
   /** The account's own private key: an HD account's is derived at its index; a privateKey wallet's is
    *  the stored key. Watch/Ledger accounts have none (assertExportable is the caller's early gate). */
-  #exportablePrivateKey(account: string): Bytes {
+  #exportablePrivateKey(account: string, family: ChainFamily): Bytes {
     const { wallet, index } = this.wallets.resolveAccount(account);
     const source = wallet.source;
+    // One key, shared by every family — nothing to choose.
     if (source.type === "privateKey") return this.wallets.decryptKey(source.keyId);
     if (source.type === "seed") {
       const seed = this.wallets.decryptSeed(source.vaultId);
-      return Derivation.derive(seed, Derivation.path(KEYSTORE_FAMILY, index)).privateKey;
+      return Derivation.derive(seed, Derivation.path(family, index)).privateKey;
     }
     throw notExportable(source.type);
   }
@@ -327,4 +335,19 @@ export class WalletService {
     const result = this.wallets.import({ secret, type, label });
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }
+}
+
+/**
+ * The keystore's `address` field, in the exported family's own encoding.
+ *
+ * It is informational: the Web3 V3 spec does not require it, and every reader (including our own
+ * importer) derives the real address from the key it decrypts. Writing the other family's
+ * encoding would not break an import, but it would misdescribe the file — and TRON's `41…` form
+ * is what TronLink round-trips, so each family keeps its own.
+ */
+function keystoreAddress(family: ChainFamily, privateKey: Bytes): string {
+  const publicKey = Derivation.publicKeyFromPrivate(privateKey);
+  return family === "tron"
+    ? tronHexAddress(new TronAddress().fromPublicKey(publicKey))
+    : evmAddressFromPublicKey(publicKey);
 }

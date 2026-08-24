@@ -1,3 +1,6 @@
+import { runMigrationGate } from "./migration-gate.js";
+import { migrationSteps } from "./migration-steps.js";
+import { MigrationRunner } from "../adapters/outbound/persistence/migration.js";
 import { hideBin } from "yargs/helpers";
 import type { ExitCode, OutputMode } from "../domain/types/index.js";
 import { normalizeError, UsageError } from "../domain/errors/index.js";
@@ -68,6 +71,19 @@ export async function main(argv: string[]): Promise<ExitCode> {
         `invalid ${bad.flag} value "${bad.value}": ${bad.reason}`,
       );
     }
+
+    // The migration gate runs after the meta short-circuit above (so `--help` stays reachable on a
+    // stale keystore) and before any command dispatches — ADR-0008.
+    await runMigrationGate(
+      new MigrationRunner(runtime.store),
+      migrationSteps(runtime.root, runtime.store),
+      async () => {
+        const { secrets, keystore, prompter } = runtime.deps;
+        if (!secrets.hasMasterPassword() && !prompter.isTTY()) return null;
+        await secrets.primePassword({ mode: "verify", verify: (pw) => keystore.verifyPassword(pw) });
+        return secrets.masterPassword();
+      },
+    );
 
     const cli = buildCli({
       registry: runtime.registry,

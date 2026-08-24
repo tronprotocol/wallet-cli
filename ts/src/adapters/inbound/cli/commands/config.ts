@@ -9,10 +9,16 @@ import { TextFormatters } from "../render/index.js";
 
 export function registerConfigCommands(registry: CommandRegistry, service: ConfigService): void {
   const fields = z.object({
+    // Not an enum: `networks.<id>.httpEndpoint` is a nested path, and the id segment is
+    // open-ended (any canonical id or alias). The service validates the key and names the
+    // supported ones, so a typo gets a precise message rather than a yargs enum dump.
     key: z
-      .enum(CONFIG_KEYS)
+      .string()
+      .min(1)
       .optional()
-      .describe("config key to read or set; omit to show the whole effective config"),
+      .describe(
+        `config key to read or set (${CONFIG_KEYS.join(", ")}, or networks.<id>.httpEndpoint); omit to show the whole effective config`,
+      ),
     value: z.string().min(1).optional().describe("new value; omit to read the key"),
   });
 

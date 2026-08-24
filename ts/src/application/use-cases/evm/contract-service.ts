@@ -1,0 +1,191 @@
+import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
+import { UsageError } from "../../../domain/errors/index.js";
+import { FAMILIES } from "../../../domain/family/index.js";
+import { toBaseUnits } from "../../../domain/amounts/index.js";
+import { planEvmFee } from "../../../domain/fees/evm-gas.js";
+import { evmConfirmation } from "../../services/evm-confirmation.js";
+import type { TransactionScope } from "../../contracts/execution-scope.js";
+import type { ChainGatewayProvider, EvmGateway } from "../../ports/chain/gateway-provider.js";
+import type { TxPipeline } from "../../services/pipeline/index.js";
+import {
+  outcomeData,
+  transactionMode,
+  transactionRequiresSigner,
+  type TransactionModeInput,
+} from "../../services/transaction-mode.js";
+
+export interface EvmContractWriteInput extends TransactionModeInput {
+  contract?: string;
+  method?: string;
+  /** `{type,value}` entries for a call; raw positional values for a deployment. */
+  params?: unknown[];
+  /** native coin sent along with the call, in whole coins (as `tx send --amount` is). */
+  callValue?: string;
+  abi?: string;
+  bytecode?: string;
+  gasLimit?: string;
+  maxFee?: string;
+  priorityFee?: string;
+  nonce?: number;
+}
+
+/** the gas overrides, in the shape the fee model takes. */
+function overridesOf(input: EvmContractWriteInput) {
+  return {
+    ...(input.gasLimit === undefined ? {} : { gasLimit: input.gasLimit }),
+    ...(input.maxFee === undefined ? {} : { maxFeeWei: input.maxFee }),
+    ...(input.priorityFee === undefined ? {} : { priorityFeeWei: input.priorityFee }),
+  };
+}
+
+/**
+ * Contract reads and writes.
+ *
+ * Writes go through the shared pipeline, so the fee model, the pending-nonce rule and the
+ * broadcast guard are the same ones `tx send` uses rather than a second copy.
+ */
+export class EvmContractService {
+  constructor(
+    private readonly gateways: ChainGatewayProvider,
+    private readonly pipeline?: TxPipeline,
+  ) {}
+
+  /**
+   * A read-only call. The result comes back as raw hex, exactly as TRON's already does: a
+   * signature declares its parameter types and nothing about its return, so there is nothing to
+   * decode against without guessing.
+   */
+  async call(
+    network: NetworkDescriptor,
+    contract: string,
+    method: string,
+    params: Array<{ type: string; value: unknown }>,
+  ) {
+    return {
+      contract,
+      method,
+      result: await this.gateways.get(network, "evm").callFunction(contract, method, params),
+    };
+  }
+
+  async send(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
+    const gateway = this.gateways.get(network, "evm");
+    const data = gateway.encodeFunctionCall(
+      input.method!,
+      (input.params ?? []) as Array<{ type: string; value: unknown }>,
+    );
+    const value =
+      input.callValue === undefined
+        ? "0"
+        : toBaseUnits(input.callValue, FAMILIES.evm.nativeDecimals, "call value");
+
+    const outcome = await this.#run(scope, network, gateway, input, {
+      to: input.contract!,
+      data,
+      value,
+    });
+    return {
+      kind: "contract-send" as const,
+      ...outcomeData(outcome),
+      contract: input.contract,
+      method: input.method,
+    };
+  }
+
+  /**
+   * Deploy a contract. The transaction has no recipient — that is what makes it a deployment —
+   * and the address is derived from the sender and nonce rather than waited for, because CREATE
+   * determines it entirely from those two.
+   */
+  async deploy(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
+    const gateway = this.gateways.get(network, "evm");
+    if (input.abi !== undefined) {
+      try {
+        JSON.parse(input.abi);
+      } catch {
+        throw new UsageError("invalid_value", "--abi must be valid JSON");
+      }
+    }
+    const data = gateway.encodeDeploy(input.bytecode!, input.abi ?? "[]", input.params ?? []);
+    let contractAddress: string | undefined;
+
+    const outcome = await this.#run(
+      scope,
+      network,
+      gateway,
+      input,
+      { data, value: "0" },
+      (from, nonce) => {
+        contractAddress = gateway.contractAddressFor(from, nonce);
+      },
+    );
+    return {
+      kind: "contract-deploy" as const,
+      ...outcomeData(outcome),
+      ...(contractAddress === undefined ? {} : { contractAddress }),
+    };
+  }
+
+  async #run(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    gateway: EvmGateway,
+    input: EvmContractWriteInput,
+    call: Record<string, unknown>,
+    onNonce?: (from: string, nonce: string) => void,
+  ) {
+    if (transactionRequiresSigner(input)) this.pipeline!.assertCanSign(scope.activeAccount, "evm");
+    let plan: Record<string, unknown> = {};
+    return this.pipeline!.run({
+      ctx: scope,
+      net: network,
+      account: scope.activeAccount,
+      broadcaster: gateway,
+      ...transactionMode(input),
+      confirm: evmConfirmation(gateway, scope),
+      artifact: (tx) => gateway.encodeTransactionHex(tx),
+      estimate: async () => plan,
+      build: async (from) => {
+        const [nonce, fee] = await Promise.all([
+          input.nonce === undefined
+            ? gateway.getTransactionCount(from, "pending")
+            : Promise.resolve(String(input.nonce)),
+          gateway.feeData(),
+        ]);
+        onNonce?.(from, nonce);
+        const gasEstimate =
+          input.gasLimit ?? (await gateway.estimateGas({ from, ...call }).catch(() => undefined));
+        if (gasEstimate === undefined) {
+          throw new UsageError(
+            "invalid_option",
+            "the node could not estimate gas for this call; pass --gas-limit to proceed",
+          );
+        }
+        const resolved = planEvmFee({
+          ...fee,
+          gasLimit: gasEstimate,
+          declaredFeeModel: network.feeModel,
+          overrides: overridesOf(input),
+        });
+        plan = {
+          feeModel: resolved.mode,
+          maxCostWei: resolved.maxCostWei,
+          gasLimit: resolved.gasLimit,
+        };
+        return {
+          ...call,
+          chainId: Number(network.chainId),
+          nonce: Number(nonce),
+          gasLimit: resolved.gasLimit,
+          ...(resolved.mode === "eip1559"
+            ? {
+                type: 2,
+                maxFeePerGas: resolved.maxFeeWei,
+                maxPriorityFeePerGas: resolved.priorityFeeWei,
+              }
+            : { type: 0, gasPrice: resolved.gasPriceWei }),
+        } as UnsignedTx;
+      },
+    });
+  }
+}

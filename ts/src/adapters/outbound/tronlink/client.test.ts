@@ -18,7 +18,7 @@ const CONFIG = {
 } as Config;
 const NETWORK = {
   id: "tron:mainnet",
-  family: "tron",
+  family: "tron", nativeSymbol: "TRX",
   chainId: "mainnet",
   tronlinkHttpEndpoint: "https://api.walletadapter.org",
 } as NetworkDescriptor;

@@ -2,36 +2,31 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronTransactionService } from "../../../../application/use-cases/tron/transaction-service.js";
+import type { EvmTransactionService } from "../../../../application/use-cases/evm/transaction-service.js";
+import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
 import type { TronSigService } from "../../../../application/use-cases/tron/sig-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
 import type { TransactionArtifactWriter } from "../../../../application/ports/transaction-artifact-writer.js";
-import { Schemas } from "../schemas/index.js";
-import { amountSelector, txModeFields, unifiedAmountFields } from "./shared.js";
+import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
+import { amountSelector, tronTxModeFields, txModeFields, unifiedAmountFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 
-// baseFields today (single family). When EVM lands, move feeLimit/assetId/contract into the TRON
-// binding.fields and put gasPrice/gasLimit/nonce into the EVM binding.fields (spec §4 base/delta).
+// baseFields carry only what every family has: a recipient, an asset selector that is either a
+// book symbol or a contract, and an amount. Everything priced or numbered per chain — TRON's
+// fee limit and TRC10 asset id, EVM's gas flags and nonce — lives on that family's binding.
 const sendFields = z.object({
   to: z
     .string()
     .trim()
     .min(1)
     .max(128)
-    .describe("recipient TRON base58 address or local contact name"),
+    .describe("recipient address for the selected network, or a local contact name"),
   token: z.string().min(1).optional().describe("token symbol from the address book"),
-  contract: Schemas.addressFor("tron")
+  contract: Schemas.address()
     .optional()
-    .describe("TRC20 contract address; omit with --asset-id for native TRX"),
-  assetId: z
-    .string()
-    .regex(/^\d+$/)
-    .optional()
-    .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
-  feeLimit: Schemas.positiveIntString()
-    .default("100000000")
-    .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
+    .describe("token contract address; omit with --asset-id for a native-coin transfer"),
   ...unifiedAmountFields(
     "human amount: TRX for native, token units for TRC20/TRC10",
     "raw integer amount in SUN or token base units",
@@ -52,8 +47,10 @@ export const txSendSpec: ChainSpec = {
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
     // omitting all three is the native-TRX path, so this set is optional as a whole.
     {
-      label: "which asset to send; omit for native TRX",
-      flags: ["token", "contract", "asset-id"],
+      // `--asset-id` is TRON-only and is declared on that binding; this group is spec-level, so
+      // it may only name flags every family actually has.
+      label: "which asset to send; omit for the network's native coin",
+      flags: ["token", "contract"],
       select: "at-most-one",
     },
   ],
@@ -67,8 +64,75 @@ export const txSendSpec: ChainSpec = {
   formatText: TextFormatters.txReceipt,
 };
 
+const tronSendFields = z.object({
+  assetId: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
+    .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
+  feeLimit: Schemas.positiveIntString()
+    .default("100000000")
+    .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
+  ...tronTxModeFields,
+});
+
+/** EVM pricing: gwei for the per-gas fields, because that is the unit every wallet, explorer and
+ *  human uses for gas — wei would be nine zeros longer and a real typo risk. */
+const evmSendFields = z.object({
+  gasLimit: Schemas.positiveIntString()
+    .optional()
+    .describe("gas units to authorise; defaults to the node's estimate, unpadded"),
+  maxFee: z
+    .string()
+    .optional()
+    .describe("maximum total fee per gas, in gwei (EIP-1559 chains only)"),
+  priorityFee: z
+    .string()
+    .optional()
+    .describe("tip per gas paid to the proposer, in gwei (EIP-1559 chains only)"),
+  nonce: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("transaction nonce; defaults to the account's pending nonce"),
+});
+
+/** EVM has no multi-signature relay, so the artifact both ends exchange is raw hex: an unsigned
+ *  serialisation in, a signed one out. TRON's `--transaction` JSON has no EVM meaning. */
+function evmHexOnly(input: { transaction?: string; hex?: string; file?: string }): string {
+  if (input.transaction !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      "--transaction is the TRON JSON form; on an EVM network pass raw hex with --hex or --file",
+    );
+  }
+  return hexInput(input);
+}
+
+export const txSignEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.sign(ctx, net, evmHexOnly(input)),
+});
+
+export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.broadcast(ctx, net, evmHexOnly(input)),
+});
+
+export const txSendEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  fields: evmSendFields,
+  refine: addressFieldsFor("evm", "contract"),
+  run: async (ctx, net, input) =>
+    svc.send(ctx, net, {
+      ...input,
+      // gwei on the flag, wei everywhere below it.
+      ...(input.maxFee === undefined ? {} : { maxFee: gweiToWei(input.maxFee) }),
+      ...(input.priorityFee === undefined ? {} : { priorityFee: gweiToWei(input.priorityFee) }),
+    }),
+});
+
 export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding => ({
-  refine: tokenOptional,
+  fields: tronSendFields,
+  refine: allRefines(tokenOptional, addressFieldsFor("tron", "contract")),
   run: async (ctx, net, input) => svc.send(ctx, net, input),
 });
 
@@ -387,6 +451,10 @@ export const txStatusTronBinding = (svc: TronTransactionService): FamilyBinding 
   run: async (_ctx, net, input) => svc.status(net, input.txid),
 });
 
+export const txStatusEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.status(ctx, net, input.txid),
+});
+
 const infoFields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
 
 export const txInfoSpec: ChainSpec = {
@@ -402,6 +470,10 @@ export const txInfoSpec: ChainSpec = {
 
 export const txInfoTronBinding = (svc: TronTransactionService): FamilyBinding => ({
   run: async (_ctx, net, input) => svc.info(net, input.txid),
+});
+
+export const txInfoEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.info(ctx, net, input.txid),
 });
 
 function tokenOptional(

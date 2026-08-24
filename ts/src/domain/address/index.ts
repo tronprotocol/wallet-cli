@@ -91,6 +91,16 @@ export class TronAddress implements AddressCodec {
   }
 }
 
+export class EvmAddress implements AddressCodec {
+  readonly family: ChainFamily = "evm";
+  fromPublicKey(pub: Bytes): string {
+    return evmAddressFromPublicKey(pub);
+  }
+  validate(addr: string): boolean {
+    return isEvmAddress(addr);
+  }
+}
+
 /** Convert a 41-prefixed TRON hex address to base58; preserve non-hex values unchanged. */
 export function tronHexToBase58(address: unknown): string {
   const value = String(address ?? "");
@@ -118,4 +128,20 @@ export function tronBytesToBase58(payload: Uint8Array): string {
     throw new Error("invalid TRON address payload");
   }
   return b58c.encode(payload);
+}
+
+/**
+ * EIP-55 acceptance policy for an EVM address supplied by a caller (§1.3).
+ *
+ * All-lower and all-upper carry no case information and are accepted unverified, as EIP-55
+ * permits. A mixed-case address MUST carry a valid checksum. The protocol itself is case-insensitive, so
+ * accepting a mismatched one would turn "typed one character wrong" and "clipboard was swapped"
+ * into fund loss — the same reason ethers' getAddress() throws and hardware wallets refuse.
+ */
+export function isEvmAddress(address: string): boolean {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return false;
+  const body = address.slice(2);
+  // No mixed case ⇒ no checksum was ever encoded ⇒ nothing to verify.
+  if (body === body.toLowerCase() || body === body.toUpperCase()) return true;
+  return address === evmChecksumAddress(hexToBytes(body.toLowerCase()));
 }

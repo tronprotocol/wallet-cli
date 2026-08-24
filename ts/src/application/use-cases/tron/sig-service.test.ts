@@ -16,7 +16,7 @@ const OWNER_HEX = "417445076632894b7b844887d2bcd2e8c30bb6c6f2";
 const TO_HEX = "41a614f803b6fd780986a42c78ec9c7f77e6ded13c";
 const SIGNATURE = "ab".repeat(65);
 const NOW = 1_900_000_000_000;
-const NETWORK = { id: "tron:nile", family: "tron" } as never;
+const NETWORK = { id: "tron:nile", family: "tron", nativeSymbol: "TRX" } as never;
 
 function unsignedHex(expiration = NOW + 60_000): string {
   return encodeTransactionHex({

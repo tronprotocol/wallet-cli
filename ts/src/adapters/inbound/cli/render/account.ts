@@ -5,6 +5,7 @@ import {
   formatScalar,
   formatInt,
   formatUsd,
+  formatUsdPrice,
   formatSun,
   formatTime,
   num,
@@ -69,7 +70,7 @@ export const AccountFormatters = {
     const rows = holdings.map((h) => [
       String(h.symbol ?? ""),
       h.balanceUnavailable ? "unavailable" : formatScalar(h.balance),
-      h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsd(h.priceUsd)}`,
+      h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsdPrice(h.priceUsd)}`,
       h.valueUsd === null || h.valueUsd === undefined ? "-" : `$${formatUsd(h.valueUsd)}`,
     ]);
     const total =

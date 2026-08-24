@@ -4,7 +4,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway, TronTxInfo, TronTx } from "../../ports/chain/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-const NET = { id: "tron:nile", family: "tron", chainId: "nile" } as unknown as NetworkDescriptor;
+const NET = { id: "tron:nile", family: "tron", nativeSymbol: "TRX", chainId: "nile" } as unknown as NetworkDescriptor;
 
 // Minimal fake gateway: status() only touches the two lookup endpoints.
 function service(opts: { tx?: TronTx | Error; info?: TronTxInfo }) {

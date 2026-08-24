@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronBlockService } from "../../../../application/use-cases/tron/block-service.js";
+import type { EvmBlockService } from "../../../../application/use-cases/evm/block-service.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 
@@ -21,5 +22,9 @@ export const blockSpec: ChainSpec = {
 };
 
 export const blockTronBinding = (svc: TronBlockService): FamilyBinding => ({
+  run: async (_ctx, net, input) => svc.get(net, input.number),
+});
+
+export const blockEvmBinding = (svc: EvmBlockService): FamilyBinding => ({
   run: async (_ctx, net, input) => svc.get(net, input.number),
 });

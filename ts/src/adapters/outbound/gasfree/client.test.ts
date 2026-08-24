@@ -5,8 +5,8 @@ import { GasFreeClient } from "./client.js";
 const NETWORK = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: ["nile"],
   capabilities: [],
   gasfree: {
     baseUrl: "https://open-test.gasfree.io",

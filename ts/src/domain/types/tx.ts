@@ -231,6 +231,7 @@ export interface TxReceiptView {
   blockNumber?: number;
   energyUsed?: number;
   feeSun?: string | number;
+  feeWei?: string;
   withdrawnSun?: string | number;
   result?: string;
   failed?: boolean;
@@ -243,7 +244,11 @@ export interface TxInfoView extends TxParties {
   status?: string;
   blockNumber?: number | string;
   energyUsed?: number; // tron execution resource
+  gasUsed?: number; // evm execution resource
   feeSun?: number; // tron native fee (sun)
+  // EVM native fee. A separate field rather than a shared `fee`: the UNIT is in the name, so a
+  // reader can never mistake one family's magnitude for the other's (18 decimals vs 6).
+  feeWei?: string;
   transaction: unknown;
   info?: unknown; // tron
   receipt?: unknown; // tron

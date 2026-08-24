@@ -54,7 +54,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     kind: "value",
     valueType: "string",
     description:
-      "canonical network id, e.g. tron:mainnet, tron:nile, tron:shasta; chain commands fall back to config.defaultNetwork when omitted",
+      "network id or alias, e.g. nile, sepolia, bsc, or evm:11155111; falls back to config.defaultNetwork when omitted",
   },
   {
     name: "account",

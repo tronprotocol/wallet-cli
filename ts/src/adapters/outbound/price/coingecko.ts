@@ -7,10 +7,40 @@ import type { PriceProvider } from "../../../application/ports/price-provider.js
 
 export class CoinGeckoPriceProvider implements PriceProvider {
   readonly source = "coingecko";
-  // CoinGecko native coin ids keyed by our network-id prefix (only TRON ships in phase 1).
-  static readonly #NATIVE_IDS: Record<string, string> = { "tron:": "tron" };
-  // CoinGecko asset-platform slugs for token_price lookups, keyed by network-id prefix.
-  static readonly #PLATFORMS: Record<string, string> = { "tron:": "tron" };
+  /**
+   * CoinGecko native coin ids.
+   *
+   * A testnet inherits its mainnet's price, in every family: TRON does so through the `tron:`
+   * prefix, and each EVM testnet is listed EXPLICITLY beside its mainnet. The explicit listing is
+   * the point — a bare `evm:` prefix would price every EVM chain as Ethereum, so an unlisted
+   * chain like Gnosis (`evm:100`) would be valued in ETH, which is a claim about money that
+   * nobody made. An unknown chain is worth `null`, not a guess.
+   *
+   * The cost of this rule is that testnet coins are valued as if they were real. That is a
+   * deliberate ruling for consistency with the TRON side, which has always behaved this way.
+   */
+  static readonly #NATIVE_IDS: Record<string, string> = {
+    "tron:": "tron",
+    "evm:1": "ethereum",
+    "evm:11155111": "ethereum", // Sepolia
+    "evm:56": "binancecoin",
+    "evm:97": "binancecoin", // BSC testnet
+  };
+  /**
+   * CoinGecko asset-platform slugs for token_price lookups; same keying rule as above.
+   *
+   * A testnet contract is looked up against its MAINNET platform, which is usually a miss and so
+   * usually null. It is not guaranteed to be: deterministic deployment can place the same address
+   * on both chains, in which case a testnet token would take a mainnet token's price. TRON has
+   * always had this exposure through its prefix; the EVM entries now share it.
+   */
+  static readonly #PLATFORMS: Record<string, string> = {
+    "tron:": "tron",
+    "evm:1": "ethereum",
+    "evm:11155111": "ethereum",
+    "evm:56": "binance-smart-chain",
+    "evm:97": "binance-smart-chain",
+  };
 
   constructor(
     private readonly baseUrl = "https://api.coingecko.com/api/v3",
@@ -59,9 +89,19 @@ export class CoinGeckoPriceProvider implements PriceProvider {
     }
   }
 
+  /**
+   * Exact network id first, then family prefixes (the keys ending in ":").
+   *
+   * The exact-first rule is not a nicety: a bare startsWith would let `evm:11155111` match the
+   * key `evm:1` BY ACCIDENT, and the same accident would catch every other chain whose id starts
+   * with those characters. Sepolia does inherit Ethereum's price, but because it is listed, not
+   * because its digits happen to line up. Prefix keys stay restricted to `family:`.
+   */
   static #prefixed(map: Record<string, string>, networkId: string): string | undefined {
-    for (const [prefix, value] of Object.entries(map)) {
-      if (networkId.startsWith(prefix)) return value;
+    const exact = map[networkId];
+    if (exact) return exact;
+    for (const [key, value] of Object.entries(map)) {
+      if (key.endsWith(":") && networkId.startsWith(key)) return value;
     }
     return undefined;
   }

@@ -29,15 +29,57 @@ export function formatDecimal(v: unknown): string {
   return `${sign}${integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction}`;
 }
 
+/** A USD *valuation* — always 2 decimals, per §1.4. */
 export function formatUsd(v: unknown): string {
+  return usd(v, 2);
+}
+
+/**
+ * A USD *unit price* — 4 decimals, per §1.4. Prices need the extra precision valuations do not:
+ * a stablecoin at $0.9998 rendered as "$1.00" hides a depeg, and a sub-cent token collapses to
+ * "$0.00" entirely.
+ */
+export function formatUsdPrice(v: unknown): string {
+  return usd(v, 4);
+}
+
+function usd(v: unknown, digits: number): string {
   const n = Number(v);
   return Number.isFinite(n)
-    ? n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    ? n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })
     : String(v ?? "");
 }
 
+/** §1.4: text output shows at most this many fractional digits, whatever the asset's precision. */
+const DISPLAY_DECIMALS = 6;
+const SMALLEST_SHOWN = `0.${"0".repeat(DISPLAY_DECIMALS - 1)}1`; // 0.000001
+
+/**
+ * Base-unit integer → the human amount text output shows (§1.4).
+ *
+ * Three rules, each protecting against a specific way of misleading a reader:
+ *   - **Truncate, never round.** Rounding 1.9999999 to "2" OVERSTATES a balance, which is the
+ *     dangerous direction for a wallet. Truncation only ever understates.
+ *   - **Never print a bare "0" for a non-zero amount.** A balance of 1 wei shown as "0 ETH"
+ *     reads as an empty account; `<0.000001` says "small", not "nothing".
+ *   - **Group the integer part.** json keeps the exact base-unit integer; this is display only.
+ */
+export function formatAmount(v: unknown, decimals: number): string {
+  const exact = fromBaseUnits(String(v ?? "0"), decimals);
+  const [integer = "0", fraction = ""] = exact.split(".");
+  const shown = fraction.slice(0, DISPLAY_DECIMALS).replace(/0+$/, "");
+  if (shown === "" && integer === "0" && /[1-9]/.test(fraction)) {
+    return `<${SMALLEST_SHOWN}`;
+  }
+  return formatDecimal(shown === "" ? integer : `${integer}.${shown}`);
+}
+
 export function formatSun(v: unknown): string {
-  return fromBaseUnits(String(v ?? "0"), 6);
+  return formatAmount(v, 6);
+}
+
+export function formatWei(v: unknown): string {
+  return formatAmount(v, 18);
 }
 
 export function formatTime(v: unknown): string {

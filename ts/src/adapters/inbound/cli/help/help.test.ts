@@ -90,7 +90,9 @@ describe("shipped exclusive groups actually render", () => {
   it("renders both of tx send's groups, with the right requirement wording", () => {
     const out = optionsOf(txSendSpec);
     expect(out).toContain("  Exactly one of these — the amount to send:");
-    expect(out).toContain("  At most one of these — which asset to send; omit for native TRX:");
+    expect(out).toContain(
+      "  At most one of these — which asset to send; omit for the network's native coin:",
+    );
     const amount = out[out.indexOf("  Exactly one of these — the amount to send:") + 1]!;
     expect(amount).toContain("--amount");
     expect(out[out.indexOf("  Exactly one of these — the amount to send:") + 2]).toContain(
@@ -393,5 +395,89 @@ describe("Requires: master password line", () => {
     expect(line).toContain("only when the selected mode signs");
     expect(line).toContain("other modes need no password");
     expect(line).not.toContain("locked");
+  });
+});
+
+// §「family 專屬 flag 在 help 裡全量展示、按族標註，不按網路裁剪」: help is STATIC — --network does
+// not shape it — so both families' flags appear together and each says which family it belongs to.
+describe("help tags family-specific flags", () => {
+  function twoFamilyHelp() {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], {
+      to: z.string().describe("recipient"),
+      amount: z.string().optional().describe("amount to send"),
+    });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ feeLimit: z.string().optional().describe("max TRX to burn") }),
+    });
+    reg.addChain(spec, "evm", {
+      run: async () => ({}),
+      fields: z.object({
+        gasLimit: z.string().optional().describe("gas units"),
+        maxFee: z.string().optional().describe("max fee in gwei"),
+      }),
+    });
+    const stream = makeStream();
+    new HelpService(reg, stream, "9.9.9").handleMeta(["tx", "send", "--help"]);
+    return stream.last!;
+  }
+
+  it("lists both families' flags, however the network is set", () => {
+    const out = twoFamilyHelp();
+    expect(out).toContain("--fee-limit");
+    expect(out).toContain("--gas-limit");
+    expect(out).toContain("--max-fee");
+  });
+
+  it("marks each family-specific flag with its family, at the end of the line", () => {
+    const line = (flag: string) =>
+      twoFamilyHelp()
+        .split("\n")
+        .find((l) => l.includes(`${flag} `) || l.trimEnd().endsWith(flag))!;
+
+    expect(line("--fee-limit").trimEnd()).toMatch(/\(tron\)$/);
+    expect(line("--gas-limit").trimEnd()).toMatch(/\(evm\)$/);
+    expect(line("--max-fee").trimEnd()).toMatch(/\(evm\)$/);
+  });
+
+  // A flag BOTH families declare (each with its own validation) is shared, not family-specific.
+  it("leaves a flag declared by every family untagged", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string().describe("recipient") });
+    const shared = z.object({ memo: z.string().optional().describe("note") });
+    reg.addChain(spec, "tron", { run: async () => ({}), fields: shared });
+    reg.addChain(spec, "evm", { run: async () => ({}), fields: shared });
+    const stream = makeStream();
+    new HelpService(reg, stream, "9.9.9").handleMeta(["tx", "send", "--help"]);
+
+    const memoLine = stream.last!.split("\n").find((l) => l.includes("--memo"))!;
+    expect(memoLine).not.toMatch(/\((tron|evm)\)/);
+  });
+
+  // A binding may narrow a base field for its own family; the flag still exists for everyone,
+  // so it stays untagged.
+  it("leaves a base field untagged even when one family refines it", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string().describe("recipient") });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ to: z.string().min(34).describe("recipient") }),
+    });
+    reg.addChain(spec, "evm", { run: async () => ({}) });
+    const stream = makeStream();
+    new HelpService(reg, stream, "9.9.9").handleMeta(["tx", "send", "--help"]);
+
+    const toLine = stream.last!.split("\n").find((l) => l.includes("--to "))!;
+    expect(toLine).not.toMatch(/\((tron|evm)\)/);
+  });
+
+  // A flag every family accepts is not family-specific, and tagging it would imply a
+  // restriction that does not exist.
+  it("leaves shared flags untagged", () => {
+    const out = twoFamilyHelp();
+    const toLine = out.split("\n").find((l) => l.includes("--to "))!;
+
+    expect(toLine).not.toMatch(/\((tron|evm)\)/);
   });
 });

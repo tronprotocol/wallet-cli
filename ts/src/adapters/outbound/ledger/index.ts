@@ -13,6 +13,7 @@
  * This module never prints; callers print waiting prompts via StreamManager.
  */
 import { utils as tronUtils } from "tronweb";
+import { Transaction, TypedDataEncoder, type TransactionLike } from "ethers";
 import { assertTronTxIntegrity } from "../chain/tron/tx-integrity.js";
 import type {
   SignedTx,
@@ -47,6 +48,60 @@ interface TrxApp {
     domainSeparatorHex: string,
     hashStructMessageHex: string,
   ): Promise<string>;
+}
+
+/** Minimal shape of @ledgerhq/hw-app-eth's Eth we depend on. Unlike the TRON app it returns
+ *  {v, r, s} components rather than a hex string, so the adapter assembles r||s||v itself. */
+interface EthApp {
+  getAddress(path: string, display?: boolean): Promise<{ publicKey: string; address: string }>;
+  getAppConfiguration(): Promise<{ version: string }>;
+  signTransaction(
+    path: string,
+    rawTxHex: string,
+    resolution: null,
+  ): Promise<{ v: string; r: string; s: string }>;
+  signPersonalMessage(
+    path: string,
+    messageHex: string,
+  ): Promise<{ v: number; r: string; s: string }>;
+  signEIP712HashedMessage?(
+    path: string,
+    domainSeparatorHex: string,
+    hashStructMessageHex: string,
+  ): Promise<{ v: number; r: string; s: string }>;
+}
+
+type LedgerApp = TrxApp | EthApp;
+
+/**
+ * Which @ledgerhq app module backs each family. Adding a family = one entry (plus its shape).
+ *
+ * Thunks with LITERAL specifiers, not `import(variable)`: a dynamic specifier cannot be
+ * statically resolved, so the module load moves into the timed region (and `vi.mock`, which keys
+ * off the specifier, may not apply at all). Both cost real behaviour — a slow first import ate
+ * into the device timeout.
+ */
+const APP_LOADER: Record<ChainFamily, () => Promise<unknown>> = {
+  tron: () => import("@ledgerhq/hw-app-trx"),
+  evm: () => import("@ledgerhq/hw-app-eth"),
+};
+
+/**
+ * {v, r, s} from the ethereum app -> Ethereum's 65-byte `r || s || v` hex.
+ *
+ * `v` is reduced to its PARITY BIT, because the app reports it differently per transaction type:
+ * a typed transaction gives a bare parity (0/1), but a legacy one gives it already EIP-155
+ * encoded — `chainId * 2 + 35 + parity`, which needs three bytes on Sepolia and cannot fit the
+ * one byte a 65-byte signature has. Passing that through produced an over-long signature that
+ * ethers rejected outright. Parity is the only part that is not recoverable from the
+ * transaction itself, so ethers re-derives the rest from the chain id it already holds.
+ */
+function joinVrs(sig: { v: number | string; r: string; s: string }): string {
+  const raw = typeof sig.v === "number" ? BigInt(sig.v) : BigInt(`0x${sig.v.replace(/^0x/, "")}`);
+  // 0/1 and 27/28 are already bare; anything larger is EIP-155 encoded (odd chainId*2+35+parity).
+  const parity = raw < 27n ? raw & 1n : raw >= 35n ? (raw - 35n) & 1n : (raw - 27n) & 1n;
+  const v = (27n + parity).toString(16);
+  return `0x${sig.r.replace(/^0x/, "")}${sig.s.replace(/^0x/, "")}${v.padStart(2, "0")}`;
 }
 
 /** hw-app-trx wants a BIP32 path WITHOUT the leading "m/" (e.g. 44'/195'/0'/0/0). */
@@ -134,7 +189,7 @@ export class Ledger {
     if (!FAMILIES[family].ledger) {
       throw new ExecutionError(
         "auth_required",
-        `Ledger ${family} app is not wired yet (only tron is supported)`,
+        `Ledger ${family} app is not wired yet`,
       );
     }
   }
@@ -151,7 +206,11 @@ export class Ledger {
   // An optional `signal` gives callers the same lever the timeout uses: aborting closes the
   // transport, which rejects the pending APDU and frees the native handle immediately instead of
   // leaving it open until this method's own timeout expires.
-  #bound<T>(fn: (trx: TrxApp) => Promise<T>, signal?: AbortSignal): Promise<T> {
+  #bound<A extends LedgerApp, T>(
+    family: ChainFamily,
+    fn: (app: A) => Promise<T>,
+    signal?: AbortSignal,
+  ): Promise<T> {
     let handle: { transport: unknown; close: () => Promise<void> } | undefined;
     // `cancelled` matters because the abort can land before openTransport() resolves: at that
     // moment there is no handle to close, and a fire-once listener will not run again. Recording
@@ -162,7 +221,7 @@ export class Ledger {
       handle?.close().catch(() => {});
     };
     const run = (async () => {
-      const Trx = unwrap<new (transport: unknown) => TrxApp>(await import("@ledgerhq/hw-app-trx"));
+      const App = unwrap<new (transport: unknown) => LedgerApp>(await APP_LOADER[family]());
       try {
         handle = await openTransport();
       } catch (e) {
@@ -177,7 +236,7 @@ export class Ledger {
         );
       }
       try {
-        return await fn(new Trx(handle.transport));
+        return await fn(new App(handle.transport) as A);
       } finally {
         await handle.close().catch(() => {});
       }
@@ -195,8 +254,9 @@ export class Ledger {
     opts?.onWait?.();
     this.assertWired(family);
     try {
-      return await this.#bound(
-        async (trx) => (await trx.getAddress(ledgerPath(path), opts?.display ?? false)).address,
+      return await this.#bound<TrxApp | EthApp, string>(
+        family,
+        async (app) => (await app.getAddress(ledgerPath(path), opts?.display ?? false)).address,
       );
     } catch (e) {
       throw classifyDeviceError(e);
@@ -210,9 +270,10 @@ export class Ledger {
     signal?: AbortSignal,
   ): Promise<SignedTx> {
     this.assertWired(family);
+    if (family === "evm") return this.#signEvmTransaction(path, tx, signal);
     // The device signs raw_data_hex, so the same integrity rules the software strategy enforces
     // apply here — a Ledger account must not be the weaker signer. See tx-integrity.ts.
-    if (family === "tron") assertTronTxIntegrity(tx);
+    assertTronTxIntegrity(tx);
     const rawTxHex = (tx as { raw_data_hex?: string }).raw_data_hex;
     if (!rawTxHex)
       throw new ChainError(
@@ -224,7 +285,7 @@ export class Ledger {
     const existing = (tx as { signature?: unknown }).signature;
     const prior = Array.isArray(existing) ? existing : [];
     try {
-      return await this.#bound(async (trx) => {
+      return await this.#bound<TrxApp, SignedTx>(family, async (trx) => {
         const signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
         return {
           ...(tx as object),
@@ -245,8 +306,10 @@ export class Ledger {
     this.assertWired(family);
     const messageHex = Buffer.from(message, "utf8").toString("hex");
     try {
-      return await this.#bound(
-        async (trx) => `0x${await trx.signPersonalMessage(ledgerPath(path), messageHex)}`,
+      return await this.#bound<TrxApp | EthApp, string>(family, async (app) => {
+        const signed = await app.signPersonalMessage(ledgerPath(path), messageHex);
+        return typeof signed === "string" ? `0x${signed}` : joinVrs(signed);
+      },
         signal,
       );
     } catch (e) {
@@ -268,6 +331,7 @@ export class Ledger {
     signal?: AbortSignal,
   ): Promise<TypedDataSignature> {
     this.assertWired(family);
+    if (family === "evm") return this.#signEvmTypedData(path, payload, signal);
     const { domain, types, message } = payload;
     let digest: string;
     let primaryType: string;
@@ -286,7 +350,7 @@ export class Ledger {
       );
     }
     try {
-      return await this.#bound(async (trx) => {
+      return await this.#bound<TrxApp, TypedDataSignature>(family, async (trx) => {
         if (typeof trx.signTIP712HashedMessage !== "function") {
           throw new WalletError(
             "ledger_unsupported",
@@ -305,10 +369,98 @@ export class Ledger {
     }
   }
 
+  /**
+   * The ethereum app signs the UNSIGNED typed-transaction serialisation and returns {v, r, s};
+   * ethers reassembles it into the raw transaction `eth_sendRawTransaction` accepts.
+   */
+  async #signEvmTransaction(path: string, tx: UnsignedTx, signal?: AbortSignal): Promise<SignedTx> {
+    let transaction: Transaction;
+    try {
+      transaction = Transaction.from(tx as TransactionLike);
+    } catch (e) {
+      throw new ChainError(
+        "invalid_transaction",
+        `EVM transaction could not be encoded for Ledger signing: ${errMessage(e)}`,
+      );
+    }
+    const unsignedHex = transaction.unsignedSerialized.replace(/^0x/, "");
+    try {
+      return await this.#bound<EthApp, SignedTx>(
+        "evm",
+        async (eth) => {
+          // `resolution: null` on purpose — a non-null resolution makes hw-app-eth fetch
+          // clear-signing descriptors from Ledger's CDN mid-signature, and the CLI must not
+          // phone out while signing. The device shows the raw hash instead.
+          const signed = await eth.signTransaction(ledgerPath(path), unsignedHex, null);
+          transaction.signature = joinVrs(signed);
+          // `{ raw, hash }`, matching the software strategy: the pipeline does not know which
+          // signer produced a transaction, and a bare string would lose the locally derived id
+          // that authoritativeTxId uses to refuse a node's claim about which tx it accepted.
+          return { raw: transaction.serialized, hash: transaction.hash! };
+        },
+        signal,
+      );
+    } catch (e) {
+      throw classifyDeviceError(e);
+    }
+  }
+
+  async #signEvmTypedData(
+    path: string,
+    payload: TypedDataPayload,
+    signal?: AbortSignal,
+  ): Promise<TypedDataSignature> {
+    const { domain, types, message } = payload;
+    // ethers' EIP-712 encoder rather than tronweb's TIP-712 one. The two agree on EVM input
+    // today (TIP-712 is a fork of this same code that also accepts TRON base58 addresses), so
+    // this is about coupling, not a current behavioural difference: EVM signing must not depend
+    // on a TRON SDK's typed-data implementation, which is free to diverge.
+    const structTypes = Object.fromEntries(
+      Object.entries(types as Record<string, unknown>).filter(([name]) => name !== "EIP712Domain"),
+    ) as Record<string, Array<{ name: string; type: string }>>;
+    let digest: string;
+    let primaryType: string;
+    let domainHash: string;
+    let messageHash: string;
+    try {
+      primaryType = payload.primaryType ?? TypedDataEncoder.from(structTypes).primaryType;
+      digest = TypedDataEncoder.hash(domain as never, structTypes, message);
+      domainHash = TypedDataEncoder.hashDomain(domain as never).replace(/^0x/, "");
+      messageHash = TypedDataEncoder.hashStruct(primaryType, structTypes, message).replace(
+        /^0x/,
+        "",
+      );
+    } catch (e) {
+      throw new ChainError("invalid_transaction", `typed data could not be hashed: ${errMessage(e)}`);
+    }
+    try {
+      return await this.#bound<EthApp, TypedDataSignature>(
+        "evm",
+        async (eth) => {
+          if (typeof eth.signEIP712HashedMessage !== "function") {
+            throw new WalletError(
+              "ledger_unsupported",
+              "this Ledger Ethereum app version cannot sign EIP-712 typed data; update the app",
+            );
+          }
+          const signed = await eth.signEIP712HashedMessage(
+            ledgerPath(path),
+            domainHash,
+            messageHash,
+          );
+          return { signature: joinVrs(signed), digest, primaryType };
+        },
+        signal,
+      );
+    } catch (e) {
+      throw classifyDeviceError(e);
+    }
+  }
+
   async appConfig(family: ChainFamily): Promise<AppConfig> {
     this.assertWired(family);
     try {
-      return await this.#bound(async (trx) => ({
+      return await this.#bound<TrxApp | EthApp, AppConfig>(family, async (trx) => ({
         version: (await trx.getAppConfiguration()).version,
         ready: true,
       }));

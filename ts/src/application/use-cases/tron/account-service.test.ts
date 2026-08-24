@@ -12,8 +12,8 @@ import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index
 const net: NetworkDescriptor = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: ["nile"],
   capabilities: [],
 };
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "TXaddress" };
@@ -41,19 +41,6 @@ function serviceWith(nativeRaw: string, nativePrice: number | null) {
     {} as never,
   );
 }
-
-describe("TronAccountService.balance (direction A shape)", () => {
-  it("returns raw sun balance with native decimals + symbol (no unit label)", async () => {
-    const result = await serviceWith("1983993000", 0.12).balance(scope, net, "tron");
-    expect(result).toEqual({
-      address: "TXaddress",
-      balance: "1983993000",
-      decimals: 6,
-      symbol: "TRX",
-    });
-    expect(result).not.toHaveProperty("unit");
-  });
-});
 
 describe("TronAccountService.portfolio native USD conversion", () => {
   it("prices the native TRX holding from raw sun × price at 6-decimal scale", async () => {

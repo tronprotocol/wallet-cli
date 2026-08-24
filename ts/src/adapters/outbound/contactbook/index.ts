@@ -4,6 +4,7 @@ import type { ContactRepository } from "../../../application/ports/contact-repos
 import type { ChainFamily, ContactEntry } from "../../../domain/types/index.js";
 import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
 import { createContact } from "../../../domain/contact/index.js";
+import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 
 const MAX_CONTACT_FILE_BYTES = 4 * 1024 * 1024;
@@ -50,6 +51,16 @@ export class ContactBook implements ContactRepository {
     );
   }
 
+  /** Names are unique book-wide, so a scan across buckets has exactly one answer. */
+  findAnywhere(nameKey: string): ContactEntry | undefined {
+    const document = this.#read();
+    for (const family of CHAIN_FAMILIES) {
+      const hit = document.entries[family]?.find((e) => e.nameKey === nameKey);
+      if (hit) return hit;
+    }
+    return undefined;
+  }
+
   find(family: ChainFamily, nameKey: string): ContactEntry | undefined {
     return this.list(family).find((entry) => entry.nameKey === nameKey);
   }
@@ -85,12 +96,13 @@ export class ContactBook implements ContactRepository {
       throw corrupt();
     }
     const result: ContactDocument = { version: 1, entries: {} };
-    for (const [family, items] of Object.entries(root.entries as Record<string, unknown>)) {
-      if (family !== "tron" || !Array.isArray(items) || items.length > MAX_CONTACTS) {
+    for (const [key, items] of Object.entries(root.entries as Record<string, unknown>)) {
+      const family = key as ChainFamily;
+      if (!CHAIN_FAMILIES.includes(family) || !Array.isArray(items) || items.length > MAX_CONTACTS) {
         throw corrupt();
       }
       const seen = new Set<string>();
-      result.entries.tron = items.map((value) => {
+      result.entries[family] = items.map((value) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) {
           throw corrupt();
         }
@@ -102,10 +114,12 @@ export class ContactBook implements ContactRepository {
         ) {
           throw corrupt();
         }
-        const validated = createContact("tron", item.name, item.address, item.note ?? undefined);
+        // Re-validated against the family whose bucket it was found in, so an address filed
+        // under the wrong key is caught here rather than surfacing as an unusable recipient.
+        const validated = createContact(family, item.name, item.address, item.note ?? undefined);
         if (
           item.nameKey !== validated.nameKey ||
-          item.family !== "tron" ||
+          item.family !== family ||
           seen.has(validated.nameKey)
         ) {
           throw corrupt();

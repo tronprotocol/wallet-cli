@@ -3,7 +3,7 @@ import type { TronMultisigCollaborationService } from "../../../../application/u
 import { txTronLinkMultisigBinding } from "./tx.js";
 
 const A = "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP";
-const NETWORK = { family: "tron", id: "tron:nile" } as never;
+const NETWORK = { family: "tron", nativeSymbol: "TRX", id: "tron:nile" } as never;
 const TX_ID = "ab".repeat(32);
 
 function harness() {

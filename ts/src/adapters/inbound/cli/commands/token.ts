@@ -1,20 +1,43 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronTokenService } from "../../../../application/use-cases/tron/token-service.js";
-import { Schemas } from "../schemas/index.js";
+import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import { tokenSelector } from "./token-selector.js";
+import type { TokenBookService } from "../../../../application/use-cases/token-book-service.js";
+import type { EvmTokenService } from "../../../../application/use-cases/evm/token-service.js";
 
+/** Shared across families: every family has a token contract. TRC10 does not exist outside TRON,
+ *  so `--asset-id` — and the "exactly one selector" rule it is half of — belong to the TRON
+ *  binding below, not here. */
 const selectorFields = z.object({
-  contract: Schemas.addressFor("tron")
-    .optional()
-    .describe("TRC20 contract address; provide exactly one of --contract or --asset-id"),
-  assetId: z
-    .string()
-    .regex(/^\d+$/)
-    .optional()
-    .describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
+  contract: Schemas.address().optional().describe("token contract address"),
 });
+
+/** the EVM half: no TRC10 equivalent exists, so `--contract` is simply required, and the shared
+ *  neutral field is validated as an EVM address here. */
+const evmSelector = {
+  refine: allRefines(
+    (v: { contract?: string }, ctx: z.RefinementCtx) => {
+      if (v.contract === undefined) {
+        ctx.addIssue({ code: "custom", path: ["contract"], message: "--contract is required" });
+      }
+    },
+    addressFieldsFor("evm", "contract"),
+  ),
+};
+
+/** the TRON half of the selector: TRC10 asset id + the XOR rule + TRON address format. */
+const tronSelector = {
+  fields: z.object({
+    assetId: z
+      .string()
+      .regex(/^\d+$/)
+      .optional()
+      .describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
+  }),
+  refine: allRefines(tokenSelector, addressFieldsFor("tron", "contract")),
+};
 
 export const tokenBalanceSpec: ChainSpec = {
   path: ["token", "balance"],
@@ -24,12 +47,32 @@ export const tokenBalanceSpec: ChainSpec = {
   capability: "account.balance.token",
   summary: "Show a single token balance (--contract / --asset-id)",
   baseFields: selectorFields,
-  baseRefine: tokenSelector,
   examples: [{ cmd: "wallet-cli token balance --contract TR7..." }],
   formatText: TextFormatters.tokenBalance,
 };
 
+export const tokenBalanceEvmBinding = (svc: EvmTokenService): FamilyBinding => ({
+  ...evmSelector,
+  run: async (ctx, net, input) => svc.balance(ctx, net, input),
+});
+
+export const tokenInfoEvmBinding = (svc: EvmTokenService): FamilyBinding => ({
+  ...evmSelector,
+  run: async (_ctx, net, input) => svc.info(net, input),
+});
+
+export const tokenAddEvmBinding = (svc: EvmTokenService): FamilyBinding => ({
+  ...evmSelector,
+  run: async (ctx, net, input) => svc.add(ctx, net, input),
+});
+
+export const tokenRemoveEvmBinding = (svc: EvmTokenService): FamilyBinding => ({
+  ...evmSelector,
+  run: async (ctx, net, input) => svc.remove(ctx, net, input),
+});
+
 export const tokenBalanceTronBinding = (svc: TronTokenService): FamilyBinding => ({
+  ...tronSelector,
   run: async (ctx, net, input) => svc.balance(ctx, net, input),
 });
 
@@ -41,12 +84,12 @@ export const tokenInfoSpec: ChainSpec = {
   capability: "account.balance.token",
   summary: "Show token metadata (name/symbol/decimals/totalSupply)",
   baseFields: selectorFields,
-  baseRefine: tokenSelector,
   examples: [{ cmd: "wallet-cli token info --contract TR7..." }],
   formatText: TextFormatters.tokenInfo,
 };
 
 export const tokenInfoTronBinding = (svc: TronTokenService): FamilyBinding => ({
+  ...tronSelector,
   run: async (_ctx, net, input) => svc.info(net, input),
 });
 
@@ -58,12 +101,12 @@ export const tokenAddSpec: ChainSpec = {
   capability: "token.tokenbook",
   summary: "Add a token to the address book (fetches symbol/decimals)",
   baseFields: selectorFields,
-  baseRefine: tokenSelector,
   examples: [{ cmd: "wallet-cli token add --contract TR7..." }],
   formatText: TextFormatters.tokenBookAdd,
 };
 
 export const tokenAddTronBinding = (svc: TronTokenService): FamilyBinding => ({
+  ...tronSelector,
   run: async (ctx, net, input) => svc.add(ctx, net, input),
 });
 
@@ -79,7 +122,8 @@ export const tokenListSpec: ChainSpec = {
   formatText: TextFormatters.tokenBookList,
 };
 
-export const tokenListTronBinding = (svc: TronTokenService): FamilyBinding => ({
+/** Shared by every family: listing merges the book's two layers and touches no chain. */
+export const tokenListBinding = (svc: TokenBookService): FamilyBinding => ({
   run: async (ctx, net) => svc.list(ctx, net),
 });
 
@@ -91,11 +135,11 @@ export const tokenRemoveSpec: ChainSpec = {
   capability: "token.tokenbook",
   summary: "Remove a user-added token from the address book",
   baseFields: selectorFields,
-  baseRefine: tokenSelector,
   examples: [{ cmd: "wallet-cli token remove --contract TR7..." }],
   formatText: TextFormatters.tokenBookRemove,
 };
 
 export const tokenRemoveTronBinding = (svc: TronTokenService): FamilyBinding => ({
+  ...tronSelector,
   run: async (ctx, net, input) => svc.remove(ctx, net, input),
 });

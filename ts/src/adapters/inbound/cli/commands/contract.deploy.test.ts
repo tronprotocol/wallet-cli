@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { contractDeployTronBinding } from "./contract.js";
+import {
+  contractDeployEvmBinding,
+  contractDeploySpec,
+  contractDeployTronBinding,
+  contractSendEvmBinding,
+} from "./contract.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
 
 /**
@@ -119,61 +124,114 @@ describe("contract deploy — ABI constructor guard", () => {
   });
 });
 
-describe("contract deploy — --params form guard", () => {
-  const ABI = ctor({ stateMutability: "nonpayable" });
+/**
+ * §7.3 renamed the deploy inputs and changed the parameter form.
+ *
+ * `--params` meant `{type,value}` on `contract call`/`send` but bare positional values on
+ * `deploy` — one flag name, two incompatible formats across sibling commands, which is why a
+ * guard existed to explain the difference. `--constructor-params` unifies the form, so that
+ * guard now points the other way: the typed form is the accepted one.
+ *
+ * `--abi` stays REQUIRED on TRON and is tagged (tron). TronWeb's createSmartContract derives
+ * constructor types from the ABI and takes only bare values; ethers needs no ABI at all.
+ * Synthesising an ABI from the caller's inline types would hand TronWeb something nothing can
+ * check — a mistyped parameter would encode cleanly and deploy a wrong contract.
+ */
+function deployTyped(input: Record<string, unknown>) {
+  const deploy = vi.fn(async (_c: unknown, _n: unknown, _i: { parameters: unknown[] }) => ({
+    kind: "tx-receipt" as const,
+  }));
+  const binding = contractDeployTronBinding({ deploy } as unknown as TronContractService);
+  const run = () =>
+    binding.run({} as never, {} as never, { code: "6080", feeLimit: "1000000", ...input } as never);
+  return { run, deploy };
+}
 
-  it("passes raw positional values, the documented deploy form", async () => {
-    const { run, deploy } = deployWith({
+describe("contract deploy — --constructor-params takes the typed form", () => {
+  const ABI = ctor({ stateMutability: "nonpayable", inputs: [{ name: "x", type: "uint256" }] });
+
+  it("accepts {type,value} entries and passes their values to the encoder", async () => {
+    const { run, deploy } = deployTyped({
       abi: ABI,
-      params: '[100, "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"]',
+      constructorParams: '[{"type":"uint256","value":"100"},{"type":"string","value":"My Token"}]',
     });
     await expect(run()).resolves.toBeDefined();
-    expect(deploy.mock.calls[0]![2]).toMatchObject({
-      parameters: [100, "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"],
-    });
+
+    // TronWeb takes bare values alongside the ABI, so the values are unwrapped here.
+    expect(deploy.mock.calls[0]![2]).toMatchObject({ parameters: ["100", "My Token"] });
   });
 
-  it("defaults to no constructor args when --params is omitted", async () => {
-    const { run, deploy } = deployWith({ abi: ABI });
+  it("defaults to no constructor args when the flag is omitted", async () => {
+    const { run, deploy } = deployTyped({ abi: ABI });
     await expect(run()).resolves.toBeDefined();
     expect(deploy.mock.calls[0]![2]).toMatchObject({ parameters: [] });
   });
 
-  // Measured: TronWeb rejects this too, as ethers' `invalid BigNumberish value (argument="value")`
-  // — an internal argument name that collides with the user's own key. Same refusal, named.
-  it("rejects the {type,value} form that contract call/send take", async () => {
-    const params = '[{"type":"uint256","value":"100"}]';
-    const { run, deploy } = deployWith({ abi: ABI, params });
+  // The inverted guard: bare values were the old deploy form and are now the wrong one.
+  it("rejects the bare positional form that --params used to take", async () => {
+    const { run, deploy } = deployTyped({ abi: ABI, constructorParams: '[100, "My Token"]' });
+
     await expect(run()).rejects.toMatchObject({
       code: "invalid_value",
-      message: expect.stringContaining("raw positional values"),
+      message: expect.stringContaining("type"),
     });
     expect(deploy).not.toHaveBeenCalled();
   });
 
-  it("rejects a multi-entry {type,value} array", async () => {
-    const params = '[{"type":"uint256","value":"1"},{"type":"address","value":"T..."}]';
-    const { run } = deployWith({ abi: ABI, params });
+  it("still refuses an ABI whose constructor TronWeb would crash on", async () => {
+    const { run } = deployTyped({ abi: ctor({ stateMutability: 42 }), constructorParams: "[]" });
     await expect(run()).rejects.toMatchObject({ code: "invalid_value" });
   });
+});
 
-  // Only the unambiguous all-typed array is claimed. Anything else could be a legitimate struct or
-  // a half-edited command line, and TronWeb's arity/type errors read fine on their own
-  // ("constructor needs 1 but 2 provided").
-  it.each([
-    ["a mixed array", '[100, {"type":"uint256","value":"1"}]'],
-    ["objects carrying a third key", '[{"type":"uint256","value":"1","name":"cap"}]'],
-    ["objects whose type is not a string", '[{"type":1,"value":"1"}]'],
-    ["objects whose type is empty", '[{"type":"","value":"1"}]'],
-    ["an empty array", "[]"],
-  ])("leaves %s to TronWeb", async (_label, params) => {
-    const { run, deploy } = deployWith({ abi: ABI, params });
+describe("contract deploy — code input channel", () => {
+  const ABI = ctor({ stateMutability: "nonpayable", inputs: [] });
+
+  it("takes the bytecode inline with --code", async () => {
+    const { run, deploy } = deployTyped({ abi: ABI, code: "6080" });
     await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
+    expect(deploy.mock.calls[0]![2]).toMatchObject({ bytecode: "6080" });
   });
 
-  it("still rejects --params that is not a JSON array", async () => {
-    const { run } = deployWith({ abi: ABI, params: '{"type":"uint256"}' });
-    await expect(run()).rejects.toMatchObject({ code: "invalid_value", message: /JSON array/ });
+  // These are schema rules, so they are asserted against the schema: calling the binding
+  // directly bypasses zod entirely and would pass no matter what the refine said.
+  const parse = (input: Record<string, unknown>) =>
+    contractDeploySpec.baseFields
+      .superRefine(contractDeploySpec.baseRefine!)
+      .safeParse({ dryRun: false, signOnly: false, buildOnly: false, permissionId: 0, ...input });
+
+  it("refuses both --code and --code-file at once", () => {
+    expect(parse({ code: "6080", codeFile: "./Token.bin" }).success).toBe(false);
+  });
+
+  it("refuses neither", () => {
+    expect(parse({}).success).toBe(false);
+  });
+
+  it("accepts exactly one of them", () => {
+    expect(parse({ code: "6080" }).success).toBe(true);
+    expect(parse({ codeFile: "./Token.bin" }).success).toBe(true);
+  });
+});
+
+describe("contract deploy — EVM flag surface", () => {
+  // A flag that is offered but ignored is worse than an absent one: the caller believes the
+  // value was applied. `deploy` hardcodes value 0, and §7.3's usage line does not list
+  // --call-value, so it must not appear here — unlike `contract send`, which does use it.
+  it("offers no --call-value, which deploy would ignore", () => {
+    expect(Object.keys(contractDeployEvmBinding({} as never).fields?.shape ?? {})).not.toContain(
+      "callValue",
+    );
+  });
+
+  it("still offers the four gas flags", () => {
+    const keys = Object.keys(contractDeployEvmBinding({} as never).fields?.shape ?? {});
+    expect(keys).toEqual(expect.arrayContaining(["gasLimit", "maxFee", "priorityFee", "nonce"]));
+  });
+
+  it("keeps --call-value on contract send, which does apply it", () => {
+    expect(Object.keys(contractSendEvmBinding({} as never).fields?.shape ?? {})).toContain(
+      "callValue",
+    );
   });
 });

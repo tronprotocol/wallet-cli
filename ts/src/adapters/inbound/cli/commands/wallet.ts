@@ -350,15 +350,41 @@ export function registerWalletCommands(
   // ── list ─────────────────────────────────────────────────────────────────
   reg.add({
     path: ["list"],
-    network: "none",
+    // The network is a DISPLAY SELECTOR, not a target: no node is contacted. `wallet: "none"`
+    // means the resolver skips its single-family ACCOUNT check, which would otherwise refuse to
+    // list anything whenever the active account's family differed from the network.
+    network: "optional",
     wallet: "none",
     auth: "none",
     summary: "List wallets/accounts (no unlock needed)",
+    description:
+      "List every local account, grouped by HD seed and by type. The address column shows the " +
+      "family of the selected network (--network, else config.defaultNetwork); JSON output " +
+      "always carries every family's address.",
     fields: empty,
     input: empty,
-    examples: [{ cmd: "wallet-cli list --output json" }],
+    examples: [
+      { cmd: "wallet-cli list" },
+      { cmd: "wallet-cli list --network sepolia" },
+      { cmd: "wallet-cli list --output json" },
+    ],
     formatText: TextFormatters.walletList,
-    run: async () => wallets.list(),
+    run: async (context, network) => {
+      const accounts = wallets.list();
+      // The text table is filtered to one family; say so, or a user whose only hardware account
+      // is on the other chain sees an empty list with no hint that --network would reveal it.
+      // json is unfiltered, so a warning there would be noise about nothing.
+      if (context.output === "text" && network) {
+        const hidden = accounts.filter((a) => !a.addresses[network.family]).length;
+        if (hidden > 0) {
+          context.warn(
+            `${hidden} account(s) have no ${network.family} address and are not shown; ` +
+              "use --network to switch, or --output json to see every family",
+          );
+        }
+      }
+      return accounts;
+    },
   } satisfies CommandDefinition);
 
   // ── use ──────────────────────────────────────────────────────────────────
@@ -395,26 +421,41 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["current"],
-    network: "none",
+    // Safe now that the target resolver no longer judges the account against the network: this
+    // command must always be able to SHOW an account, whatever chain it lives on. The network
+    // only decides which family's address --qr encodes.
+    network: "optional",
     wallet: "optional",
     auth: "none",
     summary: "Show the current active account",
     description:
-      "Show the selected account locally. --qr appends a scannable TRON receive-address QR in text mode without unlocking or accessing the network.",
+      "Show the selected account locally, with one address line per chain family it has. --qr " +
+      "appends a scannable receive-address QR in text mode, for the family of the selected " +
+      "network (--network, else config.defaultNetwork) — without unlocking or accessing the network.",
     fields: currentFields,
     input: currentFields,
     examples: [
       { cmd: "wallet-cli current" },
       { cmd: "wallet-cli current --qr" },
       { cmd: "wallet-cli current --qr --account main" },
+      { cmd: "wallet-cli current --qr --network sepolia" },
     ],
     formatText: TextFormatters.walletCurrent,
-    run: async (context, _network, input) => {
+    run: async (context, network, input) => {
       const descriptor = wallets.current(context.activeAccount);
       if (!input.qr || context.output !== "text") return descriptor;
-      const address = descriptor.addresses.tron;
+      // The network is a DISPLAY SELECTOR here, not a target: this command performs no chain I/O,
+      // so it stays `network: "none"` and resolves lazily, only for --qr. That keeps a plain
+      // `current` working for an account whose family does not match the active network — you
+      // must always be able to look at your own account.
+      const address = network ? descriptor.addresses[network.family] : undefined;
       if (!address) {
-        throw new UsageError("invalid_value", "selected account has no TRON receive address");
+        // Deliberately no fallback to whichever family the account does have: a receive QR for
+        // the wrong chain is scanned, paid into, and lost.
+        throw new UsageError(
+          "family_mismatch",
+          `selected account has no ${network?.family} address; ${network?.id} cannot receive to it`,
+        );
       }
       const qr = services.qr?.encode(address) ?? null;
       if (!qr) {
@@ -607,7 +648,10 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["backup"],
-    network: "none",
+    // The network selects WHICH key `--keystore` exports (a seed account holds one per family),
+    // not a chain to contact. Safe as "optional" because `wallet: "none"` keeps the resolver's
+    // single-family ACCOUNT check out of the way.
+    network: "optional",
     wallet: "none",
     auth: "required",
     interactive: true,
@@ -639,7 +683,7 @@ export function registerWalletCommands(
       { cmd: "wallet-cli backup --records --account main --from 2026-08-01" },
     ],
     formatText: TextFormatters.walletBackup,
-    run: async (ctx, _net, input) => {
+    run: async (ctx, network, input) => {
       if (input.records) {
         return wallets.backupRecords({
           from: utcInstant(input.from),
@@ -655,8 +699,17 @@ export function registerWalletCommands(
         mode: "verify",
         verify: (pw) => wallets.verifyPassword(pw),
       });
+      // A keystore holds ONE private key, and a seed account has a different one per family
+      // (§1.2). The selected network picks which — `family` is never exposed as a flag; the
+      // network is the one selector users learn. The receipt echoes it, so an export that fell
+      // back to config.defaultNetwork still says out loud which key it wrote.
       return input.keystore
-        ? wallets.backupKeystore(account, input.out, ctx.secrets.read("password"))
+        ? wallets.backupKeystore(
+            account,
+            input.out,
+            ctx.secrets.read("password"),
+            (network ?? ctx.networkRegistry.resolveDefault()).family,
+          )
         : wallets.backup(account, input.out);
     },
   } satisfies CommandDefinition);

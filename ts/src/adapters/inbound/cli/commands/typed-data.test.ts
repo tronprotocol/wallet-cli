@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { typedDataSignSpec, typedDataSignBinding } from "./typed-data.js";
 
 const ctx = { activeAccount: "main" } as never;
-const net = { family: "tron", id: "nile", chainId: "728126428" } as never;
+const net = { family: "tron", nativeSymbol: "TRX", id: "nile", chainId: "728126428" } as never;
 
 const PAYLOAD = JSON.stringify({
   domain: { name: "SunPerp", version: "1", chainId: 728126428 },

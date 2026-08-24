@@ -5,7 +5,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 
 const showFields = z.object({});
 
@@ -40,8 +40,8 @@ const updateFields = z.object({
   buildOnly: txModeFields.buildOnly,
   // dry-run/sign-only wording is specific to a permission replacement, but the permission group
   // and expiration semantics are the shared ones — reuse them rather than keep a second copy.
-  permissionId: txModeFields.permissionId,
-  expiration: txModeFields.expiration,
+  permissionId: tronTxModeFields.permissionId,
+  expiration: tronTxModeFields.expiration,
 });
 
 export const permissionUpdateSpec: ChainSpec = {

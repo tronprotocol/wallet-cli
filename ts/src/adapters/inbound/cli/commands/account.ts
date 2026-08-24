@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
+import type { AccountBalanceService } from "../../../../application/use-cases/account-balance-service.js";
+import type { EvmAccountService } from "../../../../application/use-cases/evm/account-service.js";
 import type { TronAccountService } from "../../../../application/use-cases/tron/account-service.js";
 import { ciEnum } from "../arity/index.js";
 import { Schemas } from "../schemas/index.js";
@@ -114,8 +116,10 @@ export const accountBalanceSpec: ChainSpec = {
   formatText: TextFormatters.accountBalance,
 };
 
-export const accountBalanceTronBinding = (svc: TronAccountService): FamilyBinding => ({
-  run: async (ctx, net) => svc.balance(ctx, net, "tron"),
+/** Shared by every family: the balance read is family-neutral, so one binding serves them all
+ *  and the family comes from the selected network. */
+export const accountBalanceBinding = (svc: AccountBalanceService): FamilyBinding => ({
+  run: async (ctx, net) => svc.balance(ctx, net, net.family),
 });
 
 export const accountInfoSpec: ChainSpec = {
@@ -130,6 +134,14 @@ export const accountInfoSpec: ChainSpec = {
 };
 
 export const accountInfoTronBinding = (svc: TronAccountService): FamilyBinding => ({
+  run: async (ctx, net) => svc.info(ctx, net),
+});
+
+export const accountPortfolioEvmBinding = (svc: EvmAccountService): FamilyBinding => ({
+  run: async (ctx, net) => svc.portfolio(ctx, net),
+});
+
+export const accountInfoEvmBinding = (svc: EvmAccountService): FamilyBinding => ({
   run: async (ctx, net) => svc.info(ctx, net),
 });
 

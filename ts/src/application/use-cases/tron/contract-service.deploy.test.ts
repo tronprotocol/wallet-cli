@@ -6,7 +6,7 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-const NET = { id: "tron:nile", family: "tron", chainId: "nile" } as unknown as NetworkDescriptor;
+const NET = { id: "tron:nile", family: "tron", nativeSymbol: "TRX", chainId: "nile" } as unknown as NetworkDescriptor;
 const SCOPE = {} as unknown as TransactionScope;
 const DEPLOY_INPUT = { abi: [], bytecode: "0x00", feeLimit: "1000000000", parameters: [] };
 const CONTRACT_HEX = "41a614f803b6fd780986a42c78ec9c7f77e6ded13c";

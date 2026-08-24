@@ -22,7 +22,7 @@ export function registerContactCommands(registry: CommandRegistry, service: Cont
     positionals: [{ field: "name" }, { field: "address" }],
     summary: "Add a recipient",
     description:
-      "Add a locally stored TRON recipient. The Base58Check address is validated and the name can then be used by tx send and gasfree transfer.",
+      "Add a locally stored recipient. The address is validated against the family it belongs to (T… = TRON, 0x… = EVM), and the name can then be used anywhere an address is accepted.",
     fields: addFields,
     input: addFields,
     examples: [

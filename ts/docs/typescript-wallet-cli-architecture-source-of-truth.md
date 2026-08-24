@@ -61,7 +61,7 @@ If the implementation and this document disagree, the change must fix one side o
 
 ### 1.2 Current Boundaries
 
-- The only formal `ChainFamily` is currently `tron`; EVM is a planned but not-yet-public family.
+- `ChainFamily` is `tron | evm`. Each family carries its own BIP44 template via `FamilyMeta.indexAt` — TRON hangs the account number at the `account` level, EVM at `address_index` — so the coin type alone does not determine a path. `FAMILIES` is a mapped type (`{ [F in ChainFamily]: FamilyMeta & { family: F } }`) so each entry keeps its literal family and `FamilyPlugin<F>` still binds.
 - Ledger currently implements only the TRON app.
 - Network transport is TRON FullNode HTTP / TronWeb; `httpEndpoint` is not an Ethereum JSON-RPC or gRPC endpoint.
 - `create`, the various `import` commands, `delete`, and `backup` may be interactive in a controlled way; other commands fail fast when arguments are missing.
@@ -236,7 +236,8 @@ flowchart LR
     PRE --> COMPOSE[composeCliRuntime]
     COMPOSE --> META{help/version/schema<br/>or bare invocation?}
     META -->|yes| HELP[HelpService]
-    META -->|no| SHELL[buildCli + parseAsync]
+    META -->|no| GATE[migration gate]
+    GATE --> SHELL[buildCli + parseAsync]
     HELP --> FUNNEL[Runner terminal boundary]
     SHELL --> FUNNEL
     FUNNEL --> CLOSE[close Prompter]
@@ -262,6 +263,34 @@ interface FamilyPlugin<F extends ChainFamily> {
 }
 ```
 
+### 3.3 The Migration Gate
+
+Persisted state is migrated **eagerly and completely at startup, or not at all** (ADR-0008). The
+gate sits after the help/version short-circuit — so `--help` stays reachable on a stale or
+unmigratable keystore — and before any command dispatches.
+
+- A registry of steps, one per versioned file, each declaring `currentVersion`, whether migrating
+  a given document needs the master password, and how to migrate it. `contacts.json` and
+  `tokens.json` need none: the first is already family-keyed at rest, the second is keyed by
+  network id, so EVM only adds keys to both.
+- Everything stale is applied in **one `writeJsonAll` transaction**, under the same advisory lock
+  every other mutator takes, so a concurrent process cannot have its work overwritten by a stale
+  read. A pre-migration copy is kept as `<name>.v<N>.bak` and never pruned: the transaction is
+  crash-safe but not *change*-safe, and a migration that succeeds while being wrong would
+  otherwise destroy the only copy of the prior state.
+- The password is demanded only if some pending migration needs one, which is
+  `SOURCE_KINDS[type].hasSecret` — so a keystore of only `ledger` / `watch` accounts upgrades
+  silently. Failure is `migration_required` (exit 2); `--password-stdin` is honoured, so a
+  pipeline can self-heal without a human.
+- The staleness test is `version < CURRENT`, not `!==`: a file written by a newer binary is left
+  alone rather than migrated downward.
+- The absent-file default must synthesise `CURRENT_VERSION`, not a literal — that default is
+  persisted on first write, so a literal would stamp every new keystore stale.
+
+Eagerness is what lets `ChainAddresses` stay a **total** `Record<ChainFamily, string>`. A lazy or
+partial backfill would force it to `Partial`, making a missing address reachable at every read
+site and letting `list` output drift between runs.
+
 `bootstrap/families/tron.ts` is TRON's concrete composition: it builds the `TronRpcClient`, the TronGrid history reader, the TRON use cases, and registers each command via `registerTronChainCommands`, which `addChain`s the neutral `ChainSpec` for each command together with its TRON `FamilyBinding`. Application and adapters must not import the family registry in reverse.
 
 ---
@@ -277,8 +306,8 @@ interface FamilyPlugin<F extends ChainFamily> {
 | `path` | Neutral commands use the full path; chain commands use a cross-family logical path. |
 | `family` | Omitted for neutral commands; when present, the resolved network selects the family implementation. |
 | `stdin` | A dedicated **command-scoped** stdin channel, one of `tx` or `message` (signed-tx JSON / message to sign). This field does not cover the master password, which is fed by the **global** `--password-stdin` (see the CLI surface section). Wallet secrets (`mnemonic`, `privateKey`) and the master-password *change* are TTY-only and have no stdin flag — see `secretsTtyOnly`. |
-| `network` | `none` (never touches a chain) or `optional` (resolves `--network`, else `config.defaultNetwork`). There is no `required`: the default-network fallback always applies, so nothing can demand an explicit `--network`. |
-| `wallet` | `none` or `optional`; optional can override the active account with `--account`. |
+| `network` | `none` (never touches a chain) or `optional` (resolves `--network`, else `config.defaultNetwork`). There is no `required`: the default-network fallback always applies, so nothing can demand an explicit `--network`. **A NEUTRAL command may also be `optional`** — `list`, `current` and `backup` are, because the selected network acts as a DISPLAY SELECTOR (which family's address to show, which family's key to export), not as a target to contact. That does not make them chain commands: they are still dispatched by path, not by family. |
+| `wallet` | `none` or `optional`. `optional` means the command has an implicit ACTIVE ACCOUNT that `--account` can override; it drives up-front account resolution, the `--account` help line, and the Requires block. It deliberately does NOT gate any account-vs-network compatibility check — see §6.3. |
 | `auth` | An unlock declaration for help/catalog; actual software signing uses lazy decrypt. |
 | `broadcasts` | Controls whether help reveals `--wait`. |
 | `passwordMode` | `establish` or `verify`, controls interactive master-password priming. |
@@ -293,7 +322,7 @@ The stable command id is derived from metadata as `path.join(".")` for every com
 
 ### 4.2 The Two Command Classes and Routing
 
-A chain command is one `ChainCommandDefinition` — a service-free `ChainSpec` plus a `families` table of per-family `FamilyBinding`s (`run` + optional `fields`/`refine` delta). The registry keys it by logical path; dispatch resolves the network, then selects the binding by `network.family`. When the resolved network's family has no binding for that command, dispatch returns `network_family_mismatch`. The merged input schema is `baseFields` plus each binding's `fields`, and validation composes `baseRefine` then each binding's `refine`. `isChainCommand` (presence of `families`) is the discriminator between the two command kinds.
+A chain command is one `ChainCommandDefinition` — a service-free `ChainSpec` plus a `families` table of per-family `FamilyBinding`s (`run` + optional `fields`/`refine` delta). The registry keys it by logical path; dispatch resolves the network, then selects the binding by `network.family`. When the resolved network's family has no binding for that command, dispatch returns `family_mismatch` (renamed from `network_family_mismatch`; the code also covers an account, or a raw transaction, disagreeing with the target network). The merged input schema is `baseFields` plus each binding's `fields`, and validation composes `baseRefine` then each binding's `refine`. `isChainCommand` (presence of `families`) is the discriminator between the two command kinds.
 
 ```mermaid
 flowchart LR
@@ -415,7 +444,10 @@ The account is the unit of selection and operation. `--account` accepts a canoni
 ### 6.2 Derivation and Addresses
 
 - BIP39 English wordlist; `create` generates 128-bit entropy (12 words).
-- HD path: `m/44'/{coinType}'/{account}'/0/0`; the TRON coin type is 195.
+- HD path follows each family's own ecosystem template, which differ in SHAPE and not only in coin
+  type: TRON hangs the account number at the account level (`m/44'/195'/<N>'/0/0`), EVM at the
+  address_index level (`m/44'/60'/0'/0/<N>`). `FamilyMeta.indexAt` carries which, so the coin type
+  alone never determines a path.
 - secp256k1 derives the address from an uncompressed 65-byte public key.
 - The seed vault stores encrypted entropy and an optional BIP39 passphrase, not the mnemonic string directly.
 - The public address cache lives in wallet metadata; read/build/estimate do not require decrypting secrets.
@@ -429,6 +461,20 @@ The account is the unit of selection and operation. `--account` accepts a canoni
 - `use` persistently changes `activeAccount`; `--account` does not persist.
 - When the active account is deleted, the first remaining account is chosen; if none, it is set to `null`.
 - `current` returns only the persistent active account.
+
+**An account is judged against a network where an ADDRESS IS DEMANDED, never where a network is
+resolved.** `ExecutionScope.resolveAddress(family)` (and `SignerResolver` on the signing path)
+raises `family_mismatch` when the account has no address in that family, naming the account's own
+chain and how to switch. `TargetResolver` deliberately does not perform this check.
+
+The check used to live in `TargetResolver`, firing the moment a network was resolved. Two things
+were wrong with that. It prevented nothing — without it, any command that truly needs the address
+fails at `resolveAddress`, still before any RPC — so it was only ever a better error, earlier. And
+it fired at the wrong moment: a command may resolve a network without ever demanding one family's
+address (`current` resolves one to choose which family's receive QR to draw), and such a command
+was refused for a condition that did not apply to it. Placing the check at the point of demand is
+also self-maintaining: a new command needs no policy flag to opt in or out, because asking for an
+address is what triggers it.
 
 ---
 
@@ -465,7 +511,7 @@ An inbound command's responsibility is to turn argv/Zod input and `ExecutionCont
 
 ### 7.3 Reusable Services
 
-- `TargetResolver`: network selection and single-family account compatibility.
+- `TargetResolver`: network selection only. It deliberately does **not** judge the active account against the resolved network — see §6.3.
 - `CapabilityRegistry`: per-network feature gate.
 - `SignerResolver`: source → software/device signer.
 - `TxPipeline`: shared build/estimate/sign/broadcast lifecycle.
@@ -476,19 +522,41 @@ An inbound command's responsibility is to turn argv/Zod input and `ExecutionCont
 
 ## 8. Network, Gateway, and Capability
 
-The current descriptor:
+`NetworkDescriptor` is a discriminated union on `family`:
 
 ```ts
-interface TronNetworkDescriptor {
+interface NetworkBase {
   id: string
-  family: "tron"
   chainId: string
-  aliases: string[]
-  httpEndpoint?: string
-  feeModel?: "tron-resource"
+  nativeSymbol: string      // TRX / ETH / BNB — see below
+  feeModel?: FeeModel
   capabilities: string[]
 }
+interface TronNetworkDescriptor extends NetworkBase {
+  family: "tron"
+  httpEndpoint?: string     // TronGrid HTTP fullHost
+  tronlinkHttpEndpoint?: string
+  gasfree?: GasFreeNetworkConfig
+}
+interface EvmNetworkDescriptor extends NetworkBase {
+  family: "evm"
+  httpEndpoint?: string     // JSON-RPC
+}
+type NetworkDescriptor = TronNetworkDescriptor | EvmNetworkDescriptor
 ```
+
+`nativeSymbol` is a NETWORK fact, not a family one. `evm:1` and `evm:56` share every encoding and
+arithmetic rule that makes them EVM, but their coins are ETH and BNB; a family-level symbol can
+only ever be right for one chain of the family, and reading one rendered a BNB balance as "ETH".
+The family still owns what is genuinely family-wide — the base-unit name (`wei`) and its decimals.
+`FamilyMeta` deliberately has no `nativeSymbol`, so the wrong one cannot be read.
+
+There are no `aliases` on the descriptor: they live in a flat `config.aliases` book (ADR-0010).
+
+A network from `config.yaml` is validated at load — missing `family` / `chainId` / `nativeSymbol`,
+or an unknown family, raises `invalid_value` naming the network and the field, and `capabilities`
+defaults to empty. Without that, an incomplete hand-added network travelled until something
+dereferenced it, surfacing as a bare `internal_error` before any command ran.
 
 | ID | Alias | Endpoint |
 | --- | --- | --- |
@@ -496,7 +564,7 @@ interface TronNetworkDescriptor {
 | `tron:nile` | `nile` | `https://nile.trongrid.io` |
 | `tron:shasta` | `shasta` | `https://api.shasta.trongrid.io` |
 
-Canonical-id resolution is case-insensitive. Aliases remain descriptor metadata but are not accepted as network selectors. `network: optional` adopts `config.defaultNetwork` when `--network` is not specified, and that value must be a canonical id. Ledger/watch pin a single family, and a family mismatch must fail before any RPC.
+Canonical-id resolution is case-insensitive. **Aliases ARE accepted as network selectors** (ADR-0010, superseding the previous rule): they live in a flat `config.aliases` book, not on the descriptor, and are resolved once in `NetworkRegistry.resolve` — canonical id first, book second, so an alias can never shadow a real id. Nothing downstream of resolution ever sees an alias. `network: optional` adopts `config.defaultNetwork` when `--network` is not specified. Ledger/watch pin a single family, and a family mismatch must fail before any RPC.
 
 `ChainGatewayRegistry` is injected with the family factory by Bootstrap and caches the client by network id. Its generic `client()` may only use the truly common minimal capabilities; a family use case obtains the `TronGateway` via the guarded `get(net, "tron")`. TRON staking and the future EVM gas/nonce must not be forced into a universal gateway.
 
