@@ -83,7 +83,7 @@ describe("Keystore", () => {
     expect(ks.list()).toHaveLength(1);
   });
 
-  it("makes every imported or derived target active, including dedup hits", () => {
+  it("makes every imported or derived SIGNING target active, including dedup hits", () => {
     const seed = ks.import({ secret: MNEMONIC, type: "seed", label: "seed" });
     const privateKey = ks.import({
       secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
@@ -99,8 +99,10 @@ describe("Keystore", () => {
     const ledger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
     expect(ks.activeAccount()).toBe(ledger.accountId);
 
+    // A watch account is the exception (§3.3): it holds no key, so making it active would turn
+    // the next write command into watch_only_no_signer for a reason the user never chose.
     const watch = ks.registerWatch({ family: "tron", address: "Twatch-active" });
-    expect(ks.activeAccount()).toBe(watch.accountId);
+    expect(ks.activeAccount()).toBe(ledger.accountId);
 
     const repeatedLedger = ks.registerLedger({
       family: "tron",

@@ -49,14 +49,16 @@ export function createContact(
   // Validated against the entry's OWN family: a TRON address filed under `evm` would make
   // `--to friend` resolve, on an EVM network, to an address that does not exist there.
   if (!CHAIN_FAMILIES.includes(family) || !addressCodec(family).validate(address)) {
-    throw new UsageError("invalid_value", `contact address must be a valid ${family} address`);
+    throw new UsageError("invalid_address", `contact address must be a valid ${family} address`);
   }
   const name = contactName(nameInput);
   return {
     family,
     name,
     nameKey: contactNameKey(name),
-    address,
+    // Canonical (§1.3): the book is a display surface as much as a lookup, and the loader runs
+    // this same constructor, so an entry written before this rule normalises when it is read.
+    address: addressCodec(family).canonical(address),
     note: contactNote(noteInput),
   };
 }

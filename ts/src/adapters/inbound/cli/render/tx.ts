@@ -12,6 +12,7 @@ import { renderApproval } from "./approval.js";
 import {
   formatScalar,
   formatDecimal,
+  formatGwei,
   formatInt,
   formatSun,
   formatUtc,
@@ -37,6 +38,9 @@ export const TxFormatters = {
       ["TxID", r.txid],
       ["Status", status],
       ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
+      // §6.4: `--wait` stops at the receipt, so how deep is enough is the caller's call to make.
+      // Empty rows are dropped, so this is absent while pending and on an unreadable head.
+      ["Confirmations", r.confirmations === undefined ? "" : formatInt(r.confirmations)],
     ]);
   }) satisfies TextFormatter<TxStatusView>,
   txInfo: ((r, ctx) => {
@@ -86,7 +90,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const txid = String(r.txId ?? r.hash ?? "");
   const stage = r.stage ?? "submitted";
   const summary = receiptSummary(r, family, symbol);
-  const pairs: Pair[] = [...receiptRows(r)];
+  const pairs: Pair[] = [...receiptRows(r), ...FAMILY_RENDER[family].receiptIdentityRows(r)];
   if (txid) pairs.push(["TxID", txid]);
 
   // submitted (default, non-blocking): txid only, no fee/energy yet — those need confirmation.
@@ -100,10 +104,10 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   // confirmed / failed (after --wait): real on-chain block / fee / energy / result.
   if (r.blockNumber !== undefined && r.blockNumber !== null)
     pairs.push(["Block", `#${formatInt(r.blockNumber)}`]);
-  if (r.energyUsed !== undefined && r.energyUsed !== null)
-    pairs.push(["Energy", formatInt(r.energyUsed)]);
-  if (r.feeSun !== undefined && r.feeSun !== null)
-    pairs.push(["Fee", `${formatSun(r.feeSun)} TRX`]);
+  // What the transaction actually consumed, in the terms its own family bills in. Reading only
+  // TRON's fields here left an EVM receipt with no Fee line at all: the amounts were in the JSON,
+  // and the person who had just spent them could not see them.
+  pairs.push(...FAMILY_RENDER[family].receiptSettlementRows(r, symbol));
   if (r.kind === "stake-unfreeze")
     pairs.push(["Withdrawable", "after the unlock period — then run `stake withdraw`"]);
   if (stage === "failed") {
@@ -386,7 +390,21 @@ function receiptRows(r: TxReceiptView): Pair[] {
     rows.push(["To", r.toContact ? `${r.toContact} (${address})` : address]);
   }
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")]);
+  // approve(address,uint256): the two facts the caller cannot verify from what they typed — the
+  // uint256 on the command line is scaled by the token's decimals, and its maximum is 78 digits.
+  // Present in the dry run too, which is where an approval most wants checking (§7.2).
+  if (r.spender !== undefined) rows.push(["Spender", String(r.spender)]);
+  if (r.allowance !== undefined) rows.push(["Allowance", allowanceLabel(r)]);
   return rows;
+}
+
+/** `1 USDC` / `unlimited` / the bare base-unit integer when the token's decimals were unreadable. */
+function allowanceLabel(r: TxReceiptView): string {
+  const value = String(r.allowance);
+  if (value === "unlimited") return value;
+  const symbol = r.token ?? "";
+  const amount = r.allowanceDecimals === undefined ? value : formatDecimal(value);
+  return symbol ? `${amount} ${symbol}` : amount;
 }
 
 /** broadcast-receipt amount: token-aware (symbol/decimals when known, else the contract/asset-id
@@ -508,9 +526,14 @@ function formatFee(fee: unknown, family: ChainFamily, symbol: string): string {
       return `~${energy.toLocaleString()} energy${covered}`;
     }
     // EVM fee plan: gasLimit × the per-gas ceiling. It is the most this transaction CAN cost,
-    // not what it will, so it is labelled as a ceiling rather than quoted as a charge.
+    // not what it will, so it is labelled as a ceiling (§6.1 writes "~ … max"; `≤` says the same
+    // thing without implying an estimate could land above it) and, when the components are known,
+    // states what that ceiling is made of — the same shape as a confirmed receipt's Fee row.
     if (f.maxCostWei !== undefined) {
-      return `\u2264 ${FAMILY_RENDER[family].feeFallback(f.maxCostWei, symbol)}`;
+      const total = `\u2264 ${FAMILY_RENDER[family].feeFallback(f.maxCostWei, symbol)}`;
+      return f.gasLimit === undefined || f.maxPerGasWei === undefined
+        ? total
+        : `${total}  (${formatInt(f.gasLimit)} gas × ${formatGwei(f.maxPerGasWei)} gwei max)`;
     }
     if (f.note) return String(f.note);
     // An unrecognised fee object must not reach feeFallback: that formats a scalar sun amount and

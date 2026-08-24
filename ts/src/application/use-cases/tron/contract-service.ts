@@ -18,6 +18,8 @@ import {
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
+import { fromBaseUnits } from "../../../domain/amounts/index.js";
+import { approveRows } from "../../services/approve-receipt.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronContractService {
@@ -54,6 +56,20 @@ export class TronContractService {
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
+    // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a dry
+    // run of an approve exists to confirm. TRC20 shares the method and the hazard with ERC-20, so
+    // it shares the receipt (§7.2).
+    const approval = await approveRows({
+      method: input.method,
+      params: input.parameters,
+      metadata: () => gateway.getTokenInfo(input.contract).then((info) => ({
+        decimals: info.decimals ?? info.precision,
+        symbol: typeof info.symbol === "string" ? info.symbol : undefined,
+      })),
+      // A TRON address may arrive as 41-hex from a caller pasting what a node returned.
+      displayAddress: tronHexToBase58,
+      fromBaseUnits,
+    });
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -82,6 +98,7 @@ export class TronContractService {
     return {
       kind: "contract-send" as const,
       ...outcomeData(outcome),
+      ...approval,
       method: input.method,
       contract: input.contract,
     };

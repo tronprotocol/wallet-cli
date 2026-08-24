@@ -25,6 +25,10 @@ const EVM_BLOCK = {
   number: "0x12d687",
   timestamp: "0x66b1c0d0",
   hash: "0xabc",
+  parentHash: "0xparent",
+  gasUsed: "0xc3ed1d",
+  gasLimit: "0x1c9c380",
+  baseFeePerGas: "0x448b9b800",
   transactions: ["0xdead", "0xbeef"],
 };
 
@@ -60,5 +64,41 @@ describe("block renderer", () => {
     const out = TextFormatters.block!({ block: null }, ctxFor("evm"))!;
 
     expect(out).toContain("unknown");
+  });
+
+  /**
+   * The four rows that say whether a block is full and what it cost. Without them `block` on EVM
+   * answered "how many transactions" and nothing a reader could act on.
+   */
+  it("reports the EVM hash, parent, gas usage and base fee", () => {
+    const out = TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!;
+
+    expect(out).toContain("Hash");
+    expect(out).toContain("Parent hash");
+    // decoded and grouped, never the hex the node sent
+    expect(out).toContain("12,840,221 / 30,000,000");
+    expect(out).toContain("18.4 gwei");
+  });
+
+  // Not "a field whose value we do not know" but a concept that does not exist there; an empty
+  // row would claim the former.
+  it("omits the base fee row entirely on a pre-1559 chain", () => {
+    const { baseFeePerGas: _dropped, ...legacy } = EVM_BLOCK;
+    const out = TextFormatters.block!({ block: legacy }, ctxFor("evm"))!;
+
+    expect(out).not.toContain("Base fee");
+  });
+
+  // The EVM rows are additive; TRON's three stay exactly as they were.
+  it("leaves the TRON block rows unchanged", () => {
+    const out = TextFormatters.block!({ block: TRON_BLOCK }, ctxFor("tron"))!;
+
+    expect(out).not.toContain("Base fee");
+    expect(out).not.toContain("Gas used");
+    expect(out.split("\n").map((line) => line.split("  ")[0])).toEqual([
+      "Number",
+      "Time",
+      "Transactions",
+    ]);
   });
 });

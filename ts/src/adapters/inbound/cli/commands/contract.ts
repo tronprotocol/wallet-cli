@@ -8,6 +8,8 @@ import type { EvmContractService } from "../../../../application/use-cases/evm/c
 import type { TronContractParameter } from "../../../../application/ports/chain/tron-gateway.js";
 import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
 import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
+import { toBaseUnits } from "../../../../domain/amounts/index.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 import { governanceTxModeFields, governanceTxRefine, tronTxModeFields, txModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
@@ -124,6 +126,11 @@ export const contractCallSpec: ChainSpec = {
   auth: "none",
   capability: "contract.call",
   summary: "Read-only contract call",
+  // §7.1: no ABI is fetched — the caller supplies the types. Without this the reader has no way
+  // to know why a signature is required, or why the result comes back undecoded.
+  description:
+    "Read-only contract call. The function signature and parameter types are supplied\n" +
+    "explicitly; no ABI lookup is performed.",
   baseFields: callFields,
   examples: [
     {
@@ -155,6 +162,16 @@ const sendFields = z.object({
     .string()
     .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
+  // Family-neutral and in WHOLE COINS, like `tx send --amount` (§7.2). The concept — native coin
+  // attached to a call — is the same on every chain, so it gets one flag and one unit; the unit
+  // in `--call-value-sun`'s name is what made it unusable off TRON.
+  // Zero is a legitimate call value (it is the default), so this is not the transfer amount's
+  // "must be greater than zero" schema.
+  value: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string")
+    .optional()
+    .describe("native coin sent with the call, in whole coins"),
   ...txModeFields,
   buildOnly: z
     .boolean()
@@ -167,8 +184,8 @@ const sendFields = z.object({
 /** TRON prices a contract call in SUN and burns energy up to a fee limit; both flag names say so. */
 const tronContractWriteFields = z.object({
   callValueSun: Schemas.uintString()
-    .default("0")
-    .describe("native TRX attached to the call, in SUN"),
+    .optional()
+    .describe("deprecated alias for --value, in SUN; removed next release"),
   feeLimit: Schemas.positiveIntString()
     .default("100000000")
     .describe("maximum energy fee to burn, in SUN"),
@@ -191,17 +208,11 @@ const evmGasFields = z.object({
     .describe("transaction nonce; defaults to the account's pending nonce"),
 });
 
-/** `contract send` additionally takes a call value; `contract deploy` does not — a deployment's
- *  value is always zero here, and offering a flag the command ignores is worse than omitting it. */
-const evmContractWriteFields = evmGasFields.extend({
-  callValue: z
-    .string()
-    .optional()
-    .describe("native coin to attach to the call, in whole coins (e.g. 0.1)"),
-});
-
+/** `contract send`'s call value is the shared `--value` (§7.2); `contract deploy` has none — a
+ *  deployment's value is always zero here, and offering a flag the command ignores is worse than
+ *  omitting it. */
 const evmContractWrite = {
-  fields: evmContractWriteFields,
+  fields: evmGasFields,
   refine: addressFieldsFor("evm", "contract"),
 };
 
@@ -239,7 +250,11 @@ export const contractSendSpec: ChainSpec = {
 export const contractSendEvmBinding = (svc: EvmContractService): FamilyBinding => ({
   ...evmContractWrite,
   run: async (ctx, net, input) =>
-    svc.send(ctx, net, { ...withEvmFees(input), params: typedParams(input.params) }),
+    svc.send(ctx, net, {
+      ...withEvmFees(input),
+      callValue: input.value,
+      params: typedParams(input.params),
+    }),
 });
 
 /** the creation bytecode, from `--code` or `--code-file`. */
@@ -376,9 +391,31 @@ export const contractSendTronBinding = (svc: TronContractService): FamilyBinding
   run: async (ctx, net, input) =>
     svc.send(ctx, net, {
       ...input,
+      callValueSun: tronCallValueSun(input),
       parameters: typedParams(input.params),
     }),
 });
+
+/**
+ * The call value in SUN, from either flag.
+ *
+ * `--value` is the family-neutral form and takes whole TRX; `--call-value-sun` is the old
+ * TRON-only spelling, kept working for one release. Both at once is refused rather than
+ * silently preferring one — they can disagree, and picking a winner would move an amount of
+ * money the caller did not ask for.
+ */
+function tronCallValueSun(input: { value?: string; callValueSun?: string }): string {
+  if (input.value !== undefined && input.callValueSun !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      "--value and --call-value-sun set the same thing; pass only --value (--call-value-sun is deprecated)",
+    );
+  }
+  if (input.value !== undefined) {
+    return toBaseUnits(input.value, FAMILIES.tron.nativeDecimals, "call value");
+  }
+  return input.callValueSun ?? "0";
+}
 
 const deployFields = z.object({
   artifact: z

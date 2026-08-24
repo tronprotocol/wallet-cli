@@ -63,3 +63,15 @@ export function addressCodec(family: ChainFamily): AddressCodec {
 export function familyOf(address: string): ChainFamily | undefined {
   return CHAIN_FAMILIES.find((f) => FAMILIES[f].codec.validate(address));
 }
+
+/**
+ * An address in the single spelling this CLI stores and prints, whichever family it belongs to.
+ *
+ * Anything that is not a valid address of any family is returned untouched: callers use this on
+ * values that may be a label, a contact name or a ref, and it is not this function's place to
+ * decide those are wrong.
+ */
+export function canonicalAddress(address: string): string {
+  const family = familyOf(address);
+  return family ? FAMILIES[family].codec.canonical(address) : address;
+}

@@ -96,3 +96,23 @@ describe("resemblesAddress spots a near-miss of any family", () => {
     expect(resemblesAddress("team-vault")).toBe(false);
   });
 });
+
+/**
+ * The address book is a display surface as much as a lookup: `contact list` is where someone
+ * checks a payee against what their exchange showed them. The loader runs this same constructor,
+ * so an entry written before this rule normalises the moment it is read back.
+ */
+describe("createContact — canonical address", () => {
+  const CHECKSUMMED = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+
+  it("stores an all-lowercase EVM address in EIP-55", () => {
+    expect(createContact("evm", "alice", CHECKSUMMED.toLowerCase()).address).toBe(CHECKSUMMED);
+  });
+
+  it("names the argument that was wrong when the address is not one", () => {
+    expect(() => createContact("evm", "alice", "0xnope")).toThrowError(
+      expect.objectContaining({ code: "invalid_address" }),
+    );
+  });
+});
+

@@ -1,12 +1,15 @@
 import type { TextFormatter } from "../contracts/index.js";
 import { formatScalar, formatInt, formatUtc, num, methodName } from "./scalars.js";
 import { type Obj, type Pair, asObj, kv, query, receipt, table, titled, ok } from "./layout.js";
+import { FAMILY_RENDER, renderFamily } from "./family.js";
 
 export const MiscFormatters = {
   config: ((data) => renderConfig(asObj(data))) satisfies TextFormatter,
   networks: ((data) =>
     table(
-      ["Network", "Alias", "Family", "Chain", "Fee model", "Endpoint"],
+      // "Chain id", not "Chain": the value IS the second half of the canonical id (§2.3), and the
+      // shorter header read as though it might hold the chain's name.
+      ["Network", "Alias", "Family", "Chain id", "Fee model", "Endpoint"],
       (Array.isArray(data) ? data : [])
         .map(asObj)
         .map((n) => [
@@ -47,20 +50,22 @@ export const MiscFormatters = {
   // `block` reports the node's RAW object, so the two families arrive in different shapes: TRON
   // nests its header and counts milliseconds, an EVM node is flat, hex and counts seconds.
   // Making that readable is this renderer's job — the JSON stays as the node sent it.
+  // `block` reports the node's RAW object, so the two families arrive in different shapes: TRON
+  // nests its header and counts milliseconds, an EVM node is flat, hex and counts seconds.
+  // Making that readable is this renderer's job — the JSON stays as the node sent it.
   block: ((data, ctx) => {
     const block = asObj(asObj(data).block);
     const header = asObj(asObj(block.block_header).raw_data);
-    const n = block.number ?? header.number;
     const raw = block.timestamp ?? header.timestamp;
     // Seconds read as milliseconds would date every EVM block to 1970.
-    const ts =
-      ctx.net?.family === "evm" && raw !== undefined ? num(raw, 0) * 1000 : raw;
-    const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
-    return query([
-      ["Number", n === undefined ? "" : `#${formatInt(n)}`],
-      ["Time", ts ? formatUtc(ts) : "unknown"],
-      ["Transactions", String(txs)],
-    ]);
+    const family = renderFamily(ctx);
+    const timestampMs =
+      raw === undefined || raw === null
+        ? undefined
+        : family === "evm"
+          ? Number(BigInt(String(raw))) * 1000
+          : Number(raw);
+    return query(FAMILY_RENDER[family].blockRows(block, timestampMs));
   }) satisfies TextFormatter,
 };
 

@@ -21,6 +21,13 @@ interface NetworkBase {
    * owns what is genuinely family-wide — the base-unit name (wei) and its decimals.
    */
   nativeSymbol: string;
+  /**
+   * A test network — its coin is not traded, so it has no USD value to report.
+   *
+   * Declared per network rather than guessed from the id: `evm:11155111` says nothing about
+   * being a testnet, and a guess would be wrong for exactly the chains nobody checked.
+   */
+  testnet?: boolean;
   feeModel?: FeeModel;
   capabilities: string[];
 }
@@ -50,6 +57,27 @@ export type NetworkDescriptor = TronNetworkDescriptor | EvmNetworkDescriptor;
  *  that simply do not exist on other families, so they must narrow before reaching for them. */
 export function isTronNetwork(network: NetworkDescriptor): network is TronNetworkDescriptor {
   return network.family === "tron";
+}
+
+/**
+ * The host of an endpoint URL — what listings show instead of the URL itself.
+ *
+ * A commercial RPC endpoint carries its API key IN THE URL (`…/v2/<key>`, `…?apikey=<key>`), and
+ * §2.2 tells users to configure exactly that. Any output that prints an endpoint it was not
+ * explicitly asked for therefore prints a credential — and `chain node` is the command whose
+ * output people paste into issues and CI logs. Trimming to the host is the one cut that needs no
+ * guess about which path segment is the secret.
+ *
+ * `config networks.<id>.httpEndpoint` remains the way to read the full URL: named reads give the
+ * whole value, listings do not. Returns "" for a missing or unparseable URL.
+ */
+export function endpointHost(url: unknown): string {
+  if (typeof url !== "string" || url === "") return "";
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
 }
 
 export interface CapabilityDescriptor {

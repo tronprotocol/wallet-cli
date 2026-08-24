@@ -12,7 +12,9 @@ export const WalletFormatters = {
   walletWatch: ((data) => {
     const d = asObj(data);
     return receipt(ok(), `Added watch-only account ${quote(displayName(d))}`, [
-      ["Address", firstAddress(d)],
+      // The family label, not a bare `Address` (§3.5): once two families coexist, "Address" does
+      // not tell the reader which chain this account lives on.
+      ...addressPairs(d),
       ["Note", "read-only; signing operations will be rejected"],
     ]);
   }) satisfies TextFormatter,
@@ -45,8 +47,14 @@ export const WalletFormatters = {
   }) satisfies TextFormatter,
   walletDerive: ((data) => {
     const d = asObj(data);
+    // One derive produces an address per family (§3.9), so the receipt lists every one of them —
+    // showing only the first made this release's headline invisible on the command that performs
+    // it. `Index` and `Account ID` come along for the same reason `create` carries them: they are
+    // what the next command is addressed by.
     return receipt(ok(), `Derived sub-account ${quote(displayName(d))}`, [
-      ["Address", firstAddress(d)],
+      ["Account ID", String(d.accountId ?? "")],
+      ["Index", d.index === null || d.index === undefined ? "" : formatInt(d.index)],
+      ...addressPairs(d),
       ["Active", d.active === true ? "yes" : ""],
       ["Note", "shares master mnemonic; no separate backup needed"],
     ]);

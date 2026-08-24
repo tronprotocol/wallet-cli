@@ -1,4 +1,4 @@
-import type { Config } from "../../domain/types/index.js";
+import { endpointHost, type Config } from "../../domain/types/index.js";
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
@@ -195,15 +195,6 @@ function assertWritableNetworkField(field: string): void {
       "invalid_value",
       `only networks.<id>.httpEndpoint is readable or writable; got networks.<id>.${field}`,
     );
-  }
-}
-
-function endpointHost(url: unknown): string {
-  if (typeof url !== "string") return "";
-  try {
-    return new URL(url).host;
-  } catch {
-    return "";
   }
 }
 

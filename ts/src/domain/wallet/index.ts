@@ -99,16 +99,33 @@ export function derivePrivAddresses(pk: Bytes): ChainAddresses {
   return out;
 }
 
-/** (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk. */
+/**
+ * (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk.
+ *
+ * Every address leaves here CANONICAL (§1.3: EVM in EIP-55). Normalising at this single point
+ * rather than at each call site means a wallets.json written before this rule — a watch account
+ * registered from an all-lowercase paste — displays and matches identically to one written after
+ * it, without rewriting the file.
+ */
 export function enumerateAddresses(
   w: Wallet,
 ): Array<{ index: number | null; addr: Partial<ChainAddresses> }> {
   const s = w.source;
   if (s.type === "seed") {
-    return accountIndices(s).map((i) => ({ index: i, addr: s.addresses[String(i)]! }));
+    return accountIndices(s).map((i) => ({ index: i, addr: canonicalAddresses(s.addresses[String(i)]!) }));
   }
-  if (s.type === "privateKey") return [{ index: null, addr: s.addresses }];
-  return [{ index: null, addr: { [s.family]: s.address } }];
+  if (s.type === "privateKey") return [{ index: null, addr: canonicalAddresses(s.addresses) }];
+  return [{ index: null, addr: { [s.family]: addressCodec(s.family).canonical(s.address) } }];
+}
+
+/** every value of an address map in its canonical spelling. */
+function canonicalAddresses(addr: Partial<ChainAddresses>): Partial<ChainAddresses> {
+  const out: Partial<ChainAddresses> = {};
+  for (const f of CHAIN_FAMILIES) {
+    const value = addr[f];
+    if (value !== undefined) out[f] = addressCodec(f).canonical(value);
+  }
+  return out;
 }
 
 /** addresses projected for a single account view (seed index / privateKey / ledger). */

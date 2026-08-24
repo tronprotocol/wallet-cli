@@ -43,12 +43,19 @@ describe("EvmAccountService.info", () => {
   });
 
   // `eth_getCode` answers this and nothing else does: "0x" is an externally-owned account.
-  it("marks an address with no code as not a contract", async () => {
-    expect((await service({ code: "0x" }).info(scope, net)).isContract).toBe(false);
+  it("marks an address with no code as an EOA, and gives it no code size", async () => {
+    const out = await service({ code: "0x" }).info(scope, net);
+
+    expect(out.type).toBe("eoa");
+    // Not zero: an EOA is not a contract that happens to have no bytes.
+    expect(out).not.toHaveProperty("codeSize");
   });
 
-  it("marks an address carrying bytecode as a contract", async () => {
-    expect((await service({ code: "0x60806040" }).info(scope, net)).isContract).toBe(true);
+  it("marks an address carrying bytecode as a contract and sizes its code", async () => {
+    const out = await service({ code: "0x60806040" }).info(scope, net);
+
+    expect(out.type).toBe("contract");
+    expect(out.codeSize).toBe(4);
   });
 
   it("keeps the nonce a decimal string, so a large one cannot lose precision", async () => {

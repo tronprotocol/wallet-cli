@@ -367,7 +367,17 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
     const list = run(["--output", "json", "list"]);
     expect(list.json.data[0].type).toBe("watch");
-    expect(list.json.data[0].active).toBe(true);
+  });
+
+  /**
+   * §3.3: watch is the exception to "an import becomes the active account". It holds no key, so
+   * activating it turns the next write command into watch_only_no_signer for a reason the user
+   * never chose — `use <account>` is how the active account changes.
+   */
+  it("does not make a watch account active", () => {
+    const r = run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
+    expect(r.json.data.active).toBe(false);
+    expect(run(["--output", "json", "list"]).json.data[0].active).toBe(false);
   });
 
   it("imports a watch account through the import source command", () => {
@@ -377,10 +387,72 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
   });
 
-  it("rejects an unrecognised watch address → invalid_value, exit 2 (§7.14.2)", () => {
+  // §1.3/§11 name this one `invalid_address`; it used to be the generic invalid_value, which
+  // said nothing about WHICH argument was wrong.
+  it("rejects an unrecognised watch address → invalid_address, exit 2 (§7.14.2)", () => {
     const r = run(["--output", "json", "import", "watch", "--address", "not-an-address"]);
     expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("invalid_value");
+    expect(r.json.error.code).toBe("invalid_address");
+  });
+
+  // A near-miss is a different mistake from a value that is not address-shaped at all, and the
+  // message has to say so: otherwise someone who mistyped one character hunts for the wrong thing.
+  it("says a mistyped EVM address failed its checksum rather than 'unrecognised format'", () => {
+    const r = run([
+      "--output",
+      "json",
+      "import",
+      "watch",
+      "--address",
+      "0x742D35Cc6634C0532925a3b844Bc454e4438f44e",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_address");
+    expect(r.json.error.message).toMatch(/checksum/);
+  });
+
+  /**
+   * The companion to storing canonically: §1.3 accepts three spellings as INPUT, so an account
+   * has to be findable by all of them. Canonicalising only the stored side would make the CLI
+   * refuse to find an account by the very spelling it just told the user was valid.
+   */
+  it("finds a watch account by any accepted spelling of its address", () => {
+    run([
+      "--output",
+      "json",
+      "import",
+      "watch",
+      "--address",
+      "0x742d35cc6634c0532925a3b844bc454e4438f44e",
+      "--label",
+      "lookup",
+    ]);
+    for (const spelling of [
+      "0x742d35cc6634c0532925a3b844bc454e4438f44e",
+      "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+      "0x742D35CC6634C0532925A3B844BC454E4438F44E",
+    ]) {
+      const r = run(["--output", "json", "current", "--account", spelling]);
+      expect(r.status).toBe(0);
+      expect(r.json.data.label).toBe("lookup");
+    }
+  });
+
+  // §1.3: an all-lowercase address offers no checksum, so it is accepted — and stored in the one
+  // spelling this CLI prints, so it never shows up looking like a different address.
+  it("stores an all-lowercase EVM watch address in EIP-55", () => {
+    const r = run([
+      "--output",
+      "json",
+      "import",
+      "watch",
+      "--address",
+      "0x742d35cc6634c0532925a3b844bc454e4438f44e",
+      "--label",
+      "lower",
+    ]);
+    expect(r.status).toBe(0);
+    expect(r.json.data.addresses.evm).toBe("0x742d35Cc6634C0532925a3b844Bc454e4438f44e");
   });
 
   it("deletes an account through the root positional delete command", () => {
@@ -393,6 +465,9 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
   it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
     run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
+    // Explicitly selected: registering one no longer activates it (§3.3), and this test is about
+    // what happens when a watch account IS the one being signed with.
+    run(["--output", "json", "use", "obs"]);
     const r = run([
       "--output",
       "json",
@@ -925,3 +1000,63 @@ describe("golden CLI — startup migration", () => {
     expect(run(["--help"], { password: null }).status).toBe(0);
   });
 });
+
+/**
+ * A flag the command does not declare must be REFUSED, never ignored — including one that happens
+ * to be spelled like the command's own path.
+ *
+ * `assertKnownFlags` used to allow the path segments, so `token balance --token USDT` and
+ * `contract deploy --contract 0x…` were silently accepted no-ops: the user typed something the
+ * command does not have, and the CLI ran anyway as if they had not. That is the exact failure the
+ * check exists to prevent, and it hid behind the one input most likely to be typed by mistake —
+ * `tx send` really does take `--token`, so reaching for it on `token balance` is natural.
+ */
+describe("golden CLI — flags spelled like the command path", () => {
+  it.each([
+    [["token", "balance", "--token", "USDT", "--contract", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"], "--token"],
+    [["contract", "deploy", "--contract", "0xabc", "--code", "0x00"], "--contract"],
+    [["import", "watch", "--watch", "x", "--address", "TBy6..."], "--watch"],
+  ])("refuses %o", (tokens, flag) => {
+    const r = run(["--output", "json", ...tokens]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toContain(flag);
+  });
+
+  // The commands themselves must still run — the path segments arrive as positionals, not flags.
+  it("leaves the commands' own invocations working", () => {
+    expect(run(["--output", "json", "token", "list", "--network", "tron:nile"]).json.command).toBe(
+      "token.list",
+    );
+    expect(run(["--output", "json", "contact", "list"]).json.command).toBe("contact.list");
+    expect(run(["--output", "json", "encoding", "convert", "deadbeef"]).json.command).toBe(
+      "encoding.convert",
+    );
+  });
+});
+
+/**
+ * §2.3 fixes what `networks` shows. The header is worth pinning because the column NAMES carry
+ * meaning here: `Chain id` says the value is the second half of the canonical id (`evm` + `1` =
+ * `evm:1`), which the shorter "Chain" left open to reading as the chain's name.
+ */
+describe("golden CLI — networks table", () => {
+  it("names its columns as §2.3 specifies", () => {
+    const header = run(["networks"]).stdout.split("\n")[0];
+
+    expect(header).toContain("| Chain id |");
+    // canonical id and alias are separate columns: one is stable, the other is readable
+    expect(header).toContain("| Network ");
+    expect(header).toContain("| Alias ");
+    expect(header).toContain("| Endpoint ");
+  });
+
+  // The endpoint may carry an API key in its path; a listing has no business echoing one.
+  it("shows endpoints as hosts, never full URLs", () => {
+    const out = run(["networks"]).stdout;
+
+    expect(out).toContain("api.trongrid.io");
+    expect(out).not.toContain("https://");
+  });
+});
+

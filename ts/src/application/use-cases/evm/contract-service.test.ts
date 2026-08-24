@@ -183,3 +183,107 @@ describe("EvmContractService.deploy", () => {
     expect(gateway.encodeDeploy).toHaveBeenCalledWith("0x6080", { source: "none" });
   });
 });
+
+/**
+ * `approve(address,uint256)` — §7.2's one receipt special case.
+ *
+ * The uint256 a caller types is scaled by the token's decimals, and its maximum is 78 digits, so
+ * the one thing they cannot check is the thing that matters most: how much they just approved.
+ */
+describe("EvmContractService.send — approve", () => {
+  const SEPOLIA = { ...net, id: "evm:11155111", chainId: "11155111" } as NetworkDescriptor;
+  const scope = () =>
+    ({
+      activeAccount: "wlt_test",
+      resolveAddress: () => OWNER,
+      timeoutMs: 100,
+      wait: false,
+      waitTimeoutMs: 100,
+      emit: vi.fn(),
+      warn: vi.fn(),
+    }) as never;
+  const CONTRACT = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+  const SPENDER = "0x4f2a000000000000000000000000000000009b03";
+
+  function approveHarness(decimals: number | Error = 6) {
+    const gateway = {
+      getTransactionCount: vi.fn(async () => "7"),
+      feeData: vi.fn(async () => ({ baseFeeWei: "100", gasPriceWei: "110", suggestedPriorityWei: "10" })),
+      estimateGas: vi.fn(async () => "46200"),
+      encodeFunctionCall: vi.fn(() => "0x095ea7b3"),
+      getErc20Metadata: vi.fn(async () => {
+        if (decimals instanceof Error) throw decimals;
+        return { decimals, symbol: "USDC" };
+      }),
+    };
+    const pipeline = {
+      assertCanSign: vi.fn(),
+      run: vi.fn(async (params: TxPipelineParams) => ({
+        stage: "plan" as const,
+        tx: await params.build(OWNER),
+        fee: {},
+      })),
+    } as unknown as TxPipeline;
+    const service = new EvmContractService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      pipeline,
+    );
+    return { service, gateway };
+  }
+
+  const send = (service: EvmContractService, rawAllowance: string) =>
+    service.send(scope(), SEPOLIA, {
+      contract: CONTRACT,
+      method: "approve(address,uint256)",
+      params: [
+        { type: "address", value: SPENDER },
+        { type: "uint256", value: rawAllowance },
+      ],
+      dryRun: true,
+    } as never) as Promise<Record<string, unknown>>;
+
+  it("reports the spender and the allowance in the token's own units", async () => {
+    const { service } = approveHarness(6);
+
+    await expect(send(service, "1000000")).resolves.toMatchObject({
+      spender: SPENDER,
+      allowance: "1",
+      // labelled, so the receipt reads "1 USDC" rather than a bare 1
+      token: "USDC",
+    });
+  });
+
+  // 2^256-1 is the approval that never runs out; 78 digits say only that the number is long.
+  it("calls the maximum allowance unlimited, without asking the contract anything", async () => {
+    const { service, gateway } = approveHarness(6);
+
+    await expect(send(service, String((1n << 256n) - 1n))).resolves.toMatchObject({
+      allowance: "unlimited",
+    });
+    expect(gateway.getErc20Metadata).not.toHaveBeenCalled();
+  });
+
+  // Being unable to LABEL the amount must not stop the approval or invent a scale for it.
+  it("falls back to base units when the token's decimals cannot be read", async () => {
+    const { service } = approveHarness(new Error("no decimals()"));
+
+    await expect(send(service, "1000000")).resolves.toMatchObject({ allowance: "1000000" });
+  });
+
+  it("adds nothing for any other method", async () => {
+    const { service } = approveHarness(6);
+    const out = (await service.send(scope(), SEPOLIA, {
+      contract: CONTRACT,
+      method: "transfer(address,uint256)",
+      params: [
+        { type: "address", value: SPENDER },
+        { type: "uint256", value: "1000000" },
+      ],
+      dryRun: true,
+    } as never)) as Record<string, unknown>;
+
+    expect(out).not.toHaveProperty("spender");
+    expect(out).not.toHaveProperty("allowance");
+  });
+});
+

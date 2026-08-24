@@ -50,34 +50,9 @@ export const ChainFormatters = {
     return query(FAMILY_RENDER[renderFamily(ctx)].chainPricesRows(d, renderSymbol(ctx)));
   }) satisfies TextFormatter,
 
-  chainNode: ((data) => {
-    const d = asObj(data);
-    const head = asObj(d.headBlock);
-    const solid = asObj(d.solidBlock);
-    const peers = asObj(d.peers);
-    const headTimestamp = Number(head.timestamp ?? 0);
-    const ageSeconds =
-      headTimestamp > 0 ? Math.max(0, Math.round((Date.now() - headTimestamp) / 1000)) : null;
-    const sync = d.inSync ? "in sync" : "lagging";
-    return query([
-      ["Endpoint", d.endpoint === null ? "—" : String(d.endpoint ?? "—")],
-      ["Version", d.version === null ? "—" : String(d.version ?? "—")],
-      [
-        "Head block",
-        `#${formatInt(head.number)}  ${timestamp(head.timestamp)} (${ageSeconds === null ? "—" : `~${ageSeconds}s ago — ${sync}`})`,
-      ],
-      [
-        "Solid block",
-        d.solidBlock === null
-          ? "—"
-          : `#${formatInt(solid.number)}  (${formatInt(d.lagBlocks)} blocks behind head)`,
-      ],
-      [
-        "Peers",
-        d.peers === null
-          ? "—"
-          : `${formatInt(peers.connected)} connected / ${formatInt(peers.active)} active`,
-      ],
-    ]);
-  }) satisfies TextFormatter,
+  // Family-shaped, like `chain prices` and `account info`: TRON has a p2p network to report on,
+  // EVM has a chain id to check the endpoint against. Reading one family's keys out of the other's
+  // payload is what printed empty TRON labels on EVM before.
+  chainNode: ((data, ctx) =>
+    query(FAMILY_RENDER[renderFamily(ctx)].chainNodeRows(asObj(data)))) satisfies TextFormatter,
 };

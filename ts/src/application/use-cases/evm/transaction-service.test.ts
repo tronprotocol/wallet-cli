@@ -403,6 +403,37 @@ describe("EvmTransactionService.sign", () => {
     expect(pipeline.signOnly).not.toHaveBeenCalled();
   });
 
+  /**
+   * The one mistake `tx sign` must not make quietly.
+   *
+   * Both transactions are EVM, so `family_mismatch` never fires; and signing consults no node, so
+   * nothing downstream can catch it either. Without this guard the command hands back a perfectly
+   * valid MAINNET transaction and says nothing about it.
+   */
+  it("refuses a transaction built for another chain before signing it", async () => {
+    const { service, pipeline } = signHarness();
+    // ethers' own unsignedSerialized for the same shape as UNSIGNED, but chainId 1.
+    const MAINNET =
+      "0x02ed0180830f42408478fbb08282520894000000000000000000000000000000000000dead87038d7ea4c6800080c0";
+
+    await expect(service.sign(scope(), SEPOLIA, MAINNET)).rejects.toMatchObject({
+      code: "chain_id_mismatch",
+    });
+    expect(pipeline.signOnly).not.toHaveBeenCalled();
+  });
+
+  // The check runs BEFORE the already-signed check: a foreign-chain transaction is refused for
+  // being foreign, which is the fact the reader needs, not for carrying a signature.
+  it("names the chain mismatch even when the foreign transaction is already signed", async () => {
+    const { service } = signHarness();
+    const SIGNED_MAINNET =
+      "0x02f8700180830f42408478fbb08282520894000000000000000000000000000000000000dead87038d7ea4c6800080c080a0bf5dda9670fd52be2346cdb74cdd238a51a4ae67ac7513fd7540fd78eca31d25a026903a9fcb8d75c83ff1e0177a8dd7061e0ddc7051500a6f1a041be1a2e32ca3";
+
+    await expect(service.sign(scope(), SEPOLIA, SIGNED_MAINNET)).rejects.toMatchObject({
+      code: "chain_id_mismatch",
+    });
+  });
+
   it("refuses an already-signed transaction instead of double-signing it", async () => {
     const { service } = signHarness();
     const alreadySigned =
@@ -451,6 +482,19 @@ describe("EvmTransactionService.broadcast", () => {
 
     expect(out.stage).toBe("submitted");
     expect(out.alreadyKnown).toBe(true);
+  });
+
+  // The node would reject it too, but only after it has been sent — and its error would not say
+  // which chain the transaction was actually built for.
+  it("refuses a transaction built for another chain without submitting it", async () => {
+    const { service, seen } = bcHarness();
+    const SIGNED_MAINNET =
+      "0x02f8700180830f42408478fbb08282520894000000000000000000000000000000000000dead87038d7ea4c6800080c080a0bf5dda9670fd52be2346cdb74cdd238a51a4ae67ac7513fd7540fd78eca31d25a026903a9fcb8d75c83ff1e0177a8dd7061e0ddc7051500a6f1a041be1a2e32ca3";
+
+    await expect(service.broadcast(scope(), SEPOLIA, SIGNED_MAINNET)).rejects.toMatchObject({
+      code: "chain_id_mismatch",
+    });
+    expect(seen).toEqual([]);
   });
 
   it("refuses hex that is not a signed transaction", async () => {
@@ -525,7 +569,8 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     const mainnet = { ...SEPOLIA, id: "evm:1", chainId: "1" };
 
     await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
-      code: "chain_mismatch",
+      // The spec's code (§6.2/§6.3/§11); the dry run shares the guard the sign and submit paths use.
+      code: "chain_id_mismatch",
     });
   });
 
@@ -609,11 +654,15 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
  * reads getTransactionById beside getTransactionInfoById.
  */
 describe("EvmTransactionService.status", () => {
-  function statusHarness(tx: unknown, receipt: unknown) {
+  function statusHarness(tx: unknown, receipt: unknown, head: string | Error = "42") {
     const warn = vi.fn();
     const gateway = {
       getTransactionByHash: vi.fn(async () => tx),
       getTransactionReceipt: vi.fn(async () => receipt),
+      getBlockNumber: vi.fn(async () => {
+        if (head instanceof Error) throw head;
+        return head;
+      }),
     };
     const service = new EvmTransactionService(
       { get: () => gateway } as unknown as ChainGatewayProvider,
@@ -664,6 +713,25 @@ describe("EvmTransactionService.status", () => {
 
   // A public endpoint may simply not keep old transactions. Reporting not_found without saying so
   // invites the reader to conclude the transaction never happened, which may be false.
+  // Same field, same arithmetic as TRON's: §6.4 makes it a two-family field, not an EVM one.
+  it("reports head minus the transaction's block as confirmations", async () => {
+    const { service, scope: s } = statusHarness({ hash: HASH }, { success: true, blockNumber: 5 }, "42");
+
+    await expect(service.status(s, SEPOLIA, HASH)).resolves.toMatchObject({ confirmations: 37 });
+  });
+
+  it("omits confirmations when the head could not be read, and still answers", async () => {
+    const { service, scope: s } = statusHarness(
+      { hash: HASH },
+      { success: true, blockNumber: 5 },
+      new Error("head unreachable"),
+    );
+    const out = await service.status(s, SEPOLIA, HASH);
+
+    expect(out.state).toBe("confirmed");
+    expect(out.confirmations).toBeUndefined();
+  });
+
   it("warns that not_found may mean the node lacks history, not that the tx never existed", async () => {
     const { service, scope: s, warn } = statusHarness(null, null);
     await service.status(s, SEPOLIA, HASH);
@@ -684,6 +752,9 @@ describe("EvmTransactionService.info", () => {
     const gateway = {
       getTransactionByHash: vi.fn(async () => tx),
       getTransactionReceipt: vi.fn(async () => receipt),
+      getBlockNumber: vi.fn(async () => "42"),
+      // seconds on the wire, as an EVM node reports them
+      getBlock: vi.fn(async () => ({ timestamp: "0x66b1c0d0" })),
       getErc20Metadata: vi.fn(async () => meta),
     };
     return new EvmTransactionService(
@@ -698,8 +769,14 @@ describe("EvmTransactionService.info", () => {
 
   it("reports a native transfer's parties and amount", async () => {
     const svc = infoHarness(
-      { hash: HASH, from: OWNER, to: TO, value: "0xde0b6b3a7640000", input: "0x" },
-      { success: true, blockNumber: 5, gasUsed: "21000", feeWei: "1000" },
+      { hash: HASH, from: OWNER, to: TO, value: "0xde0b6b3a7640000", input: "0x", nonce: "0x7" },
+      {
+        success: true,
+        blockNumber: 5,
+        gasUsed: "21000",
+        feeWei: "1000",
+        effectiveGasPriceWei: "50",
+      },
     );
 
     await expect(svc.info(scope(), SEPOLIA, HASH)).resolves.toMatchObject({
@@ -711,8 +788,52 @@ describe("EvmTransactionService.info", () => {
       blockNumber: 5,
       gasUsed: 21000,
       feeWei: "1000",
-      status: "SUCCESS",
+      // §6.5 收斂: one case throughout, so an agent matches "success" and never "SUCCESS".
+      status: "success",
+      // §6.5's flat keys, out of the node objects rather than buried in the passthrough
+      type: "transfer",
+      nonce: 7,
+      rawAmount: "1000000000000000000",
+      blockTime: 1722925264,
+      effectiveGasPriceWei: "50",
     });
+  });
+
+  /**
+   * `type` is deliberately coarse: three words a reader can act on, and none of them requires
+   * decoding calldata we have chosen not to decode (see the ERC-20 tests below).
+   */
+  it.each([
+    [{ to: TO, input: "0x" }, "transfer"],
+    [{ to: TO, input: "0xdeadbeef" }, "contract-call"],
+    [{ to: null, input: "0x6080" }, "contract-creation"],
+  ])("classifies %o as %s", async (fields, expected) => {
+    const svc = infoHarness({ hash: HASH, from: OWNER, value: "0x0", ...fields });
+
+    await expect(svc.info(scope(), SEPOLIA, HASH)).resolves.toMatchObject({ type: expected });
+  });
+
+  // The detail view must not fail because a second, optional read did.
+  it("still answers when the block's timestamp cannot be read", async () => {
+    const gateway = {
+      getTransactionByHash: async () => ({ hash: HASH, from: OWNER, to: TO, value: "0x0", input: "0x" }),
+      getTransactionReceipt: async () => ({ success: true, blockNumber: 5 }),
+      getBlockNumber: async () => "42",
+      getBlock: async () => {
+        throw new Error("pruned");
+      },
+      getErc20Metadata: async () => ({}),
+    };
+    const svc = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      {} as never,
+      { resolve: vi.fn() } as never,
+    );
+
+    const out = await svc.info(scope(), SEPOLIA, HASH);
+    expect(out.blockNumber).toBe(5);
+    expect(out.blockTime).toBeUndefined();
   });
 
   // The ruling: decode `transfer(address,uint256)` and nothing else. Reporting the raw fields for
@@ -776,6 +897,8 @@ describe("EvmTransactionService.info address style", () => {
         input: "0x",
       }),
       getTransactionReceipt: async () => null,
+      getBlockNumber: async () => "42",
+      getBlock: async () => ({ timestamp: "0x66b1c0d0" }),
       getErc20Metadata: async () => ({}),
     };
     const svc = new EvmTransactionService(

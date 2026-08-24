@@ -5,15 +5,7 @@ import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { TextFormatters } from "../render/index.js";
-
-function endpointHost(url: string | undefined): string {
-  if (!url) return "";
-  try {
-    return new URL(url).host;
-  } catch {
-    return "";
-  }
-}
+import { endpointHost } from "../../../../domain/types/index.js";
 
 export function registerNetworkCommands(reg: CommandRegistry): void {
   const empty = z.object({});
@@ -25,6 +17,12 @@ export function registerNetworkCommands(reg: CommandRegistry): void {
     wallet: "none",
     auth: "none",
     summary: "List known networks",
+    // §2.3, adjusted to the six-column table this actually prints: the canonical id and the
+    // alias are separate columns, so the description names both rather than only one.
+    description:
+      "List known networks with their family, chain id, fee model and endpoint host.\n" +
+      "Network is the canonical id (family:chain-id); Alias is the short name --network\n" +
+      "also accepts. Endpoints are shown as hosts only.",
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli networks" }],

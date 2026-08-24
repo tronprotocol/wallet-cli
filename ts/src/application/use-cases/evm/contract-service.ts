@@ -2,9 +2,10 @@ import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.
 import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
-import { toBaseUnits } from "../../../domain/amounts/index.js";
+import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
+import { approveRows } from "../../services/approve-receipt.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type {
   ChainGatewayProvider,
@@ -76,6 +77,7 @@ export class EvmContractService {
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
     const gateway = this.gateways.get(network, "evm");
+    let nonce: string | undefined;
     const data = gateway.encodeFunctionCall(
       input.method!,
       (input.params ?? []) as Array<{ type: string; value: unknown }>,
@@ -85,17 +87,41 @@ export class EvmContractService {
         ? "0"
         : toBaseUnits(input.callValue, FAMILIES.evm.nativeDecimals, "call value");
 
-    const outcome = await this.#run(scope, network, gateway, input, {
-      to: input.contract!,
-      data,
-      value,
-    });
+    // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a
+    // dry run of an approve exists to confirm (§6.1 names it one of only two dry-run extras).
+    const approval = await this.#approval(gateway, input);
+
+    const outcome = await this.#run(
+      scope,
+      network,
+      gateway,
+      input,
+      { to: input.contract!, data, value },
+      (_from, built) => {
+        nonce = built;
+      },
+    );
     return {
       kind: "contract-send" as const,
       ...outcomeData(outcome),
+      ...(nonce === undefined ? {} : { nonce: Number(nonce) }),
+      ...approval,
       contract: input.contract,
       method: input.method,
     };
+  }
+
+  /** §7.2's approve receipt; the shared helper does the work, this supplies the EVM specifics. */
+  async #approval(
+    gateway: EvmGateway,
+    input: EvmContractWriteInput,
+  ): Promise<Record<string, unknown>> {
+    return approveRows({
+      method: input.method,
+      params: (input.params ?? []) as Array<{ value?: unknown }>,
+      metadata: () => gateway.getErc20Metadata(input.contract!),
+      fromBaseUnits,
+    });
   }
 
   /**
@@ -107,6 +133,7 @@ export class EvmContractService {
     const gateway = this.gateways.get(network, "evm");
     const data = gateway.encodeDeploy(input.bytecode!, input.constructorArgs ?? { source: "none" });
     let contractAddress: string | undefined;
+    let nonce: string | undefined;
 
     const outcome = await this.#run(
       scope,
@@ -114,13 +141,15 @@ export class EvmContractService {
       gateway,
       input,
       { data, value: "0" },
-      (from, nonce) => {
-        contractAddress = gateway.contractAddressFor(from, nonce);
+      (from, built) => {
+        nonce = built;
+        contractAddress = gateway.contractAddressFor(from, built);
       },
     );
     return {
       kind: "contract-deploy" as const,
       ...outcomeData(outcome),
+      ...(nonce === undefined ? {} : { nonce: Number(nonce) }),
       ...(contractAddress === undefined ? {} : { contractAddress }),
     };
   }
@@ -159,10 +188,12 @@ export class EvmContractService {
           declaredFeeModel: network.feeModel,
           overrides: overridesOf(input),
         });
+        for (const warning of resolved.warnings ?? []) scope.warn(warning);
         plan = {
           feeModel: resolved.mode,
           maxCostWei: resolved.maxCostWei,
           gasLimit: resolved.gasLimit,
+          maxPerGasWei: resolved.maxFeeWei ?? resolved.gasPriceWei,
         };
         return {
           ...call,

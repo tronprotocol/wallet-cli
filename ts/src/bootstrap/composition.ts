@@ -76,7 +76,17 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const tokenBook = new TokenBook(root, store);
   const contactBook = new ContactBook(root, store);
   const recipientResolver = new RecipientResolver(contactBook);
-  const priceProvider = createPriceProvider(config.price, timeoutMs);
+  const priceProvider = createPriceProvider(
+    config.price,
+    timeoutMs,
+    // Declared per network (§2.2), never inferred from the id: a user-configured chain we know
+    // nothing about stays unpriced (null = unknown), which is not the same as worth nothing.
+    new Set(
+      Object.values(config.networks)
+        .filter((n) => n.testnet === true)
+        .map((n) => n.id),
+    ),
+  );
   const gatewayProvider = new ChainGatewayRegistry(
     familyMap((plugin) => plugin.createGateway),
     timeoutMs,

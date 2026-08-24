@@ -34,6 +34,10 @@ const FINALIZED = { number: "0x12d600" };
 function service(over: Partial<Record<string, unknown>> = {}) {
   const gateway = {
     clientVersion: async () => over.clientVersion ?? "Geth/v1.14.0",
+    chainId: async () => {
+      if (over.chainId instanceof Error) throw over.chainId;
+      return over.chainId ?? "1";
+    },
     syncing: async () => (over.syncing === undefined ? false : over.syncing),
     peerCount: async () => {
       if (over.peerCount instanceof Error) throw over.peerCount;
@@ -55,11 +59,42 @@ describe("EvmChainService.node", () => {
     const out = await service().node(net);
 
     expect(out).toMatchObject({
-      endpoint: "https://node.example",
+      // host only, never the configured URL — see the API-key test below
+      endpoint: "node.example",
       version: "Geth/v1.14.0",
       headBlock: { number: 1234567 },
       peers: { connected: 25 },
     });
+  });
+
+  /**
+   * A commercial RPC endpoint carries its API key IN THE URL, and §2.2 tells users to configure
+   * exactly that. `chain node` is the diagnostic people paste into issues and CI logs, so it
+   * reports the HOST and nothing else. `config networks.<id>.httpEndpoint` is where a full URL is
+   * handed over — a named read rather than a listing.
+   */
+  it("never echoes an endpoint's path or query, which is where API keys live", async () => {
+    const withKey = { ...net, httpEndpoint: "https://eth.example/v2/SECRET-KEY?apikey=ALSO-SECRET" };
+    const out = await service().node(withKey as NetworkDescriptor);
+
+    expect(out.endpoint).toBe("eth.example");
+    expect(JSON.stringify(out)).not.toContain("SECRET");
+  });
+
+  /**
+   * Asked of the NODE rather than read off our own descriptor: the question `chain node` answers
+   * is whether this endpoint is the chain the caller thinks it is, and our configuration is the
+   * very thing under suspicion. Every signature commits to this value (EIP-155).
+   */
+  it("reports the chain id the node itself claims", async () => {
+    expect((await service({ chainId: "11155111" }).node(net)).chainId).toBe("11155111");
+  });
+
+  it("degrades the chain id to null rather than failing the command", async () => {
+    const out = await service({ chainId: new ChainError("rpc_error", "method not found") }).node(net);
+
+    expect(out.chainId).toBeNull();
+    expect(out.headBlock).toMatchObject({ number: 1234567 });
   });
 
   it("maps the finalized block to the solid block and derives the lag", async () => {
@@ -110,15 +145,31 @@ describe("EvmChainService.prices", () => {
     return svc.prices({ ...net, ...(declared ? { feeModel: declared } : {}) } as NetworkDescriptor);
   }
 
-  it("reports the 1559 fee fields on a chain with a base fee", async () => {
+  /**
+   * §9.3: `gasPriceWei` is base + tip — the price a transaction actually pays — NOT the node's
+   * `eth_gasPrice` suggestion. Printing that beside the two components gave three numbers that
+   * did not add up (here: 155,353,216 vs the true 155,415,168).
+   */
+  it("reports the 1559 fee fields, with the gas price as base + tip", async () => {
     await expect(
       priced({ baseFeeWei: "155315168", gasPriceWei: "155353216", suggestedPriorityWei: "100000" }),
     ).resolves.toEqual({
       feeModel: "eip1559",
       baseFeeWei: "155315168",
       priorityFeeWei: "100000",
-      gasPriceWei: "155353216",
+      gasPriceWei: "155415168",
+      transferGas: 21000,
+      // and what that price means in money: 21,000 gas is the protocol's fixed transfer cost.
+      transferCostWei: String(155415168n * 21000n),
     });
+  });
+
+  // A unit price does not tell most readers whether gas is expensive; a transfer's cost does.
+  it("translates the gas price into what a plain transfer costs, on legacy too", async () => {
+    const out = await priced({ gasPriceWei: "3000000000" });
+
+    expect(out.transferGas).toBe(21000);
+    expect(out.transferCostWei).toBe(String(3000000000n * 21000n));
   });
 
   // BSC: base fee zero is still EIP-1559, and the reported model must say so.

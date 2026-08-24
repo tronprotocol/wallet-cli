@@ -156,3 +156,43 @@ describe("gweiToWei", () => {
     expect(() => gweiToWei("fast")).toThrow();
   });
 });
+
+/**
+ * The two ways a fee plan can be quietly wrong.
+ *
+ * Both produce a signable transaction, and neither raises an error anywhere downstream: the node
+ * accepts what it is given, and the transaction simply never gets mined — or gets mined paying a
+ * tip the caller did not choose. An error would be wrong (the caller may mean it); silence was
+ * worse.
+ */
+describe("planEvmFee — warnings", () => {
+  const chain = { baseFeeWei: "1000000000", gasPriceWei: "1100000000", suggestedPriorityWei: "1000000", gasLimit: "21000" };
+
+  it("says so when the suggested tip had to be cut down to the fee cap", () => {
+    const plan = planEvmFee({ ...chain, overrides: { maxFeeWei: "500000" } });
+
+    expect(plan.priorityFeeWei).toBe("500000");
+    expect(plan.warnings?.join(" ")).toMatch(/tip was reduced/);
+  });
+
+  it("says so when the fee cap is below the base fee, so it cannot be included", () => {
+    const plan = planEvmFee({ ...chain, overrides: { maxFeeWei: "500000" } });
+
+    expect(plan.warnings?.join(" ")).toMatch(/cannot be included until the base fee falls/);
+  });
+
+  // An explicit tip is the caller's decision, not something to report back at them.
+  it("does not warn about a tip the caller chose", () => {
+    const plan = planEvmFee({
+      ...chain,
+      overrides: { maxFeeWei: "3000000000", priorityFeeWei: "2000000" },
+    });
+
+    expect(plan.warnings).toBeUndefined();
+  });
+
+  it("stays silent on an ordinary plan", () => {
+    expect(planEvmFee(chain).warnings).toBeUndefined();
+  });
+});
+

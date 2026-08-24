@@ -540,15 +540,41 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async getTrc20Balance(contract: string, address: string): Promise<string> {
     return this.#wrap("trc20 balanceOf", async () => {
-      const [hex] = await this.#constant(contract, "balanceOf(address)", [
-        { type: "address", value: address },
-      ]);
+      const [hex] = await this.#notAToken(contract, "balanceOf", () =>
+        this.#constant(contract, "balanceOf(address)", [{ type: "address", value: address }]),
+      );
       return hex ? BigInt("0x" + hex).toString() : "0";
     });
   }
 
+  /**
+   * Re-label the two node answers that mean "there is no token here", leaving every other failure
+   * alone.
+   *
+   * This is classification, not swallowing — the distinction the getTokenInfo comment below is
+   * about. A node outage, a timeout, a malformed response all still surface as themselves; only
+   * "no contract at this address" and a reverted view call become token_metadata_unavailable,
+   * which is the same code the EVM side reports for the same two situations. Without this, asking
+   * about a non-token answered `rpc_error`, which reads as "the network is broken".
+   */
+  async #notAToken<T>(contract: string, method: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (e) {
+      const message = (e as Error).message ?? "";
+      if (/smart contract is not exist|revert opcode executed/i.test(message)) {
+        throw new ChainError(
+          "token_metadata_unavailable",
+          `${contract} did not answer ${method} — it may not be a token contract`,
+        );
+      }
+      throw e;
+    }
+  }
+
   async getTokenInfo(contract: string): Promise<TronTokenInfo> {
-    return this.#wrap("trc20 tokenInfo", async () => {
+    return this.#wrap("trc20 tokenInfo", async () =>
+      this.#notAToken(contract, "the TRC-20 view methods", async () => {
       // Read the view methods by selector rather than via contract().at(): tokens deployed without a
       // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
       //
@@ -573,7 +599,8 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         decimals: scale !== undefined && scale <= 255n ? Number(scale) : undefined,
         totalSupply: decodeAbiUint(totalSupply)?.toString(),
       };
-    });
+      }),
+    );
   }
 
   async getTrc10Balance(assetId: string, address: string): Promise<string> {

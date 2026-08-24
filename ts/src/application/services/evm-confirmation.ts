@@ -31,6 +31,9 @@ export function evmConfirmation(
           ...(receipt.blockNumber === undefined ? {} : { blockNumber: receipt.blockNumber }),
           ...(receipt.gasUsed === undefined ? {} : { gasUsed: receipt.gasUsed }),
           ...(receipt.feeWei === undefined ? {} : { feeWei: receipt.feeWei }),
+          ...(receipt.effectiveGasPriceWei === undefined
+            ? {}
+            : { effectiveGasPriceWei: receipt.effectiveGasPriceWei }),
           ...(receipt.contractAddress === undefined
             ? {}
             : { contractAddress: receipt.contractAddress }),

@@ -451,3 +451,46 @@ describe("keystore export follows the selected network's family", () => {
     expect(exported("evm").address).toMatch(/^0x[0-9a-fA-F]{40}$/);
   });
 });
+
+/**
+ * The audit log answers "which key left this machine". A seed account holds a different key per
+ * family (§1.2), so filing an EVM export under the account's TRON address names the wrong key —
+ * and the log's only job is to name the right one.
+ */
+describe("WalletService.backupKeystore — what the audit log records", () => {
+  it("files a keystore export under the exported family's address", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const account = h.keystore.describe(accountId);
+
+    h.service.backupKeystore(accountId, undefined, PW, "evm");
+    h.service.backupKeystore(accountId, undefined, PW, "tron");
+
+    const [tron, evm] = h.store.list(); // newest first
+    expect(evm).toMatchObject({ family: "evm", account: account.addresses.evm });
+    expect(tron).toMatchObject({ family: "tron", account: account.addresses.tron });
+    expect(evm!.account).not.toBe(tron!.account);
+  });
+
+  // A mnemonic is every family's key at once, so naming one would claim less than what left.
+  it("records no family for a native backup", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    h.service.backup(accountId, undefined);
+
+    expect(h.store.list()[0]).not.toHaveProperty("family");
+  });
+
+  // Filtering used to compare the TRON address alone, which hid an account's own EVM exports.
+  it("finds an EVM export when filtering by that account", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    h.service.backupKeystore(accountId, undefined, PW, "evm");
+
+    const { records } = h.service.backupRecords({ account: accountId });
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ family: "evm" });
+  });
+});
+

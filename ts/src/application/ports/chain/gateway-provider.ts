@@ -24,6 +24,8 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   /** the node's block object verbatim (hex quantities, seconds); null when absent.
    *  Takes a decimal height or a block tag ("latest", "finalized", "safe"). */
   getBlock(numberOrTag?: string): Promise<unknown>;
+  /** the chain id as the node reports it, decimal. */
+  chainId(): Promise<string>;
   /** false when synced, else the node's progress object. */
   syncing(): Promise<unknown>;
   /** connected peers; hosted endpoints commonly refuse this call. */

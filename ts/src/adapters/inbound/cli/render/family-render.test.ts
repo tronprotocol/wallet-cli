@@ -137,11 +137,22 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH");
 
     expect(rows).toContainEqual(["Nonce", "16"]);
+    // json says `eoa` — a field value; the text row is the sentence version of the same fact.
     expect(rows).toContainEqual(["Type", "externally owned"]);
-    expect(FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, isContract: true }, "ETH")).toContainEqual([
-      "Type",
-      "contract",
-    ]);
+    expect(
+      FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, type: "contract" }, "ETH"),
+    ).toContainEqual(["Type", "contract"]);
+  });
+
+  // §4.3 gives a contract its code size and an EOA none: an EOA is not a contract with zero
+  // bytes, and a row reading "0 bytes" would say it is.
+  it("sizes a contract's code and leaves the row off an EOA", () => {
+    expect(
+      FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, type: "contract", codeSize: 3124 }, "ETH"),
+    ).toContainEqual(["Code size", "3,124 bytes"]);
+    expect(FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH").map((r) => r[0])).not.toContain(
+      "Code size",
+    );
   });
 
   it("never shows EVM a permission or resource row", () => {
@@ -219,3 +230,109 @@ describe("FAMILY_RENDER chainPricesRows", () => {
     expect(rows).toContainEqual(["Memo fee", "1 TRX"]);
   });
 });
+
+/**
+ * The rows this release was missing: what a transaction cost, how deep it is, and what a block or
+ * a node actually reports. All four were in the JSON already — only the text layer read TRON's
+ * fields and so printed nothing (or nothing useful) on EVM.
+ */
+describe("FAMILY_RENDER — receipt settlement rows", () => {
+  it("states the EVM fee AND what it is the product of", () => {
+    const rows = FAMILY_RENDER.evm.receiptSettlementRows(
+      { kind: "send", feeWei: "441000000000000", gasUsed: 21000, effectiveGasPriceWei: "21000000000" } as never,
+      "ETH",
+    );
+
+    expect(rows).toEqual([["Fee", "0.000441 ETH  (21,000 gas × 21 gwei)"]]);
+  });
+
+  // A receipt from a node that omitted effectiveGasPrice still has to state the total: the fee was
+  // paid whether or not its breakdown came back.
+  it("falls back to the bare total when the breakdown is missing", () => {
+    const rows = FAMILY_RENDER.evm.receiptSettlementRows(
+      { kind: "send", feeWei: "441000000000000" } as never,
+      "ETH",
+    );
+
+    expect(rows).toEqual([["Fee", "0.000441 ETH"]]);
+  });
+
+  it("keeps TRON's energy + SUN fee pair unchanged", () => {
+    const rows = FAMILY_RENDER.tron.receiptSettlementRows(
+      { kind: "send", energyUsed: 345, feeSun: "1100000" } as never,
+      "TRX",
+    );
+
+    expect(rows).toEqual([
+      ["Energy", "345"],
+      ["Fee", "1.1 TRX"],
+    ]);
+  });
+
+  // §4.3 calls the nonce the entry point for diagnosing a stuck transaction — the case where no
+  // receipt ever arrives — so it is a receipt row, not a confirmation one.
+  it("gives EVM receipts a Nonce row and TRON none", () => {
+    expect(FAMILY_RENDER.evm.receiptIdentityRows({ kind: "send", nonce: 42 } as never)).toEqual([
+      ["Nonce", "42"],
+    ]);
+    expect(FAMILY_RENDER.tron.receiptIdentityRows({ kind: "send" } as never)).toEqual([]);
+  });
+});
+
+describe("FAMILY_RENDER — chain node rows", () => {
+  const EVM_NODE = {
+    endpoint: "node.example",
+    version: "Geth/v1.14.0",
+    chainId: "11155111",
+    headBlock: { number: 11204149, timestamp: 1722925264000 },
+    solidBlock: { number: 11204100 },
+    lagBlocks: 49,
+    inSync: true,
+    peers: null,
+  };
+
+  it("reports the node's chain id and sync state on EVM", () => {
+    const rows = FAMILY_RENDER.evm.chainNodeRows(EVM_NODE as never);
+    const labels = rows.map((r) => r[0]);
+
+    expect(rows).toContainEqual(["Chain id", "11155111"]);
+    expect(rows).toContainEqual(["Syncing", "no"]);
+    expect(labels).toEqual([
+      "Endpoint",
+      "Version",
+      "Chain id",
+      "Head block",
+      "Solid block",
+      "Syncing",
+      "Peers",
+    ]);
+  });
+
+  // "the node would not say" is not the same claim as "it is behind".
+  it("dashes the sync row when the node did not answer eth_syncing", () => {
+    const rows = FAMILY_RENDER.evm.chainNodeRows({ ...EVM_NODE, inSync: null } as never);
+    expect(rows).toContainEqual(["Syncing", "—"]);
+  });
+
+  it("leaves TRON's node rows exactly as they were", () => {
+    const rows = FAMILY_RENDER.tron.chainNodeRows({
+      endpoint: "nile.trongrid.io",
+      version: "java-tron 4.7.7",
+      headBlock: { number: 84120345, timestamp: 1722925264000 },
+      solidBlock: { number: 84120326 },
+      lagBlocks: 19,
+      inSync: true,
+      peers: { connected: 30, active: 27 },
+    } as never);
+
+    expect(rows.map((r) => r[0])).toEqual([
+      "Endpoint",
+      "Version",
+      "Head block",
+      "Solid block",
+      "Peers",
+    ]);
+    expect(rows).toContainEqual(["Peers", "30 connected / 27 active"]);
+  });
+});
+

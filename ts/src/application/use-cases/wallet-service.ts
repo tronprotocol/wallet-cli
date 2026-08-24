@@ -1,6 +1,12 @@
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Derivation } from "../../domain/derivation/index.js";
-import { CHAIN_FAMILIES, familyOf, type ChainFamily } from "../../domain/family/index.js";
+import {
+  CHAIN_FAMILIES,
+  canonicalAddress,
+  familyOf,
+  type ChainFamily,
+} from "../../domain/family/index.js";
+import { resembledFamily } from "../../domain/contact/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { TronAddress, evmAddressFromPublicKey, tronHexAddress } from "../../domain/address/index.js";
@@ -19,7 +25,9 @@ const notExportable = (type: string) =>
 
 /** A keystore file is single-key and TRON-shaped: its `address` is the TRON form, and an HD account
  *  exports the key at its own TRON derivation path. (EVM lands as its own export when it lands.) */
-const KEYSTORE_FAMILY: ChainFamily = "tron";
+/** the address a record is filed under when the export covered EVERY family (native backup):
+ *  one stable identity is needed, and TRON's is the one this log has always used. */
+const RECORD_IDENTITY_FAMILY: ChainFamily = "tron";
 
 export interface BackupRecordQuery {
   /** inclusive bounds as UTC ISO-8601 instants; parsed and validated by the caller. */
@@ -60,9 +68,14 @@ export class WalletService {
   }
 
   importWatch(addressInput: string, label?: string) {
-    const address = addressInput.trim();
-    const family = familyOf(address);
-    if (!family) throw new UsageError("invalid_value", `unrecognised address format: ${address}`);
+    const input = addressInput.trim();
+    const family = familyOf(input);
+    if (!family) {
+      throw new UsageError("invalid_address", addressRejection(input));
+    }
+    // Stored in the spelling it will be printed in (§1.3), so this account never displays
+    // differently from the same address reached through any other command.
+    const address = canonicalAddress(input);
     const result = this.wallets.registerWatch({ family, address, label });
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }
@@ -173,6 +186,7 @@ export class WalletService {
     }
 
     const file = this.backups.write(descriptor.accountId, requestedPath, payload, "native");
+    // No family: a mnemonic — and equally a raw private key — is every family's key at once.
     this.#recordExport("backup", descriptor, file.out);
     return { ...descriptor, secretType, format: "native" as const, ...file };
   }
@@ -203,7 +217,7 @@ export class WalletService {
       KeystoreV3.encrypt(privateKey, masterPassword, keystoreAddress(family, privateKey)),
       "keystore",
     );
-    this.#recordExport("backup --keystore", descriptor, file.out);
+    this.#recordExport("backup --keystore", descriptor, file.out, family);
     return {
       ...descriptor,
       family,
@@ -247,10 +261,13 @@ export class WalletService {
       if (query.to !== undefined && r.timestamp > query.to) return false;
       // Records are snapshots, so an account is matched by either identity it was logged under —
       // a since-renamed account still matches on accountId, a re-imported one on its address.
+      // Any of the target's addresses, not just its TRON one: a keystore export is filed under
+      // the family it exported, so filtering on one family would hide the other family's exports
+      // of the very account being asked about.
       if (
         target &&
         r.accountId !== target.accountId &&
-        r.account !== target.addresses[KEYSTORE_FAMILY]
+        !CHAIN_FAMILIES.some((f) => target.addresses[f] !== undefined && r.account === target.addresses[f])
       )
         return false;
       return true;
@@ -300,9 +317,10 @@ export class WalletService {
       addresses: Partial<Record<ChainFamily, string>>;
     },
     out: string,
+    family?: ChainFamily,
   ) {
     try {
-      this.#appendExport(operation, descriptor, out);
+      this.#appendExport(operation, descriptor, out, family);
     } catch (error) {
       throw new ExecutionError(
         "audit_append_failed",
@@ -320,11 +338,20 @@ export class WalletService {
       addresses: Partial<Record<ChainFamily, string>>;
     },
     out: string,
+    family?: ChainFamily,
   ) {
+    // The address of the key that actually left. Falling back to the identity family covers a
+    // native backup (every family at once) and a single-family account that has no TRON address.
+    const address =
+      (family === undefined ? undefined : descriptor.addresses[family]) ??
+      descriptor.addresses[RECORD_IDENTITY_FAMILY] ??
+      CHAIN_FAMILIES.map((f) => descriptor.addresses[f]).find((a) => a !== undefined) ??
+      "";
     this.backupRecordStore.append({
       operation,
       accountId: descriptor.accountId,
-      account: descriptor.addresses[KEYSTORE_FAMILY] ?? "",
+      account: address,
+      ...(family === undefined ? {} : { family }),
       label: descriptor.label ?? null,
       out,
       timestamp: new Date(this.now()).toISOString().replace(/\.\d{3}Z$/, "Z"),
@@ -351,3 +378,18 @@ function keystoreAddress(family: ChainFamily, privateKey: Bytes): string {
     ? tronHexAddress(new TronAddress().fromPublicKey(publicKey))
     : evmAddressFromPublicKey(publicKey);
 }
+
+/**
+ * Why a value was not accepted as an address, in the terms the user can act on.
+ *
+ * "Unrecognised format" leaves someone who mistyped one character of an otherwise perfect address
+ * hunting for the wrong thing. A value that is SHAPED like an address failed its checksum or its
+ * length; one that is not shaped like any address is a different mistake entirely.
+ */
+function addressRejection(value: string): string {
+  const resembles = resembledFamily(value);
+  return resembles
+    ? `${value} looks like a ${resembles} address but its length or checksum is wrong`
+    : `unrecognised address format: ${value}`;
+}
+

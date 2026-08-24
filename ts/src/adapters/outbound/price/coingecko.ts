@@ -10,36 +10,32 @@ export class CoinGeckoPriceProvider implements PriceProvider {
   /**
    * CoinGecko native coin ids.
    *
-   * A testnet inherits its mainnet's price, in every family: TRON does so through the `tron:`
-   * prefix, and each EVM testnet is listed EXPLICITLY beside its mainnet. The explicit listing is
-   * the point — a bare `evm:` prefix would price every EVM chain as Ethereum, so an unlisted
-   * chain like Gnosis (`evm:100`) would be valued in ETH, which is a claim about money that
-   * nobody made. An unknown chain is worth `null`, not a guess.
+   * MAINNETS ONLY. Test networks never reach this map — they are answered as zero before the
+   * lookup (see TestnetZeroPriceProvider), because their coins are not traded.
    *
-   * The cost of this rule is that testnet coins are valued as if they were real. That is a
-   * deliberate ruling for consistency with the TRON side, which has always behaved this way.
+   * Each chain is listed EXPLICITLY: a bare `evm:` prefix would price every EVM chain as
+   * Ethereum, so an unlisted chain like Gnosis (`evm:100`) would be valued in ETH — a claim
+   * about money that nobody made. An unknown chain is worth `null`, not a guess.
+   *
+   * `tron:` keeps its prefix form because TRON's mainnet id is `tron:mainnet`; its testnets are
+   * likewise intercepted before they arrive here.
    */
   static readonly #NATIVE_IDS: Record<string, string> = {
     "tron:": "tron",
     "evm:1": "ethereum",
-    "evm:11155111": "ethereum", // Sepolia
     "evm:56": "binancecoin",
-    "evm:97": "binancecoin", // BSC testnet
   };
   /**
    * CoinGecko asset-platform slugs for token_price lookups; same keying rule as above.
    *
-   * A testnet contract is looked up against its MAINNET platform, which is usually a miss and so
-   * usually null. It is not guaranteed to be: deterministic deployment can place the same address
-   * on both chains, in which case a testnet token would take a mainnet token's price. TRON has
-   * always had this exposure through its prefix; the EVM entries now share it.
+   * Mainnets only, for the same reason as above — which also closes a real exposure: a testnet
+   * contract used to be looked up against its MAINNET platform, and deterministic deployment can
+   * put the same address on both chains, so a testnet token could take a real token's price.
    */
   static readonly #PLATFORMS: Record<string, string> = {
     "tron:": "tron",
     "evm:1": "ethereum",
-    "evm:11155111": "ethereum",
     "evm:56": "binance-smart-chain",
-    "evm:97": "binance-smart-chain",
   };
 
   constructor(

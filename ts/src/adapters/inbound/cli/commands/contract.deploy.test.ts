@@ -4,6 +4,7 @@ import {
   contractDeploySpec,
   contractDeployTronBinding,
   contractSendEvmBinding,
+  contractSendSpec,
 } from "./contract.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
 
@@ -229,9 +230,16 @@ describe("contract deploy — EVM flag surface", () => {
     expect(keys).toEqual(expect.arrayContaining(["gasLimit", "maxFee", "priorityFee", "nonce"]));
   });
 
-  it("keeps --call-value on contract send, which does apply it", () => {
-    expect(Object.keys(contractSendEvmBinding({} as never).fields?.shape ?? {})).toContain(
+  /**
+   * The call value moved to the SHARED spec as `--value` (§7.2, 2026-08-24 ruling): the concept
+   * is the same on every chain, so it is one flag with one unit rather than a per-family name.
+   * `contract deploy` still offers none — its value is always zero.
+   */
+  it("takes its call value from the shared --value, not a family flag", () => {
+    expect(Object.keys(contractSendEvmBinding({} as never).fields?.shape ?? {})).not.toContain(
       "callValue",
     );
+    expect(Object.keys(contractSendSpec.baseFields?.shape ?? {})).toContain("value");
+    expect(Object.keys(contractDeploySpec.baseFields?.shape ?? {})).not.toContain("value");
   });
 });

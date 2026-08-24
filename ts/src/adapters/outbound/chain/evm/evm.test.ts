@@ -458,6 +458,96 @@ describe("EvmRpcClient.estimateGas", () => {
  * blacklist test (`result === false`) never fired against error responses that simply omit the
  * field, and every rejected transaction was reported as submitted.
  */
+/**
+ * "There is no token here" has two shapes on EVM: an address with no code answers empty, and a
+ * contract without balanceOf reverts. Both are the same answer to a caller, and the reverting one
+ * used to surface as rpc_error — which reads as a broken network rather than a wrong address.
+ */
+describe("EvmRpcClient.getErc20Balance", () => {
+  const client = () => new EvmRpcClient("https://node.example", 5_000);
+  const OWNER = ADDR;
+
+  function stubCall(body: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, text: async () => JSON.stringify({ id: 1, ...(body as object) }) })),
+    );
+  }
+
+  it("returns the decoded balance", async () => {
+    stubCall({ result: `0x${(1234n).toString(16).padStart(64, "0")}` });
+
+    await expect(client().getErc20Balance(TOKEN, OWNER)).resolves.toBe("1234");
+  });
+
+  it("reports an address with no code as not a token", async () => {
+    stubCall({ result: "0x" });
+
+    await expect(client().getErc20Balance(TOKEN, OWNER)).rejects.toMatchObject({
+      code: "token_metadata_unavailable",
+    });
+  });
+
+  it("reports a reverting contract the same way, not as an rpc fault", async () => {
+    stubCall({ error: { code: -32000, message: "execution reverted" } });
+
+    await expect(client().getErc20Balance(TOKEN, OWNER)).rejects.toMatchObject({
+      code: "token_metadata_unavailable",
+    });
+  });
+
+  // The line the classification must not cross: a node that cannot be reached is still a node
+  // that cannot be reached.
+  it("leaves a transport failure as rpc_error", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("connect ECONNREFUSED"); }));
+
+    await expect(client().getErc20Balance(TOKEN, OWNER)).rejects.toMatchObject({
+      code: "rpc_error",
+    });
+  });
+});
+
+/**
+ * Metadata reads have the same line to hold as the balance read: a contract that does not
+ * implement a view answers `undefined`, but a node that cannot be reached is a node that cannot
+ * be reached. Catching both would report an outage as "this token has no metadata" — and the
+ * caller, seeing an empty result, would go on to say the address is not a token.
+ */
+describe("EvmRpcClient.getErc20Metadata", () => {
+  const client = () => new EvmRpcClient("https://node.example", 5_000);
+
+  it("returns the fields the contract answers", async () => {
+    // symbol/name are dynamic strings; decimals is a word. Encoded as ethers would return them.
+    const str = (v: string) => {
+      const hex = Buffer.from(v, "utf8").toString("hex");
+      return ("0x" + (32n).toString(16).padStart(64, "0") + BigInt(v.length).toString(16).padStart(64, "0") + hex.padEnd(64, "0"));
+    };
+    const answers = [str("USDC"), "0x" + (6n).toString(16).padStart(64, "0"), str("USD Coin")];
+    let i = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ id: 1, result: answers[i++] }),
+    })));
+
+    await expect(client().getErc20Metadata(TOKEN)).resolves.toMatchObject({ symbol: "USDC", decimals: 6 });
+  });
+
+  it("returns nothing for a contract that implements none of them", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      text: async () => JSON.stringify({ id: 1, error: { code: -32000, message: "execution reverted" } }),
+    })));
+
+    await expect(client().getErc20Metadata(TOKEN)).resolves.toEqual({});
+  });
+
+  it("propagates a transport failure instead of reporting absent metadata", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("connect ECONNREFUSED"); }));
+
+    await expect(client().getErc20Metadata(TOKEN)).rejects.toMatchObject({ code: "rpc_error" });
+  });
+});
+
 describe("EvmRpcClient.sendRawTransaction", () => {
   const RAW = "0x02f8b1";
   const HASH = `0x${"ab".repeat(32)}`;

@@ -111,6 +111,8 @@ export const accountBalanceSpec: ChainSpec = {
   auth: "none",
   capability: "account.balance.native",
   summary: "Show the native coin balance",
+  // Which coin, and how much of it, depend entirely on the selected network (§4.1).
+  description: "Show the native coin balance for the selected network",
   baseFields: z.object({}),
   examples: [
     { cmd: "wallet-cli account balance --network nile" },
@@ -131,6 +133,12 @@ export const accountInfoSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   summary: "Show the account's on-chain state",
+  // §4.3: the field SETS differ by family — not the same fields with different values — so the
+  // help says which fields to expect rather than leaving the reader to discover it.
+  description:
+    "Show the account's on-chain state for the selected network. Fields differ by\n" +
+    "family: TRON reports staked amounts, resources and permissions; EVM reports the\n" +
+    "transaction nonce and whether the address holds code.",
   baseFields: z.object({}),
   examples: [
     { cmd: "wallet-cli account info --network nile" },

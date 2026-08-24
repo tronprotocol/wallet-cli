@@ -19,7 +19,9 @@ export class RecipientResolver {
     const value = input.trim();
 
     if (addressCodec(family).validate(value)) {
-      return { address: value };
+      // Canonical (§1.3): what goes into the transaction is what the receipt will show, so a
+      // lowercase paste does not come back looking like a different recipient.
+      return { address: addressCodec(family).canonical(value) };
     }
 
     // The family the value LOOKS like — by shape, so a mistyped address still names its own
@@ -38,7 +40,7 @@ export class RecipientResolver {
         );
       }
       throw new UsageError(
-        "invalid_value",
+        "invalid_address",
         `recipient resembles a ${family} address but has an invalid length or checksum`,
       );
     }
@@ -58,6 +60,32 @@ export class RecipientResolver {
         `contact ${elsewhere.name} holds the address ${elsewhere.address}, which the selected network cannot pay`,
       );
     }
-    throw new UsageError("contact_not_found", `contact not found: ${value}`);
+    // Neither an address nor a name in the book. WHICH of the two the user meant is knowable only
+    // from how the value starts: `--to` takes either, so an answer that names just one of them
+    // sends half the callers looking in the wrong place. A value that opens like an address is
+    // reported as a failed address (and still mentions the book); anything else is reported as a
+    // failed name (and still mentions addresses).
+    if (looksLikeAddressAttempt(value)) {
+      throw new UsageError(
+        "invalid_address",
+        `${value} is not a valid ${family} address, and no contact is named that either`,
+      );
+    }
+    throw new UsageError(
+      "contact_not_found",
+      `no contact named ${value}, and it is not an address either`,
+    );
   }
 }
+
+/**
+ * Did the caller mean this to be an address?
+ *
+ * Not "is it a valid address" (that is settled above) and not "is it address-SHAPED" (a near-miss,
+ * also settled above) — this is the weaker question of whether it OPENS like one. `0xnotanaddress`
+ * is neither valid nor shaped, but nobody types `0x` while reaching for a contact name.
+ */
+function looksLikeAddressAttempt(value: string): boolean {
+  return /^0x/i.test(value) || /^T[1-9A-HJ-NP-Za-km-z]{10,}$/.test(value);
+}
+

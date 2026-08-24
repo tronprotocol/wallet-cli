@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  EvmAddress,
   TronAddress,
   evmAddressFromPublicKey,
   evmChecksumAddress,
@@ -94,3 +95,38 @@ describe("evmAddressFromPublicKey", () => {
     expect(reEncoded).toBe(evmAddressFromPublicKey(pub));
   });
 });
+
+/**
+ * §1.3 accepts more spellings than it prints: an all-lower or all-upper EVM address offers no
+ * checksum to verify, so it is valid input — but everything this CLI stores and shows is EIP-55.
+ * Without the normalising step the same address appears in two spellings depending on which
+ * command wrote it, and a user comparing them concludes they are different addresses.
+ */
+describe("AddressCodec.canonical", () => {
+  const codec = new EvmAddress();
+  const CHECKSUMMED = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+
+  it("checksums an all-lowercase EVM address", () => {
+    expect(codec.canonical(CHECKSUMMED.toLowerCase())).toBe(CHECKSUMMED);
+  });
+
+  it("checksums an all-uppercase EVM address", () => {
+    expect(codec.canonical(`0x${CHECKSUMMED.slice(2).toUpperCase()}`)).toBe(CHECKSUMMED);
+  });
+
+  it("leaves an already-checksummed address untouched", () => {
+    expect(codec.canonical(CHECKSUMMED)).toBe(CHECKSUMMED);
+  });
+
+  // Not this function's job to decide a non-address is wrong: callers hand it labels and refs too.
+  it("passes a value that is not an address through unchanged", () => {
+    expect(codec.canonical("not-an-address")).toBe("not-an-address");
+  });
+
+  // Base58Check fixes every character of a TRON address, so there is only ever one spelling.
+  it("is the identity for TRON", () => {
+    const tron = "TBhCfAytweLuLLL2gr8xxxxxxxxxxxxxxx";
+    expect(new TronAddress().canonical(tron)).toBe(tron);
+  });
+});
+

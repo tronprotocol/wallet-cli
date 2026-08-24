@@ -489,7 +489,12 @@ function assertKnownFlags(
   };
   for (const k of Object.keys(GLOBAL_OPTS)) add(k);
   for (const f of GLOBAL_FLAG_SPECS) if (f.alias) allowed.add(f.alias); // -o / -v short aliases
-  for (const p of cmd.path) add(p);
+  // The command's OWN path segments are deliberately not allowed. Adding them made `--token` a
+  // silently accepted no-op on `token balance`, `--contract` one on `contract deploy`, `--watch`
+  // one on `import watch` — a flag the command does not have, ignored instead of refused, which is
+  // the failure mode this whole function exists to prevent. yargs delivers the path in `_` (and,
+  // for grouped commands, in the `group`/`verb`/`source` keys already allowed above), so nothing
+  // needs them here.
   // Positional fields are deliberately absent: they arrive in `args` and are bound to their field
   // AFTER this check, so a field name present here can only be a `--field` the user typed — which
   // this command does not accept (see CommandDefinition.positionals). A positional named after a

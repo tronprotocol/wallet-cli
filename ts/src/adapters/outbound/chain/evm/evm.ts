@@ -113,6 +113,12 @@ export class EvmRpcClient implements EvmGateway {
     };
   }
 
+  /** the chain id the NODE reports, as a decimal string. Asked rather than assumed: this is what
+   *  `chain node` is for — confirming the endpoint is the chain you think it is. */
+  async chainId(): Promise<string> {
+    return toDecimalString(await this.#call("eth_chainId", []));
+  }
+
   /** the node's gas estimate for a transaction, as a decimal string. */
   async estimateGas(tx: Record<string, unknown>): Promise<string> {
     return toDecimalString(await this.#call("eth_estimateGas", [toRpcQuantities(tx)]));
@@ -172,6 +178,9 @@ export class EvmRpcClient implements EvmGateway {
       ...(gasUsed !== undefined && price !== undefined
         ? { feeWei: (gasUsed * price).toString(10) }
         : {}),
+      // The two numbers feeWei is the product of. A receipt that states only the total leaves the
+      // reader unable to tell an expensive call from a cheap one at a high gas price.
+      ...(price === undefined ? {} : { effectiveGasPriceWei: price.toString(10) }),
       ...(r.blockNumber === undefined ? {} : { blockNumber: Number(BigInt(String(r.blockNumber))) }),
       ...(r.contractAddress === undefined || r.contractAddress === null
         ? {}
@@ -349,13 +358,35 @@ export class EvmRpcClient implements EvmGateway {
     return this.call(contract, data);
   }
 
-  /** a read-only contract call; `data` and the result are both DATA, so both stay hex. */
+  /**
+   * A read-only contract call; `data` and the result are both DATA, so both stay hex.
+   *
+   * A revert is the CONTRACT's answer, not a transport failure, so it gets its own code
+   * (§11 `execution_reverted`) carrying whatever reason the node decoded. `rpc_error` here would
+   * read as "the network is broken" for what is in fact a definite reply.
+   */
   async call(to: string, data: string): Promise<string> {
-    return toData(await this.#call("eth_call", [{ to, data }, "latest"]));
+    try {
+      return toData(await this.#call("eth_call", [{ to, data }, "latest"]));
+    } catch (e) {
+      const message = (e as Error).message ?? "";
+      if (isNotAContractAnswer(message)) {
+        throw new ChainError("execution_reverted", message, { contract: to });
+      }
+      throw e;
+    }
   }
 
   async getErc20Balance(contract: string, owner: string): Promise<string> {
-    const raw = await this.call(contract, ERC20.encodeFunctionData("balanceOf", [owner]));
+    // Two shapes of "there is no token here": an address with no code answers empty, and a
+    // contract without balanceOf reverts. Both are the same answer to the caller, and both must
+    // read as such — a revert surfacing as rpc_error says "the network is broken" instead.
+    const raw = await this.call(contract, ERC20.encodeFunctionData("balanceOf", [owner])).catch(
+      (e: unknown) => {
+        if (isNotAContractAnswer((e as Error).message ?? "")) return "0x";
+        throw e;
+      },
+    );
     // An address with no code returns empty rather than reverting, so "0x" here means "this is
     // not a token contract", not "the balance is zero".
     if (raw === "0x" || raw === "") {
@@ -368,10 +399,32 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   /**
+   * A view call whose absence is an answer: `undefined` means "this contract does not implement
+   * it" — an empty return (no code at the address) or a revert. Anything else is rethrown.
+   *
+   * The distinction is the whole point. Catching every failure would turn an unreachable node
+   * into "this token has no metadata", and a caller cannot tell that from a real answer, so it
+   * escalates a network outage into a claim about the contract.
+   */
+  async #viewCall(contract: string, data: string): Promise<string | undefined> {
+    let raw: string;
+    try {
+      raw = await this.call(contract, data);
+    } catch (e) {
+      if (isNotAContractAnswer((e as Error).message ?? "")) return undefined;
+      throw e;
+    }
+    return raw === "0x" || raw === "" ? undefined : raw;
+  }
+
+  /**
    * Best-effort ERC-20 metadata. Each field is read independently and a field the contract does
    * not answer comes back undefined — never defaulted. `decimals` in particular scales every
    * human-entered amount, so inventing 18 for a contract that stayed silent would quietly
    * misprice transfers; the caller decides what to do about the gap.
+   *
+   * "Best-effort" covers what the CONTRACT did not answer, never what the NODE did not deliver:
+   * a transport failure propagates.
    */
   async getErc20Metadata(
     contract: string,
@@ -390,13 +443,8 @@ export class EvmRpcClient implements EvmGateway {
 
   /** `symbol()`/`name()` as string, falling back to the bytes32 form early tokens (MKR) use. */
   async #text(contract: string, fn: "symbol" | "name"): Promise<string | undefined> {
-    let raw: string;
-    try {
-      raw = await this.call(contract, ERC20.encodeFunctionData(fn, []));
-    } catch {
-      return undefined;
-    }
-    if (raw === "0x" || raw === "") return undefined;
+    const raw = await this.#viewCall(contract, ERC20.encodeFunctionData(fn, []));
+    if (raw === undefined) return undefined;
     try {
       return ERC20.decodeFunctionResult(fn, raw)[0] as string;
     } catch {
@@ -409,11 +457,12 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   async #decimals(contract: string): Promise<number | undefined> {
+    const raw = await this.#viewCall(contract, ERC20.encodeFunctionData("decimals", []));
+    if (raw === undefined) return undefined;
     try {
-      const raw = await this.call(contract, ERC20.encodeFunctionData("decimals", []));
-      if (raw === "0x" || raw === "") return undefined;
       return Number(ERC20.decodeFunctionResult("decimals", raw)[0]);
     } catch {
+      // A value that is not a uint8 is the contract answering something else, not a node fault.
       return undefined;
     }
   }
@@ -440,6 +489,15 @@ export class EvmRpcClient implements EvmGateway {
     }
     return body.result;
   }
+}
+
+/**
+ * Does this failure mean "the address holds no such contract method", as opposed to "the node
+ * could not answer"? A revert and an empty return are the contract speaking; a refused connection
+ * or an HTTP error is not, and must never be reported as a fact about the contract.
+ */
+function isNotAContractAnswer(message: string): boolean {
+  return /execution reverted|invalid opcode|out of gas/i.test(message);
 }
 
 /** Accept `constructor(uint256,string)`, `(uint256,string)` or a bare `uint256,string` — the

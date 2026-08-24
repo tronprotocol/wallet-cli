@@ -14,6 +14,7 @@ import { hexToBytes } from "@noble/hashes/utils.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
+import { confirmationsOf } from "../../services/confirmations.js";
 import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -62,6 +63,10 @@ export class EvmTransactionService {
     // rather than attached to the transaction: --dry-run and --build-only echo that object
     // verbatim, and a fee plan riding along inside it reads as part of the transaction.
     let plan: Record<string, unknown> = {};
+    // The nonce is decided while building and never appears in a receipt we might not get. It is
+    // the field §4.3 calls the entry point for diagnosing a stuck transaction, so the receipt
+    // states it even when the transaction is only submitted.
+    let nonce: number | undefined;
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -72,6 +77,7 @@ export class EvmTransactionService {
       artifact: (tx) => gateway.encodeTransactionHex(tx),
       build: async (from) => {
         const { tx, fee } = await this.#build(
+          scope,
           gateway,
           network,
           from,
@@ -80,6 +86,7 @@ export class EvmTransactionService {
           input,
         );
         plan = fee;
+        nonce = (tx as { nonce?: number }).nonce;
         return tx;
       },
       // The plan already carries the ceiling, so there is nothing further to ask the node.
@@ -89,6 +96,7 @@ export class EvmTransactionService {
     return {
       kind: "send" as const,
       ...outcomeData(outcome),
+      ...(nonce === undefined ? {} : { nonce }),
       rawAmount: transfer.rawAmount,
       token: transfer.symbol,
       decimals: transfer.decimals,
@@ -170,6 +178,8 @@ export class EvmTransactionService {
       to: transfer.to,
       contract,
       ...(meta.symbol === undefined ? {} : { symbol: meta.symbol }),
+      // Both forms, as everywhere else: the exact integer for arithmetic, the scaled one to read.
+      rawAmount: transfer.rawAmount,
       amount:
         meta.decimals === undefined
           ? transfer.rawAmount
@@ -178,6 +188,7 @@ export class EvmTransactionService {
   }
 
   async #build(
+    scope: TransactionScope,
     gateway: EvmGateway,
     network: NetworkDescriptor,
     from: string,
@@ -214,6 +225,7 @@ export class EvmTransactionService {
         ...(input.priorityFee === undefined ? {} : { priorityFeeWei: input.priorityFee }),
       },
     });
+    for (const warning of plan.warnings ?? []) scope.warn(warning);
 
     return {
       tx: {
@@ -225,7 +237,15 @@ export class EvmTransactionService {
           ? { type: 2, maxFeePerGas: plan.maxFeeWei, maxPriorityFeePerGas: plan.priorityFeeWei }
           : { type: 0, gasPrice: plan.gasPriceWei }),
       },
-      fee: { feeModel: plan.mode, maxCostWei: plan.maxCostWei, gasLimit: plan.gasLimit },
+      // maxPerGasWei rides along so the estimate can state what the ceiling is made OF — the same
+      // "<total> (<gas> gas × <price>)" shape a confirmed receipt uses. Without it the dry run
+      // gives a number the reader cannot check against the gas price they just looked up.
+      fee: {
+        feeModel: plan.mode,
+        maxCostWei: plan.maxCostWei,
+        gasLimit: plan.gasLimit,
+        maxPerGasWei: plan.maxFeeWei ?? plan.gasPriceWei,
+      },
     };
   }
 
@@ -237,6 +257,11 @@ export class EvmTransactionService {
    */
   async sign(scope: TransactionScope, network: NetworkDescriptor, hex: string) {
     const parsed = parseEvmTransaction(hex);
+    // BEFORE the signature: a transaction states the chain it is for, and signing keeps that
+    // value. Nothing downstream can catch this — no node is consulted when signing — so a
+    // mainnet transaction handed to `--network sepolia` would come back validly signed FOR
+    // MAINNET, which is the one mistake this command must not make quietly.
+    assertChainId(parsed, network);
     if (parsed.signature !== null) {
       throw new ChainError(
         "invalid_transaction",
@@ -271,6 +296,9 @@ export class EvmTransactionService {
     }
     const gateway = this.gateways.get(network, "evm");
     if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
+    // The selected network's node would reject a foreign chain id anyway, but refusing here says
+    // WHICH chain the transaction was built for, and keeps it out of a mempool it never belonged in.
+    assertChainId(parsed, network);
     const result = await gateway.sendRawTransaction(parsed.serialized);
     const txId = authoritativeTxId(parsed.hash ?? undefined, result.hash, (m) => scope.warn(m));
     const submitted = {
@@ -316,12 +344,7 @@ export class EvmTransactionService {
 
     // Local, and the cheapest way to catch a transaction signed for another chain: a replay of it
     // here is impossible, so there is nothing to gain by asking a node first.
-    if (String(parsed.chainId) !== String(network.chainId)) {
-      throw new ChainError(
-        "chain_mismatch",
-        `this transaction is signed for chain ${parsed.chainId}, but ${network.id} is chain ${network.chainId}`,
-      );
-    }
+    assertChainId(parsed, network);
     checks.push({ name: "chainId", status: "ok", detail: `matches ${network.id}` });
 
     const from = parsed.from;
@@ -331,6 +354,7 @@ export class EvmTransactionService {
       feeModel: parsed.maxFeePerGas === null ? "legacy" : "eip1559",
       maxCostWei: maxCostWei.toString(),
       gasLimit: parsed.gasLimit.toString(),
+      maxPerGasWei: perGasCeiling.toString(),
     };
 
     const state =
@@ -416,9 +440,11 @@ export class EvmTransactionService {
     hash: string,
   ): Promise<TxStatusView> {
     const gateway = this.gateways.get(network, "evm");
-    const [transaction, receipt] = await Promise.all([
+    const [transaction, receipt, head] = await Promise.all([
       gateway.getTransactionByHash(hash).catch(() => null),
       gateway.getTransactionReceipt(hash).catch(() => null),
+      // Best-effort third call: it only adds a field, and must not be able to fail the answer.
+      gateway.getBlockNumber().catch(() => undefined),
     ]);
     const confirmed = receipt !== null;
     const failed = confirmed && receipt.success !== true;
@@ -443,6 +469,7 @@ export class EvmTransactionService {
       ...(receipt?.blockNumber === undefined
         ? {}
         : { blockNumber: receipt.blockNumber as number }),
+      ...confirmationsOf(head, receipt?.blockNumber),
     };
   }
 
@@ -461,39 +488,81 @@ export class EvmTransactionService {
     hash: string,
   ): Promise<TxInfoView> {
     const gateway = this.gateways.get(network, "evm");
-    const [transaction, receipt] = await Promise.all([
+    const [transaction, receipt, head] = await Promise.all([
       gateway.getTransactionByHash(hash),
       gateway.getTransactionReceipt(hash).catch(() => null),
+      gateway.getBlockNumber().catch(() => undefined),
     ]);
     if (!transaction) {
       throw new UsageError("not_found", `no transaction with hash ${hash} on ${network.id}`);
     }
     const transfer = decodeErc20Transfer(String(transaction.input ?? "0x"));
     const value = BigInt(String(transaction.value ?? "0x0"));
+    // The block only for its timestamp, and only once we know there is one. Best-effort like the
+    // head read: a detail view is still worth having without the wall-clock time.
+    const blockTime =
+      receipt?.blockNumber === undefined
+        ? undefined
+        : await gateway
+            .getBlock(String(receipt.blockNumber))
+            .then((block) => quantityToNumber((block as { timestamp?: unknown } | null)?.timestamp))
+            .catch(() => undefined);
     return {
       txid: hash,
+      type: transactionType(transaction, transfer !== undefined),
       from: checksummed(transaction.from),
+      // The transaction's own nonce, flattened out of the node object: §4.3 makes it the entry
+      // point for diagnosing a stuck transaction, and digging it out of a passthrough field is
+      // not what "the detail view" should ask of a reader.
+      ...(transaction.nonce === undefined
+        ? {}
+        : { nonce: quantityToNumber(transaction.nonce) }),
       ...(transfer
         ? await this.#erc20Parties(gateway, checksummed(transaction.to), transfer)
         : {
             to: checksummed(transaction.to),
+            rawAmount: value.toString(10),
             amount: fromBaseUnits(value.toString(10), FAMILIES.evm.nativeDecimals),
             symbol: network.nativeSymbol,
           }),
+      ...(blockTime === undefined ? {} : { blockTime }),
       ...(receipt === null
         ? {}
         : {
-            status: receipt.success === true ? "SUCCESS" : "REVERT",
+            // Lower case, per §6.5: `tx status` and every write receipt already answer in lower
+            // case, and one field spelled two ways makes an agent match twice for one meaning.
+            status: receipt.success === true ? "success" : "revert",
             ...(receipt.blockNumber === undefined
               ? {}
               : { blockNumber: receipt.blockNumber as number }),
             ...(receipt.gasUsed === undefined ? {} : { gasUsed: Number(receipt.gasUsed) }),
             ...(receipt.feeWei === undefined ? {} : { feeWei: String(receipt.feeWei) }),
+            ...(receipt.effectiveGasPriceWei === undefined
+              ? {}
+              : { effectiveGasPriceWei: String(receipt.effectiveGasPriceWei) }),
+            ...confirmationsOf(head, receipt.blockNumber),
           }),
       transaction,
       receipt,
     };
   }
+}
+
+/**
+ * Refuse a transaction built for a different chain.
+ *
+ * EIP-155 puts the chain id inside the transaction, so this is answerable locally and BEFORE a
+ * signature exists. `family_mismatch` does not fire here — a mainnet transaction and a Sepolia one
+ * are both EVM — which is exactly why this check has to be its own: without it, signing a mainnet
+ * transaction while pointing at a testnet produces a perfectly valid mainnet transaction and says
+ * nothing.
+ */
+function assertChainId(tx: Transaction, network: NetworkDescriptor): void {
+  if (String(tx.chainId) === String(network.chainId)) return;
+  throw new ChainError(
+    "chain_id_mismatch",
+    `this transaction is built for chain ${tx.chainId}, but ${network.id} is chain ${network.chainId}`,
+  );
 }
 
 /** parse raw hex into an ethers Transaction, reporting bad input as bad input. */
@@ -505,6 +574,34 @@ function parseEvmTransaction(hex: string): Transaction {
       "invalid_transaction",
       `not a valid EVM transaction: ${(e as Error).message}`,
     );
+  }
+}
+
+/**
+ * What KIND of transaction this is, in three words a reader can act on.
+ *
+ * Deliberately coarse: `transfer` covers a native send and a decoded ERC-20 transfer (both move
+ * value to someone), `contract-creation` is a deployment (`to` is null — that IS what makes it
+ * one), and everything else is `contract-call`. Naming the METHOD would mean decoding calldata we
+ * have chosen not to decode.
+ */
+function transactionType(
+  transaction: Record<string, unknown>,
+  isErc20Transfer: boolean,
+): string {
+  if (transaction.to === null || transaction.to === undefined) return "contract-creation";
+  if (isErc20Transfer) return "transfer";
+  const input = String(transaction.input ?? "0x");
+  return input === "0x" || input === "" ? "transfer" : "contract-call";
+}
+
+/** hex QUANTITY (or a decimal) → number; undefined when it is neither. */
+function quantityToNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  try {
+    return Number(BigInt(String(value)));
+  } catch {
+    return undefined;
   }
 }
 

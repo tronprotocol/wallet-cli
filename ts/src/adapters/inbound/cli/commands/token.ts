@@ -106,6 +106,11 @@ export const tokenAddSpec: ChainSpec = {
   auth: "none",
   capability: "token.tokenbook",
   summary: "Add a token to the address book",
+  // §5.3: the book is PER NETWORK, and the metadata comes from the contract — the one moment
+  // decimals are checked against the chain (see the token service).
+  description:
+    "Add a token to the address book of the selected network, fetching its name,\n" +
+    "symbol and decimals from the contract",
   baseFields: selectorFields,
   examples: [
     { cmd: "wallet-cli token add --contract TR7... --network nile" },
@@ -126,6 +131,8 @@ export const tokenListSpec: ChainSpec = {
   auth: "none",
   capability: "token.tokenbook",
   summary: "List the address book",
+  // §5.4: which book depends on the network, and it holds two layers.
+  description: "List the address book of the selected network (official + user entries)",
   baseFields: z.object({}),
   examples: [
     { cmd: "wallet-cli token list --network nile" },
@@ -146,6 +153,10 @@ export const tokenRemoveSpec: ChainSpec = {
   auth: "none",
   capability: "token.tokenbook",
   summary: "Remove a user-added token",
+  // §5.5: the refusal on an official entry is a rule worth stating before it is hit.
+  description:
+    "Remove a user-added token from the address book. Official entries cannot be\n" +
+    "removed.",
   baseFields: selectorFields,
   examples: [
     { cmd: "wallet-cli token remove --contract TR7... --network nile" },

@@ -129,35 +129,28 @@ describe("CoinGeckoPriceProvider — EVM", () => {
   });
 
   /**
-   * Testnets inherit their mainnet's price, in BOTH families.
+   * Testnets are no longer priced here at all.
    *
-   * TRON already did this (`tron:nile` matches the `tron:` prefix), and the same command was
-   * reporting USD values on Nile while showing nulls on Sepolia. The valuation is fictional
-   * either way — testnet coins are not worth money — so the choice is which fiction to tell
-   * consistently, and the ruling is to tell the same one on both chains.
-   *
-   * The mapping is EXPLICIT, never a prefix: `evm:11155111` starts with `evm:1`, so a startsWith
-   * rule would price Sepolia as Ethereum by accident, and would also price Gnosis (`evm:100`)
-   * as Ethereum, which is simply wrong.
+   * The 2026-08-24 ruling: a test coin is not traded, so its holdings are worth ZERO — a fact,
+   * not a lookup. `TestnetZeroPriceProvider` answers before this class is reached, and the ids
+   * were removed from the maps so a future edit cannot quietly re-enable mainnet pricing for a
+   * chain whose coins are free.
    */
-  it.each([
-    ["evm:11155111", "ethereum"],
-    ["evm:97", "binancecoin"],
-  ])("prices the testnet %s from its mainnet coin (%s)", async (networkId, coinId) => {
-    const spy = stub({ [coinId]: { usd: 2500 } });
+  it.each(["evm:11155111", "evm:97"])("no longer prices the testnet %s at all", async (networkId) => {
+    const spy = stub({ ethereum: { usd: 2500 }, binancecoin: { usd: 600 } });
 
-    expect(await new CoinGeckoPriceProvider().nativeUsd(networkId)).toBe(2500);
-    expect(String(spy.mock.calls[0]![0])).toContain(`ids=${coinId}`);
+    expect(await new CoinGeckoPriceProvider().nativeUsd(networkId)).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["evm:11155111", "ethereum"],
-    ["evm:97", "binance-smart-chain"],
-  ])("prices %s's tokens against its mainnet platform (%s)", async (networkId, platform) => {
+  // The exposure this closes: deterministic deployment can put one address on both chains, so a
+  // testnet token looked up against a mainnet platform could take a real token's price.
+  it.each(["evm:11155111", "evm:97"])("does not look up %s's tokens either", async (networkId) => {
     const spy = stub({ "0xabc": { usd: 1 } });
-    await new CoinGeckoPriceProvider().tokenUsd(networkId, ["0xabc"]);
+    const prices = await new CoinGeckoPriceProvider().tokenUsd(networkId, ["0xabc"]);
 
-    expect(String(spy.mock.calls[0]![0])).toContain(`/token_price/${platform}?`);
+    expect(prices.get("0xabc")).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   // The counterpart to inheritance: an id that merely SHARES A PREFIX with a known one must not

@@ -37,6 +37,14 @@ export interface EvmFeePlan {
   gasPriceWei?: string;
   /** the most this transaction can cost: gasLimit × the per-gas ceiling. */
   maxCostWei: string;
+  /**
+   * Things the caller should know about what was decided for them.
+   *
+   * The plan stays pure — it returns the sentences, it does not emit them. Both conditions here
+   * are cases where the transaction is still signable and still WRONG in a way no error would
+   * report: silently adjusting someone's fee, or signing one the chain will not currently accept.
+   */
+  warnings?: string[];
 }
 
 /**
@@ -98,7 +106,22 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
       : base * 2n + (priorityGiven ?? suggested);
   // maxPriorityFeePerGas above maxFeePerGas is rejected outright by nodes, so the user's ceiling
   // wins over a suggestion that outgrew it.
-  const priority = priorityGiven ?? (suggested > maxFee ? maxFee : suggested);
+  const clamped = priorityGiven === undefined && suggested > maxFee;
+  const priority = priorityGiven ?? (clamped ? maxFee : suggested);
+
+  const warnings: string[] = [];
+  if (clamped) {
+    warnings.push(
+      `--max-fee ${maxFee} wei is below the node's suggested tip of ${suggested} wei, so the tip was reduced to match it; a node rejects a tip above the fee cap`,
+    );
+  }
+  // Signable, and unmineable until the base fee falls to meet it. Nothing downstream reports
+  // this: the node accepts the transaction and it simply sits there.
+  if (maxFee < base) {
+    warnings.push(
+      `--max-fee ${maxFee} wei is below the current base fee of ${base} wei; this transaction cannot be included until the base fee falls`,
+    );
+  }
 
   return {
     mode,
@@ -106,6 +129,7 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
     maxFeeWei: maxFee.toString(10),
     priorityFeeWei: priority.toString(10),
     maxCostWei: (BigInt(gasLimit) * maxFee).toString(10),
+    ...(warnings.length ? { warnings } : {}),
   };
 }
 

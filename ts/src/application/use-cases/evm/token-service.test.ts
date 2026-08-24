@@ -127,4 +127,25 @@ describe("EvmTokenService.info", () => {
       name: "Tether USD",
     });
   });
+
+  /**
+   * Metadata is read best-effort, so a thin token still reports. But a contract that answers
+   * NOTHING is not a token with thin metadata — it is not a token, and `{contract}` alone under
+   * `success` reads as "this token has no metadata". `add` and `balance` already refuse the same
+   * address; this is the third command agreeing with them.
+   */
+  it("still reports a token that answers only some of its metadata", async () => {
+    const { svc } = service({ decimals: 6 });
+
+    await expect(svc.info(net, { contract: USDT })).resolves.toMatchObject({ decimals: 6 });
+  });
+
+  it("refuses an address that answers none of it, rather than echoing it back", async () => {
+    const { svc } = service({});
+
+    await expect(svc.info(net, { contract: USDT })).rejects.toMatchObject({
+      code: "token_metadata_unavailable",
+      message: expect.stringContaining("may not be a token contract"),
+    });
+  });
 });

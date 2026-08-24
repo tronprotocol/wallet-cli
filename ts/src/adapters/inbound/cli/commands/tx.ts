@@ -172,6 +172,9 @@ export const txBroadcastSpec: ChainSpec = {
   broadcasts: true,
   capability: "tx.broadcast",
   summary: "Broadcast a presigned transaction",
+  description:
+    "Broadcast an already-signed transaction. It must have been built for the network you\n" +
+    "select — one built for another chain is rejected before it is sent.",
   baseFields: broadcastFields,
   exclusive: [
     {
@@ -280,12 +283,11 @@ export const txSignSpec: ChainSpec = {
   broadcasts: false,
   capability: "tx.sign",
   summary: "Sign a transaction built elsewhere",
-  // NOTE: the §6.2 spec block also promises "one built for another chain is rejected before it
-  // is signed". That check (`chain_id_mismatch`) is NOT implemented yet, so the sentence is
-  // deliberately absent — help must not promise a guard the code does not enforce.
   description:
     "Sign a transaction that was built elsewhere and output the signed result; broadcast it\n" +
     "later with `tx broadcast`. This command never broadcasts.\n" +
+    "The transaction must have been built for the network you select — one built for another\n" +
+    "chain is rejected before it is signed, so you cannot sign a mainnet transaction by mistake.\n" +
     "On TRON, --hex/--file append one signature while preserving any already collected,\n" +
     "checking online that this account is in the transaction's permission group and has not\n" +
     "already signed, and reporting the resulting approval weight; --offline skips those checks.\n" +

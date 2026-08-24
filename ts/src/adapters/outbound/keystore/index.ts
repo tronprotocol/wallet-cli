@@ -21,7 +21,7 @@ import type {
 } from "../../../domain/types/index.js";
 import { CryptoEnvelope } from "../persistence/crypto/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
-import { familyOf, CHAIN_FAMILIES } from "../../../domain/family/index.js";
+import { familyOf, canonicalAddress, CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { SOURCE_KINDS, sourceFamily } from "../../../domain/sources/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../../domain/errors/index.js";
@@ -190,11 +190,10 @@ export class Keystore {
         file,
         (s) => s.type === "watch" && s.family === p.family && s.address === p.address,
       );
-      if (dup) {
-        file.activeAccount = dup;
-        this.#write(file);
-        return { accountId: dup, created: false };
-      }
+      // Registering a watch account does NOT make it active (§3.3): it holds no key, so making
+      // it the active account turns the next write command into `watch_only_no_signer` for a
+      // reason the user never chose. `use <account>` is how the active account changes.
+      if (dup) return { accountId: dup, created: false };
       const walletId = this.#freshId("wlt", file);
       // no encrypted blob: a watch account holds no secret, only family+address.
       const wallet: Wallet = {
@@ -204,7 +203,6 @@ export class Keystore {
       const ref = accountRefOf(wallet, null);
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
-      file.activeAccount = ref;
       this.#write(file);
       return { accountId: ref, created: true };
     });
@@ -598,10 +596,14 @@ export class Keystore {
     if (v.startsWith("wlt_")) return v;
     // address form (T… / 0x…): match the unique account holding it in its cache.
     if (familyOf(v) !== undefined) {
+      // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and §1.3 accepts an
+      // all-lower or all-upper EVM address as input. Comparing raw strings would refuse to find an
+      // account by the very spelling the user was told is valid.
+      const wanted = canonicalAddress(v);
       const hits: AccountRef[] = [];
       for (const w of file.wallets) {
         for (const { index, addr } of enumerateAddresses(w)) {
-          if (CHAIN_FAMILIES.some((f) => addr[f] === v)) hits.push(accountRefOf(w, index));
+          if (CHAIN_FAMILIES.some((f) => addr[f] === wanted)) hits.push(accountRefOf(w, index));
         }
       }
       if (hits.length === 0)

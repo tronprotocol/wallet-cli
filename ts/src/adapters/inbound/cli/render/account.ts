@@ -115,7 +115,7 @@ export const AccountFormatters = {
  * `account info` — family-shaped.
  *
  * TRON returns the node's account object (permissions, resources, stakes); EVM has no equivalent
- * RPC and returns a flat `{balance, nonce, isContract}`. These are not the same field set with
+ * RPC and returns a flat `{balance, nonce, type, codeSize?}`. These are not the same field set with
  * different values, so the rows come from the family table rather than from one formatter reading
  * whichever keys happen to be present — the TRON reader applied to an EVM payload found nothing
  * and printed "Balance 0 TRX" for an account holding ETH.

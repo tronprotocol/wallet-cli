@@ -1,9 +1,9 @@
-import type { TxInfoView } from "../../../../domain/types/index.js";
+import type { TxInfoView, TxReceiptView } from "../../../../domain/types/index.js";
 import { RESOURCES, resourceOfRpcCode, type Resource } from "../../../../domain/resources/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import { ChainFamily } from "../../../../domain/family/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
-import { formatScalar, formatInt, formatGwei, formatSun, formatWei } from "./scalars.js";
+import { formatScalar, formatInt, formatGwei, formatSun, formatUtc, formatWei } from "./scalars.js";
 import { asObj, type Obj, type Pair } from "./layout.js";
 
 /**
@@ -32,10 +32,54 @@ interface FamilyRenderHooks {
   /** `chain prices` rows. TRON prices energy and bandwidth in SUN; EVM prices gas per the fee
    *  model the chain reports. Same reason as accountInfoRows: disjoint field sets. */
   chainPricesRows(d: Obj, symbol: string): Pair[];
+  /** `chain node` rows. TRON has a p2p network to report on, EVM has a chain id to check the
+   *  endpoint against — neither field exists on the other side. */
+  chainNodeRows(d: Obj): Pair[];
+  /** `block` rows. The payload is the node's own object (§9.1), so the two families arrive in
+   *  different shapes and each picks its own fields out. */
+  blockRows(block: Obj, timestampMs: number | undefined): Pair[];
+  /** rows a broadcast receipt shows BEFORE the TxID — the transaction's own identifiers.
+   *  EVM has a nonce; TRON's transactions are identified only by their hash. */
+  receiptIdentityRows(r: TxReceiptView): Pair[];
+  /** rows a CONFIRMED receipt shows after the block: what the transaction actually consumed.
+   *  TRON bills energy and a SUN fee; EVM bills gas at a settled per-gas price. */
+  receiptSettlementRows(r: TxReceiptView, symbol: string): Pair[];
 }
 
 const txInfoAmount = (v: string | undefined, suffix: string): string =>
   v === undefined || v === "" ? "" : `${formatScalar(v)}${suffix}`;
+
+/** "#84,120,345  2026-08-24 12:31:12 (~2s ago — in sync)" — shared by both families' node views. */
+function headBlockRow(d: Obj): Pair {
+  const head = asObj(d.headBlock);
+  const headTimestamp = Number(head.timestamp ?? 0);
+  const ageSeconds =
+    headTimestamp > 0 ? Math.max(0, Math.round((Date.now() - headTimestamp) / 1000)) : null;
+  const sync = d.inSync ? "in sync" : "lagging";
+  const age = ageSeconds === null ? "—" : `~${ageSeconds}s ago — ${sync}`;
+  return ["Head block", `#${formatInt(head.number)}  ${nodeTime(head.timestamp)} (${age})`];
+}
+
+/** epoch-ms → "YYYY-MM-DD HH:MM:SS", or "—" for a missing/zero stamp (the node view's convention
+ *  for a field an endpoint did not expose). */
+function nodeTime(v: unknown): string {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  return new Date(n).toISOString().replace("T", " ").slice(0, 19);
+}
+
+/** a best-effort field the endpoint may not serve: null renders as the dash, per `chain node`. */
+function orDash(v: unknown): string {
+  return v === null || v === undefined ? "—" : String(v);
+}
+
+/** `Fee <amount> <symbol>  (<gas> gas × <price> gwei)` — the total plus what it is the product of.
+ *  Falls back to the bare total when the receipt did not carry the two components. */
+function evmFeeRow(fee: unknown, gasUsed: unknown, priceWei: unknown, symbol: string): string {
+  const total = `${formatWei(fee)} ${symbol}`;
+  if (gasUsed === undefined || priceWei === undefined) return total;
+  return `${total}  (${formatInt(gasUsed)} gas × ${formatGwei(priceWei)} gwei)`;
+}
 
 export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
   tron: {
@@ -77,37 +121,47 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
         ["Memo fee", `${formatSun(d.memoFeeSun)} ${symbol}`],
       ];
     },
-    txInfoRows: (r, symbol) => [
-      ["TxID", r.txid],
-      ["From", r.from ?? ""],
-      ["To", r.to ?? ""],
-      ["Amount", txInfoAmount(r.amount, r.symbol ? ` ${r.symbol}` : "")],
-      ["Status", r.status ?? "unknown"],
-      ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
-      ["Energy", r.energyUsed === undefined ? "" : formatInt(r.energyUsed)],
-      ["Fee", r.feeSun === undefined ? "" : `${formatSun(r.feeSun)} ${symbol}`],
-    ],
-  },
-  evm: {
-    nativeAmount: (raw, symbol) => `${formatWei(raw)} ${symbol}`,
-    feeFallback: (fee, symbol) => `${formatWei(fee)} ${symbol}`,
-    addressLabel: "EVM address",
-    accountInfoRows: (d, symbol) => [
-      ["Address", String(d.address ?? "")],
-      ["Balance", `${formatWei(d.balance)} ${symbol}`],
-      ["Nonce", formatInt(d.nonce)],
-      // The distinction a reader needs before sending: an address with code may reject a plain
-      // transfer, and "isContract: false" is not a phrase to put in front of a person.
-      ["Type", d.isContract ? "contract" : "externally owned"],
-    ],
-    // Priced in gwei, the unit --max-fee and --priority-fee accept: showing wei here and taking
-    // gwei there would make the reader do the nine-zero conversion themselves. JSON keeps wei.
-    chainPricesRows: (d) => {
-      const rows: Pair[] = [["Fee model", String(d.feeModel ?? "")]];
-      if (d.baseFeeWei !== undefined) rows.push(["Base fee", `${formatGwei(d.baseFeeWei)} gwei`]);
-      if (d.priorityFeeWei !== undefined)
-        rows.push(["Priority fee", `${formatGwei(d.priorityFeeWei)} gwei`]);
-      if (d.gasPriceWei !== undefined) rows.push(["Gas price", `${formatGwei(d.gasPriceWei)} gwei`]);
+    chainNodeRows: (d) => {
+      const solid = asObj(d.solidBlock);
+      const peers = asObj(d.peers);
+      return [
+        ["Endpoint", orDash(d.endpoint)],
+        ["Version", orDash(d.version)],
+        headBlockRow(d),
+        [
+          "Solid block",
+          d.solidBlock === null
+            ? "—"
+            : `#${formatInt(solid.number)}  (${formatInt(d.lagBlocks)} blocks behind head)`,
+        ],
+        [
+          "Peers",
+          d.peers === null
+            ? "—"
+            : `${formatInt(peers.connected)} connected / ${formatInt(peers.active)} active`,
+        ],
+      ];
+    },
+    // The node's protobuf block: header fields live under block_header.raw_data, and the hash is
+    // the block's own `blockID`. Unchanged from what this command has always printed.
+    blockRows: (block, timestampMs) => {
+      const header = asObj(asObj(block.block_header).raw_data);
+      const number = block.number ?? header.number;
+      const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
+      return [
+        ["Number", number === undefined ? "" : `#${formatInt(number)}`],
+        ["Time", timestampMs ? formatUtc(timestampMs) : "unknown"],
+        ["Transactions", String(txs)],
+      ];
+    },
+    // A TRON transaction is identified by its hash alone — there is no per-account sequence.
+    receiptIdentityRows: () => [],
+    receiptSettlementRows: (r, symbol) => {
+      const rows: Pair[] = [];
+      if (r.energyUsed !== undefined && r.energyUsed !== null)
+        rows.push(["Energy", formatInt(r.energyUsed)]);
+      if (r.feeSun !== undefined && r.feeSun !== null)
+        rows.push(["Fee", `${formatSun(r.feeSun)} ${symbol}`]);
       return rows;
     },
     txInfoRows: (r, symbol) => [
@@ -117,11 +171,137 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       ["Amount", txInfoAmount(r.amount, r.symbol ? ` ${r.symbol}` : "")],
       ["Status", r.status ?? "unknown"],
       ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
+      ["Confirmations", r.confirmations === undefined ? "" : formatInt(r.confirmations)],
+      ["Energy", r.energyUsed === undefined ? "" : formatInt(r.energyUsed)],
+      ["Fee", r.feeSun === undefined ? "" : `${formatSun(r.feeSun)} ${symbol}`],
+    ],
+  },
+  evm: {
+    nativeAmount: (raw, symbol) => `${formatWei(raw)} ${symbol}`,
+    feeFallback: (fee, symbol) => `${formatWei(fee)} ${symbol}`,
+    addressLabel: "EVM address",
+    accountInfoRows: (d, symbol) => {
+      const rows: Pair[] = [
+        ["Address", String(d.address ?? "")],
+        ["Balance", `${formatWei(d.balance)} ${symbol}`],
+        ["Nonce", formatInt(d.nonce)],
+        // The distinction a reader needs before sending: an address with code may reject a plain
+        // transfer. json says `eoa`, which is a field value; this is the sentence version of it.
+        ["Type", d.type === "contract" ? "contract" : "externally owned"],
+      ];
+      // Only a contract has code, so only a contract gets the row (§4.3 — an EOA is not a
+      // contract with zero bytes).
+      if (d.codeSize !== undefined) rows.push(["Code size", `${formatInt(d.codeSize)} bytes`]);
+      return rows;
+    },
+    // Priced in gwei, the unit --max-fee and --priority-fee accept: showing wei here and taking
+    // gwei there would make the reader do the nine-zero conversion themselves. JSON keeps wei.
+    chainPricesRows: (d, symbol) => {
+      const rows: Pair[] = [["Fee model", String(d.feeModel ?? "")]];
+      if (d.baseFeeWei !== undefined) rows.push(["Base fee", `${formatGwei(d.baseFeeWei)} gwei`]);
+      if (d.priorityFeeWei !== undefined)
+        rows.push(["Priority fee", `${formatGwei(d.priorityFeeWei)} gwei`]);
+      if (d.gasPriceWei !== undefined) rows.push(["Gas price", `${formatGwei(d.gasPriceWei)} gwei`]);
+      // The per-gas numbers above answer "how expensive is gas"; this answers "what will a
+      // transfer cost me", which is the question most readers actually have.
+      if (d.transferCostWei !== undefined) {
+        rows.push([
+          "Transfer cost",
+          `${formatWei(d.transferCostWei)} ${symbol}  (${formatInt(d.transferGas)} gas)`,
+        ]);
+      }
+      return rows;
+    },
+    chainNodeRows: (d) => {
+      const solid = asObj(d.solidBlock);
+      const peers = asObj(d.peers);
+      return [
+        ["Endpoint", orDash(d.endpoint)],
+        ["Version", orDash(d.version)],
+        // What every signature commits to (EIP-155), and the one field that says whether this
+        // endpoint is the chain the caller thinks it is.
+        ["Chain id", orDash(d.chainId)],
+        headBlockRow(d),
+        [
+          "Solid block",
+          d.solidBlock === null
+            ? "—"
+            : `#${formatInt(solid.number)}  (${formatInt(d.lagBlocks)} blocks behind head)`,
+        ],
+        // eth_syncing answers this directly; null means the node would not say, which is not the
+        // same as "out of sync".
+        ["Syncing", d.inSync === null || d.inSync === undefined ? "—" : d.inSync ? "no" : "yes"],
+        [
+          "Peers",
+          d.peers === null
+            ? "—"
+            : `${formatInt(peers.connected)} connected / ${formatInt(peers.active)} active`,
+        ],
+      ];
+    },
+    // The node's own block object: hex QUANTITIES throughout (§9.1 keeps json verbatim), so every
+    // number here is converted for display only. Gas and base fee are what say whether the chain
+    // is busy and what it costs — the reason to look at a block at all.
+    blockRows: (block, timestampMs) => {
+      const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
+      const gasUsed = quantity(block.gasUsed);
+      const gasLimit = quantity(block.gasLimit);
+      const baseFee = quantity(block.baseFeePerGas);
+      const rows: Pair[] = [
+        ["Number", block.number === undefined ? "" : `#${formatInt(quantity(block.number))}`],
+        ["Hash", String(block.hash ?? "")],
+        ["Parent hash", String(block.parentHash ?? "")],
+        ["Time", timestampMs ? formatUtc(timestampMs) : "unknown"],
+        ["Transactions", String(txs)],
+      ];
+      if (gasUsed !== undefined) {
+        rows.push([
+          "Gas used",
+          gasLimit === undefined
+            ? formatInt(gasUsed)
+            : `${formatInt(gasUsed)} / ${formatInt(gasLimit)}`,
+        ]);
+      }
+      // Absent on a pre-1559 chain, where it is not a field with an unknown value but a concept
+      // that does not apply. An empty row would claim otherwise.
+      if (baseFee !== undefined) rows.push(["Base fee", `${formatGwei(baseFee)} gwei`]);
+      return rows;
+    },
+    // §4.3 calls the nonce the entry point for diagnosing a stuck transaction, and a stuck one is
+    // precisely the case where the receipt never arrives — so it is stated from `submitted` on.
+    receiptIdentityRows: (r) =>
+      r.nonce === undefined ? [] : [["Nonce", formatInt(r.nonce)] as Pair],
+    receiptSettlementRows: (r, symbol) =>
+      r.feeWei === undefined || r.feeWei === null
+        ? []
+        : [["Fee", evmFeeRow(r.feeWei, r.gasUsed, r.effectiveGasPriceWei, symbol)] as Pair],
+    txInfoRows: (r, symbol) => [
+      ["TxID", r.txid],
+      ["Type", r.type ?? ""],
+      ["From", r.from ?? ""],
+      ["To", r.to ?? ""],
+      ["Amount", txInfoAmount(r.amount, r.symbol ? ` ${r.symbol}` : "")],
+      ["Nonce", r.nonce === undefined ? "" : formatInt(r.nonce)],
+      ["Status", r.status ?? "unknown"],
+      ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
+      // Seconds on the wire (§6.5), milliseconds for the formatter.
+      ["Block time", r.blockTime === undefined ? "" : formatUtc(r.blockTime * 1000)],
+      ["Confirmations", r.confirmations === undefined ? "" : formatInt(r.confirmations)],
       ["Gas", r.gasUsed === undefined ? "" : formatInt(r.gasUsed)],
       ["Fee", r.feeWei === undefined ? "" : `${formatWei(r.feeWei)} ${symbol}`],
     ],
   },
 };
+
+/** hex QUANTITY (or a plain number) → number, for the EVM block view. */
+function quantity(v: unknown): number | undefined {
+  if (v === undefined || v === null) return undefined;
+  try {
+    return Number(BigInt(String(v)));
+  } catch {
+    return undefined;
+  }
+}
 
 export function familyAddressLabel(family: string): string {
   return FAMILY_RENDER[family as ChainFamily]?.addressLabel ?? `${family} address`;

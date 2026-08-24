@@ -35,21 +35,26 @@ const LEDGER_APPS = CHAIN_FAMILIES.map((f) => LEDGER_APP_BY_FAMILY[f]).filter(
 ) as [string, ...string[]];
 export const walletImportLedgerFields = z.object({
   app: ciEnum(LEDGER_APPS).describe(
-    "Ledger app to open on the device, selecting the address-derivation scheme",
+    // §3.6: the value is the app to open ON THE DEVICE, and what it selects is the account's
+    // chain family — "address-derivation scheme" named the mechanism instead of the choice.
+    "Ledger app to open on the device; selects the chain family",
   ),
   index: z.coerce
     .number()
     .int()
     .nonnegative()
     .optional()
+    // NOT a zod .default(): §3.6 asks for the default in the `[optional, default: 0]` tag, but a
+    // parsed default makes `index` always present, and the locator rule below counts PRESENCE —
+    // `--path` alone would then read as two locators. The default stays in the description.
     .describe(
-      "HD account index to import; omit with no --path/--address to use index 0; mutually exclusive with --path and --address",
+      "account index under the app's default path; omit with no --path/--address to use index 0; mutually exclusive with --path and --address",
     ),
   path: z
     .string()
     .optional()
     .describe(
-      "explicit BIP32 derivation path, e.g. m/44'/195'/0'/0/0 for TRON; mutually exclusive with --index and --address",
+      "explicit derivation path; mutually exclusive with --index and --address",
     ),
   address: z
     .string()
@@ -62,9 +67,9 @@ export const walletImportLedgerFields = z.object({
     .int()
     .positive()
     .optional()
-    .describe(
-      "number of account indexes to scan when using --address, in indexes; omit to scan 20 indexes",
-    ),
+    // The default lives in the service (DEFAULT_SCAN_LIMIT); stating it here too would be a
+    // second copy to drift.
+    .describe("how many indexes to scan when using --address; omit to scan 20"),
   label: Schemas.label()
     .optional()
     .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
@@ -156,6 +161,11 @@ export function registerWalletCommands(
     interactive: true,
     promptHints: { label: "default-label" },
     summary: "Create a new HD wallet (BIP39 seed)",
+    // §3.1: this release's headline is "one seed, an address per family" — and this is the
+    // command that performs it, so its help has to say so.
+    description:
+      "Create a new HD wallet (BIP39 seed). Derives one address per chain family\n" +
+      "from the same seed; the recovery phrase is encrypted locally and never printed.",
     fields: createFields,
     input: createFields,
     examples: [{ cmd: "wallet-cli create --label main" }],
@@ -222,7 +232,10 @@ export function registerWalletCommands(
     summary: "Import a raw private key",
     description:
       "Import a raw private key. The private key and master password are read\n" +
-      "interactively from the TTY (hidden input); they never touch argv or stdin.",
+      "interactively from the TTY (hidden input); they never touch argv or stdin.\n" +
+      // §3.3 — and the fact that separates this from a seed import: ONE key, every family,
+      // so the two addresses are two encodings of the same secret rather than two secrets.
+      "One key yields an address on every chain family.",
     fields: importPrivateKeyFields,
     input: importPrivateKeyFields,
     examples: [{ cmd: "wallet-cli import private-key --label hot" }],
@@ -305,7 +318,10 @@ export function registerWalletCommands(
     summary: "Register a Ledger account",
     fields: walletImportLedgerFields,
     input: walletImportLedgerInput,
-    examples: [{ cmd: "wallet-cli import ledger --app tron --index 0 --label cold" }],
+    examples: [
+      { cmd: "wallet-cli import ledger --app tron --index 0 --label cold" },
+      { cmd: "wallet-cli import ledger --app ethereum --index 0 --label cold-evm" },
+    ],
     formatText: TextFormatters.walletLedger,
     run: async (ctx, _net, input) => {
       const family: ChainFamily = FAMILY_BY_LEDGER_APP[input.app]!;
@@ -338,6 +354,11 @@ export function registerWalletCommands(
     interactive: true,
     promptHints: { label: "default-label" },
     summary: "Register a watch-only address",
+    // §3.5: the family is inferred from the address, and that is what limits where the account
+    // can be used — neither fact is guessable from "register a watch-only address".
+    description:
+      "Register a watch-only address (no secret). The chain family is detected from the\n" +
+      "address format; the account is usable only on networks of that family.",
     fields: importWatchFields,
     input: importWatchFields,
     examples: [{ cmd: "wallet-cli import watch --address T... --label team-vault" }],
@@ -520,6 +541,10 @@ export function registerWalletCommands(
     wallet: "none",
     auth: "required",
     summary: "Derive the next HD account from a seed wallet (by --seed-id)",
+    // §3.9, minus its `--path` sentence (that flag is not in this release — see ADR-0009).
+    description:
+      "Derive the next HD account from a seed wallet (by --seed-id). Each family uses\n" +
+      "its own BIP44 template, so one derive yields an address per family.",
     fields: addAccountFields,
     input: addAccountFields,
     examples: [{ cmd: "wallet-cli derive --seed-id wlt_ab12cd34" }],

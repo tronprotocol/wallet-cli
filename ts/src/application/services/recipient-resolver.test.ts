@@ -66,8 +66,11 @@ describe("RecipientResolver — EVM", () => {
     expect(resolver.resolve("evm", EVM)).toEqual({ address: EVM });
   });
 
-  it("accepts an unchecksummed EVM address", () => {
-    expect(resolver.resolve("evm", EVM.toLowerCase())).toEqual({ address: EVM.toLowerCase() });
+  // §1.3 takes an all-lowercase address as "no checksum was offered" and accepts it — but what
+  // comes back is the canonical spelling, so the receipt shows the same address the wallet does
+  // rather than a second style the reader has to compare character by character.
+  it("accepts an unchecksummed EVM address and returns it in EIP-55", () => {
+    expect(resolver.resolve("evm", EVM.toLowerCase())).toEqual({ address: EVM });
   });
 
   // The TRON guard, now for EVM: a near-miss must not fall through to a name lookup.
@@ -183,3 +186,46 @@ describe("RecipientResolver explains a contact from another chain", () => {
     expect(code).toBe("contact_not_found");
   });
 });
+
+/**
+ * `--to` takes an address OR a contact name, so when a value is neither, the answer has to say
+ * which of the two it is reporting on. `contact not found: 0xnotanaddress` told someone who had
+ * mistyped an address to go looking for a contact they never made — and said the same words twice
+ * (the code already says "contact not found").
+ */
+describe("RecipientResolver — a value that is neither", () => {
+  const resolver = new RecipientResolver({
+    find: () => undefined,
+    findAnywhere: () => undefined,
+  } as never);
+
+  it("reports a value that opens like an address as a failed address", () => {
+    const error = (() => {
+      try {
+        resolver.resolve("evm", "0xnotanaddress");
+      } catch (e) {
+        return e as { code: string; message: string };
+      }
+      throw new Error("expected a rejection");
+    })();
+
+    expect(error.code).toBe("invalid_address");
+    // and still points at the other thing --to accepts
+    expect(error.message).toMatch(/no contact is named that either/);
+  });
+
+  it("reports anything else as a failed name, mentioning addresses", () => {
+    const error = (() => {
+      try {
+        resolver.resolve("evm", "nosuchname");
+      } catch (e) {
+        return e as { code: string; message: string };
+      }
+      throw new Error("expected a rejection");
+    })();
+
+    expect(error.code).toBe("contact_not_found");
+    expect(error.message).toMatch(/not an address either/);
+  });
+});
+

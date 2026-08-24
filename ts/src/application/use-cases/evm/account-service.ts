@@ -108,6 +108,10 @@ export class EvmAccountService {
       gateway.getTransactionCount(address),
       gateway.getCode(address),
     ]);
+    // "0x" is the empty-code answer, i.e. an externally-owned account. `type` rather than a
+    // boolean (§4.3): it is the field agents match on, and it has room for a third kind of
+    // account without every reader having to relearn the meaning of a flag.
+    const isContract = code !== "0x" && code !== "";
     return {
       address,
       balance,
@@ -115,8 +119,10 @@ export class EvmAccountService {
       nonce,
       decimals: FAMILIES.evm.nativeDecimals,
       symbol: network.nativeSymbol,
-      // "0x" is the empty-code answer, i.e. an externally-owned account.
-      isContract: code !== "0x" && code !== "",
+      type: isContract ? "contract" : "eoa",
+      // Bytes of deployed code, and only for an account that has some: an EOA reporting 0 would
+      // be answering a question that does not apply to it. Hex is "0x" + two chars per byte.
+      ...(isContract ? { codeSize: (code.length - 2) / 2 } : {}),
     };
   }
 }

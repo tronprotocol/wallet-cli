@@ -30,8 +30,22 @@ export class EvmTokenService {
     return { address, token: input.contract, balance, ...meta };
   }
 
+  /**
+   * Token metadata is read best-effort — a token that answers `decimals` but not `name` is still
+   * a token, and the missing field is simply absent. But a contract that answers NOTHING is not a
+   * token whose metadata is thin: it is not a token. Echoing the address back under `success`
+   * reads as "this token has no metadata", which is a claim about a token that does not exist.
+   *
+   * `add` and `balance` already refuse the same address; this makes the third command agree.
+   */
   async info(network: NetworkDescriptor, input: Erc20Selector) {
     const meta = await this.gateways.get(network, "evm").getErc20Metadata(input.contract);
+    if (meta.symbol === undefined && meta.decimals === undefined && meta.name === undefined) {
+      throw new ExecutionError(
+        "token_metadata_unavailable",
+        `${input.contract} did not answer symbol, decimals or name — it may not be a token contract`,
+      );
+    }
     return { contract: input.contract, ...meta };
   }
 

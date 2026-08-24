@@ -67,6 +67,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
   "tron:nile": {
     id: "tron:nile",
+    testnet: true,
     nativeSymbol: "TRX",
     family: "tron",
     chainId: "nile",
@@ -83,6 +84,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
   "tron:shasta": {
     id: "tron:shasta",
+    testnet: true,
     nativeSymbol: "TRX",
     family: "tron",
     chainId: "shasta",
@@ -104,6 +106,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
   "evm:11155111": {
     id: "evm:11155111",
+    testnet: true,
     nativeSymbol: "ETH",
     family: "evm",
     chainId: "11155111",
@@ -122,6 +125,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
   "evm:97": {
     id: "evm:97",
+    testnet: true,
     nativeSymbol: "BNB",
     family: "evm",
     chainId: "97",

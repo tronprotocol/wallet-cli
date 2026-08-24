@@ -1,6 +1,10 @@
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { evmFeeMode } from "../../../domain/fees/evm-gas.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
+
+/** The protocol's fixed gas cost of a plain native transfer — the unit `chain prices` translates
+ *  its per-gas numbers into a real spend with. */
+const NATIVE_TRANSFER_GAS = 21_000;
 
 /** hex QUANTITY → number, for the small values (block heights) this view reports. */
 function quantity(value: unknown): number | null {
@@ -32,14 +36,26 @@ export class EvmChainService {
   async prices(network: NetworkDescriptor) {
     const fee = await this.gateways.get(network, "evm").feeData();
     const mode = evmFeeMode(fee.baseFeeWei, network.feeModel);
+    const eip1559 = mode === "eip1559" && fee.baseFeeWei !== undefined;
+    const priorityFeeWei = fee.suggestedPriorityWei ?? null;
+    // On a 1559 chain the price a transfer actually pays is base + tip. `eth_gasPrice` is the
+    // node's own single-number suggestion, which is not that sum — quoting it beside the two
+    // components would print three numbers that do not add up (§9.3).
+    const gasPriceWei =
+      eip1559 && priorityFeeWei !== null
+        ? (BigInt(fee.baseFeeWei!) + BigInt(priorityFeeWei)).toString(10)
+        : fee.gasPriceWei;
     return {
       feeModel: mode,
       // A zero base fee is reported as "0" and not dropped: on BSC that IS the base fee, and the
       // difference between "zero" and "absent" is the difference between the two fee models.
-      ...(mode === "eip1559" && fee.baseFeeWei !== undefined
-        ? { baseFeeWei: fee.baseFeeWei, priorityFeeWei: fee.suggestedPriorityWei ?? null }
-        : {}),
-      gasPriceWei: fee.gasPriceWei,
+      ...(eip1559 ? { baseFeeWei: fee.baseFeeWei, priorityFeeWei } : {}),
+      gasPriceWei,
+      // A unit price answers "how expensive is gas", not "what will this cost me". 21,000 is the
+      // protocol's fixed cost of a plain transfer, so the translation is exact rather than an
+      // estimate — the same intent as TRON's `Memo fee` row.
+      transferGas: NATIVE_TRANSFER_GAS,
+      transferCostWei: (BigInt(gasPriceWei) * BigInt(NATIVE_TRANSFER_GAS)).toString(10),
     };
   }
 
@@ -53,12 +69,15 @@ export class EvmChainService {
    */
   async node(network: NetworkDescriptor) {
     const gateway = this.gateways.get(network, "evm");
-    const [version, syncing, peers, head, finalized] = await Promise.all([
+    const [version, syncing, peers, head, finalized, chainId] = await Promise.all([
       optional(() => gateway.clientVersion()),
       optional(() => gateway.syncing()),
       optional(() => gateway.peerCount()),
       gateway.getBlock(),
       optional(() => gateway.getBlock("finalized")),
+      // Asked of the NODE, not read off the descriptor: the question this command answers is
+      // "is this endpoint the chain I think it is", and our own configuration cannot answer that.
+      optional(() => gateway.chainId()),
     ]);
 
     const headBlock = head as Record<string, unknown> | null;
@@ -67,8 +86,14 @@ export class EvmChainService {
     const headTimestamp = quantity(headBlock?.timestamp);
 
     return {
-      endpoint: network.httpEndpoint ?? null,
+      // HOST only — same reason as the TRON side: an endpoint may carry an API key in its path,
+      // and `chain node` is a diagnostic people paste around. Full URLs come from
+      // `config networks.<id>.httpEndpoint`, which is a named read rather than a listing.
+      endpoint: endpointHost(network.httpEndpoint) || null,
       version,
+      // EIP-155's chain id, as the node reports it. It is what every signature commits to, so it
+      // is worth stating where an endpoint can be checked against the chain it claims to serve.
+      chainId,
       // EVM nodes expose no p2p protocol version over JSON-RPC; TRON's getnodeinfo does.
       p2pVersion: null,
       headBlock: {
