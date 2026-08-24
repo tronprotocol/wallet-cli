@@ -1,4 +1,4 @@
-import type { ChainFamily, NetworkDescriptor } from "../../../domain/types/index.js";
+import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { ExecutionPolicy, ExecutionSelection } from "../../contracts/index.js";
 import type { NetworkRegistry } from "../../ports/network-registry.js";
 import { UsageError } from "../../../domain/errors/index.js";
@@ -39,7 +39,7 @@ export class TargetResolver {
       return {};
     }
 
-    const { network, reason } = this.resolveNetwork(selection);
+    const { network } = this.resolveNetwork(selection);
 
     if (policy.family && network.family !== policy.family) {
       throw new UsageError(

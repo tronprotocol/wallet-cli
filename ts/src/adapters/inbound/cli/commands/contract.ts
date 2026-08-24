@@ -6,7 +6,7 @@ import type { TronContractService } from "../../../../application/use-cases/tron
 import type { DeployConstructorArgs } from "../../../../application/ports/chain/gateway-provider.js";
 import type { EvmContractService } from "../../../../application/use-cases/evm/contract-service.js";
 import type { TronContractParameter } from "../../../../application/ports/chain/tron-gateway.js";
-import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
+import { Schemas, addressFieldsFor } from "../schemas/index.js";
 import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";

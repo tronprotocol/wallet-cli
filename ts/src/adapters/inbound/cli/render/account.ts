@@ -2,10 +2,8 @@ import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import {
   formatScalar,
-  formatInt,
   formatUsd,
   formatUsdPrice,
-  formatSun,
   formatTime,
   num,
   quote,

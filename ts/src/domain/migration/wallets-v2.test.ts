@@ -38,10 +38,6 @@ describe("walletsNeedPassword", () => {
 const TRON_ADDR = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
 const EVM_ADDR = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
 
-const noSeeds = (): never => {
-  throw new Error("seed access must not be needed");
-};
-
 const seed = Derivation.mnemonicToSeed(
   "test test test test test test test test test test test junk",
 );

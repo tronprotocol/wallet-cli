@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { main } from "./runner.js";
 
 const TRON_ADDR = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
-const EVM_ADDR = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
 
 async function runIn(walletsDoc: unknown, tokens: string[]) {
   const root = mkdtempSync(join(tmpdir(), "wcli-mig-"));
