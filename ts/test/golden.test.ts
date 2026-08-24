@@ -338,7 +338,10 @@ describe("golden CLI — command help contracts", () => {
   it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
     const r = run(["tx", "send", "--help"], { password: null });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("Send native coins or tokens with human --amount");
+    // Leads with the imperative verb (§10.1 rule 1) and stays family-neutral; the human-unit
+    // --amount flag is what the E2 contract is really about, so assert it directly.
+    expect(r.stdout).toMatch(/^Send the native coin, or a token/m);
+    expect(r.stdout).toMatch(/^ +--amount <string> +human amount/m);
   });
 
   it("block --help documents the height as a positional arg, not a --number flag (H4)", () => {
