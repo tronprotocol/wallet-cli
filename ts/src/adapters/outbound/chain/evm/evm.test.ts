@@ -66,7 +66,10 @@ describe("EvmRpcClient.getNativeBalance", () => {
   });
 
   it("surfaces a non-200 response as rpc_error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 429, text: async () => "" })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 429, text: async () => "" })),
+    );
 
     await expect(
       new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR),
@@ -300,7 +303,7 @@ describe("EvmRpcClient.callFunction", () => {
   });
 
   it("returns the result untouched", async () => {
-    const raw = `0x${(7n).toString(16).padStart(64, "0")}`;
+    const raw = `0x${7n.toString(16).padStart(64, "0")}`;
     stubRpc(raw);
 
     expect(
@@ -470,12 +473,15 @@ describe("EvmRpcClient.getErc20Balance", () => {
   function stubCall(body: unknown) {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({ ok: true, text: async () => JSON.stringify({ id: 1, ...(body as object) }) })),
+      vi.fn(async () => ({
+        ok: true,
+        text: async () => JSON.stringify({ id: 1, ...(body as object) }),
+      })),
     );
   }
 
   it("returns the decoded balance", async () => {
-    stubCall({ result: `0x${(1234n).toString(16).padStart(64, "0")}` });
+    stubCall({ result: `0x${1234n.toString(16).padStart(64, "0")}` });
 
     await expect(client().getErc20Balance(TOKEN, OWNER)).resolves.toBe("1234");
   });
@@ -499,7 +505,12 @@ describe("EvmRpcClient.getErc20Balance", () => {
   // The line the classification must not cross: a node that cannot be reached is still a node
   // that cannot be reached.
   it("leaves a transport failure as rpc_error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("connect ECONNREFUSED"); }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("connect ECONNREFUSED");
+      }),
+    );
 
     await expect(client().getErc20Balance(TOKEN, OWNER)).rejects.toMatchObject({
       code: "rpc_error",
@@ -520,29 +531,49 @@ describe("EvmRpcClient.getErc20Metadata", () => {
     // symbol/name are dynamic strings; decimals is a word. Encoded as ethers would return them.
     const str = (v: string) => {
       const hex = Buffer.from(v, "utf8").toString("hex");
-      return ("0x" + (32n).toString(16).padStart(64, "0") + BigInt(v.length).toString(16).padStart(64, "0") + hex.padEnd(64, "0"));
+      return (
+        "0x" +
+        32n.toString(16).padStart(64, "0") +
+        BigInt(v.length).toString(16).padStart(64, "0") +
+        hex.padEnd(64, "0")
+      );
     };
-    const answers = [str("USDC"), "0x" + (6n).toString(16).padStart(64, "0"), str("USD Coin")];
+    const answers = [str("USDC"), "0x" + 6n.toString(16).padStart(64, "0"), str("USD Coin")];
     let i = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      text: async () => JSON.stringify({ id: 1, result: answers[i++] }),
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        text: async () => JSON.stringify({ id: 1, result: answers[i++] }),
+      })),
+    );
 
-    await expect(client().getErc20Metadata(TOKEN)).resolves.toMatchObject({ symbol: "USDC", decimals: 6 });
+    await expect(client().getErc20Metadata(TOKEN)).resolves.toMatchObject({
+      symbol: "USDC",
+      decimals: 6,
+    });
   });
 
   it("returns nothing for a contract that implements none of them", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      text: async () => JSON.stringify({ id: 1, error: { code: -32000, message: "execution reverted" } }),
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        text: async () =>
+          JSON.stringify({ id: 1, error: { code: -32000, message: "execution reverted" } }),
+      })),
+    );
 
     await expect(client().getErc20Metadata(TOKEN)).resolves.toEqual({});
   });
 
   it("propagates a transport failure instead of reporting absent metadata", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("connect ECONNREFUSED"); }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("connect ECONNREFUSED");
+      }),
+    );
 
     await expect(client().getErc20Metadata(TOKEN)).rejects.toMatchObject({ code: "rpc_error" });
   });
@@ -648,14 +679,24 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
   // A receipt is NOT proof of success: status 0x0 is a transaction that was mined, paid gas, and
   // reverted. Reporting that as confirmed would be the worst lie this CLI could tell.
   it("reports a reverted transaction as failed, not confirmed", async () => {
-    stubRpc({ status: "0x0", gasUsed: "0x5208", effectiveGasPrice: "0x3b9aca00", blockNumber: "0x10" });
+    stubRpc({
+      status: "0x0",
+      gasUsed: "0x5208",
+      effectiveGasPrice: "0x3b9aca00",
+      blockNumber: "0x10",
+    });
     const r = await new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc");
 
     expect(r).toMatchObject({ success: false, gasUsed: "21000", blockNumber: 16 });
   });
 
   it("reports a successful transaction with its realised fee", async () => {
-    stubRpc({ status: "0x1", gasUsed: "0x5208", effectiveGasPrice: "0x3b9aca00", blockNumber: "0x10" });
+    stubRpc({
+      status: "0x1",
+      gasUsed: "0x5208",
+      effectiveGasPrice: "0x3b9aca00",
+      blockNumber: "0x10",
+    });
     const r = await new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc");
 
     // feeWei is gasUsed × effectiveGasPrice — what was actually paid, not the ceiling.
@@ -679,7 +720,7 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
 
     // 0xa9059cbb = transfer(address,uint256); then the padded recipient, then the amount.
     expect(data).toBe(
-      `0xa9059cbb${"0".repeat(24)}${ADDR.slice(2).toLowerCase()}${(5000000n)
+      `0xa9059cbb${"0".repeat(24)}${ADDR.slice(2).toLowerCase()}${5000000n
         .toString(16)
         .padStart(64, "0")}`,
     );
@@ -710,7 +751,8 @@ describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
       "fetch",
       vi.fn(async () => ({
         ok: true,
-        text: async () => JSON.stringify({ id: 1, error: { code: -32000, message: "already known" } }),
+        text: async () =>
+          JSON.stringify({ id: 1, error: { code: -32000, message: "already known" } }),
       })),
     );
     const out = await new EvmRpcClient("https://node.example", 5_000).broadcast({
@@ -812,7 +854,12 @@ describe("EvmRpcClient contract-write encoding", () => {
   it.each(["constructor(uint256)", "(uint256)", "uint256"])(
     "accepts the signature written as %s",
     (signature) => {
-      const data = client().encodeDeploy("0x6080", { source: "signature", signature, values: [7], flag: "--x" });
+      const data = client().encodeDeploy("0x6080", {
+        source: "signature",
+        signature,
+        values: [7],
+        flag: "--x",
+      });
 
       expect(data).toBe(`0x6080${WORD(7n)}`);
     },

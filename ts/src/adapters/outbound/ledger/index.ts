@@ -203,10 +203,7 @@ export class Ledger {
 
   private assertWired(family: ChainFamily): void {
     if (!FAMILIES[family].ledger) {
-      throw new ExecutionError(
-        "auth_required",
-        `Ledger ${family} app is not wired yet`,
-      );
+      throw new ExecutionError("auth_required", `Ledger ${family} app is not wired yet`);
     }
   }
 
@@ -307,13 +304,17 @@ export class Ledger {
     const existing = (tx as { signature?: unknown }).signature;
     const prior = Array.isArray(existing) ? existing : [];
     try {
-      return await this.#bound<TrxApp, SignedTx>(family, async (trx) => {
-        const signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
-        return {
-          ...(tx as object),
-          signature: prior.includes(signature) ? prior : [...prior, signature],
-        };
-      }, signal);
+      return await this.#bound<TrxApp, SignedTx>(
+        family,
+        async (trx) => {
+          const signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
+          return {
+            ...(tx as object),
+            signature: prior.includes(signature) ? prior : [...prior, signature],
+          };
+        },
+        signal,
+      );
     } catch (e) {
       throw classifyDeviceError(e);
     }
@@ -328,10 +329,12 @@ export class Ledger {
     this.assertWired(family);
     const messageHex = Buffer.from(message, "utf8").toString("hex");
     try {
-      return await this.#bound<TrxApp | EthApp, string>(family, async (app) => {
-        const signed = await app.signPersonalMessage(ledgerPath(path), messageHex);
-        return typeof signed === "string" ? `0x${signed}` : joinVrs(signed);
-      },
+      return await this.#bound<TrxApp | EthApp, string>(
+        family,
+        async (app) => {
+          const signed = await app.signPersonalMessage(ledgerPath(path), messageHex);
+          return typeof signed === "string" ? `0x${signed}` : joinVrs(signed);
+        },
         signal,
       );
     } catch (e) {
@@ -372,20 +375,24 @@ export class Ledger {
       );
     }
     try {
-      return await this.#bound<TrxApp, TypedDataSignature>(family, async (trx) => {
-        if (typeof trx.signTIP712HashedMessage !== "function") {
-          throw new WalletError(
-            "ledger_unsupported",
-            "this Ledger TRON app version cannot sign TIP-712 typed data; update the app",
+      return await this.#bound<TrxApp, TypedDataSignature>(
+        family,
+        async (trx) => {
+          if (typeof trx.signTIP712HashedMessage !== "function") {
+            throw new WalletError(
+              "ledger_unsupported",
+              "this Ledger TRON app version cannot sign TIP-712 typed data; update the app",
+            );
+          }
+          const signature = await trx.signTIP712HashedMessage(
+            ledgerPath(path),
+            domainHash,
+            messageHash,
           );
-        }
-        const signature = await trx.signTIP712HashedMessage(
-          ledgerPath(path),
-          domainHash,
-          messageHash,
-        );
-        return { signature: `0x${signature}`, digest, primaryType };
-      }, signal);
+          return { signature: `0x${signature}`, digest, primaryType };
+        },
+        signal,
+      );
     } catch (e) {
       throw classifyDeviceError(e);
     }
@@ -453,7 +460,10 @@ export class Ledger {
         "",
       );
     } catch (e) {
-      throw new ChainError("invalid_transaction", `typed data could not be hashed: ${errMessage(e)}`);
+      throw new ChainError(
+        "invalid_transaction",
+        `typed data could not be hashed: ${errMessage(e)}`,
+      );
     }
     try {
       return await this.#bound<EthApp, TypedDataSignature>(

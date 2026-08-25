@@ -364,6 +364,57 @@ describe("Keystore", () => {
   });
 });
 
+/**
+ * The codes these three failures answer with.
+ *
+ * All three used to be `invalid_value` — the bucket every malformed option lands in. For a value
+ * typed at a hidden prompt there is no field path in the envelope either, so the code was the only
+ * thing the caller got, and it said nothing. §11 names all three.
+ */
+describe("lookup and secret-shape failures carry their own codes", () => {
+  let ks: Keystore;
+  beforeEach(() => {
+    ks = freshKeystore();
+  });
+
+  it("reports a reference that matches no account as account_not_found", () => {
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    for (const ref of ["nosuchlabel", "wlt_doesnotexist", TRON0.replace(/.$/, "x")]) {
+      expect(() => ks.resolveAccount(ref), ref).toThrowError(
+        expect.objectContaining({ code: "account_not_found" }),
+      );
+    }
+  });
+
+  // An ambiguous reference is NOT the same failure: the value is valid and simply picks more than
+  // one account, so the fix is to narrow it, not to go looking for a missing account.
+  it("keeps invalid_value for a reference that matches more than one account", () => {
+    const a = ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    ks.addAccount(a.accountId.split(".")[0]!, 1);
+
+    expect(() => ks.resolveAccount(a.accountId.split(".")[0]!)).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+  });
+
+  it("reports a bad recovery phrase as invalid_mnemonic", () => {
+    expect(() => ks.import({ secret: "not a mnemonic at all", type: "seed" })).toThrowError(
+      expect.objectContaining({ code: "invalid_mnemonic" }),
+    );
+  });
+
+  // Both ways to mistype a private key answer the same, including the non-hex one — which
+  // previously escaped as a REDACTED internal_error from the hex decoder.
+  it("reports either shape of bad private key as invalid_private_key", () => {
+    for (const bad of ["zz".repeat(32), "ab".repeat(31)]) {
+      expect(() => ks.import({ secret: bad, type: "privateKey" }), bad).toThrowError(
+        expect.objectContaining({ code: "invalid_private_key" }),
+      );
+    }
+  });
+});
+
 describe("password sentinel queries", () => {
   it("isInitialized flips after the first import; verifyPassword checks the sentinel", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-sentinel-"));
@@ -551,7 +602,11 @@ describe("descriptor carries each family's derivation path", () => {
   it("gives a ledger account only its own family's path", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
     const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
-    ks.registerLedger({ family: "tron", path: "m/44'/195'/5'/0/0", address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6" });
+    ks.registerLedger({
+      family: "tron",
+      path: "m/44'/195'/5'/0/0",
+      address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6",
+    });
 
     expect(ks.list()[0]!.derivationPath).toEqual({ tron: "m/44'/195'/5'/0/0" });
   });

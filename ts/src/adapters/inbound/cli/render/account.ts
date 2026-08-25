@@ -1,13 +1,6 @@
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
-import {
-  formatScalar,
-  formatUsd,
-  formatUsdPrice,
-  formatTime,
-  num,
-  quote,
-} from "./scalars.js";
+import { formatScalar, formatUsd, formatUsdPrice, formatTime, num, quote } from "./scalars.js";
 import { type Obj, type Pair, asObj, query, receipt, table, ok, fail, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 

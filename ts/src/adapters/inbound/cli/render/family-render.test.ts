@@ -12,12 +12,15 @@ describe("FAMILY_RENDER parity", () => {
     expect(FAMILY_RENDER.tron.addressLabel).toBe("TRON address");
   });
   it("tron txInfoRows include Energy + Fee in TRX", () => {
-    const rows = FAMILY_RENDER.tron.txInfoRows({
-      txid: "t",
-      status: "SUCCESS",
-      feeSun: "1000000",
-      energyUsed: 5,
-    } as any, "TRX");
+    const rows = FAMILY_RENDER.tron.txInfoRows(
+      {
+        txid: "t",
+        status: "SUCCESS",
+        feeSun: "1000000",
+        energyUsed: 5,
+      } as any,
+      "TRX",
+    );
     expect(rows).toContainEqual(["Fee", "1 TRX"]);
     expect(rows.map((r) => r[0])).toContain("Energy");
   });
@@ -39,13 +42,16 @@ describe("FAMILY_RENDER evm", () => {
   // The cross-cutting rule is that EVM reuses TRON's field set and only changes values and
   // units — with the fee as the stated exception, because the unit is IN the field name.
   it("renders gas used and the fee in ETH", () => {
-    const rows = FAMILY_RENDER.evm.txInfoRows({
-      txid: "0xabc",
-      transaction: {},
-      status: "confirmed",
-      gasUsed: 21_000,
-      feeWei: "441000000000000",
-    }, "ETH");
+    const rows = FAMILY_RENDER.evm.txInfoRows(
+      {
+        txid: "0xabc",
+        transaction: {},
+        status: "confirmed",
+        gasUsed: 21_000,
+        feeWei: "441000000000000",
+      },
+      "ETH",
+    );
     const byLabel = Object.fromEntries(rows);
 
     expect(byLabel.Gas).toBe("21,000");
@@ -60,7 +66,11 @@ describe("FAMILY_RENDER evm", () => {
   // TxInfoView is a cross-family superset; each family picks only the fields it populates, so
   // the EVM rows must not carry TRON's resource accounting.
   it("omits TRON-only rows from its tx info", () => {
-    const labels = FAMILY_RENDER.evm.txInfoRows({ txid: "0xabc", transaction: {}, from: "0xa", to: "0xb", status: "confirmed" }, "ETH")
+    const labels = FAMILY_RENDER.evm
+      .txInfoRows(
+        { txid: "0xabc", transaction: {}, from: "0xa", to: "0xb", status: "confirmed" },
+        "ETH",
+      )
       .map(([label]) => label);
 
     expect(labels).not.toContain("Energy");
@@ -70,7 +80,9 @@ describe("FAMILY_RENDER evm", () => {
 
 describe("renderFamily", () => {
   it("reads the family from the resolved network", () => {
-    expect(renderFamily({ command: "tx.info", net: { family: "evm", nativeSymbol: "ETH" } as never })).toBe("evm");
+    expect(
+      renderFamily({ command: "tx.info", net: { family: "evm", nativeSymbol: "ETH" } as never }),
+    ).toBe("evm");
   });
 
   // The old default was "tron". With one family that was unreachable; with two it silently
@@ -148,7 +160,10 @@ describe("FAMILY_RENDER accountInfoRows", () => {
   // bytes, and a row reading "0 bytes" would say it is.
   it("sizes a contract's code and leaves the row off an EOA", () => {
     expect(
-      FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, type: "contract", codeSize: 3124 }, "ETH"),
+      FAMILY_RENDER.evm.accountInfoRows(
+        { ...EVM_ACCOUNT, type: "contract", codeSize: 3124 },
+        "ETH",
+      ),
     ).toContainEqual(["Code size", "3,124 bytes"]);
     expect(FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH").map((r) => r[0])).not.toContain(
       "Code size",
@@ -222,7 +237,11 @@ describe("FAMILY_RENDER chainPricesRows", () => {
 
   it("keeps the TRON rows intact", () => {
     const rows = FAMILY_RENDER.tron.chainPricesRows(
-      { energy: { currentSunPerUnit: 100 }, bandwidth: { currentSunPerUnit: 1000 }, memoFeeSun: "1000000" },
+      {
+        energy: { currentSunPerUnit: 100 },
+        bandwidth: { currentSunPerUnit: 1000 },
+        memoFeeSun: "1000000",
+      },
       "TRX",
     );
 
@@ -239,7 +258,12 @@ describe("FAMILY_RENDER chainPricesRows", () => {
 describe("FAMILY_RENDER — receipt settlement rows", () => {
   it("states the EVM fee AND what it is the product of", () => {
     const rows = FAMILY_RENDER.evm.receiptSettlementRows(
-      { kind: "send", feeWei: "441000000000000", gasUsed: 21000, effectiveGasPriceWei: "21000000000" } as never,
+      {
+        kind: "send",
+        feeWei: "441000000000000",
+        gasUsed: 21000,
+        effectiveGasPriceWei: "21000000000",
+      } as never,
       "ETH",
     );
 
@@ -335,4 +359,3 @@ describe("FAMILY_RENDER — chain node rows", () => {
     expect(rows).toContainEqual(["Peers", "30 connected / 27 active"]);
   });
 });
-

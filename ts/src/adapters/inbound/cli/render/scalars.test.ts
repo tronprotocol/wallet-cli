@@ -27,9 +27,12 @@ describe("formatAmount", () => {
   it.each([
     ["1", 18],
     ["999999999999", 18],
-  ])("renders a non-zero amount below display precision as <0.000001 (%s @ %i)", (raw, decimals) => {
-    expect(formatAmount(raw, decimals)).toBe("<0.000001");
-  });
+  ])(
+    "renders a non-zero amount below display precision as <0.000001 (%s @ %i)",
+    (raw, decimals) => {
+      expect(formatAmount(raw, decimals)).toBe("<0.000001");
+    },
+  );
 
   // The boundary: 0.000001 is exactly representable, so it prints in full. At 6 decimals one
   // base unit IS 0.000001, which is why a TRON amount can never fall below display precision.

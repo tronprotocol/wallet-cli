@@ -136,7 +136,10 @@ export function upgradeNotice(pending: PendingUpgrade[]): string[] {
     "",
     ...pending.map((f) => `  ${f.path}   v${f.from} \u2192 v${f.to}`),
     "",
-    ...pending.map((f) => `A copy of the current file is kept at\n  ${f.backup}\nand is never removed automatically. The upgrade runs once.`),
+    ...pending.map(
+      (f) =>
+        `A copy of the current file is kept at\n  ${f.backup}\nand is never removed automatically. The upgrade runs once.`,
+    ),
     "",
     "Release details: https://github.com/tronprotocol/wallet-cli/releases",
     "",

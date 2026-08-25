@@ -12,6 +12,7 @@ import type { LedgerDevice } from "../../../../application/ports/ledger-device.j
 import type { QrEncoder } from "../../../../application/ports/qr-encoder.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import {
+  DEFAULT_SCAN_LIMIT,
   resolveLedgerPath,
   selectLedgerPath,
 } from "../../../../application/services/ledger-account.js";
@@ -53,9 +54,7 @@ export const walletImportLedgerFields = z.object({
   path: z
     .string()
     .optional()
-    .describe(
-      "explicit derivation path; mutually exclusive with --index and --address",
-    ),
+    .describe("explicit derivation path; mutually exclusive with --index and --address"),
   address: z
     .string()
     .optional()
@@ -66,10 +65,13 @@ export const walletImportLedgerFields = z.object({
     .number()
     .int()
     .positive()
-    .optional()
-    // The default lives in the service (DEFAULT_SCAN_LIMIT); stating it here too would be a
-    // second copy to drift.
-    .describe("how many indexes to scan when using --address; omit to scan 20"),
+    // Declared from the service's own constant: `--json-schema` publishes what the schema says,
+    // so a default living only in prose is one an agent has to read English to learn — and taking
+    // the value from DEFAULT_SCAN_LIMIT keeps it one constant rather than a second copy.
+    // (--index cannot do this: it counts as "given" once it has a default, which breaks the
+    // --index/--path/--address exclusivity rule. This flag has no such constraint.)
+    .default(DEFAULT_SCAN_LIMIT)
+    .describe("how many indexes to scan when using --address"),
   label: Schemas.label()
     .optional()
     .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
@@ -198,7 +200,11 @@ export function registerWalletCommands(
     promptHints: { label: "default-label" },
     summary: "Import a BIP39 mnemonic phrase",
     description:
-      "Import a BIP39 mnemonic phrase. The recovery phrase and master password are read\n" +
+      "Import a BIP39 mnemonic phrase. Derives one address per chain family from the same\n" +
+      // §3.2's topic sentence. Its four siblings (create, derive, import private-key,
+      // import watch) each say what they produce per family; silence here reads as "this one
+      // does not".
+      "seed, the same as `create`. The recovery phrase and master password are read\n" +
       "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: importMnemonicFields,
     input: importMnemonicFields,
@@ -341,7 +347,9 @@ export function registerWalletCommands(
     address: z
       .string()
       .min(1)
-      .describe("watch-only address to track; TRON base58 (T...) or EVM hex (0x...), detected from the value"),
+      .describe(
+        "watch-only address to track; TRON base58 (T...) or EVM hex (0x...), detected from the value",
+      ),
     label: Schemas.label()
       .optional()
       .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
@@ -464,7 +472,7 @@ export function registerWalletCommands(
     formatText: TextFormatters.walletCurrent,
     run: async (context, network, input) => {
       const descriptor = wallets.current(context.activeAccount);
-      if (!input.qr || context.output !== "text") return descriptor;
+      if (!input.qr) return descriptor;
       // The network is a DISPLAY SELECTOR here, not a target: this command performs no chain I/O,
       // so it stays `network: "none"` and resolves lazily, only for --qr. That keeps a plain
       // `current` working for an account whose family does not match the active network — you
@@ -478,6 +486,12 @@ export function registerWalletCommands(
           `selected account has no ${network?.family} address; ${network?.id} cannot receive to it`,
         );
       }
+      // The check above runs whatever the output format is (§3.8 lists this error with no
+      // "text only" clause): `-o json` is a different RENDERING of the same run, not a different
+      // meaning, and the same command answering "cannot receive here" to a human and "success" to
+      // an agent is the worse of the two lies. Only the QR itself is text-shaped, so json gets the
+      // address it asked for and no picture.
+      if (context.output !== "text") return { ...descriptor, receiveAddress: address };
       const qr = services.qr?.encode(address) ?? null;
       if (!qr) {
         context.warn(

@@ -1,7 +1,4 @@
-import type {
-  EffectiveTokenEntry,
-  NetworkDescriptor,
-} from "../../../domain/types/index.js";
+import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";

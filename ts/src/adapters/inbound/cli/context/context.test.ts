@@ -52,7 +52,12 @@ describe("resolveAddress on a family the account does not have", () => {
   const EVM = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
   function ctxForEvmWatch() {
-    const sm = new StreamManager("json", false, () => {}, () => {});
+    const sm = new StreamManager(
+      "json",
+      false,
+      () => {},
+      () => {},
+    );
     const deps = {
       config: { timeoutMs: 1 },
       streams: sm,

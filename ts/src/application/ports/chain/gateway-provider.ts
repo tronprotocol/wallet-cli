@@ -63,7 +63,9 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   /** ERC-20 balance as a decimal base-unit string. */
   getErc20Balance(contract: string, owner: string): Promise<string>;
   /** best-effort ERC-20 metadata; a field the contract does not answer is absent, never defaulted. */
-  getErc20Metadata(contract: string): Promise<{ symbol?: string; decimals?: number; name?: string }>;
+  getErc20Metadata(
+    contract: string,
+  ): Promise<{ symbol?: string; decimals?: number; name?: string }>;
 }
 
 /**

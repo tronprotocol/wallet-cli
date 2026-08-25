@@ -66,13 +66,7 @@ export class EvmAccountService {
     }
 
     const holdings: Array<Record<string, unknown>> = [
-      holding(
-        "native",
-        network.nativeSymbol,
-        FAMILIES.evm.nativeDecimals,
-        nativeRaw,
-        nativePrice,
-      ),
+      holding("native", network.nativeSymbol, FAMILIES.evm.nativeDecimals, nativeRaw, nativePrice),
       ...tokens.map((token: EffectiveTokenEntry, index) => {
         const result = balances[index]!;
         const extra = { id: token.id, name: token.name, source: token.source };

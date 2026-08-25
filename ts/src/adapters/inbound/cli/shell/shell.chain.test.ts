@@ -296,9 +296,9 @@ describe("--dry-run bars broadcasting", () => {
       return { stage: "submitted" };
     });
 
-    await expect(buildCli(shellOpts).parseAsync(["tx", "broadcast", "--dry-run"])).rejects.toMatchObject(
-      { code: "dry_run_violation" },
-    );
+    await expect(
+      buildCli(shellOpts).parseAsync(["tx", "broadcast", "--dry-run"]),
+    ).rejects.toMatchObject({ code: "dry_run_violation" });
     expect(submitted).toEqual([]);
   });
 

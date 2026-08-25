@@ -10,7 +10,12 @@ import { Schemas, addressFieldsFor } from "../schemas/index.js";
 import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";
-import { governanceTxModeFields, governanceTxRefine, tronTxModeFields, txModeFields } from "./shared.js";
+import {
+  governanceTxModeFields,
+  governanceTxRefine,
+  tronTxModeFields,
+  txModeFields,
+} from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
@@ -198,8 +203,14 @@ const evmGasFields = z.object({
   gasLimit: Schemas.positiveIntString()
     .optional()
     .describe("gas units to authorise; defaults to the node's estimate, unpadded"),
-  maxFee: z.string().optional().describe("maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 only)"),
-  priorityFee: z.string().optional().describe("tip per gas, in gwei — 25 or 25gwei (EIP-1559 only)"),
+  maxFee: z
+    .string()
+    .optional()
+    .describe("maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 only)"),
+  priorityFee: z
+    .string()
+    .optional()
+    .describe("tip per gas, in gwei — 25 or 25gwei (EIP-1559 only)"),
   nonce: z.coerce
     .number()
     .int()
@@ -343,7 +354,8 @@ interface DeployArgInput {
 
 /** bare constructor values, from `--constructor-args` or unwrapped from `--constructor-params`. */
 function constructorValues(input: DeployArgInput): unknown[] {
-  if (input.constructorArgs !== undefined) return jsonArray(input.constructorArgs, "--constructor-args");
+  if (input.constructorArgs !== undefined)
+    return jsonArray(input.constructorArgs, "--constructor-args");
   return typedConstructorParams(input.constructorParams).map((entry) => entry.value);
 }
 
@@ -429,12 +441,16 @@ const deployFields = z.object({
     .string()
     .min(1)
     .optional()
-    .describe("contract creation bytecode, hex-encoded; provide exactly one of --artifact, --code or --code-file"),
+    .describe(
+      "contract creation bytecode, hex-encoded; provide exactly one of --artifact, --code or --code-file",
+    ),
   codeFile: z
     .string()
     .min(1)
     .optional()
-    .describe("path to a file holding the creation bytecode; bytecode often exceeds the shell's argument limit"),
+    .describe(
+      "path to a file holding the creation bytecode; bytecode often exceeds the shell's argument limit",
+    ),
   constructorSignature: z
     .string()
     .min(1)
@@ -619,7 +635,8 @@ export const contractDeploySpec: ChainSpec = {
   capability: "contract.deploy",
   summary: "Deploy contract bytecode",
   description:
-    "Deploy contract creation bytecode and report the new contract's address.\n" + "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
+    "Deploy contract creation bytecode and report the new contract's address.\n" +
+    "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
   // The Ledger TRON app firmware rejects CreateSmartContract (APDU 0x6a80), even with
   // blind-signing enabled; software accounts sign and deploy it fine.
   requires: [
@@ -629,10 +646,10 @@ export const contractDeploySpec: ChainSpec = {
   baseRefine: deployRefine,
   examples: [
     {
-      cmd: "wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '[\"18\",\"MyToken\"]' --network nile",
+      cmd: 'wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args \'["18","MyToken"]\' --network nile',
     },
     {
-      cmd: "wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '[\"18\",\"MyToken\"]' --network sepolia",
+      cmd: 'wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args \'["18","MyToken"]\' --network sepolia',
     },
     {
       cmd: "wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '[\"18\",\"MyToken\"]' --network sepolia",

@@ -113,7 +113,10 @@ function renderConfig(d: Obj): string {
   if ("key" in d) {
     // A map-valued key (networks, aliases) gets its own titled block; a scalar stays one line.
     return isMap(d.value)
-      ? titled(String(d.key), Object.entries(d.value).map(([k, v]) => [k, configValue(v)] as Pair))
+      ? titled(
+          String(d.key),
+          Object.entries(d.value).map(([k, v]) => [k, configValue(v)] as Pair),
+        )
       : kv([[String(d.key), configValue(d.value)]], "");
   }
   return kv(

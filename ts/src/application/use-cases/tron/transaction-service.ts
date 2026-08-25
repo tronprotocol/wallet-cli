@@ -320,8 +320,7 @@ export class TronTransactionService {
 async function headBlockNumber(gateway: TronGateway): Promise<number | undefined> {
   try {
     const block = (await gateway.getBlock()) as
-      | { block_header?: { raw_data?: { number?: number } } }
-      | undefined;
+      { block_header?: { raw_data?: { number?: number } } } | undefined;
     return block?.block_header?.raw_data?.number;
   } catch {
     return undefined;
@@ -332,4 +331,3 @@ async function headBlockNumber(gateway: TronGateway): Promise<number | undefined
 function lowerCaseStatus(value: string | undefined): string | undefined {
   return value === undefined ? undefined : value.toLowerCase();
 }
-

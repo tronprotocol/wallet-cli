@@ -74,7 +74,10 @@ describe("EvmChainService.node", () => {
    * handed over — a named read rather than a listing.
    */
   it("never echoes an endpoint's path or query, which is where API keys live", async () => {
-    const withKey = { ...net, httpEndpoint: "https://eth.example/v2/SECRET-KEY?apikey=ALSO-SECRET" };
+    const withKey = {
+      ...net,
+      httpEndpoint: "https://eth.example/v2/SECRET-KEY?apikey=ALSO-SECRET",
+    };
     const out = await service().node(withKey as NetworkDescriptor);
 
     expect(out.endpoint).toBe("eth.example");
@@ -91,7 +94,9 @@ describe("EvmChainService.node", () => {
   });
 
   it("degrades the chain id to null rather than failing the command", async () => {
-    const out = await service({ chainId: new ChainError("rpc_error", "method not found") }).node(net);
+    const out = await service({ chainId: new ChainError("rpc_error", "method not found") }).node(
+      net,
+    );
 
     expect(out.chainId).toBeNull();
     expect(out.headBlock).toMatchObject({ number: 1234567 });
@@ -118,7 +123,9 @@ describe("EvmChainService.node", () => {
   });
 
   it("degrades the solid block to null on a chain that does not serve finalized", async () => {
-    const out = await service({ finalized: new ChainError("rpc_error", "unknown block") }).node(net);
+    const out = await service({ finalized: new ChainError("rpc_error", "unknown block") }).node(
+      net,
+    );
 
     expect(out.solidBlock).toBeNull();
     expect(out.lagBlocks).toBeNull();
@@ -187,8 +194,8 @@ describe("EvmChainService.prices", () => {
   });
 
   it("honours a network that pins itself to legacy", async () => {
-    await expect(priced({ baseFeeWei: "100", gasPriceWei: "110" }, "legacy")).resolves.toMatchObject(
-      { feeModel: "legacy" },
-    );
+    await expect(
+      priced({ baseFeeWei: "100", gasPriceWei: "110" }, "legacy"),
+    ).resolves.toMatchObject({ feeModel: "legacy" });
   });
 });

@@ -72,10 +72,8 @@ export function stakeDefinitions(
         resource: resourceField("resource type to release"),
       },
     ),
-    stakeCommand(
-      "withdraw",
-      "Withdraw expired unfrozen TRX",
-      (context, network, input) => service.withdraw(context, network, input),
+    stakeCommand("withdraw", "Withdraw expired unfrozen TRX", (context, network, input) =>
+      service.withdraw(context, network, input),
     ),
     stakeCommand(
       "cancel-unfreeze",

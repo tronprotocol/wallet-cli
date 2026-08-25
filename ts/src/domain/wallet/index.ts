@@ -112,7 +112,10 @@ export function enumerateAddresses(
 ): Array<{ index: number | null; addr: Partial<ChainAddresses> }> {
   const s = w.source;
   if (s.type === "seed") {
-    return accountIndices(s).map((i) => ({ index: i, addr: canonicalAddresses(s.addresses[String(i)]!) }));
+    return accountIndices(s).map((i) => ({
+      index: i,
+      addr: canonicalAddresses(s.addresses[String(i)]!),
+    }));
   }
   if (s.type === "privateKey") return [{ index: null, addr: canonicalAddresses(s.addresses) }];
   return [{ index: null, addr: { [s.family]: addressCodec(s.family).canonical(s.address) } }];

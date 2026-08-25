@@ -31,9 +31,9 @@ describe("holding", () => {
   });
 
   it("carries extra identity fields through", () => {
-    expect(holding("erc20", "USDT", 6, "1", null, { id: "0xdAC1", source: "official" })).toMatchObject(
-      { id: "0xdAC1", source: "official" },
-    );
+    expect(
+      holding("erc20", "USDT", 6, "1", null, { id: "0xdAC1", source: "official" }),
+    ).toMatchObject({ id: "0xdAC1", source: "official" });
   });
 });
 
@@ -64,9 +64,7 @@ describe("unavailableHolding", () => {
 
 describe("portfolioTotal", () => {
   it("sums only the rows that have a value", () => {
-    expect(
-      portfolioTotal([{ valueUsd: 10 }, { valueUsd: null }, { valueUsd: 2.5 }]),
-    ).toBe(12.5);
+    expect(portfolioTotal([{ valueUsd: 10 }, { valueUsd: null }, { valueUsd: 2.5 }])).toBe(12.5);
   });
 
   it("reports null when nothing could be valued", () => {

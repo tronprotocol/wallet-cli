@@ -283,39 +283,48 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).not.toContain("Fee");
   });
   it("tx send TRC20 via --contract --raw-amount (no symbol): never mislabels as TRX", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "submitted",
-      txId: "t20",
-      rawAmount: "10000",
-      contract: "TXYZtokenContract",
-      to: "Tdest",
-    }, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "submitted",
+        txId: "t20",
+        rawAmount: "10000",
+        contract: "TXYZtokenContract",
+        to: "Tdest",
+      },
+      ctx(),
+    );
     expect(out).toContain("Sent 10000 TXYZtokenContract");
     expect(out).not.toContain("TRX");
   });
   it("tx send TRC10 via --asset-id --raw-amount (no symbol): labels by asset id, not TRX", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "submitted",
-      txId: "t10",
-      rawAmount: "500000",
-      assetId: "1005416",
-      to: "Tdest",
-    }, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "submitted",
+        txId: "t10",
+        rawAmount: "500000",
+        assetId: "1005416",
+        to: "Tdest",
+      },
+      ctx(),
+    );
     expect(out).toContain("Sent 500000 asset 1005416");
     expect(out).not.toContain("TRX");
   });
   it("tx send confirmed (--wait): success receipt with real block + fee", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "confirmed",
-      txId: "abc",
-      rawAmount: "1000000",
-      to: "Tdest",
-      blockNumber: 66000000,
-      feeSun: "268000",
-    }, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "confirmed",
+        txId: "abc",
+        rawAmount: "1000000",
+        to: "Tdest",
+        blockNumber: 66000000,
+        feeSun: "268000",
+      },
+      ctx(),
+    );
     expect(out).toContain("✅");
     expect(out).toContain("Sent 1 TRX");
     expect(out).toContain("#66,000,000");
@@ -323,31 +332,37 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("success");
   });
   it("confirmed receipt preserves legitimate zero-valued chain fields", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "confirmed",
-      txId: "zero",
-      rawAmount: "0",
-      to: "Tdest",
-      blockNumber: 0,
-      energyUsed: 0,
-      feeSun: 0,
-    }, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "confirmed",
+        txId: "zero",
+        rawAmount: "0",
+        to: "Tdest",
+        blockNumber: 0,
+        energyUsed: 0,
+        feeSun: 0,
+      },
+      ctx(),
+    );
     expect(out).toContain("#0");
     expect(out).toMatch(/Energy\s+0/);
     expect(out).toContain("0 TRX");
   });
   it("contract send failed (--wait): failure receipt with reason", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "contract-send",
-      stage: "failed",
-      txId: "abc",
-      method: "transfer(address,uint256)",
-      contract: "TR7contract",
-      result: "OUT_OF_ENERGY",
-      blockNumber: 1,
-      failed: true,
-    }, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "contract-send",
+        stage: "failed",
+        txId: "abc",
+        method: "transfer(address,uint256)",
+        contract: "TR7contract",
+        result: "OUT_OF_ENERGY",
+        blockNumber: 1,
+        failed: true,
+      },
+      ctx(),
+    );
     expect(out).toContain("❌");
     expect(out).toContain("Called transfer");
     expect(out).toContain("TR7contract");
@@ -377,30 +392,36 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
   });
   it("dry-run with an energy estimate (TRC20/contract): renders energy, never [object Object]", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      mode: "dry-run",
-      fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 133440569 } as any,
-      tx: { txID: "deadbeef" } as any,
-      rawAmount: "10000",
-      contract: "TXYZtoken",
-      to: "Tdest",
-    } as any, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        mode: "dry-run",
+        fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 133440569 } as any,
+        tx: { txID: "deadbeef" } as any,
+        rawAmount: "10000",
+        contract: "TXYZtoken",
+        to: "Tdest",
+      } as any,
+      ctx(),
+    );
     expect(out).toContain("Dry run");
     expect(out).not.toContain("[object Object]");
     expect(out).toContain("29,650 energy");
     expect(out).toContain("covered by staked energy"); // availableEnergy >= energy
   });
   it("dry-run energy estimate with insufficient available energy: no 'covered' note", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      mode: "dry-run",
-      fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 100 } as any,
-      tx: { txID: "deadbeef" } as any,
-      rawAmount: "10000",
-      contract: "TXYZtoken",
-      to: "Tdest",
-    } as any, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        mode: "dry-run",
+        fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 100 } as any,
+        tx: { txID: "deadbeef" } as any,
+        rawAmount: "10000",
+        contract: "TXYZtoken",
+        to: "Tdest",
+      } as any,
+      ctx(),
+    );
     expect(out).toContain("29,650 energy");
     expect(out).not.toContain("covered by staked energy");
   });
@@ -415,14 +436,17 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     balanceSun: "1862126000",
   };
   const dryRun = (fee: unknown) =>
-    TextFormatters.txReceipt({
-      kind: "account-activate",
-      mode: "dry-run",
-      fee,
-      tx: { txID: "cc0a6f68" },
-      address: "TEF2CvkixrkzwbreCRFCQ7sZGj9AVFAkQq",
-      payer: "TMSgJxtPw29",
-    } as any, ctx()) as string;
+    TextFormatters.txReceipt(
+      {
+        kind: "account-activate",
+        mode: "dry-run",
+        fee,
+        tx: { txID: "cc0a6f68" },
+        address: "TEF2CvkixrkzwbreCRFCQ7sZGj9AVFAkQq",
+        payer: "TMSgJxtPw29",
+      } as any,
+      ctx(),
+    ) as string;
 
   it("account activate dry-run: renders the total creation fee, not [object Object]", () => {
     const out = dryRun(activateFee);
@@ -493,12 +517,15 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   };
 
   it("broadcast dry-run: projects the permission and approval block json already carries", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      mode: "dry-run",
-      transaction: broadcastApproval,
-      multiSignFeeSun: 1000000,
-    } as any, ctx()) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        mode: "dry-run",
+        transaction: broadcastApproval,
+        multiSignFeeSun: 1000000,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out).toContain("Dry run tx broadcast");
     expect(out).toContain('Permission  active "finance" (id 2)  threshold 2');
     expect(out).toContain("Progress  2 / 2 — threshold reached");
@@ -507,12 +534,15 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
 
   it("broadcast dry-run: identifies the transaction instead of leaving an empty Tx row", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      mode: "dry-run",
-      transaction: broadcastApproval,
-      multiSignFeeSun: 0,
-    } as any, ctx()) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        mode: "dry-run",
+        transaction: broadcastApproval,
+        multiSignFeeSun: 0,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out).toContain("abc123");
   });
 
@@ -520,24 +550,30 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     ["non-zero multi-sign fee", 1000000, "1 TRX"],
     ["zero multi-sign fee", 0, "0 TRX"],
   ])("broadcast dry-run: states the multi-sign fee exactly once (%s)", (_n, fee, expected) => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      mode: "dry-run",
-      transaction: broadcastApproval,
-      multiSignFeeSun: fee,
-    } as any, ctx()) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        mode: "dry-run",
+        transaction: broadcastApproval,
+        multiSignFeeSun: fee,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out.match(/multi-sign fee/gi) ?? []).toHaveLength(1);
     expect(out).toContain(expected);
   });
 
   it("broadcast submitted: keeps txid, status and the tracking hint, and does not duplicate the fee", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      stage: "submitted",
-      txId: "abc123",
-      transaction: broadcastApproval,
-      multiSignFeeSun: 1000000,
-    } as any, ctx()) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        stage: "submitted",
+        txId: "abc123",
+        transaction: broadcastApproval,
+        multiSignFeeSun: 1000000,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out).toContain("abc123");
     expect(out).toContain("pending — not yet on-chain");
     expect(out).toContain("Track it:");
@@ -545,13 +581,16 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
 
   it("stake freeze submitted: renders staked amount and resource", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "stake-freeze",
-      stage: "submitted",
-      txId: "abc",
-      amountSun: "2000000",
-      resource: "energy",
-    }, ctx());
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "stake-freeze",
+        stage: "submitted",
+        txId: "abc",
+        amountSun: "2000000",
+        resource: "energy",
+      },
+      ctx(),
+    );
     expect(out).toContain("Staked");
     expect(out).toContain("2 TRX");
     expect(out).toContain("energy");
@@ -861,7 +900,10 @@ describe("sign-only receipt", () => {
     address: "TSigner",
     txId: "abc123",
   };
-  const ctx = { command: "tx sign", net: { family: "tron", nativeSymbol: "TRX", id: "nile" } } as never;
+  const ctx = {
+    command: "tx sign",
+    net: { family: "tron", nativeSymbol: "TRX", id: "nile" },
+  } as never;
 
   // The signature is the product of a signing command and has to be copied somewhere, so it must
   // never be shortened. Before this it showed a truncated txID — redundant with the TxID row and
@@ -958,14 +1000,12 @@ describe("portfolio price vs valuation precision", () => {
 // vocabulary the user never needs otherwise. Externally the book is a flat name↔address map.
 describe("contact list is a flat name-to-address map", () => {
   const listed = () =>
-    TextFormatters.contactList(
-      {
-        contacts: [
-          { name: "tron-friend", address: "TWer2Ygk5", note: null },
-          { name: "evm-friend", address: "0xe2E1a549", note: "team" },
-        ],
-      },
-    ) as string;
+    TextFormatters.contactList({
+      contacts: [
+        { name: "tron-friend", address: "TWer2Ygk5", note: null },
+        { name: "evm-friend", address: "0xe2E1a549", note: "team" },
+      ],
+    }) as string;
 
   it("has no Family column — the address already tells you the chain", () => {
     expect(listed().split("\n")[0]).not.toMatch(/\bFamily\b/);
@@ -1044,17 +1084,15 @@ describe("list shows one family's addresses at a time", () => {
 // command on two machines silently produces different secrets with nothing to tell them apart.
 describe("keystore receipt names the exported family", () => {
   const receipt = (extra: Record<string, unknown>) =>
-    TextFormatters.walletBackup(
-      {
-        accountId: "wlt_a.0",
-        out: "/tmp/x.keystore.json",
-        format: "keystore",
-        secretType: "privateKey",
-        fileMode: "0600",
-        bytes: 491,
-        ...extra,
-      },
-    ) as string;
+    TextFormatters.walletBackup({
+      accountId: "wlt_a.0",
+      out: "/tmp/x.keystore.json",
+      format: "keystore",
+      secretType: "privateKey",
+      fileMode: "0600",
+      bytes: 491,
+      ...extra,
+    }) as string;
 
   it("shows the family a keystore export used", () => {
     expect(receipt({ family: "evm" })).toMatch(/^\s*Family\s+evm$/m);
@@ -1063,9 +1101,12 @@ describe("keystore receipt names the exported family", () => {
   // A mnemonic covers every family, so there is nothing to disambiguate and a row would imply
   // a choice that was never made.
   it("omits the row for a native backup", () => {
-    const out = TextFormatters.walletBackup(
-      { accountId: "wlt_a.0", out: "/tmp/x.json", secretType: "mnemonic", bytes: 313 },
-    ) as string;
+    const out = TextFormatters.walletBackup({
+      accountId: "wlt_a.0",
+      out: "/tmp/x.json",
+      secretType: "mnemonic",
+      bytes: 313,
+    }) as string;
 
     expect(out).not.toMatch(/\bFamily\b/);
   });

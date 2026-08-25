@@ -159,7 +159,8 @@ describe("builtin EVM networks", () => {
 
   it("keeps the TRON networks unchanged", () => {
     expect(registry().resolve("tron:nile")).toMatchObject({
-      family: "tron", nativeSymbol: "TRX",
+      family: "tron",
+      nativeSymbol: "TRX",
       feeModel: "tron-resource",
     });
   });
@@ -232,11 +233,14 @@ describe("network keys in config.yaml are normalised to canonical ids", () => {
   });
 
   it("keeps the rest of the builtin descriptor when merging an alias-keyed entry", () => {
-    const config = load(["networks:", "  nile:", "    httpEndpoint: https://mine.example"].join("\n"));
+    const config = load(
+      ["networks:", "  nile:", "    httpEndpoint: https://mine.example"].join("\n"),
+    );
 
     expect(config.networks["tron:nile"]).toMatchObject({
       id: "tron:nile",
-      family: "tron", nativeSymbol: "TRX",
+      family: "tron",
+      nativeSymbol: "TRX",
       httpEndpoint: "https://mine.example",
     });
   });
@@ -255,9 +259,13 @@ describe("network keys in config.yaml are normalised to canonical ids", () => {
 
   it("leaves an unrecognised key alone so a user-defined network still works", () => {
     const config = load(
-      ["networks:", "  evm:137:", "    family: evm", '    chainId: "137"', "    nativeSymbol: MATIC"].join(
-        "\n",
-      ),
+      [
+        "networks:",
+        "  evm:137:",
+        "    family: evm",
+        '    chainId: "137"',
+        "    nativeSymbol: MATIC",
+      ].join("\n"),
     );
 
     expect(config.networks["evm:137"]).toMatchObject({ id: "evm:137", family: "evm" });
@@ -324,7 +332,7 @@ describe("a hand-added network is validated at load", () => {
     ["networks:", "  evm:137:", ...extra.map((l) => `    ${l}`)].join("\n");
 
   it("accepts a complete definition", () => {
-    const net = load(custom(['family: evm', 'chainId: "137"', 'nativeSymbol: MATIC'])).networks[
+    const net = load(custom(["family: evm", 'chainId: "137"', "nativeSymbol: MATIC"])).networks[
       "evm:137"
     ]!;
     expect(net).toMatchObject({ family: "evm", chainId: "137", nativeSymbol: "MATIC" });
@@ -333,7 +341,7 @@ describe("a hand-added network is validated at load", () => {
   // Traits are a list of extras; having none is the normal case, not an error.
   it("defaults capabilities to none rather than leaving it undefined", () => {
     expect(
-      load(custom(['family: evm', 'chainId: "137"', 'nativeSymbol: MATIC'])).networks["evm:137"]!
+      load(custom(["family: evm", 'chainId: "137"', "nativeSymbol: MATIC"])).networks["evm:137"]!
         .capabilities,
     ).toEqual([]);
   });

@@ -42,7 +42,8 @@ function artifactFile(body: unknown, name = "Counter.json"): string {
 }
 
 /** Foundry nests the bytecode under `{object}`; Hardhat, sunhat and TronBox store the string. */
-const foundryArtifact = () => artifactFile({ abi: CONSTRUCTOR_ABI, bytecode: { object: "0x6080" } });
+const foundryArtifact = () =>
+  artifactFile({ abi: CONSTRUCTOR_ABI, bytecode: { object: "0x6080" } });
 const hardhatArtifact = () =>
   artifactFile({ contractName: "Counter", abi: CONSTRUCTOR_ABI, bytecode: "0x6080" });
 
@@ -181,7 +182,9 @@ describe("contract deploy — input rules", () => {
       .safeParse({ dryRun: false, signOnly: false, buildOnly: false, ...input });
 
   const message = (input: Record<string, unknown>) =>
-    parse(input).error?.issues.map((i) => i.message).join(" | ") ?? "";
+    parse(input)
+      .error?.issues.map((i) => i.message)
+      .join(" | ") ?? "";
 
   it("accepts --artifact as a bytecode source", () => {
     expect(parse({ artifact: "./out/Counter.sol/Counter.json" }).success).toBe(true);
@@ -240,8 +243,11 @@ describe("contract deploy — input rules", () => {
 
   it("accepts bare values once a type source is present", () => {
     expect(
-      parse({ code: "6080", constructorSignature: "constructor(uint256)", constructorArgs: '["42"]' })
-        .success,
+      parse({
+        code: "6080",
+        constructorSignature: "constructor(uint256)",
+        constructorArgs: '["42"]',
+      }).success,
     ).toBe(true);
     expect(parse({ artifact: "./a.json", constructorArgs: '["42"]' }).success).toBe(true);
   });
@@ -278,9 +284,7 @@ describe("contract deploy — TRON's ABI requirement", () => {
   });
 
   it("says plainly that a signature cannot replace the ABI here", () => {
-    expect(check({ abi: "[]", constructorSignature: "constructor(uint256)" })).toMatch(
-      /full ABI/,
-    );
+    expect(check({ abi: "[]", constructorSignature: "constructor(uint256)" })).toMatch(/full ABI/);
   });
 
   it("takes the ABI out of the artifact and passes bare values to TronWeb", async () => {

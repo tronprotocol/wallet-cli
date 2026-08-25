@@ -178,9 +178,7 @@ describe("Ledger signs EVM typed data", () => {
 
     const [, domainHash, structHash] = calls[0]!.args as [string, string, string];
     expect(domainHash).toBe(TypedDataEncoder.hashDomain(DOMAIN).replace(/^0x/, ""));
-    expect(structHash).toBe(
-      TypedDataEncoder.hashStruct("Mail", TYPES, MESSAGE).replace(/^0x/, ""),
-    );
+    expect(structHash).toBe(TypedDataEncoder.hashStruct("Mail", TYPES, MESSAGE).replace(/^0x/, ""));
   });
 });
 

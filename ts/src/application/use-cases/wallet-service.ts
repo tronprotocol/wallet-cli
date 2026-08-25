@@ -9,7 +9,11 @@ import {
 import { resembledFamily } from "../../domain/contact/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
-import { TronAddress, evmAddressFromPublicKey, tronHexAddress } from "../../domain/address/index.js";
+import {
+  TronAddress,
+  evmAddressFromPublicKey,
+  tronHexAddress,
+} from "../../domain/address/index.js";
 import type { Bytes } from "../../domain/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
@@ -117,8 +121,11 @@ export class WalletService {
     }
     const wallet = this.wallets.resolveWallet(id);
     if (wallet.source.type !== "seed") {
+      // Its own code, for the same reason `account_not_found` has one: "that reference is not a
+      // seed wallet" has an obvious next step (`list`, and read the HD group headers), and an
+      // agent can only take it if the code says so rather than the English.
       throw new UsageError(
-        "invalid_value",
+        "seed_not_found",
         `${wallet.source.type} wallet is not HD; derive needs a seed wallet`,
       );
     }
@@ -267,7 +274,9 @@ export class WalletService {
       if (
         target &&
         r.accountId !== target.accountId &&
-        !CHAIN_FAMILIES.some((f) => target.addresses[f] !== undefined && r.account === target.addresses[f])
+        !CHAIN_FAMILIES.some(
+          (f) => target.addresses[f] !== undefined && r.account === target.addresses[f],
+        )
       )
         return false;
       return true;
@@ -392,4 +401,3 @@ function addressRejection(value: string): string {
     ? `${value} looks like a ${resembles} address but its length or checksum is wrong`
     : `unrecognised address format: ${value}`;
 }
-

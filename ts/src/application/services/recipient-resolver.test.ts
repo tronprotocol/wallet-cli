@@ -14,7 +14,8 @@ describe("RecipientResolver", () => {
     find: (_family: string, key: string) =>
       key === "alice"
         ? {
-            family: "tron", nativeSymbol: "TRX",
+            family: "tron",
+            nativeSymbol: "TRX",
             name: "Alice",
             nameKey: "alice",
             address: ALICE,
@@ -84,7 +85,13 @@ describe("RecipientResolver — EVM", () => {
     const impostor = "0xe2e1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
     const resolverWithImpostor = new RecipientResolver(
       repoWith([
-        { family: "evm", nativeSymbol: "ETH", name: impostor, nameKey: impostor.toLowerCase(), address: "0xdead" },
+        {
+          family: "evm",
+          nativeSymbol: "ETH",
+          name: impostor,
+          nameKey: impostor.toLowerCase(),
+          address: "0xdead",
+        },
       ]),
     );
 
@@ -93,7 +100,9 @@ describe("RecipientResolver — EVM", () => {
 
   it("resolves a contact filed under evm", () => {
     const withFriend = new RecipientResolver(
-      repoWith([{ family: "evm", nativeSymbol: "ETH", name: "Friend", nameKey: "friend", address: EVM }]),
+      repoWith([
+        { family: "evm", nativeSymbol: "ETH", name: "Friend", nameKey: "friend", address: EVM },
+      ]),
     );
 
     expect(withFriend.resolve("evm", "friend")).toEqual({ address: EVM, contactName: "Friend" });
@@ -101,7 +110,9 @@ describe("RecipientResolver — EVM", () => {
 
   it("does not see a contact filed under another family", () => {
     const tronOnly = new RecipientResolver(
-      repoWith([{ family: "tron", nativeSymbol: "TRX", name: "Friend", nameKey: "friend", address: TRON }]),
+      repoWith([
+        { family: "tron", nativeSymbol: "TRX", name: "Friend", nameKey: "friend", address: TRON },
+      ]),
     );
 
     expect(() => tronOnly.resolve("evm", "friend")).toThrow();
@@ -228,4 +239,3 @@ describe("RecipientResolver — a value that is neither", () => {
     expect(error.message).toMatch(/not an address either/);
   });
 });
-

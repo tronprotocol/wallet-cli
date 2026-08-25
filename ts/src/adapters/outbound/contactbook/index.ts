@@ -98,7 +98,11 @@ export class ContactBook implements ContactRepository {
     const result: ContactDocument = { version: 1, entries: {} };
     for (const [key, items] of Object.entries(root.entries as Record<string, unknown>)) {
       const family = key as ChainFamily;
-      if (!CHAIN_FAMILIES.includes(family) || !Array.isArray(items) || items.length > MAX_CONTACTS) {
+      if (
+        !CHAIN_FAMILIES.includes(family) ||
+        !Array.isArray(items) ||
+        items.length > MAX_CONTACTS
+      ) {
         throw corrupt();
       }
       const seen = new Set<string>();

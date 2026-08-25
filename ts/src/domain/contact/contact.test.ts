@@ -115,4 +115,3 @@ describe("createContact — canonical address", () => {
     );
   });
 });
-

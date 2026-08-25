@@ -28,7 +28,9 @@ describe("runMigrationGate", () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
 
-    const error = await runMigrationGate(runner, [stalePasswordStep(wallets, true)], { password: async () => null })
+    const error = await runMigrationGate(runner, [stalePasswordStep(wallets, true)], {
+      password: async () => null,
+    })
       .then(() => null)
       .catch((e: unknown) => e as CliError);
 
@@ -53,7 +55,9 @@ describe("runMigrationGate", () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
 
-    await runMigrationGate(runner, [stalePasswordStep(wallets, true)], { password: async () => "hunter2" });
+    await runMigrationGate(runner, [stalePasswordStep(wallets, true)], {
+      password: async () => "hunter2",
+    });
 
     expect(JSON.parse(readFileSync(wallets, "utf8")).sawPassword).toBe("hunter2");
   });
@@ -150,10 +154,14 @@ describe("runMigrationGate consent", () => {
     writeFileSync(wallets, JSON.stringify({ version: 2, wallets: [] }));
     const confirm = vi.fn(async () => true);
 
-    await runMigrationGate(new MigrationRunner(new AtomicFileStore()), [stalePasswordStep(wallets, true)], {
-      confirm,
-      password: async () => null,
-    });
+    await runMigrationGate(
+      new MigrationRunner(new AtomicFileStore()),
+      [stalePasswordStep(wallets, true)],
+      {
+        confirm,
+        password: async () => null,
+      },
+    );
 
     expect(confirm).not.toHaveBeenCalled();
   });
@@ -171,16 +179,19 @@ describe("runMigrationGate consent", () => {
       password: async () => "hunter2",
     });
 
-    expect(seen).toEqual([
-      { path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` },
-    ]);
+    expect(seen).toEqual([{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }]);
   });
 });
 
 describe("the upgrade notice", () => {
   const notice = () =>
     upgradeNotice([
-      { path: "/home/u/.wallet-cli/wallets.json", from: 1, to: 2, backup: "/home/u/.wallet-cli/wallets.json.v1.bak" },
+      {
+        path: "/home/u/.wallet-cli/wallets.json",
+        from: 1,
+        to: 2,
+        backup: "/home/u/.wallet-cli/wallets.json.v1.bak",
+      },
     ]).join("\n");
 
   it("names the file and shows the version change", () => {

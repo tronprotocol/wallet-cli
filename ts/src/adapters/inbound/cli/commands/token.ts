@@ -155,8 +155,7 @@ export const tokenRemoveSpec: ChainSpec = {
   summary: "Remove a user-added token",
   // §5.5: the refusal on an official entry is a rule worth stating before it is hit.
   description:
-    "Remove a user-added token from the address book. Official entries cannot be\n" +
-    "removed.",
+    "Remove a user-added token from the address book. Official entries cannot be\n" + "removed.",
   baseFields: selectorFields,
   examples: [
     { cmd: "wallet-cli token remove --contract TR7... --network nile" },

@@ -8,9 +8,18 @@ const seedWallet = { id: "wlt_s", source: { type: "seed", vaultId: "v1", address
 const pkWallet = { id: "wlt_k", source: { type: "privateKey", keyId: "k1", addresses: {} } };
 const ledgerWallet = {
   id: "wlt_l",
-  source: { type: "ledger", family: "tron", nativeSymbol: "TRX", path: "m/44'/195'/0'/0/0", address: "T1" },
+  source: {
+    type: "ledger",
+    family: "tron",
+    nativeSymbol: "TRX",
+    path: "m/44'/195'/0'/0/0",
+    address: "T1",
+  },
 };
-const watchWallet = { id: "wlt_w", source: { type: "watch", family: "tron", nativeSymbol: "TRX", address: "T2" } };
+const watchWallet = {
+  id: "wlt_w",
+  source: { type: "watch", family: "tron", nativeSymbol: "TRX", address: "T2" },
+};
 
 describe("walletsNeedPassword", () => {
   // The migration re-runs the SAME derivation the creation path uses, so any source holding a
@@ -71,7 +80,10 @@ describe("migrateWalletsToV2 — privateKey", () => {
     const doc = {
       version: 1,
       wallets: [
-        { id: "wlt_k", source: { type: "privateKey", keyId: "k1", addresses: { tron: "T-stale" } } },
+        {
+          id: "wlt_k",
+          source: { type: "privateKey", keyId: "k1", addresses: { tron: "T-stale" } },
+        },
       ],
     };
 
@@ -86,11 +98,20 @@ describe("migrateWalletsToV2 — privateKey", () => {
 
 describe("migrateWalletsToV2 — the untouched sources", () => {
   it("leaves ledger and watch accounts alone without touching any secret", () => {
-    const ledger = { type: "ledger", family: "tron", nativeSymbol: "TRX", path: "m/44'/195'/0'/0/0", address: TRON_ADDR };
+    const ledger = {
+      type: "ledger",
+      family: "tron",
+      nativeSymbol: "TRX",
+      path: "m/44'/195'/0'/0/0",
+      address: TRON_ADDR,
+    };
     const watch = { type: "watch", family: "tron", nativeSymbol: "TRX", address: TRON_ADDR };
     const doc = {
       version: 1,
-      wallets: [{ id: "wlt_l", source: ledger }, { id: "wlt_w", source: watch }],
+      wallets: [
+        { id: "wlt_l", source: ledger },
+        { id: "wlt_w", source: watch },
+      ],
     };
 
     const out = migrateWalletsToV2(doc, noSecrets);

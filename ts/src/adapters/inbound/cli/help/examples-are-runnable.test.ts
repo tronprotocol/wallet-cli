@@ -32,9 +32,9 @@ describe("help examples only use flags the command declares", () => {
   /** zod field names are camelCase; the CLI spells them kebab-case. */
   const kebab = (name: string): string => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-  function declaredFlags(cmd: ReturnType<typeof composeCliRuntime>["registry"] extends never
-    ? never
-    : any): Set<string> {
+  function declaredFlags(
+    cmd: ReturnType<typeof composeCliRuntime>["registry"] extends never ? never : any,
+  ): Set<string> {
     const out = new Set<string>();
     for (const g of GLOBAL_FLAGS) out.add(g.flag.replace(/^--/, ""));
     for (const g of inputFlagsFor(isChainCommand(cmd) ? cmd.spec : cmd))

@@ -39,7 +39,10 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   /** the account's nonce — a QUANTITY. */
-  async getTransactionCount(address: string, block: "latest" | "pending" = "latest"): Promise<string> {
+  async getTransactionCount(
+    address: string,
+    block: "latest" | "pending" = "latest",
+  ): Promise<string> {
     return toDecimalString(await this.#call("eth_getTransactionCount", [address, block]));
   }
 
@@ -181,7 +184,9 @@ export class EvmRpcClient implements EvmGateway {
       // The two numbers feeWei is the product of. A receipt that states only the total leaves the
       // reader unable to tell an expensive call from a cheap one at a high gas price.
       ...(price === undefined ? {} : { effectiveGasPriceWei: price.toString(10) }),
-      ...(r.blockNumber === undefined ? {} : { blockNumber: Number(BigInt(String(r.blockNumber))) }),
+      ...(r.blockNumber === undefined
+        ? {}
+        : { blockNumber: Number(BigInt(String(r.blockNumber))) }),
       ...(r.contractAddress === undefined || r.contractAddress === null
         ? {}
         : { contractAddress: r.contractAddress }),
@@ -260,10 +265,7 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   /** calldata for a `{type, value}` call, without sending it — the write half of callFunction. */
-  encodeFunctionCall(
-    signature: string,
-    params: Array<{ type: string; value: unknown }>,
-  ): string {
+  encodeFunctionCall(signature: string, params: Array<{ type: string; value: unknown }>): string {
     try {
       const iface = new Interface([`function ${signature}`]);
       return iface.encodeFunctionData(
@@ -587,7 +589,12 @@ const ERC20 = new Interface([
 
 /** the pre-standard `bytes32` spelling of symbol()/name(): fixed width, NUL-padded on the right. */
 function decodeBytes32(raw: string): string {
-  const text = toUtf8String(`0x${raw.replace(/^0x/, "").slice(0, 64).replace(/(00)+$/, "")}`);
+  const text = toUtf8String(
+    `0x${raw
+      .replace(/^0x/, "")
+      .slice(0, 64)
+      .replace(/(00)+$/, "")}`,
+  );
   if (text === "") throw new ChainError("rpc_error", "empty bytes32 text");
   return text;
 }

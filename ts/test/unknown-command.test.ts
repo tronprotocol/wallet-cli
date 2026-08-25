@@ -40,7 +40,12 @@ function run(args: string[]) {
  * nothing to branch on and a full help page that looks like it answered the question.
  */
 describe("unknown commands fail identically with and without --help", () => {
-  const unknown: string[][] = [["bogus"], ["tx", "bogus"], ["account", "bogus"], ["contract", "nope"]];
+  const unknown: string[][] = [
+    ["bogus"],
+    ["tx", "bogus"],
+    ["account", "bogus"],
+    ["contract", "nope"],
+  ];
 
   it("exits 2 with unknown_command for a bad path (no meta flag)", () => {
     for (const path of unknown) {
@@ -102,7 +107,10 @@ describe("unknown commands fail identically with and without --help", () => {
   // ...but a prefix that is only a GROUP must not rescue a bad verb: `tx` is not a command,
   // so `tx bogus` has no resolvable prefix and stays an error.
   it("does not let a group prefix mask a mistyped verb", () => {
-    for (const args of [["tx", "bogus", "--help"], ["account", "bogus", "--help"]]) {
+    for (const args of [
+      ["tx", "bogus", "--help"],
+      ["account", "bogus", "--help"],
+    ]) {
       const r = run(args);
       expect(r.status, args.join(" ")).toBe(2);
       expect(r.stderr, args.join(" ")).toContain("unknown_command");

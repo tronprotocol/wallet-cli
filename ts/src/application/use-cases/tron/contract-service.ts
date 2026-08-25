@@ -62,10 +62,11 @@ export class TronContractService {
     const approval = await approveRows({
       method: input.method,
       params: input.parameters,
-      metadata: () => gateway.getTokenInfo(input.contract).then((info) => ({
-        decimals: info.decimals ?? info.precision,
-        symbol: typeof info.symbol === "string" ? info.symbol : undefined,
-      })),
+      metadata: () =>
+        gateway.getTokenInfo(input.contract).then((info) => ({
+          decimals: info.decimals ?? info.precision,
+          symbol: typeof info.symbol === "string" ? info.symbol : undefined,
+        })),
       // A TRON address may arrive as 41-hex from a caller pasting what a node returned.
       displayAddress: tronHexToBase58,
       fromBaseUnits,

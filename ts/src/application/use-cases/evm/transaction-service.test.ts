@@ -39,14 +39,19 @@ function scope(): TransactionScope {
 function harness(over: Partial<Record<string, unknown>> = {}) {
   const gateway = {
     getTransactionCount: vi.fn(async () => (over.nonce as string) ?? "5"),
-    feeData: vi.fn(async () => (over.fee as object) ?? {
-      baseFeeWei: "100",
-      gasPriceWei: "110",
-      suggestedPriorityWei: "10",
-    }),
+    feeData: vi.fn(
+      async () =>
+        (over.fee as object) ?? {
+          baseFeeWei: "100",
+          gasPriceWei: "110",
+          suggestedPriorityWei: "10",
+        },
+    ),
     estimateGas: vi.fn(async () => (over.gasEstimate as string) ?? "21000"),
     encodeErc20Transfer: vi.fn(() => "0xa9059cbb-encoded"),
-    getErc20Metadata: vi.fn(async () => (over.metadata as object) ?? { symbol: "TKN", decimals: 6 }),
+    getErc20Metadata: vi.fn(
+      async () => (over.metadata as object) ?? { symbol: "TKN", decimals: 6 },
+    ),
   };
   const built: Record<string, unknown>[] = [];
   const pipeline = {
@@ -195,7 +200,16 @@ describe("EvmTransactionService.send — the transaction it hands over", () => {
 
     expect(built[0]).not.toHaveProperty("fee");
     expect(Object.keys(built[0]!).sort()).toEqual(
-      ["chainId", "gasLimit", "maxFeePerGas", "maxPriorityFeePerGas", "nonce", "to", "type", "value"].sort(),
+      [
+        "chainId",
+        "gasLimit",
+        "maxFeePerGas",
+        "maxPriorityFeePerGas",
+        "nonce",
+        "to",
+        "type",
+        "value",
+      ].sort(),
     );
   });
 
@@ -306,7 +320,10 @@ describe("EvmTransactionService.send — gas estimation", () => {
       .send(scope(), SEPOLIA, { to: RECEIVER, amount: "1", dryRun: true } as never)
       .catch((e) => e);
 
-    expect(error).toMatchObject({ code: "invalid_option" });
+    // A node-side refusal, so a node-side code and exit 1 — not `invalid_option` / exit 2, which
+    // would tell a caller its command line was wrong (see evm-gas-estimate.ts).
+    expect(error).toMatchObject({ code: "rpc_error" });
+    expect(error.exitCode()).toBe(1);
     expect(error.message).toMatch(/insufficient funds/);
     expect(error.message).toMatch(/--gas-limit/);
   });
@@ -545,7 +562,10 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
   it("does not submit the transaction", async () => {
     const { service, gateway, scope } = dryHarness();
-    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<string, unknown>;
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<
+      string,
+      unknown
+    >;
 
     expect(gateway.sendRawTransaction).not.toHaveBeenCalled();
     expect(out.mode).toBe("dry-run");
@@ -554,7 +574,10 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
   it("reports the transaction it validated, without asking the node for its identity", async () => {
     const { service, scope } = dryHarness();
-    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<string, unknown>;
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<
+      string,
+      unknown
+    >;
 
     expect(out.txId).toBe("0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026");
     expect(out.rawAmount).toBe(String(VALUE));
@@ -601,12 +624,10 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
       getTransactionCount: vi.fn(async () => "2"),
       getNativeBalance: vi.fn(async () => String(VALUE + 21000n * 2033623170n)),
     });
-    const out = (await service.broadcast(
-      scope(),
-      SEPOLIA,
-      SIGNED_NONCE_5,
-      true,
-    )) as Record<string, unknown>;
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED_NONCE_5, true)) as Record<
+      string,
+      unknown
+    >;
 
     expect(out.mode).toBe("dry-run");
     expect(out.checks).toEqual(
@@ -623,7 +644,10 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
         throw new Error("connect ECONNREFUSED");
       }),
     });
-    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<string, unknown>;
+    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED, true)) as Record<
+      string,
+      unknown
+    >;
 
     expect(out.mode).toBe("dry-run");
     expect(out.checks).toEqual(
@@ -687,7 +711,10 @@ describe("EvmTransactionService.status", () => {
   });
 
   it("reports a mined but reverted transaction as failed", async () => {
-    const { service, scope: s } = statusHarness({ hash: HASH }, { success: false, blockNumber: 10 });
+    const { service, scope: s } = statusHarness(
+      { hash: HASH },
+      { success: false, blockNumber: 10 },
+    );
 
     await expect(service.status(s, SEPOLIA, HASH)).resolves.toMatchObject({
       state: "failed",
@@ -715,7 +742,11 @@ describe("EvmTransactionService.status", () => {
   // invites the reader to conclude the transaction never happened, which may be false.
   // Same field, same arithmetic as TRON's: §6.4 makes it a two-family field, not an EVM one.
   it("reports head minus the transaction's block as confirmations", async () => {
-    const { service, scope: s } = statusHarness({ hash: HASH }, { success: true, blockNumber: 5 }, "42");
+    const { service, scope: s } = statusHarness(
+      { hash: HASH },
+      { success: true, blockNumber: 5 },
+      "42",
+    );
 
     await expect(service.status(s, SEPOLIA, HASH)).resolves.toMatchObject({ confirmations: 37 });
   });
@@ -748,7 +779,11 @@ describe("EvmTransactionService.status", () => {
 });
 
 describe("EvmTransactionService.info", () => {
-  function infoHarness(tx: unknown, receipt: unknown = null, meta: unknown = { symbol: "USDT", decimals: 6 }) {
+  function infoHarness(
+    tx: unknown,
+    receipt: unknown = null,
+    meta: unknown = { symbol: "USDT", decimals: 6 },
+  ) {
     const gateway = {
       getTransactionByHash: vi.fn(async () => tx),
       getTransactionReceipt: vi.fn(async () => receipt),
@@ -816,7 +851,13 @@ describe("EvmTransactionService.info", () => {
   // The detail view must not fail because a second, optional read did.
   it("still answers when the block's timestamp cannot be read", async () => {
     const gateway = {
-      getTransactionByHash: async () => ({ hash: HASH, from: OWNER, to: TO, value: "0x0", input: "0x" }),
+      getTransactionByHash: async () => ({
+        hash: HASH,
+        from: OWNER,
+        to: TO,
+        value: "0x0",
+        input: "0x",
+      }),
       getTransactionReceipt: async () => ({ success: true, blockNumber: 5 }),
       getBlockNumber: async () => "42",
       getBlock: async () => {
@@ -840,7 +881,7 @@ describe("EvmTransactionService.info", () => {
   // an ERC-20 transfer would name the CONTRACT as the recipient and the amount as zero.
   it("decodes an ERC-20 transfer to its real recipient and amount", async () => {
     // transfer(0xbBbB…, 5000000)
-    const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${(5000000n)
+    const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${5000000n
       .toString(16)
       .padStart(64, "0")}`;
     const svc = infoHarness({ hash: HASH, from: OWNER, to: USDT, value: "0x0", input });
@@ -858,7 +899,7 @@ describe("EvmTransactionService.info", () => {
   });
 
   it("falls back to the base-unit amount when the token's decimals are unreadable", async () => {
-    const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${(5000000n)
+    const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${5000000n
       .toString(16)
       .padStart(64, "0")}`;
     const svc = infoHarness({ hash: HASH, from: OWNER, to: USDT, value: "0x0", input }, null, {});
@@ -867,7 +908,13 @@ describe("EvmTransactionService.info", () => {
   });
 
   it("leaves calldata it does not recognise alone", async () => {
-    const svc = infoHarness({ hash: HASH, from: OWNER, to: USDT, value: "0x0", input: "0xdeadbeef" });
+    const svc = infoHarness({
+      hash: HASH,
+      from: OWNER,
+      to: USDT,
+      value: "0x0",
+      input: "0xdeadbeef",
+    });
 
     const out = await svc.info(scope(), SEPOLIA, HASH);
     // still the contract, because guessing at unknown calldata is exactly what was ruled out

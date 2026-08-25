@@ -108,11 +108,7 @@ export function registerEvmChainCommands(
   deps: EvmChainCommandDependencies,
 ): void {
   reg.addChain(messageSignSpec, "evm", messageSignBinding(new MessageService(deps.signers)));
-  reg.addChain(
-    typedDataSignSpec,
-    "evm",
-    typedDataSignBinding(new TypedDataService(deps.signers)),
-  );
+  reg.addChain(typedDataSignSpec, "evm", typedDataSignBinding(new TypedDataService(deps.signers)));
 
   const account = new EvmAccountService(deps.gateways, deps.tokens, deps.prices);
   reg.addChain(accountBalanceSpec, "evm", accountBalanceBinding(deps.balances));

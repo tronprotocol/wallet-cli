@@ -83,14 +83,16 @@ describe("EvmAccountService.portfolio", () => {
     { kind: "erc20", id: USDT, symbol: "USDT", decimals: 6, source: "official" as const },
   ];
 
-  function portfolioService(over: {
-    native?: string;
-    balances?: Record<string, string | Error>;
-    nativePrice?: number | null;
-    tokenPrices?: Map<string, number | null>;
-    pricesThrow?: boolean;
-    book?: unknown[];
-  } = {}) {
+  function portfolioService(
+    over: {
+      native?: string;
+      balances?: Record<string, string | Error>;
+      nativePrice?: number | null;
+      tokenPrices?: Map<string, number | null>;
+      pricesThrow?: boolean;
+      book?: unknown[];
+    } = {},
+  ) {
     const gateway = {
       getNativeBalance: async () => over.native ?? "1000000000000000000",
       getErc20Balance: async (contract: string) => {
@@ -110,7 +112,7 @@ describe("EvmAccountService.portfolio", () => {
         return over.tokenPrices ?? new Map([[USDT, 1]]);
       },
     };
-    const tokens = { effective: () => (over.book ?? BOOK) };
+    const tokens = { effective: () => over.book ?? BOOK };
     return new EvmAccountService(
       { get: () => gateway } as unknown as ChainGatewayProvider,
       tokens as never,

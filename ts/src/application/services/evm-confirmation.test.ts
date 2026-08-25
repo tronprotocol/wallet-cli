@@ -34,7 +34,12 @@ const gatewayReturning = (...receipts: Array<Record<string, unknown> | null>) =>
 describe("evmConfirmation", () => {
   it("reports a mined, successful transaction as confirmed", async () => {
     const out = await evmConfirmation(
-      gatewayReturning({ success: true, gasUsed: "21000", feeWei: "22436119209000", blockNumber: 11551817 }),
+      gatewayReturning({
+        success: true,
+        gasUsed: "21000",
+        feeWei: "22436119209000",
+        blockNumber: 11551817,
+      }),
       scope(),
     )(HASH);
 
@@ -64,8 +69,9 @@ describe("evmConfirmation", () => {
     const out = await evmConfirmation(gateway, scope(5_000))(HASH);
 
     expect(out).toMatchObject({ confirmed: true, blockNumber: 7 });
-    expect((gateway.getTransactionReceipt as ReturnType<typeof vi.fn>).mock.calls.length)
-      .toBeGreaterThan(1);
+    expect(
+      (gateway.getTransactionReceipt as ReturnType<typeof vi.fn>).mock.calls.length,
+    ).toBeGreaterThan(1);
   });
 
   it("gives up at the wait timeout rather than hanging", async () => {

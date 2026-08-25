@@ -144,9 +144,7 @@ function renderWalletList(items: Obj[], family?: string): string {
   // One family at a time (§3.7): showing both side by side doubles the table's width, and the
   // user only cares about the chain they are on. An account with no address in this family is
   // dropped rather than given an empty row — json still carries every family.
-  const shown = family
-    ? items.filter((d) => addressFor(d, family) !== undefined)
-    : items;
+  const shown = family ? items.filter((d) => addressFor(d, family) !== undefined) : items;
   if (shown.length === 0) return "No wallets found.";
   items = shown;
   // group seeds by their seed id (wlt_x); non-HD accounts by type. Insertion order preserved.

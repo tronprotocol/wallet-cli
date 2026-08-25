@@ -136,12 +136,15 @@ describe("CoinGeckoPriceProvider — EVM", () => {
    * were removed from the maps so a future edit cannot quietly re-enable mainnet pricing for a
    * chain whose coins are free.
    */
-  it.each(["evm:11155111", "evm:97"])("no longer prices the testnet %s at all", async (networkId) => {
-    const spy = stub({ ethereum: { usd: 2500 }, binancecoin: { usd: 600 } });
+  it.each(["evm:11155111", "evm:97"])(
+    "no longer prices the testnet %s at all",
+    async (networkId) => {
+      const spy = stub({ ethereum: { usd: 2500 }, binancecoin: { usd: 600 } });
 
-    expect(await new CoinGeckoPriceProvider().nativeUsd(networkId)).toBeNull();
-    expect(spy).not.toHaveBeenCalled();
-  });
+      expect(await new CoinGeckoPriceProvider().nativeUsd(networkId)).toBeNull();
+      expect(spy).not.toHaveBeenCalled();
+    },
+  );
 
   // The exposure this closes: deterministic deployment can put one address on both chains, so a
   // testnet token looked up against a mainnet platform could take a real token's price.

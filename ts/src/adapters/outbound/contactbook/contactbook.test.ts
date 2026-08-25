@@ -81,7 +81,8 @@ describe("ContactBook", () => {
         entries: {
           tron: [
             {
-              family: "tron", nativeSymbol: "TRX",
+              family: "tron",
+              nativeSymbol: "TRX",
               name: "Alice",
               nameKey: "bob",
               address: ADDRESS,

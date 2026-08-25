@@ -92,8 +92,11 @@ export class Keystore {
 
       if (p.type === "seed") {
         const mnemonic = p.secret.trim();
+        // Its own code, not the generic bucket: the phrase is entered at a hidden prompt, so the
+        // envelope carries no field path to say WHICH value was wrong — the code is all the
+        // caller gets, and `invalid_value` says nothing it did not already know.
         if (!Derivation.validateMnemonic(mnemonic)) {
-          throw new WalletError("invalid_value", "invalid BIP39 mnemonic");
+          throw new WalletError("invalid_mnemonic", "invalid BIP39 mnemonic");
         }
         const entropy = Derivation.mnemonicToEntropy(mnemonic);
         const seed = Derivation.mnemonicToSeed(mnemonic, p.passphrase);
@@ -121,9 +124,20 @@ export class Keystore {
         );
         source = { type: "seed", vaultId, addresses: { "0": addr0 } };
       } else {
-        const pk = hexToBytes(p.secret.trim().replace(/^0x/, ""));
+        // hexToBytes throws its own Error on a non-hex character, which classifyError would turn
+        // into a REDACTED internal_error — the two ways to mistype a private key would then answer
+        // with two different codes, one of them wrong. Both are the same mistake, so both say so.
+        let pk: Uint8Array;
+        try {
+          pk = hexToBytes(p.secret.trim().replace(/^0x/, ""));
+        } catch {
+          throw new WalletError(
+            "invalid_private_key",
+            "private key must be 32 bytes of hex, with or without a 0x prefix",
+          );
+        }
         if (pk.length !== 32)
-          throw new WalletError("invalid_value", "private key must be 32 bytes");
+          throw new WalletError("invalid_private_key", "private key must be 32 bytes");
         const addr = derivePrivAddresses(pk);
         const dup = findByAddress(file, addr);
         if (dup) {
@@ -214,13 +228,13 @@ export class Keystore {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
-      if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${walletId}`);
+      if (!wallet) throw new WalletError("account_not_found", `unknown wallet ${walletId}`);
       // only seed wallets are HD: privateKey has no derivation, ledger must be re-imported per path.
       if (wallet.source.type !== "seed") {
         const hint =
           wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
         throw new WalletError(
-          "invalid_value",
+          "seed_not_found",
           `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`,
         );
       }
@@ -246,7 +260,7 @@ export class Keystore {
     const ref = this.#toRef(file, refOrLabel);
     const [walletId, idxStr] = ref.split(".");
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new WalletError("invalid_value", `unknown account ${refOrLabel}`);
+    if (!wallet) throw new WalletError("account_not_found", `unknown account ${refOrLabel}`);
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
     if (idxStr === undefined) {
@@ -274,7 +288,7 @@ export class Keystore {
     const ref = this.#toRef(file, idOrLabel);
     const walletId = ref.split(".")[0]!;
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${idOrLabel}`);
+    if (!wallet) throw new WalletError("account_not_found", `unknown wallet ${idOrLabel}`);
     return wallet;
   }
 
@@ -607,7 +621,7 @@ export class Keystore {
         }
       }
       if (hits.length === 0)
-        throw new WalletError("invalid_value", `no account with address ${input}`);
+        throw new WalletError("account_not_found", `no account with address ${input}`);
       if (hits.length > 1) {
         throw new UsageError(
           "invalid_value",
@@ -619,8 +633,13 @@ export class Keystore {
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),
     );
+    // §4.3 names this code for exactly this case. `invalid_value` is the bucket every malformed
+    // option lands in; "that account does not exist here" has one obvious next step (`list`), and
+    // an agent can only take it if the code says so — the message is not something to match on.
+    // The ambiguous cases below keep `invalid_value`: the reference IS valid, it just picks more
+    // than one account, and the fix is to narrow it rather than to go looking for it.
     if (matches.length === 0)
-      throw new WalletError("invalid_value", `no account labelled '${input}'`);
+      throw new WalletError("account_not_found", `no account labelled '${input}'`);
     if (matches.length > 1) {
       throw new UsageError(
         "invalid_value",

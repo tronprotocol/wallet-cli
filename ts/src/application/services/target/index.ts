@@ -48,8 +48,6 @@ export class TargetResolver {
       );
     }
 
-
     return { network };
   }
-
 }

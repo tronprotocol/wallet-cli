@@ -1015,7 +1015,10 @@ describe("golden CLI — startup migration", () => {
  */
 describe("golden CLI — flags spelled like the command path", () => {
   it.each([
-    [["token", "balance", "--token", "USDT", "--contract", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"], "--token"],
+    [
+      ["token", "balance", "--token", "USDT", "--contract", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"],
+      "--token",
+    ],
     [["contract", "deploy", "--contract", "0xabc", "--code", "0x00"], "--contract"],
     [["import", "watch", "--watch", "x", "--address", "TBy6..."], "--watch"],
   ])("refuses %o", (tokens, flag) => {
@@ -1061,4 +1064,3 @@ describe("golden CLI — networks table", () => {
     expect(out).not.toContain("https://");
   });
 });
-

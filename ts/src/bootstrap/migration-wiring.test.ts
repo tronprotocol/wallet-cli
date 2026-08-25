@@ -34,7 +34,10 @@ const v1SeedDoc = {
   activeAccount: "wlt_s.0",
   labels: {},
   wallets: [
-    { id: "wlt_s", source: { type: "seed", vaultId: "vlt_1", addresses: { "0": { tron: TRON_ADDR } } } },
+    {
+      id: "wlt_s",
+      source: { type: "seed", vaultId: "vlt_1", addresses: { "0": { tron: TRON_ADDR } } },
+    },
   ],
 };
 
@@ -42,7 +45,9 @@ const v1PrivateKeyDoc = {
   version: 1,
   activeAccount: "wlt_k",
   labels: {},
-  wallets: [{ id: "wlt_k", source: { type: "privateKey", keyId: "key_1", addresses: { tron: TRON_ADDR } } }],
+  wallets: [
+    { id: "wlt_k", source: { type: "privateKey", keyId: "key_1", addresses: { tron: TRON_ADDR } } },
+  ],
 };
 
 /**
@@ -141,22 +146,19 @@ describe("the startup migration gate is wired into main()", () => {
 describe("TRON-only commands on an EVM network", () => {
   // Reachable for the first time now that EVM networks are builtin: dispatch looks up the
   // command's family binding and finds none, so it must refuse before touching any RPC.
-  it.each([["gasfree", "info"], ["stake", "info"], ["permission", "show"]])(
-    "refuses `%s %s` on evm:1",
-    async (group, verb) => {
-      const { code, stdout } = await runIn({ version: 2, activeAccount: null, labels: {}, wallets: [] }, [
-        "-o",
-        "json",
-        group,
-        verb,
-        "--network",
-        "evm:1",
-      ]);
+  it.each([
+    ["gasfree", "info"],
+    ["stake", "info"],
+    ["permission", "show"],
+  ])("refuses `%s %s` on evm:1", async (group, verb) => {
+    const { code, stdout } = await runIn(
+      { version: 2, activeAccount: null, labels: {}, wallets: [] },
+      ["-o", "json", group, verb, "--network", "evm:1"],
+    );
 
-      expect(JSON.parse(stdout).error.code).toBe("family_mismatch");
-      expect(code).toBe(2);
-    },
-  );
+    expect(JSON.parse(stdout).error.code).toBe("family_mismatch");
+    expect(code).toBe(2);
+  });
 });
 
 describe("aliases resolve at selection and nowhere else", () => {

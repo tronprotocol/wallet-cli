@@ -8,7 +8,8 @@ import { TronContractService } from "./contract-service.js";
 
 const NETWORK = {
   id: "tron:nile",
-  family: "tron", nativeSymbol: "TRX",
+  family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
 } as unknown as NetworkDescriptor;
 

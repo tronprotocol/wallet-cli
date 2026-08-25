@@ -11,8 +11,16 @@ export interface EvmRejection {
 }
 
 const PATTERNS: Array<[RegExp, string, string]> = [
-  [/nonce too low|nonce is too low/i, "nonce_too_low", "nonce already used; the account has moved on"],
-  [/nonce too high/i, "nonce_too_high", "nonce is ahead of the account; an earlier transaction is missing"],
+  [
+    /nonce too low|nonce is too low/i,
+    "nonce_too_low",
+    "nonce already used; the account has moved on",
+  ],
+  [
+    /nonce too high/i,
+    "nonce_too_high",
+    "nonce is ahead of the account; an earlier transaction is missing",
+  ],
   [
     /insufficient funds/i,
     "insufficient_balance",
@@ -39,7 +47,9 @@ const PATTERNS: Array<[RegExp, string, string]> = [
 /** `already known` / `known transaction`: the transaction is ALREADY in the mempool, so the
  *  submission succeeded earlier. Reporting a failure would deny something that already holds. */
 export function isAlreadyKnown(message: string): boolean {
-  return /already known|known transaction|already exists|transaction already in pool/i.test(message);
+  return /already known|known transaction|already exists|transaction already in pool/i.test(
+    message,
+  );
 }
 
 /** the codes this table can produce — the error-code registry checks itself against it, so a new

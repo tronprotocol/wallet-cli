@@ -46,7 +46,10 @@ describe("broadcast guard coverage", () => {
       for (const match of source.matchAll(SUBMIT_METHOD)) {
         // The call must come before anything else the method does: a guard placed after the
         // first await has already let a request go.
-        const body = source.slice(match.index + match[0].length, match.index + match[0].length + 400);
+        const body = source.slice(
+          match.index + match[0].length,
+          match.index + match[0].length + 400,
+        );
         const guardAt = body.indexOf("assertBroadcastAllowed()");
         const awaitAt = body.indexOf("await ");
         if (guardAt === -1 || (awaitAt !== -1 && awaitAt < guardAt)) {

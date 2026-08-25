@@ -24,14 +24,11 @@ describe("FAMILY_REGISTRY (composition manifest)", () => {
     expect([...CHAIN_FAMILIES].filter((f) => !registered.has(f))).toEqual([]);
   });
 
-  it.each(["signStrategy", "createGateway"] as const)(
-    "gives every family a %s",
-    (capability) => {
-      for (const plugin of FAMILY_REGISTRY) {
-        expect(plugin[capability], `${plugin.meta.family} is missing ${capability}`).toBeDefined();
-      }
-    },
-  );
+  it.each(["signStrategy", "createGateway"] as const)("gives every family a %s", (capability) => {
+    for (const plugin of FAMILY_REGISTRY) {
+      expect(plugin[capability], `${plugin.meta.family} is missing ${capability}`).toBeDefined();
+    }
+  });
 });
 
 describe("hasCommand (bare invocation → root help)", () => {
@@ -169,7 +166,11 @@ describe("bootstrap error boundary", () => {
 // The registry guard above proves a factory EXISTS; this proves the factory, the descriptor and
 // the gateway registry actually line up — that `--network sepolia` would reach a live client.
 describe("composition resolves a gateway per family", () => {
-  const gateways = () => new ChainGatewayRegistry(familyMap((p) => p.createGateway), 5_000);
+  const gateways = () =>
+    new ChainGatewayRegistry(
+      familyMap((p) => p.createGateway),
+      5_000,
+    );
   const sepolia = {
     id: "evm:11155111",
     family: "evm" as const,

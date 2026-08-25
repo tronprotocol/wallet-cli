@@ -14,7 +14,9 @@ import type { NetworkDescriptor } from "../../domain/types/index.js";
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
 
 const gateways = (balance: string) =>
-  ({ client: () => ({ getNativeBalance: async () => balance }) }) as unknown as ChainGatewayProvider;
+  ({
+    client: () => ({ getNativeBalance: async () => balance }),
+  }) as unknown as ChainGatewayProvider;
 
 const network = (over: Partial<NetworkDescriptor>): NetworkDescriptor =>
   ({

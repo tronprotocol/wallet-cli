@@ -575,30 +575,30 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getTokenInfo(contract: string): Promise<TronTokenInfo> {
     return this.#wrap("trc20 tokenInfo", async () =>
       this.#notAToken(contract, "the TRC-20 view methods", async () => {
-      // Read the view methods by selector rather than via contract().at(): tokens deployed without a
-      // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
-      //
-      // No catch here on purpose. A method the contract does not implement is NOT an error at this
-      // layer — the node answers `result: true` with an empty `constant_result`, which decodes to
-      // undefined on its own. The only failures that reach this point are a transport fault and
-      // "no contract at this address", and swallowing either would report a node outage as missing
-      // token metadata — which callers then escalate into far more specific (and wrong) claims.
-      const read = async (fn: string): Promise<string | undefined> =>
-        this.#constant(contract, fn, []).then(([hex]) => hex);
-      const [name, symbol, decimals, totalSupply] = await Promise.all([
-        read("name()"),
-        read("symbol()"),
-        read("decimals()"),
-        read("totalSupply()"),
-      ]);
-      const scale = decodeAbiUint(decimals);
-      return {
-        contract,
-        name: decodeAbiString(name),
-        symbol: decodeAbiString(symbol),
-        decimals: scale !== undefined && scale <= 255n ? Number(scale) : undefined,
-        totalSupply: decodeAbiUint(totalSupply)?.toString(),
-      };
+        // Read the view methods by selector rather than via contract().at(): tokens deployed without a
+        // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
+        //
+        // No catch here on purpose. A method the contract does not implement is NOT an error at this
+        // layer — the node answers `result: true` with an empty `constant_result`, which decodes to
+        // undefined on its own. The only failures that reach this point are a transport fault and
+        // "no contract at this address", and swallowing either would report a node outage as missing
+        // token metadata — which callers then escalate into far more specific (and wrong) claims.
+        const read = async (fn: string): Promise<string | undefined> =>
+          this.#constant(contract, fn, []).then(([hex]) => hex);
+        const [name, symbol, decimals, totalSupply] = await Promise.all([
+          read("name()"),
+          read("symbol()"),
+          read("decimals()"),
+          read("totalSupply()"),
+        ]);
+        const scale = decodeAbiUint(decimals);
+        return {
+          contract,
+          name: decodeAbiString(name),
+          symbol: decodeAbiString(symbol),
+          decimals: scale !== undefined && scale <= 255n ? Number(scale) : undefined,
+          totalSupply: decodeAbiUint(totalSupply)?.toString(),
+        };
       }),
     );
   }

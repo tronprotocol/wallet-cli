@@ -88,4 +88,3 @@ export class RecipientResolver {
 function looksLikeAddressAttempt(value: string): boolean {
   return /^0x/i.test(value) || /^T[1-9A-HJ-NP-Za-km-z]{10,}$/.test(value);
 }
-

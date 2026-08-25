@@ -22,7 +22,9 @@ function realV1Keystore() {
   const path = join(root, "wallets.json");
   const doc = JSON.parse(readFileSync(path, "utf8"));
   doc.version = 1;
-  for (const byIndex of Object.values(doc.wallets[0].source.addresses as Record<string, Record<string, string>>)) {
+  for (const byIndex of Object.values(
+    doc.wallets[0].source.addresses as Record<string, Record<string, string>>,
+  )) {
     delete byIndex.evm; // wind back to what a pre-EVM keystore actually looks like
   }
   writeFileSync(path, JSON.stringify(doc));

@@ -131,12 +131,7 @@ export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding
     if (input.dryRun && ctx.wait) {
       throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
     }
-    return svc.broadcast(
-      ctx,
-      net,
-      evmHexOnly(input, ctx.secrets.has("tx")),
-      input.dryRun === true,
-    );
+    return svc.broadcast(ctx, net, evmHexOnly(input, ctx.secrets.has("tx")), input.dryRun === true);
   },
 });
 
@@ -166,12 +161,12 @@ const tronBroadcastFields = z.object({
 });
 
 const broadcastFields = z.object({
-  hex: z.string().min(2).optional().describe("signed transaction hex: protobuf hex for TRON, RLP for EVM"),
-  file: z
+  hex: z
     .string()
-    .min(1)
+    .min(2)
     .optional()
-    .describe("file containing the signed transaction hex"),
+    .describe("signed transaction hex: protobuf hex for TRON, RLP for EVM"),
+  file: z.string().min(1).optional().describe("file containing the signed transaction hex"),
   dryRun: z
     .boolean()
     .default(false)
@@ -349,8 +344,12 @@ export const txSignSpec: ChainSpec = {
     {
       cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
     },
-    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin" },
-    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin" },
+    {
+      cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin",
+    },
+    {
+      cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin",
+    },
     { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
   ],
   formatText: TextFormatters.txSign,

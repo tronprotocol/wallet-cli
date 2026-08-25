@@ -89,7 +89,9 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
     accountInfoRows: (d, symbol) => {
       const account = asObj(d.account);
       const owner = asObj(account.owner_permission);
-      const active = Array.isArray(account.active_permission) ? account.active_permission.length : 0;
+      const active = Array.isArray(account.active_permission)
+        ? account.active_permission.length
+        : 0;
       const created = account.create_time
         ? new Date(Number(account.create_time)).toISOString().slice(0, 10)
         : "";
@@ -104,7 +106,10 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       if (resources.energy)
         rows.push(["Energy", `used ${formatInt(energy.used)} / ${formatInt(energy.limit)}`]);
       if (resources.bandwidth)
-        rows.push(["Bandwidth", `used ${formatInt(bandwidth.used)} / ${formatInt(bandwidth.limit)}`]);
+        rows.push([
+          "Bandwidth",
+          `used ${formatInt(bandwidth.used)} / ${formatInt(bandwidth.limit)}`,
+        ]);
       rows.push(["Created", created]);
       rows.push([
         "Permissions",
@@ -202,7 +207,8 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       if (d.baseFeeWei !== undefined) rows.push(["Base fee", `${formatGwei(d.baseFeeWei)} gwei`]);
       if (d.priorityFeeWei !== undefined)
         rows.push(["Priority fee", `${formatGwei(d.priorityFeeWei)} gwei`]);
-      if (d.gasPriceWei !== undefined) rows.push(["Gas price", `${formatGwei(d.gasPriceWei)} gwei`]);
+      if (d.gasPriceWei !== undefined)
+        rows.push(["Gas price", `${formatGwei(d.gasPriceWei)} gwei`]);
       // The per-gas numbers above answer "how expensive is gas"; this answers "what will a
       // transfer cost me", which is the question most readers actually have.
       if (d.transferCostWei !== undefined) {

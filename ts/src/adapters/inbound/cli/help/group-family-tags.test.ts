@@ -27,7 +27,10 @@ describe("group help family tags are derived from the registry", () => {
     else process.env.WALLET_CLI_HOME = previousHome;
   });
 
-  function groupHelp(group: string): { rows: Map<string, string>; families: Map<string, string[]> } {
+  function groupHelp(group: string): {
+    rows: Map<string, string>;
+    families: Map<string, string[]>;
+  } {
     const runtime = composeCliRuntime({
       globals: { output: "text", verbose: false },
       secretPaths: {},

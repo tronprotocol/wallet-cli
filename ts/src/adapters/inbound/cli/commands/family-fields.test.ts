@@ -61,17 +61,18 @@ describe("address flags shared across families", () => {
   ];
 
   it.each(cases)("%s leaves the base --contract family-neutral", (_name, spec) => {
-    const parsed = spec.baseFields
-      .pick({ contract: true })
-      .safeParse({ contract: EVM_CONTRACT });
+    const parsed = spec.baseFields.pick({ contract: true }).safeParse({ contract: EVM_CONTRACT });
     expect(parsed.success && parsed.data.contract).toBe(EVM_CONTRACT);
   });
 
-  it.each(cases)("%s rejects a non-TRON --contract on the TRON binding", (_n, spec, binding, base) => {
-    const result = effectiveSchema(spec, binding).safeParse({ ...base, contract: EVM_CONTRACT });
-    expect(result.success).toBe(false);
-    expect(JSON.stringify(result.error?.issues)).toContain("invalid tron address");
-  });
+  it.each(cases)(
+    "%s rejects a non-TRON --contract on the TRON binding",
+    (_n, spec, binding, base) => {
+      const result = effectiveSchema(spec, binding).safeParse({ ...base, contract: EVM_CONTRACT });
+      expect(result.success).toBe(false);
+      expect(JSON.stringify(result.error?.issues)).toContain("invalid tron address");
+    },
+  );
 
   it.each(cases)("%s accepts a TRON --contract on the TRON binding", (_n, spec, binding, base) => {
     const result = effectiveSchema(spec, binding).safeParse({ ...base, contract: TRON_CONTRACT });

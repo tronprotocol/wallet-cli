@@ -129,4 +129,3 @@ describe("AddressCodec.canonical", () => {
     expect(new TronAddress().canonical(tron)).toBe(tron);
   });
 });
-

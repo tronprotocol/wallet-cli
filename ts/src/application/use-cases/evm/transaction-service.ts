@@ -139,7 +139,12 @@ export class EvmTransactionService {
     }
     if (contract === undefined) {
       const native = FAMILIES.evm.nativeDecimals;
-      return { contract, decimals, symbol, rawAmount: toBaseUnits(input.amount!, native, "amount") };
+      return {
+        contract,
+        decimals,
+        symbol,
+        rawAmount: toBaseUnits(input.amount!, native, "amount"),
+      };
     }
     if (decimals === undefined) {
       // `--contract` names a token that need not be in the address book, so the contract itself
@@ -173,7 +178,9 @@ export class EvmTransactionService {
     contract: string,
     transfer: { to: string; rawAmount: string },
   ) {
-    const meta = await gateway.getErc20Metadata(contract).catch(() => ({}) as { symbol?: string; decimals?: number });
+    const meta = await gateway
+      .getErc20Metadata(contract)
+      .catch(() => ({}) as { symbol?: string; decimals?: number });
     return {
       to: transfer.to,
       contract,
@@ -199,7 +206,11 @@ export class EvmTransactionService {
     // An ERC-20 transfer moves no native coin: the recipient and amount live in the calldata,
     // and the transaction is addressed to the contract.
     const call = transfer.contract
-      ? { to: transfer.contract, value: "0", data: gateway.encodeErc20Transfer(to, transfer.rawAmount) }
+      ? {
+          to: transfer.contract,
+          value: "0",
+          data: gateway.encodeErc20Transfer(to, transfer.rawAmount),
+        }
       : { to, value: transfer.rawAmount };
 
     const [nonce, fee] = await Promise.all([
@@ -315,7 +326,11 @@ export class EvmTransactionService {
       );
       return submitted;
     }
-    return { ...submitted, stage: confirmed.failed ? ("failed" as const) : ("confirmed" as const), ...confirmed };
+    return {
+      ...submitted,
+      stage: confirmed.failed ? ("failed" as const) : ("confirmed" as const),
+      ...confirmed,
+    };
   }
 
   /**
@@ -339,7 +354,11 @@ export class EvmTransactionService {
     parsed: Transaction,
   ) {
     const checks: Array<{ name: string; status: "ok" | "warning" | "skipped"; detail: string }> = [
-      { name: "signature", status: "ok", detail: `recovers to ${parsed.from ?? "an unknown signer"}` },
+      {
+        name: "signature",
+        status: "ok",
+        detail: `recovers to ${parsed.from ?? "an unknown signer"}`,
+      },
     ];
 
     // Local, and the cheapest way to catch a transaction signed for another chain: a replay of it
@@ -392,7 +411,11 @@ export class EvmTransactionService {
           `--dry-run: nonce ${parsed.nonce} leaves a gap after ${pending}; this transaction cannot be mined until the missing one is broadcast`,
         );
       } else {
-        checks.push({ name: "nonce", status: "ok", detail: `${parsed.nonce} is the next to be mined` });
+        checks.push({
+          name: "nonce",
+          status: "ok",
+          detail: `${parsed.nonce} is the next to be mined`,
+        });
       }
 
       const required = parsed.value + maxCostWei;
@@ -466,9 +489,7 @@ export class EvmTransactionService {
       state,
       confirmed,
       failed,
-      ...(receipt?.blockNumber === undefined
-        ? {}
-        : { blockNumber: receipt.blockNumber as number }),
+      ...(receipt?.blockNumber === undefined ? {} : { blockNumber: receipt.blockNumber as number }),
       ...confirmationsOf(head, receipt?.blockNumber),
     };
   }
@@ -514,9 +535,7 @@ export class EvmTransactionService {
       // The transaction's own nonce, flattened out of the node object: §4.3 makes it the entry
       // point for diagnosing a stuck transaction, and digging it out of a passthrough field is
       // not what "the detail view" should ask of a reader.
-      ...(transaction.nonce === undefined
-        ? {}
-        : { nonce: quantityToNumber(transaction.nonce) }),
+      ...(transaction.nonce === undefined ? {} : { nonce: quantityToNumber(transaction.nonce) }),
       ...(transfer
         ? await this.#erc20Parties(gateway, checksummed(transaction.to), transfer)
         : {
@@ -585,10 +604,7 @@ function parseEvmTransaction(hex: string): Transaction {
  * one), and everything else is `contract-call`. Naming the METHOD would mean decoding calldata we
  * have chosen not to decode.
  */
-function transactionType(
-  transaction: Record<string, unknown>,
-  isErc20Transfer: boolean,
-): string {
+function transactionType(transaction: Record<string, unknown>, isErc20Transfer: boolean): string {
   if (transaction.to === null || transaction.to === undefined) return "contract-creation";
   if (isErc20Transfer) return "transfer";
   const input = String(transaction.input ?? "0x");

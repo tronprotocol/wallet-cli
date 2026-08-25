@@ -395,7 +395,10 @@ describe("WalletService reports the file it wrote when the audit append fails", 
 
   it.each([
     ["native backup", (s: WalletService, id: string) => s.backup(id, undefined)],
-    ["keystore backup", (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW, "tron")],
+    [
+      "keystore backup",
+      (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW, "tron"),
+    ],
   ])("%s still fails, but names the file it already committed", (_label, run) => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
@@ -493,4 +496,3 @@ describe("WalletService.backupKeystore — what the audit log records", () => {
     expect(records[0]).toMatchObject({ family: "evm" });
   });
 });
-

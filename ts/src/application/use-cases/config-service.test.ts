@@ -183,14 +183,22 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
   it("rejects an unknown network in the key", () => {
     const { svc } = service();
     expect(() =>
-      svc.execute({ key: "networks.dogechain.httpEndpoint", value: "https://x" }, twoNetworks, registry),
+      svc.execute(
+        { key: "networks.dogechain.httpEndpoint", value: "https://x" },
+        twoNetworks,
+        registry,
+      ),
     ).toThrow(/dogechain/);
   });
 
   it("rejects a non-https endpoint", () => {
     const { svc } = service();
     expect(() =>
-      svc.execute({ key: "networks.nile.httpEndpoint", value: "ftp://nope" }, twoNetworks, registry),
+      svc.execute(
+        { key: "networks.nile.httpEndpoint", value: "ftp://nope" },
+        twoNetworks,
+        registry,
+      ),
     ).toThrow();
   });
 
@@ -234,23 +242,26 @@ describe("ConfigService alias book view", () => {
 describe("ConfigService reads a nested network key", () => {
   it("returns the endpoint instead of demanding a value", () => {
     const { svc } = service();
-    expect(svc.execute({ key: "networks.evm:11155111.httpEndpoint" }, twoNetworks, registry)).toEqual(
-      { key: "networks.evm:11155111.httpEndpoint", value: "https://sepolia.example/abc123" },
-    );
+    expect(
+      svc.execute({ key: "networks.evm:11155111.httpEndpoint" }, twoNetworks, registry),
+    ).toEqual({
+      key: "networks.evm:11155111.httpEndpoint",
+      value: "https://sepolia.example/abc123",
+    });
   });
 
   it("resolves an alias in the key when reading, exactly as when writing", () => {
     const { svc } = service();
-    expect(svc.execute({ key: "networks.sepolia.httpEndpoint" }, twoNetworks, registry)).toMatchObject(
-      { key: "networks.evm:11155111.httpEndpoint" },
-    );
+    expect(
+      svc.execute({ key: "networks.sepolia.httpEndpoint" }, twoNetworks, registry),
+    ).toMatchObject({ key: "networks.evm:11155111.httpEndpoint" });
   });
 
   it("reads back what was just written", () => {
     const { svc } = service();
-    expect(
-      svc.execute({ key: "networks.nile.httpEndpoint" }, twoNetworks, registry),
-    ).toMatchObject({ value: "https://nile.trongrid.io" });
+    expect(svc.execute({ key: "networks.nile.httpEndpoint" }, twoNetworks, registry)).toMatchObject(
+      { value: "https://nile.trongrid.io" },
+    );
   });
 
   it("still rejects an unwritable sub-key when reading", () => {

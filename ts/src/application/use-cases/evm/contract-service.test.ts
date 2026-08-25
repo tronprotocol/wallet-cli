@@ -39,7 +39,7 @@ describe("EvmContractService.call", () => {
   });
 
   it("returns the node's result as raw hex, undecoded", async () => {
-    const raw = `0x${(123n).toString(16).padStart(64, "0")}`;
+    const raw = `0x${123n.toString(16).padStart(64, "0")}`;
     const { svc } = service(raw);
 
     await expect(svc.call(net, TOKEN, "decimals()", [])).resolves.toEqual({
@@ -208,7 +208,11 @@ describe("EvmContractService.send — approve", () => {
   function approveHarness(decimals: number | Error = 6) {
     const gateway = {
       getTransactionCount: vi.fn(async () => "7"),
-      feeData: vi.fn(async () => ({ baseFeeWei: "100", gasPriceWei: "110", suggestedPriorityWei: "10" })),
+      feeData: vi.fn(async () => ({
+        baseFeeWei: "100",
+        gasPriceWei: "110",
+        suggestedPriorityWei: "10",
+      })),
       estimateGas: vi.fn(async () => "46200"),
       encodeFunctionCall: vi.fn(() => "0x095ea7b3"),
       getErc20Metadata: vi.fn(async () => {
@@ -286,4 +290,3 @@ describe("EvmContractService.send — approve", () => {
     expect(out).not.toHaveProperty("allowance");
   });
 });
-

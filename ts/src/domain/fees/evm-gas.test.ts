@@ -85,8 +85,9 @@ describe("planEvmFee — EIP-1559", () => {
   });
 
   it("takes the gas limit override over the estimate", () => {
-    expect(planEvmFee({ ...base, gasLimit: GAS_LIMIT, overrides: { gasLimit: "90000" } }).gasLimit)
-      .toBe("90000");
+    expect(
+      planEvmFee({ ...base, gasLimit: GAS_LIMIT, overrides: { gasLimit: "90000" } }).gasLimit,
+    ).toBe("90000");
   });
 
   // BSC: base fee zero means the whole fee is the tip, and the formula produces exactly that.
@@ -182,7 +183,12 @@ describe("gweiToWei", () => {
  * worse.
  */
 describe("planEvmFee — warnings", () => {
-  const chain = { baseFeeWei: "1000000000", gasPriceWei: "1100000000", suggestedPriorityWei: "1000000", gasLimit: "21000" };
+  const chain = {
+    baseFeeWei: "1000000000",
+    gasPriceWei: "1100000000",
+    suggestedPriorityWei: "1000000",
+    gasLimit: "21000",
+  };
 
   it("says so when the suggested tip had to be cut down to the fee cap", () => {
     const plan = planEvmFee({ ...chain, overrides: { maxFeeWei: "500000" } });
@@ -211,4 +217,3 @@ describe("planEvmFee — warnings", () => {
     expect(planEvmFee(chain).warnings).toBeUndefined();
   });
 });
-

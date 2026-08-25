@@ -91,10 +91,7 @@ export class HelpService {
     // the second is what a family-prefixed query (`evm account history --help`) really hit,
     // and answering it with unknown_command would send the reader looking for a typo.
     if (family && this.registry.resolveChain(path)) {
-      throw new UsageError(
-        "family_mismatch",
-        `${path.join(" ")} has no ${family} implementation`,
-      );
+      throw new UsageError("family_mismatch", `${path.join(" ")} has no ${family} implementation`);
     }
     throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`);
   }

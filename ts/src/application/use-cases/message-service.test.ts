@@ -45,9 +45,9 @@ describe("MessageService.sign", () => {
         throw new WalletError("watch_only_no_signer", "watch-only account cannot sign");
       }),
     });
-    await expect(new MessageService(signers).sign(scope, "evm", "acct", "hi")).rejects.toMatchObject(
-      { code: "watch_only_no_signer" },
-    );
+    await expect(
+      new MessageService(signers).sign(scope, "evm", "acct", "hi"),
+    ).rejects.toMatchObject({ code: "watch_only_no_signer" });
     expect(signers.resolve).not.toHaveBeenCalled();
   });
 });

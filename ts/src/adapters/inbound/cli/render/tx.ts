@@ -58,7 +58,9 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     // receiptRows already states a multi-sign fee; only estimated fees need their own row here.
     const body = receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
       ...receiptRows(r),
-      ...(r.multiSignFeeSun === undefined ? [["Fee", formatFee(r.fee, family, symbol)] as Pair] : []),
+      ...(r.multiSignFeeSun === undefined
+        ? [["Fee", formatFee(r.fee, family, symbol)] as Pair]
+        : []),
       ["Tx", summarizeTx(r.tx ?? r.transaction)],
     ]);
     // `tx broadcast --dry-run` resolves the full approval state to decide broadcastability; show

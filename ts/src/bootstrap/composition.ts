@@ -146,7 +146,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
           (isTronNetwork(network) && Boolean(network.tronlinkHttpEndpoint)),
       )
       .filter(
-        (key) => !key.startsWith("gasfree.") || (isTronNetwork(network) && Boolean(network.gasfree)),
+        (key) =>
+          !key.startsWith("gasfree.") || (isTronNetwork(network) && Boolean(network.gasfree)),
       )
       .map((key) => ({
         key,

@@ -88,8 +88,7 @@ export const evmSignStrategy: SignStrategy = {
       return {
         signature: signDigest(pkHex, digest),
         digest,
-        primaryType:
-          payload.primaryType ?? TypedDataEncoder.from(structTypes).primaryType,
+        primaryType: payload.primaryType ?? TypedDataEncoder.from(structTypes).primaryType,
       };
     } catch (e) {
       throw new ChainError(
