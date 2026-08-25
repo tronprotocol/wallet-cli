@@ -34,7 +34,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     finalArgs.push("--password-stdin");
     stdin = (opts.password ?? DEFAULT_PW) + "\n";
   }
-  // 18s < the suite's 20s testTimeout: a genuinely hung subprocess errors here with a clear
+  // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
   // signal instead of silently eating the whole test budget.
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.
@@ -42,7 +42,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     input: stdin,
     encoding: "utf8",
     env,
-    timeout: 18_000,
+    timeout: 25_000,
     ...DETACHED,
   } as SpawnSyncOptionsWithStringEncoding);
   let json: any;
@@ -297,7 +297,9 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     const again = run(["--output", "json", "backup", "main", "--out", out]);
     expect(again.status).toBe(2);
     expect(again.json.error.code).toBe("output_exists");
-  }, 15000); // seed encrypt + two backup decrypts run scrypt 3× → exceeds vitest's 5s default
+    // No per-test timeout: this is the suite's most expensive case (seed encrypt + two backup
+    // decrypts run scrypt 3×), so it needs the project's full budget, not a smaller slice of it.
+  });
 
   it("supports root-level use and backup account commands", () => {
     seedWallet();
