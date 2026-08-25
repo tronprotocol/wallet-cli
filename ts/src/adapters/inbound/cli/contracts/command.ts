@@ -142,6 +142,10 @@ export interface ChainSpec<_I = any, O = any> {
   broadcasts?: boolean;
   capability?: string;
   stdin?: StdinChannel;
+  /** the stdin channel belongs to ONE family (e.g. `--tx-stdin` carries TRON's transaction JSON).
+   *  Help tags the flag with it and every other family refuses it, the same way a flag declared in
+   *  a single family's binding behaves — a channel no other family reads must say so. */
+  stdinFamily?: ChainFamily;
   interactive?: boolean;
   passwordMode?: "establish" | "verify";
   positionals?: { field: string; placeholder?: string }[];

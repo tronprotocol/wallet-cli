@@ -10,7 +10,11 @@ export function registerContactCommands(registry: CommandRegistry, service: Cont
       .string()
       .min(1)
       .max(256)
-      .describe("local name for this recipient; usable anywhere an address is accepted"),
+      // §3.11 states the rule the domain enforces (contactName): a name that looked like an
+      // address would make `--to <name>` ambiguous with the address it resembles.
+      .describe(
+        "local name for this recipient; 1-64 safe characters and must not look like a chain address. Usable anywhere an address is accepted",
+      ),
     address: z.string().min(1).max(128).describe("recipient address to store under this name"),
     note: z.string().max(512).optional().describe("free-form note, up to 128 safe characters"),
   });

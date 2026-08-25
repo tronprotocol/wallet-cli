@@ -155,6 +155,22 @@ describe("gweiToWei", () => {
   it("rejects text that is not a number", () => {
     expect(() => gweiToWei("fast")).toThrow();
   });
+
+  // §6.1 promised `cast`-style suffixes. Only the one that names this flag's own unit is honoured:
+  // it cannot change the value, and refusing it only punishes a copied `cast` line.
+  it("accepts a gwei suffix as a synonym for the bare number", () => {
+    expect(gweiToWei("25gwei")).toBe("25000000000");
+    expect(gweiToWei("25 GWEI")).toBe("25000000000");
+    expect(gweiToWei("0.05gwei")).toBe(gweiToWei("0.05"));
+  });
+
+  // The reason the other suffixes stay out: one flag spanning nine orders of magnitude means a
+  // typo costs a billion times the fee. Refused by name, not silently reinterpreted.
+  it("refuses any other unit by name", () => {
+    for (const bad of ["0.01ether", "25wei", "25 eth"]) {
+      expect(() => gweiToWei(bad)).toThrow(/read in gwei/);
+    }
+  });
 });
 
 /**

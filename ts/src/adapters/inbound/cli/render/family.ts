@@ -186,8 +186,9 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
         ["Balance", `${formatWei(d.balance)} ${symbol}`],
         ["Nonce", formatInt(d.nonce)],
         // The distinction a reader needs before sending: an address with code may reject a plain
-        // transfer. json says `eoa`, which is a field value; this is the sentence version of it.
-        ["Type", d.type === "contract" ? "contract" : "externally owned"],
+        // transfer. `EOA` rather than a spelled-out phrase: it is the standard name on this chain,
+        // it is what json's `eoa` says, and it stays a noun beside `contract` (§4.3).
+        ["Type", d.type === "contract" ? "contract" : "EOA"],
       ];
       // Only a contract has code, so only a contract gets the row (§4.3 — an EOA is not a
       // contract with zero bytes).

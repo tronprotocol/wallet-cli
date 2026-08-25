@@ -115,8 +115,10 @@ export class EvmAccountService {
     return {
       address,
       balance,
-      // a decimal string, not a number: nonces are small today but the carrier stays lossless.
-      nonce,
+      // A number, matching `tx info`'s own `nonce` (§4.3): one field name must not arrive as two
+      // types across two commands. Safe as a number — a nonce counts an account's transactions,
+      // so it cannot approach 2^53 the way a wei balance does.
+      nonce: Number(nonce),
       decimals: FAMILIES.evm.nativeDecimals,
       symbol: network.nativeSymbol,
       type: isContract ? "contract" : "eoa",

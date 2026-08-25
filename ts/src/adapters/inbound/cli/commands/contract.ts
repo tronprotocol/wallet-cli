@@ -198,8 +198,8 @@ const evmGasFields = z.object({
   gasLimit: Schemas.positiveIntString()
     .optional()
     .describe("gas units to authorise; defaults to the node's estimate, unpadded"),
-  maxFee: z.string().optional().describe("maximum total fee per gas, in gwei (EIP-1559 only)"),
-  priorityFee: z.string().optional().describe("tip per gas, in gwei (EIP-1559 only)"),
+  maxFee: z.string().optional().describe("maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 only)"),
+  priorityFee: z.string().optional().describe("tip per gas, in gwei — 25 or 25gwei (EIP-1559 only)"),
   nonce: z.coerce
     .number()
     .int()

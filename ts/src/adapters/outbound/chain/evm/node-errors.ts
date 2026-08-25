@@ -42,6 +42,10 @@ export function isAlreadyKnown(message: string): boolean {
   return /already known|known transaction|already exists|transaction already in pool/i.test(message);
 }
 
+/** the codes this table can produce — the error-code registry checks itself against it, so a new
+ *  rule here cannot ship without an entry there. */
+export const EVM_REJECTION_CODES: readonly string[] = PATTERNS.map(([, code]) => code);
+
 export function classifyEvmRejection(message: string): EvmRejection | undefined {
   for (const [pattern, code, text] of PATTERNS) {
     if (pattern.test(message)) return { code, message: text };

@@ -6,7 +6,11 @@
 import yargs, { type Argv } from "yargs";
 import { randomBytes } from "node:crypto";
 import { type RefinementCtx, type ZodObject, type ZodRawShape, type ZodType } from "zod";
-import type { AccountDescriptor, NetworkDescriptor } from "../../../../domain/types/index.js";
+import type {
+  AccountDescriptor,
+  ChainFamily,
+  NetworkDescriptor,
+} from "../../../../domain/types/index.js";
 import { isChainCommand } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
@@ -266,7 +270,7 @@ async function executeChainCommand(
   const effectiveInput = composeRefines(effectiveFields, spec.baseRefine, binding.refine);
   const executionSpec = withFields(spec, effectiveFields);
   // order matters: the flag check must see argv before positionals are bound onto their fields
-  assertKnownFlags(executionSpec, argv);
+  assertKnownFlags(executionSpec, argv, otherFamilyFlags(def, net.family));
   argv = bindGroupedPositionals(spec, argv);
   deps.prompter.setInteractive(isInteractiveCommand(spec));
   caps.check(spec, net);
@@ -477,9 +481,29 @@ function randomWalletLabel(): string {
  * and zod would silently strip them). Allowed = positionals + globals + THIS command's fields
  * (a sibling command's flag in the same namespace is unknown here). → invalid_option, exit 2.
  */
+/** Flags another family of this command declares, so a flag that exists — just not here — can say
+ *  so instead of arriving as a bare "unknown option". */
+function otherFamilyFlags(
+  def: ChainCommandDefinition,
+  selected: ChainFamily,
+): Map<string, ChainFamily> {
+  const out = new Map<string, ChainFamily>();
+  for (const [family, binding] of Object.entries(def.families) as [
+    ChainFamily,
+    ChainCommandDefinition["families"][ChainFamily],
+  ][]) {
+    if (family === selected) continue;
+    for (const name of Object.keys(binding?.fields?.shape ?? {})) {
+      out.set(camelToKebab(name), family);
+    }
+  }
+  return out;
+}
+
 function assertKnownFlags(
   cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals">,
   argv: any,
+  otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
   const allowed = new Set<string>(["_", "$0", "group", "verb", "args", "source"]);
   const add = (name: string) => {
@@ -514,7 +538,14 @@ function assertKnownFlags(
   if (unknown.length > 0) {
     throw new UsageError(
       "invalid_option",
-      `unknown option(s): ${unknown.map((u) => `--${u}`).join(", ")}`,
+      `unknown option(s): ${unknown
+        .map((u) => {
+          const family = otherFamily.get(u);
+          // "--transaction is a tron option" is the answer; "unknown option --transaction" sends
+          // the reader hunting for a typo in a flag that exists.
+          return family ? `--${u} (a ${family} option on this command)` : `--${u}`;
+        })
+        .join(", ")}`,
     );
   }
 }

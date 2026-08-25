@@ -36,7 +36,7 @@ describe("EvmAccountService.info", () => {
     expect(out).toMatchObject({
       address: "0xADDR",
       balance: "1000000000000000000",
-      nonce: "7",
+      nonce: 7,
       decimals: 18,
       symbol: "ETH",
     });
@@ -58,9 +58,12 @@ describe("EvmAccountService.info", () => {
     expect(out.codeSize).toBe(4);
   });
 
-  it("keeps the nonce a decimal string, so a large one cannot lose precision", async () => {
-    const out = await service({ nonce: "9007199254740993" }).info(scope, net);
-    expect(out.nonce).toBe("9007199254740993");
+  // The regression this guards: `account info` used to answer with a decimal STRING while
+  // `tx info` answered the same field with a number, so an agent reading one and feeding the
+  // other saw the type change under it.
+  it("reports the nonce as a number, the same carrier tx info uses", async () => {
+    const out = await service({ nonce: "42" }).info(scope, net);
+    expect(out.nonce).toBe(42);
   });
 });
 

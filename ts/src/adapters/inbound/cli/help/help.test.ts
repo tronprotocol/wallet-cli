@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { HelpService } from "./index.js";
 import { CommandRegistry } from "../registry/index.js";
-import type { ChainSpec, StreamManager } from "../contracts/index.js";
-import { txBroadcastSpec, txSendSpec, txTronLinkMultisigSpec } from "../commands/tx.js";
+import type { ChainSpec, FamilyBinding, StreamManager } from "../contracts/index.js";
+import {
+  txBroadcastSpec,
+  txBroadcastTronBinding,
+  txSendSpec,
+  txTronLinkMultisigSpec,
+} from "../commands/tx.js";
 import { messageSignSpec } from "../commands/shared.js";
 
 // ── minimal fakes ─────────────────────────────────────────────────────────────
@@ -78,9 +83,11 @@ describe("HelpService --json-schema", () => {
 // Asserting the spec object is not enough: the renderer resolves members by kebab flag name, so a
 // group can be well-formed and still never appear. These render the real specs end to end.
 describe("shipped exclusive groups actually render", () => {
-  function optionsOf(spec: ChainSpec): string[] {
+  // The binding matters here: flags a family declares itself (`--transaction`) live on it, not on
+  // the spec, so a stub binding would render help missing exactly those rows.
+  function optionsOf(spec: ChainSpec, binding?: FamilyBinding): string[] {
     const reg = new CommandRegistry();
-    reg.addChain(spec, "tron", { run: async () => ({}) });
+    reg.addChain(spec, "tron", binding ?? { run: async () => ({}) });
     const stream = makeStream();
     new HelpService(reg, stream, "0.0.0").handleMeta([...spec.path, "--help"]);
     const lines = (stream.last ?? "").split("\n");
@@ -111,7 +118,7 @@ describe("shipped exclusive groups actually render", () => {
   });
 
   it("renders tx broadcast's group including the stdin channel flag", () => {
-    const out = optionsOf(txBroadcastSpec);
+    const out = optionsOf(txBroadcastSpec, txBroadcastTronBinding({} as never));
     expect(out[0]).toBe("  Exactly one of these — the signed transaction to broadcast:");
     expect(out.slice(1, 5).map((l) => l.trim().split(" ")[0])).toEqual([
       "--transaction",
@@ -119,6 +126,15 @@ describe("shipped exclusive groups actually render", () => {
       "--hex",
       "--file",
     ]);
+    // The two TRON-only members say so. A jointly-required group drops "[optional]" from its rows
+    // (that tag would contradict the group), but the family tag is a different fact and survives:
+    // without it, "no tag" would mean both "every family" and "we did not move the flag".
+    expect(out[1]).toContain("(tron)");
+    expect(out[2]).toContain("(tron)");
+    expect(out[1]).not.toContain("[optional]");
+    // --hex and --file are read by both families and stay untagged.
+    expect(out[3]).not.toContain("(tron)");
+    expect(out[4]).not.toContain("(tron)");
   });
 
   // tx multisig's three modes are rejected in combination by tronLinkMultisigRefine. Without the

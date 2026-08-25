@@ -316,6 +316,7 @@ export class HelpService {
       fields: introspectFields(mergedFields(def)),
       fieldFamilies: fieldFamilies(def),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
+      stdinFamily: spec.stdinFamily,
       exclusive: spec.exclusive,
       examples: spec.examples,
       requires: spec.requires,
@@ -337,6 +338,8 @@ export class HelpService {
     /** family-specific flags, so each can be marked with the family it belongs to. */
     fieldFamilies?: Map<string, ChainFamily>;
     inputFlags: readonly GlobalFlag[];
+    /** family that owns the stdin channel, when only one family reads it. */
+    stdinFamily?: ChainFamily;
     exclusive?: ChainSpec["exclusive"];
     examples: CommandDefinition["examples"];
     requires?: string[];
@@ -406,7 +409,8 @@ export class HelpService {
           key: f.kebab,
           head: flagHead(f),
           desc: f.description ?? "",
-          tag: family ? `${flagTag(f)}${flagTag(f) ? "  " : ""}(${family})` : flagTag(f),
+          tag: flagTag(f),
+          ...(family ? { familyTag: `(${family})` } : {}),
         };
       }),
       ...c.inputFlags.map((g) => ({
@@ -414,12 +418,18 @@ export class HelpService {
         head: globalFlagHead(g),
         desc: g.description,
         tag: globalFlagTag(g),
+        ...(c.stdinFamily ? { familyTag: `(${c.stdinFamily})` } : {}),
       })),
     ];
     if (optionRows.length) {
       const width = Math.min(34, Math.max(...optionRows.map((r) => r.head.length)));
-      const rowLine = (r: OptionRow, tag: string): string =>
-        `  ${r.head.padEnd(width)}  ${r.desc}${r.desc && tag ? "  " : ""}${tag}`.trimEnd();
+      // Two independent tags: "[optional]" says whether the flag may be omitted, "(tron)" says
+      // which family reads it. They are joined here so the family tag survives on its own in an
+      // exclusive block, where the optional tag is deliberately dropped.
+      const rowLine = (r: OptionRow, tag: string): string => {
+        const tags = [tag, r.familyTag].filter(Boolean).join("  ");
+        return `  ${r.head.padEnd(width)}  ${r.desc}${r.desc && tags ? "  " : ""}${tags}`.trimEnd();
+      };
       // an exclusive set renders as its own labelled block, ahead of the free-standing options.
       // A jointly-required set drops the per-member "[optional]" tag: individually true, but read
       // together it says the whole set may be omitted — which is exactly what the runtime rejects.
@@ -585,7 +595,10 @@ interface OptionRow {
   key: string;
   head: string;
   desc: string;
+  /** "[optional]" / "[required]" — dropped inside a jointly-required exclusive block. */
   tag: string;
+  /** "(tron)" — which family reads this flag; independent of `tag`, so it survives that block. */
+  familyTag?: string;
 }
 
 function flagHead(f: FieldInfo): string {

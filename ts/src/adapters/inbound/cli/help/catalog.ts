@@ -15,6 +15,7 @@ import type {
 import { CommandRegistry } from "../registry/index.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, type GlobalFlagSpec } from "../globals/index.js";
+import { ERROR_CODES } from "../../../../domain/errors/codes.js";
 
 // Flags accepted on every command (kubectl-style globals + secret channels). The flag model — arity,
 // descriptions, defaults, and the global-vs-command-scoped split — is owned by domain metadata
@@ -113,7 +114,15 @@ export function buildCatalog(
           },
     )
     .sort((a, b) => a.id.localeCompare(b.id));
-  return JSON.stringify({ tool: "wallet-cli", version, globalFlags: GLOBAL_FLAGS, commands });
+  // The error index travels with the command surface: an agent discovering what it can call also
+  // learns, in the same call, every `error.code` those calls can answer with.
+  return JSON.stringify({
+    tool: "wallet-cli",
+    version,
+    globalFlags: GLOBAL_FLAGS,
+    errorCodes: ERROR_CODES,
+    commands,
+  });
 }
 
 function mergedInput(def: ChainCommandDefinition): z.ZodType {

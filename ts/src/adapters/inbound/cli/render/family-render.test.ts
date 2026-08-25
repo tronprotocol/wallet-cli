@@ -137,8 +137,8 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH");
 
     expect(rows).toContainEqual(["Nonce", "16"]);
-    // json says `eoa` — a field value; the text row is the sentence version of the same fact.
-    expect(rows).toContainEqual(["Type", "externally owned"]);
+    // Uppercase `EOA` — the standard name, and the text twin of json's `eoa` (§4.3).
+    expect(rows).toContainEqual(["Type", "EOA"]);
     expect(
       FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, type: "contract" }, "ETH"),
     ).toContainEqual(["Type", "contract"]);

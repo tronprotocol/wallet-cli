@@ -140,13 +140,31 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
  *
  * Scaled by string manipulation rather than float arithmetic: `0.05 * 1e9` is not exactly
  * 50000000 in binary floating point, and a fee is not a place to discover that.
+ *
+ * A `gwei` suffix is accepted as a synonym (`25gwei` === `25`): it names the unit the flag already
+ * reads, so it cannot change the number, and someone pasting a `cast` line should not be stopped
+ * by it. Every OTHER unit is refused by name — one flag spanning nine orders of magnitude is how
+ * `0.01ether` and `25` end up a billion apart, and that is the whole reason this flag takes one
+ * unit rather than `cast`'s several.
  */
+// Anchored on a leading number so a non-numeric value ("fast") still gets the plain "not a gwei
+// amount" message rather than being reported as an unknown unit.
+const FOREIGN_UNIT = /^[\d.]+\s*([a-z]+)$/i;
+
 export function gweiToWei(gwei: string): string {
-  const match = /^(\d+)(?:\.(\d+))?$/.exec(gwei.trim());
+  const value = gwei.trim().replace(/\s*gwei$/i, "");
+  const foreign = FOREIGN_UNIT.exec(value);
+  if (foreign) {
+    throw new UsageError(
+      "invalid_value",
+      `fee rates are read in gwei, so ${foreign[1]} is not accepted: pass 25 or 25gwei, not ${gwei.trim()}`,
+    );
+  }
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(value);
   if (!match) throw new UsageError("invalid_value", `not a gwei amount: ${gwei}`);
   const fraction = match[2] ?? "";
   if (fraction.length > 9) {
-    throw new UsageError("invalid_value", `${gwei} gwei is finer than one wei`);
+    throw new UsageError("invalid_value", `${value} gwei is finer than one wei`);
   }
   return BigInt(`${match[1]}${fraction.padEnd(9, "0")}`).toString(10);
 }

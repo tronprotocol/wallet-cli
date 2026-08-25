@@ -148,6 +148,15 @@ const APP_SETTING_REQUIRED: Record<number, string> = {
   0x6a8d: 'enable "Custom contracts" in the Ledger TRON app settings to sign this contract call',
 };
 
+/** 0x5515 (LOCKED_DEVICE) — the device is connected but its PIN has not been entered. hw-transport
+ *  also raises a named `LockedDeviceError` on paths that never reach an APDU status word. */
+function isLockedDevice(e: unknown): boolean {
+  return (
+    (e as { statusCode?: number }).statusCode === 0x5515 ||
+    (e as { name?: string }).name === "LockedDeviceError"
+  );
+}
+
 /** Map a thrown device/app error to a typed CliError (user-rejection vs not-ready). */
 function classifyDeviceError(e: unknown): CliError {
   if (e instanceof CliError) return e;
@@ -155,6 +164,13 @@ function classifyDeviceError(e: unknown): CliError {
   const status = (e as { statusCode?: number }).statusCode;
   if (status === 0x6985)
     return new ChainError("signing_rejected", "the operation was rejected on the device");
+  // Its own code, not the generic device bucket: "connected but locked" has exactly one fix, and
+  // `auth_required` would send the reader looking for a password this CLI never asked for.
+  if (isLockedDevice(e))
+    return new WalletError(
+      "device_locked",
+      "the Ledger device is locked — unlock it with your PIN and run the command again",
+    );
   // 0x6d00 (INS_NOT_SUPPORTED) is a standard status word every Ledger app shares — the app version
   // does not implement this instruction, or the wrong app is open. Kept chain- and operation-agnostic
   // on purpose: classifyDeviceError fires for any family and any call.
@@ -225,8 +241,14 @@ export class Ledger {
       try {
         handle = await openTransport();
       } catch (e) {
-        // no device / emulator reachable — the pipeline treats this as "device not ready".
-        throw new ExecutionError("auth_required", `cannot reach Ledger device: ${errMessage(e)}`);
+        // Nothing answered on USB/HID (or at the Speculos endpoint). `auth_required` said the wrong
+        // thing here — there is no credential to supply, the device simply is not there — and it
+        // read the same as a locked device, whose fix is entirely different.
+        if (isLockedDevice(e)) throw classifyDeviceError(e);
+        throw new WalletError(
+          "device_not_found",
+          `cannot reach a Ledger device — connect it, unlock it, and open the app: ${errMessage(e)}`,
+        );
       }
       if (cancelled) {
         await handle.close().catch(() => {});

@@ -91,11 +91,11 @@ const evmSendFields = z.object({
   maxFee: z
     .string()
     .optional()
-    .describe("maximum total fee per gas, in gwei (EIP-1559 chains only)"),
+    .describe("maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 chains only)"),
   priorityFee: z
     .string()
     .optional()
-    .describe("tip per gas paid to the proposer, in gwei (EIP-1559 chains only)"),
+    .describe("tip per gas paid to the proposer, in gwei — 25 or 25gwei (EIP-1559 chains only)"),
   nonce: z.coerce
     .number()
     .int()
@@ -106,11 +106,17 @@ const evmSendFields = z.object({
 
 /** EVM has no multi-signature relay, so the artifact both ends exchange is raw hex: an unsigned
  *  serialisation in, a signed one out. TRON's `--transaction` JSON has no EVM meaning. */
-function evmHexOnly(input: { transaction?: string; hex?: string; file?: string }): string {
-  if (input.transaction !== undefined) {
+function evmHexOnly(
+  input: { transaction?: string; hex?: string; file?: string },
+  hasStdin = false,
+): string {
+  // `--transaction` no longer reaches here — it is declared by the TRON binding, so the flag check
+  // refuses it first. `--tx-stdin` is not a flag but a channel, so it still needs saying: a piped
+  // payload that is silently ignored is worse than one that is refused.
+  if (hasStdin) {
     throw new UsageError(
       "invalid_option",
-      "--transaction is the TRON JSON form; on an EVM network pass raw hex with --hex or --file",
+      "--tx-stdin carries the TRON JSON form; on an EVM network pass raw hex with --hex or --file",
     );
   }
   return hexInput(input);
@@ -125,7 +131,12 @@ export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding
     if (input.dryRun && ctx.wait) {
       throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
     }
-    return svc.broadcast(ctx, net, evmHexOnly(input), input.dryRun === true);
+    return svc.broadcast(
+      ctx,
+      net,
+      evmHexOnly(input, ctx.secrets.has("tx")),
+      input.dryRun === true,
+    );
   },
 });
 
@@ -147,8 +158,14 @@ export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding =>
   run: async (ctx, net, input) => svc.send(ctx, net, input),
 });
 
-const broadcastFields = z.object({
+/** TRON's JSON form of a signed transaction. Declared by the TRON binding alone, which is what
+ *  makes help tag it `(tron)` and every other family refuse it — the same treatment `--asset-id`
+ *  gets. EVM has no JSON transaction: it exchanges RLP hex. */
+const tronBroadcastFields = z.object({
   transaction: z.string().optional().describe("signed transaction JSON"),
+});
+
+const broadcastFields = z.object({
   hex: z.string().min(2).optional().describe("signed transaction hex: protobuf hex for TRON, RLP for EVM"),
   file: z
     .string()
@@ -166,6 +183,10 @@ const broadcastFields = z.object({
 export const txBroadcastSpec: ChainSpec = {
   path: ["tx", "broadcast"],
   stdin: "tx",
+  // The channel carries TRON's transaction JSON, and only the TRON binding reads it. Declaring
+  // that is what tags it `(tron)` in help and lets any other family refuse it outright, instead
+  // of ignoring a payload the caller piped in.
+  stdinFamily: "tron",
   network: "optional",
   wallet: "none",
   auth: "none",
@@ -183,13 +204,11 @@ export const txBroadcastSpec: ChainSpec = {
     },
   ],
   baseRefine: (input, context) => {
-    if (
-      [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1
-    ) {
+    if ([input.hex, input.file].filter((entry) => entry !== undefined).length > 1) {
       context.addIssue({
         code: "custom",
-        path: ["transaction"],
-        message: "--transaction, --hex, and --file are mutually exclusive",
+        path: ["hex"],
+        message: "--hex and --file are mutually exclusive",
       });
     }
   },
@@ -202,6 +221,18 @@ export const txBroadcastSpec: ChainSpec = {
 };
 
 export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBinding => ({
+  fields: tronBroadcastFields,
+  refine: (input, context) => {
+    if (
+      [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["transaction"],
+        message: "--transaction, --hex, and --file are mutually exclusive",
+      });
+    }
+  },
   run: async (ctx, net, input) => {
     if (input.dryRun && ctx.wait) {
       throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
@@ -255,12 +286,18 @@ export const txApprovalsTronBinding = (service: TronMultisigService): FamilyBind
   run: async (_ctx, network, input) => service.approvals(network, hexInput(input)),
 });
 
-const signFields = z.object({
+/** The TRON compatibility path, declared by the TRON binding so help tags it `(tron)`; see
+ *  tronBroadcastFields. Its two companion rules (`--out` / `--offline` are hex-only) travel with
+ *  it, because they are only meaningful where `--transaction` exists. */
+const tronSignFields = z.object({
   transaction: z
     .string()
     .min(1)
     .optional()
     .describe("unsigned transaction JSON; TRON compatibility path, never checked online"),
+});
+
+const signFields = z.object({
   ...artifactFields,
   offline: z
     .boolean()
@@ -296,6 +333,37 @@ export const txSignSpec: ChainSpec = {
   // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
   baseRefine: (input, context) => {
+    // On a family without `--transaction` this is the whole rule: one of --hex / --file.
+    if (
+      input.transaction === undefined &&
+      [input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["hex"],
+        message: "provide exactly one of --hex or --file",
+      });
+    }
+  },
+  examples: [
+    {
+      cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
+    },
+    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin" },
+    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin" },
+    { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
+  ],
+  formatText: TextFormatters.txSign,
+};
+
+export const txSignTronBinding = (
+  transactionService: TronTransactionService,
+  signingService: TronSigService,
+  multisigService: TronMultisigService,
+  writer: TransactionArtifactWriter,
+): FamilyBinding => ({
+  fields: tronSignFields,
+  refine: (input, context) => {
     if (
       [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
     ) {
@@ -320,23 +388,6 @@ export const txSignSpec: ChainSpec = {
       });
     }
   },
-  examples: [
-    {
-      cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
-    },
-    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin" },
-    { cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin" },
-    { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
-  ],
-  formatText: TextFormatters.txSign,
-};
-
-export const txSignTronBinding = (
-  transactionService: TronTransactionService,
-  signingService: TronSigService,
-  multisigService: TronMultisigService,
-  writer: TransactionArtifactWriter,
-): FamilyBinding => ({
   run: async (ctx, net, input) => {
     exactlyOne(
       [input.transaction, input.hex, input.file],
