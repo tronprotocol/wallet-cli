@@ -647,7 +647,8 @@ public class WalletApi {
       return null;
     }
 
-    File[] wallets = file.listFiles((dir, name) -> !name.equals(".active-wallet"));
+    File[] wallets = file.listFiles(
+        (dir, name) -> !name.equals(".active-wallet") && !new File(dir, name).isDirectory());
     if (ArrayUtils.isEmpty(wallets)) {
       return null;
     }
@@ -706,7 +707,8 @@ public class WalletApi {
       return new File[0];
     }
 
-    File[] wallets = file.listFiles((dir, name) -> !name.equals(".active-wallet"));
+    File[] wallets = file.listFiles(
+        (dir, name) -> !name.equals(".active-wallet") && !new File(dir, name).isDirectory());
     if (ArrayUtils.isEmpty(wallets)) {
       return new File[0];
     }
