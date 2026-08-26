@@ -28,19 +28,6 @@ public class LedgerEventListener extends BaseListener {
 
   @Getter
   private AtomicBoolean isTimeOutShutdown = new AtomicBoolean(false);
-  private volatile byte[] lastSendResult;
-  @Setter
-  private volatile boolean standardCliQuiet;
-
-  /**
-   * Bytes returned by the most recent {@link #handleTransSign} call. May be {@code null} if no
-   * sign has been attempted yet, or if the call threw before assigning. Standard CLI's
-   * non-interactive Ledger bridge reads this to map APDU error codes (0x6511, 0x6a8c, …) to
-   * structured outcomes. REPL does not consult this field.
-   */
-  public byte[] getLastSendResultBytes() {
-    return lastSendResult;
-  }
   @Getter
   @Setter
   private AtomicBoolean ledgerSignEnd = new AtomicBoolean(false);
@@ -90,12 +77,8 @@ public class LedgerEventListener extends BaseListener {
 
   public boolean executeSignListen(HidDevice hidDevice, Chain.Transaction transaction, String path, boolean gasfree) {
     boolean ret = false;
-    // Reset before each sign so a prior call's APDU bytes never leak into the next sign's
-    // outcome computation if handleTransSign throws on this invocation.
-    this.lastSendResult = null;
     try {
       byte[] sendResult = handleTransSign(hidDevice, transaction, path, gasfree);
-      this.lastSendResult = sendResult;
       if (sendResult == null) {
         println("Transaction sign request is sent to Ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
@@ -197,7 +180,6 @@ public class LedgerEventListener extends BaseListener {
           println("Do updateAllSigningToReject");
         }
         hidDevice.close();
-        standardCliQuiet = false;
       } else {
         if (DebugConfig.isDebugEnabled()) {
           println("Transaction is not null");
@@ -234,24 +216,17 @@ public class LedgerEventListener extends BaseListener {
       TransactionSignManager.getInstance().getHidDevice().close();
       TransactionSignManager.getInstance().setHidDevice(null);
     }
-    standardCliQuiet = false;
   }
 
   private void println(String message) {
-    if (!standardCliQuiet) {
-      System.out.println(message);
-    }
+    System.out.println(message);
   }
 
   private void print(String message) {
-    if (!standardCliQuiet) {
-      System.out.print(message);
-    }
+    System.out.print(message);
   }
 
   private void printf(String format, Object... args) {
-    if (!standardCliQuiet) {
-      System.out.printf(format, args);
-    }
+    System.out.printf(format, args);
   }
 }
