@@ -11,7 +11,13 @@ import { EvmContractService } from "./contract-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-const net = { id: "evm:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
+const net = {
+  id: "evm:1",
+  family: "evm",
+  nativeSymbol: "ETH",
+  chainId: "1",
+  capabilities: [],
+} as NetworkDescriptor;
 const TOKEN = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const OWNER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -24,7 +30,10 @@ function service(result = "0x") {
     },
   };
   return {
-    svc: new EvmContractService({ get: () => gateway } as unknown as ChainGatewayProvider),
+    svc: new EvmContractService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as unknown as TxPipeline,
+    ),
     seen,
   };
 }

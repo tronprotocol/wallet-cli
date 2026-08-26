@@ -14,6 +14,7 @@ import {
   type TransactionLike,
 } from "ethers";
 import { ChainError } from "../../../../domain/errors/index.js";
+import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
 import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
 import type {
   DeployConstructorArgs,
@@ -186,7 +187,13 @@ export class EvmRpcClient implements EvmGateway {
       ...(price === undefined ? {} : { effectiveGasPriceWei: price.toString(10) }),
       ...(r.blockNumber === undefined
         ? {}
-        : { blockNumber: Number(BigInt(String(r.blockNumber))) }),
+        : {
+            blockNumber: quantityToSafeNumber(
+              r.blockNumber,
+              "receipt blockNumber",
+              rpcIntegerError,
+            ),
+          }),
       ...(r.contractAddress === undefined || r.contractAddress === null
         ? {}
         : { contractAddress: r.contractAddress }),
@@ -196,6 +203,10 @@ export class EvmRpcClient implements EvmGateway {
 
   /** the JSON-RPC envelope, unthrown — callers that classify errors themselves need to see it. */
   async #send(method: string, params: unknown[]): Promise<JsonRpcResponse> {
+    return this.#request(method, params);
+  }
+
+  async #request(method: string, params: unknown[]): Promise<JsonRpcResponse> {
     this.#id += 1;
     let response: { ok: boolean; status?: number; text(): Promise<string> };
     try {
@@ -211,7 +222,19 @@ export class EvmRpcClient implements EvmGateway {
     if (!response.ok) {
       throw new ChainError("rpc_error", `${method} failed: HTTP ${response.status}`);
     }
-    return JSON.parse(await response.text()) as JsonRpcResponse;
+    let body: unknown;
+    try {
+      body = JSON.parse(await response.text());
+    } catch (e) {
+      throw new ChainError(
+        "rpc_error",
+        `${method} returned malformed JSON: ${(e as Error).message}`,
+      );
+    }
+    if (body === null || typeof body !== "object" || Array.isArray(body)) {
+      throw new ChainError("rpc_error", `${method} returned a malformed JSON-RPC response`);
+    }
+    return body as JsonRpcResponse;
   }
 
   /** calldata for `transfer(address,uint256)`; the amount is already in the token's base units. */
@@ -306,7 +329,7 @@ export class EvmRpcClient implements EvmGateway {
    */
   contractAddressFor(from: string, nonce: string): string {
     try {
-      return getCreateAddress({ from, nonce: Number(nonce) });
+      return getCreateAddress({ from, nonce: decimalToSafeNumber(nonce, "nonce", valueError) });
     } catch (e) {
       throw new ChainError(
         "invalid_value",
@@ -344,20 +367,7 @@ export class EvmRpcClient implements EvmGateway {
     signature: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<string> {
-    let data: string;
-    try {
-      const iface = new Interface([`function ${signature}`]);
-      data = iface.encodeFunctionData(
-        signature.slice(0, signature.indexOf("(")),
-        params.map((p) => p.value),
-      );
-    } catch (e) {
-      throw new ChainError(
-        "invalid_value",
-        `could not encode ${signature}: ${(e as Error).message}`,
-      );
-    }
-    return this.call(contract, data);
+    return this.call(contract, this.encodeFunctionCall(signature, params));
   }
 
   /**
@@ -462,7 +472,11 @@ export class EvmRpcClient implements EvmGateway {
     const raw = await this.#viewCall(contract, ERC20.encodeFunctionData("decimals", []));
     if (raw === undefined) return undefined;
     try {
-      return Number(ERC20.decodeFunctionResult("decimals", raw)[0]);
+      return decimalToSafeNumber(
+        String(ERC20.decodeFunctionResult("decimals", raw)[0]),
+        "decimals",
+        rpcIntegerError,
+      );
     } catch {
       // A value that is not a uint8 is the contract answering something else, not a node fault.
       return undefined;
@@ -470,22 +484,7 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   async #call(method: string, params: unknown[]): Promise<unknown> {
-    this.#id += 1;
-    let response: { ok: boolean; status?: number; text(): Promise<string> };
-    try {
-      response = await fetch(this.endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: this.#id, method, params }),
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
-    } catch (e) {
-      throw new ChainError("rpc_error", `${method} failed: ${(e as Error).message}`);
-    }
-    if (!response.ok) {
-      throw new ChainError("rpc_error", `${method} failed: HTTP ${response.status}`);
-    }
-    const body = JSON.parse(await response.text()) as JsonRpcResponse;
+    const body = await this.#request(method, params);
     if (body.error) {
       throw new ChainError("rpc_error", `${method} failed: ${body.error.message}`);
     }
@@ -549,6 +548,14 @@ function toRpcQuantities(tx: Record<string, unknown>): Record<string, unknown> {
     }
   }
   return out;
+}
+
+function rpcIntegerError(message: string) {
+  return new ChainError("rpc_error", message);
+}
+
+function valueError(message: string) {
+  return new ChainError("invalid_value", message);
 }
 
 /**

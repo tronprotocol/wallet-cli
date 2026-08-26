@@ -1,10 +1,9 @@
-import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
+import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
-import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
 import { approveRows } from "../../services/approve-receipt.js";
+import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type {
   ChainGatewayProvider,
@@ -35,15 +34,6 @@ export interface EvmContractWriteInput extends TransactionModeInput {
   nonce?: number;
 }
 
-/** the gas overrides, in the shape the fee model takes. */
-function overridesOf(input: EvmContractWriteInput) {
-  return {
-    ...(input.gasLimit === undefined ? {} : { gasLimit: input.gasLimit }),
-    ...(input.maxFee === undefined ? {} : { maxFeeWei: input.maxFee }),
-    ...(input.priorityFee === undefined ? {} : { priorityFeeWei: input.priorityFee }),
-  };
-}
-
 /**
  * Contract reads and writes.
  *
@@ -53,7 +43,7 @@ function overridesOf(input: EvmContractWriteInput) {
 export class EvmContractService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
-    private readonly pipeline?: TxPipeline,
+    private readonly pipeline: TxPipeline,
   ) {}
 
   /**
@@ -161,9 +151,9 @@ export class EvmContractService {
     call: Record<string, unknown>,
     onNonce?: (from: string, nonce: string) => void,
   ) {
-    if (transactionRequiresSigner(input)) this.pipeline!.assertCanSign(scope.activeAccount, "evm");
+    if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
     let plan: Record<string, unknown> = {};
-    return this.pipeline!.run({
+    return this.pipeline.run({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -173,40 +163,17 @@ export class EvmContractService {
       artifact: (tx) => gateway.encodeTransactionHex(tx),
       estimate: async () => plan,
       build: async (from) => {
-        const [nonce, fee] = await Promise.all([
-          input.nonce === undefined
-            ? gateway.getTransactionCount(from, "pending")
-            : Promise.resolve(String(input.nonce)),
-          gateway.feeData(),
-        ]);
-        onNonce?.(from, nonce);
-        const gasEstimate = await resolveGasLimit(gateway, { from, ...call }, input.gasLimit);
-        const resolved = planEvmFee({
-          ...fee,
-          gasLimit: gasEstimate,
-          declaredFeeModel: network.feeModel,
-          overrides: overridesOf(input),
+        const built = await buildEvmUnsignedTx({
+          gateway,
+          network,
+          from,
+          call,
+          input,
+          onNonce,
         });
-        for (const warning of resolved.warnings ?? []) scope.warn(warning);
-        plan = {
-          feeModel: resolved.mode,
-          maxCostWei: resolved.maxCostWei,
-          gasLimit: resolved.gasLimit,
-          maxPerGasWei: resolved.maxFeeWei ?? resolved.gasPriceWei,
-        };
-        return {
-          ...call,
-          chainId: Number(network.chainId),
-          nonce: Number(nonce),
-          gasLimit: resolved.gasLimit,
-          ...(resolved.mode === "eip1559"
-            ? {
-                type: 2,
-                maxFeePerGas: resolved.maxFeeWei,
-                maxPriorityFeePerGas: resolved.priorityFeeWei,
-              }
-            : { type: 0, gasPrice: resolved.gasPriceWei }),
-        } as UnsignedTx;
+        for (const warning of built.warnings ?? []) scope.warn(warning);
+        plan = built.fee;
+        return built.tx;
       },
     });
   }

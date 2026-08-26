@@ -97,7 +97,7 @@ export function buildCatalog(
             examples: cmd.spec.examples.map((e: { cmd: string }) => e.cmd),
             ...(cmd.spec.exclusive?.length ? { exclusive: cmd.spec.exclusive } : {}),
             ...(cmd.spec.stdin ? { inputFlags: inputFlagsFor(cmd.spec) } : {}),
-            inputSchema: commandInputSchema(mergedInput(cmd)),
+            inputSchema: commandInputSchema(mergedInput(cmd, familyFilter)),
           }
         : {
             id: commandId(cmd),
@@ -125,14 +125,15 @@ export function buildCatalog(
   });
 }
 
-function mergedInput(def: ChainCommandDefinition): z.ZodType {
+function mergedInput(def: ChainCommandDefinition, family?: ChainFamily): z.ZodType {
   let shape = { ...def.spec.baseFields.shape };
-  for (const binding of Object.values(def.families)) {
+  const bindings = family ? [def.families[family]] : Object.values(def.families);
+  for (const binding of bindings) {
     if (binding?.fields) shape = { ...shape, ...binding.fields.shape };
   }
   let input: z.ZodType = z.object(shape);
   if (def.spec.baseRefine) input = input.superRefine(def.spec.baseRefine);
-  for (const binding of Object.values(def.families)) {
+  for (const binding of bindings) {
     if (binding?.refine) input = input.superRefine(binding.refine);
   }
   return input;

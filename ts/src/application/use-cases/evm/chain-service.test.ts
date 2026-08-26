@@ -122,6 +122,12 @@ describe("EvmChainService.node", () => {
     expect(out.peers).toBeNull();
   });
 
+  it("degrades peers to null when the count is outside the safe integer range", async () => {
+    const out = await service({ peerCount: "9007199254740993" }).node(net);
+
+    expect(out.peers).toBeNull();
+  });
+
   it("degrades the solid block to null on a chain that does not serve finalized", async () => {
     const out = await service({ finalized: new ChainError("rpc_error", "unknown block") }).node(
       net,

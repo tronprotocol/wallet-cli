@@ -1,5 +1,6 @@
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { evmFeeMode } from "../../../domain/fees/evm-gas.js";
+import { decimalToSafeNumber, quantityToSafeNumber } from "../../../domain/numbers/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 
 /** The protocol's fixed gas cost of a plain native transfer — the unit `chain prices` translates
@@ -8,9 +9,16 @@ const NATIVE_TRANSFER_GAS = 21_000;
 
 /** hex QUANTITY → number, for the small values (block heights) this view reports. */
 function quantity(value: unknown): number | null {
-  if (typeof value !== "string" || value === "") return null;
   try {
-    return Number(BigInt(value));
+    return quantityToSafeNumber(value, "quantity", (message) => new Error(message));
+  } catch {
+    return null;
+  }
+}
+
+function decimal(value: unknown): number | null {
+  try {
+    return decimalToSafeNumber(value, "quantity", (message) => new Error(message));
   } catch {
     return null;
   }
@@ -84,6 +92,7 @@ export class EvmChainService {
     const headNumber = quantity(headBlock?.number) ?? 0;
     const solidNumber = quantity((finalized as Record<string, unknown> | null)?.number);
     const headTimestamp = quantity(headBlock?.timestamp);
+    const peerCount = peers === null ? null : decimal(peers);
 
     return {
       // HOST only — same reason as the TRON side: an endpoint may carry an API key in its path,
@@ -106,7 +115,7 @@ export class EvmChainService {
       // `eth_syncing` answers this directly: false means caught up. Unreachable → unknown, which
       // is not the same as "out of sync".
       inSync: syncing === null ? null : syncing === false,
-      peers: peers === null ? null : { connected: Number(peers), active: Number(peers) },
+      peers: peerCount === null ? null : { connected: peerCount, active: peerCount },
     };
   }
 }

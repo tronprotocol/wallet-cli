@@ -78,6 +78,50 @@ describe("HelpService --json-schema", () => {
     const out = JSON.parse(stream.last!);
     expect(out).toHaveProperty("commands"); // group head → catalog, not a phantom command schema
   });
+
+  it("scopes a concrete chain command schema to the addressed family", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string() });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ feeLimit: z.string() }),
+    });
+    reg.addChain(spec, "evm", {
+      run: async () => ({}),
+      fields: z.object({ gasLimit: z.string() }),
+    });
+    const stream = makeStream();
+
+    new HelpService(reg, stream, "9.9.9").handleMeta(["evm", "tx", "send", "--json-schema"]);
+
+    const out = JSON.parse(stream.last!);
+    expect(out.properties).toHaveProperty("to");
+    expect(out.properties).toHaveProperty("gasLimit");
+    expect(out.properties).not.toHaveProperty("feeLimit");
+  });
+
+  it("scopes the family catalog's input schemas to that family", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string() });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ feeLimit: z.string() }),
+    });
+    reg.addChain(spec, "evm", {
+      run: async () => ({}),
+      fields: z.object({ gasLimit: z.string() }),
+    });
+    const stream = makeStream();
+
+    new HelpService(reg, stream, "9.9.9").handleMeta(["evm", "--json-schema"]);
+
+    const command = JSON.parse(stream.last!).commands.find(
+      (c: { id: string }) => c.id === "tx.send",
+    );
+    expect(command.inputSchema.properties).toHaveProperty("to");
+    expect(command.inputSchema.properties).toHaveProperty("gasLimit");
+    expect(command.inputSchema.properties).not.toHaveProperty("feeLimit");
+  });
 });
 
 // Asserting the spec object is not enough: the renderer resolves members by kebab flag name, so a

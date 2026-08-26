@@ -112,6 +112,23 @@ describe("EvmTransactionService.send — native transfer", () => {
 
     expect(built[0]!.value).toBe("12345");
   });
+
+  it("rejects a pending nonce that cannot be represented safely", async () => {
+    const { service } = harness({ nonce: "9007199254740993" });
+
+    await expect(
+      service.send(scope(), SEPOLIA, { to: RECEIVER, amount: "1" } as never),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+  });
+
+  it("rejects an unsafe chain id before building a transaction", async () => {
+    const { service } = harness();
+    const unsafeChain = { ...SEPOLIA, chainId: "9007199254740993" } satisfies NetworkDescriptor;
+
+    await expect(
+      service.send(scope(), unsafeChain, { to: RECEIVER, amount: "1" } as never),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+  });
 });
 
 describe("EvmTransactionService.send — fee overrides", () => {
@@ -821,7 +838,7 @@ describe("EvmTransactionService.info", () => {
       amount: "1",
       symbol: "ETH",
       blockNumber: 5,
-      gasUsed: 21000,
+      gasUsed: "21000",
       feeWei: "1000",
       // §6.5 收斂: one case throughout, so an agent matches "success" and never "SUCCESS".
       status: "success",

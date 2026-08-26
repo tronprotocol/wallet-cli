@@ -12,10 +12,9 @@ import { FAMILIES } from "../../../domain/family/index.js";
 import { evmChecksumAddress } from "../../../domain/address/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
-import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
-import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
+import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
@@ -213,51 +212,15 @@ export class EvmTransactionService {
         }
       : { to, value: transfer.rawAmount };
 
-    const [nonce, fee] = await Promise.all([
-      // "pending", not "latest": a latest-based nonce refuses to queue behind a transaction of
-      // our own that has not been mined yet.
-      input.nonce === undefined
-        ? gateway.getTransactionCount(from, "pending")
-        : Promise.resolve(String(input.nonce)),
-      gateway.feeData(),
-    ]);
-    // No fallback: a failed estimate is the node saying something true about this transaction,
-    // and 21000 — the intrinsic cost of a plain value transfer — would sign an ERC-20 transfer
-    // that cannot succeed while reporting it as fine.
-    const gasEstimate = await resolveGasLimit(gateway, { from, ...call }, input.gasLimit);
-
-    const plan = planEvmFee({
-      ...fee,
-      gasLimit: gasEstimate,
-      declaredFeeModel: network.feeModel,
-      overrides: {
-        ...(input.gasLimit === undefined ? {} : { gasLimit: input.gasLimit }),
-        ...(input.maxFee === undefined ? {} : { maxFeeWei: input.maxFee }),
-        ...(input.priorityFee === undefined ? {} : { priorityFeeWei: input.priorityFee }),
-      },
+    const built = await buildEvmUnsignedTx({
+      gateway,
+      network,
+      from,
+      call,
+      input,
     });
-    for (const warning of plan.warnings ?? []) scope.warn(warning);
-
-    return {
-      tx: {
-        ...call,
-        chainId: Number(network.chainId),
-        nonce: Number(nonce),
-        gasLimit: plan.gasLimit,
-        ...(plan.mode === "eip1559"
-          ? { type: 2, maxFeePerGas: plan.maxFeeWei, maxPriorityFeePerGas: plan.priorityFeeWei }
-          : { type: 0, gasPrice: plan.gasPriceWei }),
-      },
-      // maxPerGasWei rides along so the estimate can state what the ceiling is made OF — the same
-      // "<total> (<gas> gas × <price>)" shape a confirmed receipt uses. Without it the dry run
-      // gives a number the reader cannot check against the gas price they just looked up.
-      fee: {
-        feeModel: plan.mode,
-        maxCostWei: plan.maxCostWei,
-        gasLimit: plan.gasLimit,
-        maxPerGasWei: plan.maxFeeWei ?? plan.gasPriceWei,
-      },
-    };
+    for (const warning of built.warnings ?? []) scope.warn(warning);
+    return built;
   }
 
   /**
@@ -554,7 +517,7 @@ export class EvmTransactionService {
             ...(receipt.blockNumber === undefined
               ? {}
               : { blockNumber: receipt.blockNumber as number }),
-            ...(receipt.gasUsed === undefined ? {} : { gasUsed: Number(receipt.gasUsed) }),
+            ...(receipt.gasUsed === undefined ? {} : { gasUsed: String(receipt.gasUsed) }),
             ...(receipt.feeWei === undefined ? {} : { feeWei: String(receipt.feeWei) }),
             ...(receipt.effectiveGasPriceWei === undefined
               ? {}
