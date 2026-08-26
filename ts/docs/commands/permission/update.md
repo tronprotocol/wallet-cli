@@ -43,8 +43,8 @@ Changing only `keys`, `threshold` or `name` needs no such deletion.
 | `--dry-run` | Mock receipt — fee, resulting-structure card, and warnings — matching a real submission; no signature, no broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex without broadcasting (feed [`tx broadcast`](../tx/broadcast.md) for on-chain co-signing). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md) for service-relayed multi-sig). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); changing permissions normally uses `0` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only` |
+| `--permission-id <n>` | Permission group to sign with — changing permissions is owner-level, so normally `0` (default `0`) |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 

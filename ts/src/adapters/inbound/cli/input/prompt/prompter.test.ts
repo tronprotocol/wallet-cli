@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createPrompter, Prompter, type PromptBackend, type KeyEvent } from "./index.js";
+import { Prompter, type PromptBackend, type KeyEvent } from "./index.js";
 
 class FakeBackend implements PromptBackend {
   out = "";
@@ -22,19 +22,6 @@ describe("Prompter.setInteractive", () => {
     expect(p.isTTY()).toBe(false);
     p.setInteractive(true);
     expect(p.isTTY()).toBe(true);
-  });
-});
-
-describe("createPrompter", () => {
-  it("can force non-interactive mode for subprocess tests", () => {
-    const previous = process.env.WALLET_CLI_NO_TTY;
-    process.env.WALLET_CLI_NO_TTY = "1";
-    try {
-      expect(createPrompter().isTTY()).toBe(false);
-    } finally {
-      if (previous === undefined) delete process.env.WALLET_CLI_NO_TTY;
-      else process.env.WALLET_CLI_NO_TTY = previous;
-    }
   });
 });
 

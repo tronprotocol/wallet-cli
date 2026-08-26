@@ -131,10 +131,6 @@ export class TtyBackend implements PromptBackend {
   #pendingKey?: (key: KeyEvent) => void;
   #keyListener?: (s: string, key: KeyEvent) => void;
   constructor() {
-    if (process.env.WALLET_CLI_NO_TTY === "1") {
-      this.#tty = false;
-      return;
-    }
     // Probe for a controlling terminal without holding the fd; the real stream opens on first prompt.
     try {
       closeSync(openSync("/dev/tty", "r"));

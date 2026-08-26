@@ -8,7 +8,7 @@ import { TokenBook } from "../src/adapters/outbound/tokenbook/index.js"
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js"
 import type { TokenEntry } from "../src/domain/types/index.js"
 
-const NODE = process.execPath
+const TSX = join(process.cwd(), "node_modules", ".bin", "tsx")
 const ENTRY = join(process.cwd(), "src", "index.ts")
 const MNEMONIC = "test test test test test test test test test test test junk"
 const TRON1 = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7"
@@ -23,7 +23,7 @@ beforeEach(() => {
 // interactive so it can't run as a black-box subprocess — wallet setup uses seedWallet() to write
 // the keystore in-process instead. No MASTER_PASSWORD env. password:null → no source (auth_required).
 function run(args: string[], opts: { input?: string; password?: string | null } = {}) {
-  const env: Record<string, string> = { ...process.env, WALLET_CLI_HOME: HOME, WALLET_CLI_NO_TTY: "1" } as Record<string, string>
+  const env: Record<string, string> = { ...process.env, WALLET_CLI_HOME: HOME } as Record<string, string>
   delete env.MASTER_PASSWORD
   const finalArgs = [...args]
   let stdin = opts.input
@@ -31,9 +31,9 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     finalArgs.push("--password-stdin")
     stdin = (opts.password ?? DEFAULT_PW) + "\n"
   }
-  // 18s < the suite's 20s testTimeout: a genuinely hung subprocess errors here with a clear
+  // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
   // signal instead of silently eating the whole test budget.
-  const r = spawnSync(NODE, ["--import", "tsx", ENTRY, ...finalArgs], { input: stdin, encoding: "utf8", env, timeout: 18_000 })
+  const r = spawnSync(TSX, [ENTRY, ...finalArgs], { input: stdin, encoding: "utf8", env, timeout: 25_000 })
   let json: any
   try {
     json = JSON.parse(r.stdout)
@@ -235,7 +235,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     const again = run(["--output", "json", "backup", "main", "--out", out])
     expect(again.status).toBe(2)
     expect(again.json.error.code).toBe("output_exists")
-  }, 20_000) // seed encrypt + two backup decrypts run scrypt 3× → exceeds vitest's 5s default
+  }, 15000) // seed encrypt + two backup decrypts run scrypt 3× → exceeds vitest's 5s default
 
   it("supports root-level use and backup account commands", () => {
     seedWallet()

@@ -5,8 +5,6 @@ import { tmpdir } from "node:os";
 import { buildCli, type ShellOptions } from "./index.js";
 import { isChainCommand, type SessionRef } from "../contracts/index.js";
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
-import { Prompter } from "../input/prompt/index.js";
-import { SecretResolver } from "../input/secret/index.js";
 
 /**
  * The other shell tests drive synthetic command definitions, which proves the mechanism but not
@@ -33,22 +31,11 @@ describe("every registered positional command rejects its --<field> spelling", (
   // fresh per invocation: StreamManager permits one result emission, so a runtime cannot be shared
   // across commands that actually run.
   function newRuntime() {
-    const runtime = composeCliRuntime({
+    return composeCliRuntime({
       globals: { output: "json", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
     });
-    const prompter = new Prompter({
-      isTTY: () => false,
-      async question() { return ""; },
-      async readKey() { return { name: "return" }; },
-      write() {},
-      beginRaw() {},
-      endRaw() {},
-    });
-    runtime.deps.prompter = prompter;
-    runtime.deps.secrets = new SecretResolver(runtime.streams, {}, prompter);
-    return runtime;
   }
 
   function shellOpts(): ShellOptions {

@@ -61,7 +61,7 @@ async function openTransport(): Promise<{ transport: unknown; close: () => Promi
     });
     return { transport, close: () => transport.close() };
   }
-  const Hid = unwrap<any>(await import("@ledgerhq/hw-transport-node-hid-noevents"));
+  const Hid = unwrap<any>(await import("@ledgerhq/hw-transport-node-hid"));
   const transport = await Hid.open("");
   return { transport, close: () => transport.close() };
 }
