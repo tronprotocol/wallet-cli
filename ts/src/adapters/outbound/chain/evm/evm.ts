@@ -142,7 +142,7 @@ export class EvmRpcClient implements EvmGateway {
    */
   async sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }> {
     assertBroadcastAllowed();
-    const body = await this.#send("eth_sendRawTransaction", [raw]);
+    const body = await this.#request("eth_sendRawTransaction", [raw]);
     if (body.error) {
       const message = body.error.message ?? "";
       if (isAlreadyKnown(message)) return { alreadyKnown: true };
@@ -202,10 +202,6 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   /** the JSON-RPC envelope, unthrown — callers that classify errors themselves need to see it. */
-  async #send(method: string, params: unknown[]): Promise<JsonRpcResponse> {
-    return this.#request(method, params);
-  }
-
   async #request(method: string, params: unknown[]): Promise<JsonRpcResponse> {
     this.#id += 1;
     let response: { ok: boolean; status?: number; text(): Promise<string> };

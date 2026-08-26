@@ -39,21 +39,6 @@ export default tseslint.config(
       globals: { module: "writable", require: "readonly", __dirname: "readonly" },
     },
   },
-  {
-    files: ["scripts/**/*.mjs"],
-    languageOptions: {
-      globals: {
-        Bun: "readonly",
-        URL: "readonly",
-        console: "readonly",
-        setTimeout: "readonly",
-      },
-    },
-    rules: {
-      // build and smoke-test scripts are CLI programs; their user-facing output is intentional.
-      "no-console": "off",
-    },
-  },
   // formatting is Prettier's job — must stay last so it can switch stylistic rules off
   prettier,
 );

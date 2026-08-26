@@ -283,7 +283,7 @@ export interface TxInfoView extends TxParties {
   /** head height minus this transaction's block; best-effort, see TxStatusView.confirmations. */
   confirmations?: number;
   energyUsed?: number; // tron execution resource
-  gasUsed?: number | string; // evm execution resource
+  gasUsed?: string; // evm execution resource
   feeSun?: number; // tron native fee (sun)
   // EVM native fee. A separate field rather than a shared `fee`: the UNIT is in the name, so a
   // reader can never mistake one family's magnitude for the other's (18 decimals vs 6).

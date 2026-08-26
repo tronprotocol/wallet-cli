@@ -47,7 +47,7 @@ describe("FAMILY_RENDER evm", () => {
         txid: "0xabc",
         transaction: {},
         status: "confirmed",
-        gasUsed: 21_000,
+        gasUsed: "21000",
         feeWei: "441000000000000",
       },
       "ETH",
