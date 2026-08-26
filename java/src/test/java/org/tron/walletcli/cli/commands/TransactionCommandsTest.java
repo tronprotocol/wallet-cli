@@ -76,7 +76,7 @@ public class TransactionCommandsTest {
             if (!isConstant) {
               Assert.fail("broadcast path should not run after estimation failure");
             }
-            throw new org.tron.walletcli.cli.CommandErrorException("execution_error",
+            throw new org.tron.core.exception.CommandErrorException("execution_error",
                 "energy estimation failed");
           }
 
@@ -86,7 +86,7 @@ public class TransactionCommandsTest {
             return null;
           }
         }, formatter);
-      } catch (org.tron.walletcli.cli.CommandErrorException e) {
+      } catch (org.tron.core.exception.CommandErrorException e) {
         try {
           formatter.error(e.getCode(), e.getMessage());
         } catch (RuntimeException ignored) {

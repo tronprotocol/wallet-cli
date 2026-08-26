@@ -116,7 +116,7 @@ import org.tron.trident.proto.Contract;
 import org.tron.trident.proto.Response;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletserver.WalletApi;
-import org.tron.walletcli.cli.CommandErrorException;
+import org.tron.core.exception.CommandErrorException;
 import org.web3j.utils.Numeric;
 
 @Slf4j

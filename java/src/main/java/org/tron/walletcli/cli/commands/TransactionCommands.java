@@ -8,7 +8,7 @@ import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletcli.cli.CommandDefinition;
-import org.tron.walletcli.cli.CommandErrorException;
+import org.tron.core.exception.CommandErrorException;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
 import org.tron.walletserver.WalletApi;

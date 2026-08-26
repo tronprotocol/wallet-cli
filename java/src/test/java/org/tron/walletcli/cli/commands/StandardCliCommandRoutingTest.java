@@ -723,7 +723,7 @@ public class StandardCliCommandRoutingTest {
     try {
       new WalletApiWrapper().registerWalletForCli(password, 13, "qa");
       Assert.fail("Expected invalid word count to be rejected");
-    } catch (org.tron.walletcli.cli.CommandErrorException e) {
+    } catch (org.tron.core.exception.CommandErrorException e) {
       Assert.assertEquals("usage_error", e.getCode());
       Assert.assertTrue(e.getMessage().contains("--words must be 12 or 24"));
     } finally {
@@ -806,7 +806,7 @@ public class StandardCliCommandRoutingTest {
       try {
         wrapper.generateSubAccountForCli(1, "dupe");
         Assert.fail("Expected duplicate sub-account path to be rejected");
-      } catch (org.tron.walletcli.cli.CommandErrorException e) {
+      } catch (org.tron.core.exception.CommandErrorException e) {
         Assert.assertEquals("already_exists", e.getCode());
       }
 
@@ -828,7 +828,7 @@ public class StandardCliCommandRoutingTest {
     try {
       new WalletApiWrapper().generateSubAccountForCli(100, "sub");
       Assert.fail("Expected invalid sub-account index to be rejected");
-    } catch (org.tron.walletcli.cli.CommandErrorException e) {
+    } catch (org.tron.core.exception.CommandErrorException e) {
       Assert.assertEquals("usage_error", e.getCode());
       Assert.assertTrue(e.getMessage().contains("--index must be between 0 and 99"));
     }

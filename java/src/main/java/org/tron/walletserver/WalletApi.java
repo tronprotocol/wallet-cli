@@ -1081,7 +1081,7 @@ public class WalletApi {
               this.ledgerSigner.sign(transaction, ledgerPath, wf.getAddress(), false);
           if (r.getStatus() != org.tron.walletcli.cli.ledger.LedgerSignOutcome.Status.OK) {
             recordLastCliOperationError(r.errorCode() + ": " + r.getMessage());
-            throw new org.tron.walletcli.cli.CommandErrorException(r.errorCode(), r.getMessage());
+            throw new org.tron.core.exception.CommandErrorException(r.errorCode(), r.getMessage());
           }
           transaction = r.getSignedTransaction();
           Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);

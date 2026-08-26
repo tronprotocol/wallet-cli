@@ -2,6 +2,7 @@ package org.tron.walletcli.cli;
 
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.TransactionUtils;
+import org.tron.core.exception.CommandErrorException;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.walletserver.ApiClient;

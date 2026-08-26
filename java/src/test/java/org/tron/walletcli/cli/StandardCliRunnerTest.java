@@ -5,6 +5,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.Utils;
+import org.tron.core.exception.CommandErrorException;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.trident.proto.Response;

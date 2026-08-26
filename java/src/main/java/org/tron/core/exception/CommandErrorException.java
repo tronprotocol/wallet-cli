@@ -1,4 +1,4 @@
-package org.tron.walletcli.cli;
+package org.tron.core.exception;
 
 public final class CommandErrorException extends RuntimeException {
 

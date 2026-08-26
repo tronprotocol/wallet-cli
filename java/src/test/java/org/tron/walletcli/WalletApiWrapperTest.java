@@ -6,7 +6,7 @@ import org.junit.Test;
 import org.tron.common.enums.NetType;
 import org.tron.keystore.WalletFile;
 import org.tron.trident.proto.Response;
-import org.tron.walletcli.cli.CommandErrorException;
+import org.tron.core.exception.CommandErrorException;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletserver.WalletApi;
 
