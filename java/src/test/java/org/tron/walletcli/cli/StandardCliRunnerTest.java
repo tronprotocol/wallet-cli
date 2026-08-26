@@ -1178,7 +1178,7 @@ public class StandardCliRunnerTest {
   @Test
   public void authenticateInjectsLedgerSignerIntoActiveWallet() throws Exception {
     CommandRegistry registry = new CommandRegistry();
-    final org.tron.walletcli.cli.ledger.LedgerSigner[] capturedSigner = {null};
+    final org.tron.ledger.sign.LedgerSigner[] capturedSigner = {null};
     registry.add(CommandDefinition.builder()
         .name("inspect-signer")
         .description("Captures the ledger signer wired into the active wallet")

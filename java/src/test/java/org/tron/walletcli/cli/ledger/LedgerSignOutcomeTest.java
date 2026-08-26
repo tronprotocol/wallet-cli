@@ -2,6 +2,7 @@ package org.tron.walletcli.cli.ledger;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.ledger.sign.LedgerSignOutcome;
 import org.tron.trident.proto.Chain;
 
 public class LedgerSignOutcomeTest {

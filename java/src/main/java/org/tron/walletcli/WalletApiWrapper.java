@@ -126,7 +126,7 @@ public class WalletApiWrapper {
   @Setter
   private WalletApi wallet;
 
-  public void setLedgerSigner(org.tron.walletcli.cli.ledger.LedgerSigner ledgerSigner) {
+  public void setLedgerSigner(org.tron.ledger.sign.LedgerSigner ledgerSigner) {
     if (wallet != null) {
       wallet.setLedgerSigner(ledgerSigner);
     }
@@ -3288,14 +3288,14 @@ public class WalletApiWrapper {
         Chain.Transaction transaction = Chain.Transaction.newBuilder().setRawData(
             Chain.Transaction.raw.newBuilder().setData(ByteString.copyFrom(keccak256(concat)))).build();
         if (standardCli) {
-          org.tron.walletcli.cli.ledger.LedgerSigner ledgerSigner = wallet.getLedgerSigner();
+          org.tron.ledger.sign.LedgerSigner ledgerSigner = wallet.getLedgerSigner();
           if (ledgerSigner == null) {
             throw new CommandErrorException("execution_error",
                 "Standard CLI Ledger signer not initialized");
           }
-          org.tron.walletcli.cli.ledger.LedgerSignOutcome r =
+          org.tron.ledger.sign.LedgerSignOutcome r =
               ledgerSigner.sign(transaction, ledgerPath, wf.getAddress(), true);
-          if (r.getStatus() != org.tron.walletcli.cli.ledger.LedgerSignOutcome.Status.OK) {
+          if (r.getStatus() != org.tron.ledger.sign.LedgerSignOutcome.Status.OK) {
             throw new CommandErrorException(r.errorCode(), r.getMessage());
           }
           signature = r.getGasfreeSignature();

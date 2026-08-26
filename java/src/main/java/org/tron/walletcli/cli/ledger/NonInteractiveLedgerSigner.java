@@ -3,6 +3,8 @@ package org.tron.walletcli.cli.ledger;
 import static org.tron.common.utils.TransactionUtils.getTransactionId;
 
 import java.util.Optional;
+import org.tron.ledger.sign.LedgerSignOutcome;
+import org.tron.ledger.sign.LedgerSigner;
 import org.tron.trident.proto.Chain;
 import org.tron.walletcli.cli.OutputFormatter;
 

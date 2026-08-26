@@ -184,7 +184,7 @@ public class WalletApi {
    */
   @Getter
   @Setter
-  private org.tron.walletcli.cli.ledger.LedgerSigner ledgerSigner;
+  private org.tron.ledger.sign.LedgerSigner ledgerSigner;
   @Getter
   @Setter
   private byte[] pwdForDeploy;
@@ -1077,9 +1077,9 @@ public class WalletApi {
         // so the legacy LedgerSignUtil branch below is effectively unreachable. It is retained
         // only as a safety net for hypothetical future callers.
         if (this.ledgerSigner != null) {
-          org.tron.walletcli.cli.ledger.LedgerSignOutcome r =
+          org.tron.ledger.sign.LedgerSignOutcome r =
               this.ledgerSigner.sign(transaction, ledgerPath, wf.getAddress(), false);
-          if (r.getStatus() != org.tron.walletcli.cli.ledger.LedgerSignOutcome.Status.OK) {
+          if (r.getStatus() != org.tron.ledger.sign.LedgerSignOutcome.Status.OK) {
             recordLastCliOperationError(r.errorCode() + ": " + r.getMessage());
             throw new org.tron.core.exception.CommandErrorException(r.errorCode(), r.getMessage());
           }

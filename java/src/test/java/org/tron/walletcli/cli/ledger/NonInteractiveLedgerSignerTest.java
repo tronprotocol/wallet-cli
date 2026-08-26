@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.tron.ledger.sign.LedgerSignOutcome;
 import org.tron.trident.proto.Chain;
 import org.tron.walletcli.cli.OutputFormatter;
 
