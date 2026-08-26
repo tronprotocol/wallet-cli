@@ -273,7 +273,6 @@ public class GasFreeApi {
     }
   }
 
-
   private static byte[] buildMessage(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest,
       boolean verbose)
       throws NoSuchAlgorithmException, IOException, InvalidKeyException {

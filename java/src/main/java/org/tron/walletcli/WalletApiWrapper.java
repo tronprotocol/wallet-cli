@@ -364,11 +364,6 @@ public class WalletApiWrapper {
   }
 
 
-
-
-
-
-
   public boolean isUnifiedExist() {
     return isLoginState() && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword());
   }
@@ -647,8 +642,6 @@ public class WalletApiWrapper {
 
     return true;
   }
-
-
 
 
   public boolean importWalletByMnemonic(List<String> mnemonicWords, byte[] passwd) {
@@ -939,9 +932,6 @@ public class WalletApiWrapper {
   }
 
 
-
-
-
   public long getTransactionCountByBlockNum(long blockNum) {
     return WalletApi.getTransactionCountByBlockNum(blockNum);
   }
@@ -1067,7 +1057,6 @@ public class WalletApiWrapper {
 
     return wallet.setAccountId(ownerAddress, accountIdBytes);
   }
-
 
 
   public boolean updateAsset(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
@@ -1205,7 +1194,6 @@ public class WalletApiWrapper {
 
     return wallet.createProposal(ownerAddress, parametersMap, multi);
   }
-
 
 
   public Response.ProposalList getProposalsList() {
@@ -1382,7 +1370,6 @@ public class WalletApiWrapper {
   }
 
 
-
   public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
                                 long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
                                 long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion, boolean multi)
@@ -1414,7 +1401,6 @@ public class WalletApiWrapper {
             tokenId,
             isConstant, false, display, multi);
   }
-
 
 
   public Triple<Boolean, Long, Long> getUSDTBalance(byte[] ownerAddress)
@@ -1474,7 +1460,6 @@ public class WalletApiWrapper {
     }
     return wallet.accountPermissionUpdate(ownerAddress, permission, multi);
   }
-
 
 
   public Chain.Transaction addTransactionSign(Chain.Transaction transaction)
@@ -1690,8 +1675,6 @@ public class WalletApiWrapper {
   }
 
 
-
-
   public boolean switchNetwork(String netWorkSymbol, String fulNode, String solidityNode) {
     if (StringUtils.isEmpty(netWorkSymbol) && StringUtils.isEmpty(fulNode) && StringUtils.isEmpty(solidityNode)) {
       System.out.println("Please select network：");
@@ -1893,7 +1876,6 @@ public class WalletApiWrapper {
       return false;
     }
   }
-
 
 
   public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {

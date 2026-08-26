@@ -395,7 +395,6 @@ public class WalletApi {
   }
 
 
-
   private static WalletCreationResult createWalletFile(
       byte[] password, byte[] priKey, List<String> mnemonicWords)
       throws CipherException, IOException {
@@ -1071,7 +1070,6 @@ public class WalletApi {
   }
 
 
-
   private void showTransactionAfterSign(Chain.Transaction transaction)
       throws InvalidProtocolBufferException {
     System.out.println("After sign transaction hex string is " +
@@ -1265,7 +1263,6 @@ public class WalletApi {
   }
 
 
-
   public boolean participateAssetIssue(byte[] owner, byte[] to, byte[] assertName, long amount, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1293,11 +1290,6 @@ public class WalletApi {
   public static boolean broadcastTransaction(Chain.Transaction transaction) {
     return apiCli.broadcastTransaction(transaction);
   }
-
-
-
-
-
 
 
   public boolean createAssetIssue(byte[] ownerAddress, String name, String abbrName,
@@ -2355,7 +2347,6 @@ public class WalletApi {
   }
 
 
-
   public static ExchangeCreateContract createExchangeCreateContract(
       byte[] owner,
       byte[] firstTokenId,
@@ -2413,7 +2404,6 @@ public class WalletApi {
     Response.TransactionExtention transactionExtention = apiCli.exchangeWithdraw(owner, exchangeId, tokenId, quant);
     return processTransactionExtention(transactionExtention, multi);
   }
-
 
 
   public static ExchangeWithdrawContract createExchangeWithdrawContract(
@@ -3076,7 +3066,6 @@ public class WalletApi {
   }
 
 
-
   public static Response.TransactionExtention triggerConstantContractExtentionDirect(
       byte[] owner,
       byte[] contractAddress,
@@ -3148,7 +3137,6 @@ public class WalletApi {
     System.out.println("Estimate energy result = " + Utils.formatMessageString(estimateEnergyMessage));
     return true;
   }
-
 
 
   public static Common.SmartContract getContract(byte[] address) {

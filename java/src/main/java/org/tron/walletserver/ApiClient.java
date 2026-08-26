@@ -113,7 +113,6 @@ public class ApiClient {
     return true;
   }
 
-
   public Response.TransactionSignWeight getTransactionSignWeight(Chain.Transaction transaction) {// pass
     return client.getTransactionSignWeight(transaction);
   }
