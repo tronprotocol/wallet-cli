@@ -33,7 +33,20 @@ HD  wlt_4473p34m
 └─ [0] main        TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ  (active)
 ```
 
-The `T…` string is your TRON address, same on every network. `(active)` marks the account commands act on by default; switch with `wallet-cli use <label>`.
+The `T…` string is your TRON address, the same on every TRON network. `(active)` marks the account commands act on by default; switch with `wallet-cli use <label>`.
+
+Your account also has an **EVM address**, derived from the same seed — `list` shows one chain family at a time, so pass `--network` to see the other:
+
+```bash
+wallet-cli list --network sepolia
+```
+
+```console
+HD  wlt_4473p34m
+└─ [0] main        0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C  (active)
+```
+
+The two are independent addresses with independent balances; funding one does nothing for the other. Everything below works the same way on either — swap `--network tron:nile` for `--network sepolia` and the amounts are in ETH instead of TRX. See [Networks](../concepts/networks.md).
 
 ## 2. Get test TRX
 
@@ -96,6 +109,6 @@ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network 
 - Full transaction detail and receipts: [`tx info`](../commands/tx/info.md)
 - Your history and holdings: [`account history`](../commands/account/history.md), [`account portfolio`](../commands/account/portfolio.md)
 - Automating any of this: [Scripting guide](scripting.md)
-- What `tron:nile` / `tron:mainnet` actually are: [Networks](../concepts/networks.md)
+- What `tron:nile` / `evm:11155111` actually are, and which commands run where: [Networks](../concepts/networks.md)
 
 > **Before touching mainnet**: mainnet TRX is real money. Re-check the recipient address, prefer `--dry-run` first, and understand that a confirmed transaction cannot be reversed.

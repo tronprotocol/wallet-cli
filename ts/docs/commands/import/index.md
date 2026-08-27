@@ -10,13 +10,15 @@ wallet-cli import COMMAND
 
 ## Subcommands
 
-| Command | Description |
-|---|---|
-| [`import mnemonic`](mnemonic.md) | Import a BIP39 mnemonic phrase |
-| [`import private-key`](private-key.md) | Import a raw private key |
-| [`import keystore`](keystore.md) | Import an account from a Web3 keystore file |
-| `import ledger` | Register a Ledger account (watch-only locally; signs on device) — `wallet-cli import ledger --help` |
-| `import watch` | Register a watch-only address (no secret) — `wallet-cli import watch --help` |
+| Command | Description | Families the account gets |
+|---|---|---|
+| [`import mnemonic`](mnemonic.md) | Import a BIP39 mnemonic phrase | TRON **and** EVM |
+| [`import private-key`](private-key.md) | Import a raw private key | TRON **and** EVM |
+| [`import keystore`](keystore.md) | Import a Web3 keystore file | TRON **and** EVM |
+| [`import ledger`](ledger.md) | Register a Ledger account (watch-only locally; signs on device) | whichever `--app` selects |
+| [`import watch`](watch.md) | Register a watch-only address (no secret) | whichever the address is |
+
+A secret — a mnemonic, a private key, a keystore — is not tied to one chain: the **same key** produces a TRON address and an EVM address, so those three imports give you an account that works on both families. A Ledger account and a watch-only account are single-family, because a device app and a pasted address each name exactly one.
 
 All secret-bearing variants take secrets via stdin flags or TTY prompt only — never argv/env. See [machine-interface → Secret handling](../../machine-interface.md#secret-handling).
 

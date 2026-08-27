@@ -14,6 +14,8 @@ wallet-cli contract clear-abi <address>
 
 Removes the ABI held on chain for a contract. **This cannot be undone** — the ABI is gone from the chain, and anything that decoded calls by reading it (explorers, SDKs, [`contract call`](call.md)) must supply its own from then on.
 
+**TRON only** — there is no on-chain ABI to clear on an EVM chain; that network fails with `family_mismatch`.
+
 What it does **not** touch: the bytecode and the contract's state are unaffected, and the contract stays callable exactly as before. The ABI is auxiliary metadata, not part of execution.
 
 Only the contract's deployer can do this — the address the chain records as the contract's origin, visible in [`contract info`](info.md). Other accounts fail with `not_contract_deployer`.

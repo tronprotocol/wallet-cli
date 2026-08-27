@@ -1,6 +1,6 @@
 # wallet-cli contact remove
 
-Remove a recipient from the contact book.
+Remove a contact.
 
 ## Synopsis
 

@@ -1,6 +1,6 @@
 # wallet-cli account history
 
-Show transaction history (requires TronGrid).
+Show transaction history. TRON only.
 
 ## Synopsis
 
@@ -10,7 +10,7 @@ wallet-cli account history [--limit <n>] [--only <native|token>] [options]
 
 ## Description
 
-Lists recent transfers touching the account, newest first. History is served by **TronGrid**, not plain node RPC — on networks/endpoints without TronGrid this command fails while `balance`/`info` still work.
+Lists recent transfers touching the account, newest first. TRON only — there is no EVM binding, so on an EVM network the command fails with `family_mismatch` rather than returning an empty list. History is served by **TronGrid**, not plain node RPC, so on TRON networks/endpoints without TronGrid it fails while `balance`/`info` still work.
 
 ## Options
 

@@ -10,7 +10,9 @@ wallet-cli message sign (--message <text> | --message-stdin) [options]
 
 ## Description
 
-Signs a message with the active account's key (or `--account`) using TRON's TIP-191/V2 personal-message scheme (EIP-191 compatible). Signing only — nothing is broadcast; `--network` is optional and can be omitted for fully offline signing.
+Signs a message with the active account's key (or `--account`) using the personal-message scheme — TRON's TIP-191/V2 or Ethereum's EIP-191, which are the same construction over a different prefix. Signing only — nothing is broadcast, and no node is contacted.
+
+The selected network decides **which key signs and which address is reported**: an account has one key per family, so `--network nile` signs with its TRON key and reports its base58 address, `--network sepolia` signs with its EVM key and reports its `0x` address. `--network` is still optional, and with it omitted the config default network decides.
 
 **stdin has a single consumer (fd 0)**: `--message-stdin` and `--password-stdin` cannot both be used in one run (`secret_source_error`). In practice:
 
@@ -59,11 +61,17 @@ Ledger account — message via stdin, confirm on device:
 cat challenge.txt | wallet-cli message sign --message-stdin --network tron:nile
 ```
 
+The same message signed on an EVM network produces a different signature from a different key:
+
+```bash
+echo "$PW" | wallet-cli message sign --message "hello" --network evm:11155111 --password-stdin
+```
+
 ## Output
 
 | Field | Type | Meaning |
 |---|---|---|
-| `address` | string | Signer's base58 address |
+| `address` | string | Signer's address, in the selected network's format |
 | `message` | string | The message that was signed |
 | `signature` | string | Signature, 0x-prefixed hex |
 

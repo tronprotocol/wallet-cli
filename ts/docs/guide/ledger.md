@@ -4,24 +4,27 @@ Keep keys on the device; wallet-cli builds transactions and the Ledger signs the
 
 ## Prerequisites
 
-- Ledger connected, **unlocked**, with the **TRON app open** on the device;
-- the TRON app installed via Ledger Live beforehand.
+- Ledger connected, **unlocked**, with the right app open on the device — the **TRON app** for a TRON account, the **Ethereum app** for an EVM one;
+- that app installed via Ledger Live beforehand.
 
 ## 1. Register the Ledger account
 
 ```bash
 wallet-cli import ledger --app tron --index 0 --label cold
+wallet-cli import ledger --app ethereum --index 0 --label cold-evm
 ```
 
 Locally this creates a **watch-only** entry — no secret is stored; signing happens on the device. Three ways to pick the account (mutually exclusive):
 
 | Flag | Use when |
 |---|---|
-| `--index <n>` | You know the HD account index (omit everything for index 0) |
-| `--path <bip32>` | You need an explicit derivation path, e.g. `m/44'/195'/0'/0/0` |
-| `--address <T…>` | You know the address; wallet-cli scans indexes to find it (`--scan-limit`, default 20) |
+| `--index <n>` | You know the account index under the app's default path (omit everything for index 0) |
+| `--path <bip32>` | You need an explicit derivation path, e.g. `m/44'/195'/0'/0/0` (TRON) or `m/44'/60'/0'/0/0` (Ethereum) |
+| `--address <addr>` | You know the address; wallet-cli scans indexes to find it (`--scan-limit`, default 20) |
 
-Confirm with `wallet-cli list` — the account appears alongside your software accounts and works with `use`, `--account`, and every query command.
+**`--app` fixes the account to one chain family.** Unlike a software account — which holds a TRON *and* an EVM address from the same seed — a Ledger account has exactly the one address its app derives, and only works on networks of that family. Selecting it elsewhere fails with `family_mismatch`. Import the same device twice, once per app, to cover both.
+
+Confirm with `wallet-cli list` — the account appears alongside your software accounts and works with `use`, `--account`, and every query command. `list` shows one family at a time, so a TRON-app account is invisible under `--network sepolia` and vice versa; `-o json` shows every account regardless.
 
 ## 2. Sign and send
 
@@ -39,7 +42,7 @@ This is your best defense against address-swapping malware: what the device scre
 
 Device calls are bounded by the same `--timeout` as RPC (default 60000 ms) and fail with `error.code: "timeout"`. In order:
 
-1. Is the Ledger unlocked and the TRON app open (not the dashboard)?
+1. Is the Ledger unlocked and the right app open (not the dashboard)?
 2. Replug the cable; avoid USB hubs.
 3. Retry with a longer `--timeout` — on-device confirmation counts against it, so leave yourself time to read and press.
 

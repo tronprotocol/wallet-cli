@@ -12,6 +12,8 @@ wallet-cli contract set-user-resource-percent <address> <percent>
 
 ## Description
 
+**TRON only** — the caller/deployer energy split has no EVM counterpart; that network fails with `family_mismatch`.
+
 Sets `consume_user_resource_percent`: the percentage of a call's energy the **caller** pays. The remainder is covered by the deployer, itself capped by [`contract set-origin-energy-limit`](set-origin-energy-limit.md) and by the deployer's staked energy.
 
 `100` means callers pay everything and the deployer subsidises nothing — which also makes the origin energy limit irrelevant. `0` means the deployer pays everything within those caps. The value is an integer 0–100, validated locally.

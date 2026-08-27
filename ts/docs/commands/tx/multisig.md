@@ -1,8 +1,8 @@
 # wallet-cli tx multisig
 
-Multi-sig collaboration via the TronLink multi-sig service.
+Create / co-sign a multi-sig transaction through the TronLink service. TRON only.
 
-> `tx multisig` works only through the external TronLink multi-sig service and needs credentials (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`). It is an optional convenience layer — the on-chain path ([`tx sign`](sign.md) / [`tx approvals`](approvals.md) / [`tx broadcast`](broadcast.md)) does the same job without any service. Without credentials the command is unusable (`tronlink_credentials_missing`).
+> `tx multisig` is TRON only — on an EVM network it fails with `family_mismatch`. It works only through the external TronLink multi-sig service and needs credentials (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`). It is an optional convenience layer — the on-chain path ([`tx sign`](sign.md) / [`tx approvals`](approvals.md) / [`tx broadcast`](broadcast.md)) does the same job without any service. Without credentials the command is unusable (`tronlink_credentials_missing`).
 
 ## Synopsis
 

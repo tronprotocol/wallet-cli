@@ -4,6 +4,8 @@ Stake / delegate resources, and inspect staking state.
 
 Staking lifecycle: `freeze ──► unfreeze ──(waiting period)──► withdraw`; `cancel-unfreeze` rolls all pending unstakes back to frozen; `delegate` / `undelegate` lend resource to others / take it back. `info` and `delegated` are the read-only queries to run before operating.
 
+**TRON only.** Staking for bandwidth/energy is a TRON protocol feature; every subcommand here fails with `family_mismatch` on an EVM network.
+
 ## Synopsis
 
 ```

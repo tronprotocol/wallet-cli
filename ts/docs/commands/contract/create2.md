@@ -10,7 +10,7 @@ wallet-cli contract create2 --deployer <address> (--code <hex> | --code-file <pa
 
 ## Description
 
-Pure local arithmetic: no node is contacted, nothing is broadcast, and no account or password is involved. The result is the same on every TRON network, so `--network` does not affect it.
+Pure local arithmetic: no node is contacted, nothing is broadcast, and no account or password is involved. The result is the same on every TRON network, so `--network` does not affect it. TRON only — on an EVM network the command fails with `family_mismatch`.
 
 **TRON's derivation is not Ethereum's** — do not compute it with an EVM calculator. The address is
 

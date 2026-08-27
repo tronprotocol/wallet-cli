@@ -2,6 +2,16 @@
 
 Every command — including every subcommand — has its own page, following a fixed layout (Synopsis · Description · Options · Examples · Output · Exit status · See also). Command-group pages list and link their subcommands.
 
+## Which commands run on which networks
+
+wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` selects one network of one family. Commands fall into three kinds:
+
+- **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
+- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
+- **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
+
+Individual flags are family-scoped the same way. `--help` tags them `(tron only)` / `(evm only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
+
 ## Wallets and accounts
 
 | Command | Page |
@@ -167,13 +177,24 @@ Every command — including every subcommand — has its own page, following a f
 
 ```
 -o, --output <text|json>   result format (default: config.defaultOutput, built-in text)
---network <string>         canonical network id (chain commands; falls back to config.defaultNetwork)
+--network <string>         network id or alias, e.g. nile, sepolia, bsc, evm:11155111
+                           (falls back to config.defaultNetwork)
 --account <string>         accountId, label, or address (wallet-bound commands; falls back to active)
 --timeout <number>         per RPC/device call timeout, ms (default: config.timeoutMs, built-in 60000)
 -v, --verbose              extra diagnostic output
 -h, --help / -V, --version
 ```
 
-Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000), the early-exit modes `--dry-run` / `--sign-only` / `--build-only`, and the multi-sig options `--permission-id <n>` / `--expiration <ms>`.
+Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000) and the early-exit modes `--dry-run` / `--sign-only` / `--build-only`.
 
-The three early-exit modes are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance and asset/exchange writes it is `invalid_value`, and the message names the field as `--input` rather than the flags you passed — for example `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
+Fee and multi-sig flags are **family-scoped**, so they are not global:
+
+| Flags | Family | Where |
+|---|---|---|
+| Permission group and expiry — see below | TRON | every TRON broadcast command |
+| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy` |
+| `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
+
+Every TRON broadcast command takes the multi-signature pair: the permission group to sign under (0=owner, 1=witness, 2-9=active) and the transaction's expiry, which extends the window for collecting co-signatures. On a multi-family command they are tagged `(tron only)` and refused on EVM with `invalid_option`; an EVM transaction carries exactly one signature, so neither has a counterpart there.
+
+The three early-exit modes are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance writes it is `invalid_value`, and the message names the field as `--input` rather than the flags you passed — for example `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
