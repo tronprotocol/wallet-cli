@@ -1,6 +1,6 @@
 # Energy and Bandwidth
 
-TRON's fee model, and why `stake` exists. Units first: **1 TRX = 1,000,000 SUN**; all CLI amounts named `*-sun` and all JSON amounts are raw SUN strings.
+TRON's fee model, and why `stake` exists. **TRON only** — EVM networks price transactions in gas instead; see [Networks → the `evm-gas` model](networks.md#fees-the-evm-gas-model). Units first: **1 TRX = 1,000,000 SUN**; all CLI amounts named `*-sun` and all JSON amounts are raw SUN strings.
 
 ## Two resources instead of gas
 

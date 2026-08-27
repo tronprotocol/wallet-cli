@@ -10,7 +10,7 @@ wallet-cli chain params [--key <name>] [options]
 
 ## Description
 
-Lists the chain's governance parameters — network-wide system settings changed by SR proposals (this CLI does not create proposals). `--key` returns a single one. Keys pass through exactly as the chain returns them; text output adds thousands separators and units (SUN / ms) for known numeric keys, `-o json` keeps raw values.
+Lists the chain's governance parameters — network-wide system settings changed by SR proposals (see [`proposal create`](../proposal/create.md)); this command only reads them. **TRON only**: an EVM network has no such parameter set and fails with `family_mismatch`. `--key` returns a single one. Keys pass through exactly as the chain returns them; text output adds thousands separators and units (SUN / ms) for known numeric keys, `-o json` keeps raw values.
 
 Frequently used keys:
 

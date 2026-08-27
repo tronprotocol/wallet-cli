@@ -2,6 +2,17 @@
 
 How to call wallet-cli from shell scripts and CI. This is the gentle version; the formal contract lives in [machine-interface.md](../machine-interface.md).
 
+## Discovering the surface
+
+Before hard-coding anything, ask the CLI what it supports. One call returns every command, its flags as JSON Schema, which chain families it serves, and the complete error-code index:
+
+```bash
+wallet-cli --json-schema | jq '.commands[] | select(.id == "tx.send") | {families, examples}'
+wallet-cli --json-schema | jq '.errorCodes'
+```
+
+Prefer this to scraping `--help`; the catalog is the same source the parser and the help text are generated from.
+
 ## The three habits
 
 **1. Always `-o json`.** Text output is for eyeballs and may change; JSON is the contract. stdout carries exactly one JSON object per run:
@@ -14,7 +25,7 @@ wallet-cli account balance --network tron:nile -o json
 {"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
-**2. Check the exit code, then `error.code`.** `0` success, `1` runtime failure, `2` you built the command wrong:
+**2. Check the exit code, then `error.code`.** `0` success, `1` runtime failure, `2` you built the command wrong. Two of the exit-`2` codes are worth handling by name when a script switches networks: `family_mismatch` (this command or account does not belong to the selected network's chain) and `invalid_option` (a flag that belongs to the other family):
 
 ```bash
 if out=$(wallet-cli account balance --network tron:nile -o json); then
@@ -51,11 +62,20 @@ Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.
 ```bash
 # on the signing machine
 wallet-cli tx send --to T... --amount 1 --network tron:nile \
-  --password-stdin --sign-only -o json | jq -c '.data.signed' > signed.json
+  --password-stdin --sign-only -o json | jq -r '.data.hex' > signed.hex
 
 # on the connected machine
+wallet-cli tx broadcast --file signed.hex --network tron:nile -o json
+```
+
+The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. The JSON form is TRON-only:
+
+```bash
+wallet-cli tx send ... --sign-only -o json | jq -c '.data.signed' > signed.json
 wallet-cli tx broadcast --tx-stdin --network tron:nile -o json < signed.json
 ```
+
+`--transaction` and `--tx-stdin` are tagged `(tron only)`; on an EVM network they fail with `invalid_option`. Prefer `--file` / `--hex` in scripts that may target either.
 
 ## Timeouts and retries
 
@@ -64,4 +84,4 @@ Every RPC/device call is bounded by `--timeout` (ms). On `error.code = "timeout"
 ## See also
 
 - [Machine interface](../machine-interface.md) — envelope schema, error codes, stability promise
-- [Command reference](../commands/index.md) — each command's `data` payload
+- [Command reference](../commands/index.md) — each command's `data` payload, and [which commands run on which networks](../commands/index.md#which-commands-run-on-which-networks)

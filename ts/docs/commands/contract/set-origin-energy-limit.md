@@ -14,6 +14,8 @@ wallet-cli contract set-origin-energy-limit <address> <energy>
 
 Sets `origin_energy_limit` — the ceiling on how much energy the **deployer** is willing to pay for a single call to this contract.
 
+**TRON only** — the deployer-pays energy model has no EVM counterpart; that network fails with `family_mismatch`.
+
 It is not a cap on the contract, and not a cap on the caller. What the deployer actually covers is bounded by three things at once: this limit, the deployer's own staked energy, and the caller/deployer split from [`contract set-user-resource-percent`](set-user-resource-percent.md). Whatever the deployer's side cannot cover falls back to the caller. Two ways this ends up doing nothing: the deployer has no staked energy (the subsidy is zero regardless of this limit), or the user share is 100 % (the deployer's portion is zero, so this limit never comes into play).
 
 `<energy>` must be an integer **greater than zero** — the chain rejects zero, and it is refused locally rather than broadcast.

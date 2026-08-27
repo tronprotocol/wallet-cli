@@ -1,6 +1,6 @@
 # wallet-cli tx approvals
 
-Show the sign-weight and approved-signer list of a transaction hex.
+Show collected signatures on a multi-sig transaction. TRON only.
 
 ## Synopsis
 
@@ -12,6 +12,8 @@ wallet-cli tx approvals (--hex <hex> | --file <path>) [options]
 
 A read-only view of a transaction hex's co-signing progress: the permission group and threshold it uses, the accumulated weight so far, the list of signers who have already approved, how much weight is still missing, and the expiration. It's the "look before you sign" companion to [`tx sign`](sign.md) — same information, no signature, no account or password needed.
 
+TRON only — multi-signature approval is a TRON permission-model concept, so on an EVM network the command fails with `family_mismatch` before any node call.
+
 It needs a node (`--network`), because approval state — which signatures count, and for how much weight — is the chain's answer, not something derivable from the artifact alone. Files are read with a size cap of just over 1 MiB and must be regular files, not symlinks.
 
 An expired transaction is still queryable (no error): the text `Expires` line shows `expired <time>` with a `!` hint to re-initiate, and the JSON `expired` field is `true`.
@@ -20,7 +22,7 @@ An expired transaction is still queryable (no error): the text `Expires` line sh
 
 | Option | Description |
 |---|---|
-| `--hex <hex>` | **Required** (one of). Transaction hex string |
+| `--hex <hex>` | **Required** (one of). `protocol.Transaction` hex string |
 | `--file <path>` | **Required** (one of). File containing the transaction hex |
 
 Plus the [global options](../index.md#global-options-every-command) (`--network`).

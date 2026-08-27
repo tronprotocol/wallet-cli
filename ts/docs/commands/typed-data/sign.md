@@ -10,13 +10,15 @@ wallet-cli typed-data sign --typed-data <json> [options]
 
 ## Description
 
-Signs structured (typed) data with the active account's key (or `--account`), and prints the signature, the digest that was signed, and the primary type. Signing only — nothing is broadcast; `--network` is optional and can be omitted for fully offline signing.
+Signs structured (typed) data with the active account's key (or `--account`), and prints the signature, the digest that was signed, and the primary type. Signing only — nothing is broadcast, and no node is contacted.
+
+Works on TRON and EVM: the selected network decides which of the account's keys signs and which address is reported. EIP-712 and TIP-712 are the same construction, so the same payload can be signed for either — the domain inside the payload, not `--network`, is what a verifying contract checks.
 
 The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…,"types":…,"primaryType"?:…,"message":…}`. Three conveniences apply when it is parsed:
 
 - `EIP712Domain` inside `types` is **ignored** (you may include it or leave it out).
 - `value` is accepted as an alias for `message`.
-- TRON **base58** addresses work in `address` fields.
+- TRON **base58** addresses work in `address` fields, alongside `0x` hex.
 
 `primaryType` is optional — it is inferred when omitted.
 
@@ -55,6 +57,12 @@ echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --pass
 {"schema":"wallet-cli.result.v1","success":true,"command":"typed-data.sign","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","primaryType":"Permit","digest":"0x1e0f...","signature":"0x9f3c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
+The same payload signed on an EVM network, with the account's EVM key:
+
+```bash
+echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network evm:11155111
+```
+
 Ledger account — confirm on device, no master password needed:
 
 ```bash
@@ -65,7 +73,7 @@ wallet-cli typed-data sign --typed-data "$(cat permit.json)" --network tron:nile
 
 | Field | Type | Meaning |
 |---|---|---|
-| `address` | string | Signer's base58 address |
+| `address` | string | Signer's address, in the selected network's format |
 | `primaryType` | string | The primary type that was signed |
 | `digest` | string | The digest that was signed, 0x-prefixed hex |
 | `signature` | string | Signature, 0x-prefixed hex |

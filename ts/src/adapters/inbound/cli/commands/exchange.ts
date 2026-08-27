@@ -14,7 +14,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronExchangeService } from "../../../../application/use-cases/tron/exchange-service.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 const NO_NAMES =
@@ -60,6 +60,7 @@ export const exchangeCreateSpec: ChainSpec = {
       .optional()
       .describe("amount for each side as <a>:<b>, in minimal units"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [
     { cmd: "wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --wait" },
@@ -89,6 +90,7 @@ export const exchangeInjectSpec: ChainSpec = {
     token: tokenField("the side you are specifying"),
     ...amountFields("amount for that side; the other side follows the ratio"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli exchange inject 12 --token TRX --amount 1000 --wait" }],
   formatText: TextFormatters.txReceipt,
@@ -118,6 +120,7 @@ export const exchangeWithdrawSpec: ChainSpec = {
     token: tokenField("the side you are specifying"),
     ...amountFields("amount for that side; the other side follows the ratio"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli exchange withdraw 12 --token TRX --amount 1000 --wait" }],
   formatText: TextFormatters.txReceipt,
@@ -172,6 +175,7 @@ export const exchangeTradeSpec: ChainSpec = {
       .optional()
       .describe("derive the floor from current reserves, less this percentage"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [
     { cmd: "wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --wait" },

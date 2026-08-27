@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronVoteService } from "../../../../application/use-cases/tron/vote-service.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 // repeatable flag: the arity layer sets yargs `array: true`, so `--for` always arrives as a
@@ -29,6 +29,7 @@ export const voteCastSpec: ChainSpec = {
   baseFields: z.object({
     for: voteForField,
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli vote cast --for TZ4...=600 --for TT5...=400" }],
   formatText: TextFormatters.txReceipt,

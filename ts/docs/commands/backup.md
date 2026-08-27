@@ -18,6 +18,8 @@ Two formats:
 - **Native** (default) — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
 - **`--keystore`** — a standard Web3 keystore JSON, importable by TronLink and others, encrypted with **your master password**. A keystore holds a **single private key**: an HD account exports only its current derived key, and that key arrives elsewhere as a standalone account with nothing derivable from it. Use the native format to move a seed.
 
+**A keystore also holds one key per *family*.** A seed account derives a different key for TRON (coin type 195) and for EVM (coin type 60), and a keystore can carry only one of them, so `--network` selects which — falling back to `config.defaultNetwork` when omitted. The receipt names the family that was written, and the export log records it. A private-key account has a single key and ignores the selection; the native backup covers every family at once, so it needs no choice and reports none.
+
 **Files land in the current working directory** by default — `./<accountId>-<timestamp>.json`, or `./<accountId>-<timestamp>.keystore.json` with `--keystore`. `--out` overrides the path.
 
 > A file holding a private key or recovery phrase is now sitting in your working directory. Do not run this in a shared directory or inside a git repository: the CLI guarantees mode 0600 and refuses to overwrite, but it does not check whether the directory is safe or version-controlled. Move the file to secure storage and treat it as the key itself — see [Security](../concepts/security.md).
@@ -41,6 +43,7 @@ The positional account is the exception: it means different things in the two fo
 | `--keystore` | Export as a standard Web3 keystore instead of the native format |
 | `--out <path>` | Output file path; mode 0600, never overwritten (default: the current directory, see above) |
 | `--password-stdin` | Master password from stdin (fd 0) |
+| `--network <id>` | With `--keystore`, which family's key to export (`tron:nile` → the TRON key, `evm:1` → the EVM key). No node is contacted |
 
 With `--records`, instead of an account:
 
@@ -84,6 +87,7 @@ printf '%s' "$PW" | wallet-cli backup main --keystore --password-stdin
 ```console
 ⚠️ Keystore written ./wlt_d1qbj2fb.0-1785930000.keystore.json
   Account ID  wlt_d1qbj2fb.0
+  Family      tron
   Secret      private key
   File mode   0600
   Bytes       491
@@ -96,7 +100,7 @@ printf '%s' "$PW" | wallet-cli backup main --keystore --out ./main.keystore.json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw"},"seedId":"wlt_d1qbj2fb","secretType":"privateKey","format":"keystore","out":"./main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw","evm":"0x7B28FE10...46C9C"},"seedId":"wlt_d1qbj2fb","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"./main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]}}
 ```
 
 The audit log:
@@ -135,7 +139,9 @@ Both forms are local commands — no `chain` block — and they carry different 
 | `type` | string | Account type (exportable: `seed` / `privateKey`) |
 | `index` | number \| null | HD derivation index; `null` for private-key accounts |
 | `active` | boolean | Whether it is the active account |
-| `addresses.tron` | string | Base58 TRON address |
+| `addresses` | object | One entry per family the account can produce: `tron` and/or `evm` |
+| `derivationPath` | object \| null | Per-family BIP44 path for `seed` accounts; `null` for `privateKey` |
+| `family` | string | With `--keystore`, which family's key was written; absent for a native backup, which covers every family |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `secretType` | string | Kind of exported secret — `mnemonic`, or `privateKey` with `--keystore` |
 | `format` | string | `keystore` when `--keystore` was used |

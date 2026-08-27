@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronRewardService } from "../../../../application/use-cases/tron/reward-service.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 export const rewardBalanceSpec: ChainSpec = {
@@ -35,7 +35,7 @@ export const rewardWithdrawSpec: ChainSpec = {
   description:
     "Withdraw accrued voting/block rewards into your available balance.\n" +
     "Rewards can be withdrawn at most once every 24 hours.",
-  baseFields: z.object({ ...txModeFields }),
+  baseFields: z.object({ ...txModeFields, ...tronTxModeFields }),
   examples: [{ cmd: "wallet-cli reward withdraw" }, { cmd: "wallet-cli reward withdraw --wait" }],
   formatText: TextFormatters.txReceipt,
 };

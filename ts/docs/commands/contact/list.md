@@ -1,6 +1,6 @@
 # wallet-cli contact list
 
-List all recipients in the contact book.
+List every contact.
 
 ## Synopsis
 

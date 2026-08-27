@@ -13,6 +13,8 @@ The mechanics that shape every subcommand:
 
 States: `voting` (in the window) · `approved` (met the threshold, applied, final) · `disapproved` (expired below the threshold, final) · `canceled` (withdrawn by its creator before expiry, final).
 
+**TRON only.** On-chain parameter governance is a TRON protocol feature; every subcommand here fails with `family_mismatch` on an EVM network.
+
 ## Synopsis
 
 ```

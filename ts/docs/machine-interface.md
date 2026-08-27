@@ -5,12 +5,33 @@ The formal contract for calling wallet-cli from scripts, CI pipelines, and AI ag
 ## Calling convention
 
 ```bash
-wallet-cli <command> -o json [--network <id>] [--timeout <ms>] [--account <id|label>]
+wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account <id|label>]
 ```
 
 - Always pass `-o json`. Text output is for humans and carries no stability promise.
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
 - Every RPC / device call is bounded by `--timeout` (milliseconds, default `config.timeoutMs`, built-in 60000).
+- `--network` takes a canonical id (`tron:nile`, `evm:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
+
+### Discovery
+
+```bash
+wallet-cli --json-schema                # every command, its flags, and the error-code index
+wallet-cli --json-schema tron           # scoped to one chain family
+wallet-cli <command> --json-schema      # one command
+```
+
+One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]` — each with `id`, `path`, `usage`, `families`, `requires` (network / auth / wallet), `capability`, `examples`, and a JSON Schema for its input. This is the intended way for an agent to learn the CLI; do not scrape `--help`.
+
+### Chain families
+
+A network belongs to one **chain family**, `tron` or `evm`, and that is what decides which commands and which flags apply:
+
+- A command declares the families it serves (`families` in the catalog). Calling one on a network of another family fails with **`family_mismatch`** at exit `2`, before any node call.
+- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(tron only)` / `(evm only)`.
+- An **account** is not family-bound when it holds a key — a seed or private-key account has both a TRON and an EVM address. Watch-only and Ledger accounts hold one address and therefore one family; selecting one on a mismatched network is also `family_mismatch`.
+
+Both checks are static: they depend on the command, the flags and the selected network only, so an agent can decide them from the catalog without a call.
 
 ### Startup wallet-data upgrades
 
@@ -86,7 +107,7 @@ Schema id: `wallet-cli.result.v1`.
 | `meta.durationMs` | number                   | always              | Wall time                                                                        |
 | `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
 | `meta.pagination` | object                   | paginated commands only | `offset` / `limit` / `total`; present where `--limit` / `--offset` apply — see [pagination](#pagination) |
-| `chain`           | object                   | chain commands only | `family` / `network` / `chainId`; neutral commands (`list`, `config`, …) omit it |
+| `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command, and on the local commands that take `--network` as a display selector (`list`, `current`). Commands that never take one (`config`, `networks`, `contact`, `encoding`, `address`, `create`, `import`, …) omit it — its presence does **not** mean a node was contacted |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
 
@@ -135,24 +156,35 @@ Text mode titles the same window (`Assets (limit 50, offset 0)`, `Proposals (sho
 
 ## Error codes
 
-The **exit code is the hard contract**: `2` means the call was malformed (it will still be wrong on retry), `1` means execution failed (network / device / chain / wallet). `error.code` is a machine-readable string that refines the exit code — branch on the exit code first, then optionally on `error.code`. The code set is **open and non-exhaustive**: it grows as commands are added, and a few strings (e.g. `invalid_value`, `aborted`) can appear under either exit code depending on where they are raised. Always tolerate an unknown code by falling back to its exit-code class.
+The **exit code is the hard contract**: `2` means the call was malformed (it will still be wrong on retry), `1` means execution failed (network / device / chain / wallet). `error.code` is a machine-readable string that refines the exit code — branch on the exit code first, then optionally on `error.code`.
+
+**The complete code index is published**, one line per code, under `errorCodes` in the discovery catalog:
+
+```bash
+wallet-cli --json-schema | jq '.errorCodes'
+```
+
+That index is the authority and is enforced by the build: a code cannot be raised without an entry, and an entry cannot outlive its code. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
 | Code | Meaning |
 |---|---|
 | `usage_error` | Unknown / missing / conflicting flags (raised by the parser) |
+| `family_mismatch` | The command, the account, the recipient, or the raw transaction does not belong to the selected network's chain family |
 | `missing_option` | A required flag was not provided |
-| `invalid_option` | A flag was used in an invalid combination |
+| `invalid_option` | A flag was used in an invalid combination, or is scoped to the other chain family |
 | `invalid_value` | A flag value failed validation (e.g. `config defaultOutput xml`) |
 | `invalid_amount` | An amount is malformed or out of range |
 | `invalid_secret` | A supplied mnemonic / private key is malformed |
 | `weak_password` | Master password below policy (≥8 chars; upper + lower + digit + special) |
 | `tty_required` | An interactive prompt is needed but no TTY is attached — pass the matching `*-stdin` flag |
-| `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id |
+| `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id or alias |
+| `unsupported_network_capability` | The selected network does not offer what this command needs |
+| `limit_exceeded` | A bounded input (file size, list length, page size) was over its limit |
 | `unknown_command` | No such command |
 | `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
-| `file_not_found` | An input file named by a flag does not exist (`contract create2 --code-file`) |
+| `file_not_found` | An input file named by a flag does not exist (`contract deploy --artifact` / `--code-file`, `contract create2 --code-file`) |
 | `keystore_not_found` | `import keystore`: no file at the given path |
 | `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, an unsupported cipher/KDF, or a payload that is not a 32-byte private key |
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
@@ -165,7 +197,7 @@ Common codes at exit **1** (execution — runtime failure):
 
 | Code | Meaning |
 |---|---|
-| `rpc_error` | The TRON node rejected or failed the request |
+| `rpc_error` | The node rejected or failed the request — a TRON API call, or a JSON-RPC method such as `eth_estimateGas` |
 | `invalid_node_response` | The node's answer contradicts the request or the protocol: a TRC10/exchange record whose id is not the one asked for, a `precision` outside 0..6, or a rate pair that is not a positive int32. These decide signed amounts, so the command stops rather than acting on them. List reads drop the offending record and keep the page |
 | `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
 | `auth_required` | Master password required but not supplied |
@@ -177,8 +209,11 @@ Common codes at exit **1** (execution — runtime failure):
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
 | `provider_error` | An external service (GasFree, TronLink multi-sig) returned an error or rate-limited |
 | `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
-| `tx_expired` | The transaction's expiration passed before signatures were collected |
-| `history_not_supported` | The endpoint lacks TronGrid history support |
+| `tx_expired` | The transaction's expiration passed before signatures were collected (TRON) |
+| `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
+| `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
+| `migration_required` | Persisted wallet data needs an upgrade that this invocation cannot perform — see [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
+| `history_not_supported` | The endpoint lacks TronGrid history support (`account history`, TRON) |
 | `not_found` | The addressed thing does not exist — an unactivated account, a contact, a chain parameter, a GasFree or TronLink resource. Lookups that have a group of their own use the specific code below |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
 | `ambiguous_asset_name` | A TRC10 name matches more than one token; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
@@ -197,7 +232,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `account_exists` / `wrong_keystore_password` | `import keystore`: the address is already in the wallet, or the file's own password is wrong (distinct from `auth_failed`, which is the master password). A file whose `mac` is missing or not hex is `invalid_keystore`, not a wrong password — hex case is not significant |
 | `internal_error` | Unexpected internal failure; message is intentionally generic |
 
-Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. This list is representative, not exhaustive — new codes may be added within v1.
+Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the complete index.
 
 ### `error.details.matches`
 
@@ -272,7 +307,9 @@ Guaranteed stable while `schema` is `wallet-cli.result.v1`:
 - exit-code mapping 0/1/2;
 - one-terminal-frame stdout discipline in JSON mode;
 - existing `error.code` values keep their meaning (new codes may be added);
-- canonical command ids and network ids (`tron:mainnet`, `tron:nile`, `tron:shasta`).
+- canonical command ids and network ids (`tron:mainnet`, `tron:nile`, `tron:shasta`, `evm:1`, `evm:56`, `evm:11155111`, `evm:97`).
+
+Network **aliases** are config, not contract: they can be re-pointed locally, so scripts should pass canonical ids.
 
 Not covered: text-mode output, `error.message` wording, field ordering, `meta.durationMs` values, and any field marked best-effort on a command's reference page (e.g. `priceUsd` in `account portfolio`).
 

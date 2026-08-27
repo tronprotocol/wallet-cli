@@ -30,23 +30,27 @@ wallet-cli stake info --account main --network tron:nile
 ```
 
 ```console
-Label            main
-Staked           1,500 TRX  (for energy 1,000 TRX + for bandwidth 500 TRX)
-Voting power     1,500 TP  (used 1,000 / available 500)
-Energy           used 12,000 / 65,000
-Bandwidth        used 600 / 1,500
-Unfreezing       2 pending  (max 32 at a time, 30 more allowed)
-  1) 500 TRX     withdrawable 2026-07-15  (in ~10 days)
-  2) 300 TRX     withdrawable 2026-07-16  (in ~11 days)
-Withdrawable     0 TRX now
+Label         demo
+Staked        0 TRX  (for energy 0 TRX + for bandwidth 0 TRX)
+Voting power  14 TP  (used 1 / available 13)
+Energy        used 0 / 0
+Bandwidth     used 317 / 600
+Unfreezing    4 pending  (max 32 at a time, 32 more allowed)
+              ├─ 100 TRX        withdrawable 2026-08-11 18:26 (~16 day(s) ago)
+              ├─ 1,800,151 TRX  withdrawable 2026-08-11 18:44 (~16 day(s) ago)
+              ├─ 176 TRX        withdrawable 2026-08-11 18:45 (~16 day(s) ago)
+              └─ 13 TRX         withdrawable 2026-08-11 18:45 (~16 day(s) ago)
+Withdrawable  1,800,440 TRX now
 ```
+
+Pending unstakes are listed as a tree under `Unfreezing`, each with the time it becomes withdrawable and how far away that is. An entry whose time has passed is already counted in `Withdrawable`; claim them all with [`stake withdraw`](withdraw.md).
 
 ```bash
 wallet-cli stake info --account main --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.info","data":{"address":"TQk...","staked":{"energySun":"1000000000","bandwidthSun":"500000000"},"votingPower":{"total":1500,"used":1000,"available":500},"resource":{"energy":{"used":12000,"limit":65000},"bandwidth":{"used":600,"limit":1500}},"unfreezing":[{"amountSun":"500000000","withdrawableAt":1784073600000},{"amountSun":"300000000","withdrawableAt":1784160000000}],"withdrawableSun":"0","unfreeze":{"used":2,"max":32,"remaining":30}},"meta":{"durationMs":22,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.info","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","staked":{"energySun":"0","bandwidthSun":"0"},"votingPower":{"total":14,"used":1,"available":13},"resource":{"energy":{"used":0,"limit":0},"bandwidth":{"used":317,"limit":600}},"unfreezing":[{"amountSun":"100000000","withdrawableAt":1786444011000},{"amountSun":"1800151000000","withdrawableAt":1786445097000},{"amountSun":"176000000","withdrawableAt":1786445103000},{"amountSun":"13000000","withdrawableAt":1786445148000}],"withdrawableSun":"1800440000000","unfreeze":{"used":4,"max":32,"remaining":32}},"meta":{"durationMs":728,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output

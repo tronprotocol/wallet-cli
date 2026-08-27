@@ -12,6 +12,8 @@ wallet-cli contract info --contract <address> [options]
 
 Fetches a deployed contract's ABI and metadata (getContract + getContractInfo combined): name, method list, origin address, bytecode, energy settings. Useful before crafting a [`contract call`](call.md) / [`contract send`](send.md) — the ABI tells you the exact method signatures. Read-only — no account or password involved.
 
+**TRON only.** An on-chain ABI registry is a TRON protocol feature; EVM chains keep no ABI on chain, so on an EVM network this fails with `family_mismatch`.
+
 ## Options
 
 | Option | Description |

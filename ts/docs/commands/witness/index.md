@@ -10,6 +10,8 @@ The one economic knob is **brokerage**: the share of block rewards the SR keeps,
 
 Registration burns a fee (currently ≈ 9,999 TRX) and cannot be undone.
 
+**TRON only.** Super representatives are a TRON protocol feature; every subcommand here fails with `family_mismatch` on an EVM network.
+
 ## Synopsis
 
 ```

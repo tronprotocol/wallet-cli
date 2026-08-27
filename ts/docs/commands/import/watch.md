@@ -1,18 +1,18 @@
 # wallet-cli import watch
 
-Register a watch-only address (no secret).
+Register a watch-only address. No secret is stored.
 
 ## Synopsis
 
 ```
-wallet-cli import watch --address <T…> [--label <l>] [options]
+wallet-cli import watch --address <address> [--label <l>] [options]
 ```
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--address <string>` | watch-only address to track; TRON base58 T…; family auto-detected  [required] |
+| `--address <string>` | **Required.** Watch-only address to track — TRON base58 (`T…`) or EVM hex (`0x…`); the family is detected from the value |
 | `--label <string>` | unique account label, 1-64 chars |
 
 Plus [global options](../index.md).
@@ -20,6 +20,8 @@ Plus [global options](../index.md).
 ## Notes
 
 Cannot sign — queries only. Useful for monitoring cold-storage balances.
+
+A watch-only account is **single-family**: it holds the one address you gave it, so it only appears and works on networks of that family. Register the same wallet's other address separately to watch both.
 
 ## Examples
 
@@ -29,8 +31,14 @@ wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label col
 
 ```console
 ✅ Added watch-only account "cold"
-  Address  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
-  Note     read-only; signing operations will be rejected
+  TRON address  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+  Note          read-only; signing operations will be rejected
+```
+
+An EVM address registers the same way, as an `evm` account:
+
+```bash
+wallet-cli import watch --address 0x742d35Cc6634C0532925a3b844Bc454e4438f44e --label cold-evm
 ```
 
 ```bash
@@ -53,8 +61,8 @@ wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label col
 | `type` | string | `"watch"` (read-only, cannot sign) |
 | `index` | number \| null | Non-HD account, always `null` |
 | `active` | boolean | Became the active account |
-| `addresses.tron` | string | Base58 TRON address |
-| `family` | string | Chain family of the address (e.g. `tron`) |
+| `addresses` | object | The single address, keyed by its family — `{"tron":"T…"}` or `{"evm":"0x…"}` |
+| `family` | string | Chain family detected from the address — `tron` or `evm` |
 
 ## Exit status
 

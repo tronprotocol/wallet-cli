@@ -1,6 +1,6 @@
 # wallet-cli import keystore
 
-Import an account from a Web3 keystore file. **Interactive-only.**
+Import a Web3 keystore file. **Interactive-only.**
 
 > **Note**: there are no stdin flags here. Both the master password and the keystore file's own password are entered **only** via hidden TTY prompts — the file password is secret material like any other.
 

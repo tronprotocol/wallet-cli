@@ -10,6 +10,8 @@ The master password is local protection only: it is never sent anywhere and **ca
 
 The recovery object is the BIP39 mnemonic, but `create` never prints it — the seed is stored encrypted. Run [`backup`](../commands/backup.md) to export the plaintext mnemonic to a `0600` file and keep that file offline. Lose both password and backup and the funds are gone; lose only the password and `import mnemonic` (using the phrase from your backup) restores everything.
 
+One seed covers **every chain family** — the same phrase re-derives your TRON and your EVM addresses alike — so there is one thing to back up, not one per chain.
+
 ## Secrets in transit: stdin or TTY, never argv/env
 
 Anything in a command's arguments or environment leaks into shell history, `ps` output, and CI logs. wallet-cli therefore refuses secrets there — they enter only via:
@@ -33,20 +35,22 @@ Unexpected internal exceptions are collapsed to a generic `internal_error` messa
 
 ## Files that contain secrets
 
-`backup` writes secret + metadata with file mode **0600** and never overwrites an existing file. After exporting: move it to your secure storage and treat the file exactly like the key it contains — it is outside wallet-cli's protection from that moment.
+`backup` writes secret + metadata with file mode **0600** and never overwrites an existing file. After exporting: move it to your secure storage and treat the file exactly like the key it contains — it is outside wallet-cli's protection from that moment. The native format holds the seed and therefore every family's key; `backup --keystore` holds a **single private key**, and `--network` chooses which family's — a keystore exported for one family gives no access to the other.
+
+`config.yaml` is a second file that can hold secrets, once you configure service credentials or an endpoint API key. wallet-cli checks it: if it holds credentials and is a symlink or group/world-readable, commands fail with `insecure_config` rather than reading it. `chmod 600` it. Secrets in it are always rendered masked (`********`), and endpoint URLs are trimmed to their host in listings, since a commercial RPC URL can carry a key in its path.
 
 ## Choosing a key posture
 
 | Posture | Setup | Trade-off |
 |---|---|---|
 | Software key | `create` / `import` | Convenient; host compromise = key compromise |
-| Ledger | `import ledger` | Key never on host; every send confirmed on-device — see [Ledger guide](../guide/ledger.md) |
-| Watch-only | `import watch` | No signing at all; safe for monitoring balances of cold storage |
+| Ledger | `import ledger` | Key never on host; every send confirmed on-device. `--app` fixes the account to one chain family — import once per app to cover both — see [Ledger guide](../guide/ledger.md) |
+| Watch-only | `import watch` | No signing at all; safe for monitoring balances of cold storage. Bound to the pasted address's family |
 | Split sign/broadcast | `--sign-only` + `tx broadcast` | Signing machine needs no network — see [Scripting](../guide/scripting.md#sign-here-broadcast-there) |
 
 ## What wallet-cli cannot do for you
 
-Verify recipients (the chain is irreversible), protect a compromised host's TTY, or secure where you keep the mnemonic and backups. On mainnet, `--dry-run` first is cheap insurance.
+Verify recipients (the chain is irreversible), protect a compromised host's TTY, or secure where you keep the mnemonic and backups. It also cannot tell you that a TRON address and an EVM address derived from the same seed are *yours* on a chain you have never funded — they are valid addresses either way. On mainnet, `--dry-run` first is cheap insurance.
 
 ## See also
 

@@ -6,7 +6,7 @@ import type { TronAccountService } from "../../../../application/use-cases/tron/
 import { ciEnum } from "../arity/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 
 const transactionModeRefine = (
   input: {
@@ -48,6 +48,7 @@ export const accountActivateSpec: ChainSpec = {
   baseFields: z.object({
     address: Schemas.addressFor("tron").describe("unactivated TRON base58 address"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   baseRefine: transactionModeRefine,
   examples: [
@@ -81,6 +82,7 @@ export const accountSetSpec: ChainSpec = {
       .describe("one-time on-chain account name (1-32 UTF-8 bytes)"),
     id: z.string().min(1).optional().describe("one-time unique account ID (8-32 UTF-8 bytes)"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   exclusive: [{ label: "what to set", flags: ["name", "id"] }],
   baseRefine: (input, context) => {

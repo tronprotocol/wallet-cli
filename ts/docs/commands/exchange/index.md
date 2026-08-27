@@ -18,6 +18,8 @@ Pairs trade **TRX against TRC10** — never TRC20 — and settle instantly again
 
 **Tokens are named by id only in this group** — `TRX` or a numeric asset id, never a token name. Pairs are written with a colon (`--pair TRX:1000123`, `--amounts 10000:500000`), and TRC10 names may legally contain colons, so allowing names would make `--pair` ambiguous. Resolve a name to its id with [`asset info <name>`](../asset/info.md).
 
+**TRON only.** The Bancor exchange is built into the TRON protocol; every subcommand here fails with `family_mismatch` on an EVM network.
+
 ## Synopsis
 
 ```

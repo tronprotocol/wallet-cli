@@ -18,8 +18,8 @@ Purely local — the token and your balance on-chain are unaffected; only the lo
 
 | Option | Description |
 |---|---|
-| `--contract <string>` | TRC20 contract address to remove; exactly one of `--contract` / `--asset-id` |
-| `--asset-id <string>` | TRC10 numeric asset id to remove; exactly one of `--asset-id` / `--contract` |
+| `--contract <string>` | Token contract address to remove — TRC20 on TRON, ERC20 on EVM |
+| `--asset-id <string>` | **TRON only.** TRC10 numeric asset id to remove; exactly one of `--asset-id` / `--contract` |
 
 Plus the [global options](../index.md#global-options-every-command).
 
@@ -49,11 +49,11 @@ wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network 
 |---|---|---|
 | `network` | string | Network the entry was scoped to |
 | `account` | string | Account the entry was scoped to |
-| `removed` | object | The deleted token entry (`kind`, `id`, `symbol`, `decimals`, `name`) |
+| `removed` | object | The deleted token entry (`kind` — `trc20`/`trc10`/`erc20` — plus `id`, `symbol`, `decimals`, `name`) |
 
 ## Exit status
 
-`0` removed · `1` execution failure (`token_is_official` — official-layer tokens can't be removed; `token_not_in_book` — not in the book) · `2` usage error (`invalid_value`).
+`0` removed · `1` execution failure (`token_is_official` — official-layer tokens can't be removed; `token_not_in_book` — not in the book) · `2` usage error (`invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
 
 ## See also
 
