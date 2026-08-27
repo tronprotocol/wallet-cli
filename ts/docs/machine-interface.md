@@ -28,7 +28,7 @@ One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCode
 A network belongs to one **chain family**, `tron` or `evm`, and that is what decides which commands and which flags apply:
 
 - A command declares the families it serves (`families` in the catalog). Calling one on a network of another family fails with **`family_mismatch`** at exit `2`, before any node call.
-- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(tron only)` / `(evm only)`.
+- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(TRON only)` / `(EVM only)`.
 - An **account** is not family-bound when it holds a key — a seed or private-key account has both a TRON and an EVM address. Watch-only and Ledger accounts hold one address and therefore one family; selecting one on a mismatched network is also `family_mismatch`.
 
 Both checks are static: they depend on the command, the flags and the selected network only, so an agent can decide them from the catalog without a call.

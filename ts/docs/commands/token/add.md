@@ -23,7 +23,7 @@ Once added, the token can be used by symbol elsewhere — e.g. `tx send --token 
 
 Plus the [global options](../index.md#global-options-every-command).
 
-`--asset-id` is a TRON-only flag: help tags it `(tron only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
+`--asset-id` is a TRON-only flag: help tags it `(TRON only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
 
 ## Examples
 

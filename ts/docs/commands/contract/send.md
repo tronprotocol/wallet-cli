@@ -134,7 +134,7 @@ The `fee` object is shaped by the network's fee model: `tron-resource` reports t
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value`, conflicting modes; `invalid_option` when a `(tron only)` flag is used on EVM or vice versa).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value`, conflicting modes; `invalid_option` when a `(TRON only)` flag is used on EVM or vice versa).
 
 ## See also
 

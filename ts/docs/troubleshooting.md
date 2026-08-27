@@ -21,7 +21,7 @@ The command, the account, or the transaction does not belong to the selected net
 
 ## `invalid_option`: "a tron option on this command" (exit 2)
 
-A flag that belongs to the other chain family. `--asset-id`, `--fee-limit`, `--permission-id`, `--expiration`, `--transaction` and `--tx-stdin` are TRON's; `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` are EVM's. `--help` tags each one `(tron only)` / `(evm only)`.
+A flag that belongs to the other chain family. `--asset-id`, `--fee-limit`, `--permission-id`, `--expiration`, `--transaction` and `--tx-stdin` are TRON's; `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` are EVM's. `--help` tags each one `(TRON only)` / `(EVM only)`.
 
 `--max-fee` / `--priority-fee` additionally need an **EIP-1559** chain; on a network that still prices in `gasPrice` they are refused with the same code.
 

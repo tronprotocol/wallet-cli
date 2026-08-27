@@ -34,7 +34,7 @@ locally — there is nothing to compare it against. When the exact base-unit qua
 
 Early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the signed transaction **hex**; `--build-only` builds but does **not** sign, printing the **unsigned** hex. The hex is protobuf on TRON and RLP (`0x02…`) on EVM; either feeds [`tx sign`](sign.md) and [`tx broadcast`](broadcast.md).
 
-**Fees are family-specific.** TRON burns bandwidth/energy and caps the energy spend with `--fee-limit`; EVM pays gas, so `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` apply instead. Help tags each set `(tron only)` / `(evm only)`, and using one on the other family is refused with `invalid_option` — as are `--max-fee` / `--priority-fee` on an EVM chain that still prices in `gasPrice`.
+**Fees are family-specific.** TRON burns bandwidth/energy and caps the energy spend with `--fee-limit`; EVM pays gas, so `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` apply instead. Help tags each set `(TRON only)` / `(EVM only)`, and using one on the other family is refused with `invalid_option` — as are `--max-fee` / `--priority-fee` on an EVM chain that still prices in `gasPrice`.
 
 Omitted EVM values are taken from the node: the gas limit from `eth_estimateGas` (unpadded), the fee ceiling from the current base fee, and the nonce from the account's pending count. When the estimate itself fails — an unfunded account, a call the node reverts — the error says so and `--gas-limit` proceeds without one. A fee that is signable but questionable (a tip clamped to the ceiling, a ceiling below the current base fee) is reported in `meta.warnings` rather than refused.
 
@@ -165,7 +165,7 @@ A reverted transaction still leaves the envelope at `success: true` and exit `0`
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`rpc_error`, `timeout` — **on timeout the tx may still be in flight; check `tx status` before resending**) · `2` usage error (conflicting selectors/amounts/modes; `invalid_option` when a `(tron only)` flag is used on EVM or vice versa).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`rpc_error`, `timeout` — **on timeout the tx may still be in flight; check `tx status` before resending**) · `2` usage error (conflicting selectors/amounts/modes; `invalid_option` when a `(TRON only)` flag is used on EVM or vice versa).
 
 An EVM gas estimate that the node rejects surfaces as `rpc_error` naming `eth_estimateGas`, and suggests `--gas-limit` to proceed without one.
 
