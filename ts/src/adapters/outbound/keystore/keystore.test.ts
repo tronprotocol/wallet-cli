@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { WALLETS_VERSION } from "../../../domain/migration/wallets-v2.js";
 
 // Swap real scrypt (n=2^18, hundreds of ms/call) for a cheap deterministic KDF: this suite
 // exercises keystore *logic* over dozens of encrypt/decrypt cycles, not the KDF, which
@@ -7,7 +8,7 @@ vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
-import { mkdtempSync, readdirSync, renameSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -82,7 +83,7 @@ describe("Keystore", () => {
     expect(ks.list()).toHaveLength(1);
   });
 
-  it("makes every imported or derived target active, including dedup hits", () => {
+  it("makes every imported or derived SIGNING target active, including dedup hits", () => {
     const seed = ks.import({ secret: MNEMONIC, type: "seed", label: "seed" });
     const privateKey = ks.import({
       secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
@@ -98,8 +99,10 @@ describe("Keystore", () => {
     const ledger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
     expect(ks.activeAccount()).toBe(ledger.accountId);
 
+    // A watch account is the exception (§3.3): it holds no key, so making it active would turn
+    // the next write command into watch_only_no_signer for a reason the user never chose.
     const watch = ks.registerWatch({ family: "tron", address: "Twatch-active" });
-    expect(ks.activeAccount()).toBe(watch.accountId);
+    expect(ks.activeAccount()).toBe(ledger.accountId);
 
     const repeatedLedger = ks.registerLedger({
       family: "tron",
@@ -361,6 +364,57 @@ describe("Keystore", () => {
   });
 });
 
+/**
+ * The codes these three failures answer with.
+ *
+ * All three used to be `invalid_value` — the bucket every malformed option lands in. For a value
+ * typed at a hidden prompt there is no field path in the envelope either, so the code was the only
+ * thing the caller got, and it said nothing. §11 names all three.
+ */
+describe("lookup and secret-shape failures carry their own codes", () => {
+  let ks: Keystore;
+  beforeEach(() => {
+    ks = freshKeystore();
+  });
+
+  it("reports a reference that matches no account as account_not_found", () => {
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    for (const ref of ["nosuchlabel", "wlt_doesnotexist", TRON0.replace(/.$/, "x")]) {
+      expect(() => ks.resolveAccount(ref), ref).toThrowError(
+        expect.objectContaining({ code: "account_not_found" }),
+      );
+    }
+  });
+
+  // An ambiguous reference is NOT the same failure: the value is valid and simply picks more than
+  // one account, so the fix is to narrow it, not to go looking for a missing account.
+  it("keeps invalid_value for a reference that matches more than one account", () => {
+    const a = ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    ks.addAccount(a.accountId.split(".")[0]!, 1);
+
+    expect(() => ks.resolveAccount(a.accountId.split(".")[0]!)).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+  });
+
+  it("reports a bad recovery phrase as invalid_mnemonic", () => {
+    expect(() => ks.import({ secret: "not a mnemonic at all", type: "seed" })).toThrowError(
+      expect.objectContaining({ code: "invalid_mnemonic" }),
+    );
+  });
+
+  // Both ways to mistype a private key answer the same, including the non-hex one — which
+  // previously escaped as a REDACTED internal_error from the hex decoder.
+  it("reports either shape of bad private key as invalid_private_key", () => {
+    for (const bad of ["zz".repeat(32), "ab".repeat(31)]) {
+      expect(() => ks.import({ secret: bad, type: "privateKey" }), bad).toThrowError(
+        expect.objectContaining({ code: "invalid_private_key" }),
+      );
+    }
+  });
+});
+
 describe("password sentinel queries", () => {
   it("isInitialized flips after the first import; verifyPassword checks the sentinel", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-sentinel-"));
@@ -501,4 +555,59 @@ describe("changePassword", () => {
     expect(() => reopened.decryptKey(keyId)).not.toThrow();
     expect(residue(root)).toEqual([]);
   }, 15_000);
+});
+
+describe("wallets.json schema version", () => {
+  // The synthesised default is not just read, it is PERSISTED on first write. A literal 1 here
+  // would stamp every freshly created keystore as stale and send it straight to the migration
+  // gate on its very next run (ADR-0008).
+  it("stamps a newly created keystore at the current version", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.registerWatch({ family: "tron", address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6" });
+
+    const doc = JSON.parse(readFileSync(join(root, "wallets.json"), "utf8"));
+
+    expect(doc.version).toBe(WALLETS_VERSION);
+  });
+});
+
+describe("descriptor carries each family's derivation path", () => {
+  // §3.7: json had no path at all, so a user could not tell WHICH template an account used —
+  // and the two families deliberately use different ones (§1.2).
+  it("gives a seed account one path per family", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    ks.addAccount(ks.list()[0]!.seedId!, 2);
+
+    const account2 = ks.list().find((a) => a.index === 2)!;
+    expect(account2.derivationPath).toEqual({
+      tron: "m/44'/195'/2'/0/0",
+      evm: "m/44'/60'/0'/0/2",
+    });
+  });
+
+  // watch and private-key accounts were never derived from a template, so there is no path to
+  // report — null says that, where an omitted field would just look like a gap.
+  it("reports null for an account that was not derived", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.registerWatch({ family: "evm", address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" });
+
+    expect(ks.list()[0]!.derivationPath).toBeNull();
+  });
+
+  // A Ledger account IS derived, at a path the user chose on the device — and it is single-family.
+  it("gives a ledger account only its own family's path", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.registerLedger({
+      family: "tron",
+      path: "m/44'/195'/5'/0/0",
+      address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6",
+    });
+
+    expect(ks.list()[0]!.derivationPath).toEqual({ tron: "m/44'/195'/5'/0/0" });
+  });
 });

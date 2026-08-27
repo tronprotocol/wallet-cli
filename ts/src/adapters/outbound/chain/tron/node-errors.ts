@@ -51,6 +51,9 @@ const RULES: Array<{ match: RegExp; rejection: NodeRejection }> = [
   },
 ];
 
+/** the codes this table can produce; see EVM_REJECTION_CODES. */
+export const TRON_REJECTION_CODES: readonly string[] = RULES.map((r) => r.rejection.code);
+
 /**
  * java-tron wraps an actuator's message in its own envelope before it reaches the wire, e.g.
  * `Contract validate error : ExchangeTransactionContract is rejected`. Strip that wrapper so the

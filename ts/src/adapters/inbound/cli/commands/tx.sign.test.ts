@@ -9,7 +9,7 @@ import {
 } from "./tx.js";
 
 const ctx = { activeAccount: "main" } as never;
-const net = { family: "tron", id: "nile" } as never;
+const net = { family: "tron", nativeSymbol: "TRX", id: "nile" } as never;
 
 describe("tx sign spec", () => {
   it("does not broadcast and requires auth", () => {
@@ -208,10 +208,12 @@ describe("tx send exclusive groups", () => {
     });
   });
 
-  it("marks the asset selector optional, since omitting it sends native TRX", () => {
+  it("marks the asset selector optional, since omitting it sends the native coin", () => {
+    // `--asset-id` is TRON-only and is declared on that binding. An exclusive group is
+    // spec-level and therefore shared by every family, so it may only name flags they all have.
     expect(groups().token).toEqual({
-      label: "which asset to send; omit for native TRX",
-      flags: ["token", "contract", "asset-id"],
+      label: "which asset to send; omit for the network's native coin",
+      flags: ["token", "contract"],
       select: "at-most-one",
     });
     expect(txSendSpec.baseFields.safeParse({ to: "T...", amount: "1" }).success).toBe(true);

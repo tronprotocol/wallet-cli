@@ -10,8 +10,8 @@ import { TronContractService } from "./contract-service.js";
 const NET: NetworkDescriptor = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: [],
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";

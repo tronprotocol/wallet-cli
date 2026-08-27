@@ -19,7 +19,7 @@ const scope = {
   emit: () => {},
   warn: () => {},
 } as never;
-const net = { family: "tron", id: "nile" } as never;
+const net = { family: "tron", nativeSymbol: "TRX", id: "nile" } as never;
 
 describe("TxPipeline.signOnly", () => {
   it("signs a caller-supplied transaction without building, estimating or broadcasting", async () => {

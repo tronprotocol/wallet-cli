@@ -11,23 +11,10 @@ import type { MessageService } from "../../../../application/use-cases/message-s
 
 // ── execution-mode flags shared by every signing command ─────────────────────────
 /** Transaction execution fields; default (no mode flag) = sign and broadcast on-chain. */
-export const txModeFields = {
-  dryRun: z
-    .boolean()
-    .default(false)
-    .describe("build and estimate only, with no signature and no broadcast"),
-  signOnly: z
-    .boolean()
-    .default(false)
-    .describe("sign and output complete transaction hex without broadcasting"),
-  // Both multi-sig routes start from this artifact: the hex relay (`tx sign --file --out`) and the
-  // TronLink queue (`tx multisig --create`). Naming only one would read as "service path only".
-  buildOnly: z
-    .boolean()
-    .default(false)
-    .describe(
-      "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
-    ),
+/** TRON multi-signature concepts: a permission group to sign under, and a longer expiry while
+ *  signatures are collected. Neither exists on a single-signature chain, so they belong to the
+ *  TRON binding rather than to every family's flag set. */
+export const tronTxModeFields = {
   permissionId: z.coerce
     .number()
     .int()
@@ -48,9 +35,29 @@ export const txModeFields = {
     ),
 };
 
+export const txModeFields = {
+  dryRun: z
+    .boolean()
+    .default(false)
+    .describe("build and estimate only, with no signature and no broadcast"),
+  signOnly: z
+    .boolean()
+    .default(false)
+    .describe("sign and output complete transaction hex without broadcasting"),
+  // Both multi-sig routes start from this artifact: the hex relay (`tx sign --file --out`) and the
+  // TronLink queue (`tx multisig --create`). Naming only one would read as "service path only".
+  buildOnly: z
+    .boolean()
+    .default(false)
+    .describe(
+      "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+    ),
+};
+
 /** Full transaction controls required by governance/administrative writes. */
 export const governanceTxModeFields = {
   ...txModeFields,
+  ...tronTxModeFields,
   buildOnly: z
     .boolean()
     .default(false)
@@ -125,7 +132,10 @@ export const messageSignSpec: ChainSpec = {
   exclusive: [
     { label: "the message to sign", flags: ["message", "message-stdin"], select: "exactly-one" },
   ],
-  examples: [{ cmd: `wallet-cli message sign --message "hello"` }],
+  examples: [
+    { cmd: `wallet-cli message sign --message "hello" --network nile` },
+    { cmd: `wallet-cli message sign --message "hello" --network sepolia` },
+  ],
   formatText: TextFormatters.messageSign,
 };
 

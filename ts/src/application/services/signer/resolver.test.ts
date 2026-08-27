@@ -26,7 +26,10 @@ describe("SignerResolver — watch accounts", () => {
   beforeEach(() => {
     ks = freshKeystore();
     // ledger never touched for watch; strategies never touched (watch can't sign)
-    resolver = new SignerResolver(ks, {} as unknown as Ledger, { tron: tronSignStrategy });
+    resolver = new SignerResolver(ks, {} as unknown as Ledger, {
+      tron: tronSignStrategy,
+      evm: null as never, // never reached: watch accounts cannot sign
+    });
   });
 
   it("refuses to sign for a watch-only account (watch_only_no_signer)", () => {
@@ -70,6 +73,38 @@ describe("SignerResolver — watch accounts", () => {
       err = e as { code?: string };
     }
     expect(err?.code).toBe("ledger_unsupported");
+  });
+
+  // Same condition as resolveAddress: the account exists but lives on another chain. It reported
+  // `missing_wallet_address`, which reads as "you have no account" — a different problem.
+  it("reports family_mismatch for an account that has no address in the target family", () => {
+    const ref = ks.registerLedger({
+      family: "evm",
+      path: "m/44'/60'/0'/0/0",
+      address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    }).accountId;
+
+    let code: string | undefined;
+    try {
+      resolver.assertCanSign(ref, "tron");
+    } catch (e) {
+      code = (e as { code?: string }).code;
+    }
+    expect(code).toBe("family_mismatch");
+  });
+
+  // The message named the TRON app unconditionally. With one ledger-wired family that was
+  // merely redundant; with two it tells an EVM user to blame the wrong application.
+  it("names the family's own Ledger app when refusing", () => {
+    const ref = ks.registerLedger({
+      family: "evm",
+      path: "m/44'/60'/0'/0/0",
+      address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    }).accountId;
+
+    expect(() => resolver.assertCanSign(ref, "evm", { requireSoftware: true })).toThrow(
+      /ethereum/i,
+    );
   });
 
   it("assertCanSign without requireSoftware still allows a Ledger account", () => {

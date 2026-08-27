@@ -137,6 +137,13 @@ export class SecretResolver implements ISecretResolver {
     mode: "set" | "verify";
     verify?: (pw: string) => boolean;
   }): Promise<void> {
+    // Already primed and still valid — reuse it. The startup migration gate primes the password
+    // before the command runs; without this an interactive run would prompt twice for the same
+    // secret. Only "verify" short-circuits: a "set" is establishing a NEW password, so it must ask.
+    const primed = this.#primed.get("password");
+    if (plan.mode === "verify" && primed !== undefined && (plan.verify?.(primed) ?? true)) {
+      return;
+    }
     if (this.has("password")) {
       const pw = this.read("password");
       if (plan.mode === "set") {

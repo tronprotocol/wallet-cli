@@ -33,9 +33,10 @@ npm run depcruise      # dependency-cruiser — enforces the architecture rules 
 
 ### Architecture (hexagonal / ports & adapters)
 
-Dependencies point inward. The source of truth is
-`ts/docs/typescript-wallet-cli-architecture-source-of-truth.md` — read it before changing
-boundaries, ports, command routing, or the JSON contract. `depcruise` enforces these rules in CI.
+Dependencies point inward, and the table below is the rule — read it before changing boundaries,
+ports, or command routing. `depcruise` enforces it in CI (`ts/.dependency-cruiser.cjs`).
+`ts/docs/machine-interface.md` is the source of truth for the JSON contract (envelope, exit codes,
+stdout/stderr discipline).
 
 | Area (`ts/src/…`) | Role | May depend on | Must NOT depend on |
 |---|---|---|---|

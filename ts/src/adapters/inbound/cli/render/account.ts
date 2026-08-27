@@ -1,16 +1,8 @@
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
-import { RESOURCES, resourceOfRpcCode, type Resource } from "../../../../domain/resources/index.js";
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
-import {
-  formatScalar,
-  formatInt,
-  formatUsd,
-  formatSun,
-  formatTime,
-  num,
-  quote,
-} from "./scalars.js";
+import { formatScalar, formatUsd, formatUsdPrice, formatTime, num, quote } from "./scalars.js";
 import { type Obj, type Pair, asObj, query, receipt, table, ok, fail, warn } from "./layout.js";
+import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 
 /** humanize a raw base-unit balance: scale by `decimals` when known, else show the raw integer. */
 function humanBalance(d: Obj): string {
@@ -69,7 +61,7 @@ export const AccountFormatters = {
     const rows = holdings.map((h) => [
       String(h.symbol ?? ""),
       h.balanceUnavailable ? "unavailable" : formatScalar(h.balance),
-      h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsd(h.priceUsd)}`,
+      h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsdPrice(h.priceUsd)}`,
       h.valueUsd === null || h.valueUsd === undefined ? "-" : `$${formatUsd(h.valueUsd)}`,
     ]);
     const total =
@@ -110,61 +102,20 @@ export const AccountFormatters = {
   }) satisfies TextFormatter,
 };
 
+/**
+ * `account info` — family-shaped.
+ *
+ * TRON returns the node's account object (permissions, resources, stakes); EVM has no equivalent
+ * RPC and returns a flat `{balance, nonce, type, codeSize?}`. These are not the same field set with
+ * different values, so the rows come from the family table rather than from one formatter reading
+ * whichever keys happen to be present — the TRON reader applied to an EVM payload found nothing
+ * and printed "Balance 0 TRX" for an account holding ETH.
+ */
 function renderAccountInfo(d: Obj, ctx: TextRenderContext): string {
-  const account = asObj(d.account);
-  const owner = asObj(account.owner_permission);
-  const active = Array.isArray(account.active_permission) ? account.active_permission.length : 0;
-  const created = account.create_time
-    ? new Date(Number(account.create_time)).toISOString().slice(0, 10)
-    : "";
-  const ownerKeys = Array.isArray(owner.keys) ? owner.keys.length : "?";
-  const resources = asObj(d.resources);
-  const bandwidth = asObj(resources.bandwidth);
-  const energy = asObj(resources.energy);
   const pairs: Pair[] = [];
   if (ctx.accountLabel) pairs.push(["Label", ctx.accountLabel]);
-  pairs.push(["Address", String(d.address ?? "")]);
-  pairs.push(["Balance", `${formatSun(account.balance)} TRX`]);
-  const staked = stakedSummary(account);
-  if (staked) pairs.push(["Staked", staked]);
-  if (resources.energy)
-    pairs.push(["Energy", `used ${formatInt(energy.used)} / ${formatInt(energy.limit)}`]);
-  if (resources.bandwidth)
-    pairs.push(["Bandwidth", `used ${formatInt(bandwidth.used)} / ${formatInt(bandwidth.limit)}`]);
-  pairs.push(["Created", created]);
-  pairs.push([
-    "Permissions",
-    `owner ${String(owner.threshold ?? "?")}-of-${ownerKeys}, ${active} active group${active === 1 ? "" : "s"}`,
-  ]);
+  pairs.push(...FAMILY_RENDER[renderFamily(ctx)].accountInfoRows(d, renderSymbol(ctx)));
   return query(pairs);
-}
-
-/** Sum FreezeBalanceV2 stakes into a "<total> TRX (energy <e> + bandwidth <b>)" summary. */
-function stakedSummary(account: Obj): string {
-  const frozen = Array.isArray(account.frozenV2) ? account.frozenV2.map(asObj) : [];
-  // frozenV2's bandwidth entries carry no `type`, so an unrecognized code folds into bandwidth.
-  const sums = new Map<Resource, bigint>(RESOURCES.map((r) => [r, 0n]));
-  for (const f of frozen) {
-    const r = resourceOfRpcCode(String(f.type ?? "")) ?? "bandwidth";
-    const amount = safeUnsignedBigInt(f.amount ?? 0);
-    // An unsafe JS number has already lost precision. Omit the summary instead of presenting a
-    // plausible but incorrect total; the raw account payload remains available in JSON mode.
-    if (amount === null) return "";
-    sums.set(r, (sums.get(r) ?? 0n) + amount);
-  }
-  const total = RESOURCES.reduce((t, r) => t + (sums.get(r) ?? 0n), 0n);
-  if (total === 0n) return "";
-  const parts = RESOURCES.map((r) => `${r} ${formatSun(sums.get(r) ?? 0n)}`).join(" + ");
-  return `${formatSun(total)} TRX (${parts})`;
-}
-
-function safeUnsignedBigInt(value: unknown): bigint | null {
-  if (typeof value === "bigint") return value >= 0n ? value : null;
-  if (typeof value === "number") {
-    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : null;
-  }
-  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
-  return null;
 }
 
 function historyRow(r: Obj): string[] {

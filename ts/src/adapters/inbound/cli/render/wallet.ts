@@ -12,13 +12,18 @@ export const WalletFormatters = {
   walletWatch: ((data) => {
     const d = asObj(data);
     return receipt(ok(), `Added watch-only account ${quote(displayName(d))}`, [
-      ["Address", firstAddress(d)],
+      // The family label, not a bare `Address` (§3.5): once two families coexist, "Address" does
+      // not tell the reader which chain this account lives on.
+      ...addressPairs(d),
       ["Note", "read-only; signing operations will be rejected"],
     ]);
   }) satisfies TextFormatter,
   walletLedger: ((data) => renderLedgerImported(asObj(data))) satisfies TextFormatter,
-  walletList: ((data) =>
-    renderWalletList(Array.isArray(data) ? data.map(asObj) : [])) satisfies TextFormatter,
+  walletList: ((data, ctx) =>
+    renderWalletList(
+      Array.isArray(data) ? data.map(asObj) : [],
+      ctx?.net?.family,
+    )) satisfies TextFormatter,
   walletUse: ((data) => {
     const d = asObj(data);
     return receipt(ok(), `Active account: ${displayName(d)}`, addressPairs(d));
@@ -42,8 +47,14 @@ export const WalletFormatters = {
   }) satisfies TextFormatter,
   walletDerive: ((data) => {
     const d = asObj(data);
+    // One derive produces an address per family (§3.9), so the receipt lists every one of them —
+    // showing only the first made this release's headline invisible on the command that performs
+    // it. `Index` and `Account ID` come along for the same reason `create` carries them: they are
+    // what the next command is addressed by.
     return receipt(ok(), `Derived sub-account ${quote(displayName(d))}`, [
-      ["Address", firstAddress(d)],
+      ["Account ID", String(d.accountId ?? "")],
+      ["Index", d.index === null || d.index === undefined ? "" : formatInt(d.index)],
+      ...addressPairs(d),
       ["Active", d.active === true ? "yes" : ""],
       ["Note", "shares master mnemonic; no separate backup needed"],
     ]);
@@ -66,6 +77,10 @@ export const WalletFormatters = {
     return [
       receipt(warn(), `${keystore ? "Keystore" : "Backup"} written ${String(d.out ?? "")}`, [
         ["Account ID", String(d.accountId ?? "")],
+        // Only for a keystore: it holds ONE key, and a seed account has one per family, so the
+        // receipt must say which was written — the choice may have come from defaultNetwork.
+        // A mnemonic covers every family, so a row there would imply a choice never made.
+        ...(keystore && d.family ? [["Family", String(d.family)] as Pair] : []),
         ["Secret", secretLabel(d.secretType)],
         ["File mode", String(d.fileMode ?? "0600")],
         ["Bytes", String(d.bytes ?? "?")],
@@ -125,8 +140,13 @@ function renderLedgerImported(d: Obj): string {
  *  its accounts listed under `├─/└─` connectors as `[index] label`. Non-HD accounts group by type.
  *  Plain text only — the text-mode frame is control-byte-stripped (CLI-OUT-001) so ANSI colour
  *  can't survive here anyway; the active account is marked with a trailing `(active)`. */
-function renderWalletList(items: Obj[]): string {
-  if (items.length === 0) return "No wallets found.";
+function renderWalletList(items: Obj[], family?: string): string {
+  // One family at a time (§3.7): showing both side by side doubles the table's width, and the
+  // user only cares about the chain they are on. An account with no address in this family is
+  // dropped rather than given an empty row — json still carries every family.
+  const shown = family ? items.filter((d) => addressFor(d, family) !== undefined) : items;
+  if (shown.length === 0) return "No wallets found.";
+  items = shown;
   // group seeds by their seed id (wlt_x); non-HD accounts by type. Insertion order preserved.
   const groups = new Map<string, { hd: boolean; header: string; rows: Obj[] }>();
   for (const d of items) {
@@ -139,9 +159,10 @@ function renderWalletList(items: Obj[]): string {
   const leftOf = (d: Obj): string =>
     d.type === "seed" ? `[${d.index ?? "?"}] ${displayName(d)}` : displayName(d);
   const leftW = Math.max(...items.map((d) => leftOf(d).length));
-  const addrW = Math.max(...items.map((d) => firstAddress(d).length));
+  const addressOf = (d: Obj): string => (family ? (addressFor(d, family) ?? "") : firstAddress(d));
+  const addrW = Math.max(...items.map((d) => addressOf(d).length));
   const row = (d: Obj, last: boolean): string =>
-    `${last ? "└─ " : "├─ "}${leftOf(d).padEnd(leftW)}  ${firstAddress(d).padEnd(addrW)}  ${d.active ? "(active)" : ""}`.replace(
+    `${last ? "└─ " : "├─ "}${leftOf(d).padEnd(leftW)}  ${addressOf(d).padEnd(addrW)}  ${d.active ? "(active)" : ""}`.replace(
       /\s+$/,
       "",
     );
@@ -174,6 +195,13 @@ function addressPairs(d: Obj): Pair[] {
   return nonEmptyAddressEntries(d).map(
     ([family, address]) => [familyAddressLabel(family), address] as Pair,
   );
+}
+
+/** this account's address in one family, or undefined when it has none there. */
+function addressFor(d: Obj, family: string): string | undefined {
+  const addresses = d.addresses as Record<string, unknown> | undefined;
+  const value = addresses?.[family];
+  return typeof value === "string" && value !== "" ? value : undefined;
 }
 
 function typeLabel(v: unknown): string {

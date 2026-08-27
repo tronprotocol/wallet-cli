@@ -23,8 +23,8 @@ const cmd = { path: ["account", "balance"] } as unknown as CommandDefinition;
 const net: NetworkDescriptor = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: ["nile"],
   capabilities: [],
 };
 

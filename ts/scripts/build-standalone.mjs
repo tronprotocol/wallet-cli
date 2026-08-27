@@ -14,8 +14,7 @@ const targetByHost = {
 
 const pinnedCompilerByTarget = {
   "bun-linux-x64-baseline": "node_modules/@oven/bun-linux-x64-baseline/bin/bun",
-  "bun-windows-x64-baseline":
-    "node_modules/@oven/bun-windows-x64-baseline/bin/bun.exe",
+  "bun-windows-x64-baseline": "node_modules/@oven/bun-windows-x64-baseline/bin/bun.exe",
 };
 
 function option(name) {

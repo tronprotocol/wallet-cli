@@ -26,7 +26,7 @@ export const witnessCreateSpec: ChainSpec = {
   ...witnessWriteBase,
   summary: "Register as a super representative candidate",
   description:
-    "Register the account as an SR candidate. The chain burns getAccountUpgradeCost\n" +
+    "Register the account as an SR candidate. The chain burns a fee set by an on-chain parameter\n" +
     "from the account balance; the fee is irreversible and registration cannot be undone.",
   requires: ["an activated account funded for the on-chain registration burn"],
   baseFields: z.object({ url: witnessUrl, ...governanceTxModeFields }),

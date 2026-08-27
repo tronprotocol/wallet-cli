@@ -7,6 +7,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 const net = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
   aliases: [],
   capabilities: [],

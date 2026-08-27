@@ -15,6 +15,7 @@ import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
 import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
+import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
 
 describe("ChainCommandDefinition dispatch", () => {
   it("routes a positional through the selected family binding", async () => {
@@ -223,5 +224,94 @@ describe("grouped chain leaf positionals", () => {
       code: "invalid_option",
       message: /unknown option\(s\): --trace-id/,
     });
+  });
+});
+
+/**
+ * The shell's half of the dry-run guarantee.
+ *
+ * A family binding is free to forget `--dry-run` — the flag lives on the shared spec and each
+ * binding decides what to forward — so the shell bars broadcasting for the duration of the run.
+ * The binding below is exactly the mistake being defended against: it ignores the flag and
+ * broadcasts anyway.
+ */
+describe("--dry-run bars broadcasting", () => {
+  function dryRunFixture(run: (input: any) => Promise<unknown>) {
+    const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-dryrun-test-"));
+    const prompter = new Prompter({
+      isTTY: () => false,
+      async question() {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
+      write() {},
+      beginRaw() {},
+      endRaw() {},
+    } as any);
+    const out: string[] = [];
+    const streams = new StreamManager("json", false, (s) => out.push(s));
+    const secrets = new SecretResolver(streams, {}, prompter);
+    const keystore = new Keystore(tmpRoot, new AtomicFileStore(), () => secrets.masterPassword());
+    const config = ConfigLoader.load();
+    const networkRegistry = new NetworkRegistry(config);
+    const formatter = createOutputFormatter("json", streams, Date.now());
+    const registry = new CommandRegistry();
+    registry.addChain(
+      {
+        path: ["tx", "broadcast"],
+        network: "optional",
+        wallet: "none",
+        auth: "none",
+        broadcasts: true,
+        examples: [],
+        baseFields: z.object({ dryRun: z.boolean().default(false) }),
+      },
+      "tron",
+      { run: async (_ctx: any, _net: any, input: any) => run(input) },
+    );
+    const globals = { output: "json" as const, verbose: false, network: "tron:mainnet" };
+    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    return {
+      out,
+      shellOpts: {
+        registry,
+        globals,
+        deps,
+        targetResolver: new TargetResolver({ networkRegistry, keystore }),
+        caps: new CapabilityRegistry(),
+        streams,
+        formatter,
+        session: {} as SessionRef,
+      } as ShellOptions,
+    };
+  }
+
+  it("stops a binding that ignores the flag and broadcasts anyway", async () => {
+    const submitted: string[] = [];
+    const { shellOpts } = dryRunFixture(async () => {
+      assertBroadcastAllowed();
+      submitted.push("sent");
+      return { stage: "submitted" };
+    });
+
+    await expect(
+      buildCli(shellOpts).parseAsync(["tx", "broadcast", "--dry-run"]),
+    ).rejects.toMatchObject({ code: "dry_run_violation" });
+    expect(submitted).toEqual([]);
+  });
+
+  it("leaves a real broadcast alone", async () => {
+    const submitted: string[] = [];
+    const { shellOpts } = dryRunFixture(async () => {
+      assertBroadcastAllowed();
+      submitted.push("sent");
+      return { stage: "submitted" };
+    });
+
+    await buildCli(shellOpts).parseAsync(["tx", "broadcast"]);
+
+    expect(submitted).toEqual(["sent"]);
   });
 });

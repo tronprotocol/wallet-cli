@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { HelpService } from "./index.js";
 import { CommandRegistry } from "../registry/index.js";
-import type { ChainSpec, StreamManager } from "../contracts/index.js";
-import { txBroadcastSpec, txSendSpec, txTronLinkMultisigSpec } from "../commands/tx.js";
+import type { ChainSpec, FamilyBinding, StreamManager } from "../contracts/index.js";
+import {
+  txBroadcastSpec,
+  txBroadcastTronBinding,
+  txSendSpec,
+  txTronLinkMultisigSpec,
+} from "../commands/tx.js";
 import { messageSignSpec } from "../commands/shared.js";
 
 // ── minimal fakes ─────────────────────────────────────────────────────────────
@@ -73,14 +78,60 @@ describe("HelpService --json-schema", () => {
     const out = JSON.parse(stream.last!);
     expect(out).toHaveProperty("commands"); // group head → catalog, not a phantom command schema
   });
+
+  it("scopes a concrete chain command schema to the addressed family", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string() });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ feeLimit: z.string() }),
+    });
+    reg.addChain(spec, "evm", {
+      run: async () => ({}),
+      fields: z.object({ gasLimit: z.string() }),
+    });
+    const stream = makeStream();
+
+    new HelpService(reg, stream, "9.9.9").handleMeta(["evm", "tx", "send", "--json-schema"]);
+
+    const out = JSON.parse(stream.last!);
+    expect(out.properties).toHaveProperty("to");
+    expect(out.properties).toHaveProperty("gasLimit");
+    expect(out.properties).not.toHaveProperty("feeLimit");
+  });
+
+  it("scopes the family catalog's input schemas to that family", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string() });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ feeLimit: z.string() }),
+    });
+    reg.addChain(spec, "evm", {
+      run: async () => ({}),
+      fields: z.object({ gasLimit: z.string() }),
+    });
+    const stream = makeStream();
+
+    new HelpService(reg, stream, "9.9.9").handleMeta(["evm", "--json-schema"]);
+
+    const command = JSON.parse(stream.last!).commands.find(
+      (c: { id: string }) => c.id === "tx.send",
+    );
+    expect(command.inputSchema.properties).toHaveProperty("to");
+    expect(command.inputSchema.properties).toHaveProperty("gasLimit");
+    expect(command.inputSchema.properties).not.toHaveProperty("feeLimit");
+  });
 });
 
 // Asserting the spec object is not enough: the renderer resolves members by kebab flag name, so a
 // group can be well-formed and still never appear. These render the real specs end to end.
 describe("shipped exclusive groups actually render", () => {
-  function optionsOf(spec: ChainSpec): string[] {
+  // The binding matters here: flags a family declares itself (`--transaction`) live on it, not on
+  // the spec, so a stub binding would render help missing exactly those rows.
+  function optionsOf(spec: ChainSpec, binding?: FamilyBinding): string[] {
     const reg = new CommandRegistry();
-    reg.addChain(spec, "tron", { run: async () => ({}) });
+    reg.addChain(spec, "tron", binding ?? { run: async () => ({}) });
     const stream = makeStream();
     new HelpService(reg, stream, "0.0.0").handleMeta([...spec.path, "--help"]);
     const lines = (stream.last ?? "").split("\n");
@@ -90,7 +141,9 @@ describe("shipped exclusive groups actually render", () => {
   it("renders both of tx send's groups, with the right requirement wording", () => {
     const out = optionsOf(txSendSpec);
     expect(out).toContain("  Exactly one of these — the amount to send:");
-    expect(out).toContain("  At most one of these — which asset to send; omit for native TRX:");
+    expect(out).toContain(
+      "  At most one of these — which asset to send; omit for the network's native coin:",
+    );
     const amount = out[out.indexOf("  Exactly one of these — the amount to send:") + 1]!;
     expect(amount).toContain("--amount");
     expect(out[out.indexOf("  Exactly one of these — the amount to send:") + 2]).toContain(
@@ -109,7 +162,7 @@ describe("shipped exclusive groups actually render", () => {
   });
 
   it("renders tx broadcast's group including the stdin channel flag", () => {
-    const out = optionsOf(txBroadcastSpec);
+    const out = optionsOf(txBroadcastSpec, txBroadcastTronBinding({} as never));
     expect(out[0]).toBe("  Exactly one of these — the signed transaction to broadcast:");
     expect(out.slice(1, 5).map((l) => l.trim().split(" ")[0])).toEqual([
       "--transaction",
@@ -117,6 +170,15 @@ describe("shipped exclusive groups actually render", () => {
       "--hex",
       "--file",
     ]);
+    // The two TRON-only members say so. A jointly-required group drops "[optional]" from its rows
+    // (that tag would contradict the group), but the family tag is a different fact and survives:
+    // without it, "no tag" would mean both "every family" and "we did not move the flag".
+    expect(out[1]).toContain("(tron only)");
+    expect(out[2]).toContain("(tron only)");
+    expect(out[1]).not.toContain("[optional]");
+    // --hex and --file are read by both families and stay untagged.
+    expect(out[3]).not.toContain("(tron only)");
+    expect(out[4]).not.toContain("(tron only)");
   });
 
   // tx multisig's three modes are rejected in combination by tronLinkMultisigRefine. Without the
@@ -136,9 +198,11 @@ describe("shipped exclusive groups actually render", () => {
   });
 });
 
-// The (tron) tag on the root listing tells a reader which groups disappear on a non-TRON network.
-// `chain` is assembled only in the tron family (bootstrap/families/tron.ts), like permission /
-// gasfree / stake / vote / reward — it was the one family-scoped group left untagged.
+// The (tron only) tag on the root listing tells a reader which groups disappear on a non-TRON network.
+// It is therefore a claim about the CURRENT bindings, and a stale one actively misleads: `chain`
+// carried (tron only) for a whole release after `chain node` and `chain prices` gained EVM bindings,
+// telling every EVM reader that a group they could in fact use was closed to them. A group is
+// tagged only while EVERY command under it is bound to that one family.
 describe("root help family tags", () => {
   function rootRow(name: string): string {
     const stream = makeStream();
@@ -146,13 +210,19 @@ describe("root help family tags", () => {
     return (stream.last ?? "").split("\n").find((l) => l.trimStart().startsWith(`${name} `)) ?? "";
   }
 
-  it("tags chain as TRON-only, like every other family-scoped group", () => {
-    expect(rootRow("chain")).toMatch(/\(tron\)$/);
+  it("leaves chain untagged, because chain node / chain prices serve EVM too", () => {
+    expect(rootRow("chain")).not.toMatch(/\(tron only\)$/);
+  });
+
+  it("still tags the groups that really are TRON-only", () => {
+    for (const group of ["permission", "gasfree", "stake", "vote", "reward"]) {
+      expect(rootRow(group)).toMatch(/\(tron only\)$/);
+    }
   });
 
   it("leaves family-neutral groups untagged", () => {
     for (const group of ["contract", "message", "block"]) {
-      expect(rootRow(group)).not.toMatch(/\(tron\)$/);
+      expect(rootRow(group)).not.toMatch(/\(tron only\)$/);
     }
   });
 });
@@ -393,5 +463,89 @@ describe("Requires: master password line", () => {
     expect(line).toContain("only when the selected mode signs");
     expect(line).toContain("other modes need no password");
     expect(line).not.toContain("locked");
+  });
+});
+
+// §「family 專屬 flag 在 help 裡全量展示、按族標註，不按網路裁剪」: help is STATIC — --network does
+// not shape it — so both families' flags appear together and each says which family it belongs to.
+describe("help tags family-specific flags", () => {
+  function twoFamilyHelp() {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], {
+      to: z.string().describe("recipient"),
+      amount: z.string().optional().describe("amount to send"),
+    });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ feeLimit: z.string().optional().describe("max TRX to burn") }),
+    });
+    reg.addChain(spec, "evm", {
+      run: async () => ({}),
+      fields: z.object({
+        gasLimit: z.string().optional().describe("gas units"),
+        maxFee: z.string().optional().describe("max fee in gwei"),
+      }),
+    });
+    const stream = makeStream();
+    new HelpService(reg, stream, "9.9.9").handleMeta(["tx", "send", "--help"]);
+    return stream.last!;
+  }
+
+  it("lists both families' flags, however the network is set", () => {
+    const out = twoFamilyHelp();
+    expect(out).toContain("--fee-limit");
+    expect(out).toContain("--gas-limit");
+    expect(out).toContain("--max-fee");
+  });
+
+  it("marks each family-specific flag with its family, at the end of the line", () => {
+    const line = (flag: string) =>
+      twoFamilyHelp()
+        .split("\n")
+        .find((l) => l.includes(`${flag} `) || l.trimEnd().endsWith(flag))!;
+
+    expect(line("--fee-limit").trimEnd()).toMatch(/\(tron only\)$/);
+    expect(line("--gas-limit").trimEnd()).toMatch(/\(evm only\)$/);
+    expect(line("--max-fee").trimEnd()).toMatch(/\(evm only\)$/);
+  });
+
+  // A flag BOTH families declare (each with its own validation) is shared, not family-specific.
+  it("leaves a flag declared by every family untagged", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string().describe("recipient") });
+    const shared = z.object({ memo: z.string().optional().describe("note") });
+    reg.addChain(spec, "tron", { run: async () => ({}), fields: shared });
+    reg.addChain(spec, "evm", { run: async () => ({}), fields: shared });
+    const stream = makeStream();
+    new HelpService(reg, stream, "9.9.9").handleMeta(["tx", "send", "--help"]);
+
+    const memoLine = stream.last!.split("\n").find((l) => l.includes("--memo"))!;
+    expect(memoLine).not.toMatch(/\((tron|evm)\)/);
+  });
+
+  // A binding may narrow a base field for its own family; the flag still exists for everyone,
+  // so it stays untagged.
+  it("leaves a base field untagged even when one family refines it", () => {
+    const reg = new CommandRegistry();
+    const spec = chainSpec(["tx", "send"], { to: z.string().describe("recipient") });
+    reg.addChain(spec, "tron", {
+      run: async () => ({}),
+      fields: z.object({ to: z.string().min(34).describe("recipient") }),
+    });
+    reg.addChain(spec, "evm", { run: async () => ({}) });
+    const stream = makeStream();
+    new HelpService(reg, stream, "9.9.9").handleMeta(["tx", "send", "--help"]);
+
+    const toLine = stream.last!.split("\n").find((l) => l.includes("--to "))!;
+    expect(toLine).not.toMatch(/\((tron|evm)\)/);
+  });
+
+  // A flag every family accepts is not family-specific, and tagging it would imply a
+  // restriction that does not exist.
+  it("leaves shared flags untagged", () => {
+    const out = twoFamilyHelp();
+    const toLine = out.split("\n").find((l) => l.includes("--to "))!;
+
+    expect(toLine).not.toMatch(/\((tron|evm)\)/);
   });
 });

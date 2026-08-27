@@ -397,3 +397,50 @@ describe("wallet delete", () => {
     ).rejects.toMatchObject({ code: "tty_required" });
   });
 });
+
+// §3.7 filters the text listing to the selected network's family. Filtering silently would let a
+// user with only an EVM Ledger run `list` on the default TRON network and see no hardware
+// account at all, with nothing telling them --network exists.
+describe("list reports what the family filter hid", () => {
+  function listCommand(accounts: unknown[], family: string) {
+    const registry = new CommandRegistry();
+    registerWalletCommands(registry, {
+      walletService: { list: () => accounts } as never,
+      ledger: {} as never,
+      qr: { encode: () => null },
+    });
+    const list = registry.resolveNeutral(["list"]);
+    if (!list || isChainCommand(list)) throw new Error("list command missing");
+    const warn = vi.fn();
+    const net = { id: `${family}:x`, family, chainId: "x", capabilities: [] };
+    return { list, warn, net };
+  }
+
+  const mixed = [
+    { accountId: "a.0", type: "seed", addresses: { tron: "T1", evm: "0x1" } },
+    { accountId: "b", type: "ledger", family: "evm", addresses: { evm: "0x2" } },
+    { accountId: "c", type: "watch", family: "evm", addresses: { evm: "0x3" } },
+  ];
+
+  it("warns how many accounts belong to another network", async () => {
+    const f = listCommand(mixed, "tron");
+    await f.list.run({ warn: f.warn, output: "text" } as never, f.net as never, {});
+
+    expect(f.warn).toHaveBeenCalledWith(expect.stringMatching(/2 .*--network/s));
+  });
+
+  it("says nothing when every account belongs to this network", async () => {
+    const f = listCommand(mixed, "evm");
+    await f.list.run({ warn: f.warn, output: "text" } as never, f.net as never, {});
+
+    expect(f.warn).not.toHaveBeenCalled();
+  });
+
+  // json carries every family already, so a warning there would be noise about nothing.
+  it("stays silent in json mode, which is not filtered", async () => {
+    const f = listCommand(mixed, "tron");
+    await f.list.run({ warn: f.warn, output: "json" } as never, f.net as never, {});
+
+    expect(f.warn).not.toHaveBeenCalled();
+  });
+});

@@ -29,7 +29,8 @@ export function registerAddressCommands(registry: CommandRegistry, service: Addr
     auth: "none",
     summary: "Generate a random TRON/EVM keypair locally without adding it to the wallet",
     description:
-      "Generate a secp256k1 keypair offline. By default the private key is written exclusively to a 0600 file and never printed or added to the keystore.",
+      "Generate a secp256k1 keypair offline. By default the private key is written exclusively to a 0600 file and never printed or added to the keystore.\n" +
+      "The TRON and EVM addresses shown are two encodings of the same generated key.",
     fields,
     input: fields,
     examples: [

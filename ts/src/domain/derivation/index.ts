@@ -38,9 +38,12 @@ export class Derivation {
     return entropyToMnemonic(entropy, wordlist);
   }
 
-  /** m/44'/{coin}'/{account}'/0/0 */
+  /** the family's own BIP44 template with `account` slotted into the level it uses (§1.2). */
   static path(family: ChainFamily, account: number): string {
-    return `m/44'/${FAMILIES[family].coinType}'/${account}'/0/0`;
+    const { coinType, indexAt } = FAMILIES[family];
+    return indexAt === "account"
+      ? `m/44'/${coinType}'/${account}'/0/0`
+      : `m/44'/${coinType}'/0'/0/${account}`;
   }
 
   /** Derive a keypair from a 64-byte seed at the given BIP44 path. publicKey is uncompressed (65B). */

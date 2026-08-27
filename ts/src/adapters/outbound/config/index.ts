@@ -10,7 +10,9 @@ import { parse as parseYaml } from "yaml";
 import type { Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
 import type { NetworkRegistry as INetworkRegistry } from "../../../application/ports/network-registry.js";
 import { UsageError } from "../../../domain/errors/index.js";
-import { BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
+import { BUILTIN_ALIASES, BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
+import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
+import type { ChainFamily } from "../../../domain/family/index.js";
 
 export class ConfigLoader {
   /** bootstrap: must run before locating config.yaml. */
@@ -28,6 +30,7 @@ export class ConfigLoader {
   static load(env: NodeJS.ProcessEnv = process.env): Config {
     const networks: Record<string, NetworkDescriptor> = {};
     for (const [id, d] of Object.entries(BUILTIN_NETWORKS)) networks[id] = { ...d };
+    const aliases: Record<string, string> = { ...BUILTIN_ALIASES };
 
     let defaultNetwork: string | undefined = DEFAULT_CONFIG.defaultNetwork;
     let defaultOutput: OutputMode = DEFAULT_CONFIG.defaultOutput;
@@ -45,7 +48,10 @@ export class ConfigLoader {
       const raw = readConfigDocument(path);
       if (
         (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "") ||
-        (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "")
+        (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "") ||
+        // A network's RPC apiKey is a credential too, and it sits NESTED under `networks`; a gate
+        // that only inspected top-level keys would hand out a 644 file holding one.
+        holdsNetworkApiKey(raw.networks)
       ) {
         assertSecretConfigPermissions(path);
       }
@@ -70,11 +76,31 @@ export class ConfigLoader {
       if (validCredential(raw.tronlinkChannel)) tronlinkChannel = raw.tronlinkChannel;
       if (validCredential(raw.gasfreeApiKey)) gasfreeApiKey = raw.gasfreeApiKey;
       if (validCredential(raw.gasfreeApiSecret)) gasfreeApiSecret = raw.gasfreeApiSecret;
+      // aliases first: a network key may be written as an alias, and normalising it needs the
+      // book the same file may have just extended.
+      if (raw.aliases && typeof raw.aliases === "object" && !Array.isArray(raw.aliases)) {
+        for (const [alias, target] of Object.entries(raw.aliases as Record<string, unknown>)) {
+          if (typeof target === "string") aliases[alias.toLowerCase()] = target;
+        }
+      }
       if (raw.networks && typeof raw.networks === "object") {
-        for (const [id, d] of Object.entries(
+        const seen = new Map<string, string>(); // canonical id -> the key that claimed it
+        for (const [key, d] of Object.entries(
           raw.networks as Record<string, Record<string, unknown>>,
         )) {
-          networks[id] = { ...(networks[id] ?? {}), ...d, id } as NetworkDescriptor;
+          // A hand-edited alias key must configure the network it names, not create a new one.
+          // Silently ignoring it is the failure §2.4 calls out: the file looks configured and
+          // does nothing.
+          const id = aliases[key.toLowerCase()] ?? key;
+          const claimedBy = seen.get(id);
+          if (claimedBy !== undefined) {
+            throw new UsageError(
+              "invalid_value",
+              `config.yaml configures ${id} twice, under "${claimedBy}" and "${key}"; keep one`,
+            );
+          }
+          seen.set(id, key);
+          networks[id] = validNetwork(id, { ...(networks[id] ?? {}), ...d, id });
         }
       }
     }
@@ -84,6 +110,7 @@ export class ConfigLoader {
       timeoutMs,
       waitTimeoutMs,
       networks,
+      aliases,
       price,
       tronlinkSecretId,
       tronlinkSecretKey,
@@ -111,6 +138,35 @@ function validCredential(value: unknown): value is string {
  * its message. Classifying here also keeps the user out of the generic `internal_error` they would
  * otherwise get from the bootstrap boundary for what is simply a broken file.
  */
+/**
+ * A network from config.yaml, checked before it can travel.
+ *
+ * The merge is a bare cast, so anything missing used to survive until something dereferenced it:
+ * an absent `capabilities` crashed composition with "Cannot read properties of undefined" before
+ * any command ran, surfacing as a bare internal_error. A config mistake has to be reported as a
+ * config mistake, naming the network and the field, at the moment the file is read.
+ */
+function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescriptor {
+  const require = (field: string): unknown => {
+    const value = merged[field];
+    if (typeof value !== "string" || value === "") {
+      throw new UsageError("invalid_value", `network ${id} in config.yaml is missing ${field}`);
+    }
+    return value;
+  };
+  require("chainId");
+  require("nativeSymbol");
+  const family = require("family");
+  if (!CHAIN_FAMILIES.includes(family as ChainFamily)) {
+    throw new UsageError(
+      "invalid_value",
+      `network ${id} in config.yaml has an unsupported family: ${String(family)}`,
+    );
+  }
+  // Traits are extras; having none is the normal case, not an error.
+  return { capabilities: [], ...merged } as unknown as NetworkDescriptor;
+}
+
 function readConfigDocument(path: string) {
   let text: string;
   try {
@@ -123,6 +179,15 @@ function readConfigDocument(path: string) {
   } catch {
     throw new UsageError("invalid_config", `config.yaml is not valid YAML: ${path}`);
   }
+}
+
+/** true when any network in the document carries a non-empty `apiKey`. */
+function holdsNetworkApiKey(networks: unknown): boolean {
+  if (!networks || typeof networks !== "object") return false;
+  return Object.values(networks as Record<string, unknown>).some((network) => {
+    const key = (network as { apiKey?: unknown } | null)?.apiKey;
+    return typeof key === "string" && key !== "";
+  });
 }
 
 function assertSecretConfigPermissions(path: string): void {
@@ -151,6 +216,10 @@ export class NetworkRegistry implements INetworkRegistry {
     }
   }
 
+  aliasOf(id: string): string | undefined {
+    return Object.entries(this.config.aliases).find(([, target]) => target === id)?.[0];
+  }
+
   all(): NetworkDescriptor[] {
     return [...this.#byId.values()];
   }
@@ -160,11 +229,25 @@ export class NetworkRegistry implements INetworkRegistry {
       throw new UsageError("missing_network", "this command requires --network <id>");
     }
     const key = id.toLowerCase();
-    const network = this.#byId.get(key);
-    if (!network) {
+    // Canonical FIRST, book second (ADR-0010): an alias can never shadow a real network id,
+    // whatever a hand-edited config.yaml contains.
+    const direct = this.#byId.get(key);
+    if (direct) return { ...direct };
+
+    const target = this.config.aliases[key];
+    if (target === undefined) {
       throw new UsageError("unsupported_network", `unknown network: ${id}`);
     }
-    return { ...network };
+    const aliased = this.#byId.get(target.toLowerCase());
+    if (!aliased) {
+      // Aliases are hand-edited, so name the entry AND its target — otherwise the user hunts for
+      // a network they never asked for instead of the alias line they mistyped.
+      throw new UsageError(
+        "unsupported_network",
+        `alias "${id}" points at unknown network ${target}`,
+      );
+    }
+    return { ...aliased };
   }
 
   /** default target for all chain commands when --network is omitted. */

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { mkdtempSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Keystore } from "../src/adapters/outbound/keystore/index.js";
@@ -34,7 +34,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     finalArgs.push("--password-stdin");
     stdin = (opts.password ?? DEFAULT_PW) + "\n";
   }
-  // 18s < the suite's 20s testTimeout: a genuinely hung subprocess errors here with a clear
+  // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
   // signal instead of silently eating the whole test budget.
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.
@@ -42,7 +42,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
     input: stdin,
     encoding: "utf8",
     env,
-    timeout: 18_000,
+    timeout: 25_000,
     ...DETACHED,
   } as SpawnSyncOptionsWithStringEncoding);
   let json: any;
@@ -77,7 +77,7 @@ describe("golden CLI — meta & introspection", () => {
   it("root --help shows the TRON first-release command surface", () => {
     const r = run(["--help"], { password: null });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("wallet-cli — CLI wallet for TRON.");
+    expect(r.stdout).toContain("wallet-cli — CLI wallet for TRON and EVM networks.");
     expect(r.stdout).toContain("Usage:  wallet-cli [OPTIONS] COMMAND");
     expect(r.stdout).toContain("Common Commands:");
     expect(r.stdout).toContain("Management Commands:");
@@ -92,7 +92,9 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toMatch(/^  encoding\s/m);
     expect(r.stdout).toMatch(/^  address\s/m);
     expect(r.stdout).toMatch(/^  contact\s/m);
-    expect(r.stdout).toContain("current account (--qr for a receive QR code)");
+    // The root row names the command, not its flags (§10.1: root descriptions are verb
+    // summaries). `--qr` stays discoverable one level down, in `current --help`.
+    expect(r.stdout).toMatch(/^  current\s+Show the current \(active\) account$/m);
     expect(r.stdout).not.toContain("Learn more:");
     expect(r.stdout).not.toMatch(/^  import watch\s/m);
     expect(r.stdout).not.toMatch(/^  account balance\s/m);
@@ -112,10 +114,23 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // only the 3 TRON networks ship
-    expect(ids).toEqual(expect.arrayContaining(["tron:mainnet", "tron:nile", "tron:shasta"]));
-    expect(ids).toHaveLength(3);
-    expect(ids.some((id: string) => id.startsWith("evm:"))).toBe(false);
+    // Both families ship as of v4.13.0 (§2.2): 3 TRON + 4 EVM, each mainnet paired with a
+    // testnet. This assertion previously read "only the 3 TRON networks ship" — EVM was
+    // deliberately hidden then, and is deliberately exposed now.
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "tron:mainnet",
+        "tron:nile",
+        "tron:shasta",
+        "evm:1",
+        "evm:11155111",
+        "evm:56",
+        "evm:97",
+      ]),
+    );
+    expect(ids).toHaveLength(7);
+    // machine surfaces carry canonical ids only, never aliases (ADR-0010)
+    expect(ids.every((id: string) => /^(tron|evm):/.test(id))).toBe(true);
   });
 
   it("--json-schema emits an agent schema for a command", () => {
@@ -282,7 +297,9 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     const again = run(["--output", "json", "backup", "main", "--out", out]);
     expect(again.status).toBe(2);
     expect(again.json.error.code).toBe("output_exists");
-  }, 15000); // seed encrypt + two backup decrypts run scrypt 3× → exceeds vitest's 5s default
+    // No per-test timeout: this is the suite's most expensive case (seed encrypt + two backup
+    // decrypts run scrypt 3×), so it needs the project's full budget, not a smaller slice of it.
+  });
 
   it("supports root-level use and backup account commands", () => {
     seedWallet();
@@ -321,7 +338,10 @@ describe("golden CLI — command help contracts", () => {
   it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
     const r = run(["tx", "send", "--help"], { password: null });
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("Send native TRX or TRC20/TRC10 tokens with human --amount");
+    // Leads with the imperative verb (§10.1 rule 1) and stays family-neutral; the human-unit
+    // --amount flag is what the E2 contract is really about, so assert it directly.
+    expect(r.stdout).toMatch(/^Send the native coin, or a token/m);
+    expect(r.stdout).toMatch(/^ +--amount <string> +human amount/m);
   });
 
   it("block --help documents the height as a positional arg, not a --number flag (H4)", () => {
@@ -349,7 +369,17 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
     const list = run(["--output", "json", "list"]);
     expect(list.json.data[0].type).toBe("watch");
-    expect(list.json.data[0].active).toBe(true);
+  });
+
+  /**
+   * §3.3: watch is the exception to "an import becomes the active account". It holds no key, so
+   * activating it turns the next write command into watch_only_no_signer for a reason the user
+   * never chose — `use <account>` is how the active account changes.
+   */
+  it("does not make a watch account active", () => {
+    const r = run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
+    expect(r.json.data.active).toBe(false);
+    expect(run(["--output", "json", "list"]).json.data[0].active).toBe(false);
   });
 
   it("imports a watch account through the import source command", () => {
@@ -359,10 +389,72 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
   });
 
-  it("rejects an unrecognised watch address → invalid_value, exit 2 (§7.14.2)", () => {
+  // §1.3/§11 name this one `invalid_address`; it used to be the generic invalid_value, which
+  // said nothing about WHICH argument was wrong.
+  it("rejects an unrecognised watch address → invalid_address, exit 2 (§7.14.2)", () => {
     const r = run(["--output", "json", "import", "watch", "--address", "not-an-address"]);
     expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("invalid_value");
+    expect(r.json.error.code).toBe("invalid_address");
+  });
+
+  // A near-miss is a different mistake from a value that is not address-shaped at all, and the
+  // message has to say so: otherwise someone who mistyped one character hunts for the wrong thing.
+  it("says a mistyped EVM address failed its checksum rather than 'unrecognised format'", () => {
+    const r = run([
+      "--output",
+      "json",
+      "import",
+      "watch",
+      "--address",
+      "0x742D35Cc6634C0532925a3b844Bc454e4438f44e",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_address");
+    expect(r.json.error.message).toMatch(/checksum/);
+  });
+
+  /**
+   * The companion to storing canonically: §1.3 accepts three spellings as INPUT, so an account
+   * has to be findable by all of them. Canonicalising only the stored side would make the CLI
+   * refuse to find an account by the very spelling it just told the user was valid.
+   */
+  it("finds a watch account by any accepted spelling of its address", () => {
+    run([
+      "--output",
+      "json",
+      "import",
+      "watch",
+      "--address",
+      "0x742d35cc6634c0532925a3b844bc454e4438f44e",
+      "--label",
+      "lookup",
+    ]);
+    for (const spelling of [
+      "0x742d35cc6634c0532925a3b844bc454e4438f44e",
+      "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+      "0x742D35CC6634C0532925A3B844BC454E4438F44E",
+    ]) {
+      const r = run(["--output", "json", "current", "--account", spelling]);
+      expect(r.status).toBe(0);
+      expect(r.json.data.label).toBe("lookup");
+    }
+  });
+
+  // §1.3: an all-lowercase address offers no checksum, so it is accepted — and stored in the one
+  // spelling this CLI prints, so it never shows up looking like a different address.
+  it("stores an all-lowercase EVM watch address in EIP-55", () => {
+    const r = run([
+      "--output",
+      "json",
+      "import",
+      "watch",
+      "--address",
+      "0x742d35cc6634c0532925a3b844bc454e4438f44e",
+      "--label",
+      "lower",
+    ]);
+    expect(r.status).toBe(0);
+    expect(r.json.data.addresses.evm).toBe("0x742d35Cc6634C0532925a3b844Bc454e4438f44e");
   });
 
   it("deletes an account through the root positional delete command", () => {
@@ -375,6 +467,9 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
   it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
     run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
+    // Explicitly selected: registering one no longer activates it (§3.3), and this test is about
+    // what happens when a watch account IS the one being signed with.
+    run(["--output", "json", "use", "obs"]);
     const r = run([
       "--output",
       "json",
@@ -842,5 +937,184 @@ describe("golden CLI — v4.12 governance surface", () => {
     );
     expect(energy.status).toBe(2);
     expect(energy.json.error.code).toBe("invalid_value");
+  });
+});
+
+// ADR-0008. Every other migration test fakes something: the gate's unit tests fake the password
+// source, the step test calls migrate() directly. This is the only one that runs the real binary,
+// against a real encrypted vault, with the password arriving down fd 0 the way CI supplies it.
+describe("golden CLI — startup migration", () => {
+  /** a real v2 keystore wound back to what a pre-EVM one looked like on disk */
+  function windBackToV1() {
+    seedWallet();
+    const path = join(HOME, "wallets.json");
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    doc.version = 1;
+    for (const byIndex of Object.values(
+      doc.wallets[0].source.addresses as Record<string, Record<string, string>>,
+    )) {
+      delete byIndex.evm;
+    }
+    writeFileSync(path, JSON.stringify(doc));
+    return path;
+  }
+
+  it("migrates with the master password piped in, then stops before the command", () => {
+    const path = windBackToV1();
+
+    const r = run(["--output", "json", "list"], { password: DEFAULT_PW });
+
+    expect(r.status).toBe(0);
+    expect(r.json).toMatchObject({
+      command: "migration",
+      data: { upgraded: true, originalCommandExecuted: false },
+    });
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    expect(doc.version).toBe(2);
+    expect(doc.wallets[0].source.addresses["0"].evm).toMatch(/^0x[0-9a-fA-F]{40}$/);
+  });
+
+  it("leaves a pre-migration copy the user can fall back to", () => {
+    const path = windBackToV1();
+    run(["--output", "json", "list"], { password: DEFAULT_PW });
+
+    expect(JSON.parse(readFileSync(`${path}.v1.bak`, "utf8")).version).toBe(1);
+  });
+
+  it("refuses with migration_required when no password source is supplied", () => {
+    const path = windBackToV1();
+
+    const r = run(["--output", "json", "list"], { password: null });
+
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("migration_required");
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+
+  it("reports auth_failed for a wrong password rather than writing garbage", () => {
+    const path = windBackToV1();
+
+    const r = run(["--output", "json", "list"], { password: "wrongpw123A" });
+
+    expect(r.status).not.toBe(0);
+    expect(r.json.error.code).toBe("auth_failed");
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+
+  it("checks migration before --help", () => {
+    const path = windBackToV1();
+    const r = run(["--output", "json", "--help"], { password: null });
+
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("migration_required");
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+});
+
+/**
+ * A flag the command does not declare must be REFUSED, never ignored — including one that happens
+ * to be spelled like the command's own path.
+ *
+ * `assertKnownFlags` used to allow the path segments, so `token balance --token USDT` and
+ * `contract deploy --contract 0x…` were silently accepted no-ops: the user typed something the
+ * command does not have, and the CLI ran anyway as if they had not. That is the exact failure the
+ * check exists to prevent, and it hid behind the one input most likely to be typed by mistake —
+ * `tx send` really does take `--token`, so reaching for it on `token balance` is natural.
+ */
+describe("golden CLI — flags spelled like the command path", () => {
+  it.each([
+    [
+      ["token", "balance", "--token", "USDT", "--contract", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"],
+      "--token",
+    ],
+    [["contract", "deploy", "--contract", "0xabc", "--code", "0x00"], "--contract"],
+    [["import", "watch", "--watch", "x", "--address", "TBy6..."], "--watch"],
+  ])("refuses %o", (tokens, flag) => {
+    const r = run(["--output", "json", ...tokens]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toContain(flag);
+  });
+
+  // The commands themselves must still run — the path segments arrive as positionals, not flags.
+  it("leaves the commands' own invocations working", () => {
+    expect(run(["--output", "json", "token", "list", "--network", "tron:nile"]).json.command).toBe(
+      "token.list",
+    );
+    expect(run(["--output", "json", "contact", "list"]).json.command).toBe("contact.list");
+    expect(run(["--output", "json", "encoding", "convert", "deadbeef"]).json.command).toBe(
+      "encoding.convert",
+    );
+  });
+});
+
+/**
+ * §2.3 fixes what `networks` shows. The header is worth pinning because the column NAMES carry
+ * meaning here: `Chain id` says the value is the second half of the canonical id (`evm` + `1` =
+ * `evm:1`), which the shorter "Chain" left open to reading as the chain's name.
+ */
+describe("golden CLI — networks table", () => {
+  it("names its columns as §2.3 specifies", () => {
+    const header = run(["networks"]).stdout.split("\n")[0];
+
+    expect(header).toContain("| Chain id |");
+    // canonical id and alias are separate columns: one is stable, the other is readable
+    expect(header).toContain("| Network ");
+    expect(header).toContain("| Alias ");
+    expect(header).toContain("| Endpoint ");
+  });
+
+  // The endpoint may carry an API key in its path; a listing has no business echoing one.
+  it("shows endpoints as hosts, never full URLs", () => {
+    const out = run(["networks"]).stdout;
+
+    expect(out).toContain("api.trongrid.io");
+    expect(out).not.toContain("https://");
+  });
+});
+
+// yargs keeps a grouped command's tail in argv.group/verb/args, which made those names work as
+// undocumented flags: `chain --verb node` really dispatched chain.node and `use --args main`
+// really bound the positional. The dangerous one was `contract call --args <addr>`, which bound
+// into a slot the command has not got — the call then ran with no argument and answered 0, a
+// wrong result indistinguishable from a real one.
+describe("golden CLI — yargs tail keys are not user-facing flags", () => {
+  it("rejects --args where it used to act as a positional", () => {
+    seedWallet("main");
+    const r = run(["--output", "json", "use", "--args", "main"]);
+
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toContain("--args");
+  });
+
+  it("rejects --verb where it used to act as a subcommand alias", () => {
+    const r = run(["--output", "json", "chain", "--verb", "node"]);
+
+    // exit 2 before any RPC: the check runs on the raw tokens, ahead of dispatch.
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+  });
+
+  it("rejects --group and --source as well", () => {
+    for (const flag of ["--group", "--source"]) {
+      const r = run(["--output", "json", "list", flag, "x"]);
+      expect(r.json.error.code).toBe("invalid_option");
+    }
+  });
+
+  it("still accepts the real positional form it was shadowing", () => {
+    seedWallet("main");
+    const r = run(["--output", "json", "use", "main"]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data.label).toBe("main");
+  });
+
+  it("leaves grouped-command dispatch working", () => {
+    const r = run(["--output", "json", "config", "defaultNetwork"]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data.key).toBe("defaultNetwork");
   });
 });

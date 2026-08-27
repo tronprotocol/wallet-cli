@@ -51,9 +51,9 @@ export const CAP_SUMMARIES: Record<string, string> = {
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   "tron:mainnet": {
     id: "tron:mainnet",
+    nativeSymbol: "TRX",
     family: "tron",
     chainId: "mainnet",
-    aliases: ["tron"],
     httpEndpoint: "https://api.trongrid.io",
     tronlinkHttpEndpoint: "https://api.walletadapter.org",
     gasfree: {
@@ -67,9 +67,10 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
   "tron:nile": {
     id: "tron:nile",
+    testnet: true,
+    nativeSymbol: "TRX",
     family: "tron",
     chainId: "nile",
-    aliases: ["nile"],
     httpEndpoint: "https://nile.trongrid.io",
     tronlinkHttpEndpoint: "https://apinile.walletadapter.org",
     gasfree: {
@@ -83,14 +84,68 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
   "tron:shasta": {
     id: "tron:shasta",
+    testnet: true,
+    nativeSymbol: "TRX",
     family: "tron",
     chainId: "shasta",
-    aliases: ["shasta"],
     httpEndpoint: "https://api.shasta.trongrid.io",
     tronlinkHttpEndpoint: "https://apishasta.walletadapter.org",
     feeModel: "tron-resource",
     capabilities: [],
   },
+  // §2.2 — one L1 pair per chain. Endpoints are third-party public RPC: rate-limited, no SLA,
+  // and they see the addresses queried. Production use should point these at a private gateway.
+  "evm:1": {
+    id: "evm:1",
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "1",
+    httpEndpoint: "https://ethereum-rpc.publicnode.com",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "evm:11155111": {
+    id: "evm:11155111",
+    testnet: true,
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "11155111",
+    httpEndpoint: "https://ethereum-sepolia-rpc.publicnode.com",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "evm:56": {
+    id: "evm:56",
+    nativeSymbol: "BNB",
+    family: "evm",
+    chainId: "56",
+    httpEndpoint: "https://bsc-dataseed.bnbchain.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "evm:97": {
+    id: "evm:97",
+    testnet: true,
+    nativeSymbol: "BNB",
+    family: "evm",
+    chainId: "97",
+    httpEndpoint: "https://bsc-testnet-dataseed.bnbchain.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+};
+
+/** §2.1 — one short name per builtin network. A flat map, so global uniqueness is structural:
+ *  a duplicate key cannot exist. There is deliberately no `evm` entry — EVM is a family, not a
+ *  chain, so it has no mainnet to claim the bare family name. */
+export const BUILTIN_ALIASES: Record<string, string> = {
+  tron: "tron:mainnet",
+  nile: "tron:nile",
+  shasta: "tron:shasta",
+  ethereum: "evm:1",
+  sepolia: "evm:11155111",
+  bsc: "evm:56",
+  "bsc-testnet": "evm:97",
 };
 
 export const DEFAULT_CONFIG = {

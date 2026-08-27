@@ -34,3 +34,17 @@ describe("AddressCodec.validate", () => {
     expect(tron.validate("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")).toBe(false);
   });
 });
+
+// §1.2: each family follows its own ecosystem's template, so the account number hangs at a
+// DIFFERENT level per family. Swapping the coin type alone is not enough.
+describe("Derivation.path follows each family's own BIP44 template", () => {
+  it("puts the TRON account number at the account level", () => {
+    expect(Derivation.path("tron", 0)).toBe("m/44'/195'/0'/0/0");
+    expect(Derivation.path("tron", 2)).toBe("m/44'/195'/2'/0/0");
+  });
+
+  it("puts the EVM account number at the address_index level", () => {
+    expect(Derivation.path("evm", 0)).toBe("m/44'/60'/0'/0/0");
+    expect(Derivation.path("evm", 2)).toBe("m/44'/60'/0'/0/2");
+  });
+});

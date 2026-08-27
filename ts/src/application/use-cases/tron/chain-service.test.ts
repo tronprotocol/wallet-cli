@@ -6,6 +6,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 const net = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
   aliases: [],
   capabilities: [],
@@ -118,7 +119,8 @@ describe("TronChainService.node", () => {
     };
     const view = await svc(gateway).node(net);
     expect(view).toMatchObject({
-      endpoint: "https://nile.trongrid.io",
+      // host only: the same rule the EVM side follows, for the same reason (API keys in URLs)
+      endpoint: "nile.trongrid.io",
       version: "java-tron 4.7.7",
       p2pVersion: "11111",
       headBlock: { number: 84120345, timestamp: now - 2000 },
@@ -128,6 +130,20 @@ describe("TronChainService.node", () => {
       peers: { connected: 30, active: 27 },
     });
   });
+  /** §2.2 tells users to point this at a commercial gateway, whose API key lives in the URL.
+   *  `chain node` is pasted into issues and CI logs, so it reports the host and nothing else. */
+  it("never echoes an endpoint's path or query, which is where API keys live", async () => {
+    const gateway = {
+      getNodeInfo: async () => ({}),
+      getBlock: async () => ({ block_header: { raw_data: { number: 1, timestamp: Date.now() } } }),
+    };
+    const withKey = { ...net, httpEndpoint: "https://tron.example/wallet?apikey=SECRET-KEY" };
+    const view = await svc(gateway).node(withKey as typeof net);
+
+    expect(view.endpoint).toBe("tron.example");
+    expect(JSON.stringify(view)).not.toContain("SECRET");
+  });
+
   it("nulls unexposed fields (public gateway)", async () => {
     const gateway = {
       getNodeInfo: async () => ({}),

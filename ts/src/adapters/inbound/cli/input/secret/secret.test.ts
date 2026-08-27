@@ -121,3 +121,28 @@ describe("clearPrimed (CP-08)", () => {
     expect(() => r.masterPassword()).toThrow(); // cache gone, no source → auth_required
   });
 });
+
+describe("primePassword reuses an already-primed password", () => {
+  // The migration gate (ADR-0008) primes the master password before the command runs. Without
+  // this, an interactive run prompts TWICE for the same password: once for the gate, once for
+  // the command.
+  it("does not prompt again when the password is already primed", async () => {
+    const backend = new Backend([PW]); // exactly ONE answer available
+    const r = new SecretResolver(streams(), {}, new Prompter(backend));
+
+    await r.primePassword({ mode: "verify", verify: (pw) => pw === PW });
+    await r.primePassword({ mode: "verify", verify: (pw) => pw === PW });
+
+    expect(r.masterPassword()).toBe(PW);
+  });
+
+  it("re-prompts when the primed password does not satisfy the caller's check", async () => {
+    const OTHER = "Zyxwvu9!";
+    const r = new SecretResolver(streams(), {}, new Prompter(new Backend([PW, OTHER])));
+
+    await r.primePassword({ mode: "verify", verify: (pw) => pw === PW });
+    await r.primePassword({ mode: "verify", verify: (pw) => pw === OTHER });
+
+    expect(r.masterPassword()).toBe(OTHER);
+  });
+});

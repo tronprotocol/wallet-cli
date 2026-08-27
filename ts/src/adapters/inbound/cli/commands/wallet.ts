@@ -12,6 +12,7 @@ import type { LedgerDevice } from "../../../../application/ports/ledger-device.j
 import type { QrEncoder } from "../../../../application/ports/qr-encoder.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import {
+  DEFAULT_SCAN_LIMIT,
   resolveLedgerPath,
   selectLedgerPath,
 } from "../../../../application/services/ledger-account.js";
@@ -35,22 +36,25 @@ const LEDGER_APPS = CHAIN_FAMILIES.map((f) => LEDGER_APP_BY_FAMILY[f]).filter(
 ) as [string, ...string[]];
 export const walletImportLedgerFields = z.object({
   app: ciEnum(LEDGER_APPS).describe(
-    "Ledger app to open on the device, selecting the address-derivation scheme",
+    // §3.6: the value is the app to open ON THE DEVICE, and what it selects is the account's
+    // chain family — "address-derivation scheme" named the mechanism instead of the choice.
+    "Ledger app to open on the device; selects the chain family",
   ),
   index: z.coerce
     .number()
     .int()
     .nonnegative()
     .optional()
+    // NOT a zod .default(): §3.6 asks for the default in the `[optional, default: 0]` tag, but a
+    // parsed default makes `index` always present, and the locator rule below counts PRESENCE —
+    // `--path` alone would then read as two locators. The default stays in the description.
     .describe(
-      "HD account index to import; omit with no --path/--address to use index 0; mutually exclusive with --path and --address",
+      "account index under the app's default path; omit with no --path/--address to use index 0; mutually exclusive with --path and --address",
     ),
   path: z
     .string()
     .optional()
-    .describe(
-      "explicit BIP32 derivation path, e.g. m/44'/195'/0'/0/0 for TRON; mutually exclusive with --index and --address",
-    ),
+    .describe("explicit derivation path; mutually exclusive with --index and --address"),
   address: z
     .string()
     .optional()
@@ -61,10 +65,13 @@ export const walletImportLedgerFields = z.object({
     .number()
     .int()
     .positive()
-    .optional()
-    .describe(
-      "number of account indexes to scan when using --address, in indexes; omit to scan 20 indexes",
-    ),
+    // Declared from the service's own constant: `--json-schema` publishes what the schema says,
+    // so a default living only in prose is one an agent has to read English to learn — and taking
+    // the value from DEFAULT_SCAN_LIMIT keeps it one constant rather than a second copy.
+    // (--index cannot do this: it counts as "given" once it has a default, which breaks the
+    // --index/--path/--address exclusivity rule. This flag has no such constraint.)
+    .default(DEFAULT_SCAN_LIMIT)
+    .describe("how many indexes to scan when using --address"),
   label: Schemas.label()
     .optional()
     .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
@@ -156,6 +163,11 @@ export function registerWalletCommands(
     interactive: true,
     promptHints: { label: "default-label" },
     summary: "Create a new HD wallet (BIP39 seed)",
+    // §3.1: this release's headline is "one seed, an address per family" — and this is the
+    // command that performs it, so its help has to say so.
+    description:
+      "Create a new HD wallet (BIP39 seed). Derives one address per chain family\n" +
+      "from the same seed; the recovery phrase is encrypted locally and never printed.",
     fields: createFields,
     input: createFields,
     examples: [{ cmd: "wallet-cli create --label main" }],
@@ -188,7 +200,11 @@ export function registerWalletCommands(
     promptHints: { label: "default-label" },
     summary: "Import a BIP39 mnemonic phrase",
     description:
-      "Import a BIP39 mnemonic phrase. The recovery phrase and master password are read\n" +
+      "Import a BIP39 mnemonic phrase. Derives one address per chain family from the same\n" +
+      // §3.2's topic sentence. Its four siblings (create, derive, import private-key,
+      // import watch) each say what they produce per family; silence here reads as "this one
+      // does not".
+      "seed, the same as `create`. The recovery phrase and master password are read\n" +
       "interactively from the TTY (hidden input); they never touch argv or stdin.",
     fields: importMnemonicFields,
     input: importMnemonicFields,
@@ -222,7 +238,10 @@ export function registerWalletCommands(
     summary: "Import a raw private key",
     description:
       "Import a raw private key. The private key and master password are read\n" +
-      "interactively from the TTY (hidden input); they never touch argv or stdin.",
+      "interactively from the TTY (hidden input); they never touch argv or stdin.\n" +
+      // §3.3 — and the fact that separates this from a seed import: ONE key, every family,
+      // so the two addresses are two encodings of the same secret rather than two secrets.
+      "One key yields an address on every chain family.",
     fields: importPrivateKeyFields,
     input: importPrivateKeyFields,
     examples: [{ cmd: "wallet-cli import private-key --label hot" }],
@@ -259,7 +278,7 @@ export function registerWalletCommands(
     positionals: [{ field: "path" }],
     promptHints: { label: "default-label" },
     requires: ["the keystore file's own password — entered interactively in a TTY"],
-    summary: "Import an account from a standard Web3 keystore JSON",
+    summary: "Import a Web3 keystore file",
     description:
       "Import a single account from a standard Web3 keystore JSON (as exported by TronLink or\n" +
       "'backup --keystore'), stored encrypted under your master password and made active. It carries\n" +
@@ -302,10 +321,13 @@ export function registerWalletCommands(
       scanLimit: "skip",
     },
     requires: ["a connected, unlocked Ledger with the selected app (--app) open"],
-    summary: "Register a Ledger account (watch-only; signs on device)",
+    summary: "Register a Ledger account",
     fields: walletImportLedgerFields,
     input: walletImportLedgerInput,
-    examples: [{ cmd: "wallet-cli import ledger --app tron --index 0 --label cold" }],
+    examples: [
+      { cmd: "wallet-cli import ledger --app tron --index 0 --label cold" },
+      { cmd: "wallet-cli import ledger --app ethereum --index 0 --label cold-evm" },
+    ],
     formatText: TextFormatters.walletLedger,
     run: async (ctx, _net, input) => {
       const family: ChainFamily = FAMILY_BY_LEDGER_APP[input.app]!;
@@ -325,7 +347,9 @@ export function registerWalletCommands(
     address: z
       .string()
       .min(1)
-      .describe("watch-only address to track; format: TRON base58 T...; family is auto-detected"),
+      .describe(
+        "watch-only address to track; TRON base58 (T...) or EVM hex (0x...), detected from the value",
+      ),
     label: Schemas.label()
       .optional()
       .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
@@ -337,7 +361,12 @@ export function registerWalletCommands(
     auth: "none",
     interactive: true,
     promptHints: { label: "default-label" },
-    summary: "Register a watch-only address (no secret)",
+    summary: "Register a watch-only address",
+    // §3.5: the family is inferred from the address, and that is what limits where the account
+    // can be used — neither fact is guessable from "register a watch-only address".
+    description:
+      "Register a watch-only address (no secret). The chain family is detected from the\n" +
+      "address format; the account is usable only on networks of that family.",
     fields: importWatchFields,
     input: importWatchFields,
     examples: [{ cmd: "wallet-cli import watch --address T... --label team-vault" }],
@@ -350,15 +379,41 @@ export function registerWalletCommands(
   // ── list ─────────────────────────────────────────────────────────────────
   reg.add({
     path: ["list"],
-    network: "none",
+    // The network is a DISPLAY SELECTOR, not a target: no node is contacted. `wallet: "none"`
+    // means the resolver skips its single-family ACCOUNT check, which would otherwise refuse to
+    // list anything whenever the active account's family differed from the network.
+    network: "optional",
     wallet: "none",
     auth: "none",
     summary: "List wallets/accounts (no unlock needed)",
+    description:
+      "List every local account, grouped by HD seed and by type. The address column shows the " +
+      "family of the selected network (--network, else config.defaultNetwork); JSON output " +
+      "always carries every family's address.",
     fields: empty,
     input: empty,
-    examples: [{ cmd: "wallet-cli list --output json" }],
+    examples: [
+      { cmd: "wallet-cli list" },
+      { cmd: "wallet-cli list --network sepolia" },
+      { cmd: "wallet-cli list --output json" },
+    ],
     formatText: TextFormatters.walletList,
-    run: async () => wallets.list(),
+    run: async (context, network) => {
+      const accounts = wallets.list();
+      // The text table is filtered to one family; say so, or a user whose only hardware account
+      // is on the other chain sees an empty list with no hint that --network would reveal it.
+      // json is unfiltered, so a warning there would be noise about nothing.
+      if (context.output === "text" && network) {
+        const hidden = accounts.filter((a) => !a.addresses[network.family]).length;
+        if (hidden > 0) {
+          context.warn(
+            `${hidden} account(s) have no ${network.family} address and are not shown; ` +
+              "use --network to switch, or --output json to see every family",
+          );
+        }
+      }
+      return accounts;
+    },
   } satisfies CommandDefinition);
 
   // ── use ──────────────────────────────────────────────────────────────────
@@ -390,32 +445,53 @@ export function registerWalletCommands(
       .boolean()
       .default(false)
       .describe(
-        "render a terminal receive QR containing exactly the selected TRON address; text TTY only",
+        "render a terminal receive QR containing exactly the receive address for the selected network; text TTY only",
       ),
   });
   reg.add({
     path: ["current"],
-    network: "none",
+    // Safe now that the target resolver no longer judges the account against the network: this
+    // command must always be able to SHOW an account, whatever chain it lives on. The network
+    // only decides which family's address --qr encodes.
+    network: "optional",
     wallet: "optional",
     auth: "none",
     summary: "Show the current active account",
     description:
-      "Show the selected account locally. --qr appends a scannable TRON receive-address QR in text mode without unlocking or accessing the network.",
+      "Show the selected account locally, with one address line per chain family it has. --qr " +
+      "appends a scannable receive-address QR in text mode, for the family of the selected " +
+      "network (--network, else config.defaultNetwork) — without unlocking or accessing the network.",
     fields: currentFields,
     input: currentFields,
     examples: [
       { cmd: "wallet-cli current" },
       { cmd: "wallet-cli current --qr" },
       { cmd: "wallet-cli current --qr --account main" },
+      { cmd: "wallet-cli current --qr --network sepolia" },
     ],
     formatText: TextFormatters.walletCurrent,
-    run: async (context, _network, input) => {
+    run: async (context, network, input) => {
       const descriptor = wallets.current(context.activeAccount);
-      if (!input.qr || context.output !== "text") return descriptor;
-      const address = descriptor.addresses.tron;
+      if (!input.qr) return descriptor;
+      // The network is a DISPLAY SELECTOR here, not a target: this command performs no chain I/O,
+      // so it stays `network: "none"` and resolves lazily, only for --qr. That keeps a plain
+      // `current` working for an account whose family does not match the active network — you
+      // must always be able to look at your own account.
+      const address = network ? descriptor.addresses[network.family] : undefined;
       if (!address) {
-        throw new UsageError("invalid_value", "selected account has no TRON receive address");
+        // Deliberately no fallback to whichever family the account does have: a receive QR for
+        // the wrong chain is scanned, paid into, and lost.
+        throw new UsageError(
+          "family_mismatch",
+          `selected account has no ${network?.family} address; ${network?.id} cannot receive to it`,
+        );
       }
+      // The check above runs whatever the output format is (§3.8 lists this error with no
+      // "text only" clause): `-o json` is a different RENDERING of the same run, not a different
+      // meaning, and the same command answering "cannot receive here" to a human and "success" to
+      // an agent is the worse of the two lies. Only the QR itself is text-shaped, so json gets the
+      // address it asked for and no picture.
+      if (context.output !== "text") return { ...descriptor, receiveAddress: address };
       const qr = services.qr?.encode(address) ?? null;
       if (!qr) {
         context.warn(
@@ -479,6 +555,10 @@ export function registerWalletCommands(
     wallet: "none",
     auth: "required",
     summary: "Derive the next HD account from a seed wallet (by --seed-id)",
+    // §3.9, minus its `--path` sentence (that flag is not in this release — see ADR-0009).
+    description:
+      "Derive the next HD account from a seed wallet (by --seed-id). Each family uses\n" +
+      "its own BIP44 template, so one derive yields an address per family.",
     fields: addAccountFields,
     input: addAccountFields,
     examples: [{ cmd: "wallet-cli derive --seed-id wlt_ab12cd34" }],
@@ -607,7 +687,10 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["backup"],
-    network: "none",
+    // The network selects WHICH key `--keystore` exports (a seed account holds one per family),
+    // not a chain to contact. Safe as "optional" because `wallet: "none"` keeps the resolver's
+    // single-family ACCOUNT check out of the way.
+    network: "optional",
     wallet: "none",
     auth: "required",
     interactive: true,
@@ -639,7 +722,7 @@ export function registerWalletCommands(
       { cmd: "wallet-cli backup --records --account main --from 2026-08-01" },
     ],
     formatText: TextFormatters.walletBackup,
-    run: async (ctx, _net, input) => {
+    run: async (ctx, network, input) => {
       if (input.records) {
         return wallets.backupRecords({
           from: utcInstant(input.from),
@@ -655,8 +738,17 @@ export function registerWalletCommands(
         mode: "verify",
         verify: (pw) => wallets.verifyPassword(pw),
       });
+      // A keystore holds ONE private key, and a seed account has a different one per family
+      // (§1.2). The selected network picks which — `family` is never exposed as a flag; the
+      // network is the one selector users learn. The receipt echoes it, so an export that fell
+      // back to config.defaultNetwork still says out loud which key it wrote.
       return input.keystore
-        ? wallets.backupKeystore(account, input.out, ctx.secrets.read("password"))
+        ? wallets.backupKeystore(
+            account,
+            input.out,
+            ctx.secrets.read("password"),
+            (network ?? ctx.networkRegistry.resolveDefault()).family,
+          )
         : wallets.backup(account, input.out);
     },
   } satisfies CommandDefinition);
@@ -679,7 +771,10 @@ export function registerWalletCommands(
     passwordMode: "verify",
     interactive: true,
     secretsTtyOnly: true,
-    requires: ["the new master password — entered interactively in a TTY"],
+    // The prompt order is current-then-new, and §10.1 rule 4 makes Requires follow the order the
+    // user actually types. The generated line covers the current password, so the new one has to
+    // come after it.
+    requiresAfterAuth: ["the new master password — entered interactively in a TTY"],
     summary: "Change the master password (re-encrypt keystores)",
     description:
       "Change the master password. Re-encrypts every software wallet keystore with the\n" +

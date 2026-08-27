@@ -11,8 +11,8 @@ const RECEIVER = "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT";
 const NETWORK = {
   id: "tron:nile",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: ["nile"],
   capabilities: [],
 } satisfies NetworkDescriptor;
 

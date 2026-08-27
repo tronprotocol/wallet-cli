@@ -22,7 +22,7 @@ function scope(over: Partial<TransactionScope> = {}): TransactionScope {
 function params(signer: Signer, over: Partial<TxPipelineParams> = {}): TxPipelineParams {
   return {
     ctx: scope(),
-    net: { family: "tron" } as never,
+    net: { family: "tron", nativeSymbol: "TRX" } as never,
     account: "acct" as never,
     broadcaster: { broadcast: async () => ({ txId: "tx" }) } as never,
     build: async () => ({}) as never,
