@@ -369,3 +369,36 @@ describe("a hand-added network is validated at load", () => {
     expect(net).toMatchObject({ nativeSymbol: "ETH", httpEndpoint: "https://mine.example" });
   });
 });
+
+// An RPC apiKey is a credential like the service ones, and it lives NESTED under a network — the
+// permission gate has to look inside `networks`, not only at the top-level keys.
+describe("ConfigLoader network API key", () => {
+  const withKey = [
+    "networks:",
+    "  tron:nile:",
+    "    httpEndpoint: https://nile.trongrid.io",
+    "    apiKeyHeader: TRON-PRO-API-KEY",
+    "    apiKey: TESTTESTTEST",
+    "",
+  ].join("\n");
+
+  it("loads the pair from a private config file", () => {
+    const config = ConfigLoader.load(envWithConfig(withKey, 0o600));
+    expect(config.networks["tron:nile"]).toMatchObject({
+      apiKeyHeader: "TRON-PRO-API-KEY",
+      apiKey: "TESTTESTTEST",
+    });
+  });
+
+  it.runIf(process.platform !== "win32")(
+    "rejects a network API key in a group/world-readable file",
+    () => {
+      expect(() => ConfigLoader.load(envWithConfig(withKey, 0o644))).toThrow(/mode 0600/);
+    },
+  );
+
+  it("leaves a file without any credential unrestricted", () => {
+    const noKey = ["networks:", "  tron:nile:", "    apiKeyHeader: X-Api-Key", ""].join("\n");
+    expect(() => ConfigLoader.load(envWithConfig(noKey, 0o644))).not.toThrow();
+  });
+});

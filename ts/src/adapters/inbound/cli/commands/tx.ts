@@ -46,7 +46,7 @@ export const txSendSpec: ChainSpec = {
     "Send the native coin, or a token selected with --token / --contract.\n" +
     // §10.1: a command whose Options show BOTH families' tags must say what the tags mean —
     // help has to be readable on its own, without the reader having seen the spec.
-    "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
+    "Flags marked (tron only) or (evm only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   exclusive: [
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
@@ -154,7 +154,7 @@ export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding =>
 });
 
 /** TRON's JSON form of a signed transaction. Declared by the TRON binding alone, which is what
- *  makes help tag it `(tron)` and every other family refuse it — the same treatment `--asset-id`
+ *  makes help tag it `(tron only)` and every other family refuse it — the same treatment `--asset-id`
  *  gets. EVM has no JSON transaction: it exchanges RLP hex. */
 const tronBroadcastFields = z.object({
   transaction: z.string().optional().describe("signed transaction JSON"),
@@ -179,7 +179,7 @@ export const txBroadcastSpec: ChainSpec = {
   path: ["tx", "broadcast"],
   stdin: "tx",
   // The channel carries TRON's transaction JSON, and only the TRON binding reads it. Declaring
-  // that is what tags it `(tron)` in help and lets any other family refuse it outright, instead
+  // that is what tags it `(tron only)` in help and lets any other family refuse it outright, instead
   // of ignoring a payload the caller piped in.
   stdinFamily: "tron",
   network: "optional",
@@ -281,7 +281,7 @@ export const txApprovalsTronBinding = (service: TronMultisigService): FamilyBind
   run: async (_ctx, network, input) => service.approvals(network, hexInput(input)),
 });
 
-/** The TRON compatibility path, declared by the TRON binding so help tags it `(tron)`; see
+/** The TRON compatibility path, declared by the TRON binding so help tags it `(tron only)`; see
  *  tronBroadcastFields. Its two companion rules (`--out` / `--offline` are hex-only) travel with
  *  it, because they are only meaningful where `--transaction` exists. */
 const tronSignFields = z.object({

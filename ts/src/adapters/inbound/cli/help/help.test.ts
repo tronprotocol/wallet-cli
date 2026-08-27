@@ -173,12 +173,12 @@ describe("shipped exclusive groups actually render", () => {
     // The two TRON-only members say so. A jointly-required group drops "[optional]" from its rows
     // (that tag would contradict the group), but the family tag is a different fact and survives:
     // without it, "no tag" would mean both "every family" and "we did not move the flag".
-    expect(out[1]).toContain("(tron)");
-    expect(out[2]).toContain("(tron)");
+    expect(out[1]).toContain("(tron only)");
+    expect(out[2]).toContain("(tron only)");
     expect(out[1]).not.toContain("[optional]");
     // --hex and --file are read by both families and stay untagged.
-    expect(out[3]).not.toContain("(tron)");
-    expect(out[4]).not.toContain("(tron)");
+    expect(out[3]).not.toContain("(tron only)");
+    expect(out[4]).not.toContain("(tron only)");
   });
 
   // tx multisig's three modes are rejected in combination by tronLinkMultisigRefine. Without the
@@ -198,9 +198,9 @@ describe("shipped exclusive groups actually render", () => {
   });
 });
 
-// The (tron) tag on the root listing tells a reader which groups disappear on a non-TRON network.
+// The (tron only) tag on the root listing tells a reader which groups disappear on a non-TRON network.
 // It is therefore a claim about the CURRENT bindings, and a stale one actively misleads: `chain`
-// carried (tron) for a whole release after `chain node` and `chain prices` gained EVM bindings,
+// carried (tron only) for a whole release after `chain node` and `chain prices` gained EVM bindings,
 // telling every EVM reader that a group they could in fact use was closed to them. A group is
 // tagged only while EVERY command under it is bound to that one family.
 describe("root help family tags", () => {
@@ -211,18 +211,18 @@ describe("root help family tags", () => {
   }
 
   it("leaves chain untagged, because chain node / chain prices serve EVM too", () => {
-    expect(rootRow("chain")).not.toMatch(/\(tron\)$/);
+    expect(rootRow("chain")).not.toMatch(/\(tron only\)$/);
   });
 
   it("still tags the groups that really are TRON-only", () => {
     for (const group of ["permission", "gasfree", "stake", "vote", "reward"]) {
-      expect(rootRow(group)).toMatch(/\(tron\)$/);
+      expect(rootRow(group)).toMatch(/\(tron only\)$/);
     }
   });
 
   it("leaves family-neutral groups untagged", () => {
     for (const group of ["contract", "message", "block"]) {
-      expect(rootRow(group)).not.toMatch(/\(tron\)$/);
+      expect(rootRow(group)).not.toMatch(/\(tron only\)$/);
     }
   });
 });
@@ -504,9 +504,9 @@ describe("help tags family-specific flags", () => {
         .split("\n")
         .find((l) => l.includes(`${flag} `) || l.trimEnd().endsWith(flag))!;
 
-    expect(line("--fee-limit").trimEnd()).toMatch(/\(tron\)$/);
-    expect(line("--gas-limit").trimEnd()).toMatch(/\(evm\)$/);
-    expect(line("--max-fee").trimEnd()).toMatch(/\(evm\)$/);
+    expect(line("--fee-limit").trimEnd()).toMatch(/\(tron only\)$/);
+    expect(line("--gas-limit").trimEnd()).toMatch(/\(evm only\)$/);
+    expect(line("--max-fee").trimEnd()).toMatch(/\(evm only\)$/);
   });
 
   // A flag BOTH families declare (each with its own validation) is shared, not family-specific.

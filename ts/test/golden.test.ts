@@ -959,12 +959,16 @@ describe("golden CLI — startup migration", () => {
     return path;
   }
 
-  it("migrates with the master password piped in, then runs the command", () => {
+  it("migrates with the master password piped in, then stops before the command", () => {
     const path = windBackToV1();
 
     const r = run(["--output", "json", "list"], { password: DEFAULT_PW });
 
     expect(r.status).toBe(0);
+    expect(r.json).toMatchObject({
+      command: "migration",
+      data: { upgraded: true, originalCommandExecuted: false },
+    });
     const doc = JSON.parse(readFileSync(path, "utf8"));
     expect(doc.version).toBe(2);
     expect(doc.wallets[0].source.addresses["0"].evm).toMatch(/^0x[0-9a-fA-F]{40}$/);
@@ -997,9 +1001,13 @@ describe("golden CLI — startup migration", () => {
     expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
   });
 
-  it("runs --help on a stale keystore without demanding anything", () => {
-    windBackToV1();
-    expect(run(["--help"], { password: null }).status).toBe(0);
+  it("checks migration before --help", () => {
+    const path = windBackToV1();
+    const r = run(["--output", "json", "--help"], { password: null });
+
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("migration_required");
+    expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
   });
 });
 
@@ -1062,5 +1070,51 @@ describe("golden CLI — networks table", () => {
 
     expect(out).toContain("api.trongrid.io");
     expect(out).not.toContain("https://");
+  });
+});
+
+// yargs keeps a grouped command's tail in argv.group/verb/args, which made those names work as
+// undocumented flags: `chain --verb node` really dispatched chain.node and `use --args main`
+// really bound the positional. The dangerous one was `contract call --args <addr>`, which bound
+// into a slot the command has not got — the call then ran with no argument and answered 0, a
+// wrong result indistinguishable from a real one.
+describe("golden CLI — yargs tail keys are not user-facing flags", () => {
+  it("rejects --args where it used to act as a positional", () => {
+    seedWallet("main");
+    const r = run(["--output", "json", "use", "--args", "main"]);
+
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toContain("--args");
+  });
+
+  it("rejects --verb where it used to act as a subcommand alias", () => {
+    const r = run(["--output", "json", "chain", "--verb", "node"]);
+
+    // exit 2 before any RPC: the check runs on the raw tokens, ahead of dispatch.
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+  });
+
+  it("rejects --group and --source as well", () => {
+    for (const flag of ["--group", "--source"]) {
+      const r = run(["--output", "json", "list", flag, "x"]);
+      expect(r.json.error.code).toBe("invalid_option");
+    }
+  });
+
+  it("still accepts the real positional form it was shadowing", () => {
+    seedWallet("main");
+    const r = run(["--output", "json", "use", "main"]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data.label).toBe("main");
+  });
+
+  it("leaves grouped-command dispatch working", () => {
+    const r = run(["--output", "json", "config", "defaultNetwork"]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data.key).toBe("defaultNetwork");
   });
 });

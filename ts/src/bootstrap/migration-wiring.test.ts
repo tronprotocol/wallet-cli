@@ -13,14 +13,18 @@ async function runIn(walletsDoc: unknown, tokens: string[]) {
   const previous = process.env.WALLET_CLI_HOME;
   process.env.WALLET_CLI_HOME = root;
   const stdout: string[] = [];
+  const stderr: string[] = [];
   const outSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
     stdout.push(String(chunk));
     return true;
   });
-  const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  const errSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+    stderr.push(String(chunk));
+    return true;
+  });
   try {
     const code = await main(["node", "wallet-cli", ...tokens]);
-    return { code, stdout: stdout.join(""), walletsPath };
+    return { code, stdout: stdout.join(""), stderr: stderr.join(""), walletsPath };
   } finally {
     outSpy.mockRestore();
     errSpy.mockRestore();
@@ -54,8 +58,8 @@ const v1PrivateKeyDoc = {
  * Ledger is the case that matters most here: a real, signing-capable account that holds no local
  * secret. Such a user may never have set a master password at all — `import ledger` / `import
  * watch` do not ask for one, and a keystore file is never written — so a gate that demanded one
- * would leave them with nothing to type and no way in. The upgrade must be silent, not merely
- * quiet.
+ * would leave them with nothing to type and no way in. The upgrade must not ask for a password or
+ * consent; reporting its progress is safe.
  */
 const v1LedgerDoc = {
   version: 1,
@@ -69,7 +73,7 @@ const v1LedgerDoc = {
   ],
 };
 
-// watch and ledger hold no secret anywhere, so this keystore migrates with no prompt at all.
+// watch and ledger hold no secret anywhere, so this keystore migrates with no prompt.
 const v1WatchDoc = {
   version: 1,
   activeAccount: "wlt_w",
@@ -95,11 +99,26 @@ describe("the startup migration gate is wired into main()", () => {
     expect(code).toBe(2);
   });
 
-  it("migrates a secret-free keystore silently and runs the command", async () => {
-    const { code, walletsPath } = await runIn(v1WatchDoc, ["-o", "json", "list"]);
+  it("shows and completes a secret-free upgrade without running the original command", async () => {
+    const { code, stdout, stderr, walletsPath } = await runIn(v1WatchDoc, ["-o", "json", "list"]);
 
     expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toMatchObject({
+      success: true,
+      command: "migration",
+      data: { upgraded: true, originalCommandExecuted: false },
+    });
+    expect(stderr).toContain("Schema: v1 → v2");
+    expect(stderr).toContain("Backing up and upgrading wallet data");
     expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(2);
+  });
+
+  it("prints a human completion boundary in text mode", async () => {
+    const { code, stdout } = await runIn(v1WatchDoc, ["list"]);
+
+    expect(code).toBe(0);
+    expect(stdout).toContain("Wallet data upgrade completed successfully");
+    expect(stdout).toContain("Upgrade complete. Please run your command again");
   });
 
   it("preserves everything it was not asked to change", async () => {
@@ -117,10 +136,12 @@ describe("the startup migration gate is wired into main()", () => {
     expect(JSON.parse(readFileSync(`${walletsPath}.v1.bak`, "utf8"))).toEqual(v1WatchDoc);
   });
 
-  it("migrates a Ledger-only keystore silently and runs the command", async () => {
-    const { code, walletsPath } = await runIn(v1LedgerDoc, ["-o", "json", "list"]);
+  it("migrates a Ledger-only keystore and stops before command dispatch", async () => {
+    const { code, stdout, walletsPath } = await runIn(v1LedgerDoc, ["-o", "json", "list"]);
 
     expect(code).toBe(0);
+    expect(JSON.parse(stdout).command).toBe("migration");
+    expect(JSON.parse(stdout).data.originalCommandExecuted).toBe(false);
     expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(2);
   });
 
@@ -137,9 +158,33 @@ describe("the startup migration gate is wired into main()", () => {
     expect(code).toBe(2);
   });
 
-  it("leaves --help reachable on a stale keystore", async () => {
-    const { code } = await runIn(v1SeedDoc, ["--help"]);
+  it.each([
+    ["help", ["-o", "json", "--help"]],
+    ["version", ["-o", "json", "--version"]],
+    ["JSON schema", ["-o", "json", "--json-schema"]],
+  ])("checks migration before %s", async (_surface, tokens) => {
+    const { code, stdout, walletsPath } = await runIn(v1SeedDoc, tokens);
+
+    expect(code).toBe(2);
+    expect(JSON.parse(stdout).error.code).toBe("migration_required");
+    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(1);
+  });
+
+  it("checks migration before bare-invocation help", async () => {
+    const { code, stderr, walletsPath } = await runIn(v1SeedDoc, []);
+
+    expect(code).toBe(2);
+    expect(stderr).toContain("migration_required");
+    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(1);
+  });
+
+  it("completes a secret-free migration instead of rendering requested help", async () => {
+    const { code, stdout, walletsPath } = await runIn(v1WatchDoc, ["--help"]);
+
     expect(code).toBe(0);
+    expect(stdout).toContain("Upgrade complete. Please run your command again");
+    expect(stdout).not.toContain("Usage:");
+    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(2);
   });
 });
 
@@ -240,8 +285,21 @@ describe("config addresses networks by nested key", () => {
   it("shows each network's endpoint host so a change can be confirmed", async () => {
     const { stdout } = await runIn(emptyKeystore, ["-o", "json", "config", "networks"]);
     expect(JSON.parse(stdout).data.value).toMatchObject({
-      "tron:nile": "nile.trongrid.io",
-      "evm:11155111": "ethereum-sepolia-rpc.publicnode.com",
+      "tron:nile": { httpEndpoint: "nile.trongrid.io" },
+      "evm:11155111": { httpEndpoint: "ethereum-sepolia-rpc.publicnode.com" },
+    });
+  });
+
+  // The endpoint may carry an API key in its path, so breadth-first listings trim it to the host;
+  // naming ONE network is the deliberate act that reveals the whole URL.
+  it("reveals the full endpoint URL only when a single network is named", async () => {
+    const listed = await runIn(emptyKeystore, ["-o", "json", "config", "networks"]);
+    expect(JSON.parse(listed.stdout).data.value["tron:nile"].httpEndpoint).toBe("nile.trongrid.io");
+
+    const named = await runIn(emptyKeystore, ["-o", "json", "config", "networks.nile"]);
+    expect(JSON.parse(named.stdout).data).toMatchObject({
+      key: "networks.tron:nile",
+      value: { httpEndpoint: "https://nile.trongrid.io" },
     });
   });
 

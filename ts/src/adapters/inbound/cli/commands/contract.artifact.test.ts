@@ -313,7 +313,7 @@ describe("contract deploy — TRON's ABI requirement", () => {
 /**
  * `--permission-id` and `--expiration` are TRON's multi-signature concepts. They sat in the
  * shared base fields, so an EVM `--help` listed them untagged beside the flags that are tagged
- * `(tron)` — a reader had no way to tell they do nothing here.
+ * `(tron only)` — a reader had no way to tell they do nothing here.
  */
 describe("contract deploy — TRON-only transaction flags are tagged", () => {
   it("keeps them off the EVM binding", () => {

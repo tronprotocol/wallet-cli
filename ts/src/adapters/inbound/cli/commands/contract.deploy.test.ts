@@ -133,7 +133,7 @@ describe("contract deploy — ABI constructor guard", () => {
  * guard existed to explain the difference. `--constructor-params` unifies the form, so that
  * guard now points the other way: the typed form is the accepted one.
  *
- * `--abi` stays REQUIRED on TRON and is tagged (tron). TronWeb's createSmartContract derives
+ * `--abi` stays REQUIRED on TRON and is tagged (tron only). TronWeb's createSmartContract derives
  * constructor types from the ABI and takes only bare values; ethers needs no ABI at all.
  * Synthesising an ABI from the caller's inline types would hand TronWeb something nothing can
  * check — a mistyped parameter would encode cleanly and deploy a wrong contract.

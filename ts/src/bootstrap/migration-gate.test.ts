@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { AtomicFileStore } from "../adapters/outbound/persistence/fs/index.js";
 import { MigrationRunner, type MigrationStep } from "../adapters/outbound/persistence/migration.js";
 import { runMigrationGate } from "./migration-gate.js";
-import { upgradeNotice } from "./runner.js";
+import { upgradeCancelledNotice, upgradeCompleteNotice, upgradeNotice } from "./runner.js";
 import { CliError } from "../domain/errors/index.js";
 
 function stalePasswordStep(path: string, needsPassword: boolean): MigrationStep {
@@ -40,7 +40,7 @@ describe("runMigrationGate", () => {
     expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual({ version: 1, wallets: [] });
   });
 
-  it("migrates silently when no stale file needs a password", async () => {
+  it("migrates without asking for a password when no stale file needs one", async () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
     const obtain = vi.fn(async () => "should-not-be-asked");
@@ -77,10 +77,8 @@ describe("runMigrationGate", () => {
 });
 
 /**
- * Consent. The gate rewrites the user's wallet file and needs their master password to do it, so
- * in a terminal it must SAY so and take an answer first. Before this it did neither: the whole
- * upgrade surfaced as a bare "Master password (hidden):" prompt with no explanation, no mention
- * that a file was about to be rewritten, and no way to decline except Ctrl+C.
+ * Consent. The gate rewrites the user's wallet file, independently of whether it needs a password,
+ * so an interactive caller must always be able to explain the plan and take an answer first.
  */
 describe("runMigrationGate consent", () => {
   it("asks before touching anything, and asks before asking for the password", async () => {
@@ -103,49 +101,64 @@ describe("runMigrationGate consent", () => {
     expect(JSON.parse(readFileSync(wallets, "utf8")).version).toBe(2);
   });
 
-  it("declining leaves the file untouched and never asks for the password", async () => {
+  it("exiting leaves the file untouched and never asks for the password", async () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
     const password = vi.fn(async () => "hunter2");
 
-    const error = await runMigrationGate(runner, [stalePasswordStep(wallets, true)], {
+    const outcome = await runMigrationGate(runner, [stalePasswordStep(wallets, true)], {
       confirm: async () => false,
       password,
-    })
-      .then(() => null)
-      .catch((e: unknown) => e as CliError);
+    });
 
-    expect(error?.code).toBe("migration_required");
-    expect(error?.exitCode()).toBe(2);
+    expect(outcome).toEqual({
+      status: "cancelled",
+      files: [{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }],
+    });
     expect(password).not.toHaveBeenCalled();
     expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual({ version: 1, wallets: [] });
   });
 
-  it("tells a user who declined how to proceed", async () => {
+  it("reports cancellation as an outcome rather than an error", async () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
 
-    const error = await runMigrationGate(runner, [stalePasswordStep(wallets, true)], {
+    const outcome = await runMigrationGate(runner, [stalePasswordStep(wallets, true)], {
       confirm: async () => false,
       password: async () => "hunter2",
-    }).catch((e: unknown) => e as CliError);
+    });
 
-    expect(error?.message).toMatch(/declined/i);
-    expect(error?.message).toMatch(/--password-stdin/);
+    expect(outcome.status).toBe("cancelled");
   });
 
-  it("does not ask consent for a secretless upgrade — ADR-0008 keeps that silent", async () => {
+  it("asks consent for a secretless upgrade but never asks for a password", async () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
     const confirm = vi.fn(async () => true);
+    const password = vi.fn(async () => "should-not-be-asked");
 
     await runMigrationGate(runner, [stalePasswordStep(wallets, false)], {
       confirm,
-      password: async () => null,
+      password,
     });
 
-    expect(confirm).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(password).not.toHaveBeenCalled();
     expect(JSON.parse(readFileSync(wallets, "utf8")).version).toBe(2);
+  });
+
+  it("lets a user exit a secretless upgrade without changing the file", async () => {
+    const wallets = join(seededRoot(), "wallets.json");
+
+    const outcome = await runMigrationGate(
+      new MigrationRunner(new AtomicFileStore()),
+      [stalePasswordStep(wallets, false)],
+      { confirm: async () => false, password: async () => null },
+    );
+
+    expect(outcome.status).toBe("cancelled");
+    expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual({ version: 1, wallets: [] });
+    expect(() => readFileSync(`${wallets}.v1.bak`, "utf8")).toThrow();
   });
 
   it("asks nothing at all when every file is current", async () => {
@@ -181,6 +194,47 @@ describe("runMigrationGate consent", () => {
 
     expect(seen).toEqual([{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }]);
   });
+
+  it("reports the plan before applying it and returns the completed upgrades", async () => {
+    const wallets = join(seededRoot(), "wallets.json");
+    const events: string[] = [];
+
+    const outcome = await runMigrationGate(
+      new MigrationRunner(new AtomicFileStore()),
+      [stalePasswordStep(wallets, false)],
+      {
+        notice: (pending, needsPassword) => {
+          events.push(`notice:${pending[0]?.from}->${pending[0]?.to}:${needsPassword}`);
+        },
+        password: async () => null,
+        applying: () => events.push("applying"),
+      },
+    );
+
+    expect(events).toEqual(["notice:1->2:false", "applying"]);
+    expect(outcome).toEqual({
+      status: "upgraded",
+      files: [{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }],
+    });
+  });
+
+  it("reports nothing and returns no upgrades when every file is current", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "gate-"));
+    const wallets = join(dir, "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 2, wallets: [] }));
+    const notice = vi.fn();
+    const applying = vi.fn();
+
+    const outcome = await runMigrationGate(
+      new MigrationRunner(new AtomicFileStore()),
+      [stalePasswordStep(wallets, false)],
+      { notice, applying, password: async () => null },
+    );
+
+    expect(outcome).toEqual({ status: "current", files: [] });
+    expect(notice).not.toHaveBeenCalled();
+    expect(applying).not.toHaveBeenCalled();
+  });
 });
 
 describe("the upgrade notice", () => {
@@ -199,15 +253,14 @@ describe("the upgrade notice", () => {
     expect(notice()).toMatch(/v1\s*→\s*v2/);
   });
 
-  it("explains that the upgrade is required before commands can run", () => {
-    expect(notice()).toMatch(/must be upgraded/);
-    expect(notice()).toMatch(/before any command can run/);
+  it("explains that the upgrade is required", () => {
+    expect(notice()).toMatch(/upgrade is required/);
   });
 
   it("explains where the backup is kept", () => {
     expect(notice()).toContain("wallets.json.v1.bak");
-    expect(notice()).toMatch(/never removed automatically/);
-    expect(notice()).toMatch(/runs once/);
+    expect(notice()).toMatch(/kept permanently/);
+    expect(notice()).toMatch(/runs only once/);
   });
 
   it("links to the release details", () => {
@@ -215,6 +268,59 @@ describe("the upgrade notice", () => {
   });
 
   it("does not expose implementation details", () => {
-    expect(notice()).not.toMatch(/EVM address|master password|decrypt|seed|leaves this machine/i);
+    expect(notice()).not.toMatch(/EVM address|decrypt|seed|leaves this machine/i);
+  });
+
+  it("only mentions a master password when the migration needs one", () => {
+    expect(notice()).toMatch(/master password/i);
+    expect(
+      upgradeNotice(
+        [
+          {
+            path: "/home/u/.wallet-cli/wallets.json",
+            from: 1,
+            to: 2,
+            backup: "/home/u/.wallet-cli/wallets.json.v1.bak",
+          },
+        ],
+        false,
+      ).join("\n"),
+    ).not.toMatch(/master password/i);
+  });
+});
+
+describe("the upgrade completion notice", () => {
+  const complete = upgradeCompleteNotice([
+    {
+      path: "/home/u/.wallet-cli/wallets.json",
+      from: 1,
+      to: 2,
+      backup: "/home/u/.wallet-cli/wallets.json.v1.bak",
+    },
+  ]).join("\n");
+
+  it("confirms success and concisely tells the user to run the command again", () => {
+    expect(complete).toMatch(/completed successfully/i);
+    expect(complete).toContain("🎉 Upgrade complete. Please run your command again.");
+    expect(complete).toContain("wallets.json.v1.bak");
+  });
+});
+
+describe("the upgrade cancellation notice", () => {
+  const cancelled = upgradeCancelledNotice([
+    {
+      path: "/home/u/.wallet-cli/wallets.json",
+      from: 1,
+      to: 2,
+      backup: "/home/u/.wallet-cli/wallets.json.v1.bak",
+    },
+  ]).join("\n");
+
+  it("describes an unsupported schema and the compatible-release option without calling it an error", () => {
+    expect(cancelled).toContain("Wallet data was not upgraded. No changes were made.");
+    expect(cancelled).toContain("wallets.json: schema v1 (requires v2)");
+    expect(cancelled).toMatch(/compatible earlier release/i);
+    expect(cancelled).toContain("https://github.com/tronprotocol/wallet-cli/releases");
+    expect(cancelled).not.toMatch(/error|migration_required|password-stdin/i);
   });
 });

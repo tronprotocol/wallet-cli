@@ -1,6 +1,6 @@
 /**
- * The startup migration gate (ADR-0008). Runs before any command dispatches, after the
- * help/meta short-circuit so `--help` stays reachable on a stale or unmigratable keystore.
+ * The startup migration gate (ADR-0008). Runs on every invocation before help/meta handling,
+ * argument validation, or command dispatch.
  *
  * The gate is absolute: while a registered file lags this binary, no command runs. That is what
  * lets `ChainAddresses` stay total instead of degrading to a partial map everywhere.
@@ -11,8 +11,9 @@
  * bare "Master password (hidden):" prompt — no reason given, no mention that a file was about to
  * be rewritten, and no way to say no except Ctrl+C.
  *
- * A secretless upgrade (ledger / watch only) stays silent, as ADR-0008 requires: there is nothing
- * to decrypt, nothing to ask for, and no cost to weigh.
+ * Consent and authentication are independent. Every interactive migration asks before rewriting
+ * wallet state; a secretless upgrade (ledger / watch only) simply skips the password step after
+ * consent. Non-interactive secretless migrations remain automatic so CI can self-heal.
  */
 import { UsageError } from "../domain/errors/index.js";
 import {
@@ -31,37 +32,47 @@ export interface PendingUpgrade {
   backup: string;
 }
 
+export interface MigrationGateOutcome {
+  status: "current" | "upgraded" | "cancelled";
+  files: PendingUpgrade[];
+}
+
 export interface MigrationPrompt {
+  /** Report every pending upgrade before any prompt or write. */
+  notice?(pending: PendingUpgrade[], needsPassword: boolean): void;
   /**
-   * Explain the pending upgrade and return the user's answer. Called ONLY when the upgrade needs
-   * the master password, and always before `password()`.
+   * Explain the pending upgrade and return the user's answer. Called for every stale plan when an
+   * interactive caller supplies it, and always before `password()`.
    *
-   * Non-interactive callers return true: there is no one to ask, and `password()` then produces
-   * the `migration_required` error on its own.
+   * Non-interactive callers return true: secretless plans then apply automatically, while
+   * password-bearing plans let `password()` produce migration_required when no source exists.
    */
   confirm?(pending: PendingUpgrade[]): Promise<boolean>;
   /** The master password, or null when none can be obtained (no TTY and no --password-stdin). */
   password(): Promise<string | null>;
+  /** Report the atomic backup + rewrite immediately before it starts. */
+  applying?(pending: PendingUpgrade[]): void;
 }
 
 export async function runMigrationGate(
   runner: MigrationRunner,
   steps: MigrationStep[],
   prompt: MigrationPrompt,
-): Promise<void> {
+): Promise<MigrationGateOutcome> {
   // No early exit for "nothing stale" is needed: planMigrations only aggregates needsPassword
   // over stale files, and apply() no-ops on an empty set. Mutation testing proved the guard dead.
   const plan = runner.plan(steps);
+  const pending = plan.stale.map(pendingUpgrade);
+  if (pending.length === 0) return { status: "current", files: [] };
+
+  prompt.notice?.(pending, plan.needsPassword);
 
   let password: string | undefined;
+  if (prompt.confirm && !(await prompt.confirm(pending))) {
+    return { status: "cancelled", files: pending };
+  }
+
   if (plan.needsPassword) {
-    if (prompt.confirm && !(await prompt.confirm(plan.stale.map(pendingUpgrade)))) {
-      throw new UsageError(
-        "migration_required",
-        "upgrade declined; this version cannot run against a wallet file from an older one. " +
-          "Re-run any command and answer yes, or pipe the master password with --password-stdin",
-      );
-    }
     const supplied = await prompt.password();
     if (supplied === null) {
       throw new UsageError(
@@ -73,7 +84,9 @@ export async function runMigrationGate(
     password = supplied;
   }
 
+  prompt.applying?.(pending);
   runner.apply(plan.stale, password);
+  return { status: "upgraded", files: pending };
 }
 
 function pendingUpgrade(file: StaleFile): PendingUpgrade {

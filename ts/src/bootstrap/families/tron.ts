@@ -164,7 +164,7 @@ import {
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
   signStrategy: tronSignStrategy,
-  createGateway: (network, timeoutMs) => new TronRpcClient(network.httpEndpoint ?? "", timeoutMs),
+  createGateway: (network, timeoutMs) => new TronRpcClient(network, timeoutMs),
 };
 
 export interface TronChainCommandDependencies {

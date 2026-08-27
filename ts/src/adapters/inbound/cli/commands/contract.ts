@@ -233,7 +233,7 @@ export const contractSendSpec: ChainSpec = {
   summary: "State-changing contract call",
   description:
     "Call a contract method that changes state, signing and broadcasting the transaction.\n" +
-    "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
+    "Flags marked (tron only) or (evm only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   baseRefine: governanceTxRefine,
   examples: [
@@ -570,7 +570,7 @@ function codeSourceRefine(
  * derives the constructor's types from the ABI and takes only bare values, so without it there
  * is nothing to encode against. Synthesising an ABI from the caller's inline types would hand
  * TronWeb something no one can check — a mistyped parameter would encode cleanly and deploy a
- * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(tron)`.
+ * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(tron only)`.
  */
 const tronDeployFields = z.object({
   abi: z
@@ -625,7 +625,7 @@ export const contractDeploySpec: ChainSpec = {
   summary: "Deploy contract bytecode",
   description:
     "Deploy contract creation bytecode and report the new contract's address.\n" +
-    "Flags marked (tron) or (evm) apply only on networks of that family; using one on the other family is rejected.",
+    "Flags marked (tron only) or (evm only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: deployFields,
   baseRefine: deployRefine,
   examples: [

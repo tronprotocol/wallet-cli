@@ -956,17 +956,48 @@ describe("config renders map-valued keys", () => {
     expect(out).not.toContain("[object Object]");
   });
 
-  // The whole-config view is an overview: it names what exists rather than dumping every value,
-  // which for 7 networks plus 7 aliases would bury the scalar settings.
-  it("summarises map-valued keys in the whole-config view", () => {
+  // The whole-config view used to SUMMARISE a map by listing its keys ("networks  tron:nile,
+  // evm:1"), which said a network existed but never what it was configured with. §2.4 (revised):
+  // config renders every configurable value, nested — the file's own shape, indented.
+  it("expands map-valued keys in the whole-config view", () => {
     const out = TextFormatters.config({
       defaultOutput: "text",
-      networks: { "tron:nile": "nile.trongrid.io", "evm:1": "ethereum-rpc.publicnode.com" },
+      networks: {
+        "tron:nile": { httpEndpoint: "nile.trongrid.io" },
+        "evm:1": { httpEndpoint: "ethereum-rpc.publicnode.com" },
+      },
     });
 
-    expect(out).toContain("tron:nile");
-    expect(out).toContain("evm:1");
+    // No trailing colon: a network id already contains one, so `tron:nile:` would hide where the
+    // id ends — and the id is what a reader copies into `--network` / `config networks.<id>`.
+    expect(out).toMatch(/^networks$/m);
+    expect(out).toMatch(/^ {2}tron:nile$/m);
+    expect(out).toMatch(/^ {4}httpEndpoint {2}nile\.trongrid\.io$/m);
+    expect(out).toMatch(/^ {2}evm:1$/m);
     expect(out).not.toContain("[object Object]");
+  });
+
+  // Two levels deep, under a named read: the block below a network is its fields, indented once.
+  it("renders a single network read as a nested block", () => {
+    const out = TextFormatters.config({
+      key: "networks.tron:nile",
+      value: {
+        httpEndpoint: "https://nile.trongrid.io",
+        apiKeyHeader: "TRON-PRO-API-KEY",
+        apiKey: "********",
+      },
+    });
+
+    expect(out.split("\n")[0]).toBe("networks.tron:nile");
+    expect(out).toMatch(/^ {2}httpEndpoint {2}https:\/\/nile\.trongrid\.io$/m);
+    expect(out).toMatch(/^ {2}apiKey {8}\*{8}$/m);
+  });
+
+  // A scalar leaf keeps its one-line form; nesting must not swallow the simple case.
+  it("keeps a scalar read on one line", () => {
+    expect(TextFormatters.config({ key: "timeoutMs", value: 60_000 })).toMatch(
+      /^timeoutMs {2}60000$/,
+    );
   });
 });
 

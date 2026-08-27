@@ -21,6 +21,15 @@ import type {
   EvmGateway,
 } from "../../../../application/ports/chain/gateway-provider.js";
 import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
+import {
+  FetchHttpTransport,
+  HttpTransportError,
+  httpTransportFailure,
+  networkHttpConfig,
+  type HttpEndpointConfig,
+  type HttpTransport,
+} from "../../http/index.js";
+import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 interface JsonRpcResponse {
   result?: unknown;
@@ -29,11 +38,28 @@ interface JsonRpcResponse {
 
 export class EvmRpcClient implements EvmGateway {
   #id = 0;
+  readonly #transport: HttpTransport;
 
   constructor(
-    private readonly endpoint: string,
-    private readonly timeoutMs = 60_000,
-  ) {}
+    endpointOrNetwork: string | NetworkDescriptor | HttpEndpointConfig,
+    timeoutMs = 60_000,
+    transport?: HttpTransport,
+  ) {
+    let config: HttpEndpointConfig;
+    try {
+      config =
+        typeof endpointOrNetwork === "string"
+          ? { endpoint: endpointOrNetwork, timeoutMs, headers: {} }
+          : "endpoint" in endpointOrNetwork
+            ? endpointOrNetwork
+            : networkHttpConfig(endpointOrNetwork, timeoutMs);
+    } catch (error) {
+      const failure =
+        error instanceof HttpTransportError ? httpTransportFailure(error) : "invalid HTTP endpoint";
+      throw new ChainError("rpc_error", `EVM RPC configuration failed: ${failure}`);
+    }
+    this.#transport = transport ?? new FetchHttpTransport(config);
+  }
 
   async getNativeBalance(address: string): Promise<string> {
     return toDecimalString(await this.#call("eth_getBalance", [address, "latest"]));
@@ -204,23 +230,27 @@ export class EvmRpcClient implements EvmGateway {
   /** the JSON-RPC envelope, unthrown — callers that classify errors themselves need to see it. */
   async #request(method: string, params: unknown[]): Promise<JsonRpcResponse> {
     this.#id += 1;
-    let response: { ok: boolean; status?: number; text(): Promise<string> };
+    let text: string;
     try {
-      response = await fetch(this.endpoint, {
+      text = await this.#transport.requestText({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: this.#id, method, params }),
-        signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (e) {
-      throw new ChainError("rpc_error", `${method} failed: ${(e as Error).message}`);
-    }
-    if (!response.ok) {
-      throw new ChainError("rpc_error", `${method} failed: HTTP ${response.status}`);
+      // A stall is `timeout`, not `rpc_error` — the node never answered, so there is nothing to
+      // call an RPC failure. TronRpcClient classifies it the same way; scripts that retry on
+      // `timeout` need both families to agree.
+      if (e instanceof HttpTransportError && e.kind === "timeout") {
+        throw new ChainError("timeout", `${method} timed out`);
+      }
+      const failure =
+        e instanceof HttpTransportError ? httpTransportFailure(e) : "network request failed";
+      throw new ChainError("rpc_error", `${method} failed: ${failure}`);
     }
     let body: unknown;
     try {
-      body = JSON.parse(await response.text());
+      body = JSON.parse(text);
     } catch (e) {
       throw new ChainError(
         "rpc_error",

@@ -1,6 +1,6 @@
 import type { TextFormatter } from "../contracts/index.js";
 import { formatScalar, num, methodName } from "./scalars.js";
-import { type Obj, type Pair, asObj, kv, query, receipt, table, titled, ok } from "./layout.js";
+import { type Obj, asObj, kv, query, receipt, table, ok } from "./layout.js";
 import { FAMILY_RENDER, renderFamily } from "./family.js";
 
 export const MiscFormatters = {
@@ -108,18 +108,47 @@ function renderConfig(d: Obj): string {
     ]);
   }
   if ("key" in d) {
-    // A map-valued key (networks, aliases) gets its own titled block; a scalar stays one line.
+    // A map-valued key (networks, aliases, one network) gets a titled block whose body may itself
+    // nest; a scalar stays one line.
     return isMap(d.value)
-      ? titled(
-          String(d.key),
-          Object.entries(d.value).map(([k, v]) => [k, configValue(v)] as Pair),
-        )
+      ? [String(d.key), configTree(d.value, "  ")].filter(Boolean).join("\n")
       : kv([[String(d.key), configValue(d.value)]], "");
   }
-  return kv(
-    Object.entries(d).map(([k, v]) => [k, configValue(v)] as Pair),
-    "",
-  );
+  return configTree(d, "");
+}
+
+/**
+ * The config document as it is: scalars as `key  value`, a nested map as its bare key plus the
+ * body indented one level.
+ *
+ * No `key:` separator, because the keys here CONTAIN colons — `tron:mainnet:` gives no way to see
+ * where the network id ends. Indentation already marks the nesting, so the colon only adds
+ * ambiguity to the one thing a reader needs to copy verbatim.
+ *
+ * The whole-config view used to summarise a map by listing its keys, which told a reader that
+ * `networks.tron:nile` existed but never what it held — and the summary had to be maintained
+ * separately from the values themselves. Rendering the tree means a new configurable field shows
+ * up here the moment the service returns it.
+ */
+function configTree(value: Record<string, unknown>, indent: string): string {
+  const entries = Object.entries(value);
+  // Scalars align within their own level only: a deeper block has its own column.
+  const width = entries
+    .filter(([, v]) => !isMap(v))
+    .reduce((max, [key]) => Math.max(max, key.length), 0);
+  const lines: string[] = [];
+  for (const [key, v] of entries) {
+    if (isMap(v)) {
+      lines.push(`${indent}${key}`);
+      const body = configTree(v, `${indent}  `);
+      if (body) lines.push(body);
+      continue;
+    }
+    const rendered = configValue(v);
+    // kv() drops empty values; an unset key is absent rather than a blank line.
+    if (rendered !== "") lines.push(`${indent}${key.padEnd(width)}  ${rendered}`);
+  }
+  return lines.join("\n");
 }
 
 /** a plain object value, i.e. one of the map-valued config keys. */
@@ -130,9 +159,6 @@ function isMap(v: unknown): v is Record<string, unknown> {
 /** config values keep their literal form (no thousands grouping, raw key names). */
 function configValue(v: unknown): string {
   if (Array.isArray(v)) return v.map(String).join(", ");
-  // In the whole-config overview a map is summarised by its keys — listing every value would
-  // bury the scalar settings under 7 networks and 7 aliases. Read the key itself for detail.
-  if (isMap(v)) return Object.keys(v).join(", ");
   return v === null || v === undefined ? "" : String(v);
 }
 

@@ -500,12 +500,43 @@ function otherFamilyFlags(
   return out;
 }
 
+/**
+ * yargs' own keys for a command tail: the group head, the sub-verb, and the captured positionals.
+ * They have to stay in assertKnownFlags' allowlist, because yargs really does put them in argv —
+ * but argv cannot say whether YARGS put them there or the USER typed `--args`.
+ *
+ * That ambiguity made them work as undocumented aliases: `chain --verb node` ran chain.node, and
+ * `use --args main` bound `main` as a positional. `contract call --args <addr>` was the bad one —
+ * it bound into a slot the command does not have, so the call ran with no argument and answered
+ * `0`, a wrong result that reads like a real one.
+ *
+ * No command declares a field by these names (pinned by a meta-test), so a TOKEN spelling one is
+ * always user-typed and always wrong. The raw tokens still tell the two apart, so the check
+ * belongs there — before yargs folds them together.
+ */
+export const YARGS_TAIL_KEYS = ["group", "verb", "args", "source"] as const;
+
+export function assertNoTailFlags(tokens: string[]): void {
+  const typed = new Set<string>();
+  for (const token of tokens) {
+    if (token === "--") break; // everything past a bare `--` is a value, not a flag
+    const match = /^--([A-Za-z0-9-]+)(?:=|$)/.exec(token);
+    if (match && (YARGS_TAIL_KEYS as readonly string[]).includes(match[1]!)) typed.add(match[1]!);
+  }
+  if (typed.size > 0) {
+    throw new UsageError(
+      "invalid_option",
+      `unknown option(s): ${[...typed].map((name) => `--${name}`).join(", ")}`,
+    );
+  }
+}
+
 function assertKnownFlags(
   cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals">,
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
-  const allowed = new Set<string>(["_", "$0", "group", "verb", "args", "source"]);
+  const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {
     allowed.add(name);
     allowed.add(camelToKebab(name));

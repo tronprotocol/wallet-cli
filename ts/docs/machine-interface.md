@@ -12,6 +12,28 @@ wallet-cli <command> -o json [--network <id>] [--timeout <ms>] [--account <id|la
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
 - Every RPC / device call is bounded by `--timeout` (milliseconds, default `config.timeoutMs`, built-in 60000).
 
+### Startup wallet-data upgrades
+
+Every invocation—including no arguments, `--help`, `--version`, and `--json-schema`—checks the
+persisted wallet schema before handling any other surface. If it is stale, the startup gate
+upgrades it first. Progress goes to stderr. A successful upgrade returns exit `0` with a single
+success envelope whose `command` is `migration` and whose data includes
+`originalCommandExecuted: false`; the command that triggered the upgrade is deliberately not run.
+Run the original command again after inspecting the completion result. This keeps scripted and
+transaction-submitting commands from continuing across an unexpected durable-state change.
+
+In an interactive terminal, every stale wallet asks for consent before changing files. After the
+user chooses `Upgrade now`, seed/private-key migrations ask for the master password while
+Ledger/watch-only migrations proceed without one. Non-interactive Ledger/watch-only migrations
+remain automatic; a password-bearing migration requires `--password-stdin` or returns
+`migration_required`.
+
+Interactive users may choose `Exit without upgrading`. That is a successful cancellation, not a
+failure: it returns exit `0` with `command: "migration"`, `upgraded: false`, `cancelled: true`, and
+`originalCommandExecuted: false`. No wallet file or backup is written. `migration_required` is
+reserved for cases where migration cannot proceed, such as a non-interactive invocation without a
+password source.
+
 ## Exit codes
 
 | Code | Meaning | Envelope |

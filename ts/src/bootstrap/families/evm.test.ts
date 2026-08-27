@@ -80,7 +80,7 @@ describe("registerEvmChainCommands", () => {
 
   it("declares no evm-only flags on the signing commands", () => {
     const reg = registry();
-    // A family flag that exists on one side only would show up in help tagged "(evm)". These two
+    // A family flag that exists on one side only would show up in help tagged "(evm only)". These two
     // commands take the same input everywhere; anything else is a regression.
     expect(reg.resolveChain(["message", "sign"])?.families.evm?.fields).toBeUndefined();
     expect(reg.resolveChain(["typed-data", "sign"])?.families.evm?.fields).toBeUndefined();

@@ -48,7 +48,10 @@ export class ConfigLoader {
       const raw = readConfigDocument(path);
       if (
         (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "") ||
-        (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "")
+        (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "") ||
+        // A network's RPC apiKey is a credential too, and it sits NESTED under `networks`; a gate
+        // that only inspected top-level keys would hand out a 644 file holding one.
+        holdsNetworkApiKey(raw.networks)
       ) {
         assertSecretConfigPermissions(path);
       }
@@ -176,6 +179,15 @@ function readConfigDocument(path: string) {
   } catch {
     throw new UsageError("invalid_config", `config.yaml is not valid YAML: ${path}`);
   }
+}
+
+/** true when any network in the document carries a non-empty `apiKey`. */
+function holdsNetworkApiKey(networks: unknown): boolean {
+  if (!networks || typeof networks !== "object") return false;
+  return Object.values(networks as Record<string, unknown>).some((network) => {
+    const key = (network as { apiKey?: unknown } | null)?.apiKey;
+    return typeof key === "string" && key !== "";
+  });
 }
 
 function assertSecretConfigPermissions(path: string): void {

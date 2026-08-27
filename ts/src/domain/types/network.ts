@@ -30,6 +30,16 @@ interface NetworkBase {
   testnet?: boolean;
   feeModel?: FeeModel;
   capabilities: string[];
+  /**
+   * Credential for a commercial RPC endpoint that authenticates by HEADER rather than by a key
+   * embedded in the URL (TronGrid's `TRON-PRO-API-KEY`, for one). Both halves are configured
+   * per network because the header NAME differs per provider.
+   *
+   * `apiKey` is a secret: it is masked wherever config is rendered, and its presence in
+   * config.yaml makes that file subject to the same 0600 check as the service credentials.
+   */
+  apiKeyHeader?: string;
+  apiKey?: string;
 }
 
 /** TRON network. Reached via tronweb, which is HTTP-based — `httpEndpoint` is a FullNode HTTP REST
