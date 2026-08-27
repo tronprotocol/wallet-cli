@@ -36,7 +36,7 @@ npm run depcruise      # dependency-cruiser — enforces the architecture rules 
 Dependencies point inward, and the table below is the rule — read it before changing boundaries,
 ports, or command routing. `depcruise` enforces it in CI (`ts/.dependency-cruiser.cjs`).
 `ts/docs/machine-interface.md` is the source of truth for the JSON contract (envelope, exit codes,
-stdout/stderr discipline), and `ts/docs/adr/` records the decisions behind the boundaries.
+stdout/stderr discipline).
 
 | Area (`ts/src/…`) | Role | May depend on | Must NOT depend on |
 |---|---|---|---|
