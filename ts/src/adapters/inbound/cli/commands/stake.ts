@@ -5,7 +5,7 @@ import type { TronStakeService } from "../../../../application/use-cases/tron/st
 import { RESOURCES } from "../../../../domain/resources/index.js";
 import { Schemas } from "../schemas/index.js";
 import { ciEnum } from "../arity/index.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 const resourceField = (description: string) =>
@@ -30,7 +30,7 @@ function stakeCommand(
   extra: z.ZodRawShape = {},
   options: StakeCommandOptions = {},
 ): { spec: ChainSpec; binding: FamilyBinding } {
-  const fields = z.object({ ...extra, ...txModeFields });
+  const fields = z.object({ ...extra, ...txModeFields, ...tronTxModeFields });
   return {
     spec: {
       path: ["stake", action],

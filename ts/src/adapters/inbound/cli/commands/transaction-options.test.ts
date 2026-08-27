@@ -3,6 +3,23 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { z } from "zod";
 import { permissionUpdateSpec } from "./permission.js";
+import { accountActivateSpec, accountSetSpec } from "./account.js";
+import {
+  assetIssueSpec,
+  assetParticipateSpec,
+  assetUnfreezeSpec,
+  assetUpdateSpec,
+} from "./asset.js";
+import {
+  exchangeCreateSpec,
+  exchangeInjectSpec,
+  exchangeTradeSpec,
+  exchangeWithdrawSpec,
+} from "./exchange.js";
+import { rewardWithdrawSpec } from "./reward.js";
+import { stakeDefinitions } from "./stake.js";
+import { voteCastSpec } from "./vote.js";
+import type { ChainSpec } from "../contracts/index.js";
 import { governanceTxModeFields, tronTxModeFields, txModeFields } from "./shared.js";
 
 // --permission-id and --expiration are TRON multi-signature concepts and live on the TRON
@@ -173,5 +190,61 @@ describe("governance --permission-id shares the protocol bound with every other 
     for (const id of ["0", "2", "9"]) {
       expect(field(governanceTxModeFields).safeParse({ permissionId: id }).success).toBe(true);
     }
+  });
+});
+
+/**
+ * Extracting `tronTxModeFields` out of the shared set silently dropped --permission-id and
+ * --expiration from every TRON-only write that did not re-add them: multi-signature use (signing
+ * under a non-owner active group) and extending the collection window both became impossible on
+ * those commands. They are single-family, so the fields belong in `baseFields` directly.
+ */
+describe("TRON-only writes still carry the multi-signature transaction options", () => {
+  const specs: Array<[string, ChainSpec]> = [
+    ["account activate", accountActivateSpec],
+    ["account set", accountSetSpec],
+    ["asset issue", assetIssueSpec],
+    ["asset participate", assetParticipateSpec],
+    ["asset unfreeze", assetUnfreezeSpec],
+    ["asset update", assetUpdateSpec],
+    ["exchange create", exchangeCreateSpec],
+    ["exchange inject", exchangeInjectSpec],
+    ["exchange trade", exchangeTradeSpec],
+    ["exchange withdraw", exchangeWithdrawSpec],
+    ["reward withdraw", rewardWithdrawSpec],
+    ["vote cast", voteCastSpec],
+    // stake's read commands (info, delegated) are built separately and take no mode flags
+    ...stakeDefinitions({} as never)
+      .filter(({ spec }) => spec.broadcasts)
+      .map(({ spec }) => [spec.path.join(" "), spec] as [string, ChainSpec]),
+  ];
+
+  it.each(specs)("%s declares both flags", (_name, spec) => {
+    const shape = spec.baseFields.shape as Record<string, unknown>;
+    expect(Object.keys(shape)).toEqual(expect.arrayContaining(["permissionId", "expiration"]));
+  });
+
+  // A flag whose help text drifts from the shared one is a second source of truth; these commands
+  // reuse the exported object precisely so there is only ever one.
+  it.each(specs)("%s reuses the shared field definitions verbatim", (_name, spec) => {
+    const shape = spec.baseFields.shape as Record<string, unknown>;
+    expect(shape.permissionId).toBe(tronTxModeFields.permissionId);
+    expect(shape.expiration).toBe(tronTxModeFields.expiration);
+  });
+
+  // --build-only keeps the shared wording: these are not governance writes, which override it.
+  it.each(specs)("%s keeps the shared --build-only description", (_name, spec) => {
+    const shape = spec.baseFields.shape as Record<string, { description?: string }>;
+    expect(shape.buildOnly?.description).toBe(
+      (txModeFields.buildOnly as { description?: string }).description,
+    );
+  });
+
+  it.each(specs)("%s coerces both flags from argv strings", (_name, spec) => {
+    const parsed = spec.baseFields
+      .pick({ permissionId: true, expiration: true })
+      .parse({ permissionId: "2", expiration: "86400000" });
+    expect(parsed.permissionId).toBe(2);
+    expect(parsed.expiration).toBe(86_400_000);
   });
 });
