@@ -6,7 +6,7 @@ Broadcast a presigned transaction.
 
 ```
 wallet-cli tx broadcast (--hex <hex> | --file <path> | --transaction <json> | --tx-stdin)
-                        [--dry-run] --network <id> [options]
+                        [--dry-run] [--network <id>] [options]
 ```
 
 ## Description
