@@ -15,7 +15,7 @@ Signs a transfer with EIP-712 structured-data signing and submits it to the GasF
 
 Submission returns a **`traceId`** (the provider's acceptance id); at that point the transfer is accepted but **not yet on-chain**. Add `--wait` to poll the provider to a terminal state (`SUCCEED` / `FAILED`), or follow it later with [`gasfree trace`](trace.md). On the first transfer, when the GasFree address isn't activated yet, this transfer carries the activation automatically and the total deducted is amount + service fee + activation fee (itemised in the receipt and in `--dry-run`).
 
-There is no `--sign-only` / `--build-only`: the signed payload is bound to the provider's submission protocol, so offline distribution has no meaning. Requires an account, the master password via `--password-stdin`, and the provider credentials (`gasfreeApiKey` / `gasfreeApiSecret`, set with [`config`](../config.md)); watch-only accounts fail with `watch_only_no_signer`.
+There is no `--sign-only` / `--build-only`: the signed payload is bound to the provider's submission protocol, so offline distribution has no meaning. Requires an account and the provider credentials (`gasfreeApiKey` / `gasfreeApiSecret`, set with [`config`](../config.md)). The master password via `--password-stdin` is needed only when submitting the transfer; `--dry-run` does not unlock or sign. Watch-only accounts fail with `watch_only_no_signer` when submitting.
 
 ## Options
 

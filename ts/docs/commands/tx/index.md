@@ -25,13 +25,13 @@ The transaction **hex** these commands exchange is `protocol.Transaction` protob
 ## The transaction lifecycle
 
 ```
-build ──sign──> submit ──solidify──> confirmed
+build ──sign──> submit ──receipt──> confirmed
   │                │                     │
   └ --dry-run      └ default return      └ tx status: confirmed/failed
     stops here       point ("submitted")   (pending/not_found while in flight)
 ```
 
-`tx send` covers build+sign+submit in one step (with `--dry-run` / `--sign-only` stopping earlier); `tx broadcast` submits what was signed elsewhere; `tx status` / `tx info` observe the outcome. **Submission is not confirmation** — scripts must follow [machine-interface → Script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
+`tx send` covers build+sign+submit in one step (with `--dry-run` / `--sign-only` stopping earlier); `tx broadcast` submits what was signed elsewhere; `tx status` / `tx info` observe the outcome. `confirmed` means included and receipted, not finalized. **Submission is not confirmation** — scripts must follow [machine-interface → Script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## Multi-sig co-signing
 

@@ -4,7 +4,7 @@ What wallet-cli protects, how, and what remains your job.
 
 ## Local storage
 
-All secrets (seeds, private keys) are stored **encrypted under your master password**; nothing usable is on disk in the clear. Metadata (labels, addresses) is readable without unlock — that's why `list` needs no password but `tx send` does.
+All secrets (seeds, private keys) are stored **encrypted under your master password**; nothing usable is on disk in the clear. Metadata (labels, addresses) is readable without unlock — that's why `list` needs no password but a software-signed `tx send` does.
 
 The master password is local protection only: it is never sent anywhere and **cannot be recovered**. It must be at least 8 characters with an uppercase letter, a lowercase letter, a digit, and a special character.
 

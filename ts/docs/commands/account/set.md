@@ -16,7 +16,7 @@ Sets the account's on-chain **name** (a display alias, up to 32 bytes) or its **
 
 ⚠️ **On mainnet each can be set only once and can never be changed** — the value is permanent, and there is no confirmation prompt. This is different from [`rename`](../rename.md), which changes the local label and can be redone anytime.
 
-Requires the account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
+Requires the account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
 
 ## Options
 
@@ -26,7 +26,7 @@ Requires the account and the master password via `--password-stdin`; watch-only 
 | `--id <account-id>` | **Required** (one of). Account id, 8–32 bytes, globally unique; can be set once |
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |

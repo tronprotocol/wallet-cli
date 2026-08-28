@@ -50,7 +50,7 @@ export const txModeFields = {
     .boolean()
     .default(false)
     .describe(
-      "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+      "build and estimate, then output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
     ),
 };
 
@@ -62,7 +62,7 @@ export const governanceTxModeFields = {
     .boolean()
     .default(false)
     .describe(
-      "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+      "build and estimate an unsigned transaction without unlocking, signing, or broadcasting; mutually exclusive with --dry-run/--sign-only",
     ),
 };
 

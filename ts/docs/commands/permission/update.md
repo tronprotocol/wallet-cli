@@ -14,7 +14,7 @@ wallet-cli permission update (--file <path> | --json <str>)
 
 Replaces the account's **entire** permission structure with the new one given by `--file` (a JSON file) or `--json` (an inline JSON string) — TRON's `UpdateAccountPermission` has replace semantics, so the JSON you supply becomes the whole structure. The chain burns **100 TRX** for the change.
 
-The command runs without a confirmation prompt. It requires an account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+The command runs without a confirmation prompt. It requires an account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 **Input format.** The permission JSON is the same shape as [`permission show -o json`](show.md)'s `data` (`owner` / `witness` / `actives`; a key's `local` field may be omitted). You write the **contract-type names** for each active group's `operations`, not the raw bitmap — the CLI encodes it. A convenient way to produce a valid input is to export the current structure, edit it, and submit the file.
 
@@ -42,7 +42,7 @@ Changing only `keys`, `threshold` or `name` needs no such deletion.
 | `--json <string>` | **Required** (one of). Inline JSON string with the new structure (same shape) |
 | `--dry-run` | Mock receipt — fee, resulting-structure card, and warnings — matching a real submission; no signature, no broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex without broadcasting (feed [`tx broadcast`](../tx/broadcast.md) for on-chain co-signing). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md) for service-relayed multi-sig). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md) for service-relayed multi-sig). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active) — changing permissions is owner-level, so normally `0` (default `0`) |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |

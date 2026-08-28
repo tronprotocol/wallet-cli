@@ -16,7 +16,7 @@ A TRON address doesn't exist on-chain until it receives its first asset or is ex
 
 Use it only when an address needs to *exist* on its own — to be queryable, or able to initiate its own transactions. If you're sending it funds anyway, [`tx send`](../tx/send.md) activates the recipient automatically in one step; and adding an address to a multi-sig permission does **not** require activation.
 
-Requires the payer account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+Requires the payer account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -25,7 +25,7 @@ Requires the payer account and the master password via `--password-stdin`; watch
 | `--address <T...>` | **Required.** The address to activate (a valid, not-yet-activated TRON address) |
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |

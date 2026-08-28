@@ -50,7 +50,7 @@ More remedies: [Troubleshooting](../troubleshooting.md#timeout-exit-1).
 
 ## Offline pattern
 
-Ledger already isolates keys, but you can combine it with the split flow — `--sign-only` on the machine with the device, [`tx broadcast`](../commands/tx/broadcast.md) on a connected one. See [Scripting → Sign here, broadcast there](scripting.md#sign-here-broadcast-there).
+Ledger already isolates keys, but you can still split build/sign/broadcast. For a device machine with no chain access, build unsigned hex with `--build-only` on a connected machine, sign it with `tx sign --offline` where the Ledger is attached, then broadcast the signed hex from a connected machine. See [Scripting → Sign here, broadcast there](scripting.md#sign-here-broadcast-there).
 
 ## See also
 
