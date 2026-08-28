@@ -70,7 +70,7 @@ An unexpected failure. The message is intentionally generic (secret-redaction). 
 
 ## Not an error code, but frequently asked
 
-- **`tx status` says `pending` for a long time** — the tx is seen but not solidified; keep polling. If it never leaves `pending`/`not_found` past your deadline, treat it as failed and investigate on a block explorer before resending.
+- **`tx status` says `pending` for a long time** — the tx is seen, but no execution result/receipt is available yet; keep polling. If it never leaves `pending`/`not_found` past your deadline, the outcome is unknown, not failed. Reconcile it on the intended network, preferably with an explorer or archival endpoint, before any resend.
 - **"only one *-stdin flag can consume stdin per run"** — pipe one secret per invocation; for send-with-password use `--password-stdin` and let the mnemonic/key live in the encrypted store.
 - **Forgot the master password** — there is no recovery; restore from your BIP39 mnemonic (`import mnemonic`) into a fresh wallet and set a new password.
 - **`account history` fails while other queries work** — history requires a TronGrid endpoint; plain node RPC is not enough. It is also TRON-only: on an EVM network it fails with `family_mismatch`.

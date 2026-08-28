@@ -35,14 +35,14 @@ else
 fi
 ```
 
-**3. Secrets via stdin, never argv.** Passwords/mnemonics/keys in arguments would end up in shell history and `ps` output:
+**3. Secrets via stdin, never argv.** Passwords/mnemonics/keys in arguments would end up in shell history and `ps` output. wallet-cli does not read dedicated secret environment variables either:
 
 ```bash
 printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
   --network tron:nile --password-stdin -o json
 ```
 
-(`$PW` should come from your secret store, not from a file in the repo. Only one `*-stdin` flag per run.)
+(`$PW` should come from your secret store as a short-lived shell variable for this pipe, not from a file in the repo and not from a long-lived `export`. Only one `*-stdin` flag per run.)
 
 ## Waiting for confirmation
 
@@ -57,18 +57,24 @@ Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.
 
 ## Sign here, broadcast there
 
-`--sign-only` and `tx broadcast` split signing from submission, so the machine holding keys never needs chain access:
+`--sign-only` separates signing from broadcast, but it still builds and estimates through the selected RPC endpoint before signing. For a signing machine with no chain access, build unsigned hex online, sign that artifact offline, then broadcast from an online machine:
 
 ```bash
-# on the signing machine
+# on the connected build machine
 wallet-cli tx send --to T... --amount 1 --network tron:nile \
-  --password-stdin --sign-only -o json | jq -r '.data.hex' > signed.hex
+  --build-only -o json | jq -r '.data.hex' > unsigned.hex
+
+# on the offline signing machine
+printf '%s' "$PW" | wallet-cli tx sign --file unsigned.hex --network tron:nile \
+  --offline --password-stdin --out signed.hex
 
 # on the connected machine
 wallet-cli tx broadcast --file signed.hex --network tron:nile -o json
 ```
 
-The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. The JSON form is TRON-only:
+The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. If the signing machine does have RPC access and you only want to withhold broadcast, `tx send --sign-only` emits signed hex directly.
+
+TRON also accepts signed transaction JSON, but JSON must go through `--transaction` or `--tx-stdin`; `--file` and `--hex` are hex-only:
 
 ```bash
 wallet-cli tx send ... --sign-only -o json | jq -c '.data.signed' > signed.json

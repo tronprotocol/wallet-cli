@@ -248,10 +248,12 @@ Alongside it, an error may carry a scalar list of just the identifiers to retry 
 
 ## Secret handling
 
-Secrets never travel via argv or environment variables — they would leak into shell history and process listings. Two channels only:
+wallet-cli never reads passwords, mnemonics, or private keys from argv or from dedicated secret environment variables. Arguments and exported environment values leak into shell history, process listings, and CI logs. For secrets, use these CLI channels:
 
-1. **stdin flags** — `--password-stdin`, `--tx-stdin`, `--message-stdin`. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
+1. **stdin flags** — `--password-stdin` for the master password; `--tx-stdin` / `--message-stdin` for large payloads. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
 2. **Interactive TTY prompt** — when running with a terminal attached.
+
+Shell variables in examples are only a shell-side source for a pipe; wallet-cli does not read them. Keep them process-local and short-lived, and do not export them long term.
 
 ```bash
 # non-interactive unlock
@@ -280,21 +282,56 @@ This is a wallet; a wrong success check loses money. The rules:
 
    | `data.state` | Meaning | Terminal? |
    |---|---|---|
-   | `confirmed` | Solidified on chain (`blockNumber` present) | yes |
+   | `confirmed` | Included in a block and an execution result/receipt is available (`blockNumber` present) | yes |
    | `failed` | Included and reverted / rejected | yes |
-   | `pending` | Seen but not yet solidified | no — keep polling |
-   | `not_found` | Unknown to the queried node | no — keep polling until your own deadline, then treat as failed |
+   | `pending` | Seen by the node, with no execution result/receipt yet | no — keep polling |
+   | `not_found` | Unknown to the queried endpoint | no — keep polling/reconcile; do not assume failure |
 
    `data.confirmed` and `data.failed` are provided as booleans for direct branching.
+
+   > `confirmed` means included and receipted, not finalized. Use a TRON SolidityNode view or an EVM finalized block check when that distinction matters.
+
+   > A deadline that ends in `pending` or `not_found` is an unknown outcome. Do not record it as failed, and do not resend automatically without external reconciliation.
 
    **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. Follow it with `--wait` or [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
 
 ```bash
-txid=$(wallet-cli tx send --to T... --amount 1 --network tron:nile --password-stdin -o json \
-        < pw.fifo | jq -r '.data.txId') || exit 1
-until [ "$(wallet-cli tx status --txid "$txid" --network tron:nile -o json | jq -r '.data.state')" = confirmed ]; do
-  sleep 3   # add your own deadline; 'failed' should abort, not loop
+#!/usr/bin/env bash
+set -euo pipefail
+
+deadline=$((SECONDS + 90))
+txid=$(
+  printf '%s' "$PW" |
+    wallet-cli tx send --to T... --amount 1 --network tron:nile --password-stdin -o json |
+    jq -er '.data.txId'
+)
+
+while (( SECONDS < deadline )); do
+  state=$(
+    wallet-cli tx status --txid "$txid" --network tron:nile -o json |
+      jq -er '.data.state'
+  )
+
+  case "$state" in
+    confirmed)
+      exit 0
+      ;;
+    failed)
+      echo "transaction failed: $txid" >&2
+      exit 1
+      ;;
+    pending|not_found)
+      sleep 3
+      ;;
+    *)
+      echo "unexpected transaction state: $state" >&2
+      exit 1
+      ;;
+  esac
 done
+
+echo "transaction outcome unknown after deadline: $txid" >&2
+exit 1
 ```
 
 4. **Batch operations**: each command is one transaction with one exit code. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.

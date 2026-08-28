@@ -5,7 +5,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 ## Key features
 
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
-- **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
+- **Encrypted local storage** — software keystores are encrypted on disk; secrets enter via stdin/TTY, never argv or dedicated secret environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
 - **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries.
 
@@ -174,7 +174,7 @@ Offline local commands and configuration.
 
 ## The contract, in one paragraph
 
-Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md); for calling from an AI agent, see the [Agent skill](skills/wallet-cli/SKILL.md).
+Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv and are not read from dedicated secret environment variables. Passwords can enter through stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md); for calling from an AI agent, see the [Agent skill](skills/wallet-cli/SKILL.md).
 
 ## Understanding TRON mechanics
 
