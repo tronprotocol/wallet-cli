@@ -185,16 +185,16 @@ Individual flags are family-scoped the same way. `--help` tags them `(tron only)
 -h, --help / -V, --version
 ```
 
-Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000) and the early-exit modes `--dry-run` / `--sign-only` / `--build-only`.
+Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). Early-exit modes are command-specific: transaction-building commands expose `--dry-run` / `--sign-only` / `--build-only`, while submit-only commands such as `tx broadcast` do not rebuild or sign and therefore omit `--sign-only` / `--build-only`.
 
 Fee and multi-sig flags are **family-scoped**, so they are not global:
 
 | Flags | Family | Where |
 |---|---|---|
-| Permission group and expiry — see below | TRON | every TRON broadcast command |
+| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
 | `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy` |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
-Every TRON broadcast command takes the multi-signature pair: the permission group to sign under (0=owner, 1=witness, 2-9=active) and the transaction's expiry, which extends the window for collecting co-signatures. On a multi-family command they are tagged `(tron only)` and refused on EVM with `invalid_option`; an EVM transaction carries exactly one signature, so neither has a counterpart there.
+Those TRON transaction-building commands take the multi-signature pair: the permission group to sign under (0=owner, 1=witness, 2-9=active) and the transaction's expiry, which extends the window for collecting co-signatures when building or signing offline. On a multi-family command they are tagged `(tron only)` and refused on EVM with `invalid_option`; an EVM transaction carries exactly one signature, so neither has a counterpart there.
 
-The three early-exit modes are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance writes it is `invalid_value`, and the message names the field as `--input` rather than the flags you passed — for example `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
+Where all three early-exit modes are present, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance writes it is `invalid_value`, and the message names the field as `--input` rather than the flags you passed — for example `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).

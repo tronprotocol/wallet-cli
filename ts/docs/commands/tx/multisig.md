@@ -16,8 +16,8 @@ wallet-cli tx multisig [--create (--hex <unsigned-hex> | --file <path>) | --sign
 Where the on-chain path passes a hex from person to person, the service path has the TronLink service **hold** a transaction, **accumulate** signatures one by one, and **push** notifications to co-signers over a WebSocket. The command has four mutually exclusive modes:
 
 - **default (no mode flag)** — list the service's multi-sig transactions involving this account, with their progress. This is the everyday way to find what's awaiting you.
-- **`--create`** — sign an **unsigned** transaction locally and submit it, which opens the collection. The input is unsigned hex, produced by any broadcast command in `--build-only` mode (e.g. `tx send … --build-only`). Requires the master password.
-- **`--sign <txId>`** — co-sign one: fetch it with the signatures gathered so far, sign locally, and submit the whole transaction back for the service to accumulate. Requires the master password.
+- **`--create`** — sign an **unsigned** transaction locally and submit it, which opens the collection. The input is unsigned hex, produced by a transaction-building command that supports `--build-only` (e.g. `tx send … --build-only`). Software accounts require the master password; Ledger accounts confirm on device.
+- **`--sign <txId>`** — co-sign one: fetch it with the signatures gathered so far, sign locally, and submit the whole transaction back for the service to accumulate. Software accounts require the master password; Ledger accounts confirm on device.
 - **`--watch`** — keep a WebSocket open and nudge you with the **count** of transactions awaiting your signature (no details); list them with the default mode to act.
 
 ### Opening a collection is your first signature
@@ -43,11 +43,11 @@ The credentials are per-environment (mainnet / testnet); set them with [`config`
 | `--sign <txId>` | Co-sign a pending transaction by 32-byte hex txId: fetch → sign locally → submit back; excludes `--create` / `--watch` |
 | `--watch` | Keep a WebSocket open; nudge with the count awaiting your signature (no details); excludes `--create` / `--sign` |
 
-Plus the [global options](../index.md#global-options-every-command) and `--password-stdin` (with `--create` and `--sign`).
+Plus the [global options](../index.md#global-options-every-command) and `--password-stdin` for software accounts (with `--create` and `--sign`).
 
 ## Examples
 
-In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
+In the examples, `$PW` is a software account's master password, fed on stdin via `--password-stdin`.
 
 The initiator builds an **unsigned** transaction (`--build-only`, expiry extended to allow collection), then signs and submits it to open a collection:
 

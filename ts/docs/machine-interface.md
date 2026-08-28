@@ -158,13 +158,13 @@ Text mode titles the same window (`Assets (limit 50, offset 0)`, `Proposals (sho
 
 The **exit code is the hard contract**: `2` means the call was malformed (it will still be wrong on retry), `1` means execution failed (network / device / chain / wallet). `error.code` is a machine-readable string that refines the exit code — branch on the exit code first, then optionally on `error.code`.
 
-**The complete code index is published**, one line per code, under `errorCodes` in the discovery catalog:
+**The maintained code index is published**, one line per code, under `errorCodes` in the discovery catalog:
 
 ```bash
 wallet-cli --json-schema | jq '.errorCodes'
 ```
 
-That index is the authority and is enforced by the build: a code cannot be raised without an entry, and an entry cannot outlive its code. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
@@ -176,7 +176,7 @@ Common codes at exit **2** (usage — fix the call):
 | `invalid_option` | A flag was used in an invalid combination, or is scoped to the other chain family |
 | `invalid_value` | A flag value failed validation (e.g. `config defaultOutput xml`) |
 | `invalid_amount` | An amount is malformed or out of range |
-| `invalid_secret` | A supplied mnemonic / private key is malformed |
+| `invalid_mnemonic` / `invalid_private_key` | A supplied mnemonic or private key is malformed |
 | `weak_password` | Master password below policy (≥8 chars; upper + lower + digit + special) |
 | `tty_required` | An interactive prompt is needed but no TTY is attached — pass the matching `*-stdin` flag |
 | `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id or alias |
@@ -220,7 +220,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `ledger_unsupported` | The Ledger TRON app cannot sign this contract type — refused before the device is touched (`asset` writes, `witness` writes) |
 | `not_a_witness` / `already_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
 | `already_approved` / `not_approved` / `proposal_expired` / `already_canceled` | Proposal voting conditions |
-| `account_not_active` / `chain_parameter_unavailable` | `witness create`: the account is not activated on chain, or the node did not return `getAccountUpgradeCost` |
+| `account_not_active` / `account_already_active` / `name_already_set` / `id_already_set` / `chain_parameter_unavailable` | Account activation/name/id conditions, or `witness create` could not read `getAccountUpgradeCost` |
 | `not_contract_deployer` | The account did not deploy that contract |
 | `already_issued_asset` / `not_an_issuer` | The account has already issued a TRC10, or has never issued one |
 | `not_in_ico_window` / `self_participation` | TRC10 ICO participation conditions |
@@ -232,7 +232,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `account_exists` / `wrong_keystore_password` | `import keystore`: the address is already in the wallet, or the file's own password is wrong (distinct from `auth_failed`, which is the master password). A file whose `mac` is missing or not hex is `invalid_keystore`, not a wrong password — hex case is not significant |
 | `internal_error` | Unexpected internal failure; message is intentionally generic |
 
-Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the complete index.
+Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the maintained discovery index, not a parser exhaustiveness guarantee.
 
 ### `error.details.matches`
 

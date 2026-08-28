@@ -33,7 +33,7 @@ Plain TRX transfers consume **bandwidth**; smart-contract calls (TRC20 transfers
 wallet-cli stake freeze --amount-sun 100000000 --resource energy --network tron:nile
 ```
 
-`--resource` chooses which resource the stake produces. It defaults to `bandwidth`; stake for `energy` when you plan to send TRC20 tokens or call contracts, since those spend energy (as in step 1). The TRX stays yours — it is locked, not spent — and staking also grants TRON Power (governance votes). Like every state-changing command, `stake freeze` supports `--dry-run`, `--sign-only`, `--build-only`, `--wait`, and returns at submission by default.
+`--resource` chooses which resource the stake produces. It defaults to `bandwidth`; stake for `energy` when you plan to send TRC20 tokens or call contracts, since those spend energy (as in step 1). The TRX stays yours — it is locked, not spent — and staking also grants TRON Power (governance votes). Like the other stake write commands, `stake freeze` supports `--dry-run`, `--sign-only`, `--build-only`, `--wait`, and returns at submission by default.
 
 Verify the effect by running `account info` again — the `Energy` limit now reflects the TRX you staked:
 

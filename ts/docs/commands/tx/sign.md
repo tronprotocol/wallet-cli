@@ -16,9 +16,9 @@ Two input modes: with `--hex` / `--file` it signs the transaction hex (protobuf 
 
 **On EVM there is no co-signing.** An EVM transaction carries exactly one signature, so a hex that already has one is refused with `invalid_transaction`, and there is no threshold, weight or permission group to report. The chain id inside the transaction is checked against `--network` **before** signing (`chain_id_mismatch`) — a mainnet transaction handed to `--network sepolia` would otherwise come back validly signed for mainnet, and nothing downstream could catch it.
 
-On TRON it is the on-chain co-signing path: an initiator produces a partially signed hex with `tx send --sign-only` (or any broadcast command in `--sign-only` mode), each co-signer runs `tx sign` in turn — passing the hex from person to person — and once the weight reaches the threshold, anyone broadcasts the final hex with [`tx broadcast --hex`](broadcast.md). All signatures must be collected before the transaction expires (default ~60s, up to 24h via `--expiration`).
+On TRON it is the on-chain co-signing path: an initiator produces a partially signed hex with `tx send --sign-only` (or another transaction-building command that supports `--sign-only`), each co-signer runs `tx sign` in turn — passing the hex from person to person — and once the weight reaches the threshold, anyone broadcasts the final hex with [`tx broadcast --hex`](broadcast.md). All signatures must be collected before the transaction expires (default ~60s, up to 24h via `--expiration`).
 
-Signing endorses the transaction with your key: the command shows no preview or confirmation, reads the master password from `--password-stdin`, and signs directly — to inspect a transaction without signing it, use [`tx approvals`](approvals.md). It does **not** broadcast, and has **no `--permission-id`** (the group is fixed in the transaction body; it's shown on the `Permission` line). Watch-only accounts fail with `watch_only_no_signer`.
+Signing endorses the transaction with your key: software accounts read the master password from `--password-stdin` and sign without a CLI preview, while Ledger accounts do not read a master password and confirm on device. To inspect a transaction without signing it, use [`tx approvals`](approvals.md). It does **not** broadcast, and has **no `--permission-id`** (the group is fixed in the transaction body; it's shown on the `Permission` line). Watch-only accounts fail with `watch_only_no_signer`.
 
 ### What is verified before signing
 
@@ -44,7 +44,7 @@ Four contract types cannot be re-encoded by the bundled decoder — `UnfreezeAss
 | `--offline` | Sign locally without contacting a node; skips the signer-permission and approval-weight checks. Only meaningful on TRON — EVM signing contacts no node either way |
 | `--out <path>` | Write the resulting hex to a file (mode 0644, written atomically) instead of stdout |
 
-Plus the [global options](../index.md#global-options-every-command) and `--password-stdin`.
+Plus the [global options](../index.md#global-options-every-command) and `--password-stdin` for software accounts.
 
 The transaction is passed on argv, not stdin: it is not a secret, and this leaves fd 0 free for `--password-stdin`.
 
@@ -58,7 +58,7 @@ An initiator first produces a partially signed `tx.hex` with `tx send --sign-onl
 echo "$PW" | wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --sign-only --permission-id 2 --expiration 86400000 --network tron:nile --password-stdin > tx.hex
 ```
 
-A second signer appends their signature — no preview, no confirmation; the receipt carries the transaction content and progress blocks:
+A second software signer appends their signature; the receipt carries the transaction content and progress blocks:
 
 ```bash
 echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:nile --password-stdin
