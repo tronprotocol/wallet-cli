@@ -32,7 +32,7 @@ An artifact is read for `.bytecode.object`, `.bytecode`, or `.evm.bytecode.objec
 
 **TRON needs an ABI.** Pass `--artifact` or `--abi`; passing both is an error. `--abi` is TRON-only, and the ABI's `constructor` entry needs a string `stateMutability` (`"nonpayable"` / `"payable"`) — `solc` emits it, but a hand-trimmed ABI or one from `solc` older than 0.5 may not. EVM deploys need no ABI when the types come from `--constructor-signature` or the arguments are self-describing.
 
-Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` an unsigned one, default returns at submission, `--wait` blocks until confirmed/failed.
+Execution modes match the transaction-building write commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` an unsigned one, default returns at submission, `--wait` blocks until confirmed/failed.
 
 Fee flags follow the family — `--fee-limit` (TRON, default `100000000` SUN) or `--gas-limit` / `--max-fee` / `--priority-fee` / `--nonce` (EVM). Help tags each set, and using one on the other family is refused with `invalid_option`.
 

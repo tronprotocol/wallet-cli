@@ -4,7 +4,7 @@ How to call wallet-cli from shell scripts and CI. This is the gentle version; th
 
 ## Discovering the surface
 
-Before hard-coding anything, ask the CLI what it supports. One call returns every command, its flags as JSON Schema, which chain families it serves, and the complete error-code index:
+Before hard-coding anything, ask the CLI what it supports. One call returns every command, its flags as JSON Schema, which chain families it serves, and the maintained error-code discovery index:
 
 ```bash
 wallet-cli --json-schema | jq '.commands[] | select(.id == "tx.send") | {families, examples}'

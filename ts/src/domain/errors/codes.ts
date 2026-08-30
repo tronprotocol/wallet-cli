@@ -37,7 +37,7 @@ export const ERROR_CODES = {
   watch_only_no_signer: "the selected account can be watched but cannot sign",
 
   // ── secrets, keystore, local files ────────────────────────────────────────
-  auth_required: "the master password is needed and was not available",
+  auth_required: "a required credential or Ledger app/device approval was not available",
   auth_failed: "the master password was wrong",
   weak_password: "the proposed master password does not meet the strength rule",
   wrong_keystore_password: "the keystore file's own password was wrong",

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes) defined in the machine interface (the single authority on what each code *is* — this page only covers what to *do*). For a code not covered here, the complete one-line index is `wallet-cli --json-schema | jq '.errorCodes'`.
+Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes) defined in the machine interface (the single authority on what each code *is* — this page only covers what to *do*). For a code not covered here, the maintained discovery index is `wallet-cli --json-schema | jq '.errorCodes'`; still fall back to the exit-code class if a runtime envelope carries a code outside that catalog.
 
 ## `usage_error` / `invalid_value` (exit 2)
 
@@ -40,10 +40,10 @@ A nonce that is *ahead* of the account's next one is not an error: it is a `meta
 
 ## `tty_required` / `auth_required` (exit 2 / exit 1)
 
-A secret was needed but none could be read.
+A credential, secret, or signing-device approval was needed but none was available.
 
 - `tty_required` — no terminal is attached (CI, pipes). For commands with a stdin path, provide the matching `*-stdin` flag (`--password-stdin`, `--tx-stdin`). `import mnemonic`, `import private-key`, and `change-password` are interactive-only — they must run in a real TTY; there is no non-interactive alternative.
-- `auth_required` — the command needs the master password; pass `--password-stdin` or run it interactively.
+- `auth_required` — software signing needs the master password, or Ledger signing needs the right app/device state. For software accounts, pass `--password-stdin` or run interactively; for Ledger, unlock the device and open the TRON or Ethereum app that matches the account family.
 - `auth_failed` — the password was wrong (decryption failed); re-enter it.
 
 ## `timeout` (exit 1)

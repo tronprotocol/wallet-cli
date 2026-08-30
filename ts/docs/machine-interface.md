@@ -200,7 +200,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `rpc_error` | The node rejected or failed the request — a TRON API call, or a JSON-RPC method such as `eth_estimateGas` |
 | `invalid_node_response` | The node's answer contradicts the request or the protocol: a TRC10/exchange record whose id is not the one asked for, a `precision` outside 0..6, or a rate pair that is not a positive int32. These decide signed amounts, so the command stops rather than acting on them. List reads drop the offending record and keep the page |
 | `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
-| `auth_required` | Master password required but not supplied |
+| `auth_required` | Required credential was unavailable — a software master password, or Ledger app/device readiness |
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
