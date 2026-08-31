@@ -24,7 +24,7 @@ export interface FamilyMeta {
   nativeDecimals: number; // native coin decimals: base unit → coin (sun→TRX = 6)
   coinType: number; // BIP44 coin_type
   /** which BIP44 level the account number hangs at — each family follows its own ecosystem
-   *  convention, so the coin type alone does not determine the path (§1.2). */
+   *  convention, so the coin type alone does not determine the path. */
   indexAt: "account" | "addressIndex";
   codec: AddressCodec; // address derive/validate
   ledger?: { app: string }; // present = hardware app wired; value = the Ledger app name

@@ -76,7 +76,7 @@ describe("TronTransactionService.status — four-state", () => {
 });
 
 /**
- * `Confirmations` — new in this release and NOT EVM-specific (§6.4). `--wait` stops at the
+ * `Confirmations` is NOT EVM-specific. `--wait` stops at the
  * receipt, so how deep is deep enough is the caller's judgement to make, and this is the number
  * they make it with.
  */

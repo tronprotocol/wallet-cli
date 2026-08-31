@@ -12,7 +12,7 @@ import { composeCliRuntime } from "../../../../bootstrap/composition.js";
  *
  * Examples are the part of help people copy verbatim, and nothing keeps them honest when a flag
  * is renamed: `contract deploy` advertised `--bytecode` and `--params` for a whole release after
- * the v4.13.0 rename moved them to `--code` / `--code-file` / `--constructor-params`, so the one
+ * they were renamed to `--code` / `--code-file` / `--constructor-params`, so the one
  * line a reader was most likely to paste was the one line guaranteed to fail with
  * `unknown option`. A renamed flag now fails here instead of in someone's terminal.
  */

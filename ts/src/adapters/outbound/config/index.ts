@@ -89,7 +89,7 @@ export class ConfigLoader {
           raw.networks as Record<string, Record<string, unknown>>,
         )) {
           // A hand-edited alias key must configure the network it names, not create a new one.
-          // Silently ignoring it is the failure §2.4 calls out: the file looks configured and
+          // Silently ignoring it is the failure to avoid: the file looks configured and
           // does nothing.
           const id = aliases[key.toLowerCase()] ?? key;
           const claimedBy = seen.get(id);

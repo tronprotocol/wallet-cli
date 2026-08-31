@@ -310,7 +310,7 @@ describe("Ledger TIP-712", () => {
  *
  * `auth_required` for an unplugged device claims a credential is missing when nothing is
  * connected, and it read identically to a connected-but-locked device — whose fix (enter the PIN)
- * has nothing to do with the other one (plug it in). §11 names them separately for that reason.
+ * has nothing to do with the other one (plug it in). The error-code index names them separately for that reason.
  */
 describe("Ledger device states", () => {
   it("reports an unreachable device as device_not_found, not auth_required", async () => {

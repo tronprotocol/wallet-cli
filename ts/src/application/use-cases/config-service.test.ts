@@ -137,7 +137,7 @@ const registry = {
   },
 } as unknown as NetworkRegistry;
 
-// §2.4: `config networks` used to return only ids, so there was no way to confirm an endpoint
+// `config networks` used to return only ids, so there was no way to confirm an endpoint
 // change had taken effect.
 describe("ConfigService networks view", () => {
   it("maps each canonical id to its configurable fields, endpoint trimmed to the host", () => {
@@ -166,7 +166,7 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
     expect(update).toHaveBeenCalled();
   });
 
-  // §2.4: an alias in the key is normalised to the canonical id ON WRITE, so config.yaml can
+  // An alias in the key is normalised to the canonical id ON WRITE, so config.yaml can
   // never end up holding both `networks.sepolia` and `networks.evm:11155111`.
   it("normalises an alias in the key to the canonical id", () => {
     const { svc, update } = service();
@@ -272,7 +272,7 @@ describe("ConfigService reads a nested network key", () => {
   });
 });
 
-// §2.4 (revised): `config` shows what a user can SET. A network therefore renders as an object of
+// `config` shows what a user can SET. A network therefore renders as an object of
 // its configurable fields — endpoint plus the API-key pair — not as a bare endpoint string, so a
 // new configurable field appears everywhere at once instead of needing a display site per view.
 const keyedNetworks = {

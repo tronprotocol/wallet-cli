@@ -14,7 +14,7 @@ const TRX = 1_000_000n; // sun per TRX
 
 describe("bancor pricing", () => {
   /**
-   * The v4.12.0 spec's §4.4 worked example, in minimal units: a 10,000 TRX / 500,000 MyToken pool
+   * The spec's worked example, in minimal units: a 10,000 TRX / 500,000 MyToken pool
    * (precision 6), selling 100 TRX. The spec states the predicted return as 4,950 whole tokens —
    * an independent check on the port, since that number was written from the chain's behaviour and
    * not from this code.

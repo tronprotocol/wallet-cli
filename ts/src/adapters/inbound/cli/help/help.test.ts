@@ -466,7 +466,7 @@ describe("Requires: master password line", () => {
   });
 });
 
-// §「family 專屬 flag 在 help 裡全量展示、按族標註，不按網路裁剪」: help is STATIC — --network does
+// family 專屬 flag 在 help 裡全量展示、按族標註，不按網路裁剪：help is STATIC — --network does
 // not shape it — so both families' flags appear together and each says which family it belongs to.
 describe("help tags family-specific flags", () => {
   function twoFamilyHelp() {

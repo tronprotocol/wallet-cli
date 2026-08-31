@@ -19,7 +19,7 @@ beforeEach(() => {
   HOME = mkdtempSync(join(tmpdir(), "wcli-"));
 });
 
-// Secret model (§7.13.1): master password via stdin (--password-stdin); two-secret import is
+// Secret model: master password via stdin (--password-stdin); two-secret import is
 // interactive so it can't run as a black-box subprocess — wallet setup uses seedWallet() to write
 // the keystore in-process instead. No MASTER_PASSWORD env. password:null → no source (auth_required).
 function run(args: string[], opts: { input?: string; password?: string | null } = {}) {
@@ -71,7 +71,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe("4.12.0");
+    expect(r.stdout.trim()).toBe("4.13.0");
   });
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -92,7 +92,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toMatch(/^  encoding\s/m);
     expect(r.stdout).toMatch(/^  address\s/m);
     expect(r.stdout).toMatch(/^  contact\s/m);
-    // The root row names the command, not its flags (§10.1: root descriptions are verb
+    // The root row names the command, not its flags (root descriptions are verb
     // summaries). `--qr` stays discoverable one level down, in `current --help`.
     expect(r.stdout).toMatch(/^  current\s+Show the current \(active\) account$/m);
     expect(r.stdout).not.toContain("Learn more:");
@@ -114,9 +114,8 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // Both families ship as of v4.13.0 (§2.2): 3 TRON + 4 EVM, each mainnet paired with a
-    // testnet. This assertion previously read "only the 3 TRON networks ship" — EVM was
-    // deliberately hidden then, and is deliberately exposed now.
+    // Both families ship: 3 TRON + 4 EVM, each mainnet paired with a testnet. EVM was
+    // hidden while it was incomplete, and is deliberately exposed now.
     expect(ids).toEqual(
       expect.arrayContaining([
         "tron:mainnet",
@@ -314,7 +313,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     expect(backup.json.data.out).toBe(out);
   });
 
-  it("derive makes the newly derived HD account the active one (§1.7)", () => {
+  it("derive makes the newly derived HD account the active one", () => {
     const seedId = seedWallet().split(".")[0]!; // "main" at index 0, active; seed id = wlt_x
     const r = run(["--output", "json", "derive", "--seed-id", seedId, "--label", "child"]);
     expect(r.status).toBe(0);
@@ -338,7 +337,7 @@ describe("golden CLI — command help contracts", () => {
   it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
     const r = run(["tx", "send", "--help"], { password: null });
     expect(r.status).toBe(0);
-    // Leads with the imperative verb (§10.1 rule 1) and stays family-neutral; the human-unit
+    // Leads with the imperative verb and stays family-neutral; the human-unit
     // --amount flag is what the E2 contract is really about, so assert it directly.
     expect(r.stdout).toMatch(/^Send the native coin, or a token/m);
     expect(r.stdout).toMatch(/^ +--amount <string> +human amount/m);
@@ -372,7 +371,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
   });
 
   /**
-   * §3.3: watch is the exception to "an import becomes the active account". It holds no key, so
+   * Watch is the exception to "an import becomes the active account". It holds no key, so
    * activating it turns the next write command into watch_only_no_signer for a reason the user
    * never chose — `use <account>` is how the active account changes.
    */
@@ -389,9 +388,9 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
   });
 
-  // §1.3/§11 name this one `invalid_address`; it used to be the generic invalid_value, which
+  // This one is `invalid_address`; it used to be the generic invalid_value, which
   // said nothing about WHICH argument was wrong.
-  it("rejects an unrecognised watch address → invalid_address, exit 2 (§7.14.2)", () => {
+  it("rejects an unrecognised watch address → invalid_address, exit 2", () => {
     const r = run(["--output", "json", "import", "watch", "--address", "not-an-address"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_address");
@@ -414,7 +413,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
   });
 
   /**
-   * The companion to storing canonically: §1.3 accepts three spellings as INPUT, so an account
+   * The companion to storing canonically: three spellings are accepted as INPUT, so an account
    * has to be findable by all of them. Canonicalising only the stored side would make the CLI
    * refuse to find an account by the very spelling it just told the user was valid.
    */
@@ -440,7 +439,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     }
   });
 
-  // §1.3: an all-lowercase address offers no checksum, so it is accepted — and stored in the one
+  // An all-lowercase address offers no checksum, so it is accepted — and stored in the one
   // spelling this CLI prints, so it never shows up looking like a different address.
   it("stores an all-lowercase EVM watch address in EIP-55", () => {
     const r = run([
@@ -467,7 +466,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
   it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
     run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
-    // Explicitly selected: registering one no longer activates it (§3.3), and this test is about
+    // Explicitly selected: registering one no longer activates it, and this test is about
     // what happens when a watch account IS the one being signed with.
     run(["--output", "json", "use", "obs"]);
     const r = run([
@@ -868,7 +867,7 @@ describe("golden CLI — fixes regression", () => {
   });
 });
 
-describe("golden CLI — v4.12 governance surface", () => {
+describe("golden CLI — governance surface", () => {
   it("registers proposal, witness, and contract-governance command groups", () => {
     const proposal = run(["proposal", "--help"], { password: null });
     expect(proposal.status).toBe(0);
@@ -1049,12 +1048,12 @@ describe("golden CLI — flags spelled like the command path", () => {
 });
 
 /**
- * §2.3 fixes what `networks` shows. The header is worth pinning because the column NAMES carry
+ * The spec fixes what `networks` shows. The header is worth pinning because the column NAMES carry
  * meaning here: `Chain id` says the value is the second half of the canonical id (`evm` + `1` =
  * `evm:1`), which the shorter "Chain" left open to reading as the chain's name.
  */
 describe("golden CLI — networks table", () => {
-  it("names its columns as §2.3 specifies", () => {
+  it("names its columns as the spec specifies", () => {
     const header = run(["networks"]).stdout.split("\n")[0];
 
     expect(header).toContain("| Chain id |");

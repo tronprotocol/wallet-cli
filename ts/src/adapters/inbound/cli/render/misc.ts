@@ -7,7 +7,7 @@ export const MiscFormatters = {
   config: ((data) => renderConfig(asObj(data))) satisfies TextFormatter,
   networks: ((data) =>
     table(
-      // "Chain id", not "Chain": the value IS the second half of the canonical id (§2.3), and the
+      // "Chain id", not "Chain": the value IS the second half of the canonical id, and the
       // shorter header read as though it might hold the chain's name.
       ["Network", "Alias", "Family", "Chain id", "Fee model", "Endpoint"],
       (Array.isArray(data) ? data : [])

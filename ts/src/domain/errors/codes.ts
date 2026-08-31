@@ -1,7 +1,7 @@
 /**
  * The error-code index.
  *
- * §11 of the requirements calls its table "the only error-code index … no code outside it may
+ * The requirements call this table "the only error-code index … no code outside it may
  * appear". That promise is worth keeping — an agent branches on `error.code`, and a code it has
  * never seen documented is a code it cannot handle — but a hand-maintained table drifts the moment
  * someone adds an error. So the index lives here, next to the errors themselves, and

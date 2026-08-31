@@ -204,7 +204,7 @@ export class Keystore {
         file,
         (s) => s.type === "watch" && s.family === p.family && s.address === p.address,
       );
-      // Registering a watch account does NOT make it active (§3.3): it holds no key, so making
+      // Registering a watch account does NOT make it active: it holds no key, so making
       // it the active account turns the next write command into `watch_only_no_signer` for a
       // reason the user never chose. `use <account>` is how the active account changes.
       if (dup) return { accountId: dup, created: false };
@@ -610,7 +610,7 @@ export class Keystore {
     if (v.startsWith("wlt_")) return v;
     // address form (T… / 0x…): match the unique account holding it in its cache.
     if (familyOf(v) !== undefined) {
-      // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and §1.3 accepts an
+      // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and the CLI accepts an
       // all-lower or all-upper EVM address as input. Comparing raw strings would refuse to find an
       // account by the very spelling the user was told is valid.
       const wanted = canonicalAddress(v);
@@ -633,7 +633,7 @@ export class Keystore {
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),
     );
-    // §4.3 names this code for exactly this case. `invalid_value` is the bucket every malformed
+    // This is the code for exactly this case. `invalid_value` is the bucket every malformed
     // option lands in; "that account does not exist here" has one obvious next step (`list`), and
     // an agent can only take it if the code says so — the message is not something to match on.
     // The ambiguous cases below keep `invalid_value`: the reference IS valid, it just picks more
@@ -672,7 +672,7 @@ export class Keystore {
 
 /**
  * The BIP44 path behind each of an account's addresses.
- *   - seed: computed per family from the index — the templates differ (§1.2), which is exactly
+ *   - seed: computed per family from the index — the templates differ, which is exactly
  *     what a caller cannot otherwise see.
  *   - ledger: the single path the user picked on the device, for its one family.
  *   - watch / privateKey: never derived, so `null` rather than an empty object.

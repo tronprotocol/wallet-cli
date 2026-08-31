@@ -252,7 +252,7 @@ describe("asset participate", () => {
 
 describe("ambiguous asset names", () => {
   // A name collision is a choice, not a dead end: the error has to carry enough for the caller to
-  // pick — ids for a machine, and the columns a human compares on (§3.7).
+  // pick — ids for a machine, and the columns a human compares on.
   it("carries the queried name, the ids, and one comparable row per match", async () => {
     const svc = service({
       getAssetsByName: async () => [

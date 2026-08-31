@@ -143,7 +143,7 @@ function acct(ctx: TextRenderContext, address: unknown): string {
 }
 
 /** identity field pair: prefer the account label, else show the full address — the field
- *  name tracks the value's real meaning (§0.4). */
+ *  name tracks the value's real meaning. */
 function identity(ctx: TextRenderContext, address: unknown): Pair {
   return ctx.accountLabel ? ["Label", ctx.accountLabel] : ["Address", String(address ?? "")];
 }

@@ -63,7 +63,9 @@ describe("TronRpcClient does not leak an API key through a redirect", () => {
     const { received, endpoint } = await redirectPair();
     const client = new TronRpcClient(network(endpoint, true), 5_000);
 
-    await expect(client.getAccountResources("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB")).rejects.toBeTruthy();
+    await expect(
+      client.getAccountResources("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB"),
+    ).rejects.toBeTruthy();
 
     expect(received).toHaveLength(0);
   });

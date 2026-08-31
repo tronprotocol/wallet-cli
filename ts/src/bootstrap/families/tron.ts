@@ -222,7 +222,7 @@ export function registerTronChainCommands(
   const witness = new TronWitnessService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
-  // Registration order is what the group help lists, so these follow the §10.3 running order:
+  // Registration order is what the group help lists, so these follow the documented running order:
   // the two-family read commands first, then the TRON-only ones.
   reg.addChain(accountBalanceSpec, "tron", accountBalanceBinding(deps.balances));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
@@ -246,7 +246,7 @@ export function registerTronChainCommands(
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
-  // TRON-only, so they sit at the end of the `tx` group listing (§10.3).
+  // TRON-only, so they sit at the end of the `tx` group listing.
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(multisigCollaboration));
   reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
@@ -270,7 +270,7 @@ export function registerTronChainCommands(
   reg.addChain(rewardWithdrawSpec, "tron", rewardWithdrawTronBinding(reward));
   reg.addChain(chainNodeSpec, "tron", chainNodeTronBinding(chain));
   reg.addChain(chainPricesSpec, "tron", chainPricesTronBinding(chain));
-  // `chain params` is TRON-only and goes last in the group listing (§10.3).
+  // `chain params` is TRON-only and goes last in the group listing.
   for (const definition of chainDefinitions(chain)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }

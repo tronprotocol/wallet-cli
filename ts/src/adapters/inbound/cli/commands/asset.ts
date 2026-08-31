@@ -2,10 +2,9 @@
  * `asset` — TRC10, the TRON protocol's own token type (issuance, ICO window, frozen supply).
  * TRC20 contracts live under `token`; TRC10 *transfer* is `tx send` with an asset id.
  *
- * Deviations from the v4.12.0 command spec for this group are recorded in
- * docs/asset-exchange-spec-deviations-v4.12.0.md — notably: Ledger cannot sign any of these
- * contract types, `asset list` defaults to one page rather than the whole chain, and an ambiguous
- * token name is an error rather than a differently-shaped result.
+ * Departures from the command spec for this group: Ledger cannot sign any of these contract
+ * types, `asset list` defaults to one page rather than the whole chain, and an ambiguous token
+ * name is an error rather than a differently-shaped result.
  */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";

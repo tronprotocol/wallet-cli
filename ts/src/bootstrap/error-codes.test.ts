@@ -10,7 +10,7 @@ import { TRON_REJECTION_CODES } from "../adapters/outbound/chain/tron/node-error
  * The drift guard behind the "single index" promise.
  *
  * A table of error codes maintained by hand is accurate on the day it is written and wrong a week
- * later — which is how §11 came to list nine codes the implementation never produces while thirty
+ * later — which is how the error-code table came to list nine codes the implementation never produces while thirty
  * it does produce went undocumented. So the index is checked against the source: every code the
  * code can throw must have an entry, and every entry must correspond to a code that still exists.
  *

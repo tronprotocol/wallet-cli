@@ -17,7 +17,7 @@ export function registerNetworkCommands(reg: CommandRegistry): void {
     wallet: "none",
     auth: "none",
     summary: "List known networks",
-    // §2.3, adjusted to the six-column table this actually prints: the canonical id and the
+    // Adjusted to the six-column table this actually prints: the canonical id and the
     // alias are separate columns, so the description names both rather than only one.
     description:
       "List known networks with their family, chain id, fee model and endpoint host.\n" +

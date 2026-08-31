@@ -125,7 +125,7 @@ function withNetwork(
   return { current, context, network, qr };
 }
 
-// §3.8: --qr encodes the address for the SELECTED NETWORK's family. Handing someone a receive
+// --qr encodes the address for the SELECTED NETWORK's family. Handing someone a receive
 // code for a different chain is a fund-loss shape, so this never falls back to whatever the
 // account happens to have.
 describe("current --qr picks the address by network family", () => {

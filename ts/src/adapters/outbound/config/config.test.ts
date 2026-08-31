@@ -139,7 +139,7 @@ describe("ConfigLoader unreadable/malformed config", () => {
 describe("builtin EVM networks", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
-  // §2.2: one L1 pair per chain. L2s are deliberately excluded — the evm-gas fee model computes
+  // One L1 pair per chain. L2s are deliberately excluded — the evm-gas fee model computes
   // gasLimit x gasPrice and would systematically under-report cost on rollups.
   it.each([
     ["evm:1", "1"],
@@ -216,7 +216,7 @@ describe("network alias book", () => {
   });
 });
 
-// §2.4: config.yaml has always been edited by hand, and TRON-era users wrote endpoints under the
+// Config.yaml has always been edited by hand, and TRON-era users wrote endpoints under the
 // short name. Not recognising an alias key is the worst failure mode available here — the file
 // looks configured, the setting silently does nothing, and `--network sepolia` would resolve to
 // the bogus network the alias key created instead of the real one.

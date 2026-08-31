@@ -609,7 +609,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     const mainnet = { ...SEPOLIA, id: "evm:1", chainId: "1" };
 
     await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
-      // The spec's code (§6.2/§6.3/§11); the dry run shares the guard the sign and submit paths use.
+      // The spec's code; the dry run shares the guard the sign and submit paths use.
       code: "chain_id_mismatch",
     });
   });
@@ -757,7 +757,7 @@ describe("EvmTransactionService.status", () => {
 
   // A public endpoint may simply not keep old transactions. Reporting not_found without saying so
   // invites the reader to conclude the transaction never happened, which may be false.
-  // Same field, same arithmetic as TRON's: §6.4 makes it a two-family field, not an EVM one.
+  // Same field, same arithmetic as TRON's: it is a two-family field, not an EVM one.
   it("reports head minus the transaction's block as confirmations", async () => {
     const { service, scope: s } = statusHarness(
       { hash: HASH },
@@ -840,9 +840,9 @@ describe("EvmTransactionService.info", () => {
       blockNumber: 5,
       gasUsed: "21000",
       feeWei: "1000",
-      // §6.5 收斂: one case throughout, so an agent matches "success" and never "SUCCESS".
+      // 收斂: one case throughout, so an agent matches "success" and never "SUCCESS".
       status: "success",
-      // §6.5's flat keys, out of the node objects rather than buried in the passthrough
+      // Flat keys, out of the node objects rather than buried in the passthrough
       type: "transfer",
       nonce: 7,
       rawAmount: "1000000000000000000",

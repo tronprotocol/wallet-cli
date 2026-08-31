@@ -48,7 +48,7 @@ function createService(gateway: Partial<TronGateway>) {
 }
 
 describe("TronContractService governance", () => {
-  it("applies v4.12 permission and expiration controls to contract send", async () => {
+  it("applies permission and expiration controls to contract send", async () => {
     const trigger = vi.fn(async () => ({ raw_data: {} }));
     const { service, captured } = createService({
       triggerSmartContract: trigger,

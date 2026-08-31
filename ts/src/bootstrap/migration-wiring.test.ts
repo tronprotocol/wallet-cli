@@ -252,7 +252,7 @@ describe("networks lists both families with their endpoints", () => {
       feeModel: "evm-gas",
       alias: "sepolia",
     });
-    // §2.3 shows the HOST, not the full URL with any embedded key
+    // The listing shows the HOST, not the full URL with any embedded key
     expect(byId["evm:11155111"]!.endpoint).toBe("ethereum-sepolia-rpc.publicnode.com");
     expect(byId["tron:nile"]!.endpoint).toBe("nile.trongrid.io");
   });

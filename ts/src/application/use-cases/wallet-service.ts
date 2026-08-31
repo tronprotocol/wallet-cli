@@ -77,7 +77,7 @@ export class WalletService {
     if (!family) {
       throw new UsageError("invalid_address", addressRejection(input));
     }
-    // Stored in the spelling it will be printed in (§1.3), so this account never displays
+    // Stored in the spelling it will be printed in, so this account never displays
     // differently from the same address reached through any other command.
     const address = canonicalAddress(input);
     const result = this.wallets.registerWatch({ family, address, label });
@@ -206,7 +206,7 @@ export class WalletService {
    * seed is what the native `backup` (mnemonic) is for.
    */
   /**
-   * `family` selects WHICH key: a seed account holds a different one per family (§1.2 derives
+   * `family` selects WHICH key: a seed account holds a different one per family (derivation puts
    * TRON at coin 195 and EVM at coin 60), and a V3 keystore holds exactly one. The caller passes
    * the selected network's family; a privateKey account has only one key and ignores it.
    */

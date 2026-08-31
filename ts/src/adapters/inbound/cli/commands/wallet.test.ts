@@ -398,7 +398,7 @@ describe("wallet delete", () => {
   });
 });
 
-// §3.7 filters the text listing to the selected network's family. Filtering silently would let a
+// The text listing is filtered to the selected network's family. Filtering silently would let a
 // user with only an EVM Ledger run `list` on the default TRON network and see no hardware
 // account at all, with nothing telling them --network exists.
 describe("list reports what the family filter hid", () => {

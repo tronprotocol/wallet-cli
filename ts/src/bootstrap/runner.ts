@@ -13,7 +13,7 @@ import { hasCommand, parseGlobals } from "./argv.js";
 import { composeCliRuntime } from "./composition.js";
 import { basename } from "node:path";
 
-export const VERSION = "4.12.0";
+export const VERSION = "4.13.0";
 
 /**
  * Report a failure raised while the composition root was still being built — an unreadable,

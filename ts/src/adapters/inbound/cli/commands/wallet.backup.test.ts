@@ -150,8 +150,8 @@ describe("backup --records flag gating", () => {
   });
 });
 
-// A V3 keystore holds ONE private key, and a seed account has a different one per family (§1.2
-// derives TRON at coin 195, EVM at coin 60). The selected network picks which — `family` is
+// A V3 keystore holds ONE private key, and a seed account has a different one per family (derivation puts
+// TRON at coin 195, EVM at coin 60). The selected network picks which — `family` is
 // never exposed as a flag, because it is an internal concept and --network already selects it
 // everywhere else in the CLI.
 describe("backup --keystore exports the selected network's key", () => {

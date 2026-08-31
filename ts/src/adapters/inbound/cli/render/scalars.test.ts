@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { formatAmount, formatSun, formatUsd, formatUsdPrice, formatWei } from "./scalars.js";
 
-// §1.4. 18 decimals laid out in full is neither readable nor meaningful, so text output caps the
+// 18 decimals laid out in full is neither readable nor meaningful, so text output caps the
 // fraction — but a balance must never be shown as something it is not.
 describe("formatAmount", () => {
   it.each([
@@ -47,7 +47,7 @@ describe("formatAmount", () => {
     expect(formatAmount("0", 18)).toBe("0");
   });
 
-  // §1.4: every integer part in text output is grouped, amounts included.
+  // Every integer part in text output is grouped, amounts included.
   it("groups the integer part with thousands separators", () => {
     expect(formatAmount("41004350000", 6)).toBe("41,004.35");
     expect(formatAmount("1234567000000000000000000", 18)).toBe("1,234,567");
@@ -59,7 +59,7 @@ describe("formatAmount", () => {
   });
 });
 
-// §1.4: valuations get 2 decimals, UNIT PRICES get 4. A stablecoin at $0.9998 shown as "$1.00"
+// Valuations get 2 decimals, UNIT PRICES get 4. A stablecoin at $0.9998 shown as "$1.00"
 // hides a depeg, and a sub-cent token would collapse to "$0.00".
 describe("USD formatting", () => {
   it("renders a valuation with two decimals and thousands separators", () => {

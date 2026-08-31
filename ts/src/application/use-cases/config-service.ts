@@ -31,7 +31,7 @@ export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
 
 export interface ConfigCommandInput {
-  /** a flat key, or a nested `networks.<id-or-alias>[.<field>]` path (§2.4). */
+  /** a flat key, or a nested `networks.<id-or-alias>[.<field>]` path. */
   key?: string;
   value?: string;
 }
@@ -125,7 +125,7 @@ export class ConfigService {
   }
 
   /** `networks.<id-or-alias>.<field>` — the key's network ref is normalised to its canonical
-   *  id before writing, so config.yaml can never hold the same network under two names (§2.4). */
+   *  id before writing, so config.yaml can never hold the same network under two names. */
   private setNetworkField(
     { networkRef, field }: NetworkKey,
     value: string,

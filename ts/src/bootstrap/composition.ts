@@ -79,7 +79,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const priceProvider = createPriceProvider(
     config.price,
     timeoutMs,
-    // Declared per network (§2.2), never inferred from the id: a user-configured chain we know
+    // Declared per network, never inferred from the id: a user-configured chain we know
     // nothing about stays unpriced (null = unknown), which is not the same as worth nothing.
     new Set(
       Object.values(config.networks)

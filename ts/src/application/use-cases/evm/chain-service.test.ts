@@ -10,7 +10,7 @@
  *   - inSync → `eth_syncing`, which answers directly instead of TRON's head-timestamp heuristic.
  *
  * Hosted endpoints routinely refuse `net_peerCount`, and not every chain serves `finalized`.
- * Neither may take the whole command down — they degrade to null, as §10 already specifies for
+ * Neither may take the whole command down — they degrade to null, as already specified for
  * fields an endpoint does not expose.
  */
 import { describe, it, expect } from "vitest";
@@ -68,7 +68,7 @@ describe("EvmChainService.node", () => {
   });
 
   /**
-   * A commercial RPC endpoint carries its API key IN THE URL, and §2.2 tells users to configure
+   * A commercial RPC endpoint carries its API key IN THE URL, and users are told to configure
    * exactly that. `chain node` is the diagnostic people paste into issues and CI logs, so it
    * reports the HOST and nothing else. `config networks.<id>.httpEndpoint` is where a full URL is
    * handed over — a named read rather than a listing.
@@ -159,7 +159,7 @@ describe("EvmChainService.prices", () => {
   }
 
   /**
-   * §9.3: `gasPriceWei` is base + tip — the price a transaction actually pays — NOT the node's
+   * `gasPriceWei` is base + tip — the price a transaction actually pays — NOT the node's
    * `eth_gasPrice` suggestion. Printing that beside the two components gave three numbers that
    * did not add up (here: 155,353,216 vs the true 155,415,168).
    */

@@ -44,7 +44,7 @@ export const txSendSpec: ChainSpec = {
   summary: "Send native coins or tokens with human --amount",
   description:
     "Send the native coin, or a token selected with --token / --contract.\n" +
-    // §10.1: a command whose Options show BOTH families' tags must say what the tags mean —
+    // A command whose Options show BOTH families' tags must say what the tags mean —
     // help has to be readable on its own, without the reader having seen the spec.
     "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,

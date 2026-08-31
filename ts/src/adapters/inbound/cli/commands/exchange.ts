@@ -7,9 +7,7 @@
  *   - TRX's on-chain token id is `_`; we accept `TRX`, `_` or a numeric TRC10 id;
  *   - `--min-received` is a floor that reverts the trade, not an expected return;
  *   - the protocol takes no fee — only `create` costs anything beyond bandwidth.
- *
- * Deviations from the v4.12.0 spec are recorded in
- * docs/asset-exchange-spec-deviations-v4.12.0.md.
+
  */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";

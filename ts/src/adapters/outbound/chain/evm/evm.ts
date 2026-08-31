@@ -400,7 +400,7 @@ export class EvmRpcClient implements EvmGateway {
    * A read-only contract call; `data` and the result are both DATA, so both stay hex.
    *
    * A revert is the CONTRACT's answer, not a transport failure, so it gets its own code
-   * (§11 `execution_reverted`) carrying whatever reason the node decoded. `rpc_error` here would
+   * (`execution_reverted`) carrying whatever reason the node decoded. `rpc_error` here would
    * read as "the network is broken" for what is in fact a definite reply.
    */
   async call(to: string, data: string): Promise<string> {

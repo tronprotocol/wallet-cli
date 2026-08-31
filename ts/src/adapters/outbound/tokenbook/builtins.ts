@@ -47,7 +47,7 @@ export const OFFICIAL_TOKENS: Record<string, TokenEntry[]> = {
   ],
   "tron:shasta": [],
   /**
-   * §5.4 — `evm:1` ships USDT / USDC; testnets stay empty, as `tron:shasta` already is.
+   * `evm:1` ships USDT / USDC; testnets stay empty, as `tron:shasta` already is.
    *
    * Each address, symbol and decimals below was read FROM ETHEREUM MAINNET (eth_call for
    * symbol() / decimals() / name()) and cross-checked against Circle's published USDC address
@@ -72,7 +72,7 @@ export const OFFICIAL_TOKENS: Record<string, TokenEntry[]> = {
       name: "USD Coin",
     },
   ],
-  // Not specified by §5.4, and BSC is where the decimals differ (USDT is 18 there) — left for a
+  // Not specified, and BSC is where the decimals differ (USDT is 18 there) — left for a
   // deliberate, sourced pass rather than filled from memory.
   "evm:56": [],
   "evm:11155111": [],

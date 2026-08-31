@@ -1,6 +1,6 @@
 /**
  * Layout primitives — structural composition of label/value blocks and tables,
- * plus status glyphs. The "§0.4 one field per line" vocabulary; no scalar or domain knowledge.
+ * plus status glyphs. The "one field per line" vocabulary; no scalar or domain knowledge.
  */
 export type Obj = Record<string, unknown>;
 export type Pair = [string, string];

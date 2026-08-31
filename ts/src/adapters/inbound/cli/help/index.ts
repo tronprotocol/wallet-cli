@@ -145,9 +145,9 @@ export class HelpService {
       ["import", "Import a wallet", ""],
       ["list", "List wallets / accounts", ""],
     ] as const;
-    // Rows, order and wording follow the §10.2 spec block, with two deliberate departures
-    // recorded in needs-doc §U-3: `exchange` keeps a verb phrase (the spec's "On-chain Bancor
-    // exchange" is a noun phrase, which §10.1 rule 1 forbids), and `contract` keeps "govern"
+    // Rows, order and wording follow the spec, with two deliberate departures recorded in
+    // needs-doc: `exchange` keeps a verb phrase (the spec's "On-chain Bancor exchange" is a
+    // noun phrase, which the verb-first rule forbids), and `contract` keeps "govern"
     // (the spec's "send" drops any mention of the four governance sub-commands).
     // Descriptions are verb summaries and must NOT name sub-commands — a TRON-only verb named
     // here (`chain`'s old "params") sends EVM readers hunting for a command they cannot run.
@@ -248,7 +248,7 @@ export class HelpService {
     const tags = commands.map((c) => groupRowTag(c.families));
     // A group whose every command belongs to the same single family is already tagged as a whole
     // at the root (`stake … (TRON only)`). Repeating it on all six rows adds a column that never
-    // varies — §10.3: "其組 help 內部不再逐條重複". Tag rows only where they DISCRIMINATE.
+    // varies — 其組 help 內部不再逐條重複. Tag rows only where they DISCRIMINATE.
     const uniform = tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
     const rows = commands.map(
       (c, i) => [c.path[1] ?? "", c.summary ?? "", uniform ? "" : tags[i]!] as const,
@@ -644,7 +644,7 @@ function globalFlagsForText(
 /**
  * The `(TRON only)` / `(EVM only)` tag for one sub-command row in a group help page.
  *
- * §10.1: the tag means "only this family can serve this command IN THE CURRENT VERSION" — it is
+ * The tag means "only this family can serve this command IN THE CURRENT VERSION" — it is
  * not a promise about the future. So it is derived from the registry rather than written down:
  * a command bound to exactly one family is tagged, one bound to both is not, and the tag drops
  * off by itself the day the missing binding lands (`contract info` will, once EVM gets an

@@ -102,7 +102,7 @@ export function derivePrivAddresses(pk: Bytes): ChainAddresses {
 /**
  * (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk.
  *
- * Every address leaves here CANONICAL (§1.3: EVM in EIP-55). Normalising at this single point
+ * Every address leaves here CANONICAL (EVM in EIP-55). Normalising at this single point
  * rather than at each call site means a wallets.json written before this rule — a watch account
  * registered from an all-lowercase paste — displays and matches identically to one written after
  * it, without rewriting the file.

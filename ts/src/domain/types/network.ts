@@ -73,7 +73,7 @@ export function isTronNetwork(network: NetworkDescriptor): network is TronNetwor
  * The host of an endpoint URL — what listings show instead of the URL itself.
  *
  * A commercial RPC endpoint carries its API key IN THE URL (`…/v2/<key>`, `…?apikey=<key>`), and
- * §2.2 tells users to configure exactly that. Any output that prints an endpoint it was not
+ * Users are told to configure exactly that. Any output that prints an endpoint it was not
  * explicitly asked for therefore prints a credential — and `chain node` is the command whose
  * output people paste into issues and CI logs. Trimming to the host is the one cut that needs no
  * guess about which path segment is the secret.

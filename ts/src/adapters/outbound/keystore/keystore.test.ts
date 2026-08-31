@@ -99,7 +99,7 @@ describe("Keystore", () => {
     const ledger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
     expect(ks.activeAccount()).toBe(ledger.accountId);
 
-    // A watch account is the exception (§3.3): it holds no key, so making it active would turn
+    // A watch account is the exception: it holds no key, so making it active would turn
     // the next write command into watch_only_no_signer for a reason the user never chose.
     const watch = ks.registerWatch({ family: "tron", address: "Twatch-active" });
     expect(ks.activeAccount()).toBe(ledger.accountId);
@@ -369,7 +369,7 @@ describe("Keystore", () => {
  *
  * All three used to be `invalid_value` — the bucket every malformed option lands in. For a value
  * typed at a hidden prompt there is no field path in the envelope either, so the code was the only
- * thing the caller got, and it said nothing. §11 names all three.
+ * thing the caller got, and it said nothing. The error-code index names all three.
  */
 describe("lookup and secret-shape failures carry their own codes", () => {
   let ks: Keystore;
@@ -573,8 +573,8 @@ describe("wallets.json schema version", () => {
 });
 
 describe("descriptor carries each family's derivation path", () => {
-  // §3.7: json had no path at all, so a user could not tell WHICH template an account used —
-  // and the two families deliberately use different ones (§1.2).
+  // Json had no path at all, so a user could not tell WHICH template an account used —
+  // and the two families deliberately use different ones.
   it("gives a seed account one path per family", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
     const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");

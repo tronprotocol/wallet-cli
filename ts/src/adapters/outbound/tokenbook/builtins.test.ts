@@ -29,7 +29,7 @@ describe("official EVM token entries", () => {
     }
   });
 
-  // §5.4: "official 条目按规范 id 内置（evm:1 填 USDT / USDC；测试网留空）"
+  // "official 条目按规范 id 内置（evm:1 填 USDT / USDC；测试网留空）"
   it("ships USDT and USDC on ethereum mainnet", () => {
     expect(OFFICIAL_TOKENS["evm:1"]?.map((t) => t.symbol)).toEqual(["USDT", "USDC"]);
   });

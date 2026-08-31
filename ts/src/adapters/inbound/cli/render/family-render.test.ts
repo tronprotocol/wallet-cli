@@ -149,14 +149,14 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH");
 
     expect(rows).toContainEqual(["Nonce", "16"]);
-    // Uppercase `EOA` — the standard name, and the text twin of json's `eoa` (§4.3).
+    // Uppercase `EOA` — the standard name, and the text twin of json's `eoa`.
     expect(rows).toContainEqual(["Type", "EOA"]);
     expect(
       FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, type: "contract" }, "ETH"),
     ).toContainEqual(["Type", "contract"]);
   });
 
-  // §4.3 gives a contract its code size and an EOA none: an EOA is not a contract with zero
+  // A contract gets its code size and an EOA none: an EOA is not a contract with zero
   // bytes, and a row reading "0 bytes" would say it is.
   it("sizes a contract's code and leaves the row off an EOA", () => {
     expect(
@@ -251,7 +251,7 @@ describe("FAMILY_RENDER chainPricesRows", () => {
 });
 
 /**
- * The rows this release was missing: what a transaction cost, how deep it is, and what a block or
+ * The settlement rows: what a transaction cost, how deep it is, and what a block or
  * a node actually reports. All four were in the JSON already — only the text layer read TRON's
  * fields and so printed nothing (or nothing useful) on EVM.
  */
@@ -293,7 +293,7 @@ describe("FAMILY_RENDER — receipt settlement rows", () => {
     ]);
   });
 
-  // §4.3 calls the nonce the entry point for diagnosing a stuck transaction — the case where no
+  // The nonce is the entry point for diagnosing a stuck transaction — the case where no
   // receipt ever arrives — so it is a receipt row, not a confirmation one.
   it("gives EVM receipts a Nonce row and TRON none", () => {
     expect(FAMILY_RENDER.evm.receiptIdentityRows({ kind: "send", nonce: 42 } as never)).toEqual([

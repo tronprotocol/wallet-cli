@@ -93,7 +93,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     feeModel: "tron-resource",
     capabilities: [],
   },
-  // §2.2 — one L1 pair per chain. Endpoints are third-party public RPC: rate-limited, no SLA,
+  // One L1 pair per chain. Endpoints are third-party public RPC: rate-limited, no SLA,
   // and they see the addresses queried. Production use should point these at a private gateway.
   "evm:1": {
     id: "evm:1",
@@ -135,7 +135,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
 };
 
-/** §2.1 — one short name per builtin network. A flat map, so global uniqueness is structural:
+/** One short name per builtin network. A flat map, so global uniqueness is structural:
  *  a duplicate key cannot exist. There is deliberately no `evm` entry — EVM is a family, not a
  *  chain, so it has no mainnet to claim the bare family name. */
 export const BUILTIN_ALIASES: Record<string, string> = {

@@ -27,7 +27,7 @@ describe("createPriceProvider", () => {
   });
 
   /**
-   * §4.2 / C5: a test network's coin is not traded, so its holdings are worth zero — and ZERO,
+   * A test network's coin is not traded, so its holdings are worth zero — and ZERO,
    * not null. `null` means "we could not find out"; on a testnet there is nothing to find out,
    * and the honest answer is that the money is not real.
    */

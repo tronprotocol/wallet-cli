@@ -194,7 +194,7 @@ describe("EvmContractService.deploy", () => {
 });
 
 /**
- * `approve(address,uint256)` — §7.2's one receipt special case.
+ * `approve(address,uint256)` — the one receipt special case.
  *
  * The uint256 a caller types is scaled by the token's decimals, and its maximum is 78 digits, so
  * the one thing they cannot check is the thing that matters most: how much they just approved.

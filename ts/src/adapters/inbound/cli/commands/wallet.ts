@@ -36,7 +36,7 @@ const LEDGER_APPS = CHAIN_FAMILIES.map((f) => LEDGER_APP_BY_FAMILY[f]).filter(
 ) as [string, ...string[]];
 export const walletImportLedgerFields = z.object({
   app: ciEnum(LEDGER_APPS).describe(
-    // §3.6: the value is the app to open ON THE DEVICE, and what it selects is the account's
+    // The value is the app to open ON THE DEVICE, and what it selects is the account's
     // chain family — "address-derivation scheme" named the mechanism instead of the choice.
     "Ledger app to open on the device; selects the chain family",
   ),
@@ -45,7 +45,7 @@ export const walletImportLedgerFields = z.object({
     .int()
     .nonnegative()
     .optional()
-    // NOT a zod .default(): §3.6 asks for the default in the `[optional, default: 0]` tag, but a
+    // NOT a zod .default(): the default belongs in the `[optional, default: 0]` tag, but a
     // parsed default makes `index` always present, and the locator rule below counts PRESENCE —
     // `--path` alone would then read as two locators. The default stays in the description.
     .describe(
@@ -163,8 +163,7 @@ export function registerWalletCommands(
     interactive: true,
     promptHints: { label: "default-label" },
     summary: "Create a new HD wallet (BIP39 seed)",
-    // §3.1: this release's headline is "one seed, an address per family" — and this is the
-    // command that performs it, so its help has to say so.
+    // "One seed, an address per family" is what this command does, so its help has to say so.
     description:
       "Create a new HD wallet (BIP39 seed). Derives one address per chain family\n" +
       "from the same seed; the recovery phrase is encrypted locally and never printed.",
@@ -201,7 +200,7 @@ export function registerWalletCommands(
     summary: "Import a BIP39 mnemonic phrase",
     description:
       "Import a BIP39 mnemonic phrase. Derives one address per chain family from the same\n" +
-      // §3.2's topic sentence. Its four siblings (create, derive, import private-key,
+      // The group's topic sentence. Its four siblings (create, derive, import private-key,
       // import watch) each say what they produce per family; silence here reads as "this one
       // does not".
       "seed, the same as `create`. The recovery phrase and master password are read\n" +
@@ -239,7 +238,7 @@ export function registerWalletCommands(
     description:
       "Import a raw private key. The private key and master password are read\n" +
       "interactively from the TTY (hidden input); they never touch argv or stdin.\n" +
-      // §3.3 — and the fact that separates this from a seed import: ONE key, every family,
+      // The fact that separates this from a seed import: ONE key, every family,
       // so the two addresses are two encodings of the same secret rather than two secrets.
       "One key yields an address on every chain family.",
     fields: importPrivateKeyFields,
@@ -362,7 +361,7 @@ export function registerWalletCommands(
     interactive: true,
     promptHints: { label: "default-label" },
     summary: "Register a watch-only address",
-    // §3.5: the family is inferred from the address, and that is what limits where the account
+    // The family is inferred from the address, and that is what limits where the account
     // can be used — neither fact is guessable from "register a watch-only address".
     description:
       "Register a watch-only address (no secret). The chain family is detected from the\n" +
@@ -486,7 +485,7 @@ export function registerWalletCommands(
           `selected account has no ${network?.family} address; ${network?.id} cannot receive to it`,
         );
       }
-      // The check above runs whatever the output format is (§3.8 lists this error with no
+      // The check above runs whatever the output format is (this error carries no
       // "text only" clause): `-o json` is a different RENDERING of the same run, not a different
       // meaning, and the same command answering "cannot receive here" to a human and "success" to
       // an agent is the worse of the two lies. Only the QR itself is text-shaped, so json gets the
@@ -555,7 +554,7 @@ export function registerWalletCommands(
     wallet: "none",
     auth: "required",
     summary: "Derive the next HD account from a seed wallet (by --seed-id)",
-    // §3.9, minus its `--path` sentence (that flag is not in this release — see ADR-0009).
+    // Minus the `--path` sentence — that flag is not implemented, see ADR-0009.
     description:
       "Derive the next HD account from a seed wallet (by --seed-id). Each family uses\n" +
       "its own BIP44 template, so one derive yields an address per family.",
@@ -738,8 +737,8 @@ export function registerWalletCommands(
         mode: "verify",
         verify: (pw) => wallets.verifyPassword(pw),
       });
-      // A keystore holds ONE private key, and a seed account has a different one per family
-      // (§1.2). The selected network picks which — `family` is never exposed as a flag; the
+      // A keystore holds ONE private key, and a seed account has a different one per family.
+      // The selected network picks which — `family` is never exposed as a flag; the
       // network is the one selector users learn. The receipt echoes it, so an export that fell
       // back to config.defaultNetwork still says out loud which key it wrote.
       return input.keystore
@@ -771,7 +770,7 @@ export function registerWalletCommands(
     passwordMode: "verify",
     interactive: true,
     secretsTtyOnly: true,
-    // The prompt order is current-then-new, and §10.1 rule 4 makes Requires follow the order the
+    // The prompt order is current-then-new, and Requires follows the order the
     // user actually types. The generated line covers the current password, so the new one has to
     // come after it.
     requiresAfterAuth: ["the new master password — entered interactively in a TTY"],

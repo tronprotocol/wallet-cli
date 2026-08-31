@@ -157,7 +157,7 @@ describe("gweiToWei", () => {
     expect(() => gweiToWei("fast")).toThrow();
   });
 
-  // §6.1 promised `cast`-style suffixes. Only the one that names this flag's own unit is honoured:
+  // The spec promised `cast`-style suffixes. Only the one that names this flag's own unit is honoured:
   // it cannot change the value, and refusing it only punishes a copied `cast` line.
   it("accepts a gwei suffix as a synonym for the bare number", () => {
     expect(gweiToWei("25gwei")).toBe("25000000000");

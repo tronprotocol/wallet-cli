@@ -174,8 +174,8 @@ export class TronTransactionService {
     return {
       txid,
       ...(await this.enrichParties(gateway, gateway.decodeTransaction(transaction))),
-      // The node reports SUCCESS / REVERT / OUT_OF_ENERGY…; this CLI reports one case throughout
-      // (§6.5). The comparisons that decide `failed` read the node's own value, not this field.
+      // The node reports SUCCESS / REVERT / OUT_OF_ENERGY…; this CLI reports one case throughout.
+      // The comparisons that decide `failed` read the node's own value, not this field.
       status: lowerCaseStatus(info.receipt?.result ?? transaction.ret?.[0]?.contractRet),
       blockNumber: info.blockNumber,
       ...confirmationsOf(head, info.blockNumber),
@@ -327,7 +327,7 @@ async function headBlockNumber(gateway: TronGateway): Promise<number | undefined
   }
 }
 
-/** the node's status word in the single case this CLI answers in (§6.5). */
+/** the node's status word in the single case this CLI answers in. */
 function lowerCaseStatus(value: string | undefined): string | undefined {
   return value === undefined ? undefined : value.toLowerCase();
 }

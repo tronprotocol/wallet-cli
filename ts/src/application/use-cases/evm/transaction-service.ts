@@ -63,7 +63,7 @@ export class EvmTransactionService {
     // verbatim, and a fee plan riding along inside it reads as part of the transaction.
     let plan: Record<string, unknown> = {};
     // The nonce is decided while building and never appears in a receipt we might not get. It is
-    // the field §4.3 calls the entry point for diagnosing a stuck transaction, so the receipt
+    // the field that is the entry point for diagnosing a stuck transaction, so the receipt
     // states it even when the transaction is only submitted.
     let nonce: number | undefined;
     const outcome = await this.pipeline.run({
@@ -495,7 +495,7 @@ export class EvmTransactionService {
       txid: hash,
       type: transactionType(transaction, transfer !== undefined),
       from: checksummed(transaction.from),
-      // The transaction's own nonce, flattened out of the node object: §4.3 makes it the entry
+      // The transaction's own nonce, flattened out of the node object: it is the entry
       // point for diagnosing a stuck transaction, and digging it out of a passthrough field is
       // not what "the detail view" should ask of a reader.
       ...(transaction.nonce === undefined ? {} : { nonce: quantityToNumber(transaction.nonce) }),
@@ -511,7 +511,7 @@ export class EvmTransactionService {
       ...(receipt === null
         ? {}
         : {
-            // Lower case, per §6.5: `tx status` and every write receipt already answer in lower
+            // Lower case: `tx status` and every write receipt already answer in lower
             // case, and one field spelled two ways makes an agent match twice for one meaning.
             status: receipt.success === true ? "success" : "revert",
             ...(receipt.blockNumber === undefined

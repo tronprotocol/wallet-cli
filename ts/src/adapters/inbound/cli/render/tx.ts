@@ -38,7 +38,7 @@ export const TxFormatters = {
       ["TxID", r.txid],
       ["Status", status],
       ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
-      // §6.4: `--wait` stops at the receipt, so how deep is enough is the caller's call to make.
+      // `--wait` stops at the receipt, so how deep is enough is the caller's call to make.
       // Empty rows are dropped, so this is absent while pending and on an unreadable head.
       ["Confirmations", r.confirmations === undefined ? "" : formatInt(r.confirmations)],
     ]);
@@ -305,7 +305,7 @@ function assetAmount(raw: unknown, precision: unknown, name: unknown): string {
   return name ? `${whole} ${String(name)}` : whole;
 }
 
-/** `MyToken (id 1000123)` — spec §0.4 object identity for a named object with an id. */
+/** `MyToken (id 1000123)` — object identity for a named object with an id. */
 function assetLabel(r: TxReceiptView): string {
   const name = r.name ? String(r.name) : "";
   const id = r.assetId === undefined ? "" : `id ${String(r.assetId)}`;
@@ -394,7 +394,7 @@ function receiptRows(r: TxReceiptView): Pair[] {
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")]);
   // approve(address,uint256): the two facts the caller cannot verify from what they typed — the
   // uint256 on the command line is scaled by the token's decimals, and its maximum is 78 digits.
-  // Present in the dry run too, which is where an approval most wants checking (§7.2).
+  // Present in the dry run too, which is where an approval most wants checking.
   if (r.spender !== undefined) rows.push(["Spender", String(r.spender)]);
   if (r.allowance !== undefined) rows.push(["Allowance", allowanceLabel(r)]);
   return rows;
@@ -528,7 +528,7 @@ function formatFee(fee: unknown, family: ChainFamily, symbol: string): string {
       return `~${energy.toLocaleString()} energy${covered}`;
     }
     // EVM fee plan: gasLimit × the per-gas ceiling. It is the most this transaction CAN cost,
-    // not what it will, so it is labelled as a ceiling (§6.1 writes "~ … max"; `≤` says the same
+    // not what it will, so it is labelled as a ceiling (`≤` says the same
     // thing without implying an estimate could land above it) and, when the components are known,
     // states what that ceiling is made of — the same shape as a confirmed receipt's Fee row.
     if (f.maxCostWei !== undefined) {
