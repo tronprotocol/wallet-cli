@@ -402,3 +402,19 @@ describe("ConfigLoader network API key", () => {
     expect(() => ConfigLoader.load(envWithConfig(noKey, 0o644))).not.toThrow();
   });
 });
+
+// An alias may be written against a spelling that is itself an alias — most often a legacy id the
+// book still forwards. Resolution is single-hop, so a target left unfolded points at something
+// resolve() cannot find, and the user's own alias stops working.
+describe("alias targets are normalised to canonical ids", () => {
+  it("follows a target that is itself an alias", () => {
+    const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: nile\n"));
+    expect(config.aliases.mynile).toBe("tron:nile");
+    expect(new NetworkRegistry(config).resolve("mynile").id).toBe("tron:nile");
+  });
+
+  it("leaves a target that is already canonical alone", () => {
+    const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: tron:nile\n"));
+    expect(config.aliases.mynile).toBe("tron:nile");
+  });
+});
