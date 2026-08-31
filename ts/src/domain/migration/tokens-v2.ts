@@ -10,8 +10,16 @@ import type { TokensFile } from "../types/token.js";
 
 export const TOKENS_VERSION = 2;
 
-/** The ids this CLI carried before its canonical ids became CAIP-2. A network absent from this
- *  map is user-configured and keeps whatever key it already had. */
+/**
+ * The ids this CLI carried before its canonical ids became CAIP-2. A network absent from this map
+ * is user-configured and keeps whatever key it already had.
+ *
+ * The EVM ids are listed even though they never reached a published release, which is the reason
+ * they were dropped from the alias book. The two surfaces fail differently: an unresolvable id in
+ * config.yaml is an error the user reads and fixes, while an unmatched scope key here just yields
+ * an empty token list. Covering a branch build costs four lines; a silent loss costs someone their
+ * token book.
+ */
 const RENAMED_NETWORK_IDS: Record<string, string> = {
   "tron:mainnet": "tron:728126428",
   "tron:shasta": "tron:2494104990",
