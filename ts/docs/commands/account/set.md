@@ -41,7 +41,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Set the on-chain name and wait for confirmation:
 
 ```bash
-echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -55,17 +55,17 @@ echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:nile -
 ```
 
 ```bash
-echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.set","data":{"kind":"account-set","stage":"confirmed","txId":"f2b...","confirmed":true,"blockNumber":84341590,"feeSun":300000,"failed":false,"field":"name","value":"Acme Treasury","address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6420,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.set","data":{"kind":"account-set","stage":"confirmed","txId":"f2b...","confirmed":true,"blockNumber":84341590,"feeSun":300000,"failed":false,"field":"name","value":"Acme Treasury","address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6420,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Set the account id instead (`--id`); the id's uniqueness is enforced on-chain:
 
 ```bash
-echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console

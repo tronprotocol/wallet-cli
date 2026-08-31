@@ -26,7 +26,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli stake info --account main --network tron:nile
+wallet-cli stake info --account main --network tron:3448148188
 ```
 
 ```console
@@ -46,11 +46,11 @@ Withdrawable  1,800,440 TRX now
 Pending unstakes are listed as a tree under `Unfreezing`, each with the time it becomes withdrawable and how far away that is. An entry whose time has passed is already counted in `Withdrawable`; claim them all with [`stake withdraw`](withdraw.md).
 
 ```bash
-wallet-cli stake info --account main --network tron:nile -o json
+wallet-cli stake info --account main --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.info","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","staked":{"energySun":"0","bandwidthSun":"0"},"votingPower":{"total":14,"used":1,"available":13},"resource":{"energy":{"used":0,"limit":0},"bandwidth":{"used":317,"limit":600}},"unfreezing":[{"amountSun":"100000000","withdrawableAt":1786444011000},{"amountSun":"1800151000000","withdrawableAt":1786445097000},{"amountSun":"176000000","withdrawableAt":1786445103000},{"amountSun":"13000000","withdrawableAt":1786445148000}],"withdrawableSun":"1800440000000","unfreeze":{"used":4,"max":32,"remaining":32}},"meta":{"durationMs":728,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.info","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","staked":{"energySun":"0","bandwidthSun":"0"},"votingPower":{"total":14,"used":1,"available":13},"resource":{"energy":{"used":0,"limit":0},"bandwidth":{"used":317,"limit":600}},"unfreezing":[{"amountSun":"100000000","withdrawableAt":1786444011000},{"amountSun":"1800151000000","withdrawableAt":1786445097000},{"amountSun":"176000000","withdrawableAt":1786445103000},{"amountSun":"13000000","withdrawableAt":1786445148000}],"withdrawableSun":"1800440000000","unfreeze":{"used":4,"max":32,"remaining":32}},"meta":{"durationMs":728,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

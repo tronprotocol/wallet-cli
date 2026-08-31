@@ -29,7 +29,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli exchange show 12 --network tron:nile
+wallet-cli exchange show 12 --network tron:3448148188
 ```
 
 ```console
@@ -42,11 +42,11 @@ Exchange id 12
 ```
 
 ```bash
-wallet-cli exchange show 12 --network tron:nile -o json
+wallet-cli exchange show 12 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.show","data":{"kind":"exchange-show","exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","createTime":1785662100000,"firstTokenId":"_","firstTokenBalance":"10000000000","firstTokenLabel":"TRX","firstTokenDecimals":6,"secondTokenId":"1000123","secondTokenBalance":"500000000000","secondTokenLabel":"MyToken","secondTokenDecimals":6},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.show","data":{"kind":"exchange-show","exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","createTime":1785662100000,"firstTokenId":"_","firstTokenBalance":"10000000000","firstTokenLabel":"TRX","firstTokenDecimals":6,"secondTokenId":"1000123","secondTokenBalance":"500000000000","secondTokenLabel":"MyToken","secondTokenDecimals":6},"meta":{"durationMs":24,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

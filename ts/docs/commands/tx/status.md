@@ -30,7 +30,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli tx status --txid 7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364 --network tron:nile
+wallet-cli tx status --txid 7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364 --network tron:3448148188
 ```
 
 ```console
@@ -41,23 +41,23 @@ Confirmations  1
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","state":"confirmed","confirmed":true,"failed":false,"blockNumber":70433563,"confirmations":1},"meta":{"durationMs":732,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","state":"confirmed","confirmed":true,"failed":false,"blockNumber":70433563,"confirmations":1},"meta":{"durationMs":732,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The same query on an EVM network, by `0x` hash:
 
 ```bash
-wallet-cli tx status --txid 0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80 --network evm:11155111 -o json
+wallet-cli tx status --txid 0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80 --network eip155:11155111 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","state":"confirmed","confirmed":true,"failed":false,"blockNumber":11576586,"confirmations":0},"meta":{"durationMs":408,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","state":"confirmed","confirmed":true,"failed":false,"blockNumber":11576586,"confirmations":0},"meta":{"durationMs":408,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 An unknown txid is a **success** with `state: "not_found"` (exit 0) — the query worked; the answer is "not there":
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":1022,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":1022,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On EVM, `not_found` also carries a `meta.warnings` entry, because a public endpoint that has pruned its history is indistinguishable from a hash that never existed:

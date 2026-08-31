@@ -40,7 +40,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Default — broadcast and return the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:nile --password-stdin
+echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -49,17 +49,17 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
   Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
   Status   pending
-! Track it: wallet-cli tx info --network tron:nile --txid a1b...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid a1b...
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"submitted","txId":"a1b...","address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"submitted","txId":"a1b...","address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed, with the actual block and fee:
 
 ```bash
-echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -73,7 +73,7 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"confirmed","txId":"e7a...","confirmed":true,"blockNumber":84340277,"feeSun":1100000,"failed":false,"address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6540,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"confirmed","txId":"e7a...","confirmed":true,"blockNumber":84340277,"feeSun":1100000,"failed":false,"address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6540,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

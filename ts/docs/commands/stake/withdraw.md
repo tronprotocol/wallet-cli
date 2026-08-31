@@ -38,28 +38,28 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin
+echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdin
 ```
 
 ```console
 ⏳ Withdrew expired TRX to balance
   TxID    e5f...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid e5f...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.withdraw","data":{"kind":"stake-withdraw","stage":"submitted","txId":"e5f..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.withdraw","data":{"kind":"stake-withdraw","stage":"submitted","txId":"e5f..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console

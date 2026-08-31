@@ -47,7 +47,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Callers pay the full energy cost:
 
 ```bash
-echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -62,11 +62,11 @@ echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 -
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-user-resource-percent","data":{"kind":"contract-set-user-resource-percent","stage":"confirmed","txId":"8b2...","confirmed":true,"blockNumber":57882388,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","consumeUserResourcePercent":100,"feeSun":0,"resource":{"netUsage":289,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-user-resource-percent","data":{"kind":"contract-set-user-resource-percent","stage":"confirmed","txId":"8b2...","confirmed":true,"blockNumber":57882388,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","consumeUserResourcePercent":100,"feeSun":0,"resource":{"netUsage":289,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

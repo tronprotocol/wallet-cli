@@ -23,7 +23,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli gasfree info --account main --network tron:nile
+wallet-cli gasfree info --account main --network tron:3448148188
 ```
 
 ```console
@@ -38,11 +38,11 @@ Supported tokens (1)
 ```
 
 ```bash
-wallet-cli gasfree info --account main --network tron:nile -o json
+wallet-cli gasfree info --account main --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":4,"tokens":[{"symbol":"USDT","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"activateFee":"1000000","transferFee":"500000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":4,"tokens":[{"symbol":"USDT","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"activateFee":"1000000","transferFee":"500000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

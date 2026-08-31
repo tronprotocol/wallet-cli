@@ -43,7 +43,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Spend 100 TRX on a token issued at `1:100`:
 
 ```bash
-echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -60,11 +60,11 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile 
 ```
 
 ```bash
-echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":100000000,"receivedAmount":10000000000,"feeSun":0,"resource":{"netUsage":301,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":100000000,"receivedAmount":10000000000,"feeSun":0,"resource":{"netUsage":301,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

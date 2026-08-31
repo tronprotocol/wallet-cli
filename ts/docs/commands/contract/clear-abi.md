@@ -42,7 +42,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -56,11 +56,11 @@ echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:nile -
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.clear-abi","data":{"kind":"contract-clear-abi","stage":"confirmed","txId":"3f7...","confirmed":true,"blockNumber":57882140,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","feeSun":0,"resource":{"netUsage":287,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6510,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.clear-abi","data":{"kind":"contract-clear-abi","stage":"confirmed","txId":"3f7...","confirmed":true,"blockNumber":57882140,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","feeSun":0,"resource":{"netUsage":287,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6510,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

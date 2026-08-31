@@ -23,7 +23,7 @@ Requires `--network` (or config.defaultNetwork). Works on TRON and EVM networks;
 ## Examples
 
 ```bash
-wallet-cli block --network tron:nile
+wallet-cli block --network tron:3448148188
 ```
 
 ```console
@@ -33,17 +33,17 @@ Transactions  5
 ```
 
 ```bash
-wallet-cli block 70433745 --network tron:nile -o json
+wallet-cli block 70433745 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"block","data":{"block":{"blockID":"0000000041e6a3c3…","block_header":{"raw_data":{"number":69093315,"txTrieRoot":"…","witness_address":"41…","parentHash":"…","version":31,"timestamp":1783783761000},"witness_signature":"…"},"transactions":[{…}]}},"meta":{"durationMs":126,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"block","data":{"block":{"blockID":"0000000041e6a3c3…","block_header":{"raw_data":{"number":69093315,"txTrieRoot":"…","witness_address":"41…","parentHash":"…","version":31,"timestamp":1783783761000},"witness_signature":"…"},"transactions":[{…}]}},"meta":{"durationMs":126,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the text summary carries the gas and fee figures a block actually has:
 
 ```bash
-wallet-cli block --network evm:11155111
+wallet-cli block --network eip155:11155111
 ```
 
 ```console

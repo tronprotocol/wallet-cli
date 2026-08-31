@@ -31,7 +31,7 @@ Confirm with `wallet-cli list` — the account appears alongside your software a
 Nothing changes in the commands:
 
 ```bash
-wallet-cli tx send --to T... --amount 1 --network tron:nile --account cold
+wallet-cli tx send --to T... --amount 1 --network tron:3448148188 --account cold
 ```
 
 Instead of a password prompt, the transaction details appear **on the Ledger screen** — verify the recipient and amount there (that is the whole point of the device) and approve. The transaction then broadcasts normally; confirm with [`tx status`](../commands/tx/status.md).

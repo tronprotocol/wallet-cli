@@ -177,7 +177,7 @@ Individual flags are family-scoped the same way. `--help` tags them `(TRON only)
 
 ```
 -o, --output <text|json>   result format (default: config.defaultOutput, built-in text)
---network <string>         network id or alias, e.g. nile, sepolia, bsc, evm:11155111
+--network <string>         network id or alias, e.g. nile, sepolia, bsc, eip155:11155111
                            (falls back to config.defaultNetwork)
 --account <string>         accountId, label, or address (wallet-bound commands; falls back to active)
 --timeout <number>         per RPC/device call timeout, ms (default: config.timeoutMs, built-in 60000)

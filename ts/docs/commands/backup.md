@@ -43,7 +43,7 @@ The positional account is the exception: it means different things in the two fo
 | `--keystore` | Export as a standard Web3 keystore instead of the native format |
 | `--out <path>` | Output file path; mode 0600, never overwritten (default: the current directory, see above) |
 | `--password-stdin` | Master password from stdin (fd 0) |
-| `--network <id>` | With `--keystore`, which family's key to export (`tron:nile` → the TRON key, `evm:1` → the EVM key). No node is contacted |
+| `--network <id>` | With `--keystore`, which family's key to export (`tron:3448148188` → the TRON key, `eip155:1` → the EVM key). No node is contacted |
 
 With `--records`, instead of an account:
 

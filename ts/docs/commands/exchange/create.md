@@ -49,7 +49,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -64,11 +64,11 @@ echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:50000
 ```
 
 ```bash
-echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.create","data":{"kind":"exchange-create","stage":"confirmed","txId":"2b7...","confirmed":true,"blockNumber":57884020,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenQuant":"10000000000","firstTokenLabel":"TRX","firstTokenDecimals":6,"secondTokenId":"1000123","secondTokenQuant":"500000000000","secondTokenLabel":"MyToken","secondTokenDecimals":6,"feeSun":1024000000},"meta":{"durationMs":6680,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.create","data":{"kind":"exchange-create","stage":"confirmed","txId":"2b7...","confirmed":true,"blockNumber":57884020,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenQuant":"10000000000","firstTokenLabel":"TRX","firstTokenDecimals":6,"secondTokenId":"1000123","secondTokenQuant":"500000000000","secondTokenLabel":"MyToken","secondTokenDecimals":6,"feeSun":1024000000},"meta":{"durationMs":6680,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

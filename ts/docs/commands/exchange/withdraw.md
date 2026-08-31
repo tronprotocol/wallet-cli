@@ -44,7 +44,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -60,11 +60,11 @@ echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network
 ```
 
 ```bash
-echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.withdraw","data":{"kind":"exchange-withdraw","stage":"confirmed","txId":"8f6...","confirmed":true,"blockNumber":57884310,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","tokenId":"_","tokenQuant":"1000000000","tokenLabel":"TRX","tokenDecimals":6,"otherTokenId":"1000123","otherTokenQuant":"50000000000","otherTokenLabel":"MyToken","otherTokenDecimals":6,"reserveAfter":"10000000000","otherReserveAfter":"500000000000","feeSun":0},"meta":{"durationMs":6460,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.withdraw","data":{"kind":"exchange-withdraw","stage":"confirmed","txId":"8f6...","confirmed":true,"blockNumber":57884310,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","tokenId":"_","tokenQuant":"1000000000","tokenLabel":"TRX","tokenDecimals":6,"otherTokenId":"1000123","otherTokenQuant":"50000000000","otherTokenLabel":"MyToken","otherTokenDecimals":6,"reserveAfter":"10000000000","otherReserveAfter":"500000000000","feeSun":0},"meta":{"durationMs":6460,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

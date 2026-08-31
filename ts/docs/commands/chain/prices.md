@@ -26,7 +26,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli chain prices --network tron:nile
+wallet-cli chain prices --network tron:3448148188
 ```
 
 ```console
@@ -36,17 +36,17 @@ Memo fee         1 TRX
 ```
 
 ```bash
-wallet-cli chain prices --network tron:nile -o json
+wallet-cli chain prices --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.prices","data":{"energy":{"currentSunPerUnit":100,"history":[{"since":0,"price":100},{"since":1754644200000,"price":100}]},"bandwidth":{"currentSunPerUnit":1000,"history":[{"since":0,"price":10},{"since":1626253800000,"price":1000}]},"memoFeeSun":"1000000"},"meta":{"durationMs":687,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.prices","data":{"energy":{"currentSunPerUnit":100,"history":[{"since":0,"price":100},{"since":1754644200000,"price":100}]},"bandwidth":{"currentSunPerUnit":1000,"history":[{"since":0,"price":10},{"since":1626253800000,"price":1000}]},"memoFeeSun":"1000000"},"meta":{"durationMs":687,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the answer is a gas price instead:
 
 ```bash
-wallet-cli chain prices --network evm:11155111
+wallet-cli chain prices --network eip155:11155111
 ```
 
 ```console
@@ -58,7 +58,7 @@ Transfer cost  0.000019 ETH  (21,000 gas)
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.prices","data":{"feeModel":"eip1559","baseFeeWei":"947033827","priorityFeeWei":"1000000","gasPriceWei":"948033827","transferGas":21000,"transferCostWei":"19908710367000"},"meta":{"durationMs":390,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.prices","data":{"feeModel":"eip1559","baseFeeWei":"947033827","priorityFeeWei":"1000000","gasPriceWei":"948033827","transferGas":21000,"transferCostWei":"19908710367000"},"meta":{"durationMs":390,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ## Output

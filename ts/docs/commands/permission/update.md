@@ -23,7 +23,7 @@ The structure is validated strictly before anything is built, and a violation is
 **Editing an exported structure.** `permission show -o json` emits both `operations` (contract-type names) and `operationsHex` (the raw bitmap) for each active group. Supplying both is allowed, but they must **agree** — two disagreeing descriptions of the same group would mean the structure you reviewed is not the structure that goes on chain, so the mismatch is refused. After editing `operations`, delete that group's `operationsHex` and the CLI regenerates it:
 
 ```bash
-wallet-cli permission show -o json --network tron:nile | jq '.data' > perms.json
+wallet-cli permission show -o json --network tron:3448148188 | jq '.data' > perms.json
 # edit operations, then drop the stale operationsHex from the same active group
 ```
 
@@ -57,7 +57,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Prepare the new structure by exporting, then editing (no need to hand-write the operations bitmap):
 
 ```bash
-wallet-cli permission show --network tron:nile -o json | jq '.data' > perms.json
+wallet-cli permission show --network tron:3448148188 -o json | jq '.data' > perms.json
 ```
 
 ```bash
@@ -68,7 +68,7 @@ $EDITOR perms.json
 Submit with `--wait`. The receipt is the transaction record plus the resulting on-chain structure (read back after confirmation, same cards as `permission show`), with any `!` warnings appended:
 
 ```bash
-echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli permission update --file perms.json --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -101,11 +101,11 @@ Authorized To     Address                             Weight
 The JSON receipt's `data.permissions` is **structurally identical** to `permission show`'s `data`, so you can diff it against the pre-change export; the lockout warning is in `meta.warnings` with `success` still `true`:
 
 ```bash
-echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli permission update --file perms.json --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"permission.update","data":{"kind":"permission-update","stage":"confirmed","txId":"b3c...","confirmed":true,"blockNumber":84335102,"feeSun":100268000,"failed":false,"permissions":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]}},"meta":{"durationMs":6810,"warnings":[{"code":"owner_lockout_partial","message":"local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations"}]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"permission.update","data":{"kind":"permission-update","stage":"confirmed","txId":"b3c...","confirmed":true,"blockNumber":84335102,"feeSun":100268000,"failed":false,"permissions":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]}},"meta":{"durationMs":6810,"warnings":[{"code":"owner_lockout_partial","message":"local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations"}]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

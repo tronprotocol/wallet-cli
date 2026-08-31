@@ -85,16 +85,16 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ```bash
 # 1 TRX on Nile; 1 ETH-denominated amount on Sepolia
-wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile
-wallet-cli tx send --to 0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C --amount 0.0001 --network evm:11155111
+wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188
+wallet-cli tx send --to 0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C --amount 0.0001 --network eip155:11155111
 
 # token by address-book symbol on either family; TRC10 by asset id on TRON only
-wallet-cli tx send --to T... --token USDT --amount 5 --network tron:nile
-wallet-cli tx send --to 0x... --token USDC --amount 5 --network evm:11155111
-wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network tron:nile
+wallet-cli tx send --to T... --token USDT --amount 5 --network tron:3448148188
+wallet-cli tx send --to 0x... --token USDC --amount 5 --network eip155:11155111
+wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network tron:3448148188
 
 # rehearse without signing
-wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --dry-run -o json
+wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188 --dry-run -o json
 ```
 
 `--dry-run` prints the fee in the selected network's model — bandwidth/energy on TRON, a gas ceiling on EVM:
@@ -114,13 +114,13 @@ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network 
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"41797991046000","gasLimit":"21000","maxPerGasWei":"1990380526"},"tx":{"to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C","value":"100000000000000","chainId":11155111,"nonce":0,"gasLimit":"21000","type":2,"maxFeePerGas":"1990380526","maxPriorityFeePerGas":"1000000"},"nonce":0,"rawAmount":"100000000000000","to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"meta":{"durationMs":753,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"41797991046000","gasLimit":"21000","maxPerGasWei":"1990380526"},"tx":{"to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C","value":"100000000000000","chainId":11155111,"nonce":0,"gasLimit":"21000","type":2,"maxFeePerGas":"1990380526","maxPriorityFeePerGas":"1000000"},"nonce":0,"rawAmount":"100000000000000","to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"meta":{"durationMs":753,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 Submit receipt (default mode, text and json):
 
 ```bash
-printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network tron:nile --password-stdin
+printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -128,11 +128,11 @@ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH -
   To      TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH
   TxID    4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
+! Track it: wallet-cli tx info --network tron:3448148188 --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","stage":"submitted","txId":"4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4","rawAmount":"1000000","to":"TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH"},"meta":{"durationMs":2172,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","stage":"submitted","txId":"4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4","rawAmount":"1000000","to":"TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH"},"meta":{"durationMs":2172,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

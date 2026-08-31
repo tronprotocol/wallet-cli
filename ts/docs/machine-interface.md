@@ -11,7 +11,8 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 - Always pass `-o json`. Text output is for humans and carries no stability promise.
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
 - Every RPC / device call is bounded by `--timeout` (milliseconds, default `config.timeoutMs`, built-in 60000).
-- `--network` takes a canonical id (`tron:nile`, `evm:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
+- `--network` takes a canonical **CAIP-2** id (`tron:3448148188`, `eip155:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). The namespace is not the chain family: `eip155` addresses the `evm` family. Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
+- The pre-CAIP-2 ids (`tron:nile`, `evm:56`, …) remain permanent aliases, so existing invocations keep working. **Output is a different matter**: `chain.network`, the `networks` listing's `id` and the `config` keys now report the CAIP-2 id, so a consumer that string-matches or keys a map by `evm:56` must be updated. An alias exists only at selection and can never appear in a result.
 
 ### Discovery
 
@@ -78,7 +79,7 @@ Schema id: `wallet-cli.result.v1`.
   "command": "account.balance",
   "data": { "address": "TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ", "balance": "1976489000", "decimals": 6, "symbol": "TRX" },
   "meta": { "durationMs": 1114, "warnings": [] },
-  "chain": { "family": "tron", "network": "tron:nile", "chainId": "nile" }
+  "chain": { "family": "tron", "network": "tron:3448148188", "chainId": "3448148188" }
 }
 ```
 
@@ -91,7 +92,7 @@ Schema id: `wallet-cli.result.v1`.
   "command": "tx.info",
   "error": { "code": "rpc_error", "message": "TRON getTransaction failed: Transaction not found" },
   "meta": { "durationMs": 1033, "warnings": [] },
-  "chain": { "family": "tron", "network": "tron:nile", "chainId": "nile" }
+  "chain": { "family": "tron", "network": "tron:3448148188", "chainId": "3448148188" }
 }
 ```
 
@@ -257,7 +258,7 @@ Secrets never travel via argv or environment variables — they would leak into 
 # non-interactive unlock
 printf '%s' "$MASTER_PASSWORD_FROM_YOUR_VAULT" | wallet-cli tx send \
   --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 \
-  --network tron:nile --password-stdin -o json
+  --network tron:3448148188 --password-stdin -o json
 ```
 
 ## Script safety: never mistake "submitted" for "confirmed"
@@ -290,9 +291,9 @@ This is a wallet; a wrong success check loses money. The rules:
    **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. Follow it with `--wait` or [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
 
 ```bash
-txid=$(wallet-cli tx send --to T... --amount 1 --network tron:nile --password-stdin -o json \
+txid=$(wallet-cli tx send --to T... --amount 1 --network tron:3448148188 --password-stdin -o json \
         < pw.fifo | jq -r '.data.txId') || exit 1
-until [ "$(wallet-cli tx status --txid "$txid" --network tron:nile -o json | jq -r '.data.state')" = confirmed ]; do
+until [ "$(wallet-cli tx status --txid "$txid" --network tron:3448148188 -o json | jq -r '.data.state')" = confirmed ]; do
   sleep 3   # add your own deadline; 'failed' should abort, not loop
 done
 ```
@@ -307,7 +308,7 @@ Guaranteed stable while `schema` is `wallet-cli.result.v1`:
 - exit-code mapping 0/1/2;
 - one-terminal-frame stdout discipline in JSON mode;
 - existing `error.code` values keep their meaning (new codes may be added);
-- canonical command ids and network ids (`tron:mainnet`, `tron:nile`, `tron:shasta`, `evm:1`, `evm:56`, `evm:11155111`, `evm:97`).
+- canonical command ids and network ids (`tron:728126428`, `tron:3448148188`, `tron:2494104990`, `eip155:1`, `eip155:56`, `eip155:11155111`, `eip155:97`).
 
 Network **aliases** are config, not contract: they can be re-pointed locally, so scripts should pass canonical ids.
 

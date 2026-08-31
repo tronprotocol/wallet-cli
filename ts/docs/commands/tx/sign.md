@@ -55,13 +55,13 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 An initiator first produces a partially signed `tx.hex` with `tx send --sign-only`:
 
 ```bash
-echo "$PW" | wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --sign-only --permission-id 2 --expiration 86400000 --network tron:nile --password-stdin > tx.hex
+echo "$PW" | wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --sign-only --permission-id 2 --expiration 86400000 --network tron:3448148188 --password-stdin > tx.hex
 ```
 
 A second signer appends their signature — no preview, no confirmation; the receipt carries the transaction content and progress blocks:
 
 ```bash
-echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:nile --password-stdin
+echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -89,7 +89,7 @@ Progress  2 / 2 — threshold reached
 With `--offline` the group name, threshold and per-signer weights are unavailable, so the receipt degrades to locally derivable fields and says so. `Signatures` is a **count**, not accumulated weight:
 
 ```bash
-echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --offline --network tron:nile --password-stdin
+echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --offline --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -110,11 +110,11 @@ Transaction (local inspection)
 ```
 
 ```bash
-echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed.hex --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.sign","data":{"kind":"tx-sign","signer":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","hex":"0a02...9f31","checked":true,"transaction":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permissionId":2,"expiration":1784388720000,"expired":false,"signatures":2},"signerWeight":1,"approval":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":2,"missingWeight":0,"thresholdReached":true,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1}],"expiration":1784388720000,"expired":false,"signatures":2}},"meta":{"durationMs":310,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.sign","data":{"kind":"tx-sign","signer":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","hex":"0a02...9f31","checked":true,"transaction":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permissionId":2,"expiration":1784388720000,"expired":false,"signatures":2},"signerWeight":1,"approval":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":2,"missingWeight":0,"thresholdReached":true,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1}],"expiration":1784388720000,"expired":false,"signatures":2}},"meta":{"durationMs":310,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

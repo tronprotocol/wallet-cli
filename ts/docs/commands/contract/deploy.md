@@ -81,8 +81,8 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 From a compiler artifact — the same command on either family, since the artifact carries the ABI:
 
 ```bash
-echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '["18","MyToken"]' --network tron:nile --password-stdin
-echo "$PW" | wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '["18","MyToken"]' --network evm:11155111 --password-stdin
+echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '["18","MyToken"]' --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '["18","MyToken"]' --network eip155:11155111 --password-stdin
 ```
 
 ```console
@@ -90,19 +90,19 @@ echo "$PW" | wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --
   Address  TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU
   TxID     b7c...
   Status   pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid b7c...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid b7c...
 ```
 
 From bare bytecode on EVM, stating the constructor's types yourself:
 
 ```bash
-echo "$PW" | wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '["18","MyToken"]' --network evm:11155111 --password-stdin
+echo "$PW" | wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '["18","MyToken"]' --network eip155:11155111 --password-stdin
 ```
 
 Rehearsing an EVM deploy — the address is already known, and the fee is a gas ceiling:
 
 ```bash
-wallet-cli contract deploy --code 0x60006000f3 --network evm:11155111 --dry-run
+wallet-cli contract deploy --code 0x60006000f3 --network eip155:11155111 --dry-run
 ```
 
 ```console
@@ -113,15 +113,15 @@ wallet-cli contract deploy --code 0x60006000f3 --network evm:11155111 --dry-run
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"117739814894256","gasLimit":"53857","maxPerGasWei":"2186156208"},"tx":{"data":"0x60006000f3","value":"0","chainId":11155111,"nonce":0,"gasLimit":"53857","type":2,"maxFeePerGas":"2186156208","maxPriorityFeePerGas":"1000000"},"nonce":0,"contractAddress":"0xF3741D160A1E64A8D71fFE64CC0F111ddC7720E5"},"meta":{"durationMs":565,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"117739814894256","gasLimit":"53857","maxPerGasWei":"2186156208"},"tx":{"data":"0x60006000f3","value":"0","chainId":11155111,"nonce":0,"gasLimit":"53857","type":2,"maxFeePerGas":"2186156208","maxPriorityFeePerGas":"1000000"},"nonce":0,"contractAddress":"0xF3741D160A1E64A8D71fFE64CC0F111ddC7720E5"},"meta":{"durationMs":565,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","contractAddress":"TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU","stage":"submitted","txId":"b7c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","contractAddress":"TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU","stage":"submitted","txId":"b7c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

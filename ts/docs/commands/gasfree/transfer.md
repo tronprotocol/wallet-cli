@@ -37,7 +37,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Default — submit and return the acceptance receipt (a `traceId`, not yet on-chain):
 
 ```bash
-echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 --network tron:nile --password-stdin
+echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -52,13 +52,13 @@ echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","stage":"submitted","traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"0","totalDeducted":"25500000","from":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","nonce":4},"meta":{"durationMs":650,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","stage":"submitted","traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"0","totalDeducted":"25500000","from":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","nonce":4},"meta":{"durationMs":650,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to poll to a terminal state, with the on-chain txid and actual deduction:
 
 ```bash
-echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -75,7 +75,7 @@ echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 On a first transfer the GasFree address isn't activated yet, so the fee itemises the service fee and the one-time activation fee, and `Total` includes activation:
 
 ```bash
-wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 --network tron:nile --dry-run
+wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 --network tron:3448148188 --dry-run
 ```
 
 ```console
@@ -87,7 +87,7 @@ wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","mode":"dry-run","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"1000000","totalDeducted":"26500000","from":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","nonce":0},"meta":{"durationMs":210,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","mode":"dry-run","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"1000000","totalDeducted":"26500000","from":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","nonce":0},"meta":{"durationMs":210,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

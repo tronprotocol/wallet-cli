@@ -45,7 +45,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -60,11 +60,11 @@ echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 5000000
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-origin-energy-limit","data":{"kind":"contract-set-origin-energy-limit","stage":"confirmed","txId":"3a9...","confirmed":true,"blockNumber":57882265,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","originEnergyLimit":50000000,"feeSun":0,"resource":{"netUsage":290,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6530,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-origin-energy-limit","data":{"kind":"contract-set-origin-energy-limit","stage":"confirmed","txId":"3a9...","confirmed":true,"blockNumber":57882265,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","originEnergyLimit":50000000,"feeSun":0,"resource":{"netUsage":290,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6530,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

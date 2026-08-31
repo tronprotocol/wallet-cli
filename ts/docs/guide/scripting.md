@@ -18,17 +18,17 @@ Prefer this to scraping `--help`; the catalog is the same source the parser and 
 **1. Always `-o json`.** Text output is for eyeballs and may change; JSON is the contract. stdout carries exactly one JSON object per run:
 
 ```bash
-wallet-cli account balance --network tron:nile -o json
+wallet-cli account balance --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 **2. Check the exit code, then `error.code`.** `0` success, `1` runtime failure, `2` you built the command wrong. Two of the exit-`2` codes are worth handling by name when a script switches networks: `family_mismatch` (this command or account does not belong to the selected network's chain) and `invalid_option` (a flag that belongs to the other family):
 
 ```bash
-if out=$(wallet-cli account balance --network tron:nile -o json); then
+if out=$(wallet-cli account balance --network tron:3448148188 -o json); then
   bal=$(jq -r '.data.balance' <<<"$out")     # raw SUN, as a *string*
 else
   code=$(jq -r '.error.code' <<<"$out")      # e.g. timeout, rpc_error
@@ -39,7 +39,7 @@ fi
 
 ```bash
 printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
-  --network tron:nile --password-stdin -o json
+  --network tron:3448148188 --password-stdin -o json
 ```
 
 (`$PW` should come from your secret store, not from a file in the repo. Only one `*-stdin` flag per run.)
@@ -49,7 +49,7 @@ printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
 `tx send` returns at submission. For scripts, the simplest safe form is `--wait`:
 
 ```bash
-wallet-cli tx send --to T... --amount 1 --network tron:nile \
+wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
   --password-stdin --wait --wait-timeout 90000 -o json
 ```
 
@@ -61,18 +61,18 @@ Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.
 
 ```bash
 # on the signing machine
-wallet-cli tx send --to T... --amount 1 --network tron:nile \
+wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
   --password-stdin --sign-only -o json | jq -r '.data.hex' > signed.hex
 
 # on the connected machine
-wallet-cli tx broadcast --file signed.hex --network tron:nile -o json
+wallet-cli tx broadcast --file signed.hex --network tron:3448148188 -o json
 ```
 
 The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. The JSON form is TRON-only:
 
 ```bash
 wallet-cli tx send ... --sign-only -o json | jq -c '.data.signed' > signed.json
-wallet-cli tx broadcast --tx-stdin --network tron:nile -o json < signed.json
+wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.json
 ```
 
 `--transaction` and `--tx-stdin` are tagged `(TRON only)`; on an EVM network they fail with `invalid_option`. Prefer `--file` / `--hex` in scripts that may target either.

@@ -26,7 +26,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile
+wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
 ```
 
 ```console
@@ -36,11 +36,11 @@ wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network 
 ```
 
 ```bash
-wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile -o json
+wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"token.remove","data":{"network":"tron:nile","account":"wlt_b2.0","removed":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"token.remove","data":{"network":"tron:3448148188","account":"wlt_b2.0","removed":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

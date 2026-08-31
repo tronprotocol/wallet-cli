@@ -63,7 +63,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 ```bash
 echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 1000000000 --price 1:100 --precision 6 \
   --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --description "Demo TRC10" \
-  --freeze 100000000:30 --freeze 50000000:90 --network tron:nile --wait --password-stdin
+  --freeze 100000000:30 --freeze 50000000:90 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -90,11 +90,11 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 
 ```bash
 echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 1000000000 --price 1:100 --precision 6 \
-  --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --network tron:nile --wait --password-stdin -o json
+  --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"failed":false,"assetId":"1000123","name":"MyToken","abbr":"MTK","totalSupply":1000000000000000,"precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":100000000000000,"days":30},{"amount":50000000000000,"days":90}],"feeSun":1024000000,"resource":{"netUsage":312,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"failed":false,"assetId":"1000123","name":"MyToken","abbr":"MTK","totalSupply":1000000000000000,"precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":100000000000000,"days":30},{"amount":50000000000000,"days":90}],"feeSun":1024000000,"resource":{"netUsage":312,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

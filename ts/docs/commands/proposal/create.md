@@ -42,7 +42,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 One parameter, waiting for confirmation:
 
 ```bash
-echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -60,7 +60,7 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tro
 Several parameters in one proposal — the receipt lists them by parameter id:
 
 ```bash
-echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -77,11 +77,11 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCrea
 ```
 
 ```bash
-echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.create","data":{"kind":"proposal-create","stage":"confirmed","txId":"9c4...","confirmed":true,"blockNumber":57880102,"feeSun":0,"resource":{"netUsage":268,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"failed":false,"proposalId":48,"changes":[{"id":3,"name":"getTransactionFee","currentValue":10,"proposedValue":15,"unit":"sun/byte"}]},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.create","data":{"kind":"proposal-create","stage":"confirmed","txId":"9c4...","confirmed":true,"blockNumber":57880102,"feeSun":0,"resource":{"netUsage":268,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"failed":false,"proposalId":48,"changes":[{"id":3,"name":"getTransactionFee","currentValue":10,"proposedValue":15,"unit":"sun/byte"}]},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

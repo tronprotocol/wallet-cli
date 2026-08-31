@@ -44,7 +44,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — broadcasts and returns the **submitted** receipt without waiting:
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -52,21 +52,21 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
   TxID     e5f...
   Votes    TZ4...=600, TT5...=400
   Status   pending — tallied at next maintenance cycle (~6h)
-! Track it: wallet-cli tx info --network tron:nile --txid e5f...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until the vote is confirmed on chain (adds real block / fee):
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console

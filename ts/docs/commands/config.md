@@ -23,7 +23,7 @@ Known keys:
 
 | Key | Values | Built-in default | Meaning |
 |---|---|---|---|
-| `defaultNetwork` | network id | `tron:mainnet` | Network used when `--network` is omitted |
+| `defaultNetwork` | network id | `tron:728126428` | Network used when `--network` is omitted |
 | `defaultOutput` | `text` \| `json` | `text` | Output format when `-o` is omitted |
 | `timeoutMs` | integer ms | `60000` | Default per RPC/device call timeout (`--timeout` overrides) |
 | `waitTimeoutMs` | integer ms ≥ 0 | `60000` | Default `--wait` polling cap for broadcast commands |
@@ -45,7 +45,7 @@ Precedence for a value that has both a flag and a config key (highest first): co
 
 **Secrets are never rendered in clear text.** `tronlinkSecretKey`, `gasfreeApiSecret` and `networks.<id>.apiKey` come back as `********` from every read, and a set of one echoes `input: "********"` too — the value goes to `config.yaml`, not to the terminal or to your shell history file's neighbours in a log.
 
-**Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:nile`) or its leaf (`config networks.tron:nile.httpEndpoint`) is the deliberate act that reveals the whole URL.
+**Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:3448148188`) or its leaf (`config networks.tron:3448148188.httpEndpoint`) is the deliberate act that reveals the whole URL.
 
 Because `config.yaml` can hold service credentials, it is subject to a permission check: a symlink or a group/world-readable file fails with `insecure_config`. `chmod 600` it.
 
@@ -62,21 +62,21 @@ wallet-cli config
 ```
 
 ```console
-defaultNetwork     tron:mainnet
+defaultNetwork     tron:728126428
 defaultOutput      text
 timeoutMs          60000
 waitTimeoutMs      60000
 networks
-  tron:mainnet
+  tron:728126428
     httpEndpoint  api.trongrid.io
-  tron:nile
+  tron:3448148188
     httpEndpoint  nile.trongrid.io
-  evm:11155111
+  eip155:11155111
     httpEndpoint  ethereum-sepolia-rpc.publicnode.com
 aliases
-  tron         tron:mainnet
-  nile         tron:nile
-  sepolia      evm:11155111
+  tron         tron:728126428
+  nile         tron:3448148188
+  sepolia      eip155:11155111
 tronlinkSecretId   TEST
 tronlinkSecretKey  ********
 tronlinkChannel    test
@@ -115,24 +115,24 @@ wallet-cli config timeoutMs 120000 -o json
 Point a network at your own node, or at a commercial endpoint that authenticates by header:
 
 ```bash
-wallet-cli config networks.tron:nile.httpEndpoint http://127.0.0.1:8090
-wallet-cli config networks.tron:mainnet.apiKeyHeader TRON-PRO-API-KEY
-wallet-cli config networks.tron:mainnet.apiKey <your-key>
+wallet-cli config networks.tron:3448148188.httpEndpoint http://127.0.0.1:8090
+wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY
+wallet-cli config networks.tron:728126428.apiKey <your-key>
 ```
 
 Reading one network gives the endpoint in full, unlike the listing above:
 
 ```bash
-wallet-cli config networks.tron:nile
+wallet-cli config networks.tron:3448148188
 ```
 
 ```console
-networks.tron:nile
+networks.tron:3448148188
   httpEndpoint  https://nile.trongrid.io
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"config","data":{"key":"networks.tron:nile","value":{"httpEndpoint":"https://nile.trongrid.io"}},"meta":{"durationMs":15,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"config","data":{"key":"networks.tron:3448148188","value":{"httpEndpoint":"https://nile.trongrid.io"}},"meta":{"durationMs":15,"warnings":[]}}
 ```
 
 ## Output

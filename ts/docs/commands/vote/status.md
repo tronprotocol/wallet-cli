@@ -24,7 +24,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli vote status --account main --network tron:nile
+wallet-cli vote status --account main --network tron:3448148188
 ```
 
 ```console
@@ -41,11 +41,11 @@ Current votes (2)
 ```
 
 ```bash
-wallet-cli vote status --account main --network tron:nile -o json
+wallet-cli vote status --account main --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.status","data":{"address":"TQk...","votingPower":{"total":1500,"used":1000,"available":500},"claimableRewardSun":"12345678","votes":[{"witness":"TZ4...","name":"TRONSCAN","count":600,"rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8},{"witness":"TT5...","name":"Binance Staking","count":400,"rewardRatioPct":0,"brokeragePct":100,"aprPct":0}]},"meta":{"durationMs":16,"warnings":["400 votes on TT5... (Binance Staking) earn nothing: reward ratio is 0%"]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.status","data":{"address":"TQk...","votingPower":{"total":1500,"used":1000,"available":500},"claimableRewardSun":"12345678","votes":[{"witness":"TZ4...","name":"TRONSCAN","count":600,"rewardRatioPct":80,"brokeragePct":20,"aprPct":4.8},{"witness":"TT5...","name":"Binance Staking","count":400,"rewardRatioPct":0,"brokeragePct":100,"aprPct":0}]},"meta":{"durationMs":16,"warnings":["400 votes on TT5... (Binance Staking) earn nothing: reward ratio is 0%"]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

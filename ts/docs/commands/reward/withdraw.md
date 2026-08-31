@@ -38,7 +38,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — broadcasts and returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin
+echo "$PW" | wallet-cli reward withdraw --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -46,21 +46,21 @@ echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin
   TxID     a1b...
   Amount   123.456789 TRX
   Status   pending — next withdrawal available in ~24h
-! Track it: wallet-cli tx info --network tron:nile --txid a1b...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid a1b...
 ```
 
 ```bash
-echo "$PW" | wallet-cli reward withdraw --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli reward withdraw --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed (adds real block / fee):
 
 ```bash
-echo "$PW" | wallet-cli reward withdraw --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli reward withdraw --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console

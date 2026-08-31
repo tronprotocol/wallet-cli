@@ -38,7 +38,7 @@ Plus the [global options](../index.md#global-options-every-command).
 By id:
 
 ```bash
-wallet-cli asset info 1000123 --network tron:nile
+wallet-cli asset info 1000123 --network tron:3448148188
 ```
 
 ```console
@@ -61,7 +61,7 @@ Asset MyToken (id 1000123)
 ### A name that is not unique
 
 ```bash
-wallet-cli asset info MyToken --network tron:nile
+wallet-cli asset info MyToken --network tron:3448148188
 ```
 
 The command fails with exit `1`; the message and the candidate table go to **stderr**:
@@ -79,7 +79,7 @@ In json the same information is in `error.details` — see [Output](#output).
 By issuer — someone else's token here, and it has no frozen tranches:
 
 ```bash
-wallet-cli asset info --issuer TZx9kP2m...7bWq --network tron:nile
+wallet-cli asset info --issuer TZx9kP2m...7bWq --network tron:3448148188
 ```
 
 ```console
@@ -97,21 +97,21 @@ Asset MyToken (id 1000488)
 ```
 
 ```bash
-wallet-cli asset info 1000123 --network tron:nile -o json
+wallet-cli asset info 1000123 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.info","data":{"kind":"asset-info","assetId":"1000123","name":"MyToken","abbr":"MTK","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1000000,"num":100000000,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30,"expireTime":1788134400000},{"amount":"50000000000000","days":90,"expireTime":1793318400000}]},"meta":{"durationMs":26,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.info","data":{"kind":"asset-info","assetId":"1000123","name":"MyToken","abbr":"MTK","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1000000,"num":100000000,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30,"expireTime":1788134400000},{"amount":"50000000000000","days":90,"expireTime":1793318400000}]},"meta":{"durationMs":26,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The ambiguous-name failure, in json:
 
 ```bash
-wallet-cli asset info MyToken --network tron:nile -o json
+wallet-cli asset info MyToken --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":false,"command":"asset.info","error":{"code":"ambiguous_asset_name","message":"2 TRC10 tokens are named MyToken; re-run with the id","details":{"name":"MyToken","assetIds":["1000123","1000488"],"matches":[{"assetId":"1000123","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6},{"assetId":"1000488","issuerAddress":"TZx9kP2m...","totalSupply":"5000000000","precision":2}]}},"meta":{"durationMs":29,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":false,"command":"asset.info","error":{"code":"ambiguous_asset_name","message":"2 TRC10 tokens are named MyToken; re-run with the id","details":{"name":"MyToken","assetIds":["1000123","1000488"],"matches":[{"assetId":"1000123","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6},{"assetId":"1000488","issuerAddress":"TZx9kP2m...","totalSupply":"5000000000","precision":2}]}},"meta":{"durationMs":29,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

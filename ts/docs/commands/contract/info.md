@@ -25,7 +25,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile
+wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
 ```
 
 ```console
@@ -35,11 +35,11 @@ Methods   33 (name / deprecate / approve …)
 ```
 
 ```bash
-wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile -o json
+wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.info","data":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"TetherToken","functionCount":33,"methods":["name","deprecate","approve","deprecated","addBlackList","totalSupply","transferFrom","…"],"contract":{"origin_address":"41…","contract_address":"41…","abi":{},"bytecode":"…","name":"TetherToken"},"info":{"smart_contract":{},"runtimecode":"…","contract_state":{}}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.info","data":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"TetherToken","functionCount":33,"methods":["name","deprecate","approve","deprecated","addBlackList","totalSupply","transferFrom","…"],"contract":{"origin_address":"41…","contract_address":"41…","abi":{},"bytecode":"…","name":"TetherToken"},"info":{"smart_contract":{},"runtimecode":"…","contract_state":{}}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

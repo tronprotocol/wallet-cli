@@ -44,7 +44,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -62,11 +62,11 @@ echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:
 ```
 
 ```bash
-echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.update","data":{"kind":"asset-update","stage":"confirmed","txId":"9e3...","confirmed":true,"blockNumber":57883190,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","url":"https://mytoken.io/v2","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"feeSun":0,"resource":{"netUsage":295,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.update","data":{"kind":"asset-update","stage":"confirmed","txId":"9e3...","confirmed":true,"blockNumber":57883190,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","url":"https://mytoken.io/v2","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"feeSun":0,"resource":{"netUsage":295,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

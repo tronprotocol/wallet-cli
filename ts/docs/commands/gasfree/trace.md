@@ -23,7 +23,7 @@ No command-specific options; `traceId` is a positional argument, plus the [globa
 ## Examples
 
 ```bash
-wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:nile
+wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:3448148188
 ```
 
 ```console
@@ -37,11 +37,11 @@ To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 ```
 
 ```bash
-wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:nile -o json
+wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"0","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"0","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

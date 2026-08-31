@@ -42,7 +42,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Keep 20 %, pass 80 % to voters:
 
 ```bash
-echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -56,11 +56,11 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --pa
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.set-brokerage","data":{"kind":"witness-set-brokerage","stage":"confirmed","txId":"f8c...","confirmed":true,"blockNumber":57881402,"failed":false,"witnessAddress":"TSRmq8kP...","brokerage":20,"feeSun":0,"resource":{"netUsage":269,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.set-brokerage","data":{"kind":"witness-set-brokerage","stage":"confirmed","txId":"f8c...","confirmed":true,"blockNumber":57881402,"failed":false,"witnessAddress":"TSRmq8kP...","brokerage":20,"feeSun":0,"resource":{"netUsage":269,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

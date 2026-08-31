@@ -23,7 +23,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli chain node --network tron:nile
+wallet-cli chain node --network tron:3448148188
 ```
 
 ```console
@@ -35,17 +35,17 @@ Peers        60 connected / 3 active
 ```
 
 ```bash
-wallet-cli chain node --network tron:nile -o json
+wallet-cli chain node --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.node","data":{"endpoint":"nile.trongrid.io","version":"java-tron 4.8.2.1.PQ1_build1","p2pVersion":"201910292","headBlock":{"number":70433708,"timestamp":1787818563000},"solidBlock":{"number":70433690},"lagBlocks":18,"inSync":true,"peers":{"connected":58,"active":3}},"meta":{"durationMs":752,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.node","data":{"endpoint":"nile.trongrid.io","version":"java-tron 4.8.2.1.PQ1_build1","p2pVersion":"201910292","headBlock":{"number":70433708,"timestamp":1787818563000},"solidBlock":{"number":70433690},"lagBlocks":18,"inSync":true,"peers":{"connected":58,"active":3}},"meta":{"durationMs":752,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network, with the chain id and the node's own syncing flag added:
 
 ```bash
-wallet-cli chain node --network evm:11155111
+wallet-cli chain node --network eip155:11155111
 ```
 
 ```console
@@ -59,7 +59,7 @@ Peers        25 connected / 25 active
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.node","data":{"endpoint":"ethereum-sepolia-rpc.publicnode.com","version":"Geth/v1.17.1-stable-16783c16/linux-amd64/go1.25.7","chainId":"11155111","p2pVersion":null,"headBlock":{"number":11576632,"timestamp":1787818560000},"solidBlock":{"number":11576563},"lagBlocks":69,"inSync":true,"peers":{"connected":25,"active":25}},"meta":{"durationMs":389,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.node","data":{"endpoint":"ethereum-sepolia-rpc.publicnode.com","version":"Geth/v1.17.1-stable-16783c16/linux-amd64/go1.25.7","chainId":"11155111","p2pVersion":null,"headBlock":{"number":11576632,"timestamp":1787818560000},"solidBlock":{"number":11576563},"lagBlocks":69,"inSync":true,"peers":{"connected":25,"active":25}},"meta":{"durationMs":389,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ## Output

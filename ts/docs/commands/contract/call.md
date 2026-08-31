@@ -27,7 +27,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:nile
+wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:3448148188
 ```
 
 ```console
@@ -36,17 +36,17 @@ Result  0000000000000000000000000000000000000000000000000000000000000000 (raw)
 ```
 
 ```bash
-wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:nile -o json
+wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.call","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","method":"balanceOf(address)","result":["0000000000000000000000000000000000000000000000000000000000000000"]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.call","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","method":"balanceOf(address)","result":["0000000000000000000000000000000000000000000000000000000000000000"]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The same call on an EVM network. Note the shape of `result`: the TRON node returns the return data split into words, the EVM node returns it as one `0x` blob:
 
 ```bash
-wallet-cli contract call --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --method "balanceOf(address)" --params '[{"type":"address","value":"0x541B10b92b45C08513e67bb8209f035D810212B6"}]' --network evm:11155111
+wallet-cli contract call --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --method "balanceOf(address)" --params '[{"type":"address","value":"0x541B10b92b45C08513e67bb8209f035D810212B6"}]' --network eip155:11155111
 ```
 
 ```console
@@ -55,7 +55,7 @@ Result  0x0000000000000000000000000000000000000000000000000000000000000000 (raw)
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.call","data":{"contract":"0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238","method":"balanceOf(address)","result":"0x0000000000000000000000000000000000000000000000000000000000000000"},"meta":{"durationMs":236,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.call","data":{"contract":"0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238","method":"balanceOf(address)","result":"0x0000000000000000000000000000000000000000000000000000000000000000"},"meta":{"durationMs":236,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ## Output

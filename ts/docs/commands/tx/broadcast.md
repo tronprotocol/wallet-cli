@@ -61,24 +61,24 @@ Plus the [global options](../index.md#global-options-every-command).
 Broadcast a signed hex from a file:
 
 ```bash
-wallet-cli tx broadcast --file tx.signed.hex --network tron:nile
+wallet-cli tx broadcast --file tx.signed.hex --network tron:3448148188
 ```
 
 ```console
 ⏳ Broadcast
   TxID    72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid 72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
+! Track it: wallet-cli tx info --network tron:3448148188 --txid 72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
 ```
 
 Or inline hex, and the JSON receipt:
 
 ```bash
-wallet-cli tx broadcast --hex 0a02...9f31 --network tron:nile -o json
+wallet-cli tx broadcast --hex 0a02...9f31 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.broadcast","data":{"kind":"broadcast","stage":"submitted","txId":"72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5"},"meta":{"durationMs":926,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.broadcast","data":{"kind":"broadcast","stage":"submitted","txId":"72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5"},"meta":{"durationMs":926,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

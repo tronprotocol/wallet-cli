@@ -43,7 +43,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli asset unfreeze --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -59,11 +59,11 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:nile --wait --password-std
 ```
 
 ```bash
-echo "$PW" | wallet-cli asset unfreeze --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.unfreeze","data":{"kind":"asset-unfreeze","stage":"confirmed","txId":"6a5...","confirmed":true,"blockNumber":57883560,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","releasedAmount":100000000000000,"stillFrozenAmount":50000000000000,"feeSun":0,"resource":{"netUsage":288,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.unfreeze","data":{"kind":"asset-unfreeze","stage":"confirmed","txId":"6a5...","confirmed":true,"blockNumber":57883560,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","releasedAmount":100000000000000,"stillFrozenAmount":50000000000000,"feeSun":0,"resource":{"netUsage":288,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

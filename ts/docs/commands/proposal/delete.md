@@ -40,7 +40,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli proposal delete 48 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli proposal delete 48 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -54,11 +54,11 @@ echo "$PW" | wallet-cli proposal delete 48 --network tron:nile --wait --password
 ```
 
 ```bash
-echo "$PW" | wallet-cli proposal delete 48 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli proposal delete 48 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.delete","data":{"kind":"proposal-delete","stage":"confirmed","txId":"c7d...","confirmed":true,"blockNumber":57880355,"failed":false,"proposalId":48,"feeSun":0,"resource":{"netUsage":265,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6390,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.delete","data":{"kind":"proposal-delete","stage":"confirmed","txId":"c7d...","confirmed":true,"blockNumber":57880355,"failed":false,"proposalId":48,"feeSun":0,"resource":{"netUsage":265,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6390,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

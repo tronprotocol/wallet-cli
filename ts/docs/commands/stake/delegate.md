@@ -46,7 +46,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -54,15 +54,15 @@ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtj
   To      TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx
   TxID    b7c...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid b7c...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid b7c...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.delegate","data":{"kind":"stake-delegate","stage":"submitted","txId":"b7c...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.delegate","data":{"kind":"stake-delegate","stage":"submitted","txId":"b7c...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

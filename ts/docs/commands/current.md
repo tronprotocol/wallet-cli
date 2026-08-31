@@ -49,7 +49,7 @@ Active account: main
 The QR encodes **one** address — the receive address for the selected network. Pass `--network` to choose which:
 
 ```bash
-wallet-cli current --qr --network evm:11155111
+wallet-cli current --qr --network eip155:11155111
 ```
 
 The QR is a terminal rendering only and scans from a real terminal (where the block characters line up); `-o json` is unchanged by `--qr` (machine consumers take the address and generate their own code). If the terminal is non-interactive or too narrow to fit it, it degrades to printing the addresses with a warning:
@@ -63,7 +63,7 @@ wallet-cli current -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:mainnet","chainId":"mainnet"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 With no active account yet, it fails with `missing_wallet_address` (exit 1):

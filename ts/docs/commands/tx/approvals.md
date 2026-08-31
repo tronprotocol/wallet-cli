@@ -30,7 +30,7 @@ Plus the [global options](../index.md#global-options-every-command) (`--network`
 ## Examples
 
 ```bash
-wallet-cli tx approvals --file tx.hex --network tron:nile
+wallet-cli tx approvals --file tx.hex --network tron:3448148188
 ```
 
 ```console
@@ -48,11 +48,11 @@ Progress  1 / 2 — 1 more weight needed
 ```
 
 ```bash
-wallet-cli tx approvals --file tx.hex --network tron:nile -o json
+wallet-cli tx approvals --file tx.hex --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.approvals","data":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1}],"expiration":1784388720000,"expired":false,"signatures":1},"meta":{"durationMs":45,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.approvals","data":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1}],"expiration":1784388720000,"expired":false,"signatures":1},"meta":{"durationMs":45,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

@@ -40,28 +40,28 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin
 ```
 
 ```console
 ⏳ Unstaked 1,000 TRX
   TxID    d4e...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid d4e...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid d4e...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.unfreeze","data":{"kind":"stake-unfreeze","stage":"submitted","txId":"d4e...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.unfreeze","data":{"kind":"stake-unfreeze","stage":"submitted","txId":"d4e...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console

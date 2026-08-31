@@ -53,11 +53,11 @@ The initiator builds an **unsigned** transaction (`--build-only`, expiry extende
 
 ```bash
 # --build-only does not sign and needs no master password
-wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --permission-id 2 --build-only --expiration 86400000 --network tron:nile > tx.unsigned.hex
+wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --permission-id 2 --build-only --expiration 86400000 --network tron:3448148188 > tx.unsigned.hex
 ```
 
 ```bash
-echo "$PW" | wallet-cli tx multisig --create --file tx.unsigned.hex --network tron:nile --password-stdin
+echo "$PW" | wallet-cli tx multisig --create --file tx.unsigned.hex --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -83,7 +83,7 @@ Progress  1 / 2 — 1 more weight needed
 A co-signer lists what's awaiting them (default mode), then co-signs:
 
 ```bash
-wallet-cli tx multisig --account cosigner --network tron:nile
+wallet-cli tx multisig --account cosigner --network tron:3448148188
 ```
 
 ```console
@@ -95,7 +95,7 @@ Multi-sig transactions — TronLink service (1 total)
 ```
 
 ```bash
-echo "$PW" | wallet-cli tx multisig --sign 9c1... --account cosigner --network tron:nile --password-stdin
+echo "$PW" | wallet-cli tx multisig --sign 9c1... --account cosigner --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -123,17 +123,17 @@ Progress  2 / 2 — threshold reached
 The list mode as JSON:
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.multisig","data":{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","total":1,"unreadable":0,"transactions":[{"txId":"9c1...","state":"pending","verified":true,"contractType":"TransferContract","operation":"Transfer TRX","rawAmount":"1000000000","originator":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"awaitingMySignature":true,"signedByCurrentAccount":false,"expiration":1784388720000}]},"meta":{"durationMs":420,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.multisig","data":{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","total":1,"unreadable":0,"transactions":[{"txId":"9c1...","state":"pending","verified":true,"contractType":"TransferContract","operation":"Transfer TRX","rawAmount":"1000000000","originator":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"awaitingMySignature":true,"signedByCurrentAccount":false,"expiration":1784388720000}]},"meta":{"durationMs":420,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Optionally, a WebSocket nudge (count only — list them to see details):
 
 ```bash
-wallet-cli tx multisig --watch --account cosigner --network tron:nile
+wallet-cli tx multisig --watch --account cosigner --network tron:3448148188
 ```
 
 ```console
-Watching TronLink multi-sig service for tron:nile … (Ctrl-C to stop)
+Watching TronLink multi-sig service for tron:3448148188 … (Ctrl-C to stop)
 🔔 You have 1 transaction(s) to sign — view them with: wallet-cli tx multisig
 ```
 

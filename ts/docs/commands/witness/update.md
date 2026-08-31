@@ -38,7 +38,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -52,11 +52,11 @@ echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tro
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.update","data":{"kind":"witness-update","stage":"confirmed","txId":"e5b...","confirmed":true,"blockNumber":57881190,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io/v2","feeSun":0,"resource":{"netUsage":270,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6440,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.update","data":{"kind":"witness-update","stage":"confirmed","txId":"e5b...","confirmed":true,"blockNumber":57881190,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io/v2","feeSun":0,"resource":{"netUsage":270,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6440,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
