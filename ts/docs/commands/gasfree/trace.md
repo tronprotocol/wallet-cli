@@ -58,7 +58,7 @@ wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:nil
 
 ## Exit status
 
-`0` success · `1` execution failure (`gasfree_credentials_missing`, `not_found` — no such trace id, `gasfree_integrity`, `provider_error`, `unsupported_network`) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`not_found` — no such trace id, `gasfree_integrity`, `provider_error`) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
 
 A `FAILED` transfer is a successful query: the envelope stays `success: true` at exit `0`, and `data.failureReason` carries the provider's explanation.
 

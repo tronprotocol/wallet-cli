@@ -24,6 +24,8 @@ Only the contract's deployer can do this; the current value is in [`contract inf
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot parse this governance contract type. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -80,7 +82,7 @@ echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 5000000
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address, or energy not an integer > 0).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address, or energy not an integer > 0).
 
 ## See also
 

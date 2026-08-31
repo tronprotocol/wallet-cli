@@ -38,6 +38,8 @@ Fee flags follow the family — `--fee-limit` (TRON, default `100000000` SUN) or
 
 Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+On TRON, the Ledger app cannot sign `CreateSmartContract`; Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported`. This restriction does not apply to EVM deployment through the Ethereum app.
+
 ## Options
 
 | Option | Description |
@@ -139,7 +141,7 @@ echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json 
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact/bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; an artifact that is not JSON, has no creation bytecode, or holds only `"0x"`; `--constructor-args` with no type source; `--constructor-params` or `--constructor-signature` alongside `--artifact`; a TRON deploy with neither `--abi` nor `--artifact`, or with both; `--constructor-signature` on TRON; an ABI constructor without a string `stateMutability`.
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported` — TRON signing only, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact/bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; an artifact that is not JSON, has no creation bytecode, or holds only `"0x"`; `--constructor-args` with no type source; `--constructor-params` or `--constructor-signature` alongside `--artifact`; a TRON deploy with neither `--abi` nor `--artifact`, or with both; `--constructor-signature` on TRON; an ABI constructor without a string `stateMutability`.
 
 ## See also
 

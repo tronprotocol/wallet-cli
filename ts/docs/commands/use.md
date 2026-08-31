@@ -35,7 +35,7 @@ wallet-cli use main-1 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"use","data":{"previous":"wlt_758891fa.0","accountId":"wlt_758891fa.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax","evm":"0xf3ec542047Fe61E0b753a7EBca95B27a672F9cbe"},"seedId":"wlt_758891fa","derivationPath":{"tron":"m/44'/195'/0'/0/1","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":14,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"use","data":{"previous":"wlt_758891fa.0","accountId":"wlt_758891fa.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TRs9HgTuY3dT3yDasdFdP9WQHqL37891Ax","evm":"0xf3ec542047Fe61E0b753a7EBca95B27a672F9cbe"},"seedId":"wlt_758891fa","derivationPath":{"tron":"m/44'/195'/1'/0/0","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":14,"warnings":[]}}
 ```
 
 ## Output

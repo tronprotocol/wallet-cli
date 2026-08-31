@@ -1,6 +1,6 @@
 # Command-line operation flow
 
-A worked end-to-end example of an interactive session: build and run, register, back up, inspect, issue an asset, and transfer it.
+A worked end-to-end example of the legacy interactive session: build and run, register, back up, inspect, issue an asset, and transfer it. For one-shot commands and JSON output, see [Getting started](getting-started.md#standard-cli).
 
 ```console
 $ cd wallet-cli

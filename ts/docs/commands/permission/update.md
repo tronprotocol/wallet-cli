@@ -124,7 +124,7 @@ Local warnings (`owner_lockout`, `owner_lockout_partial`, `active_can_update_per
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`invalid_permission`, `not_authorized`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`not_authorized`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_permission` — malformed JSON or an invalid permission structure; `invalid_value`).
 
 On a multi-sig account, a submission whose accumulated signature weight is below the permission threshold is refused **after signing and before broadcasting** with `not_authorized` (`signature threshold is not reached; missing N weight`) — nothing is sent and no fee is burned. Collect the remaining signatures through `--sign-only` + [`tx sign`](../tx/sign.md) and submit with [`tx broadcast`](../tx/broadcast.md) instead. `--sign-only` and `--build-only` still return a partial signature, which is how a co-signing flow starts.
 

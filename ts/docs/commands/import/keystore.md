@@ -75,7 +75,7 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 
 ## Exit status
 
-`0` imported · `1` execution failure (`keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `wrong_keystore_password`; `account_exists` — this address is already in the wallet; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; duplicate label).
+`0` imported · `1` execution failure (`wrong_keystore_password`; `account_exists` — this address is already in the wallet; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; `keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `invalid_value` — duplicate or invalid label).
 
 ## See also
 

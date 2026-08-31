@@ -20,6 +20,8 @@ The account must already be activated and hold at least the registration fee. `-
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -74,7 +76,7 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:n
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_witness`, `account_not_active`, `insufficient_balance` — below the registration fee, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--url`).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_witness`, `account_not_active`, `insufficient_balance` — below the registration fee, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--url`).
 
 ## See also
 

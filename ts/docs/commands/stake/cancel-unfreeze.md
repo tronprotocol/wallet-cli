@@ -15,6 +15,8 @@ Cancels **every** unstake still in its waiting period and rolls those amounts ba
 
 **By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -79,7 +81,7 @@ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:nile --wait --passw
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

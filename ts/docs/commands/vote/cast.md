@@ -89,7 +89,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `insufficient_voting_power` — total exceeds available TP) · `2` usage error (`invalid_value` — bad SR address, non-positive count, > 30 entries).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — total exceeds available TP; `invalid_value` — bad SR address, non-positive count, > 30 entries).
 
 ## See also
 

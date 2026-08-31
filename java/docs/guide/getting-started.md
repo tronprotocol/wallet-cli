@@ -1,10 +1,10 @@
 # Getting started
 
-The first-run flow: build, create an account, unlock it, inspect it, and send your first TRX — all from the interactive prompt.
+wallet-cli has two entry modes: a standard one-shot CLI for scripts and a legacy interactive prompt. The first-run flow below uses the prompt because it keeps account creation, unlock, inspection, and transfer in one session.
 
 ## Quickstart
 
-Build, create an account, and send your first transfer — all from the interactive prompt:
+Build, create an account, and send your first transfer from the interactive prompt:
 
 ```console
 # 1. Build
@@ -25,6 +25,17 @@ $ java -jar wallet-cli.jar
 ```
 
 > On mainnet these commands move **real funds**. While learning, switch to a testnet with `SwitchNetwork` (Nile or Shasta) and top up from that network's faucet.
+
+## Standard CLI
+
+Passing a command selects the standard CLI instead of the prompt. It supports text or JSON output and global network, wallet, and endpoint overrides:
+
+```console
+$ java -jar wallet-cli.jar --output json --network nile get-balance --address T...
+$ java -jar wallet-cli.jar --network nile send-coin --to T... --amount 1000000 --password-stdin
+```
+
+Run `java -jar wallet-cli.jar --help` for the command catalog and `<command> --help` for command options. The parsing, authentication, JSON envelope, and exit behavior are defined in the [standard CLI contract](../standard-cli-contract-spec.md).
 
 ## How to create account
 

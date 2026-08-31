@@ -57,7 +57,7 @@ wallet-cli gasfree info --account main --network tron:nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`gasfree_credentials_missing`, `gasfree_integrity` — the provider's fee metadata disagreed between the token list and the address response, `provider_error` — service error / rate limit, `unsupported_network`) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`gasfree_integrity` — the provider's fee metadata disagreed between the token list and the address response, `provider_error` — service error / rate limit) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
 
 ## See also
 

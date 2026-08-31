@@ -164,7 +164,7 @@ The **exit code is the hard contract**: `2` means the call was malformed (it wil
 wallet-cli --json-schema | jq '.errorCodes'
 ```
 
-That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`, `not_found`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
@@ -174,12 +174,12 @@ Common codes at exit **2** (usage — fix the call):
 | `family_mismatch` | The command, the account, the recipient, or the raw transaction does not belong to the selected network's chain family |
 | `missing_option` | A required flag was not provided |
 | `invalid_option` | A flag was used in an invalid combination, or is scoped to the other chain family |
+| `invalid_permission` | A permission document or selected permission group is invalid for the operation |
 | `invalid_value` | A flag value failed validation (e.g. `config defaultOutput xml`) |
 | `invalid_amount` | An amount is malformed or out of range |
-| `invalid_mnemonic` / `invalid_private_key` | A supplied mnemonic or private key is malformed |
 | `weak_password` | Master password below policy (≥8 chars; upper + lower + digit + special) |
-| `tty_required` | An interactive prompt is needed but no TTY is attached — pass the matching `*-stdin` flag |
-| `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id or alias |
+| `tty_required` | An interactive prompt is needed but no TTY is attached — run in a TTY, or use the matching stdin flag when that command exposes one |
+| `missing_network` / `unsupported_network` | A caller explicitly asked the registry to resolve an empty network id, or the supplied canonical id / alias is unknown. Normal chain commands use `config.defaultNetwork`, whose built-in value is `tron:mainnet`, when `--network` is omitted |
 | `unsupported_network_capability` | The selected network does not offer what this command needs |
 | `limit_exceeded` | A bounded input (file size, list length, page size) was over its limit |
 | `unknown_command` | No such command |
@@ -189,7 +189,11 @@ Common codes at exit **2** (usage — fix the call):
 | `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, an unsupported cipher/KDF, or a payload that is not a 32-byte private key |
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
-| `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
+| `contact_not_found` / `already_exists` | No contact by that name, or a contact name/address is already stored |
+| `token_not_in_book` / `token_is_official` / `token_already_listed` | Token address-book conditions |
+| `unsupported_token` | The selected provider or command does not support that token |
+| `insufficient_voting_power` | The requested votes exceed the account's available voting power |
+| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
 
@@ -204,20 +208,21 @@ Common codes at exit **1** (execution — runtime failure):
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
+| `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; interactive import normally catches it at the prompt and asks again |
+| `token_metadata_unavailable` | Required token metadata could not be read from the selected network |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
 | `provider_error` | An external service (GasFree, TronLink multi-sig) returned an error or rate-limited |
-| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
 | `tx_expired` | The transaction's expiration passed before signatures were collected (TRON) |
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `migration_required` | Persisted wallet data needs an upgrade that this invocation cannot perform — see [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
 | `history_not_supported` | The endpoint lacks TronGrid history support (`account history`, TRON) |
-| `not_found` | The addressed thing does not exist — an unactivated account, a contact, a chain parameter, a GasFree or TronLink resource. Lookups that have a group of their own use the specific code below |
+| `not_found` | The addressed thing does not exist — for example an unactivated account, transaction, block, or GasFree / TronLink resource. Some command-level lookups raise the same string as a usage error instead; branch on exit code first |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
 | `ambiguous_asset_name` | A TRC10 name matches more than one token; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
-| `ledger_unsupported` | The Ledger TRON app cannot sign this contract type — refused before the device is touched (`asset` writes, `witness` writes) |
+| `ledger_unsupported` | The selected Ledger app cannot sign this transaction type — refused before the device is touched (TRON account activation, account id, asset writes, contract deploy/governance, witness writes, and cancel-unfreeze) |
 | `not_a_witness` / `already_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
 | `already_approved` / `not_approved` / `proposal_expired` / `already_canceled` | Proposal voting conditions |
 | `account_not_active` / `account_already_active` / `name_already_set` / `id_already_set` / `chain_parameter_unavailable` | Account activation/name/id conditions, or `witness create` could not read `getAccountUpgradeCost` |

@@ -70,7 +70,7 @@ wallet-cli import private-key --label hot -o json
 
 ## Exit status
 
-`0` imported · `1` execution failure (`tty_required` — no TTY for interactive input; `auth_failed`; `password_mismatch`; `io_error`) · `2` usage error (invalid private key, duplicate label).
+`0` imported · `1` execution failure (`auth_failed` — the entered master password does not match an existing keystore; `invalid_private_key` — storage validation rejected the key; `io_error`) · `2` usage error (`tty_required` — no TTY for the hidden prompts; `invalid_value` — invalid or duplicate label). An invalid key or weak new password entered at a TTY prompt is rejected there and re-prompted rather than returned as a terminal error.
 
 ## See also
 

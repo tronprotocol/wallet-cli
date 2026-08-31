@@ -27,19 +27,23 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 
 ## Supported chains
 
-Three TRON networks are supported today. Networks are identified by a canonical `family:chain` id (all `tron` today):
+Seven built-in networks are supported. Networks use a canonical `family:chain` id:
 
-| Network id | What it is | TRX value |
-|---|---|---|
-| `tron:mainnet` | Production mainnet | **Real funds** |
-| `tron:nile` | Primary testnet (faucet at nileex.io) | None — use freely |
-| `tron:shasta` | Alternate testnet | None |
+| Network id | Family | Native coin | Environment |
+|---|---|---|---|
+| `tron:mainnet` | TRON | TRX | Mainnet — **real funds** |
+| `tron:nile` | TRON | TRX | Testnet |
+| `tron:shasta` | TRON | TRX | Testnet |
+| `evm:1` | EVM | ETH | Ethereum mainnet — **real funds** |
+| `evm:11155111` | EVM | ETH | Sepolia testnet |
+| `evm:56` | EVM | BNB | BNB Smart Chain mainnet — **real funds** |
+| `evm:97` | EVM | BNB | BNB Smart Chain testnet |
 
-Your address is the same on every network, but balances, tokens, and transactions are isolated per network. Fees use TRON's `tron-resource` model (bandwidth + energy) rather than EVM gas — see [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
+One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
 ## Install
 
-**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON app installed — see the [Ledger guide](docs/guide/ledger.md).
+**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the app for the selected family installed — TRON for TRON accounts, Ethereum for EVM accounts. See the [Ledger guide](docs/guide/ledger.md).
 
 ```bash
 npm install -g @tron-walletcli/wallet-cli
@@ -180,7 +184,7 @@ Every command supports `-o json` and then prints **exactly one** terminal JSON f
 
 TRON differs a lot from EVM chains in fees, accounts, and key permissions — these are worth understanding up front to avoid surprises:
 
-- [Networks](docs/concepts/networks.md) — the three networks and the `family:chain` id
+- [Networks](docs/concepts/networks.md) — built-in TRON/EVM networks and the `family:chain` id
 - [Accounts & HD](docs/concepts/accounts-and-hd.md) — mnemonics, derivation paths, account activation
 - [Energy & bandwidth](docs/concepts/energy-bandwidth.md) — TRON's resource-based fee model (in place of EVM gas)
 - [Security](docs/concepts/security.md) — keystore encryption, secret handling, multi-sig permissions

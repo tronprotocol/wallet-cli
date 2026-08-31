@@ -1,7 +1,7 @@
 <h1 align="center">wallet-cli</h1>
 
 <h4 align="center">
-  A command-line wallet for the <a href="https://tron.network">TRON network</a> — interactive in Java, agent-first in TypeScript
+  A command-line wallet for <a href="https://tron.network">TRON</a> and selected EVM networks — dual-mode in Java, agent-first in TypeScript
 </h4>
 
 <p align="center">
@@ -14,10 +14,10 @@
 
 This repository holds **two independent implementations** that share the same purpose but target different users:
 
-- **[Java](java/README.md)** — the original, full-featured reference CLI. An interactive prompt (REPL) you drive by hand.
+- **[Java](java/README.md)** — the original, full-featured reference CLI. Run one-shot standard commands or start the interactive prompt (REPL).
 - **[TypeScript](ts/README.md)** — an agent-first rewrite for automation. Standard subcommands with a stable JSON envelope, built for scripts, CI, and AI agents.
 
-Both manage the same kind of wallet on the same networks — your address is identical regardless of which you use. They cover the same TRON feature surface and differ in how you install and drive them. Pick one and read its own README for depth; this page gives you the basics of each so you can choose.
+Both manage TRON wallets, but they are independent implementations rather than interchangeable account stores. Do not assume every derived account has the same address across implementations: check the recorded BIP44 path when migrating. The TypeScript implementation additionally supports selected EVM networks.
 
 ## At a glance
 
@@ -26,10 +26,10 @@ Both manage the same kind of wallet on the same networks — your address is ide
 | **What it is**         | The mature, full-feature reference CLI.                                                                                        | A newer rewrite focused on programmatic integration.                                                                                                                                                                                                        |
 | **Runtime**            | JVM — built with Gradle, run as a `.jar`. Uses the [Trident](https://github.com/tronprotocol/trident) SDK.                     | [Node.js](https://nodejs.org) **20+**.                                                                                                                                                                                                                      |
 | **Install**            | `git clone` + `./gradlew build` (see [Setup](java/README.md#setup))                                                            | `npm install -g @tron-walletcli/wallet-cli`                                                                                                                                                                                                                 |
-| **How you drive it**   | An **interactive prompt only** — start it, then type commands at `>`.                                                          | **One-shot subcommands** — `wallet-cli <command>` from your shell. Interactive prompts only for secret input.                                                                                                                                               |
+| **How you drive it**   | One-shot standard commands, or an interactive prompt when run without a command / with `--interactive`.                       | **One-shot subcommands** — `wallet-cli <command>` from your shell. Interactive prompts only for secret input.                                                                                                                                               |
 | **Command style**      | PascalCase verbs: `RegisterWallet`, `SendCoin`, `GetBalance`. Amounts in **SUN** (1 TRX = 1,000,000 SUN).                      | Noun-verb subcommands: `create`, `tx send`, `account balance`, with `--flags`.                                                                                                                                                                              |
-| **Output for scripts** | Human-readable text.                                                                                                           | Stable JSON via `-o json` ([`wallet-cli.result.v1`](ts/docs/machine-interface.md)) + fixed exit codes (`0`/`1`/`2`).                                                                                                                                        |
-| **Config / networks**  | `config.conf` (net type + full node), or `SwitchNetwork` at runtime. Mainnet · Nile · Shasta · custom.                         | `--network` flag / `config` command. `tron:mainnet` · `tron:nile` · `tron:shasta`.                                                                                                                                                                          |
+| **Output for scripts** | Text by default; standard mode supports `--output json` and structured success/error envelopes.                               | Stable JSON via `-o json` ([`wallet-cli.result.v1`](ts/docs/machine-interface.md)) + fixed exit codes (`0`/`1`/`2`).                                                                                                                                        |
+| **Config / networks**  | `config.conf` (net type + full node), or `SwitchNetwork` at runtime. Mainnet · Nile · Shasta · custom.                         | `--network` flag / `config` command. Three TRON networks plus Ethereum, Sepolia, BNB Smart Chain, and its testnet.                                                                                                                                           |
 | **Signing**            | Software keystore · Ledger.                                                                                                    | Encrypted local keystore · Ledger. Secrets enter via stdin/TTY, never argv or dedicated secret env vars.                                                                                                                                                    |
 | **Feature scope**      | **The full surface** — wallets and transfers, staking, voting and rewards, governance, contracts, TRC10, and the on-chain exchange. | **The full surface** — HD wallets, TRX/TRC20/TRC10 transfers, staking & delegation, voting & rewards, governance proposals & super-representative operation, contract call/deploy/governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries. |
 | **Best for**           | People at a terminal who want every TRON capability.                                                                           | Scripting, CI pipelines, and AI agents.                                                                                                                                                                                                                     |
@@ -37,11 +37,12 @@ Both manage the same kind of wallet on the same networks — your address is ide
 
 ## Java — get a taste
 
-Interactive only. Build it, start the prompt, then type commands:
+Build it, then either run a standard command or start the prompt:
 
 ```console
 $ git clone https://github.com/tronprotocol/wallet-cli.git
 $ cd wallet-cli && ./gradlew build && cd build/libs
+$ java -jar wallet-cli.jar --output json --network nile get-balance --address T...
 $ java -jar wallet-cli.jar        # opens the interactive prompt
 > RegisterWallet 123456           # create a keystore (password 123456)
 > Login                           # unlock it

@@ -80,7 +80,7 @@ wallet-cli chain params --network tron:nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`; `not_found` — `--key` doesn't exist) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`not_found` — `--key` doesn't exist; `invalid_value`).
 
 ## See also
 

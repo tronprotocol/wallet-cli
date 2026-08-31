@@ -22,6 +22,8 @@ This is unrelated to [`stake unfreeze`](../stake/unfreeze.md), which releases st
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign TRC10 issuance contract types. Ledger accounts may dry-run or build unsigned hex, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 This command has no options of its own.
@@ -79,7 +81,7 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:nile --wait --password-std
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_an_issuer` — this account has not issued a TRC10, `no_frozen_supply`, `not_yet_unfreezable` — nothing has matured yet, `watch_only_no_signer`, `auth_failed`) · `2` usage error.
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_an_issuer` — this account has not issued a TRC10, `no_frozen_supply`, `not_yet_unfreezable` — nothing has matured yet, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error.
 
 ## See also
 

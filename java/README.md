@@ -1,6 +1,6 @@
 # wallet-cli — Java implementation
 
-The original, full-featured implementation of wallet-cli: an interactive prompt (REPL) covering the complete TRON feature surface — managing accounts and keystores, TRX / TRC10 / TRC20 transfers, staking resources, voting for super representatives, deploying and calling smart contracts, Ledger hardware signing, and [GasFree](https://gasfree.io) gas-less transfers. All gRPC calls run on the [Trident SDK](https://github.com/tronprotocol/trident).
+The original, full-featured implementation of wallet-cli. It supports both one-shot standard commands for scripts and an interactive prompt (REPL), covering the complete TRON feature surface — managing accounts and keystores, TRX / TRC10 / TRC20 transfers, staking resources, voting for super representatives, deploying and calling smart contracts, Ledger hardware signing, and [GasFree](https://gasfree.io) gas-less transfers. All gRPC calls run on the [Trident SDK](https://github.com/tronprotocol/trident).
 
 > For what wallet-cli is and how this compares to the scriptable, JSON-first [TypeScript implementation](../ts/README.md), see the [repository overview](../README.md).
 
@@ -43,14 +43,21 @@ You can also switch networks at runtime with the [`SwitchNetwork`](docs/commands
     $ cd wallet-cli
     $ ./gradlew build
     $ cd build/libs
-    $ java -jar wallet-cli.jar
+    $ java -jar wallet-cli.jar --help
     ```
+
+With no command, wallet-cli opens the legacy interactive prompt. With a command, it uses the standard CLI; `--interactive` selects the prompt explicitly. Standard mode accepts global options such as `--network <main|nile|shasta|custom>`, `--wallet`, `--grpc-endpoint`, and `--output <text|json>`:
+
+```console
+$ java -jar wallet-cli.jar --output json --network nile get-balance --address T...
+$ java -jar wallet-cli.jar --interactive
+```
 
 wallet-cli connects to java-tron via the gRPC protocol, which can be deployed locally or remotely. Configure the java-tron node IP and port in `src/main/resources/config.conf`, or use `SwitchNetwork` to switch among mainnet, testnets (Nile and Shasta), and custom networks.
 
 ## Quickstart
 
-Build, create an account, and send your first transfer — all from the interactive prompt:
+This quickstart uses the interactive prompt. For automation, pass a standard command to the jar and add `--output json`; see the [standard CLI contract](docs/standard-cli-contract-spec.md).
 
 ```console
 # 1. Build

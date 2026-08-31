@@ -102,7 +102,7 @@ wallet-cli permission show --account main --network tron:nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`invalid_value`, or `not_found` when the address is unactivated / absent on chain).
+`0` success · `1` execution failure (`not_found` — the address is unactivated / absent on chain; `rpc_error`) · `2` usage error (`invalid_value`).
 
 ## See also
 

@@ -62,7 +62,7 @@ wallet-cli contact add alice TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --note "Alice ma
 
 ## Exit status
 
-`0` success · `1` execution failure (`already_exists` — the name is taken, `limit_exceeded` — the address book is full). The address book is a local file: `encoding_error` if it cannot be decoded, `insecure_permissions` if it is a symlink or group/world-readable (`chmod 600` it). · `2` usage error (`invalid_address` — the address is not valid for its family; `invalid_value` — an invalid name or note).
+`0` success · `1` execution failure (`encoding_error` — the local address book cannot be decoded; `insecure_permissions` — it is a symlink or group/world-readable, so run `chmod 600`) · `2` usage error (`already_exists` — the name or address is taken; `limit_exceeded` — the address book is full; `invalid_address` — the address is not valid for a supported family; `invalid_value` — invalid name or note).
 
 ## See also
 

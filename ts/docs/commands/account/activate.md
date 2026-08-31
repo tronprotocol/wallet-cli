@@ -18,6 +18,8 @@ Use it only when an address needs to *exist* on its own — to be queryable, or 
 
 Requires the payer account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign `AccountCreateContract`: Ledger accounts may use `--dry-run` or `--build-only`, but `--sign-only`, default submission, and `--wait` fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -88,7 +90,7 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_activate_postcheck_mismatch` / `account_activate_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

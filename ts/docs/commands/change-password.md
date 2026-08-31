@@ -17,7 +17,7 @@ The master password decrypts **every software wallet's** keystore, so changing i
 The flow:
 
 1. **Verify** — enter the current master password; it must decrypt an existing keystore (`auth_failed` otherwise, nothing touched).
-2. **Set** — enter the new password twice (mismatch → retry; policy failure → `weak_password`).
+2. **Set** — enter the new password twice. A mismatch or policy failure is rejected at the prompt and asks again.
 3. **Confirm** — the command lists how many software wallets will be re-encrypted; `[y/N]` (skipped with `--yes`). Declining aborts with no changes.
 4. **Re-encrypt atomically** — each keystore: decrypt with old → encrypt with new → write temp file → fsync; only after *all* succeed are files renamed into place. Any failure rolls everything back and reports `io_error` — the old keystores stay valid.
 
@@ -48,11 +48,11 @@ wallet-cli change-password
 
 ## Output
 
-This command is interactive: the receipt is printed to the terminal (listing the re-encrypted software wallets, never any secret), and even with `-o json` it produces no structured machine-readable output. Local command — no `chain` block.
+This command is interactive. In text mode, the receipt lists the re-encrypted software wallets and never includes secret material. In JSON mode, `data.wallets` contains those wallet labels/ids and `data.count` contains their count. Local command — no `chain` block.
 
 ## Exit status
 
-`0` changed · `1` execution failure (`tty_required` — no TTY for interactive input; `auth_failed`; `weak_password`; `no_software_wallet` — nothing to re-encrypt; `io_error` — write failed, rolled back) · `2` usage error.
+`0` changed · `1` execution failure (`auth_failed`; `no_software_wallet` — nothing to re-encrypt; `invalid_value` — a referenced encrypted wallet blob is missing; `io_error` — write failed, rolled back) · `2` usage error (`tty_required` — no TTY for interactive input; `invalid_value` — the new password equals the current one; `aborted` — confirmation declined).
 
 ## See also
 

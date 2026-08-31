@@ -30,6 +30,8 @@ Constraints are checked locally before broadcast: `--name` and `--abbr` are 1–
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign TRC10 issuance contract types. Ledger accounts may dry-run or build unsigned hex, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -110,7 +112,7 @@ Definition fields: `name`, `abbr`, `totalSupply` (raw), `precision`, `price` (th
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `insufficient_balance` — below the issuance fee, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — rate, precision, dates, bandwidth limits, or frozen tranches out of range, or the rate exceeding int32 after conversion).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `insufficient_balance` — below the issuance fee, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — rate, precision, dates, bandwidth limits, or frozen tranches out of range, or the rate exceeding int32 after conversion).
 
 ## See also
 

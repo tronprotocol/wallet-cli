@@ -162,9 +162,7 @@ Both forms are local commands — no `chain` block — and they carry different 
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_exportable` — watch-only or Ledger, `invalid_value` — no such account, `auth_failed`, `io_error` — path not writable) · `2` usage error (`output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
-
-`invalid_value` appears under both exit codes here: an unresolvable account reference is exit `1`, a malformed call is exit `2`. Branch on the exit code first.
+`0` success · `1` execution failure (`account_not_found` — no such account; `not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
 
 ## See also
 
