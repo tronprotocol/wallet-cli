@@ -180,6 +180,29 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
     expect(Object.keys(document.networks)).toEqual(["evm:11155111"]);
   });
 
+  // The document itself may already hold the network under an alias key. Writing under the
+  // canonical id without folding that entry in leaves the file with one network under two keys,
+  // which the loader refuses outright — the CLI stops working until someone hand-edits the file.
+  it("folds an alias-keyed entry into the canonical id instead of adding a second one", () => {
+    const { svc, update } = service();
+    svc.execute(
+      { key: "networks.evm:11155111.httpEndpoint", value: "https://new.example" },
+      twoNetworks,
+      registry,
+    );
+
+    const document = update.mock.calls[0]![0]({
+      networks: { sepolia: { httpEndpoint: "https://old.example", apiKeyHeader: "X-Key" } },
+    }).document as Record<string, any>;
+    expect(Object.keys(document.networks)).toEqual(["evm:11155111"]);
+    // the folded entry keeps the fields this write did not touch
+    expect(document.networks["evm:11155111"]).toEqual({
+      // normalised on write, like any other endpoint
+      httpEndpoint: "https://new.example/",
+      apiKeyHeader: "X-Key",
+    });
+  });
+
   it("rejects an unknown network in the key", () => {
     const { svc } = service();
     expect(() =>
