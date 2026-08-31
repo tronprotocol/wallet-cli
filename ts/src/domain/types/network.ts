@@ -3,7 +3,7 @@
  */
 import type { OutputMode } from "./primitives.js";
 
-export type NetworkId = string; // canonical, e.g. "tron:nile"
+export type NetworkId = string; // canonical, e.g. "tron:3448148188"
 export type AccountRef = string; // "wlt_x.0" (HD) / "wlt_k" (privateKey)
 
 export type FeeModel = "legacy" | "eip1559" | "tron-resource" | "evm-gas";
@@ -15,7 +15,7 @@ interface NetworkBase {
   /**
    * Display symbol of this chain's native coin — TRX / ETH / BNB.
    *
-   * A NETWORK fact, not a family one: `evm:1` and `evm:56` share every encoding and arithmetic
+   * A NETWORK fact, not a family one: `eip155:1` and `eip155:56` share every encoding and arithmetic
    * rule that makes them EVM, but their coins are ETH and BNB. Reading this off the family table
    * renders a BNB balance as ETH, which is a wallet naming the wrong currency. The family still
    * owns what is genuinely family-wide — the base-unit name (wei) and its decimals.
@@ -24,7 +24,7 @@ interface NetworkBase {
   /**
    * A test network — its coin is not traded, so it has no USD value to report.
    *
-   * Declared per network rather than guessed from the id: `evm:11155111` says nothing about
+   * Declared per network rather than guessed from the id: `eip155:11155111` says nothing about
    * being a testnet, and a guess would be wrong for exactly the chains nobody checked.
    */
   testnet?: boolean;

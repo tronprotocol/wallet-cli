@@ -183,6 +183,6 @@ describe("backup --keystore exports the selected network's key", () => {
   // No --family flag to forget, and no error either: the default network decides. The receipt
   // names the family so the choice is never silent.
   it("falls back to the configured default network", async () => {
-    expect(await exportWith()).toBe("tron"); // built-in default is tron:mainnet
+    expect(await exportWith()).toBe("tron"); // built-in default is tron:728126428
   });
 });

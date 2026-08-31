@@ -3,7 +3,7 @@ import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import { GasFreeClient } from "./client.js";
 
 const NETWORK = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

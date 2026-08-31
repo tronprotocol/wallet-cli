@@ -35,9 +35,9 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
     examples: [
       { cmd: "wallet-cli config" },
       { cmd: "wallet-cli config defaultNetwork" },
-      { cmd: "wallet-cli config defaultNetwork tron:nile" },
-      { cmd: "wallet-cli config networks.tron:mainnet" },
-      { cmd: "wallet-cli config networks.tron:mainnet.apiKeyHeader TRON-PRO-API-KEY" },
+      { cmd: "wallet-cli config defaultNetwork tron:3448148188" },
+      { cmd: "wallet-cli config networks.tron:728126428" },
+      { cmd: "wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY" },
     ],
     formatText: TextFormatters.config,
     run: async (ctx, _network, input) => service.execute(input, ctx.config, ctx.networkRegistry),

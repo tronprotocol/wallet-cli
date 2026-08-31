@@ -56,7 +56,7 @@ interface NetworkKey {
   field?: string;
 }
 
-/** A canonical id holds a colon, never a dot (`tron:nile`), so the last dot — when there is one —
+/** A canonical id holds a colon, never a dot (`tron:3448148188`), so the last dot — when there is one —
  *  always separates the field. An alias containing a dot would be misread as `<ref>.<field>`; the
  *  book is hand-written and no builtin does that. */
 function parseNetworkKey(key: string): NetworkKey | null {

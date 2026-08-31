@@ -16,7 +16,7 @@ const RECEIVER = "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB";
 const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 
 const SEPOLIA = {
-  id: "evm:11155111",
+  id: "eip155:11155111",
   family: "evm",
   nativeSymbol: "ETH",
   chainId: "11155111",
@@ -606,7 +606,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
   it("rejects a transaction signed for another chain", async () => {
     const { service, scope } = dryHarness();
-    const mainnet = { ...SEPOLIA, id: "evm:1", chainId: "1" };
+    const mainnet = { ...SEPOLIA, id: "eip155:1", chainId: "1" };
 
     await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
       // The spec's code; the dry run shares the guard the sign and submit paths use.

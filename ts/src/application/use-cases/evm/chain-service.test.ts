@@ -20,7 +20,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const net = {
-  id: "evm:1",
+  id: "eip155:1",
   family: "evm",
   nativeSymbol: "ETH",
   chainId: "1",

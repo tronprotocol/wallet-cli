@@ -19,9 +19,9 @@ describe("ConfigLoader defaultNetwork", () => {
   });
 
   it("resolveDefault resolves a canonical network id", () => {
-    const config = ConfigLoader.load(envWithConfig("defaultNetwork: tron:nile\n"));
+    const config = ConfigLoader.load(envWithConfig("defaultNetwork: tron:3448148188\n"));
     const registry = new NetworkRegistry(config);
-    expect(registry.resolveDefault().id).toBe("tron:nile");
+    expect(registry.resolveDefault().id).toBe("tron:3448148188");
   });
 
   it("does not resolve hidden-family networks (EVM is not currently exposed)", () => {
@@ -47,7 +47,7 @@ describe("NetworkRegistry.resolve case-insensitivity", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
   it("resolves a canonical id regardless of input casing", () => {
-    expect(registry().resolve("TRON:NILE").id).toBe("tron:nile");
+    expect(registry().resolve("TRON:NILE").id).toBe("tron:3448148188");
   });
 
   it("still rejects genuinely unknown networks", () => {
@@ -142,23 +142,23 @@ describe("builtin EVM networks", () => {
   // One L1 pair per chain. L2s are deliberately excluded — the evm-gas fee model computes
   // gasLimit x gasPrice and would systematically under-report cost on rollups.
   it.each([
-    ["evm:1", "1"],
-    ["evm:11155111", "11155111"],
-    ["evm:56", "56"],
-    ["evm:97", "97"],
+    ["eip155:1", "1"],
+    ["eip155:11155111", "11155111"],
+    ["eip155:56", "56"],
+    ["eip155:97", "97"],
   ])("resolves %s as an evm-gas network", (id, chainId) => {
     const net = registry().resolve(id);
     expect(net).toMatchObject({ id, family: "evm", chainId, feeModel: "evm-gas" });
   });
 
   it("ships every EVM network with a usable endpoint", () => {
-    for (const id of ["evm:1", "evm:11155111", "evm:56", "evm:97"]) {
+    for (const id of ["eip155:1", "eip155:11155111", "eip155:56", "eip155:97"]) {
       expect(registry().resolve(id).httpEndpoint).toMatch(/^https:\/\//);
     }
   });
 
   it("keeps the TRON networks unchanged", () => {
-    expect(registry().resolve("tron:nile")).toMatchObject({
+    expect(registry().resolve("tron:3448148188")).toMatchObject({
       family: "tron",
       nativeSymbol: "TRX",
       feeModel: "tron-resource",
@@ -172,19 +172,19 @@ describe("network alias book", () => {
   const registry = (yaml = "") => new NetworkRegistry(ConfigLoader.load(envWithConfig(yaml)));
 
   it.each([
-    ["tron", "tron:mainnet"],
-    ["nile", "tron:nile"],
-    ["shasta", "tron:shasta"],
-    ["ethereum", "evm:1"],
-    ["sepolia", "evm:11155111"],
-    ["bsc", "evm:56"],
-    ["bsc-testnet", "evm:97"],
+    ["tron", "tron:728126428"],
+    ["nile", "tron:3448148188"],
+    ["shasta", "tron:2494104990"],
+    ["ethereum", "eip155:1"],
+    ["sepolia", "eip155:11155111"],
+    ["bsc", "eip155:56"],
+    ["bsc-testnet", "eip155:97"],
   ])("resolves the builtin alias %s to %s", (alias, id) => {
     expect(registry().resolve(alias).id).toBe(id);
   });
 
   it("resolves an alias regardless of casing, like a canonical id", () => {
-    expect(registry().resolve("SEPOLIA").id).toBe("evm:11155111");
+    expect(registry().resolve("SEPOLIA").id).toBe("eip155:11155111");
   });
 
   it("has no `evm` alias — EVM is not a chain, so it has no mainnet to claim the family name", () => {
@@ -207,8 +207,8 @@ describe("network alias book", () => {
 
   // The hazard is structural, not validated against: a canonical id can never be shadowed.
   it("prefers a canonical id over a book entry that shadows it", () => {
-    const yaml = ["aliases:", "  evm:1: tron:nile"].join("\n");
-    expect(registry(yaml).resolve("evm:1").id).toBe("evm:1");
+    const yaml = ["aliases:", "  eip155:1: tron:3448148188"].join("\n");
+    expect(registry(yaml).resolve("eip155:1").id).toBe("eip155:1");
   });
 
   it("still rejects an unknown alias", () => {
@@ -228,7 +228,7 @@ describe("network keys in config.yaml are normalised to canonical ids", () => {
       ["networks:", "  sepolia:", "    httpEndpoint: https://mine.example"].join("\n"),
     );
 
-    expect(config.networks["evm:11155111"]!.httpEndpoint).toBe("https://mine.example");
+    expect(config.networks["eip155:11155111"]!.httpEndpoint).toBe("https://mine.example");
     expect(config.networks["sepolia"]).toBeUndefined();
   });
 
@@ -237,8 +237,8 @@ describe("network keys in config.yaml are normalised to canonical ids", () => {
       ["networks:", "  nile:", "    httpEndpoint: https://mine.example"].join("\n"),
     );
 
-    expect(config.networks["tron:nile"]).toMatchObject({
-      id: "tron:nile",
+    expect(config.networks["tron:3448148188"]).toMatchObject({
+      id: "tron:3448148188",
       family: "tron",
       nativeSymbol: "TRX",
       httpEndpoint: "https://mine.example",
@@ -250,11 +250,11 @@ describe("network keys in config.yaml are normalised to canonical ids", () => {
       "networks:",
       "  sepolia:",
       "    httpEndpoint: https://one.example",
-      "  evm:11155111:",
+      "  eip155:11155111:",
       "    httpEndpoint: https://two.example",
     ].join("\n");
 
-    expect(() => load(yaml)).toThrow(/sepolia.*evm:11155111|evm:11155111.*sepolia/);
+    expect(() => load(yaml)).toThrow(/sepolia.*eip155:11155111|eip155:11155111.*sepolia/);
   });
 
   it("leaves an unrecognised key alone so a user-defined network still works", () => {
@@ -293,32 +293,32 @@ describe("a dangling alias reports what it points at", () => {
 describe("the effective config exposes the alias book", () => {
   it("lists aliases so a user can see what a short name resolves to", () => {
     const config = ConfigLoader.load(envWithConfig(""));
-    expect(config.aliases).toMatchObject({ sepolia: "evm:11155111", nile: "tron:nile" });
+    expect(config.aliases).toMatchObject({ sepolia: "eip155:11155111", nile: "tron:3448148188" });
   });
 });
 
-// The native coin's NAME belongs to the chain, not the family: evm:1 is ETH and evm:56 is BNB,
+// The native coin's NAME belongs to the chain, not the family: eip155:1 is ETH and eip155:56 is BNB,
 // yet both are family `evm`. Reading it off the family table renders BNB as ETH — a wallet
 // naming the wrong currency.
 describe("each network declares its own native coin", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
   it.each([
-    ["tron:mainnet", "TRX"],
-    ["tron:nile", "TRX"],
-    ["tron:shasta", "TRX"],
-    ["evm:1", "ETH"],
-    ["evm:11155111", "ETH"],
-    ["evm:56", "BNB"],
-    ["evm:97", "BNB"],
+    ["tron:728126428", "TRX"],
+    ["tron:3448148188", "TRX"],
+    ["tron:2494104990", "TRX"],
+    ["eip155:1", "ETH"],
+    ["eip155:11155111", "ETH"],
+    ["eip155:56", "BNB"],
+    ["eip155:97", "BNB"],
   ])("%s uses %s", (id, symbol) => {
     expect(registry().resolve(id).nativeSymbol).toBe(symbol);
   });
 
   it("distinguishes two networks of the SAME family", () => {
     const r = registry();
-    expect(r.resolve("evm:1").family).toBe(r.resolve("evm:56").family);
-    expect(r.resolve("evm:1").nativeSymbol).not.toBe(r.resolve("evm:56").nativeSymbol);
+    expect(r.resolve("eip155:1").family).toBe(r.resolve("eip155:56").family);
+    expect(r.resolve("eip155:1").nativeSymbol).not.toBe(r.resolve("eip155:56").nativeSymbol);
   });
 });
 
@@ -364,8 +364,8 @@ describe("a hand-added network is validated at load", () => {
   // Overriding one field of a builtin must not demand the rest be restated.
   it("lets a builtin be partially overridden", () => {
     const net = load(
-      ["networks:", "  evm:11155111:", "    httpEndpoint: https://mine.example"].join("\n"),
-    ).networks["evm:11155111"]!;
+      ["networks:", "  eip155:11155111:", "    httpEndpoint: https://mine.example"].join("\n"),
+    ).networks["eip155:11155111"]!;
     expect(net).toMatchObject({ nativeSymbol: "ETH", httpEndpoint: "https://mine.example" });
   });
 });
@@ -375,7 +375,7 @@ describe("a hand-added network is validated at load", () => {
 describe("ConfigLoader network API key", () => {
   const withKey = [
     "networks:",
-    "  tron:nile:",
+    "  tron:3448148188:",
     "    httpEndpoint: https://nile.trongrid.io",
     "    apiKeyHeader: TRON-PRO-API-KEY",
     "    apiKey: TESTTESTTEST",
@@ -384,7 +384,7 @@ describe("ConfigLoader network API key", () => {
 
   it("loads the pair from a private config file", () => {
     const config = ConfigLoader.load(envWithConfig(withKey, 0o600));
-    expect(config.networks["tron:nile"]).toMatchObject({
+    expect(config.networks["tron:3448148188"]).toMatchObject({
       apiKeyHeader: "TRON-PRO-API-KEY",
       apiKey: "TESTTESTTEST",
     });
@@ -398,7 +398,7 @@ describe("ConfigLoader network API key", () => {
   );
 
   it("leaves a file without any credential unrestricted", () => {
-    const noKey = ["networks:", "  tron:nile:", "    apiKeyHeader: X-Api-Key", ""].join("\n");
+    const noKey = ["networks:", "  tron:3448148188:", "    apiKeyHeader: X-Api-Key", ""].join("\n");
     expect(() => ConfigLoader.load(envWithConfig(noKey, 0o644))).not.toThrow();
   });
 });
@@ -409,12 +409,12 @@ describe("ConfigLoader network API key", () => {
 describe("alias targets are normalised to canonical ids", () => {
   it("follows a target that is itself an alias", () => {
     const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: nile\n"));
-    expect(config.aliases.mynile).toBe("tron:nile");
-    expect(new NetworkRegistry(config).resolve("mynile").id).toBe("tron:nile");
+    expect(config.aliases.mynile).toBe("tron:3448148188");
+    expect(new NetworkRegistry(config).resolve("mynile").id).toBe("tron:3448148188");
   });
 
   it("leaves a target that is already canonical alone", () => {
-    const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: tron:nile\n"));
-    expect(config.aliases.mynile).toBe("tron:nile");
+    const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: tron:3448148188\n"));
+    expect(config.aliases.mynile).toBe("tron:3448148188");
   });
 });

@@ -20,7 +20,7 @@ import { TronContractService } from "./contract-service.js";
  * records params, which is exactly why the guard never fired in test: only the real one has it.
  */
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

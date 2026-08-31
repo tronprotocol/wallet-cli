@@ -13,17 +13,17 @@ export class CoinGeckoPriceProvider implements PriceProvider {
    * MAINNETS ONLY. Test networks never reach this map — they are answered as zero before the
    * lookup (see TestnetZeroPriceProvider), because their coins are not traded.
    *
-   * Each chain is listed EXPLICITLY: a bare `evm:` prefix would price every EVM chain as
-   * Ethereum, so an unlisted chain like Gnosis (`evm:100`) would be valued in ETH — a claim
+   * Each chain is listed EXPLICITLY: a bare `eip155:` prefix would price every EVM chain as
+   * Ethereum, so an unlisted chain like Gnosis (`eip155:100`) would be valued in ETH — a claim
    * about money that nobody made. An unknown chain is worth `null`, not a guess.
    *
-   * `tron:` keeps its prefix form because TRON's mainnet id is `tron:mainnet`; its testnets are
-   * likewise intercepted before they arrive here.
+   * `tron:` keeps its prefix form because every TRON network shares that namespace and one coin;
+   * its testnets are likewise intercepted before they arrive here.
    */
   static readonly #NATIVE_IDS: Record<string, string> = {
     "tron:": "tron",
-    "evm:1": "ethereum",
-    "evm:56": "binancecoin",
+    "eip155:1": "ethereum",
+    "eip155:56": "binancecoin",
   };
   /**
    * CoinGecko asset-platform slugs for token_price lookups; same keying rule as above.
@@ -34,8 +34,8 @@ export class CoinGeckoPriceProvider implements PriceProvider {
    */
   static readonly #PLATFORMS: Record<string, string> = {
     "tron:": "tron",
-    "evm:1": "ethereum",
-    "evm:56": "binance-smart-chain",
+    "eip155:1": "ethereum",
+    "eip155:56": "binance-smart-chain",
   };
 
   constructor(
@@ -86,12 +86,13 @@ export class CoinGeckoPriceProvider implements PriceProvider {
   }
 
   /**
-   * Exact network id first, then family prefixes (the keys ending in ":").
+   * Exact network id first, then namespace prefixes (the keys ending in ":").
    *
-   * The exact-first rule is not a nicety: a bare startsWith would let `evm:11155111` match the
-   * key `evm:1` BY ACCIDENT, and the same accident would catch every other chain whose id starts
+   * The exact-first rule is not a nicety: a bare startsWith would let `eip155:11155111` match the
+   * key `eip155:1` BY ACCIDENT, and the same accident would catch every other chain whose id starts
    * with those characters. Sepolia does inherit Ethereum's price, but because it is listed, not
-   * because its digits happen to line up. Prefix keys stay restricted to `family:`.
+   * because its digits happen to line up. A prefix key covers a whole NAMESPACE, never a
+   * partial reference.
    */
   static #prefixed(map: Record<string, string>, networkId: string): string | undefined {
     const exact = map[networkId];

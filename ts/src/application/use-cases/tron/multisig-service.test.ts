@@ -108,7 +108,7 @@ function service(gateway: TronGateway, signer?: Signer) {
   return new TronMultisigService(provider, signing, () => NOW);
 }
 
-const NETWORK = { id: "tron:nile", family: "tron", nativeSymbol: "TRX" } as never;
+const NETWORK = { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as never;
 
 describe("local TRON multi-signature workflow", () => {
   it("reports structured permission and missing weight for an unsigned transaction", async () => {

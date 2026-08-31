@@ -65,7 +65,7 @@ function deploy(
   params: string,
   opts: { dryRun?: boolean; wait?: boolean; timeoutMs?: number } = {},
 ) {
-  const globals = ["--output", "json", "--network", "tron:nile"];
+  const globals = ["--output", "json", "--network", "tron:3448148188"];
   if (opts.wait) globals.push("--wait"); // --wait is a global flag (before the subcommand)
   const local = [
     "contract",

@@ -21,8 +21,8 @@ export function registerNetworkCommands(reg: CommandRegistry): void {
     // alias are separate columns, so the description names both rather than only one.
     description:
       "List known networks with their family, chain id, fee model and endpoint host.\n" +
-      "Network is the canonical id (family:chain-id); Alias is the short name --network\n" +
-      "also accepts. Endpoints are shown as hosts only.",
+      "Network is the canonical CAIP-2 id (namespace:reference); Alias is the short name\n" +
+      "--network also accepts. Endpoints are shown as hosts only.",
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli networks" }],

@@ -12,7 +12,7 @@ import { asObj, type Obj, type Pair } from "./layout.js";
  */
 /**
  * Every hook takes the native coin's `symbol` rather than baking one in. This table is keyed by
- * FAMILY, so `evm:1` and `evm:56` share one entry — and their coins are ETH and BNB. A hook that
+ * FAMILY, so `eip155:1` and `eip155:56` share one entry — and their coins are ETH and BNB. A hook that
  * hardcoded the symbol rendered a BNB balance as "ETH".
  */
 interface FamilyRenderHooks {

@@ -7,7 +7,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const NET = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

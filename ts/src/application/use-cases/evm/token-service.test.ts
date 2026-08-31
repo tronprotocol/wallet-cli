@@ -14,7 +14,7 @@ import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.js";
 
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xOWNER" };
-const net = { id: "evm:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
+const net = { id: "eip155:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
 const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 
 function service(
@@ -78,7 +78,7 @@ describe("EvmTokenService.add", () => {
       decimals: 6,
       name: "Tether USD",
     });
-    expect(out).toMatchObject({ network: "evm:1", action: "added" });
+    expect(out).toMatchObject({ network: "eip155:1", action: "added" });
   });
 
   // The load-bearing rule: `tx send --token` trusts this number for every later transfer.
@@ -112,7 +112,7 @@ describe("EvmTokenService.remove", () => {
     const { svc, removed } = service();
     await svc.remove(scope, net, { contract: USDT });
 
-    expect(removed[0]).toEqual(["evm:1", "wlt_test.0", "erc20", USDT]);
+    expect(removed[0]).toEqual(["eip155:1", "wlt_test.0", "erc20", USDT]);
   });
 });
 

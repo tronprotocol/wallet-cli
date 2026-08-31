@@ -4,7 +4,7 @@ import { FetchHttpTransport, networkHttpConfig } from "./index.js";
 
 const network = (overrides: Partial<NetworkDescriptor> = {}): NetworkDescriptor =>
   ({
-    id: "evm:1",
+    id: "eip155:1",
     family: "evm",
     chainId: "1",
     nativeSymbol: "ETH",

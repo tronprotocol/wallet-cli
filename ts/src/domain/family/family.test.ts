@@ -4,7 +4,7 @@ import { FAMILIES, familyOf } from "./index.js";
 describe("domain family facts + ledger meta", () => {
   it("tron carries the expected coin facts and is ledger-wired", () => {
     expect(FAMILIES.tron.nativeUnit).toBe("sun");
-    // the coin's SYMBOL is not here — it belongs to the network (evm:1 = ETH, evm:56 = BNB),
+    // the coin's SYMBOL is not here — it belongs to the network (eip155:1 = ETH, eip155:56 = BNB),
     // and a family-level one could only ever be right for one chain of the family.
     expect("nativeSymbol" in FAMILIES.tron).toBe(false);
     expect(FAMILIES.tron.nativeDecimals).toBe(6);

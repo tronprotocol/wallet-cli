@@ -95,7 +95,7 @@ describe("renderFamily", () => {
   });
 });
 
-// The regression this exists to prevent: FAMILY_RENDER is keyed by FAMILY, so evm:1 and evm:56
+// The regression this exists to prevent: FAMILY_RENDER is keyed by FAMILY, so eip155:1 and eip155:56
 // share one hook. With the symbol baked into the hook, 0.5 BNB on BSC rendered as "0.5 ETH".
 describe("the native symbol comes from the network, not the family", () => {
   it.each([

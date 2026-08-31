@@ -19,7 +19,7 @@ export interface FamilyMeta {
   family: ChainFamily;
   nativeUnit: string; // smallest-unit name: "sun" / "wei"
   // NOTE: the coin's SYMBOL is deliberately absent — it lives on NetworkDescriptor. Two networks
-  // of one family can use different coins (evm:1 = ETH, evm:56 = BNB), so a family-level symbol
+  // of one family can use different coins (eip155:1 = ETH, eip155:56 = BNB), so a family-level symbol
   // can only ever be right for one of them.
   nativeDecimals: number; // native coin decimals: base unit → coin (sun→TRX = 6)
   coinType: number; // BIP44 coin_type

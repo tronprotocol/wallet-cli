@@ -48,7 +48,7 @@ async function redirectPair() {
 
 function network(endpoint: string, credentialed: boolean): NetworkDescriptor {
   return {
-    id: "tron:nile",
+    id: "tron:3448148188",
     family: "tron",
     chainId: "nile",
     nativeSymbol: "TRX",

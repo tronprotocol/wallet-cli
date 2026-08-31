@@ -4,7 +4,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const net = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

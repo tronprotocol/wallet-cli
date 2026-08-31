@@ -36,13 +36,13 @@ describe("hasCommand (bare invocation → root help)", () => {
     expect(hasCommand([])).toBe(false);
     expect(hasCommand(["--output", "json"])).toBe(false); // value flag consumes 'json'
     expect(hasCommand(["-o", "json"])).toBe(false);
-    expect(hasCommand(["--network", "tron:nile"])).toBe(false);
+    expect(hasCommand(["--network", "tron:3448148188"])).toBe(false);
     expect(hasCommand(["--verbose"])).toBe(false);
   });
   it("is true once a real command word is present", () => {
     expect(hasCommand(["list"])).toBe(true);
     expect(hasCommand(["--output", "json", "account", "balance"])).toBe(true);
-    expect(hasCommand(["--network=tron:nile", "block"])).toBe(true);
+    expect(hasCommand(["--network=tron:3448148188", "block"])).toBe(true);
   });
 });
 
@@ -50,13 +50,13 @@ describe("parseGlobals", () => {
   it("parses value flags, inline =, and short -o alias", () => {
     const { globals } = parseGlobals([
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--output=json",
       "tron",
       "account",
       "balance",
     ]);
-    expect(globals.network).toBe("tron:nile");
+    expect(globals.network).toBe("tron:3448148188");
     expect(globals.output).toBe("json");
   });
 
@@ -172,7 +172,7 @@ describe("composition resolves a gateway per family", () => {
       5_000,
     );
   const sepolia = {
-    id: "evm:11155111",
+    id: "eip155:11155111",
     family: "evm" as const,
     nativeSymbol: "ETH",
     chainId: "11155111",

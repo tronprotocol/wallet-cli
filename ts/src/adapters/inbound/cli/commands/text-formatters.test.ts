@@ -22,7 +22,7 @@ import { registerEncodingCommands } from "./encoding.js";
 // would render wei as TRX), and a fixture without `net` would not represent any real invocation.
 const ctx = (over: Partial<TextRenderContext> = {}): TextRenderContext => ({
   command: "x",
-  net: { id: "tron:nile", family: "tron", nativeSymbol: "TRX" } as never,
+  net: { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as never,
   ...over,
 });
 
@@ -265,7 +265,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
       },
       ctx({
         net: {
-          id: "tron:nile",
+          id: "tron:3448148188",
           family: "tron",
           nativeSymbol: "TRX",
           chainId: "nile",
@@ -279,7 +279,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("TrecipientAddress");
     expect(out).toContain("abc123");
     expect(out).toContain("pending — not yet on-chain");
-    expect(out).toContain("Track it: wallet-cli tx info --network tron:nile --txid abc123");
+    expect(out).toContain("Track it: wallet-cli tx info --network tron:3448148188 --txid abc123");
     expect(out).not.toContain("Fee");
   });
   it("tx send TRC20 via --contract --raw-amount (no symbol): never mislabels as TRX", () => {
@@ -378,7 +378,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
       },
       ctx({
         net: {
-          id: "tron:nile",
+          id: "tron:3448148188",
           family: "tron",
           nativeSymbol: "TRX",
           chainId: "nile",
@@ -809,7 +809,7 @@ describe("txInfo formatter (per-family, narrowed on ctx.net.family)", () => {
       },
       ctx({
         net: {
-          id: "tron:nile",
+          id: "tron:3448148188",
           family: "tron",
           nativeSymbol: "TRX",
           chainId: "nile",
@@ -945,42 +945,42 @@ describe("config renders map-valued keys", () => {
   it("renders a single-key read as a titled block", () => {
     const out = TextFormatters.config({
       key: "aliases",
-      value: { nile: "tron:nile", sepolia: "evm:11155111" },
+      value: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
     });
 
     // `titled` is the house shape: bare title line, then indented fields (no colon) — see
     // asset.ts / exchange.ts / governance.ts for the same form.
     expect(out.split("\n")[0]).toBe("aliases");
-    expect(out).toMatch(/^ {2}nile\s+tron:nile$/m);
-    expect(out).toMatch(/^ {2}sepolia\s+evm:11155111$/m);
+    expect(out).toMatch(/^ {2}nile\s+tron:3448148188$/m);
+    expect(out).toMatch(/^ {2}sepolia\s+eip155:11155111$/m);
     expect(out).not.toContain("[object Object]");
   });
 
-  // The whole-config view used to SUMMARISE a map by listing its keys ("networks  tron:nile,
-  // evm:1"), which said a network existed but never what it was configured with. The revised shape:
+  // The whole-config view used to SUMMARISE a map by listing its keys ("networks  tron:3448148188,
+  // eip155:1"), which said a network existed but never what it was configured with. The revised shape:
   // config renders every configurable value, nested — the file's own shape, indented.
   it("expands map-valued keys in the whole-config view", () => {
     const out = TextFormatters.config({
       defaultOutput: "text",
       networks: {
-        "tron:nile": { httpEndpoint: "nile.trongrid.io" },
-        "evm:1": { httpEndpoint: "ethereum-rpc.publicnode.com" },
+        "tron:3448148188": { httpEndpoint: "nile.trongrid.io" },
+        "eip155:1": { httpEndpoint: "ethereum-rpc.publicnode.com" },
       },
     });
 
-    // No trailing colon: a network id already contains one, so `tron:nile:` would hide where the
+    // No trailing colon: a network id already contains one, so `tron:3448148188:` would hide where the
     // id ends — and the id is what a reader copies into `--network` / `config networks.<id>`.
     expect(out).toMatch(/^networks$/m);
-    expect(out).toMatch(/^ {2}tron:nile$/m);
+    expect(out).toMatch(/^ {2}tron:3448148188$/m);
     expect(out).toMatch(/^ {4}httpEndpoint {2}nile\.trongrid\.io$/m);
-    expect(out).toMatch(/^ {2}evm:1$/m);
+    expect(out).toMatch(/^ {2}eip155:1$/m);
     expect(out).not.toContain("[object Object]");
   });
 
   // Two levels deep, under a named read: the block below a network is its fields, indented once.
   it("renders a single network read as a nested block", () => {
     const out = TextFormatters.config({
-      key: "networks.tron:nile",
+      key: "networks.tron:3448148188",
       value: {
         httpEndpoint: "https://nile.trongrid.io",
         apiKeyHeader: "TRON-PRO-API-KEY",
@@ -988,7 +988,7 @@ describe("config renders map-valued keys", () => {
       },
     });
 
-    expect(out.split("\n")[0]).toBe("networks.tron:nile");
+    expect(out.split("\n")[0]).toBe("networks.tron:3448148188");
     expect(out).toMatch(/^ {2}httpEndpoint {2}https:\/\/nile\.trongrid\.io$/m);
     expect(out).toMatch(/^ {2}apiKey {8}\*{8}$/m);
   });

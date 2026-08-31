@@ -8,7 +8,7 @@ import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index
 import { TronContractService } from "./contract-service.js";
 
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

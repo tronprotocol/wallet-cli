@@ -29,12 +29,12 @@ describe("official EVM token entries", () => {
     }
   });
 
-  // "official 条目按规范 id 内置（evm:1 填 USDT / USDC；测试网留空）"
+  // "official 条目按规范 id 内置（eip155:1 填 USDT / USDC；测试网留空）"
   it("ships USDT and USDC on ethereum mainnet", () => {
-    expect(OFFICIAL_TOKENS["evm:1"]?.map((t) => t.symbol)).toEqual(["USDT", "USDC"]);
+    expect(OFFICIAL_TOKENS["eip155:1"]?.map((t) => t.symbol)).toEqual(["USDT", "USDC"]);
   });
 
-  it.each(["evm:11155111", "evm:97"])("leaves the testnet %s empty", (id) => {
+  it.each(["eip155:11155111", "eip155:97"])("leaves the testnet %s empty", (id) => {
     expect(OFFICIAL_TOKENS[id] ?? []).toEqual([]);
   });
 });
