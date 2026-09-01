@@ -135,11 +135,18 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   },
 };
 
-/** The short name a person types, plus the id this CLI carried before its canonical ids became
- *  CAIP-2. A flat map, so global uniqueness is structural: a duplicate key cannot exist. Each
- *  short name precedes its legacy spelling because listings show the FIRST entry pointing at an
- *  id, and the short name is the one worth showing. There is deliberately no bare `evm` entry —
- *  EVM is a family, not a chain, so it has no mainnet to claim the family name. */
+/** The short name a person types, plus — for TRON only — the id this CLI carried before its
+ *  canonical ids became CAIP-2. A flat map, so global uniqueness is structural: a duplicate key
+ *  cannot exist. Each short name precedes its legacy spelling because listings show the FIRST
+ *  entry pointing at an id, and the short name is the one worth showing.
+ *
+ *  The EVM networks get no legacy entry: they were never part of a published release, so no
+ *  config.yaml or script can be holding an `evm:56` spelling to keep working. An alias is a
+ *  promise to resolve something forever, and one nobody can have written is only clutter in
+ *  `config aliases`.
+ *
+ *  There is deliberately no bare `evm` entry either — EVM is a family, not a chain, so it has no
+ *  mainnet to claim the family name. */
 export const BUILTIN_ALIASES: Record<string, string> = {
   tron: "tron:728126428",
   "tron:mainnet": "tron:728126428",
@@ -148,13 +155,9 @@ export const BUILTIN_ALIASES: Record<string, string> = {
   shasta: "tron:2494104990",
   "tron:shasta": "tron:2494104990",
   ethereum: "eip155:1",
-  "evm:1": "eip155:1",
   sepolia: "eip155:11155111",
-  "evm:11155111": "eip155:11155111",
   bsc: "eip155:56",
-  "evm:56": "eip155:56",
   "bsc-testnet": "eip155:97",
-  "evm:97": "eip155:97",
 };
 
 export const DEFAULT_CONFIG = {

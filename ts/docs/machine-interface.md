@@ -12,7 +12,7 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
 - Every RPC / device call is bounded by `--timeout` (milliseconds, default `config.timeoutMs`, built-in 60000).
 - `--network` takes a canonical **CAIP-2** id (`tron:3448148188`, `eip155:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). The namespace is not the chain family: `eip155` addresses the `evm` family. Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
-- The pre-CAIP-2 ids (`tron:nile`, `evm:56`, …) remain permanent aliases, so existing invocations keep working. **Output is a different matter**: `chain.network`, the `networks` listing's `id` and the `config` keys now report the CAIP-2 id, so a consumer that string-matches or keys a map by `evm:56` must be updated. An alias exists only at selection and can never appear in a result.
+- The **TRON** ids this CLI used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) remain permanent aliases, so existing invocations keep working. **Output is a different matter**: `chain.network`, the `networks` listing's `id` and the `config` keys now report the CAIP-2 id, so a consumer that string-matches or keys a map by `tron:nile` must be updated. An alias exists only at selection and can never appear in a result.
 
 ### Discovery
 

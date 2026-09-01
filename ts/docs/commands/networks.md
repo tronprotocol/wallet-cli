@@ -12,7 +12,7 @@ wallet-cli networks [options]
 
 Lists every network wallet-cli knows, with the short alias `--network` also accepts. Purely local — no node is contacted.
 
-**Network** is the canonical CAIP-2 id, `namespace:reference`; **Alias** is the short name you can type instead. Both resolve to the same network, and nothing downstream ever sees the alias. The pre-CAIP-2 ids (`tron:nile`, `evm:56`, …) also still resolve, as permanent aliases.
+**Network** is the canonical CAIP-2 id, `namespace:reference`; **Alias** is the short name you can type instead. Both resolve to the same network, and nothing downstream ever sees the alias. The TRON ids used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) also still resolve, as permanent aliases.
 
 Endpoints are shown as **hosts only**. A commercial RPC endpoint can carry its API key in the URL path, and this listing is output people paste into issues and CI logs; read the full URL with `config networks.<id>.httpEndpoint`, which is a deliberate named read rather than a listing.
 

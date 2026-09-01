@@ -317,13 +317,11 @@ export const txSignSpec: ChainSpec = {
   summary: "Sign a transaction built elsewhere",
   description:
     "Sign a transaction that was built elsewhere and output the signed result; broadcast it\n" +
-    "later with `tx broadcast`. This command never broadcasts.\n" +
-    "The transaction must have been built for the network you select — one built for another\n" +
-    "chain is rejected before it is signed, so you cannot sign a mainnet transaction by mistake.\n" +
-    "On TRON, --hex/--file append one signature while preserving any already collected,\n" +
-    "checking online that this account is in the transaction's permission group and has not\n" +
-    "already signed, and reporting the resulting approval weight; --offline skips those checks.\n" +
-    "On EVM a transaction carries exactly one signature, so an already-signed one is refused.",
+    "later with `tx broadcast`. A transaction built for another network is rejected before it\n" +
+    "is signed.\n" +
+    "On TRON, --hex/--file append one signature to those already collected and report the\n" +
+    "resulting approval weight; --offline skips the online permission checks. An EVM\n" +
+    "transaction carries exactly one signature, so an already-signed one is refused.",
   baseFields: signFields,
   // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],

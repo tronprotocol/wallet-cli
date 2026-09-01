@@ -21,7 +21,7 @@ export const typedDataSignSpec: ChainSpec = {
   capability: "typedData.sign",
   summary: "Sign EIP-712 / TIP-712 structured data",
   description:
-    "Prints the signature, the digest that was signed, and the primary type.\n" +
+    "Sign an EIP-712 / TIP-712 typed-data payload.\n" +
     "`EIP712Domain` in `types` is ignored and `value` is accepted for `message`; address values\n" +
     "are interpreted by the selected chain family's signing strategy.",
   baseFields: typedDataFields,

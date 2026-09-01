@@ -279,12 +279,10 @@ export function registerWalletCommands(
     requires: ["the keystore file's own password — entered interactively in a TTY"],
     summary: "Import a Web3 keystore file",
     description:
-      "Import a single account from a standard Web3 keystore JSON (as exported by TronLink or\n" +
-      "'backup --keystore'), stored encrypted under your master password and made active. It carries\n" +
-      "one private key, so nothing can be derived from it; a same-address account is refused with\n" +
-      "account_exists (delete it first).\n\n" +
-      "Interactive-only: the master password and the keystore's own password are entered only via\n" +
-      "hidden TTY prompts, never stdin/argv — without a TTY it fails with tty_required.",
+      "Import a single account from a standard Web3 keystore JSON (TronLink, `backup --keystore`).\n" +
+      "It carries one private key, so nothing can be derived from it. The master password and the\n" +
+      "keystore's own password are read interactively from the TTY (hidden input); they never touch\n" +
+      "argv or stdin.",
     fields: importKeystoreFields,
     input: importKeystoreFields,
     examples: [
@@ -320,7 +318,7 @@ export function registerWalletCommands(
       scanLimit: "skip",
     },
     requires: ["a connected, unlocked Ledger with the selected app (--app) open"],
-    summary: "Register a Ledger account",
+    summary: "Register a Ledger account (signs on the device)",
     fields: walletImportLedgerFields,
     input: walletImportLedgerInput,
     examples: [
@@ -386,9 +384,9 @@ export function registerWalletCommands(
     auth: "none",
     summary: "List wallets/accounts (no unlock needed)",
     description:
-      "List every local account, grouped by HD seed and by type. The address column shows the " +
-      "family of the selected network (--network, else config.defaultNetwork); JSON output " +
-      "always carries every family's address.",
+      "List every local account, grouped by HD seed and by type; no unlock needed. The address " +
+      "column shows the family of the selected network; JSON output always carries every " +
+      "family's address.",
     fields: empty,
     input: empty,
     examples: [
@@ -459,7 +457,7 @@ export function registerWalletCommands(
     description:
       "Show the selected account locally, with one address line per chain family it has. --qr " +
       "appends a scannable receive-address QR in text mode, for the family of the selected " +
-      "network (--network, else config.defaultNetwork) — without unlocking or accessing the network.",
+      "network. Neither unlocks the keystore nor contacts the node.",
     fields: currentFields,
     input: currentFields,
     examples: [
