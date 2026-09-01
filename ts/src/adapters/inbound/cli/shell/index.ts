@@ -36,6 +36,7 @@ import {
   isAccountRef,
 } from "../arity/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
+import { ERROR_CODES, type ErrorCodeEntry } from "../../../../domain/errors/codes.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, globalYargsOptions } from "../globals/index.js";
 
@@ -585,7 +586,7 @@ function parseInput(cmd: CommandDefinition, argv: any): unknown {
   return parseInputSchema(cmd.input, argv);
 }
 
-function parseInputSchema(schema: ZodType, argv: any): unknown {
+export function parseInputSchema(schema: ZodType, argv: any): unknown {
   const result = schema.safeParse(argv);
   if (result.success) return result.data;
   const issue = result.error.issues[0]!;
@@ -598,7 +599,23 @@ function parseInputSchema(schema: ZodType, argv: any): unknown {
       `missing required option --${camelToKebab(String(key))}`,
     );
   }
-  throw new UsageError("invalid_value", `invalid --${camelToKebab(field)}: ${issue.message}`);
+  // A refine may name the code its rule deserves — `invalid_option` for a flag combination,
+  // `invalid_address` for a malformed address. Saying nothing keeps `invalid_value`, so a refine
+  // that has not opted in is unaffected. The declared code must exist in the index AND be a usage
+  // code (exit 2 or "either"): parseInputSchema always throws UsageError, and CliError.exitCode()
+  // now looks up exit by code, not by class — so an exit-1 code declared here would silently
+  // produce a UsageError whose real exit is 1, invisible to error-codes.test.ts's literal scan
+  // (it only sees `new UsageError("invalid_value", …)`; a variable is never scraped). Input
+  // validation is definitionally usage-layer, so no legitimate refine wants an exit-1 code.
+  const declared = (issue as { params?: { errorCode?: unknown } }).params?.errorCode;
+  const declaredCode = typeof declared === "string" ? declared : undefined;
+  const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
+  const entry = declaredCode ? table[declaredCode] : undefined;
+  const code =
+    declaredCode && entry && (entry.exit === 2 || entry.exit === "either")
+      ? declaredCode
+      : "invalid_value";
+  throw new UsageError(code, `invalid --${camelToKebab(field)}: ${issue.message}`);
 }
 
 function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExecutionSpec {
