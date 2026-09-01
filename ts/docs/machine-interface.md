@@ -173,9 +173,11 @@ Each entry is an object, not a bare string:
 { "rpc_error": { "exit": 1, "retry": "same", "meaning": "the node answered with an error" } }
 ```
 
-`exit` is the authority for that code's exit status — the tables below are generated from it and
-kept honest by a test. A handful of codes carry `"either"`: they genuinely arise on both sides,
-and the exit status is the one the process returned.
+`exit` is the authority for that code's exit status — the tables below are hand-written and checked
+against it by a test (every code the tables list must match the index's `exit` for that code; the
+test does not check the tables' `Meaning` text or that every code in the index appears in a table).
+A handful of codes carry `"either"`: they genuinely arise on both sides, and the exit status is the
+one the process returned.
 
 `retry` is the answer to "now what": `same` — retry the identical command right away (a node or
 service hiccup); `later` — the identical command will work, but not yet — back off and retry
@@ -184,7 +186,18 @@ safe to retry immediately; `changed` — retry only after changing the request (
 rebuild with a new nonce); `never` — retrying as-is cannot succeed, something outside the command
 has to change. Every exit-`2` code is `never` by construction.
 
-That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and the strings carrying `"either"` (`invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+`retry` describes the **error**, not the **command**. `timeout` and `rpc_error` are `same` because
+for most calls that is correct — the node never acted, so resending is free. But a command that
+may have already broadcast a transaction (`tx send` and anything else on the submit path) can hit
+`timeout` or `rpc_error` **after the node accepted the transaction and before the response made it
+back**. In that case the outcome is unknown, not failed, and resending does not retry the original
+request — it builds and signs a **new** transaction, which on TRON is a second, distinct transfer.
+`retry: "same"` is correct for a `timeout`/`rpc_error` that happens while resolving a network id or
+reading a balance; it is not a license to resend a broadcast blind. Reconcile with
+[`tx status`](#script-safety-never-mistake-submitted-for-confirmed) before deciding whether to
+retry, exactly as the four-state model below requires.
+
+That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
@@ -241,7 +254,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `history_not_supported` | The endpoint lacks TronGrid history support (`account history`, TRON) |
-| `not_found` | The addressed thing does not exist — for example an unactivated account, transaction, block, or GasFree / TronLink resource. Some command-level lookups raise the same string as a usage error instead; branch on exit code first |
+| `not_found` | The addressed thing does not exist — for example an unactivated account, transaction, block, or GasFree / TronLink resource |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
 | `ambiguous_asset_name` | A TRC10 name matches more than one token; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
 | `ledger_unsupported` | The selected Ledger app cannot sign this transaction type — refused before the device is touched (TRON account activation, account id, asset writes, contract deploy/governance, witness writes, and cancel-unfreeze) |

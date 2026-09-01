@@ -34,9 +34,11 @@ function sourceFiles(dir: string): string[] {
  * single scanner behind both directions of the guard below — a ternary first argument (e.g.
  * `throw new ChainError(cond ? "a" : "b", …)`) mints one site per branch, both attributed to that
  * constructor's exit class, because both really are thrown by it. Scans every string literal
- * between the call's opening paren and its first top-level comma, so it does not pick up literals
- * from later arguments (the message), and skips a literal that is a comparison operand (e.g.
- * `field === "name" ? …`) rather than a branch value.
+ * between the call's opening paren and its FIRST COMMA (not depth-aware — it does not skip over
+ * nested parens/brackets to find the first top-level one, it is `indexOf(",")`), so it does not
+ * pick up literals from later arguments (the message) as long as nothing before that first comma
+ * contains one, and skips a literal that is a comparison operand (e.g. `field === "name" ? …`)
+ * rather than a branch value.
  */
 function thrownSites(): Array<{ code: string; exit: 1 | 2; where: string }> {
   const callStart = /new (Usage|Execution|Chain|Wallet|Transport)Error\(/g;
@@ -127,6 +129,21 @@ describe("the error-code index", () => {
         return entry !== undefined && entry.exit !== "either" && entry.exit !== exit;
       })
       .map(({ code, exit, where }) => `${code} thrown at exit ${exit} in ${where}`)
+      .sort();
+    expect(wrong).toEqual([]);
+  });
+
+  // The rejection-classification codes (EVM/TRON node-errors tables) are thrown as
+  // `new ChainError(known.code, …)` — a variable, not a string literal — so `thrownSites()`'s
+  // literal scan can never see them, and the guard above never checks their exit. They are always
+  // thrown through `ChainError`, so their declared exit must always be 1; this pins that down
+  // directly so a future rule declaring exit 2 here fails loudly instead of shipping unchecked.
+  it("declares every node-rejection code at exit 1, since they are always thrown via ChainError", () => {
+    const rejectionCodes = new Set([...EVM_REJECTION_CODES, ...TRON_REJECTION_CODES]);
+    const wrong = [...rejectionCodes]
+      .filter(
+        (code) => (ERROR_CODES as Record<string, ErrorCodeEntry | undefined>)[code]?.exit !== 1,
+      )
       .sort();
     expect(wrong).toEqual([]);
   });
