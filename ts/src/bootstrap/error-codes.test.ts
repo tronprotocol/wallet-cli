@@ -89,7 +89,7 @@ describe("the error-code index", () => {
   it("gives every code an exit class, a retry answer, and a one-line meaning", () => {
     for (const [code, entry] of Object.entries(ERROR_CODES)) {
       expect([1, 2, "either"], code).toContain(entry.exit);
-      expect(["same", "changed", "never"], code).toContain(entry.retry);
+      expect(["same", "changed", "later", "never"], code).toContain(entry.retry);
       expect(entry.meaning, code).toMatch(/^[a-z(]/);
       expect(entry.meaning, code).not.toMatch(/\n/);
     }

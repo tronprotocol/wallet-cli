@@ -177,10 +177,12 @@ Each entry is an object, not a bare string:
 kept honest by a test. A handful of codes carry `"either"`: they genuinely arise on both sides,
 and the exit status is the one the process returned.
 
-`retry` is the answer to "now what": `same` — retry the identical command (a node or service
-hiccup); `changed` — retry after changing the request (raise the fee, rebuild with a new nonce);
-`never` — retrying as-is cannot succeed, something outside the command has to change. Every
-exit-`2` code is `never` by construction.
+`retry` is the answer to "now what": `same` — retry the identical command right away (a node or
+service hiccup); `later` — the identical command will work, but not yet — back off and retry
+after a delay (a lock-up period, a withdrawal interval, a rate limit), unlike `same`, which is
+safe to retry immediately; `changed` — retry only after changing the request (raise the fee,
+rebuild with a new nonce); `never` — retrying as-is cannot succeed, something outside the command
+has to change. Every exit-`2` code is `never` by construction.
 
 That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and the strings carrying `"either"` (`invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 

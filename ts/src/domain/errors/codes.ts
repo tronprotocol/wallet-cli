@@ -15,8 +15,9 @@
 /** 1 = 執行失敗，2 = 命令寫錯（重試仍錯）。"either" 只給文件明文授權的碼。 */
 export type ErrorExit = 1 | 2 | "either";
 
-/** what the caller should do next: retry as-is, retry after changing the request, or stop. */
-export type ErrorRetry = "same" | "changed" | "never";
+/** what the caller should do next: retry as-is, retry as-is but after a delay, retry after
+ *  changing the request, or stop. */
+export type ErrorRetry = "same" | "changed" | "later" | "never";
 
 export interface ErrorCodeEntry {
   exit: ErrorExit;
@@ -119,7 +120,7 @@ export const ERROR_CODES = {
   rpc_error: { exit: 1, retry: "same", meaning: "the node answered with an error" },
   invalid_node_response: { exit: 1, retry: "same", meaning: "the node's answer was not in the shape the API defines" },
   provider_error: { exit: 1, retry: "same", meaning: "an external service failed" },
-  provider_rate_limited: { exit: 1, retry: "same", meaning: "an external service is rate-limiting this client" },
+  provider_rate_limited: { exit: 1, retry: "later", meaning: "an external service is rate-limiting this client" },
   timeout: { exit: 1, retry: "same", meaning: "the node, service or device did not answer in time" },
   aborted: { exit: "either", retry: "never", meaning: "the operation was stopped before it finished" },
   cancelled: { exit: 1, retry: "never", meaning: "the operation was cancelled before it reached the device" },
@@ -145,9 +146,9 @@ export const ERROR_CODES = {
   insufficient_stake: { exit: 1, retry: "never", meaning: "the staked amount cannot cover this operation" },
   insufficient_voting_power: { exit: 2, retry: "never", meaning: "the account has less voting power than the votes cast" },
   no_frozen_supply: { exit: 1, retry: "never", meaning: "there is nothing frozen to act on" },
-  not_yet_unfreezable: { exit: 1, retry: "changed", meaning: "the stake is still within its lock-up period" },
+  not_yet_unfreezable: { exit: 1, retry: "later", meaning: "the stake is still within its lock-up period" },
   nothing_to_withdraw: { exit: 1, retry: "never", meaning: "there is nothing available to withdraw" },
-  withdraw_too_frequent: { exit: 1, retry: "changed", meaning: "the withdrawal interval has not elapsed yet" },
+  withdraw_too_frequent: { exit: 1, retry: "later", meaning: "the withdrawal interval has not elapsed yet" },
   no_reward: { exit: 1, retry: "never", meaning: "there is no reward to claim" },
   not_a_witness: { exit: 1, retry: "never", meaning: "the address is not a witness" },
   already_witness: { exit: 1, retry: "never", meaning: "the address is already a witness" },
