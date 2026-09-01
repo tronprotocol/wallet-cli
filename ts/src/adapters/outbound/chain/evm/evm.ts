@@ -209,10 +209,22 @@ export class EvmRpcClient implements EvmGateway {
    * `success` comes from `status`, NOT from the receipt existing: `status: "0x0"` is a transaction
    * that was mined, paid for its gas, and reverted. `feeWei` is what was actually paid
    * (gasUsed × effectiveGasPrice), not the ceiling the transaction authorised.
+   *
+   * `result: null` and a MISSING `result` are not the same thing, so they are not collapsed
+   * together (see `getBlock`): a null `result` is the node correctly answering "not yet mined".
+   * A response with neither `result` nor `error` breaks the JSON-RPC contract and must surface as
+   * `invalid_node_response` rather than being read as "not yet mined".
    */
   async getTransactionReceipt(hash: string): Promise<Record<string, unknown> | null> {
     const raw = await this.#call("eth_getTransactionReceipt", [hash]);
-    if (raw === null || typeof raw !== "object") return null;
+    if (raw === null) return null;
+    if (raw === undefined || typeof raw !== "object") {
+      throw new ChainError(
+        "invalid_node_response",
+        "the node's answer to eth_getTransactionReceipt had neither a result nor an error field, " +
+          "in violation of JSON-RPC",
+      );
+    }
     const r = raw as Record<string, unknown>;
     const gasUsed = r.gasUsed === undefined ? undefined : BigInt(String(r.gasUsed));
     const price =
@@ -385,10 +397,23 @@ export class EvmRpcClient implements EvmGateway {
    * Null is deliberately ambiguous here: it covers "never existed", "still propagating" and
    * "this node pruned it". Distinguishing those is the caller's job, because only the caller
    * knows what other evidence it has.
+   *
+   * `result: null` and a MISSING `result` are not the same thing, so they are not collapsed
+   * together (see `getBlock`): a null `result` is the node correctly answering "no such
+   * transaction". A response with neither `result` nor `error` breaks the JSON-RPC contract and
+   * must surface as `invalid_node_response` rather than being read as "not found".
    */
   async getTransactionByHash(hash: string): Promise<Record<string, unknown> | null> {
     const raw = await this.#call("eth_getTransactionByHash", [hash]);
-    return raw === null || typeof raw !== "object" ? null : (raw as Record<string, unknown>);
+    if (raw === null) return null;
+    if (raw === undefined || typeof raw !== "object") {
+      throw new ChainError(
+        "invalid_node_response",
+        "the node's answer to eth_getTransactionByHash had neither a result nor an error field, " +
+          "in violation of JSON-RPC",
+      );
+    }
+    return raw as Record<string, unknown>;
   }
 
   async clientVersion(): Promise<string> {

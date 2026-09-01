@@ -763,6 +763,15 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
       new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc"),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
+
+  // BUG-V413-025: a missing `result` (no `error` either) is the node breaking the JSON-RPC
+  // contract, not a statement that the transaction has no receipt — those must not read the same.
+  it("rejects a response with neither result nor error as invalid_node_response", async () => {
+    stubRpc(undefined);
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc"),
+    ).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
 });
 
 describe("EvmRpcClient.encodeErc20Transfer", () => {
@@ -976,6 +985,15 @@ describe("EvmRpcClient.getTransactionByHash", () => {
     expect(
       await new EvmRpcClient("https://node.example", 5_000).getTransactionByHash("0xabc"),
     ).toBeNull();
+  });
+
+  // BUG-V413-025: a missing `result` (no `error` either) is the node breaking the JSON-RPC
+  // contract, not a statement that the transaction does not exist — those must not read the same.
+  it("rejects a response with neither result nor error as invalid_node_response", async () => {
+    stubRpc(undefined);
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000).getTransactionByHash("0xabc"),
+    ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 });
 

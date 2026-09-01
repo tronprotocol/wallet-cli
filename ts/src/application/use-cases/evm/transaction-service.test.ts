@@ -6,6 +6,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { EvmTransactionService } from "./transaction-service.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -792,6 +793,73 @@ describe("EvmTransactionService.status", () => {
     await service.status(s, SEPOLIA, HASH);
 
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  // BUG-V413-025: a node failure (timeout, rpc_error, an unreachable endpoint) must fail the
+  // command, not be swallowed into "not_found". `not_found` tells a script to keep polling a
+  // transaction that may in fact be sitting on a broken node — the opposite of what happened.
+  it("fails the command when getTransactionByHash rejects, rather than reporting not_found", async () => {
+    const gateway = {
+      getTransactionByHash: vi.fn(async () => {
+        throw new ChainError("rpc_error", "eth_getTransactionByHash failed: connection refused");
+      }),
+      getTransactionReceipt: vi.fn(async () => null),
+      getBlockNumber: vi.fn(async () => "42"),
+    };
+    const service = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      {} as never,
+      { resolve: vi.fn() } as never,
+    );
+
+    await expect(service.status(scope(), SEPOLIA, HASH)).rejects.toMatchObject({
+      code: "rpc_error",
+    });
+  });
+
+  it("fails the command when getTransactionReceipt rejects, rather than reporting not_found", async () => {
+    const gateway = {
+      getTransactionByHash: vi.fn(async () => null),
+      getTransactionReceipt: vi.fn(async () => {
+        throw new ChainError("timeout", "eth_getTransactionReceipt timed out");
+      }),
+      getBlockNumber: vi.fn(async () => "42"),
+    };
+    const service = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      {} as never,
+      { resolve: vi.fn() } as never,
+    );
+
+    await expect(service.status(scope(), SEPOLIA, HASH)).rejects.toMatchObject({
+      code: "timeout",
+    });
+  });
+
+  it("still reports not_found, with the node-history warning, when both calls genuinely answer null", async () => {
+    const { service, scope: s, warn } = statusHarness(null, null);
+
+    await expect(service.status(s, SEPOLIA, HASH)).resolves.toMatchObject({
+      state: "not_found",
+      confirmed: false,
+      failed: false,
+    });
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/histor|prun/i));
+  });
+
+  it("still succeeds, minus confirmations, when only getBlockNumber fails", async () => {
+    const { service, scope: s } = statusHarness(
+      { hash: HASH },
+      { success: true, blockNumber: 5 },
+      new Error("head unreachable"),
+    );
+
+    const out = await service.status(s, SEPOLIA, HASH);
+
+    expect(out.state).toBe("confirmed");
+    expect(out.confirmations).toBeUndefined();
   });
 });
 

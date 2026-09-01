@@ -427,8 +427,8 @@ export class EvmTransactionService {
   ): Promise<TxStatusView> {
     const gateway = this.gateways.get(network, "evm");
     const [transaction, receipt, head] = await Promise.all([
-      gateway.getTransactionByHash(hash).catch(() => null),
-      gateway.getTransactionReceipt(hash).catch(() => null),
+      gateway.getTransactionByHash(hash),
+      gateway.getTransactionReceipt(hash),
       // Best-effort third call: it only adds a field, and must not be able to fail the answer.
       gateway.getBlockNumber().catch(() => undefined),
     ]);
@@ -474,7 +474,7 @@ export class EvmTransactionService {
     const gateway = this.gateways.get(network, "evm");
     const [transaction, receipt, head] = await Promise.all([
       gateway.getTransactionByHash(hash),
-      gateway.getTransactionReceipt(hash).catch(() => null),
+      gateway.getTransactionReceipt(hash),
       gateway.getBlockNumber().catch(() => undefined),
     ]);
     if (!transaction) {
