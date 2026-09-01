@@ -86,12 +86,24 @@ describe("the error-code index", () => {
     expect(stale).toEqual([]);
   });
 
-  it("gives every code an exit class and a one-line meaning", () => {
+  it("gives every code an exit class, a retry answer, and a one-line meaning", () => {
     for (const [code, entry] of Object.entries(ERROR_CODES)) {
       expect([1, 2, "either"], code).toContain(entry.exit);
+      expect(["same", "changed", "never"], code).toContain(entry.retry);
       expect(entry.meaning, code).toMatch(/^[a-z(]/);
       expect(entry.meaning, code).not.toMatch(/\n/);
     }
+  });
+
+  // exit 2 means "it will still be wrong on retry" (machine-interface.md). A code that says
+  // otherwise has one of the two fields wrong, and filling them independently is how that gets
+  // caught.
+  it("never claims a usage error is retryable", () => {
+    const contradictory = Object.entries(ERROR_CODES)
+      .filter(([, e]) => e.exit === 2 && e.retry !== "never")
+      .map(([code]) => code)
+      .sort();
+    expect(contradictory).toEqual([]);
   });
 
   // The class a throw site picks is its statement of intent; the table is the contract. When they

@@ -170,12 +170,17 @@ wallet-cli --json-schema | jq '.errorCodes'
 Each entry is an object, not a bare string:
 
 ```json
-{ "not_found": { "exit": 1, "meaning": "the transaction, block or record does not exist at this node" } }
+{ "rpc_error": { "exit": 1, "retry": "same", "meaning": "the node answered with an error" } }
 ```
 
 `exit` is the authority for that code's exit status — the tables below are generated from it and
 kept honest by a test. A handful of codes carry `"either"`: they genuinely arise on both sides,
 and the exit status is the one the process returned.
+
+`retry` is the answer to "now what": `same` — retry the identical command (a node or service
+hiccup); `changed` — retry after changing the request (raise the fee, rebuild with a new nonce);
+`never` — retrying as-is cannot succeed, something outside the command has to change. Every
+exit-`2` code is `never` by construction.
 
 That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and the strings carrying `"either"` (`invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
