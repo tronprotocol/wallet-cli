@@ -24,7 +24,7 @@ or
 wallet> updateAccountPermission
 === UpdateAccountPermission Interactive Mode ===
 
-Select permission to modify:
+Please enter the index(1-7) to operate:
 1. owner_permission
 2. witness_permission
 3. active_permissions
@@ -45,7 +45,7 @@ If the account is not a witness, it's not necessary to set `witness_permission`,
 > SendCoin TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW 10000000000000000
 ```
 
-Will show "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancel transaction."
+Will show "Please confirm and input your permission id, if input y/Y means default 0, other non-numeric characters will cancel transaction."
 
 This will require the transfer authorization of active access. Enter: 2
 
@@ -53,7 +53,7 @@ Then select accounts and put in the local password, i.e. TNhXo1GbRNCuorvYu5JFWN3
 
 Select another account and enter the local password, i.e. TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP will need a private key of TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP to sign a transaction.
 
-The weight of each account is 1, threshold of access is 2. When the requirements are met, users will be notified with "Send 10000000000000000 Sun to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW successful !!".
+The weight of each account is 1, threshold of access is 2. When the requirements are met, users will be notified with "Send 10000000000000000 Sun to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  successful !!".
 
 This is how multiple accounts use multi-signature when using the same cli. Use the instruction `addTransactionSign` according to the obtained transaction hex string if signing at multiple cli. After signing, the users will need to broadcast final transactions manually.
 
@@ -190,7 +190,7 @@ wallet> tronlinkmultisign
 1. Multi-sign transaction list
 2. Create multi-sign transaction
 0. Exit
-Please enter the number to operate:
+Please enter to operate:
 ```
 
 ## See also

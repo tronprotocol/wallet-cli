@@ -76,7 +76,7 @@ wallet-cli chain params --network tron:3448148188 -o json
 | Field | Type | Meaning |
 |---|---|---|
 | `key` | string | Parameter name, verbatim from the chain |
-| `value` | number | Raw chain value, no unit suffix (text adds SUN / ms) |
+| `value` | number | Raw chain value, no unit suffix (text adds SUN / ms). Absent altogether for a parameter the node reports without one. The port that carries it is typed `number \| string`, but the TronWeb gateway behind it only ever yields numbers |
 
 ## Exit status
 

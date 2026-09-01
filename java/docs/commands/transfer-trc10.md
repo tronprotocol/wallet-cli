@@ -125,14 +125,22 @@ Example:
 ```console
 > TransferAsset TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz 1000001 1000
 > getaccount TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz  # View target account information after the transfer
-address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz
-    assetV2
+{
+  "address": "TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz",
+  "balance": 9999900000,
+  "assetV2": [
     {
-    id: 1000001
-    balance: 1000
-    latest_asset_operation_timeV2: null
-    free_asset_net_usageV2: 0
+      "key": "1000001",
+      "value": 1000
     }
+  ],
+  "free_asset_net_usageV2": [
+    {
+      "key": "1000001",
+      "value": 0
+    }
+  ]
+}
 ```
 
 ### ParticipateAssetIssue
@@ -155,14 +163,16 @@ Example:
 ```console
 > ParticipateAssetIssue TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 1000001 1000
 > getaccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  # View remaining balance
-address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
-assetV2
+{
+  "address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+  "balance": 9999900000,
+  "assetV2": [
     {
-    id: 1000001
-    balance: 1000
-    latest_asset_operation_timeV2: null
-    free_asset_net_usageV2: 0
+      "key": "1000001",
+      "value": 1000
     }
+  ]
+}
 ```
 
 ### ListAssetIssuePaginated

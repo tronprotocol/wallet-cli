@@ -1,6 +1,6 @@
 # wallet-cli — TypeScript implementation
 
-The agent-first implementation of wallet-cli, built for automation: every command has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts are kept only for secret input (import / backup / delete). For what wallet-cli is and how the two implementations compare, see the [repository overview](../README.md); for the original, see the [Java implementation](../java/README.md).
+The agent-first implementation of wallet-cli, built for automation: every command has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts are kept to a short allowlist — `create`, the `import` variants, `backup`, `change-password` and `delete` — and everywhere else a missing credential is an error, never a prompt. For what wallet-cli is and how the two implementations compare, see the [repository overview](../README.md); for the original, see the [Java implementation](../java/README.md).
 
 ## Key features
 
@@ -27,7 +27,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 
 ## Supported chains
 
-Seven built-in networks are supported. Networks use a canonical `family:chain` id:
+Seven built-in networks are supported. Networks use a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`.
 
 | Network id | Family | Native coin | Environment |
 |---|---|---|---|
@@ -83,8 +83,13 @@ wallet-cli create --label main
 ```console
 ✅ Created wallet "main"
   Account ID    wlt_2dbv24de.0
+  Type          HD
   TRON address  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ
+  EVM address   0x5c8e1b04A7f39d62C0B3e85A1d47F9028b6ce713
   Active        yes
+
+⚠️ Recovery phrase is encrypted locally and was not printed.
+⚠️ Run `backup` soon and store the file offline.
 ```
 
 ```bash
@@ -184,7 +189,7 @@ Every command supports `-o json` and then prints **exactly one** terminal JSON f
 
 TRON differs a lot from EVM chains in fees, accounts, and key permissions — these are worth understanding up front to avoid surprises:
 
-- [Networks](docs/concepts/networks.md) — built-in TRON/EVM networks and the `family:chain` id
+- [Networks](docs/concepts/networks.md) — built-in TRON/EVM networks and the CAIP-2 `namespace:reference` id
 - [Accounts & HD](docs/concepts/accounts-and-hd.md) — mnemonics, derivation paths, account activation
 - [Energy & bandwidth](docs/concepts/energy-bandwidth.md) — TRON's resource-based fee model (in place of EVM gas)
 - [Security](docs/concepts/security.md) — keystore encryption, secret handling, multi-sig permissions
@@ -193,4 +198,4 @@ TRON differs a lot from EVM chains in fees, accounts, and key permissions — th
 
 A command errored or behaved unexpectedly? Common issues and how to diagnose them are in [troubleshooting.md](docs/troubleshooting.md).
 
-> All copy-pasteable examples in this documentation run against the **Nile testnet** (`--network tron:3448148188`). Mainnet commands move real funds; they appear only as annotated, non-copyable descriptions.
+> Copy-pasteable examples that spend anything target a testnet — **Nile** (`--network tron:3448148188`) on TRON, **Sepolia** (`--network eip155:11155111`) on EVM. Mainnet ids (`tron:728126428`, `eip155:1`) also appear: in read-only examples such as token-book listings and config paths, and in a few illustrations of mainnet token contracts. Those last ones carry placeholder recipients (`T...` / `0x...`) and are not runnable as written.

@@ -5,7 +5,7 @@ Deploy, trigger, and inspect smart contracts.
 ## DeployContract
 
 ```console
-> DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)> library:address,...>
+> DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,...> <lib_compiler_version(e.g:v5)>
 ```
 
 - `OwnerAddress` — the address of the account that initiated the transaction, optional, default is the address of the login account.
@@ -23,8 +23,7 @@ Deploy, trigger, and inspect smart contracts.
 Example:
 
 ```console
-> deployContract normalcontract544 [{"constant":false,"inputs":[{"name":"i","type":"uint256"}],"name": "findArgsByIndexTest","outputs":[{"name":"z","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"}]
-608060405234801561001057600080fd5b50610134806100206000396000f3006080604052600436106100405763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663329000b58114610045575b600080fd5b34801561005157600080fd5b5061005d60043561006f565b60408051918252519081900360200190f35b604080516003808252608082019092526000916060919060208201838038833901905050905060018160008151811015156100a657fe5b602090810290910101528051600290829060019081106100c257fe5b602090810290910101528051600390829060029081106100de57fe5b6020908102909101015280518190849081106100f657fe5b906020019060200201519150509190505600a165627a7a72305820b24fc247fdaf3644b3c4c94fcee380aa610ed83415061ff9e65d7fa94a5a50a00029 # # false 1000000000 75 50000 0 0 #
+> deployContract normalcontract544 [{"constant":false,"inputs":[{"name":"i","type":"uint256"}],"name": "findArgsByIndexTest","outputs":[{"name":"z","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"}] 608060405234801561001057600080fd5b50610134806100206000396000f3006080604052600436106100405763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663329000b58114610045575b600080fd5b34801561005157600080fd5b5061005d60043561006f565b60408051918252519081900360200190f35b604080516003808252608082019092526000916060919060208201838038833901905050905060018160008151811015156100a657fe5b602090810290910101528051600290829060019081106100c257fe5b602090810290910101528051600390829060029081106100de57fe5b6020908102909101015280518190849081106100f657fe5b906020019060200201519150509190505600a165627a7a72305820b24fc247fdaf3644b3c4c94fcee380aa610ed83415061ff9e65d7fa94a5a50a00029 # # false 1000000000 75 50000 0 0 #
 ```
 
 Get the result of the contract execution with the `getTransactionInfoById` command:
@@ -84,8 +83,7 @@ Takes 5 parameters, or 8 when the trailing `value token_value token_id` group is
 Example:
 
 ```console
-> triggerContract TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG findArgsByIndexTest(uint256) 0 false
-1000000000 0 0 #
+> triggerContract TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG findArgsByIndexTest(uint256) 0 false 1000000000 0 0 #
 # Get the result of the contract execution with the getTransactionInfoById command
 > getTransactionInfoById 7d9c4e765ea53cf6749d8a89ac07d577141b93f83adc4015f0b266d8f5c2dec4
 {
@@ -128,7 +126,7 @@ The command accepts exactly five parameters without value/token fields, or eight
 Example:
 
 ```console
-> TriggerConstantContract TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs "balanceOf(address)" 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
+> TriggerConstantContract TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs balanceOf(address) 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
 ```
 
 ## ClearContractABI
@@ -242,7 +240,7 @@ Estimate the energy required for the successful execution of a smart contract tr
 Example:
 
 ```console
-> EstimateEnergy TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs "balanceOf(address)" 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
+> EstimateEnergy TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs balanceOf(address) 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
 ```
 
 ## See also

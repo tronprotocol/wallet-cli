@@ -20,7 +20,7 @@ wallet-cli import COMMAND
 
 A secret — a mnemonic, a private key, a keystore — is not tied to one chain: the **same key** produces a TRON address and an EVM address, so those three imports give you an account that works on both families. A Ledger account and a watch-only account are single-family, because a device app and a pasted address each name exactly one.
 
-All secret-bearing variants take secrets via stdin flags or TTY prompt only — never argv/env. See [machine-interface → Secret handling](../../machine-interface.md#secret-handling).
+The three secret-bearing variants — `import mnemonic`, `import private-key`, `import keystore` — are **interactive-only**: every secret is read from a hidden TTY prompt. There are no `--mnemonic-stdin` / `--private-key-stdin` flags, and `--password-stdin` is rejected with `invalid_option`; without a terminal the command fails with `tty_required`. Secrets never touch argv or env. See [machine-interface → Secret handling](../../machine-interface.md#secret-handling).
 
 ## See also
 

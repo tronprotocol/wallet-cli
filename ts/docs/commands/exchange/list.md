@@ -1,6 +1,6 @@
 # wallet-cli exchange list
 
-List every exchange pair on chain.
+List exchange pairs on chain, one page at a time.
 
 ## Synopsis
 
@@ -16,13 +16,13 @@ Lists pairs with their id, both tokens, reserves, and creator. Read-only, no acc
 
 **Reserves here are in minimal units, not whole tokens.** This command makes a single RPC and so has no token precisions to divide by; `exchange show` fetches them and prints whole tokens instead. The same pair therefore reads `6,672` here and `66.72` there.
 
-Paging happens on the node, and **there is no total**: the chain exposes no count of exchange pairs. The title reports the window it asked for — `Exchanges (limit 3, offset 0)` — not `showing 3 of N`, and `meta.pagination.total` is always `null`. To get everything, pass a `--limit` large enough to cover it.
+Paging happens on the node, and **there is no total**: the chain exposes no count of exchange pairs. The title reports the window it asked for — `Exchanges (limit 3, offset 0)` — not `showing 3 of N`, and `meta.pagination.total` is always `null`. To get everything, page with `--offset` until a short page comes back: `--limit` caps at `1000`, and a larger value is rejected with `invalid_value`.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--limit <number>` | Max pairs to return (default `10`) |
+| `--limit <number>` | Max pairs to return, 1–1000 (default `10`) |
 | `--offset <number>` | Pagination offset (default `0`) |
 
 Plus the [global options](../index.md#global-options-every-command).

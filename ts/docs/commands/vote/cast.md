@@ -49,9 +49,9 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 
 ```console
 ⏳ Voted 1,000 TP across 2 witnesses
-  Votes    TZ4...=600, TT5...=400
-  TxID     e5f...
-  Status   pending — tallied at next maintenance cycle (~6h)
+  Votes   TZ4...=600, TT5...=400
+  TxID    e5f...
+  Status  pending — tallied at next maintenance cycle (~6h)
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
 
@@ -71,11 +71,11 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 
 ```console
 ✅ Voted 1,000 TP across 2 witnesses
-  Votes    TZ4...=600, TT5...=400
-  TxID     f8a...
-  Block    #84,121,055
-  Fee      0 TRX
-  Status   success — tallied at next maintenance cycle (~6h)
+  Votes   TZ4...=600, TT5...=400
+  TxID    f8a...
+  Block   #84,121,055
+  Fee     0 TRX
+  Status  success — tallied at next maintenance cycle (~6h)
 ```
 
 ## Output
@@ -89,7 +89,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — total exceeds available TP; `invalid_value` — bad SR address, non-positive count, > 30 entries).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — total exceeds the account's **total** TP (votes already placed are re-allocated, not added, so the check is against total, not available); `invalid_value` — bad SR address, non-positive count, > 30 entries).
 
 ## See also
 

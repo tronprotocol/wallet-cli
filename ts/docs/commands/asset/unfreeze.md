@@ -51,12 +51,12 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --passwo
 ```console
 ✅ Frozen supply released
   Asset         MyToken  (id 1000123)
-  Issuer        TQkXm4vN...5Zt7Uw (main)
+  Issuer        TQkXm4vN...5Zt7Uw
   Released      100,000,000 MyToken
   Still frozen  50,000,000 MyToken
   TxID          6a5...
-  Block         57,883,560
-  Fee           0 TRX  (288 bandwidth)
+  Block         #57,883,560
+  Fee           0 TRX
   Status        success
 ```
 
@@ -74,10 +74,10 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --passwo
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "asset-unfreeze"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, `releasedAmount`, `stillFrozenAmount` |
+| default (submit) | `kind: "asset-unfreeze"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `precision`, and `releasedAmount` / `stillFrozenAmount` — present here too, but as the amounts this command *intends* to release |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed`; `releasedAmount` is then taken from the receipt |
 
-`releasedAmount` and `stillFrozenAmount` are raw decimal strings (smallest unit); `precision` is included for scaling. The confirmed `releasedAmount` reflects what the receipt reports.
+`releasedAmount` and `stillFrozenAmount` are raw decimal strings (smallest unit); `precision` is included for scaling. Both are always present — before confirmation they are this command's own computation from the asset's frozen tranches, and only the confirmed `releasedAmount` is the receipt's number.
 
 ## Exit status
 

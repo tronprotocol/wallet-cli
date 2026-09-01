@@ -67,7 +67,7 @@ wallet-cli delete main-1 --yes -o json
 |---|---|---|
 | `accountId` | string | Id of the deleted account/wallet (`wlt_….N` for a sub-account, the wallet id `wlt_…` for a wallet) |
 | `scope` | string | `account` (only that account) or `wallet` (cascaded whole wallet) |
-| `secretRemoved` | boolean | Whether the key was removed (deleting an HD sub-account keeps the seed = `false`; deleting a wallet = `true`) |
+| `secretRemoved` | boolean | Whether encrypted secret material was removed. Deleting an HD sub-account keeps the seed, so `false`. Deleting a wallet reports whether that wallet held a secret at all: `true` for seed and private-key wallets, `false` for Ledger and watch-only ones, which never stored one |
 | `newActive` | string \| null | New active account id after deletion; `null` if none remain |
 
 ## Exit status

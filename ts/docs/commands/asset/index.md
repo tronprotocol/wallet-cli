@@ -30,7 +30,7 @@ wallet-cli asset COMMAND
 | `asset participate` | [participate.md](participate.md) | Buy into a token's ICO with TRX |
 | `asset unfreeze` | [unfreeze.md](unfreeze.md) | Release matured frozen supply |
 | `asset info` | [info.md](info.md) | Full detail of one TRC10 |
-| `asset list` | [list.md](list.md) | List every TRC10 on chain |
+| `asset list` | [list.md](list.md) | List TRC10 tokens, one page at a time |
 
 ## See also
 

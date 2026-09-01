@@ -76,7 +76,7 @@ The full first-run walkthrough is in the [getting-started guide](docs/guide/gett
 
 ## Commands
 
-Every command is documented on a family page under [docs/commands/](docs/commands/index.md). The **[command index](docs/commands/index.md)** has the full A–Z list linking each command to its section; in the wallet, typing any command shows its built-in usage tips.
+Every command is documented on a family page under [docs/commands/](docs/commands/index.md). The **[command index](docs/commands/index.md)** has the full A–Z list linking each command to its section; in the wallet, `help <command>` shows a command's built-in usage tips (`help` alone prints the full table).
 
 ### Wallets & accounts
 

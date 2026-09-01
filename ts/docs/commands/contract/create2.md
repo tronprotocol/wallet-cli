@@ -58,7 +58,7 @@ wallet-cli contract create2 --deployer TQkXm4vN...5Zt7Uw --code 6080604052... --
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.create2","data":{"deployerAddress":"TQkXm4vN...","salt":255,"saltHex":"0x00000000000000000000000000000000000000000000000000000000000000ff","codeHash":"c8f4a1...b91b","address":"TWq8dK3n...2mHb"},"meta":{"durationMs":3,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.create2","data":{"deployerAddress":"TQkXm4vN...","salt":255,"saltHex":"0x00000000000000000000000000000000000000000000000000000000000000ff","codeHash":"c8f4a1...b91b","address":"TWq8dK3n...2mHb"},"meta":{"durationMs":3,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
@@ -66,12 +66,12 @@ wallet-cli contract create2 --deployer TQkXm4vN...5Zt7Uw --code 6080604052... --
 | Field | Type | Meaning |
 |---|---|---|
 | `deployerAddress` | string | The deployer as given, base58 |
-| `salt` | number | The salt as given, decimal |
+| `salt` | number \| string | The salt as given, decimal. A **string** when it falls outside the safe-integer range, so a full int64 salt survives JSON |
 | `saltHex` | string | The zero-padded 32 bytes that actually enter the hash |
 | `codeHash` | string | `keccak256` of the creation bytecode |
 | `address` | string | The resulting contract address, base58 |
 
-This is a local command, so the envelope carries no `chain` block.
+The command never contacts a node, but it is still a TRON chain command: the envelope carries the usual `chain` block for the selected network. `--network` is optional here and only picks which network the block names.
 
 ## Exit status
 

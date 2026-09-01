@@ -52,14 +52,14 @@ echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:
 ```console
 ✅ Asset updated
   Asset             MyToken  (id 1000123)
-  Issuer            TQkXm4vN...5Zt7Uw (main)
+  Issuer            TQkXm4vN...5Zt7Uw
   Url               https://mytoken.io/v2
   Description       Demo TRC10
   Free net/account  0
   Public free net   0
   TxID              9e3...
-  Block             57,883,190
-  Fee               0 TRX  (295 bandwidth)
+  Block             #57,883,190
+  Fee               0 TRX
   Status            success
 ```
 
@@ -84,7 +84,7 @@ The four fields are `url`, `description`, `freeAssetNetLimit`, and `publicFreeAs
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_an_issuer` — this account has not issued a TRC10, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no field given; `invalid_value` — URL or description too long, bandwidth limits out of range).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_an_issuer` — this account has not issued a TRC10, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — no field given at all, or a URL / description that is too long; the command has no required flag, so a bare call is `invalid_value`, not `missing_option`).
 
 ## See also
 

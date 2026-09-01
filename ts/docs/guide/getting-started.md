@@ -30,7 +30,7 @@ wallet-cli list
 
 ```console
 HD  wlt_4473p34m
-└─ [0] main        TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ  (active)
+└─ [0] main  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ  (active)
 ```
 
 The `T…` string is your TRON address, the same on every TRON network. `(active)` marks the account commands act on by default; switch with `wallet-cli use <label>`.
@@ -43,7 +43,7 @@ wallet-cli list --network sepolia
 
 ```console
 HD  wlt_4473p34m
-└─ [0] main        0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C  (active)
+└─ [0] main  0x3f9A1C74E5B2d80Af6C31e97b45D2a08c7E6F193  (active)
 ```
 
 The two are independent addresses with independent balances; funding one does nothing for the other. Everything below works the same way on either — swap `--network tron:3448148188` for `--network sepolia` and the amounts are in ETH instead of TRX. See [Networks](../concepts/networks.md).
@@ -88,8 +88,10 @@ wallet-cli tx status --txid <the txid you got back> --network tron:3448148188
 ```
 
 ```console
-TxID    7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364
-Status  confirmed ✅
+TxID           7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364
+Status         confirmed ✅
+Block          #70,433,563
+Confirmations  1
 ```
 
 `pending` means wait and re-run; `failed` means the chain rejected it (see [troubleshooting](../troubleshooting.md)). To make `tx send` block until confirmed, add `--wait`.

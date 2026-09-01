@@ -14,14 +14,14 @@ Voting requires share. Share can be obtained by freezing funds.
 For example:
 
 ```console
-> freezeBalance 10000000 3 1 address  # Freeze 10 TRX and acquire 10 units of shares
+> freezeBalance 10000000 3 1  # Freeze 10 TRX and acquire 10 units of shares
 
-> votewitness 123455 witness1 4 witness2 6  # Cast 4 votes for witness1 and 6 votes for witness2 at the same time
+> votewitness TJmka325yjJKeFpQDwKSQAoNwEyNGhsaEV 4 TFFLWM7tmKiwGtbh2mcz2rBssoFjHjSShG 6  # Cast 4 votes for the first SR and 6 for the second at the same time
 
-> votewitness 123455 witness1 10  # Voted 10 votes for witness1
+> votewitness TJmka325yjJKeFpQDwKSQAoNwEyNGhsaEV 10  # Vote 10 for the first SR only
 ```
 
-The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
+Each SR must be given as a Base58Check address; a placeholder name is not accepted. The final result of the above commands was 10 votes for `TJmka325…` and 0 for `TFFLWM7t…`.
 
 ## Brokerage
 

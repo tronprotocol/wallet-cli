@@ -14,7 +14,7 @@ wallet-cli account set (--name <name> | --id <account-id>)
 
 Sets the account's on-chain **name** (a display alias, up to 32 bytes) or its **account id** (a globally unique identifier, 8–32 bytes). One at a time — `--name` and `--id` are mutually exclusive; to set both, run it twice.
 
-⚠️ **On mainnet each can be set only once and can never be changed** — the value is permanent, and there is no confirmation prompt. This is different from [`rename`](../rename.md), which changes the local label and can be redone anytime.
+⚠️ **Each can be set only once and can never be changed** — the value is permanent, and there is no confirmation prompt. This is not a mainnet-only rule: the CLI refuses a second write with `name_already_set` / `id_already_set` on every network, Nile and Shasta included, so a testnet run is not a rehearsal you can repeat. This is different from [`rename`](../rename.md), which changes the local label and can be redone anytime.
 
 Requires the account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
 
@@ -24,8 +24,8 @@ Ledger support differs by field: the TRON app can sign `--name`, but cannot sign
 
 | Option | Description |
 |---|---|
-| `--name <name>` | **Required** (one of). On-chain account name, up to 32 bytes; mainnet allows setting it once |
-| `--id <account-id>` | **Required** (one of). Account id, 8–32 bytes, globally unique; can be set once |
+| `--name <name>` | **Required** (one of). On-chain account name, up to 32 bytes; can be set once, on any network |
+| `--id <account-id>` | **Required** (one of). Account id, 8–32 bytes, globally unique; can be set once, on any network |
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
@@ -71,7 +71,7 @@ echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:3448148
 ```
 
 ```console
-✅ Account id set
+✅ On-chain id set
   Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
   ID       acme-treasury-01
   TxID     3d9...

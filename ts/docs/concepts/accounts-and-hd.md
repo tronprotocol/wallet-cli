@@ -7,9 +7,9 @@ How wallet-cli organizes what you see in `list`.
 A **seed wallet** is one BIP39 mnemonic; it can derive many **accounts**. Ids reflect that:
 
 ```
-wlt_4473p34m        ← seedId (one mnemonic)
-wlt_4473p34m.0      ← accountId = seedId.index (one account, one address per family)
-wlt_4473p34m.1
+wlt_z259a1hq        ← seedId (one mnemonic)
+wlt_z259a1hq.0      ← accountId = seedId.index (one account, one address per family)
+wlt_z259a1hq.1
 ```
 
 `create` makes a new seed plus account #0; `derive --seed-id wlt_…` adds the next account (or an explicit `--index`) from the same mnemonic. Restoring the mnemonic elsewhere re-derives the same addresses — which is why the mnemonic is the real backup and the master password is only local protection. Note that `create` does not print the mnemonic; run [`backup`](../commands/backup.md) to export it to an offline file.

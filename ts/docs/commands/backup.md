@@ -69,7 +69,7 @@ printf '%s' "$PW" | wallet-cli backup main --password-stdin
 ```
 
 ```console
-⚠️ Backup written ./wlt_d1qbj2fb.0-1783751611076.json
+⚠️ Backup written /home/you/wlt_d1qbj2fb.0-1783751611076.json
   Account ID  wlt_d1qbj2fb.0
   Secret      recovery phrase
   File mode   0600
@@ -85,7 +85,7 @@ printf '%s' "$PW" | wallet-cli backup main --keystore --password-stdin
 ```
 
 ```console
-⚠️ Keystore written ./wlt_d1qbj2fb.0-1785930000.keystore.json
+⚠️ Keystore written /home/you/wlt_d1qbj2fb.0-1785930000.keystore.json
   Account ID  wlt_d1qbj2fb.0
   Family      tron
   Secret      private key
@@ -100,7 +100,7 @@ printf '%s' "$PW" | wallet-cli backup main --keystore --out ./main.keystore.json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw","evm":"0x7B28FE10...46C9C"},"seedId":"wlt_d1qbj2fb","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"./main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw","evm":"0x86B3D0f2...f4106"},"seedId":"wlt_d1qbj2fb","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"/home/you/main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 The audit log:
@@ -111,11 +111,11 @@ wallet-cli backup --records --limit 3
 
 ```console
 Backup records (showing 3 of 12)
-| Time (UTC)       | Exported account         | Operation         | File                                      |
-| ---------------- | ------------------------ | ----------------- | ----------------------------------------- |
-| 2026-08-05 11:40 | TQkXm4vN...5Zt7Uw (main) | backup --keystore | ./wlt_d1qbj2fb.0-1785930000.keystore.json |
-| 2026-08-04 09:12 | TQkXm4vN...5Zt7Uw (main) | backup            | ./wlt_d1qbj2fb.0-1785834720.json          |
-| 2026-07-30 22:03 | TBeta9mR...8pLx          | backup            | ./tbeta-seed.json                         |
+| Time (UTC)       | Exported account         | Operation         | File                                              |
+| ---------------- | ------------------------ | ----------------- | ------------------------------------------------- |
+| 2026-08-05 11:40 | TQkXm4vN...5Zt7Uw (main) | backup --keystore | /home/you/wlt_d1qbj2fb.0-1785930000.keystore.json |
+| 2026-08-04 09:12 | TQkXm4vN...5Zt7Uw (main) | backup            | /home/you/wlt_d1qbj2fb.0-1785834720.json          |
+| 2026-07-30 22:03 | TBeta9mR...8pLx          | backup            | /home/you/tbeta-seed.json                         |
 ```
 
 ```bash
@@ -123,7 +123,7 @@ wallet-cli backup --records --limit 3 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"./wlt_d1qbj2fb.0-1785930000.keystore.json","timestamp":"2026-08-05T11:40:00Z"},{"operation":"backup","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"./wlt_d1qbj2fb.0-1785834720.json","timestamp":"2026-08-04T09:12:00Z"},{"operation":"backup","accountId":"wlt_9x3k2m7p.0","account":"TBeta9mR...8pLx","label":null,"out":"./tbeta-seed.json","timestamp":"2026-07-30T22:03:00Z"}]},"meta":{"durationMs":8,"warnings":[],"pagination":{"offset":0,"limit":3,"total":12}},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","family":"tron","label":"main","out":"/home/you/wlt_d1qbj2fb.0-1785930000.keystore.json","timestamp":"2026-08-05T11:40:00Z"},{"operation":"backup","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"/home/you/wlt_d1qbj2fb.0-1785834720.json","timestamp":"2026-08-04T09:12:00Z"},{"operation":"backup","accountId":"wlt_9x3k2m7p.0","account":"TBeta9mR...8pLx","label":null,"out":"/home/you/tbeta-seed.json","timestamp":"2026-07-30T22:03:00Z"}]},"meta":{"durationMs":8,"warnings":[],"pagination":{"offset":0,"limit":3,"total":12}},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
@@ -145,7 +145,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `secretType` | string | Kind of exported secret — `mnemonic`, or `privateKey` with `--keystore` |
 | `format` | string | `keystore` when `--keystore` was used |
-| `out` | string | Path written |
+| `out` | string | **Absolute** path written — a relative `--out` is resolved against the working directory before it is reported |
 | `fileMode` | string | File permissions, always `0600` |
 | `bytes` | number | File size in bytes |
 
@@ -155,7 +155,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 |---|---|---|
 | `operation` | string | `backup` or `backup --keystore` |
 | `accountId` / `account` / `label` | string \| null | The account whose secret was exported; `label` is `null` when unset |
-| `out` | string | File the secret went to |
+| `out` | string | File the secret went to, as an **absolute** path |
 | `timestamp` | string | Export time, UTC |
 
 `meta.pagination` carries `offset`, `limit` (`null` = unlimited), and `total`.

@@ -42,10 +42,10 @@ echo "$PW" | wallet-cli reward withdraw --network tron:3448148188 --password-std
 ```
 
 ```console
-⏳ Submitted — withdraw voting/block rewards
-  TxID     a1b...
-  Amount   123.456789 TRX
-  Status   pending — next withdrawal available in ~24h
+⏳ Withdrew voting/block rewards
+  Amount  123.456789 TRX
+  TxID    a1b...
+  Status  pending — next withdrawal available in ~24h
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid a1b...
 ```
 
@@ -65,11 +65,11 @@ echo "$PW" | wallet-cli reward withdraw --network tron:3448148188 --wait --passw
 
 ```console
 ✅ Withdrew voting/block rewards
-  TxID     c7d...
-  Amount   123.456789 TRX
-  Block    84,121,010
-  Fee      0.268 TRX
-  Status   success — next withdrawal available in ~24h
+  Amount  123.456789 TRX
+  TxID    c7d...
+  Block   #84,121,010
+  Fee     0.268 TRX
+  Status  success — next withdrawal available in ~24h
 ```
 
 ## Output

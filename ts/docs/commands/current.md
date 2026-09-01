@@ -12,7 +12,7 @@ wallet-cli current [options]
 
 | Option | Description |
 |---|---|
-| `--qr` | Also render the receive address for the selected network as a scannable QR code in the terminal, with the full address printed above it for manual verification; text output only |
+| `--qr` | Also render the receive address for the selected network as a scannable QR code in the terminal, with the full address printed below it for manual verification; text output only |
 
 Plus the [global options](index.md) (`--account` overrides which account is shown).
 
@@ -30,9 +30,9 @@ Active account: main
   EVM address   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
 ```
 
-With `--account`, the header reads `Selected account:` instead of `Active account:`.
+The header follows `data.active`, not the flag: it reads `Selected account:` when `--account` names an account other than the active one, and stays `Active account:` otherwise — including when `--account` happens to name the active account.
 
-Add `--qr` to also render the active account's address as a scannable receive QR code, drawn with block characters below the address. Purely local — the address comes from local keystore metadata, no node access:
+Add `--qr` to also render the active account's address as a scannable receive QR code, drawn with block characters after the address list and followed by a `Receive address` line carrying the full value. Purely local — the address comes from local keystore metadata, no node access:
 
 ```bash
 wallet-cli current --qr
@@ -43,7 +43,8 @@ Active account: main
   TRON address  TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
   EVM address   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
 
-  [ scannable QR code of the TRON address, drawn in the terminal ]
+[ scannable QR code of the TRON address, drawn in the terminal ]
+Receive address  TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
 ```
 
 The QR encodes **one** address — the receive address for the selected network. Pass `--network` to choose which:
@@ -88,7 +89,7 @@ error [missing_wallet_address]: no active account; import one first
 | `index` | number \| null | HD derivation index; `null` for non-HD accounts |
 | `active` | boolean | `true` for the active account; `false` when `--account` selected a different one |
 | `addresses` | object | One entry per family the account can produce: `tron` (base58) and/or `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object \| null | Per-family BIP32 path for `seed` accounts; `null` otherwise |
+| `derivationPath` | object \| null | The BIP32 path behind each address: every family for a `seed` account, the single chosen path for a `ledger` account; `null` for `privateKey` and `watch`, which were never derived |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
 | `receiveAddress` | string | Present in JSON only when `--qr` was requested; address selected by `--network` |

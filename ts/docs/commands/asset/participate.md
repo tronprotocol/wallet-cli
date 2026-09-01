@@ -14,7 +14,7 @@ wallet-cli asset participate <asset> --pay <trx>
 
 Buys from a token's issuance inside its funding window, at the fixed rate set when it was issued. This is participation in the ICO, not a market trade — the tokens come out of the issuer's remaining supply, and the price is not negotiable. The issuer's address is resolved from the token, so there is nothing to pass for it.
 
-**`--pay` is the TRX you spend, not the tokens you receive.** You get `floor(pay × tokens ÷ trx)` where `trx:tokens` is the token's issued rate — the amount paid times the unit price, rounded down, since the chain multiplies before dividing on integers. The TRX is transferred in full, so any truncated remainder is not refunded; the loss is under 1 sun and cannot occur at all when the rate's `trxNum` is 1. If `--pay` is too small to buy even one unit, the command fails locally rather than broadcasting.
+**`--pay` is the TRX you spend, not the tokens you receive.** You get `floor(pay × tokens ÷ trx)` where `trx:tokens` is the token's issued rate — the amount paid times the unit price, rounded down, since the chain multiplies before dividing on integers. The TRX is transferred in full, so any truncated remainder is not refunded. What is lost is under one **token minimal unit**, and the chain stores that unit's price as the pair `trxNum:num` — `trxNum` sun buys `num` minimal units — so the discarded amount is under `trxNum ÷ num` sun. At `--price 1:100 --precision 6` that is 0.01 sun, i.e. nothing; at `--price 1:100 --precision 0` the pair reduces to `10000:1` and the worst case is 9,999 sun. If `--pay` is too small to buy even one unit, the command fails locally rather than broadcasting.
 
 The acting account cannot be the token's own issuer.
 
@@ -52,12 +52,12 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:34481
 ✅ Participated in ICO
   Asset        BetaToken  (id 1000124)
   Issuer       TBeta9mR...8pLx
-  Participant  TQkXm4vN...5Zt7Uw (main)
+  Participant  TQkXm4vN...5Zt7Uw
   Paid         100 TRX
   Received     10,000 BetaToken
   TxID         4c8...
-  Block        57,883,402
-  Fee          0 TRX  (301 bandwidth)
+  Block        #57,883,402
+  Fee          0 TRX
   Status       success
 ```
 
@@ -82,7 +82,7 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:34481
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `insufficient_balance`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `transaction_rejected` — the node refused it, e.g. the balance cannot cover `--pay`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
 
 ## See also
 

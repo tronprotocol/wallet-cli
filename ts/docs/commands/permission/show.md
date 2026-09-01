@@ -27,7 +27,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
-**A never-modified account** shows the chain-default owner and active groups. The active group's complete operation set is line-wrapped to fit the terminal; labels are never replaced with an ellipsis. Unknown bitmap bits are printed as `Unknown contract type <id>`.
+**A never-modified account** shows the chain-default owner and active groups. The active group's complete operation set is wrapped at a fixed 76-character width (not the terminal's); labels are never replaced with an ellipsis. Unknown bitmap bits are printed as `Unknown contract type <id>`.
 
 **A multi-sig account** — here the owner group is a 2-of-3 and a scoped `finance` active group handles day-to-day transfers. This wallet holds only one of the keys (`main`); the other two are held by external co-signers, so they carry no annotation:
 
@@ -41,17 +41,17 @@ Account  main (TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw)
 Permission Name   owner  (id 0)
 Threshold         2
 Authorized To     Address                             Weight
-                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
-                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
-                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
+                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw       1  (this wallet: main)
+                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub       1
+                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz       1
 
 Permission Name   finance  (id 2, active)
 Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract  (3 total)
 Threshold         2
 Authorized To     Address                             Weight
-                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
-                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
-                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
+                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw       1  (this wallet: main)
+                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub       1
+                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz       1
 ```
 
 ```bash
