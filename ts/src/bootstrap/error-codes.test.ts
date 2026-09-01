@@ -67,6 +67,17 @@ function thrownSites(): Array<{ code: string; exit: 1 | 2; where: string }> {
 function producedCodes(): Set<string> {
   const codes = new Set<string>([...EVM_REJECTION_CODES, ...TRON_REJECTION_CODES]);
   for (const { code } of thrownSites()) codes.add(code);
+  // A refine can also mint a code via `params: { errorCode: "…" }` (see `parseInputSchema`),
+  // which has no `new XError(...)` call of its own — it is always thrown as UsageError by
+  // parseInputSchema itself, so `thrownSites()`'s literal scan never sees it. Today every
+  // declared code also has a literal throw site elsewhere, so this scan is currently redundant —
+  // but the day a code is produced ONLY via a `params` declaration, skipping this would make the
+  // "entry with nobody producing it" check below misjudge it as stale.
+  const declared = /errorCode:\s*"([a-z_0-9]+)"/g;
+  for (const file of sourceFiles(SRC)) {
+    const text = readFileSync(file, "utf8");
+    for (const match of text.matchAll(declared)) codes.add(match[1]!);
+  }
   return codes;
 }
 

@@ -660,6 +660,7 @@ export function registerWalletCommands(
             code: "custom",
             path: [flag],
             message: `--${camelToKebab(flag)} exports a file; it cannot be combined with --records`,
+            params: { errorCode: "invalid_option" },
           });
         }
       }

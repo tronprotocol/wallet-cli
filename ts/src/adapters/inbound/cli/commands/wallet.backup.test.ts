@@ -129,6 +129,19 @@ describe("backup --records flag gating", () => {
     });
   }
 
+  // BUG-V413-033: --keystore/--out describe an export, so combining either with --records is a
+  // flag conflict, not a bad value — machine-interface.md reserves invalid_option for that.
+  for (const args of [["--keystore"], ["--out", "./out.json"]]) {
+    it(`rejects ${args[0]} with --records as invalid_option`, async () => {
+      const { shellOpts, spyPrime } = fixture({ tty: false });
+
+      await expect(
+        buildCli(shellOpts).parseAsync(["backup", "--records", ...args]),
+      ).rejects.toMatchObject({ code: "invalid_option" });
+      expect(spyPrime).not.toHaveBeenCalled();
+    });
+  }
+
   it("passes the filters through with --records", async () => {
     const { shellOpts, walletService } = fixture({ tty: false });
     const spy = vi.spyOn(walletService, "backupRecords");

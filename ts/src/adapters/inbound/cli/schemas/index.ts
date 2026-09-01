@@ -46,7 +46,12 @@ export function addressFieldsFor(
     for (const name of names) {
       const candidate = value[name];
       if (typeof candidate === "string" && !addressCodec(family).validate(candidate)) {
-        ctx.addIssue({ code: "custom", path: [name], message: `invalid ${family} address` });
+        ctx.addIssue({
+          code: "custom",
+          path: [name],
+          message: `invalid ${family} address`,
+          params: { errorCode: "invalid_address" },
+        });
       }
     }
   };

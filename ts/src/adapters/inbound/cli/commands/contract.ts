@@ -597,6 +597,7 @@ function codeSourceRefine(
       code: "custom",
       path: ["code"],
       message: "provide exactly one of --artifact, --code or --code-file",
+      params: { errorCode: "invalid_option" },
     });
   }
 }

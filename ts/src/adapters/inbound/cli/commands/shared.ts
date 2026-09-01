@@ -112,6 +112,7 @@ export function amountSelector(
       code: "custom",
       path: ["amount"],
       message: "provide exactly one of --amount or --raw-amount",
+      params: { errorCode: "invalid_option" },
     });
 }
 

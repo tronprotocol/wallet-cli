@@ -517,7 +517,10 @@ describe("golden CLI — error contract (exit codes)", () => {
       "0xnope",
     ]);
     expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("invalid_value");
+    // BUG-V413-018: a malformed address is invalid_address, not invalid_value —
+    // machine-interface.md defines invalid_address as "not a valid address for the relevant
+    // chain".
+    expect(r.json.error.code).toBe("invalid_address");
   });
 
   // Every address-shaped flag is validated locally, so a typo is exit 2 everywhere rather than a

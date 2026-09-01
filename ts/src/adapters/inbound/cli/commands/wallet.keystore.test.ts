@@ -204,8 +204,10 @@ describe("backup --records", () => {
       ["backup", "--records", "--keystore"],
       ["backup", "--records", "--out", "./x.json"],
     ]) {
+      // BUG-V413-033: --keystore/--out describe an export, so combining either with --records is
+      // a flag conflict (invalid_option), not a bad value.
       await expect(buildCli(f.shellOpts).parseAsync(argv)).rejects.toMatchObject({
-        code: "invalid_value",
+        code: "invalid_option",
       });
     }
   });
