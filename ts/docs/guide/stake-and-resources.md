@@ -2,7 +2,7 @@
 
 Stake TRX to earn **resources** — energy and bandwidth — instead of burning TRX on every transaction. This walkthrough uses the `stake` commands on Nile. **TRON only**: EVM networks price transactions in gas and have nothing to stake, so every command here fails there with `family_mismatch`. Background: [Energy & bandwidth](../concepts/energy-bandwidth.md).
 
-> **Password**: every `stake` command signs a transaction, so it needs your master password on stdin (`--password-stdin`), and signing shows no prompt. The examples below omit it to keep the resource flags in focus — prepend `printf '%s' "$PW" |` and append `--password-stdin`, or pipe from a password manager (see [Getting started](getting-started.md#3-send-your-first-transaction)). Step 1 is a read-only query and needs no password.
+> **Password**: stake write commands need your master password only when the selected mode signs. The examples below omit it to keep the resource flags in focus — prepend `printf '%s' "$PW" |` and append `--password-stdin` for software signing, or pipe from a password manager. `--dry-run`, `--build-only`, `stake info`, and `stake delegated` need no password.
 
 ## 1. See what you have
 
@@ -33,7 +33,7 @@ Plain TRX transfers consume **bandwidth**; smart-contract calls (TRC20 transfers
 wallet-cli stake freeze --amount-sun 100000000 --resource energy --network tron:3448148188
 ```
 
-`--resource` chooses which resource the stake produces. It defaults to `bandwidth`; stake for `energy` when you plan to send TRC20 tokens or call contracts, since those spend energy (as in step 1). The TRX stays yours — it is locked, not spent — and staking also grants TRON Power (governance votes). Like every state-changing command, `stake freeze` supports `--dry-run`, `--sign-only`, `--wait`, and returns at submission by default.
+`--resource` chooses which resource the stake produces. It defaults to `bandwidth`; stake for `energy` when you plan to send TRC20 tokens or call contracts, since those spend energy (as in step 1). The TRX stays yours — it is locked, not spent — and staking also grants TRON Power (governance votes). Like the other stake write commands, `stake freeze` supports `--dry-run`, `--sign-only`, `--build-only`, `--wait`, and returns at submission by default.
 
 Verify the effect by running `account info` again — the `Energy` limit now reflects the TRX you staked:
 

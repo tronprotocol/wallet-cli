@@ -22,17 +22,17 @@ wallet-cli --json-schema tron           # scoped to one chain family
 wallet-cli <command> --json-schema      # one command
 ```
 
-One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]` — each with `id`, `path`, `usage`, `families`, `requires` (network / auth / wallet), `capability`, `examples`, and a JSON Schema for its input. This is the intended way for an agent to learn the CLI; do not scrape `--help`.
+One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]`. Command entries carry `id`, `path`, `usage`, `requires` (network / auth / wallet), `capability`, `examples`, and a JSON Schema for their input; chain commands also declare `families`. This is the intended way for an agent to learn the CLI; do not scrape `--help`.
 
 ### Chain families
 
 A network belongs to one **chain family**, `tron` or `evm`, and that is what decides which commands and which flags apply:
 
 - A command declares the families it serves (`families` in the catalog). Calling one on a network of another family fails with **`family_mismatch`** at exit `2`, before any node call.
-- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(TRON only)` / `(EVM only)`.
+- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(tron only)` / `(evm only)`.
 - An **account** is not family-bound when it holds a key — a seed or private-key account has both a TRON and an EVM address. Watch-only and Ledger accounts hold one address and therefore one family; selecting one on a mismatched network is also `family_mismatch`.
 
-Both checks are static: they depend on the command, the flags and the selected network only, so an agent can decide them from the catalog without a call.
+Command-family and flag-family checks are static and can be decided from the catalog. Account-family compatibility also depends on the selected wallet account: key-backed accounts serve both families, while watch-only and Ledger accounts are family-bound.
 
 ### Startup wallet-data upgrades
 
@@ -107,10 +107,12 @@ Schema id: `wallet-cli.result.v1`.
 | `error.details`   | object                   | optional            | Structured extras when available                                                 |
 | `meta.durationMs` | number                   | always              | Wall time                                                                        |
 | `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
-| `meta.pagination` | object                   | paginated commands only | `offset` / `limit` / `total`; present where `--limit` / `--offset` apply — see [pagination](#pagination) |
-| `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command, and on the local commands that take `--network` as a display selector (`list`, `current`). Commands that never take one (`config`, `networks`, `contact`, `encoding`, `address`, `create`, `import`, …) omit it — its presence does **not** mean a node was contacted |
+| `meta.pagination` | object                   | windowed commands only | `offset` / `limit` / `total`; present when the command returns a pagination window — see [pagination](#pagination) |
+| `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command and on local commands whose policy resolves a network. Commands with `network: "none"` omit it; its presence does **not** mean a node was contacted |
 
-Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
+The current local network-aware commands are `backup`, `current`, and `list`. They use the selected or default network as a family/display selector without contacting a node.
+
+Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), and binary values are hex. Amounts represented by `bigint` or protocol int64 values are strings; bounded counters and fees such as `feeSun`, `multiSignFeeSun`, `energyUsed`, and `netUsed` may be JSON numbers. Follow each command's field table instead of coercing every amount to one type.
 
 ### Reading `meta.warnings`
 
@@ -128,7 +130,7 @@ Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.joi
 
 ### Pagination
 
-Every command that takes `--limit` / `--offset` reports the window it returned in `meta.pagination`, never inside `data`:
+Commands that return an offset/limit window report it in `meta.pagination`, never inside `data`. The current set is `asset list`, `exchange list`, `proposal list`, and `backup --records`; a command may accept `--limit` merely as a result cap and then omit pagination metadata.
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -159,13 +161,13 @@ Text mode titles the same window (`Assets (limit 50, offset 0)`, `Proposals (sho
 
 The **exit code is the hard contract**: `2` means the call was malformed (it will still be wrong on retry), `1` means execution failed (network / device / chain / wallet). `error.code` is a machine-readable string that refines the exit code — branch on the exit code first, then optionally on `error.code`.
 
-**The complete code index is published**, one line per code, under `errorCodes` in the discovery catalog:
+**The maintained code index is published**, one line per code, under `errorCodes` in the discovery catalog:
 
 ```bash
 wallet-cli --json-schema | jq '.errorCodes'
 ```
 
-That index is the authority and is enforced by the build: a code cannot be raised without an entry, and an entry cannot outlive its code. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`, `not_found`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
@@ -175,12 +177,12 @@ Common codes at exit **2** (usage — fix the call):
 | `family_mismatch` | The command, the account, the recipient, or the raw transaction does not belong to the selected network's chain family |
 | `missing_option` | A required flag was not provided |
 | `invalid_option` | A flag was used in an invalid combination, or is scoped to the other chain family |
+| `invalid_permission` | A permission document or selected permission group is invalid for the operation |
 | `invalid_value` | A flag value failed validation (e.g. `config defaultOutput xml`) |
 | `invalid_amount` | An amount is malformed or out of range |
-| `invalid_secret` | A supplied mnemonic / private key is malformed |
 | `weak_password` | Master password below policy (≥8 chars; upper + lower + digit + special) |
-| `tty_required` | An interactive prompt is needed but no TTY is attached — pass the matching `*-stdin` flag |
-| `missing_network` / `unsupported_network` | `--network` absent, or not a known canonical id or alias |
+| `tty_required` | An interactive prompt is needed but no TTY is attached — run in a TTY, or use the matching stdin flag when that command exposes one |
+| `missing_network` / `unsupported_network` | A caller explicitly asked the registry to resolve an empty network id, or the supplied canonical id / alias is unknown. Normal chain commands use `config.defaultNetwork`, whose built-in value is `tron:728126428`, when `--network` is omitted |
 | `unsupported_network_capability` | The selected network does not offer what this command needs |
 | `limit_exceeded` | A bounded input (file size, list length, page size) was over its limit |
 | `unknown_command` | No such command |
@@ -190,7 +192,11 @@ Common codes at exit **2** (usage — fix the call):
 | `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, an unsupported cipher/KDF, or a payload that is not a 32-byte private key |
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
-| `token_not_in_book` / `token_is_official` / `token_metadata_unavailable` | Token address-book conditions |
+| `contact_not_found` / `already_exists` | No contact by that name, or a contact name/address is already stored |
+| `token_not_in_book` / `token_is_official` / `token_already_listed` | Token address-book conditions |
+| `unsupported_token` | The selected provider or command does not support that token |
+| `insufficient_voting_power` | The requested votes exceed the account's available voting power |
+| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
 
@@ -201,27 +207,28 @@ Common codes at exit **1** (execution — runtime failure):
 | `rpc_error` | The node rejected or failed the request — a TRON API call, or a JSON-RPC method such as `eth_estimateGas` |
 | `invalid_node_response` | The node's answer contradicts the request or the protocol: a TRC10/exchange record whose id is not the one asked for, a `precision` outside 0..6, or a rate pair that is not a positive int32. These decide signed amounts, so the command stops rather than acting on them. List reads drop the offending record and keep the page |
 | `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
-| `auth_required` | Master password required but not supplied |
+| `auth_required` | Required credential was unavailable — a software master password, or Ledger app/device readiness |
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
+| `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; interactive import normally catches it at the prompt and asks again |
+| `token_metadata_unavailable` | Required token metadata could not be read from the selected network |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
 | `provider_error` | An external service (GasFree, TronLink multi-sig) returned an error or rate-limited |
-| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
 | `tx_expired` | The transaction's expiration passed before signatures were collected (TRON) |
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `migration_required` | Persisted wallet data needs an upgrade that this invocation cannot perform — see [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
 | `history_not_supported` | The endpoint lacks TronGrid history support (`account history`, TRON) |
-| `not_found` | The addressed thing does not exist — an unactivated account, a contact, a chain parameter, a GasFree or TronLink resource. Lookups that have a group of their own use the specific code below |
+| `not_found` | The addressed thing does not exist — for example an unactivated account, transaction, block, or GasFree / TronLink resource. Some command-level lookups raise the same string as a usage error instead; branch on exit code first |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
 | `ambiguous_asset_name` | A TRC10 name matches more than one token; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
-| `ledger_unsupported` | The Ledger TRON app cannot sign this contract type — refused before the device is touched (`asset` writes, `witness` writes) |
+| `ledger_unsupported` | The selected Ledger app cannot sign this transaction type — refused before the device is touched (TRON account activation, account id, asset writes, contract deploy/governance, witness writes, and cancel-unfreeze) |
 | `not_a_witness` / `already_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
 | `already_approved` / `not_approved` / `proposal_expired` / `already_canceled` | Proposal voting conditions |
-| `account_not_active` / `chain_parameter_unavailable` | `witness create`: the account is not activated on chain, or the node did not return `getAccountUpgradeCost` |
+| `account_not_active` / `account_already_active` / `name_already_set` / `id_already_set` / `chain_parameter_unavailable` | Account activation/name/id conditions, or `witness create` could not read `getAccountUpgradeCost` |
 | `not_contract_deployer` | The account did not deploy that contract |
 | `already_issued_asset` / `not_an_issuer` | The account has already issued a TRC10, or has never issued one |
 | `not_in_ico_window` / `self_participation` | TRC10 ICO participation conditions |
@@ -233,7 +240,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `account_exists` / `wrong_keystore_password` | `import keystore`: the address is already in the wallet, or the file's own password is wrong (distinct from `auth_failed`, which is the master password). A file whose `mac` is missing or not hex is `invalid_keystore`, not a wrong password — hex case is not significant |
 | `internal_error` | Unexpected internal failure; message is intentionally generic |
 
-Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the complete index.
+Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the maintained discovery index, not a parser exhaustiveness guarantee.
 
 ### `error.details.matches`
 
@@ -249,10 +256,12 @@ Alongside it, an error may carry a scalar list of just the identifiers to retry 
 
 ## Secret handling
 
-Secrets never travel via argv or environment variables — they would leak into shell history and process listings. Two channels only:
+wallet-cli never reads passwords, mnemonics, or private keys from argv or from dedicated secret environment variables. Arguments and exported environment values leak into shell history, process listings, and CI logs. For secrets, use these CLI channels:
 
-1. **stdin flags** — `--password-stdin`, `--tx-stdin`, `--message-stdin`. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
+1. **stdin flags** — `--password-stdin` for the master password; `--tx-stdin` / `--message-stdin` for large payloads. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
 2. **Interactive TTY prompt** — when running with a terminal attached.
+
+Shell variables in examples are only a shell-side source for a pipe; wallet-cli does not read them. Keep them process-local and short-lived, and do not export them long term.
 
 ```bash
 # non-interactive unlock
@@ -281,21 +290,56 @@ This is a wallet; a wrong success check loses money. The rules:
 
    | `data.state` | Meaning | Terminal? |
    |---|---|---|
-   | `confirmed` | Solidified on chain (`blockNumber` present) | yes |
+   | `confirmed` | Included in a block and an execution result/receipt is available (`blockNumber` present) | yes |
    | `failed` | Included and reverted / rejected | yes |
-   | `pending` | Seen but not yet solidified | no — keep polling |
-   | `not_found` | Unknown to the queried node | no — keep polling until your own deadline, then treat as failed |
+   | `pending` | Seen by the node, with no execution result/receipt yet | no — keep polling |
+   | `not_found` | Unknown to the queried endpoint | no — keep polling/reconcile; do not assume failure |
 
    `data.confirmed` and `data.failed` are provided as booleans for direct branching.
+
+   > `confirmed` means included and receipted, not finalized. Use a TRON SolidityNode view or an EVM finalized block check when that distinction matters.
+
+   > A deadline that ends in `pending` or `not_found` is an unknown outcome. Do not record it as failed, and do not resend automatically without external reconciliation.
 
    **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. Follow it with `--wait` or [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
 
 ```bash
-txid=$(wallet-cli tx send --to T... --amount 1 --network tron:3448148188 --password-stdin -o json \
-        < pw.fifo | jq -r '.data.txId') || exit 1
-until [ "$(wallet-cli tx status --txid "$txid" --network tron:3448148188 -o json | jq -r '.data.state')" = confirmed ]; do
-  sleep 3   # add your own deadline; 'failed' should abort, not loop
+#!/usr/bin/env bash
+set -euo pipefail
+
+deadline=$((SECONDS + 90))
+txid=$(
+  printf '%s' "$PW" |
+    wallet-cli tx send --to T... --amount 1 --network tron:3448148188 --password-stdin -o json |
+    jq -er '.data.txId'
+)
+
+while (( SECONDS < deadline )); do
+  state=$(
+    wallet-cli tx status --txid "$txid" --network tron:3448148188 -o json |
+      jq -er '.data.state'
+  )
+
+  case "$state" in
+    confirmed)
+      exit 0
+      ;;
+    failed)
+      echo "transaction failed: $txid" >&2
+      exit 1
+      ;;
+    pending|not_found)
+      sleep 3
+      ;;
+    *)
+      echo "unexpected transaction state: $state" >&2
+      exit 1
+      ;;
+  esac
 done
+
+echo "transaction outcome unknown after deadline: $txid" >&2
+exit 1
 ```
 
 4. **Batch operations**: each command is one transaction with one exit code. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.

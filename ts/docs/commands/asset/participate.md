@@ -20,6 +20,8 @@ The acting account cannot be the token's own issuer.
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign TRC10 issuance contract types. Ledger accounts may dry-run or build unsigned hex, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -28,7 +30,7 @@ The acting account cannot be the token's own issuer.
 | `--pay <trx>` | **Required.** TRX to spend (not a token count), > 0 |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -64,7 +66,7 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:34481
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":100000000,"receivedAmount":10000000000,"feeSun":0,"resource":{"netUsage":301,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"feeSun":0,"netUsed":301,"netFeeSun":0,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":"100000000","receivedAmount":"10000000000","precision":6},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -74,13 +76,13 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:34481
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-participate"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `participantAddress`, `paidSun`, `receivedAmount` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed` |
 
-`paidSun` is the TRX spent in sun; `receivedAmount` is the token amount in its smallest unit (text shows both in human units).
+`paidSun` is the TRX spent in sun; `receivedAmount` is the token amount in its smallest unit. Both are decimal strings; `precision` is included so text and machine consumers can scale the token amount.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `insufficient_balance`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `insufficient_balance`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
 
 ## See also
 

@@ -14,7 +14,7 @@ wallet-cli import ledger --app <tron|ethereum> (--index <n> | --path <bip32> | -
 | Option | Description |
 |---|---|
 | `--app <tron\|ethereum>` | **Required.** Ledger app to open on the device; this is what selects the chain family and the derivation scheme |
-| `--index <number>` | Account index under the app's default path; omit with no `--path`/`--address` to use index 0. Mutually exclusive with `--path` / `--address` |
+| `--index <number>` | Account index under wallet-cli's family path template. Mutually exclusive with `--path` / `--address` |
 | `--path <string>` | Explicit derivation path, e.g. `m/44'/195'/0'/0/0` (TRON) or `m/44'/60'/0'/0/0` (Ethereum) |
 | `--address <string>` | Known address to locate by bounded scan |
 | `--scan-limit <number>` | Indexes to scan with `--address` (default 20) |
@@ -25,6 +25,10 @@ Plus [global options](../index.md).
 ## Notes
 
 Creates a watch-only entry; no secret is stored. Requires the device unlocked with the selected app open.
+
+When all three locators are omitted, an attached TTY opens a paged account selector (five derived addresses at a time). In non-interactive use there is no selector and the command falls back to index 0; pass `--index`, `--path`, or `--address` explicitly in scripts.
+
+For Ethereum, `--index <n>` uses wallet-cli's MetaMask-style path `m/44'/60'/0'/0/<n>`. Ledger Live commonly uses `m/44'/60'/<n>'/0/0`; use an explicit `--path` when importing an account created under that scheme.
 
 `--app` is what makes a Ledger account **single-family**: the TRON app registers a `tron` account and the Ethereum app an `evm` one, and the resulting account has only that one address. Import the same device twice, once per app, to hold both. See [Ledger guide](../../guide/ledger.md).
 

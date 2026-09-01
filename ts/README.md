@@ -5,7 +5,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 ## Key features
 
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
-- **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
+- **Encrypted local storage** — software keystores are encrypted on disk; secrets enter via stdin/TTY, never argv or dedicated secret environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
 - **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries.
 
@@ -27,19 +27,23 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 
 ## Supported chains
 
-Three TRON networks are supported today. Networks are identified by a canonical `family:chain` id (all `tron` today):
+Seven built-in networks are supported. Networks use a canonical `family:chain` id:
 
-| Network id | What it is | TRX value |
-|---|---|---|
-| `tron:mainnet` | Production mainnet | **Real funds** |
-| `tron:nile` | Primary testnet (faucet at nileex.io) | None — use freely |
-| `tron:shasta` | Alternate testnet | None |
+| Network id | Family | Native coin | Environment |
+|---|---|---|---|
+| `tron:728126428` | TRON | TRX | Mainnet — **real funds** |
+| `tron:3448148188` | TRON | TRX | Testnet |
+| `tron:2494104990` | TRON | TRX | Testnet |
+| `eip155:1` | EVM | ETH | Ethereum mainnet — **real funds** |
+| `eip155:11155111` | EVM | ETH | Sepolia testnet |
+| `eip155:56` | EVM | BNB | BNB Smart Chain mainnet — **real funds** |
+| `eip155:97` | EVM | BNB | BNB Smart Chain testnet |
 
-Your address is the same on every network, but balances, tokens, and transactions are isolated per network. Fees use TRON's `tron-resource` model (bandwidth + energy) rather than EVM gas — see [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
+One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
 ## Install
 
-**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON app installed — see the [Ledger guide](docs/guide/ledger.md).
+**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the app for the selected family installed — TRON for TRON accounts, Ethereum for EVM accounts. See the [Ledger guide](docs/guide/ledger.md).
 
 ```bash
 npm install -g @tron-walletcli/wallet-cli
@@ -174,13 +178,13 @@ Offline local commands and configuration.
 
 ## The contract, in one paragraph
 
-Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md); for calling from an AI agent, see the [Agent skill](skills/wallet-cli/SKILL.md).
+Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv and are not read from dedicated secret environment variables. Passwords can enter through stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md); for calling from an AI agent, see the [Agent skill](skills/wallet-cli/SKILL.md).
 
 ## Understanding TRON mechanics
 
 TRON differs a lot from EVM chains in fees, accounts, and key permissions — these are worth understanding up front to avoid surprises:
 
-- [Networks](docs/concepts/networks.md) — the three networks and the `family:chain` id
+- [Networks](docs/concepts/networks.md) — built-in TRON/EVM networks and the `family:chain` id
 - [Accounts & HD](docs/concepts/accounts-and-hd.md) — mnemonics, derivation paths, account activation
 - [Energy & bandwidth](docs/concepts/energy-bandwidth.md) — TRON's resource-based fee model (in place of EVM gas)
 - [Security](docs/concepts/security.md) — keystore encryption, secret handling, multi-sig permissions
@@ -189,4 +193,4 @@ TRON differs a lot from EVM chains in fees, accounts, and key permissions — th
 
 A command errored or behaved unexpectedly? Common issues and how to diagnose them are in [troubleshooting.md](docs/troubleshooting.md).
 
-> All copy-pasteable examples in this documentation run against the **Nile testnet** (`--network tron:nile`). Mainnet commands move real funds; they appear only as annotated, non-copyable descriptions.
+> All copy-pasteable examples in this documentation run against the **Nile testnet** (`--network tron:3448148188`). Mainnet commands move real funds; they appear only as annotated, non-copyable descriptions.

@@ -27,7 +27,7 @@ Pass `--set` once per parameter. The receipt and `data.changes[]` order changes 
 | `--set <name\|id>=<value>` | **Required, repeatable.** One parameter change, e.g. `--set getTransactionFee=15`; `name` is a `chain params` key, a raw parameter id is also accepted |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -81,7 +81,7 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tro
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.create","data":{"kind":"proposal-create","stage":"confirmed","txId":"9c4...","confirmed":true,"blockNumber":57880102,"feeSun":0,"resource":{"netUsage":268,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"failed":false,"proposalId":48,"changes":[{"id":3,"name":"getTransactionFee","currentValue":10,"proposedValue":15,"unit":"sun/byte"}]},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.create","data":{"kind":"proposal-create","stage":"confirmed","txId":"9c4...","confirmed":true,"blockNumber":57880102,"feeSun":0,"energyUsed":0,"netUsed":268,"energyFeeSun":0,"netFeeSun":0,"failed":false,"proposerAddress":"TSRmq8kP...","proposalId":48,"changes":[{"id":3,"name":"getTransactionFee","currentValue":10,"proposedValue":15,"unit":"sun/byte"}],"resource":{"netUsage":268,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -90,8 +90,8 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tro
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "proposal-create"`, `stage: "submitted"`, `txId`, `changes[]` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, and `proposalId` — the new proposal's id, known only once it is on chain |
+| default (submit) | `kind: "proposal-create"`, `stage: "submitted"`, `txId`, `proposerAddress`, `changes[]` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), `failed`, and optional `proposalId` — the new proposal's id, known only once it is on chain |
 
 `proposalId` is **omitted** when the id cannot be established beyond doubt. The chain does not
 report it, so it is recognised by comparing the proposal list against a snapshot taken before

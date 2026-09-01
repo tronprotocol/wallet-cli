@@ -46,7 +46,7 @@ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"derive","data":{"status":"created","accountId":"wlt_y8cz6xda.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TWCa1W6BkcXZnRGxeZZw9jh8eNgULDVGzj","evm":"0x2395227A93465175c6D6EAF2B9d37c2cC0BaB60c"},"seedId":"wlt_y8cz6xda","derivationPath":{"tron":"m/44'/195'/0'/0/1","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":1013,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"derive","data":{"status":"created","accountId":"wlt_y8cz6xda.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TWCa1W6BkcXZnRGxeZZw9jh8eNgULDVGzj","evm":"0x2395227A93465175c6D6EAF2B9d37c2cC0BaB60c"},"seedId":"wlt_y8cz6xda","derivationPath":{"tron":"m/44'/195'/1'/0/0","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":1013,"warnings":[]}}
 ```
 
 ## Output
@@ -62,7 +62,7 @@ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o
 | `index` | number | HD derivation index |
 | `active` | boolean | Always `true` (the new account is made active) |
 | `addresses` | object | One address per family the account can produce: `tron` (base58) and `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object | The BIP44 template each address came from: `{"tron":"m/44'/195'/0'/0/<index>","evm":"m/44'/60'/0'/0/<index>"}` |
+| `derivationPath` | object | The BIP44 path each address came from: `{"tron":"m/44'/195'/<index>'/0/0","evm":"m/44'/60'/0'/0/<index>"}` |
 | `seedId` | string | Owning seed wallet id |
 
 ## Exit status

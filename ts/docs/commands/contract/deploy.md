@@ -32,11 +32,13 @@ An artifact is read for `.bytecode.object`, `.bytecode`, or `.evm.bytecode.objec
 
 **TRON needs an ABI.** Pass `--artifact` or `--abi`; passing both is an error. `--abi` is TRON-only, and the ABI's `constructor` entry needs a string `stateMutability` (`"nonpayable"` / `"payable"`) — `solc` emits it, but a hand-trimmed ABI or one from `solc` older than 0.5 may not. EVM deploys need no ABI when the types come from `--constructor-signature` or the arguments are self-describing.
 
-Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` an unsigned one, default returns at submission, `--wait` blocks until confirmed/failed.
+Execution modes match the transaction-building write commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` an unsigned one, default returns at submission, `--wait` blocks until confirmed/failed.
 
 Fee flags follow the family — `--fee-limit` (TRON, default `100000000` SUN) or `--gas-limit` / `--max-fee` / `--priority-fee` / `--nonce` (EVM). Help tags each set, and using one on the other family is refused with `invalid_option`.
 
 Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+
+On TRON, the Ledger app cannot sign `CreateSmartContract`; Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported`. This restriction does not apply to EVM deployment through the Ethereum app.
 
 ## Options
 
@@ -50,7 +52,7 @@ Requires an account. The master password (via `--password-stdin`) is needed only
 | `--constructor-signature <sig>` | The constructor's types when there is no ABI, e.g. `constructor(uint256,string)`; excludes `--artifact`, and not accepted on TRON |
 | `--dry-run` | Estimate only; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -139,7 +141,7 @@ echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json 
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact/bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; an artifact that is not JSON, has no creation bytecode, or holds only `"0x"`; `--constructor-args` with no type source; `--constructor-params` or `--constructor-signature` alongside `--artifact`; a TRON deploy with neither `--abi` nor `--artifact`, or with both; `--constructor-signature` on TRON; an ABI constructor without a string `stateMutability`.
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported` — TRON signing only, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact/bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; an artifact that is not JSON, has no creation bytecode, or holds only `"0x"`; `--constructor-args` with no type source; `--constructor-params` or `--constructor-signature` alongside `--artifact`; a TRON deploy with neither `--abi` nor `--artifact`, or with both; `--constructor-signature` on TRON; an ABI constructor without a string `stateMutability`.
 
 ## See also
 
