@@ -13,7 +13,7 @@ import {
   toUtf8String,
   type TransactionLike,
 } from "ethers";
-import { ChainError } from "../../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
 import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
 import type {
@@ -295,7 +295,7 @@ export class EvmRpcClient implements EvmGateway {
     try {
       return ERC20_WRITE.encodeFunctionData("transfer", [to, BigInt(rawAmount)]);
     } catch (e) {
-      throw new ChainError(
+      throw new UsageError(
         "invalid_value",
         `could not encode an ERC-20 transfer: ${(e as Error).message}`,
       );
@@ -349,7 +349,7 @@ export class EvmRpcClient implements EvmGateway {
         params.map((p) => p.value),
       );
     } catch (e) {
-      throw new ChainError(
+      throw new UsageError(
         "invalid_value",
         `could not encode ${signature}: ${(e as Error).message}`,
       );
@@ -368,7 +368,7 @@ export class EvmRpcClient implements EvmGateway {
       return `0x${body}${iface.encodeDeploy(args.values).replace(/^0x/, "")}`;
     } catch (e) {
       const from = args.source === "abi" ? "the ABI" : `${args.flag}`;
-      throw new ChainError(
+      throw new UsageError(
         "invalid_value",
         `could not encode the constructor arguments against ${from}: ${(e as Error).message}`,
       );

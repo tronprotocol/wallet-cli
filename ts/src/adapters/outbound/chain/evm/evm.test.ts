@@ -3,6 +3,7 @@ import { barBroadcasts } from "../../../../application/services/broadcast-guard.
 import { Transaction } from "ethers";
 import { EvmRpcClient } from "./evm.js";
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
+import { UsageError, type CliError } from "../../../../domain/errors/index.js";
 
 const ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -794,6 +795,20 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
       new EvmRpcClient("https://node.example", 5_000).encodeErc20Transfer("nope", "1"),
     ).toThrow();
   });
+
+  // Bad calldata inputs are decided entirely locally, with no RPC ever sent, so a caller must not
+  // be told to retry: `invalid_value` is exit "either" and the class chosen decides which — a
+  // UsageError puts this at exit 2, distinct from an exit-1 ChainError a retry could plausibly fix.
+  it("reports a bad recipient as a usage error at exit 2, not a chain error at exit 1", () => {
+    expect.assertions(3);
+    try {
+      new EvmRpcClient("https://node.example", 5_000).encodeErc20Transfer("nope", "1");
+    } catch (e) {
+      expect(e).toBeInstanceOf(UsageError);
+      expect((e as CliError).code).toBe("invalid_value");
+      expect((e as CliError).exitCode()).toBe(2);
+    }
+  });
 });
 
 describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
@@ -888,6 +903,20 @@ describe("EvmRpcClient contract-write encoding", () => {
     expect(data).toHaveLength(2 + 8 + 128);
   });
 
+  it("reports a bad function-call signature/params as a usage error at exit 2", () => {
+    expect.assertions(3);
+    try {
+      client().encodeFunctionCall("transfer(address,uint256)", [
+        { type: "address", value: "not-an-address" },
+        { type: "uint256", value: "5" },
+      ]);
+    } catch (e) {
+      expect(e).toBeInstanceOf(UsageError);
+      expect((e as CliError).code).toBe("invalid_value");
+      expect((e as CliError).exitCode()).toBe(2);
+    }
+  });
+
   const WORD = (n: bigint) => n.toString(16).padStart(64, "0");
 
   it("appends ABI-encoded constructor arguments to the bytecode", () => {
@@ -941,6 +970,18 @@ describe("EvmRpcClient contract-write encoding", () => {
     expect(() =>
       client().encodeDeploy("0x6080", { source: "abi", abi, values: ["not-an-address"] }),
     ).toThrow(/the ABI/);
+  });
+
+  it("reports mismatched constructor arguments as a usage error at exit 2", () => {
+    expect.assertions(3);
+    const abi = [{ type: "constructor", inputs: [{ type: "address", name: "a" }] }];
+    try {
+      client().encodeDeploy("0x6080", { source: "abi", abi, values: ["not-an-address"] });
+    } catch (e) {
+      expect(e).toBeInstanceOf(UsageError);
+      expect((e as CliError).code).toBe("invalid_value");
+      expect((e as CliError).exitCode()).toBe(2);
+    }
   });
 
   it("names the flag a bad signature came from", () => {
