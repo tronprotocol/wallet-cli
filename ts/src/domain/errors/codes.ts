@@ -147,6 +147,8 @@ export const ERROR_CODES = {
   no_reward: { exit: 1, meaning: "there is no reward to claim" },
   not_a_witness: { exit: 1, meaning: "the address is not a witness" },
   already_witness: { exit: 1, meaning: "the address is already a witness" },
+  name_already_set: { exit: 1, meaning: "the account's on-chain name is already set" },
+  id_already_set: { exit: 1, meaning: "the account's on-chain id is already set" },
 
   // ── TRON: assets, proposals, exchanges, contracts ─────────────────────────
   asset_not_found: { exit: 1, meaning: "no TRC10 asset by that id or name" },

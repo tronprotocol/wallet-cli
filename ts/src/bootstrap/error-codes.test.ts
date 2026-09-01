@@ -29,14 +29,28 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Codes thrown as literals. The two node-rejection tables build theirs from data, so they publish
+/** Codes thrown as literals — including a literal on either branch of a ternary first argument,
+ *  e.g. `throw new ChainError(cond ? "a" : "b", …)`. Scans every string literal between the call's
+ *  opening paren and its first top-level comma, so it does not pick up literals from later
+ *  arguments (the message). The two node-rejection tables build theirs from data, so they publish
  *  their own lists rather than being scraped. */
 function producedCodes(): Set<string> {
-  const thrown = /new (?:Usage|Execution|Chain|Wallet|Transport)Error\(\s*"([a-z_0-9]+)"/g;
+  const callStart = /new (?:Usage|Execution|Chain|Wallet|Transport)Error\(/g;
   const codes = new Set<string>([...EVM_REJECTION_CODES, ...TRON_REJECTION_CODES]);
   for (const file of sourceFiles(SRC)) {
     const text = readFileSync(file, "utf8");
-    for (const match of text.matchAll(thrown)) codes.add(match[1]!);
+    for (const match of text.matchAll(callStart)) {
+      const start = match.index! + match[0].length;
+      const comma = text.indexOf(",", start);
+      const firstArg = text.slice(start, comma === -1 ? start : comma);
+      for (const literal of firstArg.matchAll(/"([a-z_0-9]+)"/g)) {
+        // Skip a literal that is a comparison operand (e.g. `field === "name" ? …`) rather than
+        // a produced code — only the ternary's branch values are codes.
+        const before = firstArg.slice(0, literal.index).trimEnd();
+        if (before.endsWith("===") || before.endsWith("!==")) continue;
+        codes.add(literal[1]!);
+      }
+    }
   }
   return codes;
 }

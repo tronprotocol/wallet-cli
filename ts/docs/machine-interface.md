@@ -240,7 +240,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `ledger_unsupported` | The selected Ledger app cannot sign this transaction type — refused before the device is touched (TRON account activation, account id, asset writes, contract deploy/governance, witness writes, and cancel-unfreeze) |
 | `not_a_witness` / `already_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
 | `already_approved` / `not_approved` / `proposal_expired` / `already_canceled` | Proposal voting conditions |
-| `account_not_active` / `account_already_active` / `chain_parameter_unavailable` | Account activation conditions, or `witness create` could not read `getAccountUpgradeCost` |
+| `account_not_active` / `account_already_active` / `name_already_set` / `id_already_set` / `chain_parameter_unavailable` | Account activation/name/id conditions, or `witness create` could not read `getAccountUpgradeCost` |
 | `not_contract_deployer` | The account did not deploy that contract |
 | `already_issued_asset` / `not_an_issuer` | The account has already issued a TRC10, or has never issued one |
 | `not_in_ico_window` / `self_participation` | TRC10 ICO participation conditions |
