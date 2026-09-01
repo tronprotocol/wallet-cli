@@ -43,7 +43,7 @@ wallet-cli networks -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"networks","data":[{"id":"tron:728126428","alias":"tron","family":"tron","chainId":"728126428","feeModel":"tron-resource","endpoint":"api.trongrid.io"},{"id":"tron:3448148188","alias":"nile","family":"tron","chainId":"3448148188","feeModel":"tron-resource","endpoint":"nile.trongrid.io"},{"id":"eip155:11155111","alias":"sepolia","family":"evm","chainId":"11155111","feeModel":"evm-gas","endpoint":"ethereum-sepolia-rpc.publicnode.com"}],"meta":{"durationMs":2,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"networks","data":[{"id":"tron:728126428","alias":"tron","family":"tron","chainId":"728126428","feeModel":"tron-resource","endpoint":"api.trongrid.io"},{"id":"tron:3448148188","alias":"nile","family":"tron","chainId":"3448148188","feeModel":"tron-resource","endpoint":"nile.trongrid.io"},{"id":"tron:2494104990","alias":"shasta","family":"tron","chainId":"2494104990","feeModel":"tron-resource","endpoint":"api.shasta.trongrid.io"},{"id":"eip155:1","alias":"ethereum","family":"evm","chainId":"1","feeModel":"evm-gas","endpoint":"ethereum-rpc.publicnode.com"},{"id":"eip155:11155111","alias":"sepolia","family":"evm","chainId":"11155111","feeModel":"evm-gas","endpoint":"ethereum-sepolia-rpc.publicnode.com"},{"id":"eip155:56","alias":"bsc","family":"evm","chainId":"56","feeModel":"evm-gas","endpoint":"bsc-dataseed.bnbchain.org"},{"id":"eip155:97","alias":"bsc-testnet","family":"evm","chainId":"97","feeModel":"evm-gas","endpoint":"bsc-testnet-dataseed.bnbchain.org"}],"meta":{"durationMs":2,"warnings":[]}}
 ```
 
 ## Output

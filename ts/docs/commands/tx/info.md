@@ -14,7 +14,7 @@ Fetches the complete transaction object and its execution receipt, on TRON and E
 
 The top-level summary is normalized across families; the nested raw objects are not. On TRON they are `transaction` (the node's tx object) and `info` (its execution receipt); on EVM they are `transaction` (the `eth_getTransactionByHash` result) and `receipt` (the `eth_getTransactionReceipt` result, with its decoded fields alongside a `raw` copy).
 
-Note the failure-mode difference: where `tx status` answers `not_found` with exit 0, `tx info` on an unknown txid is a plain **error** with exit 1 — there is no detail to show. The code is `rpc_error` on TRON (the node's own refusal) and `not_found` on EVM (see the examples below).
+Note the failure-mode difference: where `tx status` answers `not_found` with exit 0, `tx info` on an unknown txid is a plain **error** — there is no detail to show. The two families differ in both code and exit code: TRON surfaces the node's own refusal as `rpc_error` at exit **1**, while EVM raises `not_found` at exit **2** (the lookup is treated as a bad call, since the hash addresses nothing). Branch on the exit code first, then on `error.code`.
 
 ## Options
 
@@ -27,7 +27,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli tx info --txid 52332505ab6b605aff626aaef2b07f3718d4bac8f45cdab1c0ea9465eb98e065 --network tron:3448148188
+wallet-cli tx info --txid 34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b --network tron:3448148188
 ```
 
 ```console
@@ -44,7 +44,7 @@ Fee            2.1 TRX
 `-o json` returns the full detail (`transaction` is the raw tx, `info` is the receipt; shown as empty objects here):
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","from":"TR66PwBkGtktmiRhGjP9C6o8ts2ndDo4sP","to":"TVMV1gstFzkDyBfrpNc1Sa72Az2dMgDCLY","amount":"1","symbol":"TRX","status":"success","blockNumber":70433563,"confirmations":5,"feeSun":2100000,"transaction":{},"info":{}},"meta":{"durationMs":1396,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","from":"TR66PwBkGtktmiRhGjP9C6o8ts2ndDo4sP","to":"TVMV1gstFzkDyBfrpNc1Sa72Az2dMgDCLY","amount":"1","symbol":"TRX","status":"success","blockNumber":70433563,"confirmations":2,"feeSun":2100000,"transaction":{},"info":{}},"meta":{"durationMs":1396,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the summary adds `type` and `nonce`, prices the fee in wei, and nests `receipt` instead of `info`:
@@ -53,7 +53,7 @@ On an EVM network the summary adds `type` and `nonce`, prices the fee in wei, an
 {"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","type":"contract-call","from":"0x88878d9250e68C574912f5618ad3b43f675B8888","nonce":342,"to":"0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E","rawAmount":"0","amount":"0","symbol":"ETH","blockTime":1787817996,"status":"success","blockNumber":11576586,"gasUsed":"127165","feeWei":"635825000000000","effectiveGasPriceWei":"5000000000","confirmations":0,"transaction":{},"receipt":{}},"meta":{"durationMs":706,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
-An unknown txid errors out (exit 1) — unlike `tx status`'s `not_found` (exit 0):
+An unknown txid errors out — unlike `tx status`'s `not_found` (exit 0). On EVM that is `not_found` at exit 2; on TRON, `rpc_error` at exit 1:
 
 ```json
 {"schema":"wallet-cli.result.v1","success":false,"command":"tx.info","error":{"code":"rpc_error","message":"TRON getTransaction failed: Transaction not found"},"meta":{"durationMs":1033,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
@@ -76,7 +76,7 @@ Shared summary:
 | `to` | string | Recipient address |
 | `amount` | string | Transfer amount (human units) |
 | `symbol` | string | Native coin or token symbol |
-| `status` | string | `success` / `failed` |
+| `status` | string | Lower-cased. On EVM it is `success` or `revert`; on TRON it is the node's own `contractRet` lower-cased — `success`, `revert`, `out_of_energy`, and so on. It is never `failed` |
 | `blockNumber` | number | Block height |
 | `confirmations` | number | Blocks on top of the including block |
 
@@ -104,7 +104,7 @@ EVM adds:
 
 ## Exit status
 
-`0` found · `1` execution failure — including *not found* (`rpc_error` on TRON, `not_found` on EVM) · `2` usage error.
+`0` found · `1` execution failure — including *not found* on TRON (`rpc_error`) · `2` usage error, including *not found* on EVM (`not_found`).
 
 ## See also
 

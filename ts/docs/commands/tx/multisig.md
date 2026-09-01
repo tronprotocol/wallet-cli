@@ -62,8 +62,8 @@ echo "$PW" | wallet-cli tx multisig --create --file tx.unsigned.hex --network tr
 
 ```console
 ✅ Created on TronLink multi-sig service
-  Signer   TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  (weight 1)
-  Hex      0a02...9f31
+  Signer  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  (weight 1)
+  Hex     0a02...9f31
 
 Transaction
   TxID        9c1...
@@ -71,12 +71,12 @@ Transaction
   From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
   To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (~23h)
+  Expires     2026-07-14 15:32 (in ~23h)
 
 Progress  1 / 2 — 1 more weight needed
 | Approved signer                    | Weight |
 | ---------------------------------- | ------ |
-| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  |      1 |
+| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw | 1      |
 ! Each co-signer signs it with: wallet-cli tx multisig --sign 9c1...
 ```
 
@@ -88,9 +88,9 @@ wallet-cli tx multisig --account cosigner --network tron:3448148188
 
 ```console
 Multi-sig transactions — TronLink service (1 total)
-| TxID   | Type             | Amount    | State        | Validation | Progress | Expires          |
-| ------ | ---------------- | --------- | ------------ | ---------- | -------- | ---------------- |
-| 9c1... | TransferContract | 1,000 TRX | awaiting you | verified   | 1 / 2    | 2026-07-14 15:32 |
+| TxID   | Type             | Amount    | State        | Validation | Progress | Expires                    |
+| ------ | ---------------- | --------- | ------------ | ---------- | -------- | -------------------------- |
+| 9c1... | TransferContract | 1,000 TRX | awaiting you | verified   | 1 / 2    | 2026-07-14 15:32 (in ~22h) |
 ! Co-sign one with: wallet-cli tx multisig --sign <txId>
 ```
 
@@ -100,8 +100,8 @@ echo "$PW" | wallet-cli tx multisig --sign 9c1... --account cosigner --network t
 
 ```console
 ✅ Signed & submitted
-  Signer   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  (weight 1)
-  Hex      0a02...9f31
+  Signer  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  (weight 1)
+  Hex     0a02...9f31
 
 Transaction
   TxID        9c1...
@@ -109,13 +109,13 @@ Transaction
   From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
   To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (~22h)
+  Expires     2026-07-14 15:32 (in ~22h)
 
 Progress  2 / 2 — threshold reached
 | Approved signer                    | Weight |
 | ---------------------------------- | ------ |
-| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  |      1 |
-| TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  |      1 |
+| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw | 1      |
+| TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz | 1      |
 ! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid 9c1...
   Not on chain: wallet-cli tx broadcast --hex 0a02...
 ```

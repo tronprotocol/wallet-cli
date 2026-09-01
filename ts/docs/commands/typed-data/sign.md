@@ -22,7 +22,7 @@ The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…
 
 `primaryType` is optional — it is inferred when omitted.
 
-Unlike [`message sign`](../message/sign.md), this command **never prompts** for the master password: software accounts must pass `--password-stdin`. Watch-only accounts cannot sign (`watch_only_no_signer`).
+Like [`message sign`](../message/sign.md), this command **never prompts** for the master password: software accounts must pass `--password-stdin`. Watch-only accounts cannot sign (`watch_only_no_signer`).
 
 ## Options
 

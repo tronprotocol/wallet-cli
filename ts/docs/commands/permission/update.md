@@ -31,8 +31,8 @@ Changing only `keys`, `threshold` or `name` needs no such deletion.
 
 ⚠️ **The chain applies no safety checks.** Even if the new structure contains no key you can sign with, the transaction still succeeds and the account is permanently locked, with no on-chain recovery. This CLI can surface four **local warning codes** but does **not** block the submission (in JSON they go to `meta.warnings`, and `success` stays `true`):
 
-- **Lockout risk** — when the combined weight of your locally-signable owner keys (software / Ledger) is below the new owner threshold, a `!` line spells out that you can no longer meet the owner threshold on your own (`owner_lockout` if you hold no weight, `owner_lockout_partial` if you now need co-signers). Multi-party custody legitimately means "I alone can't reach the threshold", so this is a notice, not a block.
-- **Dangerous operations** — when an active group includes `Update Account Permissions` (that group could then change the permissions themselves, effectively owner-level), a `!` line flags it (`active_can_update_permission`).
+- **Lockout risk** — when the combined weight of your locally-signable owner keys (software / Ledger) is below the new owner threshold, a `warning:` line on stderr spells out that you can no longer meet the owner threshold on your own (`owner_lockout` if you hold no weight, `owner_lockout_partial` if you now need co-signers). Multi-party custody legitimately means "I alone can't reach the threshold", so this is a notice, not a block.
+- **Dangerous operations** — when an active group includes `Update Account Permissions` (that group could then change the permissions themselves, effectively owner-level), a `warning:` line on stderr flags it (`active_can_update_permission`).
 - **Unknown operations** — when an active bitmap grants contract-type ids this build cannot name, the ids are preserved and reported as `active_unknown_operations` rather than silently dropped.
 
 ## Options
@@ -75,27 +75,27 @@ echo "$PW" | wallet-cli permission update --file perms.json --network tron:34481
 ```console
 warning: local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations
 ✅ Permissions updated
-  TxID     b3c...
-  Block    #84,335,102
-  Fee      100.268 TRX
-  Status   success
+  TxID    b3c...
+  Block   #84,335,102
+  Fee     100.268 TRX
+  Status  success
 
 Account  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
 
 Permission Name   owner  (id 0)
 Threshold         2
 Authorized To     Address                             Weight
-                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
-                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
-                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
+                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw       1  (this wallet: main)
+                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub       1
+                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz       1
 
 Permission Name   finance  (id 2, active)
 Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract  (3 total)
 Threshold         2
 Authorized To     Address                             Weight
-                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
-                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
-                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
+                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw       1  (this wallet: main)
+                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub       1
+                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz       1
 ```
 
 When present, the JSON receipt's `data.permissions` is **structurally identical** to `permission show`'s `data`, so you can diff it against the pre-change export. If the confirmed post-check cannot be read, the field is omitted and `meta.warnings` contains `permission_postcheck_unavailable`; the confirmed transaction still has `success: true`. The lockout warning is also in `meta.warnings`:

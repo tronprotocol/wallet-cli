@@ -26,7 +26,7 @@ Please input password.
 password:
 Please input password again.
 password:
-Please enter 12 words (separated by spaces) [Attempt 1/3]:
+Please enter 12 or 24 words (separated by spaces) [Attempt 1/3]:
 ```
 
 ## ExportWalletMnemonic
@@ -37,8 +37,8 @@ Export the mnemonic of the address in the wallet.
 wallet> ExportWalletMnemonic
 Please input your password.
 password:
-exportWalletMnemonic successful !!
-a*ert tw*st co*rect mat*er pa*s g*ther p*t p*sition s*op em*ty coc*nut aband*n
+exportWalletMnemonic  successful !!
+alert twist correct matter pass gather pit position stop empty coconut abandon
 ```
 
 ## ExportWalletKeystore
@@ -50,7 +50,7 @@ wallet> ExportWalletKeystore tronlink /tmp
 Please input your password.
 password:
 exported keystore file : /tmp/TYdhEg8b7tXm92UDbRDXPtJNU6T9xVGbbo.json
-exportWalletKeystore successful !!
+exportWalletKeystore  successful !!
 ```
 
 ## ImportWalletByKeystore
@@ -59,12 +59,14 @@ Import a TronLink-format keystore file into wallet-cli.
 
 ```console
 wallet> ImportWalletByKeystore tronlink /tmp/tronlink.json
+Please enter the password for the keystore file, enter it once.
+password:
 Please input password.
 password:
 Please input password again.
 password:
 fileName = TYQq6zp51unQDNELmT4xKMWh5WLcwpCDZJ.json
-importWalletByKeystore successful !!
+importWalletByKeystore  successful !!
 ```
 
 ## ImportWalletByLedger
@@ -74,7 +76,6 @@ Import a derived account from a Ledger device into wallet-cli.
 ```console
 wallet> ImportWalletByLedger
 (Note:This will pair Ledger to user your hardware wallet)
-Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected.
 Ledger device found: Nano X
 Please input password.
 password:
@@ -87,8 +88,8 @@ Default Path: m/44'/195'/0'/0/0
 1. Import Default Account
 2. Change Path
 3. Custom Path
-Select an option: 1
-Import a wallet by Ledger successful, keystore file : ./Wallet/Ledger-TAT1dA8F9HXGqmhvMCjxCKAD29YxDRw81y.json
+Please select an option, other inputs will exit this operation: 1
+Import a wallet by Ledger  successful, keystore file : ./Wallet/Ledger-TAT1dA8F9HXGqmhvMCjxCKAD29YxDRw81y.json
 You are now logged in, and you can perform operations using this account.
 ```
 
@@ -113,11 +114,11 @@ wallet> GenerateSubAccount
 Please input your password.  
 password:  
 
-=== Sub Account Generator ===  
------------------------------  
+=== GenerateSubAccount Generator ===  
+-------------------------------  
 Default Address: TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo  
 Default Path: m/44'/195'/0'/0/1  
------------------------------  
+-------------------------------  
 
 1. Generate Default Path  
 2. Change Account  
@@ -125,8 +126,8 @@ Default Path: m/44'/195'/0'/0/1
 
 Enter your choice (1-3): 1  
 mnemonic file : ./Mnemonic/TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
-Generate a sub account successful, keystore file name is TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
-generateSubAccount successful.  
+GenerateSubAccount successful, keystore file name is TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
+generateSubAccount  successful.  
 ```
 
 ## ClearWalletKeystore
@@ -139,16 +140,17 @@ wallet> ClearWalletKeystore
 Warning: Dangerous operation!
 This operation will permanently delete the Wallet&Mnemonic files of the Address: TABWx7yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq
 Warning: The private key and mnemonic words will be permanently lost and cannot be recovered!
-Continue? (y/Y to proceed):y
+Continue? (y/Y to proceed, c/C to cancel):
+y
 
 Final confirmation:
 Please enter: 'DELETE' to confirm the delete operation:
 Confirm: (DELETE): DELETE
 
-File deleted successfully:
+Delete File  successful:
 - /wallet-cli/Wallet/TABWx8yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq.json
 - /wallet-cli/Mnemonic/TABWx8yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq.json
-ClearWalletKeystore successful !!!
+ClearWalletKeystore  successful !!!
 ```
 
 ## ResetWallet
@@ -157,7 +159,6 @@ Delete all local wallet keystore files and mnemonic files, and follow the prompt
 
 ```console
 wallet> resetwallet
-User defined config file doesn't exists, use default config file in jar
 
 Warning: Dangerous operation!
 This operation will permanently delete the Wallet&Mnemonic files 
@@ -180,14 +181,15 @@ Log in to multiple keystore accounts with a unified password.
 wallet> loginall
 Please input your password.
 password: 
-Use user defined config file in current dir
 [========================================] 100%
-The 1th keystore file name is TJEEKTmaVTYSpJAxahtyuofnDSpe2seajB.json
-The 2th keystore file name is TX1L9xonuUo1AHsjUZ3QzH8wCRmKm56Xew.json
-The 3th keystore file name is TVuVqnJFuuDxN36bhEbgDQS7rNGA5dSJB7.json
-The 4th keystore file name is Ledger-TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe.json
-The 5th keystore file name is TYXFDtn86VPFKg4mkwMs45DKDcpAyqsada.json
-Please choose between 1 and 5
+
+No.  Address                                    Name
+1    TJEEKTmaVTYSpJAxahtyuofnDSpe2seajB         main
+2    TX1L9xonuUo1AHsjUZ3QzH8wCRmKm56Xew         cold
+3    TVuVqnJFuuDxN36bhEbgDQS7rNGA5dSJB7         test
+4    TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe         Ledger-TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe.json
+5    TYXFDtn86VPFKg4mkwMs45DKDcpAyqsada         backup
+Please choose No. between 1 and 5, or enter search to search wallets
 5
 LoginAll  successful !!!
 ```
@@ -227,12 +229,14 @@ After logging in with `LoginAll`, switch between wallets.
 
 ```console
 wallet> switchwallet
-The 1th keystore file name is TJEEKTmaVTYSpJAxahtyuofnDSpe2seajB.json
-The 2th keystore file name is TX1L9xonuUo1AHsjUZ3QzH8wCRmKm56Xew.json
-The 3th keystore file name is TVuVqnJFuuDxN36bhEbgDQS7rNGA5dSJB7.json
-The 4th keystore file name is Ledger-TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe.json
-The 5th keystore file name is TYXFDtn86VPFKg4mkwMs45DKDcpAyqsada.json
-Please choose between 1 and 5
+
+No.  Address                                    Name
+1    TJEEKTmaVTYSpJAxahtyuofnDSpe2seajB         main
+2    TX1L9xonuUo1AHsjUZ3QzH8wCRmKm56Xew         cold
+3    TVuVqnJFuuDxN36bhEbgDQS7rNGA5dSJB7         test
+4    TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe         Ledger-TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe.json
+5    TYXFDtn86VPFKg4mkwMs45DKDcpAyqsada         backup
+Please choose No. between 1 and 5, or enter search to search wallets
 5
 SwitchWallet  successful !!!
 ```

@@ -34,11 +34,11 @@ wallet-cli vote list --limit 3 --network tron:3448148188
 ```
 
 ```console
-| Rank | Name             | Votes         | APR  | Reward ratio | Address                            |
-| ---- | ---------------- | ------------- | ---- | ------------ | ---------------------------------- |
-| 1    | tronscan.org     | 1,203,456,789 | —    | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
-| 2    | binance.com      | 998,765,432   | —    | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
-| 3    | justlend.org     | 876,543,210   | —    | 80%          | TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN |
+| Rank | Name         | Votes         | APR | Reward ratio | Address                            |
+| ---- | ------------ | ------------- | --- | ------------ | ---------------------------------- |
+| 1    | tronscan.org | 1,203,456,789 | —   | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
+| 2    | binance.com  | 998,765,432   | —   | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+| 3    | justlend.org | 876,543,210   | —   | 80%          | TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN |
 ```
 
 ```bash
@@ -46,7 +46,7 @@ wallet-cli vote list --limit 3 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.list","data":{"witnesses":[{"rank":1,"name":"tronscan.org","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":null}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.list","data":{"witnesses":[{"rank":1,"name":"tronscan.org","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":null},{"rank":2,"name":"binance.com","address":"TT5W8MPbYJih9R586kTszb4LoybzUvCYm2","voteCount":"998765432","rewardRatioPct":0,"brokeragePct":100,"aprPct":null},{"rank":3,"name":"justlend.org","address":"TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN","voteCount":"876543210","rewardRatioPct":80,"brokeragePct":20,"aprPct":null}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

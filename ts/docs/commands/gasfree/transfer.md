@@ -11,7 +11,7 @@ wallet-cli gasfree transfer --to <address|contact> --amount <n> [--token <symbol
 
 ## Description
 
-Signs a transfer with EIP-712 structured-data signing and submits it to the GasFree provider, which puts it on-chain for you. No TRX is needed — the per-transfer service fee (plus a one-time activation fee on the first transfer) is deducted from the GasFree address's token balance, on top of the amount sent.
+Signs a transfer with TIP-712 structured-data signing (TRON's EIP-712 analogue) and submits it to the GasFree provider, which puts it on-chain for you. No TRX is needed — the per-transfer service fee (plus a one-time activation fee on the first transfer) is deducted from the GasFree address's token balance, on top of the amount sent.
 
 Submission returns a **`traceId`** (the provider's acceptance id); at that point the transfer is accepted but **not yet on-chain**. Add `--wait` to poll the provider to a terminal state (`SUCCEED` / `FAILED`), or follow it later with [`gasfree trace`](trace.md). On the first transfer, when the GasFree address isn't activated yet, this transfer carries the activation automatically and the total deducted is amount + service fee + activation fee (itemised in the receipt and in `--dry-run`).
 
@@ -42,14 +42,14 @@ echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 
 ```console
 ⏳ Submitted to GasFree — send 25 USDT
-  Trace ID  7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
-  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
-  To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
-  Service fee        0.5 USDT
-  Activation fee     0 USDT
-  Authorized max fee 1.5 USDT
-  Total              25.5 USDT
-  Status             waiting
+  Trace ID            7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
+  From                TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
+  To                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  Service fee         0.5 USDT
+  Activation fee      0 USDT
+  Authorized max fee  1.5 USDT
+  Total               25.5 USDT
+  Status              waiting
 ! Track it: wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
 ```
 
@@ -65,15 +65,15 @@ echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 
 ```console
 ✅ Sent 25 USDT via GasFree
-  Trace ID  a41b6c88-0d2f-4e73-9a05-3c7d81f2b964
-  TxID      d2e...
-  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
-  To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
-  Service fee        0.5 USDT
-  Activation fee     0 USDT
-  Authorized max fee 1.5 USDT
-  Total              25.5 USDT
-  Status             succeed
+  Trace ID            a41b6c88-0d2f-4e73-9a05-3c7d81f2b964
+  TxID                d2e...
+  From                TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
+  To                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  Service fee         0.5 USDT
+  Activation fee      0 USDT
+  Authorized max fee  1.5 USDT
+  Total               25.5 USDT
+  Status              succeed
 ```
 
 On a first transfer the GasFree address isn't activated yet, so the fee itemises the service fee and the one-time activation fee, and `Total` includes activation:
@@ -84,13 +84,13 @@ wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 
 
 ```console
 ⏳ Dry run — GasFree transfer 25 USDT (not submitted)
-  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
-  To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
-  Service fee        0.5 USDT
-  Activation fee     1 USDT
-  Authorized max fee 1.5 USDT
-  Total              26.5 USDT
-  Status             not submitted
+  From                TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
+  To                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  Service fee         0.5 USDT
+  Activation fee      1 USDT
+  Authorized max fee  1.5 USDT
+  Total               26.5 USDT
+  Status              not submitted
 ```
 
 ```json
@@ -106,13 +106,13 @@ wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 
 | default (submit) | `kind: "gasfree-transfer"`, `stage: "submitted"`, `traceId`, provider `state`, `token`, `tokenAddress`, `decimals`, `amount`, `serviceFee`, `activateFee`, `authorizedMaxFee`, `totalDeducted`, `owner`, `from`, `to`, `nonce`, `deadline`, `serviceProvider`, plus `toContact` when `--to` was a contact name |
 | `--wait` (confirmed) | the above, but `stage: "confirmed"`, `state: "SUCCEED"`, and `txId` when supplied by the provider |
 | `--wait` (failed) | the same fields, but `stage: "failed"`, `state: "FAILED"`, and optional `failureReason` / `txId` from the provider |
-| `--dry-run` | the default fields except `traceId`, with `stage: "dry-run"`; no signature or submission |
+| `--dry-run` | the default fields except `traceId` **and** `state` — both come from the provider, which is never called — with `stage: "dry-run"`; no signature or submission. Text renders `Status  not submitted` in place of the missing `state` |
 
 A provider-side failure still leaves the envelope at `success: true` and exit `0` — the command completed; the transfer did not. There are no `confirmed` or `failed` booleans in this view; branch on `data.stage` / `data.state`, not on the exit code. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## Exit status
 
-`0` submitted (or dry-run) · `1` execution failure (`insufficient_token_balance` — token balance < amount + service fee [+ activation fee], `gasfree_rejected` — the provider declined the authorization, `gasfree_integrity` — the provider's fee metadata disagreed with itself, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `provider_error`) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `unsupported_token`, `invalid_value`, `invalid_amount`).
+`0` submitted (or dry-run) · `1` execution failure (`insufficient_token_balance` — token balance < amount + service fee [+ activation fee], `gasfree_rejected` — the provider declined the authorization, `gasfree_integrity` — the provider's fee metadata disagreed with itself, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `provider_error` — the service failed, answered with malformed or oversized JSON, returned a field this CLI will not act on, or returned any non-429 error status; `provider_rate_limited` — the service returned 429) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `unsupported_token`, `invalid_value`, `invalid_amount`).
 
 ## See also
 

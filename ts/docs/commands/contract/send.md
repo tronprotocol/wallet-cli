@@ -72,8 +72,9 @@ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkA
 
 ```console
 ⏳ Called transfer
-  TxID    c8d...
-  Status  pending — not yet on-chain
+  Contract  TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf
+  TxID      c8d...
+  Status    pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid c8d...
 ```
 
@@ -109,11 +110,12 @@ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkA
 
 ```console
 ❌ Called transfer
-  TxID    c8d...
-  Block   #66,000,123
-  Energy  31,200
-  Status  failed
-  Reason  OUT_OF_ENERGY
+  Contract  TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf
+  TxID      c8d...
+  Block     #66,000,123
+  Energy    31,200
+  Status    failed
+  Reason    OUT_OF_ENERGY
 ```
 
 ## Output

@@ -48,7 +48,7 @@ Max delegatable
 
 Delegations (2)
   Receiver                            Resource   Amount   Locked until
-  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  energy     500 TRX  2026-07-08 08:00 (~3 days)
+  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  energy     500 TRX  2026-07-08 08:00 (in ~3 day(s))
   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  bandwidth  100 TRX  not locked
 ```
 
@@ -74,7 +74,7 @@ Direction  in (delegated to me)
 
 Delegations (1)
   From                                Resource  Amount   Guaranteed until
-  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  energy    500 TRX  2026-07-08 08:00 (~3 days)
+  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  energy    500 TRX  2026-07-08 08:00 (in ~3 day(s))
 ```
 
 ## Output

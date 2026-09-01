@@ -12,7 +12,7 @@ wallet-cli account activate --address <T...>
 
 ## Description
 
-A TRON address doesn't exist on-chain until it receives its first asset or is explicitly created — until then queries return `not_found` and it cannot initiate a transaction. This command creates (activates) such an account **without transferring any asset**; the payer account covers the on-chain account-creation fee.
+A TRON address doesn't exist on-chain until it receives its first asset or is explicitly created — until then `account set` refuses it with `not_found` (a plain `account info` still succeeds, returning an empty `account` object) and it cannot initiate a transaction. This command creates (activates) such an account **without transferring any asset**; the payer account covers the on-chain account-creation fee.
 
 Use it only when an address needs to *exist* on its own — to be queryable, or able to initiate its own transactions. If you're sending it funds anyway, [`tx send`](../tx/send.md) activates the recipient automatically in one step; and adding an address to a multi-sig permission does **not** require activation.
 

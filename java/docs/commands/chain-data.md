@@ -57,10 +57,10 @@ Get the latest `n` blocks, where 0 < n < 100.
 ### GetBlockByLimitNext
 
 ```console
-> GetBlockByLimitNext startBlockId endBlockId
+> GetBlockByLimitNext start_block_number end_block_number
 ```
 
-Get the block in the range [startBlockId, endBlockId).
+Get the blocks in the block-height range [start_block_number, end_block_number). Both arguments are block **numbers**, not block ids.
 
 ## Chain parameters & nodes
 

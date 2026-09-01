@@ -80,8 +80,8 @@ EVM:
 | Field | Type | Meaning |
 |---|---|---|
 | `feeModel` | string | `eip1559` or `legacy` |
-| `baseFeeWei` | string | The latest block's base fee per gas; EIP-1559 chains only |
-| `priorityFeeWei` | string | The node's suggested tip per gas |
+| `baseFeeWei` | string | The latest block's base fee per gas; EIP-1559 chains only. A zero base fee is reported as `"0"`, not omitted |
+| `priorityFeeWei` | string \| null | The node's suggested tip per gas; `null` when the node suggests none. Present on EIP-1559 chains only, alongside `baseFeeWei` |
 | `gasPriceWei` | string | Price per gas at those numbers |
 | `transferGas` | number | `21000` — the gas a plain native transfer costs |
 | `transferCostWei` | string | `transferGas × gasPriceWei`, i.e. what that transfer would cost now |

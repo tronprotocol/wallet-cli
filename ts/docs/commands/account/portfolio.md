@@ -45,7 +45,7 @@ wallet-cli account portfolio --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"tron:3448148188","account":"wlt_gd2x8vyk","address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"TRX","decimals":6,"rawBalance":"9915803110","balance":"9915.80311","priceUsd":0,"valueUsd":0},{"kind":"trc20","symbol":"USDT","decimals":6,"rawBalance":"17061463423","balance":"17061.463423","priceUsd":0,"valueUsd":0,"id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"Tether USD","source":"official"}],"totalValueUsd":0},"meta":{"durationMs":724,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"tron:3448148188","account":"wlt_gd2x8vyk","address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"TRX","decimals":6,"rawBalance":"9915803110","balance":"9915.80311","priceUsd":0,"valueUsd":0},{"kind":"trc20","symbol":"USDT","decimals":6,"rawBalance":"17061463423","balance":"17061.463423","priceUsd":0,"valueUsd":0,"id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"Tether USD","source":"official"},{"kind":"trc20","symbol":"USDD","decimals":18,"rawBalance":"0","balance":"0","priceUsd":0,"valueUsd":0,"id":"TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt","name":"Usdd Stablecoin","source":"official"}],"totalValueUsd":0},"meta":{"durationMs":724,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The same command on an EVM network, with `kind` reporting `erc20` instead of `trc20`:

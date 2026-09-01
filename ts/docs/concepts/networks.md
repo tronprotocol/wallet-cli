@@ -30,7 +30,7 @@ wallet-cli networks
 
 An **alias** is a short name you may type instead of the id. It resolves once, at selection, and nothing downstream ever sees it — `chain.network` in the JSON envelope always reports the canonical id. Aliases live in config and can be re-pointed, so scripts should pass canonical ids.
 
-The **chain id** is always the canonical id's second segment, for both families. On EVM it is the EIP-155 number every signature commits to (`56`); on TRON it is the decimal genesis-hash prefix (`3448148188`), which nothing but the display layer reads. The readable name for a TRON network lives in its alias (`nile`), not in this field.
+For every built-in network the **chain id** is the canonical id's second segment, for both families. It is a separate field rather than a derived one: a network you add in `config.yaml` supplies its own `chainId`, and nothing checks that the two agree. On EVM it is the EIP-155 number every signature commits to (`56`); on TRON it is the decimal genesis-hash prefix (`3448148188`), which nothing but the display layer reads. The readable name for a TRON network lives in its alias (`nile`), not in this field.
 
 Point a network at your own node, or at a commercial endpoint, with [`config`](../commands/config.md):
 
@@ -62,7 +62,7 @@ The family also decides which commands exist. TRON protocol features — staking
 
 TRON does not charge gas the way EVM chains do. Transactions consume **bandwidth** (bytes) and, for smart-contract calls, **energy**; shortfalls are covered by burning TRX, and staking TRX earns a continuous quota. Full model, the staking commands, and the unstake waiting period: [Energy & bandwidth](energy-bandwidth.md).
 
-Units: **1 TRX = 1,000,000 SUN**. JSON payloads carry raw SUN as strings (`"balance": "1976489000"` = 1976.489 TRX); text output shows human TRX.
+Units: **1 TRX = 1,000,000 SUN**. JSON payloads carry raw SUN — as decimal strings for int64-sized amounts (`"balance": "1976489000"` = 1976.489 TRX), and sometimes as JSON numbers for bounded fees and counters (`feeSun`, `energyUsed`, `netUsed`); text output shows human TRX.
 
 The `--fee-limit` flag caps the TRX an energy-hungry call may burn, in SUN.
 

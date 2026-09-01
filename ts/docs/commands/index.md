@@ -1,6 +1,6 @@
 # Command Reference
 
-Every command — including every subcommand — has its own page, following a fixed layout (Synopsis · Description · Options · Examples · Output · Exit status · See also). Command-group pages list and link their subcommands.
+Every command — including every subcommand — has its own page. Most follow the same layout (Synopsis · Description · Options · Examples · Output · Exit status · See also); pages for commands that take a positional argument add an Arguments section, and a few that need no prose drop Description. Command-group pages list and link their subcommands.
 
 ## Which commands run on which networks
 
@@ -10,7 +10,7 @@ wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` se
 - **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
 - **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
-Individual flags are family-scoped the same way. `--help` tags them `(tron only)` / `(evm only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
+Individual flags are family-scoped the same way. `--help` tags them `(TRON only)` / `(EVM only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
 
 ## Wallets and accounts
 
@@ -180,7 +180,7 @@ Individual flags are family-scoped the same way. `--help` tags them `(tron only)
 --network <string>         network id or alias, e.g. nile, sepolia, bsc, eip155:11155111
                            (falls back to config.defaultNetwork)
 --account <string>         accountId, label, or address (wallet-bound commands; falls back to active)
---timeout <number>         per RPC/device call timeout, ms (default: config.timeoutMs, built-in 60000)
+--timeout <number>         per node, service, or device call timeout, ms (default: config.timeoutMs, built-in 60000)
 -v, --verbose              extra diagnostic output
 -h, --help / -V, --version
 ```
@@ -195,6 +195,6 @@ Fee and multi-sig flags are **family-scoped**, so they are not global:
 | `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy` |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
-Those TRON transaction-building commands take the multi-signature pair: the permission group to sign under (0=owner, 1=witness, 2-9=active) and the transaction's expiry, which extends the window for collecting co-signatures when building or signing offline. On a multi-family command they are tagged `(tron only)` and refused on EVM with `invalid_option`; an EVM transaction carries exactly one signature, so neither has a counterpart there.
+Those TRON transaction-building commands take the multi-signature pair: the permission group to sign under (0=owner, 1=witness, 2-9=active) and the transaction's expiry, which extends the window for collecting co-signatures when building or signing offline. On a multi-family command they are tagged `(TRON only)` and refused on EVM with `invalid_option`; an EVM transaction carries exactly one signature, so neither has a counterpart there.
 
-Where all three early-exit modes are present, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance writes it is `invalid_value`, and the message names the field as `--input` rather than the flags you passed — for example `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
+Where all three early-exit modes are present, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance writes it is `invalid_value`, and which field the message names depends on the rule. The mutual-exclusion rule is attached to the whole object, so it reports the field as `--input` rather than the flags you passed — `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. The `--expiration` rule is attached to its own field and names it — `invalid --expiration: only valid with --sign-only or --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).

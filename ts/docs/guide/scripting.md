@@ -81,7 +81,7 @@ wallet-cli tx send ... --sign-only -o json | jq -c '.data.signed' > signed.json
 wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.json
 ```
 
-`--transaction` and `--tx-stdin` are tagged `(tron only)`; on an EVM network they fail with `invalid_option`. Prefer `--file` / `--hex` in scripts that may target either.
+`--transaction` and `--tx-stdin` are tagged `(TRON only)`; on an EVM network they fail with `invalid_option`. Prefer `--file` / `--hex` in scripts that may target either.
 
 ## Timeouts and retries
 

@@ -28,15 +28,15 @@ wallet-cli vote status --account main --network tron:3448148188
 ```
 
 ```console
-Label           main
-Voting power    1,500 TP  (used 1,000 / available 500)
-Claimable       12.345678 TRX
+Label         main
+Voting power  1,500 TP  (used 1,000 / available 500)
+Claimable     12.345678 TRX
 
 Current votes (2)
-| Name            | Votes | APR  | Reward ratio | Address                            |
-| --------------- | ----- | ---- | ------------ | ---------------------------------- |
-| tronscan.org    | 600   | —    | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
-| binance.com     | 400   | —    | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+| Name         | Votes | APR | Reward ratio | Address                            |
+| ------------ | ----- | --- | ------------ | ---------------------------------- |
+| tronscan.org | 600   | —   | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
+| binance.com  | 400   | —   | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
 ! 400 votes on binance.com earn nothing — 0% reward ratio
 ```
 

@@ -137,7 +137,7 @@ echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json 
 | `--dry-run` | `kind`, `mode: "dry-run"`, `contractAddress`, `fee`, the unsigned `tx` (plus `nonce` on EVM) |
 | `--sign-only` / `--build-only` | `kind`, `mode`, `hex`, `fee`, the transaction object |
 
-`contractAddress` is computed locally from the deployer and nonce, so it is known before the transaction confirms.
+`contractAddress` is known before the transaction confirms, but each family derives it differently. On EVM it is computed locally from the deployer and the nonce. On TRON the address is derived from the final txID, so it is read back from the prepared transaction — after `--permission-id` / `--expiration` have been bound and the txID is settled — rather than computed from the builder's output.
 
 ## Exit status
 

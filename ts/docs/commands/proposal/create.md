@@ -49,12 +49,12 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tro
 ✅ Proposal created
   Proposal  #48
   Proposer  TSRmq8kP...9dEf (main)
-  Parameter changes (1)
-    getTransactionFee   10 → 15   sun/byte
   TxID      9c4...
   Block     57,880,102
   Fee       0 TRX  (268 bandwidth)
   Status    success
+  Parameter changes (1)
+    getTransactionFee   10 → 15   sun/byte
 ```
 
 Several parameters in one proposal — the receipt lists them by parameter id:
@@ -67,13 +67,13 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCrea
 ✅ Proposal created
   Proposal  #49
   Proposer  TSRmq8kP...9dEf (main)
-  Parameter changes (2)
-    getCreateAccountFee   100000 → 200000   sun
-    getTransactionFee         10 →     15   sun/byte
   TxID      a1b...
   Block     57,880,140
   Fee       0 TRX  (292 bandwidth)
   Status    success
+  Parameter changes (2)
+    getCreateAccountFee   100000 → 200000   sun
+    getTransactionFee         10 →     15   sun/byte
 ```
 
 ```bash

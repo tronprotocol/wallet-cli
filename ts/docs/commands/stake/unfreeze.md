@@ -66,9 +66,10 @@ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy
 
 ```console
 ✅ Unstaked 1,000 TRX
-  TxID    d4e...
-  Block   #68,763,004
-  Status  success — withdrawable after the waiting period
+  TxID          d4e...
+  Block         #68,763,004
+  Withdrawable  after the unlock period — then run `stake withdraw`
+  Status        success
 ```
 
 ## Output

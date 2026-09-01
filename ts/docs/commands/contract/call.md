@@ -43,7 +43,7 @@ wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method 
 {"schema":"wallet-cli.result.v1","success":true,"command":"contract.call","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","method":"balanceOf(address)","result":["0000000000000000000000000000000000000000000000000000000000000000"]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-The same call on an EVM network. Note the shape of `result`: the TRON node returns the return data split into words, the EVM node returns it as one `0x` blob:
+The same call on an EVM network. Note the shape of `result`: TRON passes the node's `constant_result` array through untouched, while the EVM node returns one `0x` blob:
 
 ```bash
 wallet-cli contract call --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --method "balanceOf(address)" --params '[{"type":"address","value":"0x541B10b92b45C08513e67bb8209f035D810212B6"}]' --network eip155:11155111
@@ -64,7 +64,7 @@ Result  0x0000000000000000000000000000000000000000000000000000000000000000 (raw)
 |---|---|---|
 | `contract` | string | Contract address called |
 | `method` | string | Method signature invoked |
-| `result` | string[] \| string | Raw ABI-encoded return data; an array of 32-byte words on TRON, a single `0x` string on EVM. Decode per the method's return type |
+| `result` | string[] \| string | Raw ABI-encoded return data. On TRON it is the node's `constant_result` array verbatim — the CLI does no splitting or re-chunking; on EVM, a single `0x` string. Decode per the method's return type |
 
 ## Exit status
 

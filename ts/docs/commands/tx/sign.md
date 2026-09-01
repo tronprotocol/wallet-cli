@@ -66,8 +66,8 @@ echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed
 
 ```console
 ✅ Signature added
-  Signer   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  (weight 1)
-  Hex      written to tx.signed.hex
+  Signer  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  (weight 1)
+  Hex     written to tx.signed.hex
 
 Transaction
   TxID        9c1...
@@ -75,14 +75,13 @@ Transaction
   From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
   To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (~23h)
+  Expires     2026-07-14 15:32 (in ~23h)
 
 Progress  2 / 2 — threshold reached
 | Approved signer                    | Weight |
 | ---------------------------------- | ------ |
-| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  |      1 |
-| TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  |      1 |
-
+| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw | 1      |
+| TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz | 1      |
 ! Broadcast it: wallet-cli tx broadcast --file tx.signed.hex
 ```
 
@@ -104,8 +103,7 @@ Transaction (local inspection)
   To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
   Permission  active (id 2)
   Signatures  1
-  Expires     2026-07-14 15:32 (~23h)
-
+  Expires     2026-07-14 15:32 (in ~23h)
 ! Approval state was not checked online. Inspect it with: wallet-cli tx approvals --hex <hex-above>
 ```
 
@@ -114,7 +112,7 @@ echo "$PW" | wallet-cli tx sign --file tx.hex --account cosigner --out tx.signed
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.sign","data":{"kind":"tx-sign","signer":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","hex":"0a02...9f31","checked":true,"transaction":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permissionId":2,"expiration":1784388720000,"expired":false,"signatures":2},"signerWeight":1,"approval":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":2,"missingWeight":0,"thresholdReached":true,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1}],"expiration":1784388720000,"expired":false,"signatures":2}},"meta":{"durationMs":310,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.sign","data":{"kind":"tx-sign","signer":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","hex":"0a02...9f31","checked":true,"transaction":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permissionId":2,"expiration":1784388720000,"expired":false,"signatures":2},"signerWeight":1,"approval":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":2,"missingWeight":0,"thresholdReached":true,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1}],"expiration":1784388720000,"expired":false,"signatures":2},"out":"tx.signed.hex"},"meta":{"durationMs":310,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 An EVM artifact-signing result has the single-signature shape:
@@ -138,6 +136,7 @@ The two input modes return different shapes.
 | `transaction` | object | Locally decoded summary: `txId`, `contractType`, `operation`, `from`, `to`, `rawAmount`, `permissionId` (a scalar — no group name or threshold), `expiration`, `expired`, `signatures` (count) |
 | `signerWeight` | number | The signer's weight in the group. TRON, and only when `checked` is `true` |
 | `approval` | object | Authoritative online approval state, same shape as [`tx approvals`](approvals.md) `data`. TRON, and only when `checked` is `true` |
+| `out` | string | The path the signed hex was written to. Present only when `--out` was given |
 
 On EVM the result is the single-signature shape instead — `kind: "sign"`, `mode: "sign-only"`, `signed` (`{raw, hash}`), `address`, and `txId`. There is no top-level `hex`; the raw signed transaction is `signed.raw`. The accepted `--out` option is currently ignored by the EVM binding, so write `data.signed.raw` yourself or omit the flag.
 
