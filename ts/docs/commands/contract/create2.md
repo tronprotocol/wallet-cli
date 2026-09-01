@@ -75,7 +75,7 @@ This is a local command, so the envelope carries no `chain` block.
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error` — `--code-file` cannot be read) · `2` usage error (`missing_option` — no `--deployer` / `--salt`, or neither code source; `invalid_option` — both `--code` and `--code-file`; `invalid_value` — malformed deployer address, non-hex code, or a salt outside the 64-bit signed range).
+`0` success · `1` execution failure · `2` usage error (`missing_option` — no `--deployer` or `--salt`; `file_not_found` — `--code-file` does not exist; `invalid_value` — neither or both code sources, an unreadable code file, malformed deployer address, non-hex code, or a salt outside the signed 64-bit range).
 
 ## See also
 

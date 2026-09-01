@@ -20,6 +20,8 @@ The account must already be activated and hold at least the registration fee. `-
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -27,7 +29,7 @@ The account must already be activated and hold at least the registration fee. `-
 | `--url <url>` | **Required.** Candidate info page |
 | `--dry-run` | Build and estimate only, no signature/broadcast; reports the registration fee; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -58,7 +60,7 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:3
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.create","data":{"kind":"witness-create","stage":"confirmed","txId":"d3a...","confirmed":true,"blockNumber":57881020,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io","feeSun":9999000000,"resource":{"netUsage":285,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"registrationFeeSun":9999000000},"meta":{"durationMs":6620,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.create","data":{"kind":"witness-create","stage":"confirmed","txId":"d3a...","confirmed":true,"blockNumber":57881020,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io","feeSun":"9999000000","energyUsed":0,"netUsed":285,"energyFeeSun":0,"netFeeSun":0,"registrationFeeSun":"9999000000","resource":{"netUsage":285,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6620,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -67,14 +69,14 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:3
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, `registrationFeeSun` |
+| default (submit) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url`, `feeSun`, and `registrationFeeSun` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), `failed`, and `registrationFeeSun` |
 
-`registrationFeeSun` is the burned registration fee on its own; `feeSun` is the transaction's total cost, which includes it.
+`registrationFeeSun` and `feeSun` are decimal strings containing the same irreversible registration burn. The command deliberately overwrites the node receipt's bandwidth/energy fee with that economically relevant amount; do not add the two fields together.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_witness`, `account_not_active`, `insufficient_balance` — below the registration fee, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--url`).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_witness`, `account_not_active`, `insufficient_balance` — below the registration fee, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--url`).
 
 ## See also
 

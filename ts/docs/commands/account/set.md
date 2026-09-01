@@ -16,7 +16,9 @@ Sets the account's on-chain **name** (a display alias, up to 32 bytes) or its **
 
 ⚠️ **On mainnet each can be set only once and can never be changed** — the value is permanent, and there is no confirmation prompt. This is different from [`rename`](../rename.md), which changes the local label and can be redone anytime.
 
-Requires the account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
+Requires the account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
+
+Ledger support differs by field: the TRON app can sign `--name`, but cannot sign `--id` (`SetAccountIdContract`). A Ledger account may still build or dry-run either field; a signing mode with `--id` fails with `ledger_unsupported` before device interaction.
 
 ## Options
 
@@ -26,7 +28,7 @@ Requires the account and the master password via `--password-stdin`; watch-only 
 | `--id <account-id>` | **Required** (one of). Account id, 8–32 bytes, globally unique; can be set once |
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -46,7 +48,7 @@ echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:344814
 
 ```console
 ✅ On-chain name set
-  Account  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
+  Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
   Name     Acme Treasury
   TxID     f2b...
   Block    #84,341,590
@@ -70,8 +72,8 @@ echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:3448148
 
 ```console
 ✅ Account id set
-  Account  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
-  Id       acme-treasury-01
+  Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  ID       acme-treasury-01
   TxID     3d9...
   Block    #84,341,730
   Fee      0.3 TRX
@@ -90,7 +92,7 @@ echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:3448148
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`name_already_set`, `id_already_set`, `id_taken`, `watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`, `invalid_option` — malformed or missing name/id).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`name_already_set`, `id_already_set`, `id_taken`, `watch_only_no_signer`, `ledger_unsupported` — Ledger signing with `--id`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`, `invalid_option` — malformed or missing name/id).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_set_postcheck_mismatch` / `account_set_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

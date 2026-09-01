@@ -170,7 +170,7 @@ assetV2
 Query the list of all the tokens by pagination. Returns a list of tokens that succeed the token located at offset.
 
 ```console
-> ListAssetIssuePaginated address code salt
+> ListAssetIssuePaginated offset limit
 ```
 
 Example:

@@ -27,7 +27,7 @@ The chain records the result under its own name — after a successful delete, [
 | `<id>` | **Required.** Proposal id |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -58,7 +58,7 @@ echo "$PW" | wallet-cli proposal delete 48 --network tron:3448148188 --wait --pa
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.delete","data":{"kind":"proposal-delete","stage":"confirmed","txId":"c7d...","confirmed":true,"blockNumber":57880355,"failed":false,"proposalId":48,"feeSun":0,"resource":{"netUsage":265,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6390,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.delete","data":{"kind":"proposal-delete","stage":"confirmed","txId":"c7d...","confirmed":true,"blockNumber":57880355,"failed":false,"proposalId":48,"proposerAddress":"TSRmq8kP...","feeSun":0,"energyUsed":0,"netUsed":265,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":265,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6390,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -67,8 +67,8 @@ echo "$PW" | wallet-cli proposal delete 48 --network tron:3448148188 --wait --pa
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "proposal-delete"`, `stage: "submitted"`, `txId`, `proposalId` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| default (submit) | `kind: "proposal-delete"`, `stage: "submitted"`, `txId`, `proposalId`, `proposerAddress` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 ## Exit status
 

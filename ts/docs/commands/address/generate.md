@@ -60,7 +60,7 @@ wallet-cli address generate -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error`, `output_exists` — the `--out` target already exists and is never overwritten, `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`io_error`, `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`output_exists` — the `--out` target already exists and is never overwritten; `invalid_value`).
 
 ## See also
 

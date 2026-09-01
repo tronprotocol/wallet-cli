@@ -32,7 +32,9 @@ Status    succeed
 TxID      d2e...
 Token     USDT
 Amount    25 USDT
-Fee       0.5 USDT
+Service fee     0.5 USDT
+Activation fee  0 USDT
+Total           25.5 USDT
 To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 ```
 
@@ -41,7 +43,7 @@ wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:344
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","amount":"25000000","serviceFee":"500000","activateFee":"0","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","tokenAddress":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"amount":"25000000","serviceFee":"500000","activateFee":"0","totalDeducted":"25500000","from":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER","owner":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","nonce":"8"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -52,13 +54,19 @@ wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:344
 | `state` | string | Raw state enum: `WAITING` / `INPROGRESS` / `CONFIRMING` / `SUCCEED` / `FAILED` |
 | `txId` | string | On-chain transaction id (once submitted) |
 | `token` | string | Token symbol |
+| `tokenAddress` | string | TRC20 contract address |
+| `decimals` | number | Token decimals used to render amounts |
 | `amount` | string | Amount, in token base units |
 | `serviceFee` / `activateFee` | string | Fees charged, in token base units |
+| `totalDeducted` | string | Amount plus the settled service and activation fees, in token base units |
+| `from` / `owner` | string | GasFree holding address / owning account address |
 | `to` | string | Recipient address |
+| `nonce` | string | Authorization nonce |
+| `failureReason` | string | Provider explanation, only when supplied for a failed transfer |
 
 ## Exit status
 
-`0` success · `1` execution failure (`gasfree_credentials_missing`, `not_found` — no such trace id, `gasfree_integrity`, `provider_error`, `unsupported_network`) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`not_found` — no such trace id, `gasfree_integrity`, `provider_error`) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
 
 A `FAILED` transfer is a successful query: the envelope stays `success: true` at exit `0`, and `data.failureReason` carries the provider's explanation.
 

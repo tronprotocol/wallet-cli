@@ -32,7 +32,7 @@ a different id is refused outright), but a wrong value *inside* that range canno
 locally — there is nothing to compare it against. When the exact base-unit quantity matters, pass
 `--raw-amount`, which is used verbatim and never rescaled.
 
-Early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the signed transaction **hex**; `--build-only` builds but does **not** sign, printing the **unsigned** hex. The hex is protobuf on TRON and RLP (`0x02…`) on EVM; either feeds [`tx sign`](sign.md) and [`tx broadcast`](broadcast.md).
+Early exits still build through the selected network first. `--dry-run` builds and estimates, then returns the plan with no signature and no broadcast; `--sign-only` builds, estimates, signs, and prints the signed transaction **hex** without broadcasting; `--build-only` builds and estimates but does **not** unlock or sign, printing the **unsigned** hex. The hex is protobuf on TRON and RLP (`0x02…`) on EVM; either feeds [`tx sign`](sign.md) and [`tx broadcast`](broadcast.md).
 
 **Fees are family-specific.** TRON burns bandwidth/energy and caps the energy spend with `--fee-limit`; EVM pays gas, so `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` apply instead. Help tags each set `(TRON only)` / `(EVM only)`, and using one on the other family is refused with `invalid_option` — as are `--max-fee` / `--priority-fee` on an EVM chain that still prices in `gasPrice`.
 
@@ -42,7 +42,12 @@ TRON multi-sig uses `--permission-id` to select the signing group and `--expirat
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed, or poll [`tx status`](status.md).
 
-Requires an account and the master password via `--password-stdin` — signing commands do not show an interactive prompt, so without it the command fails with `auth_required`.
+Requires:
+
+```text
+  the master password only when the selected mode signs — pass --password-stdin then; other modes need no password
+  an account — defaults to active; override with --account <accountId|label> (or run `wallet-cli use <account>` to change the active account)
+```
 
 ## Options
 
@@ -53,9 +58,9 @@ Requires an account and the master password via `--password-stdin` — signing c
 | `--raw-amount <string>` | Raw integer amount in native base units (SUN / wei) or token base units |
 | `--token <string>` | Token symbol from the address book; excludes `--contract`, `--asset-id` |
 | `--contract <string>` | Token contract address; omit for a native-coin transfer |
-| `--dry-run` | Build and estimate only; excludes `--sign-only` / `--build-only` |
-| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
+| `--dry-run` | Build and estimate through the selected network; no signing or broadcast; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Build, estimate, sign, and output the signed hex without broadcasting; excludes `--dry-run` / `--build-only` |
+| `--build-only` | Build and estimate, output the **unsigned** hex without unlocking; excludes `--dry-run` / `--sign-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000; on cap returns the submitted receipt) |
 | `--password-stdin` | Master password from stdin |
 
@@ -81,7 +86,7 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-> **Password**: except for `--dry-run`, the examples below omit the password to keep the focus on the selector flags. A real send needs the master password on stdin — prefix with `printf '%s' "$PW" |` and append `--password-stdin` (see the description above).
+> **Password**: the examples below omit the password to keep the focus on selector flags. Software signing modes need the master password on stdin — prefix with `printf '%s' "$PW" |` and append `--password-stdin`; `--dry-run`, `--build-only`, and Ledger signing do not.
 
 ```bash
 # 1 TRX on Nile; 1 ETH-denominated amount on Sepolia

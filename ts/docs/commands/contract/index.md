@@ -23,7 +23,7 @@ wallet-cli contract COMMAND
 | `contract set-user-resource-percent` | [set-user-resource-percent.md](set-user-resource-percent.md) | Share of a call's energy paid by the caller | TRON only |
 | `contract create2` | [create2.md](create2.md) | Precompute a CREATE2 address | TRON only |
 
-The three portable commands share one flag vocabulary and differ only in fees: `--fee-limit` / `--permission-id` / `--expiration` on TRON, `--gas-limit` / `--max-fee` / `--priority-fee` / `--nonce` on EVM, each refused on the other family with `invalid_option`. The **TRON only** commands are the ones with no EVM counterpart — an on-chain ABI registry and the deployer-pays energy model are TRON protocol features, and TRON's CREATE2 derivation is not Ethereum's. Running one against an EVM network fails with `family_mismatch`.
+The portable commands share the same chain families, not the same flags. `contract call` is read-only and takes call inputs; `contract send` and `contract deploy` are write transactions and carry the fee/signing vocabulary: `--fee-limit` / `--permission-id` / `--expiration` on TRON, `--gas-limit` / `--max-fee` / `--priority-fee` / `--nonce` on EVM, each refused on the other family with `invalid_option`. The **TRON only** commands are the ones with no EVM counterpart — an on-chain ABI registry and the deployer-pays energy model are TRON protocol features, and TRON's CREATE2 derivation is not Ethereum's. Running one against an EVM network fails with `family_mismatch`.
 
 ## See also
 

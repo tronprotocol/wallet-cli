@@ -30,6 +30,8 @@ Constraints are checked locally before broadcast: `--name` and `--abbr` are 1–
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign TRC10 issuance contract types. Ledger accounts may dry-run or build unsigned hex, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -48,7 +50,7 @@ Constraints are checked locally before broadcast: `--name` and `--abbr` are 1–
 | `--freeze <amount>:<days>` | **Repeatable.** Frozen tranche; amount in whole tokens, e.g. `100000000:30` |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -94,7 +96,7 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"failed":false,"assetId":"1000123","name":"MyToken","abbr":"MTK","totalSupply":1000000000000000,"precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":100000000000000,"days":30},{"amount":50000000000000,"days":90}],"feeSun":1024000000,"resource":{"netUsage":312,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"feeSun":1024000000,"netUsed":312,"netFeeSun":0,"failed":false,"assetId":"1000123","issuerAddress":"TQkXm4vN...","name":"MyToken","abbr":"MTK","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30},{"amount":"50000000000000","days":90}]},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -104,13 +106,13 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-issue"`, `stage: "submitted"`, `txId`, and the token definition below except `assetId` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
 
-Definition fields: `name`, `abbr`, `totalSupply` (raw), `precision`, `price` (the `trx:tokens` string as given) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw, `days`).
+Definition fields: `issuerAddress`, `name`, `abbr`, `totalSupply` (raw decimal string), `precision`, `price` (the `trx:tokens` string as given) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw decimal string, `days`). Confirmation resource fields are flat; there is no `resource` object and the bandwidth field is `netUsed`, not `netUsage`.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `insufficient_balance` — below the issuance fee, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — rate, precision, dates, bandwidth limits, or frozen tranches out of range, or the rate exceeding int32 after conversion).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `insufficient_balance` — below the issuance fee, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — rate, precision, dates, bandwidth limits, or frozen tranches out of range, or the rate exceeding int32 after conversion).
 
 ## See also
 

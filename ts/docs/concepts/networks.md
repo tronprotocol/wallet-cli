@@ -46,7 +46,9 @@ Listings (`networks`, `config`) print an endpoint's **host only**, because a com
 
 1. Explicit `--network <id|alias>` on the command;
 2. otherwise `config.defaultNetwork` (`wallet-cli config defaultNetwork tron:3448148188`);
-3. chain commands with neither will tell you a network is required.
+3. if the config file does not override it, the built-in default is `tron:728126428` (TRON mainnet).
+
+Omitting `--network` therefore does not stop a chain command. For operations involving funds, pass the canonical network id explicitly so the destination chain is visible in shell history and audit logs.
 
 Balances, tokens, and transactions are entirely separate per network. A txid from Nile does not exist on mainnet — querying it there returns `not_found`/`rpc_error`.
 

@@ -4,7 +4,7 @@ What wallet-cli protects, how, and what remains your job.
 
 ## Local storage
 
-All secrets (seeds, private keys) are stored **encrypted under your master password**; nothing usable is on disk in the clear. Metadata (labels, addresses) is readable without unlock — that's why `list` needs no password but `tx send` does.
+All secrets (seeds, private keys) are stored **encrypted under your master password**; nothing usable is on disk in the clear. Metadata (labels, addresses) is readable without unlock — that's why `list` needs no password but a software-signed `tx send` does.
 
 The master password is local protection only: it is never sent anywhere and **cannot be recovered**. It must be at least 8 characters with an uppercase letter, a lowercase letter, a digit, and a special character.
 
@@ -14,7 +14,7 @@ One seed covers **every chain family** — the same phrase re-derives your TRON 
 
 ## Secrets in transit: stdin or TTY, never argv/env
 
-Anything in a command's arguments or environment leaks into shell history, `ps` output, and CI logs. wallet-cli therefore refuses secrets there — they enter only via:
+Anything in a command's arguments leaks into shell history and `ps` output. Exported environment variables are also easy to leak through shells and CI logs. wallet-cli therefore refuses passwords, mnemonics, and private keys in argv and does not read any dedicated secret environment variables for them — they enter only via:
 
 - interactive TTY prompts, or
 - explicit stdin flags: `--password-stdin`, `--tx-stdin` — **one `*-stdin` flag per run**, so a pipeline can never silently feed the wrong secret to the wrong prompt. The highest-value secrets go further: mnemonics and private keys are accepted **only** via hidden TTY input (`import mnemonic` / `import private-key` / `change-password` have no stdin path at all).
@@ -46,7 +46,7 @@ Unexpected internal exceptions are collapsed to a generic `internal_error` messa
 | Software key | `create` / `import` | Convenient; host compromise = key compromise |
 | Ledger | `import ledger` | Key never on host; every send confirmed on-device. `--app` fixes the account to one chain family — import once per app to cover both — see [Ledger guide](../guide/ledger.md) |
 | Watch-only | `import watch` | No signing at all; safe for monitoring balances of cold storage. Bound to the pasted address's family |
-| Split sign/broadcast | `--sign-only` + `tx broadcast` | Signing machine needs no network — see [Scripting](../guide/scripting.md#sign-here-broadcast-there) |
+| Split sign/broadcast | TRON: `tx send --build-only --expiration <ms>` → `tx sign --offline` → `tx broadcast`; EVM: the same flow without `--expiration` | Signing machine can stay offline; `--sign-only` still builds and estimates online. TRON defaults to about 60 seconds and permits at most 24 hours, so set the shortest window that covers artifact transfer — see [Scripting](../guide/scripting.md#sign-here-broadcast-there) |
 
 ## What wallet-cli cannot do for you
 

@@ -36,7 +36,7 @@ Requires an account. The master password (via `--password-stdin`) is needed only
 | `--value <string>` | Native coin sent with the call, in whole coins |
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 

@@ -19,7 +19,7 @@ wlt_4473p34m.1
 A key is not tied to a chain, so **an account holds one address per [family](networks.md)** — a TRON base58 address and an EVM `0x` address — derived from the same seed at different BIP44 coin types:
 
 ```
-m/44'/195'/0'/0/<index>   TRON
+m/44'/195'/<index>'/0/0   TRON
 m/44'/60'/0'/0/<index>    EVM
 ```
 

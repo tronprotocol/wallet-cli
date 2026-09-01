@@ -16,7 +16,9 @@ A TRON address doesn't exist on-chain until it receives its first asset or is ex
 
 Use it only when an address needs to *exist* on its own — to be queryable, or able to initiate its own transactions. If you're sending it funds anyway, [`tx send`](../tx/send.md) activates the recipient automatically in one step; and adding an address to a multi-sig permission does **not** require activation.
 
-Requires the payer account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+Requires the payer account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+
+The Ledger TRON app cannot sign `AccountCreateContract`: Ledger accounts may use `--dry-run` or `--build-only`, but `--sign-only`, default submission, and `--wait` fail with `ledger_unsupported` before device interaction.
 
 ## Options
 
@@ -25,7 +27,7 @@ Requires the payer account and the master password via `--password-stdin`; watch
 | `--address <T...>` | **Required.** The address to activate (a valid, not-yet-activated TRON address) |
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -44,11 +46,11 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 ```
 
 ```console
-⏳ Submitted — activate account
-  TxID     a1b...
+⏳ Account activated
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
-  Status   pending
+  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  TxID     a1b...
+  Status   pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid a1b...
 ```
 
@@ -64,9 +66,9 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 
 ```console
 ✅ Account activated
-  TxID     e7a...
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
+  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  TxID     e7a...
   Block    #84,340,277
   Fee      1.1 TRX
   Status   success
@@ -88,7 +90,7 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_activate_postcheck_mismatch` / `account_activate_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

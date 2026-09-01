@@ -29,7 +29,7 @@ Votes take effect at the next maintenance cycle (~6 h). Each vote uses 1 TP (it 
 | `--for <SR=votes>` | **Required, repeatable.** SR address = vote count (positive integer); the whole set becomes your full allocation (1–30 entries) |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -48,9 +48,9 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 ```
 
 ```console
-⏳ Submitted — vote 1,000 TP across 2 SRs
-  TxID     e5f...
+⏳ Voted 1,000 TP across 2 witnesses
   Votes    TZ4...=600, TT5...=400
+  TxID     e5f...
   Status   pending — tallied at next maintenance cycle (~6h)
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
@@ -70,10 +70,10 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 ```
 
 ```console
-✅ Voted 1,000 TP across 2 SRs
-  TxID     f8a...
+✅ Voted 1,000 TP across 2 witnesses
   Votes    TZ4...=600, TT5...=400
-  Block    84,121,055
+  TxID     f8a...
+  Block    #84,121,055
   Fee      0 TRX
   Status   success — tallied at next maintenance cycle (~6h)
 ```
@@ -89,7 +89,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `insufficient_voting_power` — total exceeds available TP) · `2` usage error (`invalid_value` — bad SR address, non-positive count, > 30 entries).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — total exceeds available TP; `invalid_value` — bad SR address, non-positive count, > 30 entries).
 
 ## See also
 

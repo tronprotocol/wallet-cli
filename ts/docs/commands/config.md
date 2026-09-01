@@ -149,7 +149,7 @@ An unset network field is **absent** from the view rather than present and empty
 
 ## Exit status
 
-`0` success · `1` execution failure (`invalid_config` — `config.yaml` is unreadable or not valid YAML; `insecure_config` — it holds service credentials but is a symlink or group/world-readable, so `chmod 600` it) · `2` usage error (`invalid_value` — unknown key, a read-only key given a value, or an unsupported `networks.<id>.<field>`). See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure (`io_error` — an atomic config write failed) · `2` usage error (`invalid_config` — `config.yaml` is unreadable or not valid YAML; `insecure_config` — it holds service credentials but is a symlink or group/world-readable, so `chmod 600` it; `invalid_value` — unknown key, a read-only key given a value, or an unsupported `networks.<id>.<field>`). See [machine-interface](../machine-interface.md).
 
 ## See also
 

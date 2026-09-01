@@ -2,7 +2,7 @@
 
 One command sends every asset kind — the network's native coin, TRC20/ERC20 contract tokens, and TRC10 assets — the selector flags decide which. Command examples run on Nile; the same commands work on an EVM network by swapping `--network`.
 
-> **Password**: every `tx send` needs your master password on stdin, and signing shows no prompt. The examples below omit it to keep the token flags in focus — prepend `printf '%s' "$PW" |` and append `--password-stdin`, or pipe from a password manager (see [Getting started](getting-started.md#3-send-your-first-transaction)).
+> **Password**: software-signed sends need your master password on stdin, and signing shows no prompt. The examples below omit it to keep the token flags in focus — prepend `printf '%s' "$PW" |` and append `--password-stdin`, or pipe from a password manager. `--dry-run`, `--build-only`, and Ledger signing do not use the master password.
 
 ## The native coin
 
@@ -76,7 +76,7 @@ wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network t
 
 ## Rehearse, then send
 
-`--dry-run` builds the transaction and estimates fees without signing or broadcasting — nothing can leave your wallet:
+`--dry-run` builds the transaction and estimates fees through the selected network, then returns without signing or broadcasting:
 
 ```bash
 wallet-cli tx send --to T... --token USDT --amount 5 --network tron:3448148188 --dry-run -o json
