@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ERROR_CODES } from "../domain/errors/codes.js";
+import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
 import { EVM_REJECTION_CODES } from "../adapters/outbound/chain/evm/node-errors.js";
 import { TRON_REJECTION_CODES } from "../adapters/outbound/chain/tron/node-errors.js";
 
@@ -41,6 +41,24 @@ function producedCodes(): Set<string> {
   return codes;
 }
 
+/** every literal throw site, with the exit class its error class implies. */
+function thrownSites(): Array<{ code: string; exit: 1 | 2; where: string }> {
+  const thrown = /new (Usage|Execution|Chain|Wallet|Transport)Error\(\s*"([a-z_0-9]+)"/g;
+  const sites: Array<{ code: string; exit: 1 | 2; where: string }> = [];
+  for (const file of sourceFiles(SRC)) {
+    const text = readFileSync(file, "utf8");
+    for (const match of text.matchAll(thrown)) {
+      const line = text.slice(0, match.index).split("\n").length;
+      sites.push({
+        code: match[2]!,
+        exit: match[1] === "Usage" ? 2 : 1,
+        where: `${file.slice(SRC.length)}:${line}`,
+      });
+    }
+  }
+  return sites;
+}
+
 describe("the error-code index", () => {
   it("has an entry for every code the source can throw", () => {
     const undocumented = [...producedCodes()].filter((code) => !(code in ERROR_CODES)).sort();
@@ -63,5 +81,19 @@ describe("the error-code index", () => {
       expect(entry.meaning, code).toMatch(/^[a-z(]/);
       expect(entry.meaning, code).not.toMatch(/\n/);
     }
+  });
+
+  // The class a throw site picks is its statement of intent; the table is the contract. When they
+  // disagree one of them is wrong, and nothing else in the build can tell. `either` is the
+  // documented escape hatch for the few codes that genuinely arise on both sides.
+  it("throws every code at the exit class its entry declares", () => {
+    const wrong = thrownSites()
+      .filter(({ code, exit }) => {
+        const entry = (ERROR_CODES as Record<string, ErrorCodeEntry | undefined>)[code];
+        return entry !== undefined && entry.exit !== "either" && entry.exit !== exit;
+      })
+      .map(({ code, exit, where }) => `${code} thrown at exit ${exit} in ${where}`)
+      .sort();
+    expect(wrong).toEqual([]);
   });
 });
