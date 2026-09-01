@@ -66,7 +66,7 @@ echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 5000000
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-origin-energy-limit","data":{"kind":"contract-set-origin-energy-limit","stage":"confirmed","txId":"3a9...","confirmed":true,"blockNumber":57882265,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","originEnergyLimit":50000000,"feeSun":0,"resource":{"netUsage":290,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6530,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-origin-energy-limit","data":{"kind":"contract-set-origin-energy-limit","stage":"confirmed","txId":"3a9...","confirmed":true,"blockNumber":57882265,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","originEnergyLimit":50000000,"feeSun":0,"energyUsed":0,"netUsed":290,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":290,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6530,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -76,7 +76,7 @@ echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 5000000
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "contract-set-origin-energy-limit"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress`, `originEnergyLimit` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 `originEnergyLimit` is the value now in effect.
 

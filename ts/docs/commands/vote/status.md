@@ -35,9 +35,9 @@ Claimable       12.345678 TRX
 Current votes (2)
 | Name            | Votes | APR  | Reward ratio | Address                            |
 | --------------- | ----- | ---- | ------------ | ---------------------------------- |
-| TRONSCAN        | 600   | —    | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
-| Binance Staking | 400   | —    | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
-! 400 votes on Binance Staking earn nothing — 0% reward ratio
+| tronscan.org    | 600   | —    | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
+| binance.com     | 400   | —    | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+! 400 votes on binance.com earn nothing — 0% reward ratio
 ```
 
 ```bash
@@ -45,7 +45,7 @@ wallet-cli vote status --account main --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.status","data":{"address":"TQk...","votingPower":{"total":1500,"used":1000,"available":500},"claimableRewardSun":"12345678","votes":[{"witness":"TZ4...","name":"TRONSCAN","count":600,"rewardRatioPct":80,"brokeragePct":20,"aprPct":null},{"witness":"TT5...","name":"Binance Staking","count":400,"rewardRatioPct":0,"brokeragePct":100,"aprPct":null}]},"meta":{"durationMs":16,"warnings":["400 votes on TT5... (Binance Staking) earn nothing: reward ratio is 0%"]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.status","data":{"address":"TQk...","votingPower":{"total":1500,"used":1000,"available":500},"claimableRewardSun":"12345678","votes":[{"witness":"TZ4...","name":"tronscan.org","count":600,"rewardRatioPct":80,"brokeragePct":20,"aprPct":null},{"witness":"TT5...","name":"binance.com","count":400,"rewardRatioPct":0,"brokeragePct":100,"aprPct":null}]},"meta":{"durationMs":16,"warnings":["400 votes on TT5... (binance.com) earn nothing: reward ratio is 0%"]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -55,7 +55,7 @@ wallet-cli vote status --account main --network tron:nile -o json
 | `address` | string | Queried account |
 | `votingPower.total` / `.used` / `.available` | number | TP total / spent / spendable |
 | `claimableRewardSun` | string | Currently claimable reward, in SUN |
-| `votes[]` | array | Current distribution: `witness`, `name`, `count`, `rewardRatioPct`, `brokeragePct`, and reserved `aprPct` (always `null`) |
+| `votes[]` | array | Current distribution: `witness`, URL-hostname `name`, `count`, nullable `rewardRatioPct` / `brokeragePct`, and reserved `aprPct` (always `null`) |
 
 Zero-reward-ratio warnings appear in `meta.warnings` as plain strings — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
 

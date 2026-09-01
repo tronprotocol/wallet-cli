@@ -53,7 +53,7 @@ wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network 
 
 ## Exit status
 
-`0` removed · `1` execution failure (`encoding_error`, `insecure_permissions`, `io_error`) · `2` usage error (`token_is_official` — official-layer tokens can't be removed; `token_not_in_book` — not in the user layer; `invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
+`0` removed · `1` execution failure (`encoding_error` / `io_error` — the local token book could not be decoded or written) · `2` usage error (`token_is_official` — official-layer tokens can't be removed; `token_not_in_book` — not in the user layer; `invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
 
 ## See also
 

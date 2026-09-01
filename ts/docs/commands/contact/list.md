@@ -33,14 +33,14 @@ wallet-cli contact list -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contact.list","data":{"contacts":[{"name":"alice","address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","note":"Alice mainnet","family":"tron"},{"name":"bob","address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","note":null,"family":"tron"}]},"meta":{"durationMs":3,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contact.list","data":{"contacts":[{"name":"alice","address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","note":"Alice mainnet"},{"name":"bob","address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","note":null}]},"meta":{"durationMs":3,"warnings":[]}}
 ```
 
 ## Output
 
 | Field | Type | Meaning |
 |---|---|---|
-| `contacts[]` | array | Recipients, each `{name, address, note, family}` — `note` is `null` when unset |
+| `contacts[]` | array | Recipients, each `{name, address, note}` — `note` is `null` when unset. Family remains an internal routing detail and is not returned |
 
 ## Exit status
 

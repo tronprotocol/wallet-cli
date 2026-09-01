@@ -21,7 +21,7 @@ wallet-cli --json-schema tron           # scoped to one chain family
 wallet-cli <command> --json-schema      # one command
 ```
 
-One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]` — each with `id`, `path`, `usage`, `families`, `requires` (network / auth / wallet), `capability`, `examples`, and a JSON Schema for its input. This is the intended way for an agent to learn the CLI; do not scrape `--help`.
+One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]`. Command entries carry `id`, `path`, `usage`, `requires` (network / auth / wallet), `capability`, `examples`, and a JSON Schema for their input; chain commands also declare `families`. This is the intended way for an agent to learn the CLI; do not scrape `--help`.
 
 ### Chain families
 
@@ -31,7 +31,7 @@ A network belongs to one **chain family**, `tron` or `evm`, and that is what dec
 - A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(tron only)` / `(evm only)`.
 - An **account** is not family-bound when it holds a key — a seed or private-key account has both a TRON and an EVM address. Watch-only and Ledger accounts hold one address and therefore one family; selecting one on a mismatched network is also `family_mismatch`.
 
-Both checks are static: they depend on the command, the flags and the selected network only, so an agent can decide them from the catalog without a call.
+Command-family and flag-family checks are static and can be decided from the catalog. Account-family compatibility also depends on the selected wallet account: key-backed accounts serve both families, while watch-only and Ledger accounts are family-bound.
 
 ### Startup wallet-data upgrades
 
@@ -106,10 +106,12 @@ Schema id: `wallet-cli.result.v1`.
 | `error.details`   | object                   | optional            | Structured extras when available                                                 |
 | `meta.durationMs` | number                   | always              | Wall time                                                                        |
 | `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
-| `meta.pagination` | object                   | paginated commands only | `offset` / `limit` / `total`; present where `--limit` / `--offset` apply — see [pagination](#pagination) |
-| `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command, and on the local commands that take `--network` as a display selector (`list`, `current`). Commands that never take one (`config`, `networks`, `contact`, `encoding`, `address`, `create`, `import`, …) omit it — its presence does **not** mean a node was contacted |
+| `meta.pagination` | object                   | windowed commands only | `offset` / `limit` / `total`; present when the command returns a pagination window — see [pagination](#pagination) |
+| `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command and on local commands whose policy resolves a network. Commands with `network: "none"` omit it; its presence does **not** mean a node was contacted |
 
-Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Treat every on-chain amount as a string.
+The current local network-aware commands are `backup`, `current`, and `list`. They use the selected or default network as a family/display selector without contacting a node.
+
+Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), and binary values are hex. Amounts represented by `bigint` or protocol int64 values are strings; bounded counters and fees such as `feeSun`, `multiSignFeeSun`, `energyUsed`, and `netUsed` may be JSON numbers. Follow each command's field table instead of coercing every amount to one type.
 
 ### Reading `meta.warnings`
 
@@ -127,7 +129,7 @@ Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.joi
 
 ### Pagination
 
-Every command that takes `--limit` / `--offset` reports the window it returned in `meta.pagination`, never inside `data`:
+Commands that return an offset/limit window report it in `meta.pagination`, never inside `data`. The current set is `asset list`, `exchange list`, `proposal list`, and `backup --records`; a command may accept `--limit` merely as a result cap and then omit pagination metadata.
 
 | Key | Type | Meaning |
 |---|---|---|

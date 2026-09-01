@@ -75,7 +75,7 @@ echo "$PW" | wallet-cli proposal approve 47 --network tron:nile --wait --passwor
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.approve","data":{"kind":"proposal-approve","stage":"confirmed","txId":"b1e...","confirmed":true,"blockNumber":57880240,"failed":false,"proposalId":47,"addApproval":true,"feeSun":0,"resource":{"netUsage":267,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.approve","data":{"kind":"proposal-approve","stage":"confirmed","txId":"b1e...","confirmed":true,"blockNumber":57880240,"failed":false,"proposalId":47,"voterAddress":"TSRmq8kP...","addApproval":true,"approvals":13,"approvalThreshold":18,"feeSun":0,"energyUsed":0,"netUsed":267,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":267,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -84,8 +84,8 @@ echo "$PW" | wallet-cli proposal approve 47 --network tron:nile --wait --passwor
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "proposal-approve"`, `stage: "submitted"`, `txId`, `proposalId`, `addApproval` (`false` with `--cancel`) |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| default (submit) | `kind: "proposal-approve"`, `stage: "submitted"`, `txId`, `proposalId`, `voterAddress`, `addApproval` (`false` with `--cancel`), `approvals`, and `approvalThreshold` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 ## Exit status
 

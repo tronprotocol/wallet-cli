@@ -27,14 +27,14 @@ wallet-cli gasfree info --account main --network tron:nile
 ```
 
 ```console
-Account          main (TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw)
+Owner            TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
 GasFree address  TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw
 Status           active
 Nonce            4
 
-Supported tokens (1)
-  Token  Activation fee  Transfer fee
-  USDT   1 USDT          0.5 USDT
+| Token | Balance | Activation fee | Transfer fee |
+| ----- | ------- | -------------- | ------------ |
+| USDT  | 125 USDT | 1 USDT       | 0.5 USDT     |
 ```
 
 ```bash
@@ -42,7 +42,7 @@ wallet-cli gasfree info --account main --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":4,"tokens":[{"symbol":"USDT","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"activateFee":"1000000","transferFee":"500000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":"4","tokens":[{"symbol":"USDT","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"activateFee":"1000000","transferFee":"500000","balance":"125000000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -52,8 +52,8 @@ wallet-cli gasfree info --account main --network tron:nile -o json
 | `ownerAddress` | string | The account's own TRON address |
 | `gasFreeAddress` | string | Derived GasFree address (receive/pay here) |
 | `active` | boolean | Whether the GasFree address is activated on-chain |
-| `nonce` | number | Current per-address nonce |
-| `tokens[]` | array | Supported tokens: `{symbol, address, decimals, activateFee, transferFee}` — fees in the token's base units |
+| `nonce` | string | Current per-address nonce, as an unsigned decimal string |
+| `tokens[]` | array | Supported tokens: `{symbol, address, decimals, activateFee, transferFee, balance}` — fees and balance are decimal strings in the token's base units |
 
 ## Exit status
 

@@ -113,6 +113,7 @@ Supported global options are:
   - `--version`
   - `--quiet`
   - `--verbose`
+  - `--password-stdin`
 - valued options:
   - `--output <text|json>`
   - `--network <main|nile|shasta|custom>`
@@ -129,6 +130,7 @@ For Contract 1, this applies to valued global options only.
 ### Boundary Rules
 
 - Execution modifier global options are recognized before and after the command token.
+- `--password-stdin` is an execution modifier and is recognized in either position.
 - Top-level mode selectors `--version` and `--interactive` are recognized only before the command token.
 - The first token before command resolution that does not begin with `-` is the command token.
 - The command token is normalized to lowercase for registry lookup.

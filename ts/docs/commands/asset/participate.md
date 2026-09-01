@@ -66,7 +66,7 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile 
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":100000000,"receivedAmount":10000000000,"feeSun":0,"resource":{"netUsage":301,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.participate","data":{"kind":"asset-participate","stage":"confirmed","txId":"4c8...","confirmed":true,"blockNumber":57883402,"feeSun":0,"netUsed":301,"netFeeSun":0,"failed":false,"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","participantAddress":"TQkXm4vN...","paidSun":"100000000","receivedAmount":"10000000000","precision":6},"meta":{"durationMs":6450,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -76,9 +76,9 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network tron:nile 
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-participate"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `participantAddress`, `paidSun`, `receivedAmount` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed` |
 
-`paidSun` is the TRX spent in sun; `receivedAmount` is the token amount in its smallest unit (text shows both in human units).
+`paidSun` is the TRX spent in sun; `receivedAmount` is the token amount in its smallest unit. Both are decimal strings; `precision` is included so text and machine consumers can scale the token amount.
 
 ## Exit status
 

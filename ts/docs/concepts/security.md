@@ -46,7 +46,7 @@ Unexpected internal exceptions are collapsed to a generic `internal_error` messa
 | Software key | `create` / `import` | Convenient; host compromise = key compromise |
 | Ledger | `import ledger` | Key never on host; every send confirmed on-device. `--app` fixes the account to one chain family — import once per app to cover both — see [Ledger guide](../guide/ledger.md) |
 | Watch-only | `import watch` | No signing at all; safe for monitoring balances of cold storage. Bound to the pasted address's family |
-| Split sign/broadcast | `tx send --build-only` → `tx sign --offline` → `tx broadcast` | Signing machine can stay offline; `--sign-only` still builds and estimates online — see [Scripting](../guide/scripting.md#sign-here-broadcast-there) |
+| Split sign/broadcast | TRON: `tx send --build-only --expiration <ms>` → `tx sign --offline` → `tx broadcast`; EVM: the same flow without `--expiration` | Signing machine can stay offline; `--sign-only` still builds and estimates online. TRON defaults to about 60 seconds and permits at most 24 hours, so set the shortest window that covers artifact transfer — see [Scripting](../guide/scripting.md#sign-here-broadcast-there) |
 
 ## What wallet-cli cannot do for you
 

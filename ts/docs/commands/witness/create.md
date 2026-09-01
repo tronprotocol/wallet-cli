@@ -60,7 +60,7 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:n
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.create","data":{"kind":"witness-create","stage":"confirmed","txId":"d3a...","confirmed":true,"blockNumber":57881020,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io","feeSun":9999000000,"resource":{"netUsage":285,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"registrationFeeSun":9999000000},"meta":{"durationMs":6620,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.create","data":{"kind":"witness-create","stage":"confirmed","txId":"d3a...","confirmed":true,"blockNumber":57881020,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io","feeSun":"9999000000","energyUsed":0,"netUsed":285,"energyFeeSun":0,"netFeeSun":0,"registrationFeeSun":"9999000000","resource":{"netUsage":285,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6620,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -69,10 +69,10 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:n
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, `registrationFeeSun` |
+| default (submit) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url`, `feeSun`, and `registrationFeeSun` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), `failed`, and `registrationFeeSun` |
 
-`registrationFeeSun` is the burned registration fee on its own; `feeSun` is the transaction's total cost, which includes it.
+`registrationFeeSun` and `feeSun` are decimal strings containing the same irreversible registration burn. The command deliberately overwrites the node receipt's bandwidth/energy fee with that economically relevant amount; do not add the two fields together.
 
 ## Exit status
 

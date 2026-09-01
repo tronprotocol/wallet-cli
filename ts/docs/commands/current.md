@@ -52,7 +52,7 @@ The QR encodes **one** address — the receive address for the selected network.
 wallet-cli current --qr --network evm:11155111
 ```
 
-The QR is a terminal rendering only and scans from a real terminal (where the block characters line up); `-o json` is unchanged by `--qr` (machine consumers take the address and generate their own code). If the terminal is non-interactive or too narrow to fit it, it degrades to printing the addresses with a warning:
+The QR is a terminal rendering only and scans from a real terminal (where the block characters line up). In JSON mode no QR pixels are rendered; `--qr` validates that the selected account has an address for the selected network and adds that value as `data.receiveAddress`. If the text terminal is non-interactive or too narrow to fit the QR, it degrades to printing the addresses with a warning:
 
 ```console
 warning: terminal is non-interactive or too narrow for a complete QR code; showing the full address only
@@ -91,6 +91,7 @@ error [missing_wallet_address]: no active account; import one first
 | `derivationPath` | object \| null | Per-family BIP32 path for `seed` accounts; `null` otherwise |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
+| `receiveAddress` | string | Present in JSON only when `--qr` was requested; address selected by `--network` |
 
 The `chain` block echoes the network selected for display; the command contacts no node.
 

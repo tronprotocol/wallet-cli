@@ -38,6 +38,7 @@ wallet-cli import private-key --label hot
   Account ID    wlt_2qnr6j1f
   Type          private key
   TRON address  TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC
+  EVM address   0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
   Active        yes
 
 ⚠️ Private key was read from hidden input and was not printed.
@@ -51,7 +52,7 @@ wallet-cli import private-key --label hot -o json
 ? Set master password (hidden):
 ? Confirm master password:
 ? Paste private key (hidden):
-{"schema":"wallet-cli.result.v1","success":true,"command":"import.private-key","data":{"status":"created","accountId":"wlt_2qnr6j1f","label":"hot","type":"privateKey","index":null,"active":true,"addresses":{"tron":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC"}},"meta":{"durationMs":38,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"import.private-key","data":{"status":"created","accountId":"wlt_2qnr6j1f","label":"hot","type":"privateKey","index":null,"active":true,"addresses":{"tron":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","evm":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"},"derivationPath":null},"meta":{"durationMs":38,"warnings":[]}}
 ```
 
 ## Output
@@ -60,13 +61,14 @@ wallet-cli import private-key --label hot -o json
 
 | Field | Type | Meaning |
 |---|---|---|
-| `status` | string | `"created"` |
+| `status` | string | `"created"`, or `"existing"` when the same key was already present (the existing account is selected) |
 | `accountId` | string | Stable account id |
 | `label` | string | Account label |
 | `type` | string | `"privateKey"` (standalone, no seed) |
 | `index` | number \| null | Non-HD account, always `null` |
 | `active` | boolean | Became the active account |
-| `addresses.tron` | string | Base58 TRON address |
+| `addresses` | object | Both encodings of the imported key: `tron` (base58) and `evm` (EIP-55) |
+| `derivationPath` | null | A raw private key has no derivation path |
 
 ## Exit status
 

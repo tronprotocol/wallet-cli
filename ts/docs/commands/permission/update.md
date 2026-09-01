@@ -29,10 +29,11 @@ wallet-cli permission show -o json --network tron:nile | jq '.data' > perms.json
 
 Changing only `keys`, `threshold` or `name` needs no such deletion.
 
-⚠️ **The chain applies no safety checks.** Even if the new structure contains no key you can sign with, the transaction still succeeds and the account is permanently locked, with no on-chain recovery. This CLI surfaces two **local** warnings but does **not** block the submission (in JSON they go to `meta.warnings`, and `success` stays `true`):
+⚠️ **The chain applies no safety checks.** Even if the new structure contains no key you can sign with, the transaction still succeeds and the account is permanently locked, with no on-chain recovery. This CLI can surface four **local warning codes** but does **not** block the submission (in JSON they go to `meta.warnings`, and `success` stays `true`):
 
 - **Lockout risk** — when the combined weight of your locally-signable owner keys (software / Ledger) is below the new owner threshold, a `!` line spells out that you can no longer meet the owner threshold on your own (`owner_lockout` if you hold no weight, `owner_lockout_partial` if you now need co-signers). Multi-party custody legitimately means "I alone can't reach the threshold", so this is a notice, not a block.
 - **Dangerous operations** — when an active group includes `Update Account Permissions` (that group could then change the permissions themselves, effectively owner-level), a `!` line flags it (`active_can_update_permission`).
+- **Unknown operations** — when an active bitmap grants contract-type ids this build cannot name, the ids are preserved and reported as `active_unknown_operations` rather than silently dropped.
 
 ## Options
 
@@ -65,19 +66,21 @@ wallet-cli permission show --network tron:nile -o json | jq '.data' > perms.json
 $EDITOR perms.json
 ```
 
-Submit with `--wait`. The receipt is the transaction record plus the resulting on-chain structure (read back after confirmation, same cards as `permission show`), with any `!` warnings appended:
+Submit with `--wait`. Safety warnings are written to stderr as `warning: ...` before the stdout receipt. After confirmation, the receipt includes the resulting on-chain structure when the follow-up read succeeds, using the same cards as `permission show`:
 
 ```bash
 echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile --wait --password-stdin
 ```
 
 ```console
+warning: local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations
 ✅ Permissions updated
-  Account  main (TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw)
   TxID     b3c...
   Block    #84,335,102
   Fee      100.268 TRX
   Status   success
+
+Account  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
 
 Permission Name   owner  (id 0)
 Threshold         2
@@ -87,25 +90,22 @@ Authorized To     Address                             Weight
                   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
 
 Permission Name   finance  (id 2, active)
-Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract
+Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract  (3 total)
 Threshold         2
 Authorized To     Address                             Weight
                   TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
                   TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  1
                   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
-
-! Your local keys now hold 1 of 2 owner weight — co-signers are required
-  for owner-level operations from now on.
 ```
 
-The JSON receipt's `data.permissions` is **structurally identical** to `permission show`'s `data`, so you can diff it against the pre-change export; the lockout warning is in `meta.warnings` with `success` still `true`:
+When present, the JSON receipt's `data.permissions` is **structurally identical** to `permission show`'s `data`, so you can diff it against the pre-change export. If the confirmed post-check cannot be read, the field is omitted and `meta.warnings` contains `permission_postcheck_unavailable`; the confirmed transaction still has `success: true`. The lockout warning is also in `meta.warnings`:
 
 ```bash
 echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"permission.update","data":{"kind":"permission-update","stage":"confirmed","txId":"b3c...","confirmed":true,"blockNumber":84335102,"feeSun":100268000,"failed":false,"permissions":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]}},"meta":{"durationMs":6810,"warnings":[{"code":"owner_lockout_partial","message":"local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations"}]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"permission.update","data":{"kind":"permission-update","stage":"confirmed","txId":"b3c...","confirmed":true,"blockNumber":84335102,"feeSun":100268000,"failed":false,"permissions":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"name":"owner","threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationLabels":["Transfer TRX","Transfer TRC10","Trigger Smart Contract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","unknownOperationIds":[],"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]}},"meta":{"durationMs":6810,"warnings":[{"code":"owner_lockout_partial","message":"local keys hold 1 of 2 owner weight; co-signers are required for owner-level operations"}]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -115,12 +115,14 @@ echo "$PW" | wallet-cli permission update --file perms.json --network tron:nile 
 | Mode | Fields |
 |---|---|
 | default (submit) | `kind: "permission-update"`, `stage: "submitted"`, `txId` |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed`, and `permissions` (same shape as `permission show` data, read back from chain) |
-| `--dry-run` | `kind`, `mode: "dry-run"`, `fee` (the 100 TRX change fee), and `permissions` (the resulting structure); no `txId` |
-| `--sign-only` | `kind`, `mode: "sign-only"`, `hex` (signed tx hex — feed `tx broadcast --hex`), `fee` |
-| `--build-only` | `kind`, `mode: "build-only"`, `hex` (unsigned tx hex — feed `tx multisig --create`), `fee` |
+| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed`, and optional `permissions` (same shape as `permission show` data when the post-check read succeeds) |
+| `--dry-run` | `kind`, `mode: "dry-run"`, `tx`, `fee` (the account-permission fee), and `permissions` (the resulting structure); no `txId` |
+| `--sign-only` | `kind`, `mode: "sign-only"`, `signed`, `hex` (signed tx hex — feed `tx broadcast --hex`), `fee`, `address`, `txId`, and `permissions` |
+| `--build-only` | `kind`, `mode: "build-only"`, `tx`, `hex` (unsigned tx hex — feed `tx multisig --create`), `fee`, and `permissions` |
 
-Local warnings (`owner_lockout`, `owner_lockout_partial`, `active_can_update_permission`) are emitted before the transaction is built, appear in `meta.warnings` as `{code, message}` objects, and do not affect `success` — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
+Local warnings (`owner_lockout`, `owner_lockout_partial`, `active_can_update_permission`, `active_unknown_operations`) are emitted before the transaction is built, appear in `meta.warnings` as `{code, message}` objects, and do not affect `success` — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
+
+Post-confirmation warnings use `permission_postcheck_unavailable` when the read-back fails and `permission_postcheck_mismatch` when the returned structure differs. In either case the transaction is already confirmed, so the command remains successful and callers must treat `permissions` as optional.
 
 ## Exit status
 

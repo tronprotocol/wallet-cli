@@ -12,7 +12,7 @@ FreezeV2-based staking, resource delegation, and unfreeze withdrawal — the cur
 
 - `OwnerAddress` — the address of the account that initiated the transaction, optional, default is the address of the login account.
 - `frozen_balance` — the amount of frozen, the unit is the smallest unit (Sun), the minimum is 1000000 sun.
-- `ResourceCode` — 0 BANDWIDTH; 1 ENERGY.
+- `ResourceCode` — `0` BANDWIDTH; `1` ENERGY; `2` TRON_POWER only when `getAllowNewResourceModel` is enabled.
 
 Example:
 
@@ -60,7 +60,7 @@ wallet> GetTransactionById  82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba
 
 - `OwnerAddress` — the address of the account that initiated the transaction, optional, default is the address of the login account.
 - `unfreezeBalance` — the amount of unfreeze, the unit is the smallest unit (Sun).
-- `ResourceCode` — 0 BANDWIDTH; 1 ENERGY.
+- `ResourceCode` — `0` BANDWIDTH; `1` ENERGY; `2` TRON_POWER only when `getAllowNewResourceModel` is enabled.
 
 Example:
 

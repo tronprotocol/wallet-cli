@@ -2,12 +2,13 @@
 
 Commands are grouped into family pages below; the A–Z index links each command to its owning page. Every family page is populated. Links point to the owning page (open it and jump to the command's section).
 
-Type any command in the interactive wallet to see its built-in usage tips.
+This page indexes legacy interactive commands. For one-shot kebab-case commands, global flags, and JSON output, use the [standard CLI reference](standard-cli.md). Type any command in the interactive wallet to see its built-in usage tips.
 
 ## By family
 
 | Family | Page |
 |---|---|
+| Standard one-shot CLI | [standard-cli.md](standard-cli.md) |
 | Wallet management | [wallet.md](wallet.md) |
 | Account commands | [account.md](account.md) |
 | Network | [network.md](network.md) |

@@ -68,7 +68,7 @@ echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 -
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-user-resource-percent","data":{"kind":"contract-set-user-resource-percent","stage":"confirmed","txId":"8b2...","confirmed":true,"blockNumber":57882388,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","consumeUserResourcePercent":100,"feeSun":0,"resource":{"netUsage":289,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.set-user-resource-percent","data":{"kind":"contract-set-user-resource-percent","stage":"confirmed","txId":"8b2...","confirmed":true,"blockNumber":57882388,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","consumeUserResourcePercent":100,"feeSun":0,"energyUsed":0,"netUsed":289,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":289,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -78,7 +78,7 @@ echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 -
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "contract-set-user-resource-percent"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress`, `consumeUserResourcePercent` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 `consumeUserResourcePercent` is the value now in effect — the caller's share.
 

@@ -48,7 +48,7 @@ echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:nile -
 
 ```console
 ✅ On-chain name set
-  Account  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
+  Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
   Name     Acme Treasury
   TxID     f2b...
   Block    #84,341,590
@@ -72,8 +72,8 @@ echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:nile --
 
 ```console
 ✅ Account id set
-  Account  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
-  Id       acme-treasury-01
+  Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  ID       acme-treasury-01
   TxID     3d9...
   Block    #84,341,730
   Fee      0.3 TRX

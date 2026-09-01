@@ -3,14 +3,14 @@
 A worked end-to-end example of the legacy interactive session: build and run, register, back up, inspect, issue an asset, and transfer it. For one-shot commands and JSON output, see [Getting started](getting-started.md#standard-cli).
 
 ```console
-$ cd wallet-cli
+$ cd wallet-cli/java
 $ ./gradlew build
 $ ./gradlew run
-> RegisterWallet 123456      (password = 123456)
-> login 123456
+> RegisterWallet             (prompts twice for the password, then for mnemonic length)
+> login                      (prompts for the password)
 > getAddress
 address = TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm'  # backup it!
-> BackupWallet 123456
+> BackupWallet               (prompts for the password)
 priKey = 1234567890123456789012345678901234567890123456789012345678901234  # backup it!!! (BackupWallet2Base64 option)
 > getbalance
 Balance = 0

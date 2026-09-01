@@ -62,7 +62,7 @@ echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:nile -
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.clear-abi","data":{"kind":"contract-clear-abi","stage":"confirmed","txId":"3f7...","confirmed":true,"blockNumber":57882140,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","feeSun":0,"resource":{"netUsage":287,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6510,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.clear-abi","data":{"kind":"contract-clear-abi","stage":"confirmed","txId":"3f7...","confirmed":true,"blockNumber":57882140,"failed":false,"contractAddress":"TQ5nJ8mV...","deployerAddress":"TQkXm4vN...","feeSun":0,"energyUsed":0,"netUsed":287,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":287,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6510,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -72,7 +72,7 @@ echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:nile -
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "contract-clear-abi"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 ## Exit status
 

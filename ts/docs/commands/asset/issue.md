@@ -96,7 +96,7 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"failed":false,"assetId":"1000123","name":"MyToken","abbr":"MTK","totalSupply":1000000000000000,"precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":100000000000000,"days":30},{"amount":50000000000000,"days":90}],"feeSun":1024000000,"resource":{"netUsage":312,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"feeSun":1024000000,"netUsed":312,"netFeeSun":0,"failed":false,"assetId":"1000123","issuerAddress":"TQkXm4vN...","name":"MyToken","abbr":"MTK","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30},{"amount":"50000000000000","days":90}]},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -106,9 +106,9 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-issue"`, `stage: "submitted"`, `txId`, and the token definition below except `assetId` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
 
-Definition fields: `name`, `abbr`, `totalSupply` (raw), `precision`, `price` (the `trx:tokens` string as given) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw, `days`).
+Definition fields: `issuerAddress`, `name`, `abbr`, `totalSupply` (raw decimal string), `precision`, `price` (the `trx:tokens` string as given) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw decimal string, `days`). Confirmation resource fields are flat; there is no `resource` object and the bandwidth field is `netUsed`, not `netUsage`.
 
 ## Exit status
 

@@ -58,7 +58,7 @@ echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tro
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.update","data":{"kind":"witness-update","stage":"confirmed","txId":"e5b...","confirmed":true,"blockNumber":57881190,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io/v2","feeSun":0,"resource":{"netUsage":270,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6440,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.update","data":{"kind":"witness-update","stage":"confirmed","txId":"e5b...","confirmed":true,"blockNumber":57881190,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io/v2","feeSun":0,"energyUsed":0,"netUsed":270,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":270,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6440,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -68,7 +68,7 @@ echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tro
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "witness-update"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 ## Exit status
 

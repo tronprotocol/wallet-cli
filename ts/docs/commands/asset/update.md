@@ -68,7 +68,7 @@ echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.update","data":{"kind":"asset-update","stage":"confirmed","txId":"9e3...","confirmed":true,"blockNumber":57883190,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","url":"https://mytoken.io/v2","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"feeSun":0,"resource":{"netUsage":295,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.update","data":{"kind":"asset-update","stage":"confirmed","txId":"9e3...","confirmed":true,"blockNumber":57883190,"feeSun":0,"netUsed":295,"netFeeSun":0,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","url":"https://mytoken.io/v2","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -78,9 +78,9 @@ echo "$PW" | wallet-cli asset update --url https://mytoken.io/v2 --network tron:
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-update"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, and the four fields as submitted |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed` |
 
-The four fields are `url`, `description`, `freeAssetNetLimit`, and `publicFreeAssetNetLimit` — always all four, including the ones read back unchanged.
+The four fields are `url`, `description`, `freeAssetNetLimit`, and `publicFreeAssetNetLimit` — always all four, including the ones read back unchanged. Confirmation resource fields are flat; there is no nested `resource` object.
 
 ## Exit status
 

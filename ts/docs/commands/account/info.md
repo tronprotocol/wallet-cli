@@ -40,7 +40,7 @@ wallet-cli account info --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.info","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","account":{"account_name":"71612d74657374","balance":"9915803110","create_time":1753860222000,"owner_permission":{…},"active_permission":[…],"frozenV2":[{},{"type":"ENERGY"},{"type":"TRON_POWER"}],…},"resources":{"bandwidth":{"used":325,"limit":600},"energy":{"used":0,"limit":0}}},"meta":{"durationMs":746,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.info","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","account":{"account_name":"71612d74657374","balance":"9915803110","create_time":1753860222000,"owner_permission":{},"active_permission":[{}],"frozenV2":[{},{"type":"ENERGY"},{"type":"TRON_POWER"}]},"resources":{"bandwidth":{"used":325,"limit":600},"energy":{"used":0,"limit":0}}},"meta":{"durationMs":746,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 On an EVM network the same command reports the EVM account state:

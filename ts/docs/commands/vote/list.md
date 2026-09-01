@@ -34,11 +34,11 @@ wallet-cli vote list --limit 3 --network tron:nile
 ```
 
 ```console
-| Rank | Name            | Votes         | APR  | Reward ratio | Address                            |
-| ---- | --------------- | ------------- | ---- | ------------ | ---------------------------------- |
-| 1    | TRONSCAN        | 1,203,456,789 | —    | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
-| 2    | Binance Staking | 998,765,432   | —    | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
-| 3    | JustLend        | 876,543,210   | —    | 80%          | TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN |
+| Rank | Name             | Votes         | APR  | Reward ratio | Address                            |
+| ---- | ---------------- | ------------- | ---- | ------------ | ---------------------------------- |
+| 1    | tronscan.org     | 1,203,456,789 | —    | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
+| 2    | binance.com      | 998,765,432   | —    | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+| 3    | justlend.org     | 876,543,210   | —    | 80%          | TWxkzUeAiKcFvzXvJEcaTQCQqCuMednAtN |
 ```
 
 ```bash
@@ -46,7 +46,7 @@ wallet-cli vote list --limit 3 --network tron:nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.list","data":{"witnesses":[{"rank":1,"name":"TRONSCAN","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":null}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.list","data":{"witnesses":[{"rank":1,"name":"tronscan.org","address":"TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g","voteCount":"1203456789","rewardRatioPct":80,"brokeragePct":20,"aprPct":null}]},"meta":{"durationMs":40,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -56,11 +56,11 @@ wallet-cli vote list --limit 3 --network tron:nile -o json
 | Field | Type | Meaning |
 |---|---|---|
 | `rank` | number | Rank by vote count (1 = most votes) |
-| `name` | string | SR name |
+| `name` | string | Hostname derived from the witness URL; falls back to the URL text or address |
 | `address` | string | SR base58 address |
 | `voteCount` | string | Total votes, raw integer |
-| `rewardRatioPct` | number | % of rewards passed to voters (on-chain) |
-| `brokeragePct` | number | SR's cut (= 100 − `rewardRatioPct`) |
+| `rewardRatioPct` | number \| null | % of rewards passed to voters; `null` when brokerage cannot be read |
+| `brokeragePct` | number \| null | SR's cut (= 100 − `rewardRatioPct`); `null` when unavailable |
 | `aprPct` | null | Reserved field; always `null` in the current implementation |
 
 ## Exit status

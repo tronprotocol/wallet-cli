@@ -185,7 +185,7 @@ Individual flags are family-scoped the same way. `--help` tags them `(tron only)
 -h, --help / -V, --version
 ```
 
-Broadcast (✍️) commands additionally take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). Early-exit modes are command-specific: transaction-building commands expose `--dry-run` / `--sign-only` / `--build-only`, while submit-only commands such as `tx broadcast` do not rebuild or sign and therefore omit `--sign-only` / `--build-only`.
+Commands whose schema enables post-broadcast polling take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). Early-exit modes are also command-specific: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while submit-only commands such as `tx broadcast` do not rebuild or sign and therefore omit `--sign-only` / `--build-only`.
 
 Fee and multi-sig flags are **family-scoped**, so they are not global:
 

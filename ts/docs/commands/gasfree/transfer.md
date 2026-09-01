@@ -43,16 +43,18 @@ echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 ```console
 ⏳ Submitted to GasFree — send 25 USDT
   Trace ID  7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
-  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER  (GasFree address)
+  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
   To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
-  Fee       0.5 USDT
-  Total     25.5 USDT
-  Status    accepted
+  Service fee        0.5 USDT
+  Activation fee     0 USDT
+  Authorized max fee 1.5 USDT
+  Total              25.5 USDT
+  Status             waiting
 ! Track it: wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","stage":"submitted","traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","token":"USDT","tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"amount":"25000000","serviceFee":"500000","activateFee":"0","authorizedMaxFee":"500000","totalDeducted":"25500000","owner":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","from":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","serviceProvider":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E","nonce":"8","deadline":"1700000060"},"meta":{"durationMs":650,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","stage":"submitted","traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"WAITING","token":"USDT","tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"amount":"25000000","serviceFee":"500000","activateFee":"0","authorizedMaxFee":"1500000","totalDeducted":"25500000","owner":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","from":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","serviceProvider":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E","nonce":"8","deadline":"1700000060"},"meta":{"durationMs":650,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 Add `--wait` to poll to a terminal state, with the on-chain txid and actual deduction:
@@ -65,11 +67,13 @@ echo "$PW" | wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
 ✅ Sent 25 USDT via GasFree
   Trace ID  a41b6c88-0d2f-4e73-9a05-3c7d81f2b964
   TxID      d2e...
-  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER  (GasFree address)
+  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
   To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
-  Fee       0.5 USDT
-  Total     25.5 USDT
-  Status    succeed
+  Service fee        0.5 USDT
+  Activation fee     0 USDT
+  Authorized max fee 1.5 USDT
+  Total              25.5 USDT
+  Status             succeed
 ```
 
 On a first transfer the GasFree address isn't activated yet, so the fee itemises the service fee and the one-time activation fee, and `Total` includes activation:
@@ -80,10 +84,13 @@ wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 
 
 ```console
 ⏳ Dry run — GasFree transfer 25 USDT (not submitted)
-  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER  (GasFree address, not activated)
+  From      TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
   To        TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
-  Fee       1.5 USDT  (0.5 service + 1.0 activation)
-  Total     26.5 USDT
+  Service fee        0.5 USDT
+  Activation fee     1 USDT
+  Authorized max fee 1.5 USDT
+  Total              26.5 USDT
+  Status             not submitted
 ```
 
 ```json
@@ -96,12 +103,12 @@ wallet-cli gasfree transfer --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 25 
 
 | Mode | Fields |
 |---|---|
-| default (submit) | `kind: "gasfree-transfer"`, `stage: "submitted"`, `traceId`, `token`, `tokenAddress`, `decimals`, `amount`, `serviceFee`, `activateFee`, `authorizedMaxFee`, `totalDeducted`, `owner`, `from`, `to`, `nonce`, `deadline`, `serviceProvider`, plus `toContact` when `--to` was a contact name |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `state` (`SUCCEED` / `FAILED`), `failed`, and `txId` |
-| `--wait` (failed) | the same fields, but `stage: "failed"`, `failed: true`, `state: "FAILED"`, and `failureReason` carrying the provider's explanation |
+| default (submit) | `kind: "gasfree-transfer"`, `stage: "submitted"`, `traceId`, provider `state`, `token`, `tokenAddress`, `decimals`, `amount`, `serviceFee`, `activateFee`, `authorizedMaxFee`, `totalDeducted`, `owner`, `from`, `to`, `nonce`, `deadline`, `serviceProvider`, plus `toContact` when `--to` was a contact name |
+| `--wait` (confirmed) | the above, but `stage: "confirmed"`, `state: "SUCCEED"`, and `txId` when supplied by the provider |
+| `--wait` (failed) | the same fields, but `stage: "failed"`, `state: "FAILED"`, and optional `failureReason` / `txId` from the provider |
 | `--dry-run` | the default fields except `traceId`, with `stage: "dry-run"`; no signature or submission |
 
-A provider-side failure still leaves the envelope at `success: true` and exit `0` — the command completed; the transfer did not. Branch on `data.stage` / `data.state`, not on the exit code. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
+A provider-side failure still leaves the envelope at `success: true` and exit `0` — the command completed; the transfer did not. There are no `confirmed` or `failed` booleans in this view; branch on `data.stage` / `data.state`, not on the exit code. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## Exit status
 

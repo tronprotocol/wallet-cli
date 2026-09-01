@@ -46,11 +46,11 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 ```
 
 ```console
-⏳ Submitted — activate account
-  TxID     a1b...
+⏳ Account activated
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
-  Status   pending
+  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  TxID     a1b...
+  Status   pending — not yet on-chain
 ! Track it: wallet-cli tx info --network tron:nile --txid a1b...
 ```
 
@@ -66,9 +66,9 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 
 ```console
 ✅ Account activated
-  TxID     e7a...
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
+  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  TxID     e7a...
   Block    #84,340,277
   Fee      1.1 TRX
   Status   success

@@ -62,7 +62,7 @@ Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.
 ```bash
 # on the connected build machine
 wallet-cli tx send --to T... --amount 1 --network tron:nile \
-  --build-only -o json | jq -r '.data.hex' > unsigned.hex
+  --build-only --expiration 3600000 -o json | jq -r '.data.hex' > unsigned.hex
 
 # on the offline signing machine
 printf '%s' "$PW" | wallet-cli tx sign --file unsigned.hex --network tron:nile \
@@ -72,7 +72,7 @@ printf '%s' "$PW" | wallet-cli tx sign --file unsigned.hex --network tron:nile \
 wallet-cli tx broadcast --file signed.hex --network tron:nile -o json
 ```
 
-The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. If the signing machine does have RPC access and you only want to withhold broadcast, `tx send --sign-only` emits signed hex directly.
+The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. `--expiration` is TRON-only; its value above gives the transfer one hour for file movement and signing (maximum 24 hours). The node default is about 60 seconds, and `tx sign --offline` refuses an expired artifact, so choose the shortest practical window and rebuild after it expires. Omit the flag for EVM, whose transaction format has no expiration field. If the signing machine does have RPC access and you only want to withhold broadcast, `tx send --sign-only` emits signed hex directly.
 
 TRON also accepts signed transaction JSON, but JSON must go through `--transaction` or `--tx-stdin`; `--file` and `--hex` are hex-only:
 

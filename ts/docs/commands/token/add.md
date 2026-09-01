@@ -67,7 +67,7 @@ wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --net
 
 ## Exit status
 
-`0` added · `1` execution failure (`token_metadata_unavailable` — metadata could not be fetched, nothing is stored) · `2` usage error (`token_already_listed` — already in the official layer; `invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
+`0` added · `1` execution failure (`token_metadata_unavailable` — metadata could not be fetched, nothing is stored; `encoding_error` / `io_error` — the local token book could not be decoded or written) · `2` usage error (`token_already_listed` — already in the official layer; `invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
 
 ## See also
 

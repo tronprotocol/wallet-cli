@@ -9,13 +9,13 @@ Build, create an account, and send your first transfer from the interactive prom
 ```console
 # 1. Build
 $ git clone https://github.com/tronprotocol/wallet-cli.git
-$ cd wallet-cli && ./gradlew build && cd build/libs
+$ cd wallet-cli/java && ./gradlew build && cd build/libs
 
 # 2. Start the interactive wallet
 $ java -jar wallet-cli.jar
 
 # 3. In the wallet prompt: create an account (or ImportWallet), unlock, and inspect it
-> RegisterWallet 123456      # create a keystore with password 123456
+> RegisterWallet             # prompts twice for the password, then for mnemonic length
 > Login                      # unlock the account
 > GetAddress                 # show your address
 > GetBalance                 # TRX balance
@@ -32,10 +32,10 @@ Passing a command selects the standard CLI instead of the prompt. It supports te
 
 ```console
 $ java -jar wallet-cli.jar --output json --network nile get-balance --address T...
-$ java -jar wallet-cli.jar --network nile send-coin --to T... --amount 1000000 --password-stdin
+$ printf '%s\n' "$PW" | java -jar wallet-cli.jar --network nile --password-stdin send-coin --to T... --amount 1000000
 ```
 
-Run `java -jar wallet-cli.jar --help` for the command catalog and `<command> --help` for command options. The parsing, authentication, JSON envelope, and exit behavior are defined in the [standard CLI contract](../standard-cli-contract-spec.md).
+Run `java -jar wallet-cli.jar --help` for the command catalog and `<command> --help` for command options. The [standard CLI command reference](../commands/standard-cli.md) lists all one-shot commands; parsing, authentication, JSON envelopes, and exit behavior are defined in the [standard CLI contract](../standard-cli-contract-spec.md).
 
 ## How to create account
 

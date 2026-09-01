@@ -2,6 +2,8 @@
 
 Configure account permissions, co-sign transactions, inspect signature weight, and use TronLink multi-sign. For the underlying permission model, see [concepts/multisig](../concepts/multisig.md).
 
+Many legacy REPL write commands accept `-m` only as their final token. That switch routes the operation through the interactive multi-sign flow instead of the normal single-signer broadcast. Support is command-specific; use the command's built-in usage text before appending it. The one-shot standard CLI uses command options documented by `<command> --help` and does not inherit this trailing-token convention.
+
 ## How to use the multi-signature feature of wallet-cli
 
 Multi-signature allows other users to access the account in order to better manage it. There are three types of access:

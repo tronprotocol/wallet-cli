@@ -65,7 +65,7 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:nile --wait --password-std
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.unfreeze","data":{"kind":"asset-unfreeze","stage":"confirmed","txId":"6a5...","confirmed":true,"blockNumber":57883560,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","releasedAmount":100000000000000,"stillFrozenAmount":50000000000000,"feeSun":0,"resource":{"netUsage":288,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.unfreeze","data":{"kind":"asset-unfreeze","stage":"confirmed","txId":"6a5...","confirmed":true,"blockNumber":57883560,"feeSun":0,"netUsed":288,"netFeeSun":0,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","releasedAmount":"100000000000000","stillFrozenAmount":"50000000000000","precision":6},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -75,9 +75,9 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:nile --wait --password-std
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-unfreeze"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, `releasedAmount`, `stillFrozenAmount` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, `releasedAmount`, `stillFrozenAmount` |
 
-`releasedAmount` and `stillFrozenAmount` are raw amounts (smallest unit) and reflect what the confirmed transaction actually did.
+`releasedAmount` and `stillFrozenAmount` are raw decimal strings (smallest unit); `precision` is included for scaling. The confirmed `releasedAmount` reflects what the receipt reports.
 
 ## Exit status
 

@@ -48,9 +48,9 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 ```
 
 ```console
-⏳ Submitted — vote 1,000 TP across 2 SRs
-  TxID     e5f...
+⏳ Voted 1,000 TP across 2 witnesses
   Votes    TZ4...=600, TT5...=400
+  TxID     e5f...
   Status   pending — tallied at next maintenance cycle (~6h)
 ! Track it: wallet-cli tx info --network tron:nile --txid e5f...
 ```
@@ -70,10 +70,10 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 ```
 
 ```console
-✅ Voted 1,000 TP across 2 SRs
-  TxID     f8a...
+✅ Voted 1,000 TP across 2 witnesses
   Votes    TZ4...=600, TT5...=400
-  Block    84,121,055
+  TxID     f8a...
+  Block    #84,121,055
   Fee      0 TRX
   Status   success — tallied at next maintenance cycle (~6h)
 ```

@@ -62,7 +62,7 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --pa
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.set-brokerage","data":{"kind":"witness-set-brokerage","stage":"confirmed","txId":"f8c...","confirmed":true,"blockNumber":57881402,"failed":false,"witnessAddress":"TSRmq8kP...","brokerage":20,"feeSun":0,"resource":{"netUsage":269,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.set-brokerage","data":{"kind":"witness-set-brokerage","stage":"confirmed","txId":"f8c...","confirmed":true,"blockNumber":57881402,"failed":false,"witnessAddress":"TSRmq8kP...","brokerage":20,"feeSun":0,"energyUsed":0,"netUsed":269,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":269,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
 ```
 
 ## Output
@@ -72,7 +72,7 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --pa
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "witness-set-brokerage"`, `stage: "submitted"`, `txId`, `witnessAddress`, `brokerage` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 `brokerage` is the value now in effect, as a number.
 
