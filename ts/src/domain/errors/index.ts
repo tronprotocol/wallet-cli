@@ -4,6 +4,7 @@
  *   execution → exit 1
  */
 import type { ExitCode } from "../types/primitives.js";
+import { ERROR_CODES, type ErrorCodeEntry } from "./codes.js";
 
 export abstract class CliError extends Error {
   abstract readonly kind: "usage" | "execution";
@@ -15,7 +16,22 @@ export abstract class CliError extends Error {
     super(message);
     this.name = new.target.name;
   }
+  /**
+   * The exit code comes from the CODE, not from the class this was thrown as.
+   *
+   * The class stays as the author's statement of intent — `error-codes.test.ts` fails the build
+   * when the two disagree — but it no longer decides the contract. Before this, `new
+   * ChainError("invalid_option", …)` silently shipped a usage error at exit 1, and nothing could
+   * see it. `either` is the documented escape hatch for the few codes that genuinely arise on
+   * both sides; an unknown code (there should be none — the registry test forbids it) also falls
+   * back to the class rather than guessing.
+   */
   exitCode(): ExitCode {
+    // ERROR_CODES is `as const`, so its keys are a literal union and `this.code` (a plain string)
+    // cannot index it directly. Widening at the lookup keeps the literal keys for `ErrorCode`.
+    const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
+    const declared = table[this.code]?.exit;
+    if (declared === 1 || declared === 2) return declared;
     return this.kind === "usage" ? 2 : 1;
   }
   toEnvelope(): { code: string; message: string; details?: object } {
