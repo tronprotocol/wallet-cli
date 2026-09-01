@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   contractDeployEvmBinding,
   contractDeploySpec,
@@ -30,7 +33,9 @@ function deployWith(input: { abi: string; params?: string }) {
     binding.run(
       {} as never,
       {} as never,
-      { bytecode: "6080", feeLimit: "1000000", ...input } as never,
+      // `code` is the flag; `bytecode` is what the binding derives from it. The fixture states
+      // the flag, because an input with no code source at all cannot get past the schema.
+      { code: "6080", feeLimit: "1000000", ...input } as never,
     );
   return { run, deploy };
 }
@@ -212,6 +217,137 @@ describe("contract deploy — code input channel", () => {
   it("accepts exactly one of them", () => {
     expect(parse({ code: "6080" }).success).toBe(true);
     expect(parse({ codeFile: "./Token.bin" }).success).toBe(true);
+  });
+});
+
+/**
+ * The bytecode is checked locally before anything is built or sent.
+ *
+ * `--code` and `--code-file` both arrive through the one helper the EVM and TRON bindings share,
+ * so the rule is stated once and holds for both families: after trimming the SURROUNDING
+ * whitespace, it must be non-empty, even-length hex with an optional `0x`.
+ *
+ * The check otherwise refuses only what cannot succeed — interior whitespace, which ethers
+ * cannot even serialise. The empty-string rejection is the one deliberate exception, and it
+ * pairs with the acceptance of `0x`: both deploy empty code, but only `0x` STATES that, while an
+ * empty file is what a failed compile leaves behind. See the helper's comment for that trade-off
+ * and for why the trim is `.trim()` and not `create2.ts`'s `\s+`.
+ */
+describe("contract deploy — creation bytecode is validated locally", () => {
+  const ABI = ctor({ stateMutability: "nonpayable", inputs: [] });
+
+  function evmDeployWith(input: Record<string, unknown>) {
+    const deploy = vi.fn(async (_c: unknown, _n: unknown, _i: { bytecode: string }) => ({
+      kind: "tx-receipt" as const,
+    }));
+    const binding = contractDeployEvmBinding({ deploy } as never);
+    const run = () => binding.run({} as never, {} as never, input as never);
+    return { run, deploy };
+  }
+
+  it.each([
+    ["not hex at all", "xyz"],
+    ["odd-length hex", "600"],
+    ["hex with a stray non-hex digit", "60806040zz"],
+    // Interior whitespace is refused rather than stripped, and that choice is load-bearing:
+    // stripping it would silently JOIN two bytecode fragments a caller left on separate lines
+    // into one valid hex string and deploy a contract nobody asked for. Refusing convicts no
+    // one, because ethers already dies on it ("invalid BytesLike value (value=\"0x6080 604052\")")
+    // — so this is a loud failure kept loud. Do not "tidy" this into a `\s+` strip.
+    ["hex split by an interior space", "6080 604052"],
+    ["hex split across lines", "6080\n604052"],
+    // Empty is refused even though an empty deployment would succeed on chain: see the paired
+    // "accepts an explicit 0x" test below for why stated intent, not chain outcome, draws
+    // this line. The two are deliberately a pair — do not "fix" one without the other.
+    ["nothing but whitespace", "  \n "],
+  ])("refuses --code that is %s, without reaching the chain", async (_label, code) => {
+    const { run, deploy } = evmDeployWith({ code });
+    await expect(run()).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("--code"),
+    });
+    expect(deploy).not.toHaveBeenCalled();
+  });
+
+  // The other half of the pair above. Measured before the check existed: `--code 0x --build-only`
+  // produced a complete, signable, broadcastable deployment (tx.data "0x") — an empty deployment
+  // is a real thing with real uses, such as occupying a CREATE2 address. Writing `0x` STATES that
+  // intent, which an empty input does not, so this one is accepted and passed through untouched.
+  it("accepts an explicit 0x, the empty deployment stated on purpose", async () => {
+    const { run, deploy } = evmDeployWith({ code: "0x" });
+    await expect(run()).resolves.toBeDefined();
+    expect(deploy).toHaveBeenCalledOnce();
+    expect(deploy.mock.calls[0]![2].bytecode).toBe("0x");
+  });
+
+  it("refuses bad bytecode on TRON too — one rule, both families", async () => {
+    const { run, deploy } = deployTyped({ abi: ABI, code: "xyz" });
+    await expect(run()).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("--code"),
+    });
+    expect(deploy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["with the 0x prefix", "0x6080604052", "0x6080604052"],
+    ["without it", "6080604052", "6080604052"],
+  ])("accepts valid bytecode %s and passes it through unchanged", async (_l, code, expected) => {
+    const { run, deploy } = evmDeployWith({ code });
+    await expect(run()).resolves.toBeDefined();
+    expect(deploy.mock.calls[0]![2]).toMatchObject({ bytecode: expected });
+  });
+
+  it("reads --code-file and drops the trailing newline every editor writes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wcli-deploy-code-"));
+    const file = join(dir, "Token.bin");
+    writeFileSync(file, "0x6080604052\n");
+
+    const { run, deploy } = evmDeployWith({ codeFile: file });
+    await expect(run()).resolves.toBeDefined();
+    expect(deploy.mock.calls[0]![2]).toMatchObject({ bytecode: "0x6080604052" });
+  });
+
+  it("accepts a --code-file holding only 0x, the same stated empty deployment --code allows", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wcli-deploy-code-"));
+    const file = join(dir, "Empty.bin");
+    writeFileSync(file, "0x\n");
+
+    const { run, deploy } = evmDeployWith({ codeFile: file });
+    await expect(run()).resolves.toBeDefined();
+    expect(deploy.mock.calls[0]![2].bytecode).toBe("0x");
+  });
+
+  // Paired with the test above, and the pair is the point: a file holding `0x` deploys empty code
+  // on purpose, an empty file is what a failed compile leaves behind. Waving the empty one
+  // through would quietly deploy an empty contract and burn a real CREATE's gas for it.
+  it.each([
+    ["empty", ""],
+    ["nothing but whitespace", "  \n "],
+  ])("refuses a --code-file that is %s", async (_label, contents) => {
+    const dir = mkdtempSync(join(tmpdir(), "wcli-deploy-code-"));
+    const file = join(dir, "Empty.bin");
+    writeFileSync(file, contents);
+
+    const { run, deploy } = evmDeployWith({ codeFile: file });
+    await expect(run()).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining(file),
+    });
+    expect(deploy).not.toHaveBeenCalled();
+  });
+
+  it("names the file when --code-file holds something that is not bytecode", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wcli-deploy-code-"));
+    const file = join(dir, "Token.bin");
+    writeFileSync(file, "not bytecode\n");
+
+    const { run, deploy } = evmDeployWith({ codeFile: file });
+    await expect(run()).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining(file),
+    });
+    expect(deploy).not.toHaveBeenCalled();
   });
 });
 

@@ -259,15 +259,53 @@ export const contractSendEvmBinding = (svc: EvmContractService): FamilyBinding =
 
 /** the creation bytecode, from `--code` or `--code-file`. */
 async function creationBytecode(input: { code?: string; codeFile?: string }): Promise<string> {
-  if (!input.codeFile) return input.code!;
+  if (!input.codeFile) return checkedCreationCode(input.code!, "--code");
+  let text: string;
   try {
-    return await readFile(input.codeFile, "utf8");
+    text = await readFile(input.codeFile, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
       throw new UsageError("file_not_found", `code file not found: ${input.codeFile}`);
     }
     throw new UsageError("invalid_value", `cannot read code file: ${input.codeFile}`);
   }
+  return checkedCreationCode(text, `--code-file ${input.codeFile}`);
+}
+
+/**
+ * The bytecode with its surrounding whitespace trimmed, refused unless it is even-length hex.
+ *
+ * The rule is: trim, then even-length hex with an optional `0x`, and the trimmed string must not
+ * be empty. The `0x` prefix is left on when it was given: normalising it is the encoder's job.
+ *
+ * That empty-string rejection is a DELIBERATE exception to this command's usual principle of
+ * refusing only what cannot succeed. An empty deployment does succeed — `0x` builds a valid
+ * transaction the EVM runs (empty init code, empty runtime code) with real uses, such as
+ * occupying a CREATE2 address — so the line here is drawn at stated intent rather than at
+ * chain outcome. Writing `0x` states it; an empty or whitespace-only file states nothing, and is
+ * far more often what a failed compile leaves behind than something anybody meant. Waving that
+ * through would quietly deploy an empty contract and burn a real CREATE's gas for it. Rejecting
+ * it also puts the three ways in on the same footing: an empty VALUE is refused everywhere
+ * (`--code ''` already fails the schema's `min(1)`), and an explicit `0x` is accepted everywhere.
+ *
+ * `contract create2` strips whitespace with `\s+` (domain/governance/create2.ts); this is
+ * deliberately `.trim()` instead, not an oversight. A file holding two bytecode fragments on two
+ * lines would be silently JOINED into one valid hex string by `\s+`, deploying a contract nobody
+ * asked for — turning a loud failure into a quiet wrong answer. Interior whitespace already
+ * cannot succeed (ethers refuses `"0x6080 604052"` at RLP serialisation), so refusing it here
+ * convicts no one. A trailing newline is different: a code file all but always has one — an
+ * editor's save, `echo`, `jq -r` — and it is objectively not bytecode.
+ */
+function checkedCreationCode(raw: string, source: string): string {
+  const code = raw.trim();
+  const hex = code.replace(/^0x/i, "");
+  if (code === "" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
+    throw new UsageError(
+      "invalid_value",
+      `${source} must hold even-length hex creation bytecode, or exactly 0x to deploy empty code; it must not be empty`,
+    );
+  }
+  return code;
 }
 
 interface DeploySource {
