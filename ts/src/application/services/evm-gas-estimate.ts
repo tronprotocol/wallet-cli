@@ -42,8 +42,9 @@ export async function resolveGasLimit(
     // belongs to. Rebuilding it with the same code keeps both and still points at the way out.
     if (e instanceof CliError) {
       const message = `${e.message}; ${way}`;
-      // Same kind, not just the same code: kind is what decides exit 1 vs exit 2, and a usage
-      // error arriving from below is still a usage error.
+      // Same kind, not just the same code: the CODE decides exit 1 vs exit 2 for a normal error
+      // (via ERROR_CODES), but a code declared "either" has no fixed exit of its own — `kind` is
+      // what still pins those down, so a usage error arriving from below stays a usage error.
       throw e.kind === "usage"
         ? new UsageError(e.code, message, e.details)
         : new ChainError(e.code, message, e.details);

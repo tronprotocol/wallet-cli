@@ -944,6 +944,21 @@ describe("EvmTransactionService.info", () => {
 
     await expect(svc.info(scope(), SEPOLIA, HASH)).rejects.toMatchObject({ code: "not_found" });
   });
+
+  // BUG-V413-014: `tx info` on an unknown hash used to exit 2 (usage error) — wrong, since the
+  // command line was fine and the node simply has no such transaction. `not_found` is now
+  // declared exit 1 in codes.ts and thrown via ChainError; pin the exit itself, not just the
+  // code, so a future change to either side is caught here.
+  it("exits 1, not 2, for a hash the node has never seen", async () => {
+    const svc = infoHarness(null);
+
+    try {
+      await svc.info(scope(), SEPOLIA, HASH);
+      expect.unreachable("expected info() to throw");
+    } catch (e) {
+      expect((e as { exitCode(): number }).exitCode()).toBe(1);
+    }
+  });
 });
 
 describe("EvmTransactionService.info address style", () => {

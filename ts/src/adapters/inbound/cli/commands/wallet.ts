@@ -675,6 +675,11 @@ export function registerWalletCommands(
     }
     for (const flag of RECORD_FILTERS) {
       if (v[flag] !== undefined) {
+        // This is a flag used in an invalid combination — by machine-interface.md's own
+        // definition of `invalid_option` — but it was not one of the findings reported this
+        // round, and changing an error.code is a contract change. Left as invalid_value
+        // deliberately; see the triage doc's G1. Do not "fix" this without going through that
+        // same process.
         c.addIssue({
           code: "custom",
           path: [flag],
