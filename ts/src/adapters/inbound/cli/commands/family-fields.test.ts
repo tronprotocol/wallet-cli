@@ -19,11 +19,7 @@ import {
   tokenInfoTronBinding,
 } from "./token.js";
 import { txSendSpec, txSendTronBinding } from "./tx.js";
-import {
-  contractCallSpec,
-  contractCallTronBinding,
-  contractDeploySpec,
-} from "./contract.js";
+import { contractCallSpec, contractCallTronBinding, contractDeploySpec } from "./contract.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 
 const TRON_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -94,11 +90,14 @@ describe("address flags shared across families", () => {
 
   // BUG-V413-018: a malformed address is invalid_address, not invalid_value —
   // machine-interface.md defines invalid_address as "not a valid address for the relevant chain".
-  it.each(cases)("%s reports a non-TRON --contract as invalid_address", (_n, spec, binding, base) => {
-    expect(() =>
-      parseInputSchema(effectiveSchema(spec, binding), { ...base, contract: EVM_CONTRACT }),
-    ).toThrowError(expect.objectContaining({ code: "invalid_address" }));
-  });
+  it.each(cases)(
+    "%s reports a non-TRON --contract as invalid_address",
+    (_n, spec, binding, base) => {
+      expect(() =>
+        parseInputSchema(effectiveSchema(spec, binding), { ...base, contract: EVM_CONTRACT }),
+      ).toThrowError(expect.objectContaining({ code: "invalid_address" }));
+    },
+  );
 });
 
 // BUG-V413-010: --amount and --raw-amount both given is a flag conflict, not a bad value.

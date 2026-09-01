@@ -6,3 +6,8 @@ package-lock.json
 
 # hand-authored prose: tables and wrapping are deliberate, Prettier reflows them
 *.md
+
+# the error-code index: 131 entries, deliberately kept one line per code so the table can be
+# scanned by eye and diffed one-line-per-code. Prettier would explode each entry into a multi-line
+# object, defeating the reason it is formatted this way.
+src/domain/errors/codes.ts

@@ -9,8 +9,9 @@ import { parseInputSchema } from "./index.js";
  * untouched.
  */
 describe("parseInputSchema", () => {
-  const schema = z.object({ a: z.string().optional(), b: z.string().optional() }).superRefine(
-    (value, ctx) => {
+  const schema = z
+    .object({ a: z.string().optional(), b: z.string().optional() })
+    .superRefine((value, ctx) => {
       if (value.a && value.b) {
         ctx.addIssue({
           code: "custom",
@@ -41,8 +42,7 @@ describe("parseInputSchema", () => {
           params: { errorCode: "not_a_real_code" },
         });
       }
-    },
-  );
+    });
 
   it("uses the code a refine declares", () => {
     expect(() => parseInputSchema(schema, { a: "1", b: "2" })).toThrowError(

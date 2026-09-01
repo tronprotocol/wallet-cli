@@ -6,7 +6,7 @@ import type {
   UnsignedTx,
 } from "../../../domain/types/index.js";
 import { Transaction } from "ethers";
-import { ChainError, ExecutionError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, ExecutionError } from "../../../domain/errors/index.js";
 import { authoritativeTxId } from "../../services/broadcast-identity.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { evmChecksumAddress } from "../../../domain/address/index.js";
