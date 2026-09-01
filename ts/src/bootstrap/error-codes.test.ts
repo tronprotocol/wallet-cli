@@ -57,10 +57,11 @@ describe("the error-code index", () => {
     expect(stale).toEqual([]);
   });
 
-  it("gives every code a one-line meaning", () => {
-    for (const [code, meaning] of Object.entries(ERROR_CODES)) {
-      expect(meaning, code).toMatch(/^[a-z(]/);
-      expect(meaning, code).not.toMatch(/\n/);
+  it("gives every code an exit class and a one-line meaning", () => {
+    for (const [code, entry] of Object.entries(ERROR_CODES)) {
+      expect([1, 2, "either"], code).toContain(entry.exit);
+      expect(entry.meaning, code).toMatch(/^[a-z(]/);
+      expect(entry.meaning, code).not.toMatch(/\n/);
     }
   });
 });
