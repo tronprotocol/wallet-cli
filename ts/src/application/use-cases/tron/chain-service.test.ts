@@ -32,12 +32,14 @@ describe("TronChainService.params", () => {
       ],
     });
   });
-  it("returns a single key, and not_found for unknown keys", async () => {
+  it("returns a single key, and unknown_parameter for unknown keys", async () => {
     expect(await svc(gateway).params(net, "getEnergyFee")).toEqual({
       key: "getEnergyFee",
       value: 210,
     });
-    await expect(svc(gateway).params(net, "getNope")).rejects.toMatchObject({ code: "not_found" });
+    await expect(svc(gateway).params(net, "getNope")).rejects.toMatchObject({
+      code: "unknown_parameter",
+    });
   });
 });
 

@@ -233,7 +233,7 @@ export class Keystore {
       if (wallet.source.type !== "seed") {
         const hint =
           wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
-        throw new WalletError(
+        throw new UsageError(
           "seed_not_found",
           `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`,
         );

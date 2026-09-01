@@ -34,7 +34,7 @@ export class TronChainService {
     const params = await this.gateways.get(network, "tron").getChainParameters();
     if (key === undefined) return { params };
     const hit = params.find((p) => p.key === key);
-    if (!hit) throw new UsageError("not_found", `unknown chain parameter: ${key}`);
+    if (!hit) throw new UsageError("unknown_parameter", `unknown chain parameter: ${key}`);
     return { key: hit.key, value: hit.value };
   }
 

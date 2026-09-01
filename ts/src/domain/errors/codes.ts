@@ -31,13 +31,13 @@ export const ERROR_CODES = {
   limit_exceeded: { exit: 2, meaning: "a bounded input (file size, list length, page size) was over its limit" },
 
   // ── selection: account, network, family ───────────────────────────────────
-  family_mismatch: { exit: "either", meaning: "the account, recipient, raw transaction or command does not belong to the selected network's chain" },
+  family_mismatch: { exit: 2, meaning: "the account, recipient, raw transaction or command does not belong to the selected network's chain" },
   missing_network: { exit: 2, meaning: "the command needs a network and none was selected or configured" },
   unsupported_network: { exit: 2, meaning: "no network by that id or alias" },
   unsupported_network_capability: { exit: 2, meaning: "the selected network does not offer what this command needs" },
   missing_wallet_address: { exit: 1, meaning: "no account is available to act as" },
   account_not_found: { exit: 1, meaning: "no local account by that id, label or address" },
-  seed_not_found: { exit: "either", meaning: "the reference does not name a seed (HD) wallet" },
+  seed_not_found: { exit: 2, meaning: "the reference does not name a seed (HD) wallet" },
   account_exists: { exit: 1, meaning: "an account with that address is already in the keystore" },
   invalid_account: { exit: 2, meaning: "the account reference is not well-formed" },
   not_exportable: { exit: 1, meaning: "the account holds no exportable secret (watch-only or Ledger)" },
@@ -76,7 +76,7 @@ export const ERROR_CODES = {
   token_not_in_book: { exit: 2, meaning: "no token by that reference in the local address book" },
   token_already_listed: { exit: 2, meaning: "that token is already in the local address book" },
   token_is_official: { exit: 2, meaning: "the entry is a built-in and cannot be edited or removed" },
-  token_metadata_unavailable: { exit: "either", meaning: "the token's on-chain metadata could not be read" },
+  token_metadata_unavailable: { exit: 1, meaning: "the token's on-chain metadata could not be read" },
   unsupported_token: { exit: 2, meaning: "the token standard is not one this command handles" },
   ambiguous_token_symbol: { exit: 2, meaning: "the symbol matches more than one token; address it by contract" },
   ambiguous_asset_name: { exit: 1, meaning: "the TRC10 name matches more than one asset; address it by id" },
@@ -109,7 +109,7 @@ export const ERROR_CODES = {
   insufficient_token_balance: { exit: 1, meaning: "the token balance cannot cover the amount" },
   execution_reverted: { exit: 1, meaning: "the contract reverted the call" },
   execution_error: { exit: 1, meaning: "the transaction ran on-chain and failed" },
-  not_found: { exit: "either", meaning: "the transaction, block or record does not exist at this node" },
+  not_found: { exit: 1, meaning: "the transaction, block or record does not exist at this node" },
 
   // ── node & external services ──────────────────────────────────────────────
   rpc_error: { exit: 1, meaning: "the node answered with an error" },

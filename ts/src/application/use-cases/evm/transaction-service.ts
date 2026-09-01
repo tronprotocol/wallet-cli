@@ -478,7 +478,7 @@ export class EvmTransactionService {
       gateway.getBlockNumber().catch(() => undefined),
     ]);
     if (!transaction) {
-      throw new UsageError("not_found", `no transaction with hash ${hash} on ${network.id}`);
+      throw new ChainError("not_found", `no transaction with hash ${hash} on ${network.id}`);
     }
     const transfer = decodeErc20Transfer(String(transaction.input ?? "0x"));
     const value = BigInt(String(transaction.value ?? "0x0"));

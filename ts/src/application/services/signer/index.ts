@@ -10,7 +10,7 @@ import { walletAddress } from "../../../domain/wallet/index.js";
 import { LedgerSigner } from "./ledger.js";
 import { SoftwareSigner } from "./software.js";
 import { Derivation } from "../../../domain/derivation/index.js";
-import { WalletError } from "../../../domain/errors/index.js";
+import { UsageError, WalletError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 
 export class SignerResolver {
@@ -41,7 +41,7 @@ export class SignerResolver {
       // The account exists but lives on another chain — the same condition resolveAddress
       // reports, and the same code. `missing_wallet_address` reads as "you have no account",
       // which is a different problem with a different fix.
-      throw new WalletError("family_mismatch", `account has no ${family} address`);
+      throw new UsageError("family_mismatch", `account has no ${family} address`);
     }
     if (wallet.source.type === "watch") {
       throw new WalletError(
@@ -64,7 +64,7 @@ export class SignerResolver {
       // The account exists but lives on another chain — the same condition resolveAddress
       // reports, and the same code. `missing_wallet_address` reads as "you have no account",
       // which is a different problem with a different fix.
-      throw new WalletError("family_mismatch", `account has no ${family} address`);
+      throw new UsageError("family_mismatch", `account has no ${family} address`);
     }
 
     switch (wallet.source.type) {

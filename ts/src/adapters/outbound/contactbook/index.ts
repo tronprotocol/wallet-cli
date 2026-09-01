@@ -71,7 +71,7 @@ export class ContactBook implements ContactRepository {
       const entries = document.entries[family] ?? [];
       const index = entries.findIndex((entry) => entry.nameKey === nameKey);
       if (index < 0) {
-        throw new UsageError("not_found", `contact not found: ${nameKey}`);
+        throw new UsageError("contact_not_found", `contact not found: ${nameKey}`);
       }
       const [removed] = entries.splice(index, 1);
       document.entries[family] = entries;

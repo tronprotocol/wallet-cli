@@ -6,7 +6,7 @@ import type {
   TxParties,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -241,7 +241,7 @@ export class TronTransactionService {
         if (!tokenSymbol && typeof info.symbol === "string") tokenSymbol = info.symbol;
       }
       if (decimals === undefined) {
-        throw new UsageError(
+        throw new ChainError(
           "token_metadata_unavailable",
           `could not read decimals for ${contract}`,
         );
