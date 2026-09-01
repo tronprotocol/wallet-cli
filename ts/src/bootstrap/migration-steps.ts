@@ -1,9 +1,10 @@
 /**
  * The registered migrations (ADR-0008). Adding one = one entry here.
  *
- * Only wallets.json has ever needed a migration: contacts.json is already family-keyed at rest
- * (`entries` is Partial<Record<ChainFamily, …>> and every entry carries its own `family`), and
- * tokens.json is keyed by network id, so EVM only adds keys to both.
+ * contacts.json needs none: it is family-keyed at rest (`entries` is
+ * Partial<Record<ChainFamily, …>> and every entry carries its own `family`), so a new family only
+ * adds keys. tokens.json is keyed by network ID, which was fine while ids never changed — the
+ * move to CAIP-2 ids is what put it here beside wallets.json.
  */
 import { join } from "node:path";
 import type { MigrationStep } from "../adapters/outbound/persistence/migration.js";
@@ -15,6 +16,8 @@ import {
   walletsNeedPassword,
   type WalletsFileV1,
 } from "../domain/migration/wallets-v2.js";
+import { TOKENS_VERSION, migrateTokensToV2 } from "../domain/migration/tokens-v2.js";
+import type { TokensFile } from "../domain/types/token.js";
 
 export function migrationSteps(root: string, store: AtomicFileStore): MigrationStep[] {
   return [
@@ -31,6 +34,13 @@ export function migrationSteps(root: string, store: AtomicFileStore): MigrationS
           keyFor: (keyId) => reader.decryptKey(keyId),
         });
       },
+    },
+    {
+      path: join(root, "tokens.json"),
+      currentVersion: TOKENS_VERSION,
+      // Scope keys are not secrets and the file holds none, so nothing here needs unlocking.
+      needsPassword: () => false,
+      migrate: (doc) => migrateTokensToV2(doc as TokensFile),
     },
   ];
 }

@@ -77,7 +77,7 @@ export class EvmContractService {
         : toBaseUnits(input.callValue, FAMILIES.evm.nativeDecimals, "call value");
 
     // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a
-    // dry run of an approve exists to confirm (§6.1 names it one of only two dry-run extras).
+    // dry run of an approve exists to confirm (one of only two dry-run extras).
     const approval = await this.#approval(gateway, input);
 
     const outcome = await this.#run(
@@ -100,7 +100,7 @@ export class EvmContractService {
     };
   }
 
-  /** §7.2's approve receipt; the shared helper does the work, this supplies the EVM specifics. */
+  /** The approve receipt; the shared helper does the work, this supplies the EVM specifics. */
   async #approval(
     gateway: EvmGateway,
     input: EvmContractWriteInput,

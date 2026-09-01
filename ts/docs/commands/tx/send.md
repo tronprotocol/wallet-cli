@@ -32,9 +32,9 @@ a different id is refused outright), but a wrong value *inside* that range canno
 locally — there is nothing to compare it against. When the exact base-unit quantity matters, pass
 `--raw-amount`, which is used verbatim and never rescaled.
 
-Early exits: `--dry-run` builds and estimates only — no signature, no broadcast, nothing leaves your machine; `--sign-only` signs and prints the signed transaction **hex**; `--build-only` builds but does **not** sign, printing the **unsigned** hex. The hex is protobuf on TRON and RLP (`0x02…`) on EVM; either feeds [`tx sign`](sign.md) and [`tx broadcast`](broadcast.md).
+Early exits still build through the selected network first. `--dry-run` builds and estimates, then returns the plan with no signature and no broadcast; `--sign-only` builds, estimates, signs, and prints the signed transaction **hex** without broadcasting; `--build-only` builds and estimates but does **not** unlock or sign, printing the **unsigned** hex. The hex is protobuf on TRON and RLP (`0x02…`) on EVM; either feeds [`tx sign`](sign.md) and [`tx broadcast`](broadcast.md).
 
-**Fees are family-specific.** TRON burns bandwidth/energy and caps the energy spend with `--fee-limit`; EVM pays gas, so `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` apply instead. Help tags each set `(tron only)` / `(evm only)`, and using one on the other family is refused with `invalid_option` — as are `--max-fee` / `--priority-fee` on an EVM chain that still prices in `gasPrice`.
+**Fees are family-specific.** TRON burns bandwidth/energy and caps the energy spend with `--fee-limit`; EVM pays gas, so `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` apply instead. Help tags each set `(TRON only)` / `(EVM only)`, and using one on the other family is refused with `invalid_option` — as are `--max-fee` / `--priority-fee` on an EVM chain that still prices in `gasPrice`.
 
 Omitted EVM values are taken from the node: the gas limit from `eth_estimateGas` (unpadded), the fee ceiling from the current base fee, and the nonce from the account's pending count. When the estimate itself fails — an unfunded account, a call the node reverts — the error says so and `--gas-limit` proceeds without one. A fee that is signable but questionable (a tip clamped to the ceiling, a ceiling below the current base fee) is reported in `meta.warnings` rather than refused.
 
@@ -42,7 +42,12 @@ TRON multi-sig uses `--permission-id` to select the signing group and `--expirat
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed, or poll [`tx status`](status.md).
 
-Requires an account and the master password via `--password-stdin` — signing commands do not show an interactive prompt, so without it the command fails with `auth_required`.
+Requires:
+
+```text
+  the master password only when the selected mode signs — pass --password-stdin then; other modes need no password
+  an account — defaults to active; override with --account <accountId|label> (or run `wallet-cli use <account>` to change the active account)
+```
 
 ## Options
 
@@ -53,9 +58,9 @@ Requires an account and the master password via `--password-stdin` — signing c
 | `--raw-amount <string>` | Raw integer amount in native base units (SUN / wei) or token base units |
 | `--token <string>` | Token symbol from the address book; excludes `--contract`, `--asset-id` |
 | `--contract <string>` | Token contract address; omit for a native-coin transfer |
-| `--dry-run` | Build and estimate only; excludes `--sign-only` / `--build-only` |
-| `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
+| `--dry-run` | Build and estimate through the selected network; no signing or broadcast; excludes `--sign-only` / `--build-only` |
+| `--sign-only` | Build, estimate, sign, and output the signed hex without broadcasting; excludes `--dry-run` / `--build-only` |
+| `--build-only` | Build and estimate, output the **unsigned** hex without unlocking; excludes `--dry-run` / `--sign-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000; on cap returns the submitted receipt) |
 | `--password-stdin` | Master password from stdin |
 
@@ -81,20 +86,20 @@ Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-> **Password**: except for `--dry-run`, the examples below omit the password to keep the focus on the selector flags. A real send needs the master password on stdin — prefix with `printf '%s' "$PW" |` and append `--password-stdin` (see the description above).
+> **Password**: the examples below omit the password to keep the focus on selector flags. Software signing modes need the master password on stdin — prefix with `printf '%s' "$PW" |` and append `--password-stdin`; `--dry-run`, `--build-only`, and Ledger signing do not.
 
 ```bash
 # 1 TRX on Nile; 1 ETH-denominated amount on Sepolia
-wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile
-wallet-cli tx send --to 0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C --amount 0.0001 --network evm:11155111
+wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188
+wallet-cli tx send --to 0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C --amount 0.0001 --network eip155:11155111
 
 # token by address-book symbol on either family; TRC10 by asset id on TRON only
-wallet-cli tx send --to T... --token USDT --amount 5 --network tron:nile
-wallet-cli tx send --to 0x... --token USDC --amount 5 --network evm:11155111
-wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network tron:nile
+wallet-cli tx send --to T... --token USDT --amount 5 --network tron:3448148188
+wallet-cli tx send --to 0x... --token USDC --amount 5 --network eip155:11155111
+wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network tron:3448148188
 
 # rehearse without signing
-wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:nile --dry-run -o json
+wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188 --dry-run -o json
 ```
 
 `--dry-run` prints the fee in the selected network's model — bandwidth/energy on TRON, a gas ceiling on EVM:
@@ -114,13 +119,13 @@ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network 
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"41797991046000","gasLimit":"21000","maxPerGasWei":"1990380526"},"tx":{"to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C","value":"100000000000000","chainId":11155111,"nonce":0,"gasLimit":"21000","type":2,"maxFeePerGas":"1990380526","maxPriorityFeePerGas":"1000000"},"nonce":0,"rawAmount":"100000000000000","to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"meta":{"durationMs":753,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"41797991046000","gasLimit":"21000","maxPerGasWei":"1990380526"},"tx":{"to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C","value":"100000000000000","chainId":11155111,"nonce":0,"gasLimit":"21000","type":2,"maxFeePerGas":"1990380526","maxPriorityFeePerGas":"1000000"},"nonce":0,"rawAmount":"100000000000000","to":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"meta":{"durationMs":753,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 Submit receipt (default mode, text and json):
 
 ```bash
-printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network tron:nile --password-stdin
+printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -128,11 +133,11 @@ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH -
   To      TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH
   TxID    4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
+! Track it: wallet-cli tx info --network tron:3448148188 --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","stage":"submitted","txId":"4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4","rawAmount":"1000000","to":"TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH"},"meta":{"durationMs":2172,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.send","data":{"kind":"send","stage":"submitted","txId":"4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4","rawAmount":"1000000","to":"TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH"},"meta":{"durationMs":2172,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -165,7 +170,7 @@ A reverted transaction still leaves the envelope at `success: true` and exit `0`
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`rpc_error`, `timeout` — **on timeout the tx may still be in flight; check `tx status` before resending**) · `2` usage error (conflicting selectors/amounts/modes; `invalid_option` when a `(tron only)` flag is used on EVM or vice versa).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`rpc_error`, `timeout` — **on timeout the tx may still be in flight; check `tx status` before resending**) · `2` usage error (conflicting selectors/amounts/modes; `invalid_option` when a `(TRON only)` flag is used on EVM or vice versa).
 
 An EVM gas estimate that the node rejects surfaces as `rpc_error` naming `eth_estimateGas`, and suggests `--gas-limit` to proceed without one.
 

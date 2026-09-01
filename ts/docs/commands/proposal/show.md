@@ -31,7 +31,7 @@ Plus the [global options](../index.md#global-options-every-command).
 A proposal inside its voting window:
 
 ```bash
-wallet-cli proposal show 47 --network tron:nile
+wallet-cli proposal show 47 --network tron:3448148188
 ```
 
 ```console
@@ -48,7 +48,7 @@ Proposal #47
 One that reached the threshold at expiry — the value is live from that tally on:
 
 ```bash
-wallet-cli proposal show 45 --network tron:nile
+wallet-cli proposal show 45 --network tron:3448148188
 ```
 
 ```console
@@ -65,7 +65,7 @@ Proposal #45
 One that expired below the threshold, carrying two parameters:
 
 ```bash
-wallet-cli proposal show 44 --network tron:nile
+wallet-cli proposal show 44 --network tron:3448148188
 ```
 
 ```console
@@ -81,11 +81,11 @@ Proposal #44
 ```
 
 ```bash
-wallet-cli proposal show 47 --network tron:nile -o json
+wallet-cli proposal show 47 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.show","data":{"id":47,"proposerAddress":"TSRmq8kP...","state":"voting","createTime":1784620800000,"expirationTime":1784707200000,"approvals":12,"approvalThreshold":18,"reachedThreshold":false,"parameters":[{"id":3,"name":"getTransactionFee","value":15,"unit":"sun/byte"}],"approvedBy":["TSRaa1...","TSRbb2..."]},"meta":{"durationMs":22,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.show","data":{"id":47,"proposerAddress":"TSRmq8kP...","state":"voting","createTime":1784620800000,"expirationTime":1784707200000,"approvals":12,"approvalThreshold":18,"reachedThreshold":false,"parameters":[{"id":3,"name":"getTransactionFee","value":15,"unit":"sun/byte"}],"approvedBy":["TSRaa1...","TSRbb2..."]},"meta":{"durationMs":22,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

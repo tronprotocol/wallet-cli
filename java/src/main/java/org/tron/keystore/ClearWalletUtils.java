@@ -98,9 +98,6 @@ public class ClearWalletUtils {
     return deleteFiles(filePaths, true);
   }
 
-  public static boolean deleteFilesQuiet(Collection<String> filePaths) {
-    return deleteFiles(filePaths, false);
-  }
 
   private static boolean deleteFiles(Collection<String> filePaths, boolean verbose) {
     if (filePaths == null || filePaths.isEmpty()) {

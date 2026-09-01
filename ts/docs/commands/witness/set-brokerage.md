@@ -20,6 +20,8 @@ Any registered witness can set it, elected or not. The acting account must be a 
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
+The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+
 ## Options
 
 | Option | Description |
@@ -27,7 +29,7 @@ Any registered witness can set it, elected or not. The acting account must be a 
 | `<percent>` | **Required.** Share the SR keeps, integer 0–100 |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -42,7 +44,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Keep 20 %, pass 80 % to voters:
 
 ```bash
-echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -56,11 +58,11 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --pa
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.set-brokerage","data":{"kind":"witness-set-brokerage","stage":"confirmed","txId":"f8c...","confirmed":true,"blockNumber":57881402,"failed":false,"witnessAddress":"TSRmq8kP...","brokerage":20,"feeSun":0,"resource":{"netUsage":269,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.set-brokerage","data":{"kind":"witness-set-brokerage","stage":"confirmed","txId":"f8c...","confirmed":true,"blockNumber":57881402,"failed":false,"witnessAddress":"TSRmq8kP...","brokerage":20,"feeSun":0,"energyUsed":0,"netUsed":269,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":269,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6470,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -70,13 +72,13 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:nile --wait --pa
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "witness-set-brokerage"`, `stage: "submitted"`, `txId`, `witnessAddress`, `brokerage` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 `brokerage` is the value now in effect, as a number.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_a_witness`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`invalid_value` — percent missing, not an integer, or outside 0–100).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_a_witness`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — percent missing, not an integer, or outside 0–100).
 
 ## See also
 

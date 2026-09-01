@@ -82,6 +82,14 @@ export class ConfigLoader {
         for (const [alias, target] of Object.entries(raw.aliases as Record<string, unknown>)) {
           if (typeof target === "string") aliases[alias.toLowerCase()] = target;
         }
+        // A target may itself be an alias — most often a legacy id the book still forwards.
+        // Resolution is single-hop, so fold the target here rather than leave an entry resolve()
+        // cannot follow. One hop only: the book is hand-written, and a chain of two is a mistake
+        // to surface, not a feature to support.
+        for (const [alias, target] of Object.entries(aliases)) {
+          const forwarded = aliases[target.toLowerCase()];
+          if (forwarded !== undefined && forwarded !== target) aliases[alias] = forwarded;
+        }
       }
       if (raw.networks && typeof raw.networks === "object") {
         const seen = new Map<string, string>(); // canonical id -> the key that claimed it
@@ -89,7 +97,7 @@ export class ConfigLoader {
           raw.networks as Record<string, Record<string, unknown>>,
         )) {
           // A hand-edited alias key must configure the network it names, not create a new one.
-          // Silently ignoring it is the failure §2.4 calls out: the file looks configured and
+          // Silently ignoring it is the failure to avoid: the file looks configured and
           // does nothing.
           const id = aliases[key.toLowerCase()] ?? key;
           const claimedBy = seen.get(id);

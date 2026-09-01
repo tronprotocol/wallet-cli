@@ -1,5 +1,5 @@
 /**
- * The approve receipt (§7.2) — shared by both families, because TRC20 and ERC-20 share the method,
+ * The approve receipt — shared by both families, because TRC20 and ERC-20 share the method,
  * the hazard, and the unreadable argument.
  */
 import { describe, it, expect, vi } from "vitest";

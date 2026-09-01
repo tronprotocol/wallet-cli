@@ -46,7 +46,7 @@ wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label col
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"import.watch","data":{"status":"created","accountId":"wlt_jsyq8fxe","label":"cold","type":"watch","index":null,"active":true,"addresses":{"tron":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"},"family":"tron"},"meta":{"durationMs":36,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"import.watch","data":{"status":"created","accountId":"wlt_jsyq8fxe","label":"cold","type":"watch","index":null,"active":false,"addresses":{"tron":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"},"family":"tron"},"meta":{"durationMs":36,"warnings":[]}}
 ```
 
 ## Output
@@ -55,12 +55,12 @@ wallet-cli import watch --address TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ --label col
 
 | Field | Type | Meaning |
 |---|---|---|
-| `status` | string | `"created"` |
+| `status` | string | `"created"`, or `"existing"` if the same watch address was already registered |
 | `accountId` | string | Stable account id |
 | `label` | string | Account label |
 | `type` | string | `"watch"` (read-only, cannot sign) |
 | `index` | number \| null | Non-HD account, always `null` |
-| `active` | boolean | Became the active account |
+| `active` | boolean | Whether this account is already the current active account. Registering a watch-only account does not select it; use [`use`](../use.md) explicitly |
 | `addresses` | object | The single address, keyed by its family — `{"tron":"T…"}` or `{"evm":"0x…"}` |
 | `family` | string | Chain family detected from the address — `tron` or `evm` |
 

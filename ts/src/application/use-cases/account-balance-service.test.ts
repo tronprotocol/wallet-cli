@@ -3,7 +3,7 @@
  *
  * Nothing here is chain-specific: the gateway's neutral `client()` reads the balance, the family
  * table supplies the base unit's decimals, and the SYMBOL comes off the network. That last split
- * is the point of the test below — `evm:1` and `evm:56` are one family with two different coins.
+ * is the point of the test below — `eip155:1` and `eip155:56` are one family with two different coins.
  */
 import { describe, it, expect } from "vitest";
 import { AccountBalanceService } from "./account-balance-service.js";
@@ -20,7 +20,7 @@ const gateways = (balance: string) =>
 
 const network = (over: Partial<NetworkDescriptor>): NetworkDescriptor =>
   ({
-    id: "evm:1",
+    id: "eip155:1",
     family: "evm",
     nativeSymbol: "ETH",
     chainId: "1",
@@ -47,7 +47,7 @@ describe("AccountBalanceService.balance", () => {
   it("uses TRON's 6 decimals for a TRON network", async () => {
     const out = await new AccountBalanceService(gateways("1983993000")).balance(
       scope,
-      network({ id: "tron:nile", family: "tron", nativeSymbol: "TRX", chainId: "nile" }),
+      network({ id: "tron:3448148188", family: "tron", nativeSymbol: "TRX", chainId: "nile" }),
       "tron",
     );
 
@@ -59,7 +59,7 @@ describe("AccountBalanceService.balance", () => {
   it("takes the symbol from the network, not the family", async () => {
     const bsc = await new AccountBalanceService(gateways("5")).balance(
       scope,
-      network({ id: "evm:56", nativeSymbol: "BNB", chainId: "56" }),
+      network({ id: "eip155:56", nativeSymbol: "BNB", chainId: "56" }),
       "evm",
     );
 

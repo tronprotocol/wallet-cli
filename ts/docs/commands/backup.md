@@ -43,7 +43,7 @@ The positional account is the exception: it means different things in the two fo
 | `--keystore` | Export as a standard Web3 keystore instead of the native format |
 | `--out <path>` | Output file path; mode 0600, never overwritten (default: the current directory, see above) |
 | `--password-stdin` | Master password from stdin (fd 0) |
-| `--network <id>` | With `--keystore`, which family's key to export (`tron:nile` → the TRON key, `evm:1` → the EVM key). No node is contacted |
+| `--network <id>` | With `--keystore`, which family's key to export (`tron:3448148188` → the TRON key, `eip155:1` → the EVM key). No node is contacted |
 
 With `--records`, instead of an account:
 
@@ -100,7 +100,7 @@ printf '%s' "$PW" | wallet-cli backup main --keystore --out ./main.keystore.json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw","evm":"0x7B28FE10...46C9C"},"seedId":"wlt_d1qbj2fb","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"./main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw","evm":"0x7B28FE10...46C9C"},"seedId":"wlt_d1qbj2fb","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"./main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 The audit log:
@@ -123,12 +123,12 @@ wallet-cli backup --records --limit 3 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"./wlt_d1qbj2fb.0-1785930000.keystore.json","timestamp":"2026-08-05T11:40:00Z"},{"operation":"backup","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"./wlt_d1qbj2fb.0-1785834720.json","timestamp":"2026-08-04T09:12:00Z"},{"operation":"backup","accountId":"wlt_9x3k2m7p.0","account":"TBeta9mR...8pLx","label":null,"out":"./tbeta-seed.json","timestamp":"2026-07-30T22:03:00Z"}]},"meta":{"durationMs":8,"warnings":[],"pagination":{"offset":0,"limit":3,"total":12}}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"./wlt_d1qbj2fb.0-1785930000.keystore.json","timestamp":"2026-08-05T11:40:00Z"},{"operation":"backup","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"./wlt_d1qbj2fb.0-1785834720.json","timestamp":"2026-08-04T09:12:00Z"},{"operation":"backup","accountId":"wlt_9x3k2m7p.0","account":"TBeta9mR...8pLx","label":null,"out":"./tbeta-seed.json","timestamp":"2026-07-30T22:03:00Z"}]},"meta":{"durationMs":8,"warnings":[],"pagination":{"offset":0,"limit":3,"total":12}},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
 
-Both forms are local commands — no `chain` block — and they carry different `command` ids: `backup` for an export, `backup.records` for the log.
+Both forms are local and contact no node, but `backup` has an optional network display selector: the selected or default network chooses which family `--keystore` exports. The result therefore includes a `chain` block, including for `--records`. The forms carry different `command` ids: `backup` for an export, `backup.records` for the log.
 
 `data` for an export is the account plus the file's details:
 
@@ -162,9 +162,7 @@ Both forms are local commands — no `chain` block — and they carry different 
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_exportable` — watch-only or Ledger, `invalid_value` — no such account, `auth_failed`, `io_error` — path not writable) · `2` usage error (`output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
-
-`invalid_value` appears under both exit codes here: an unresolvable account reference is exit `1`, a malformed call is exit `2`. Branch on the exit code first.
+`0` success · `1` execution failure (`account_not_found` — no such account; `not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
 
 ## See also
 

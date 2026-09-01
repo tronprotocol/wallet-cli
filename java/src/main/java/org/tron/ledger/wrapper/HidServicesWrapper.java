@@ -62,10 +62,6 @@ public class HidServicesWrapper {
     return hs;
   }
 
-  public boolean hasAnyLedgerAttached() {
-    return getHidServices().getAttachedHidDevices().stream()
-        .anyMatch(d -> d.getVendorId() == LEDGER_VENDOR_ID);
-  }
 
   public static HidDevice getLedgerHidDevice(HidServices hidServices, String address, String path) {
     List<HidDevice> hidDeviceList = new ArrayList<>();

@@ -54,7 +54,7 @@ describe("ChainCommandDefinition dispatch", () => {
     const run = vi.fn(async (_ctx, _net, input) => ({ block: { number: input.number } }));
     registry.addChain(spec, "tron", { run });
 
-    const globals = { output: "json" as const, verbose: false, network: "tron:mainnet" };
+    const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
     const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
     const shellOpts: ShellOptions = {
       registry,
@@ -113,7 +113,7 @@ describe("ChainCommandDefinition dispatch", () => {
       { run },
     );
 
-    const globals = { output: "json" as const, verbose: false, network: "tron:mainnet" };
+    const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
     const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
     await buildCli({
       registry,
@@ -188,7 +188,7 @@ describe("grouped chain leaf positionals", () => {
       run,
       shellOpts: {
         registry,
-        globals: { output: "json" as const, verbose: false, network: "tron:mainnet" },
+        globals: { output: "json" as const, verbose: false, network: "tron:728126428" },
         deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
         targetResolver: new TargetResolver({ networkRegistry, keystore }),
         caps: new CapabilityRegistry(),
@@ -271,7 +271,7 @@ describe("--dry-run bars broadcasting", () => {
       "tron",
       { run: async (_ctx: any, _net: any, input: any) => run(input) },
     );
-    const globals = { output: "json" as const, verbose: false, network: "tron:mainnet" };
+    const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
     const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
     return {
       out,

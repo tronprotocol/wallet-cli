@@ -48,7 +48,7 @@ export class EvmChainService {
     const priorityFeeWei = fee.suggestedPriorityWei ?? null;
     // On a 1559 chain the price a transfer actually pays is base + tip. `eth_gasPrice` is the
     // node's own single-number suggestion, which is not that sum — quoting it beside the two
-    // components would print three numbers that do not add up (§9.3).
+    // components would print three numbers that do not add up.
     const gasPriceWei =
       eip1559 && priorityFeeWei !== null
         ? (BigInt(fee.baseFeeWei!) + BigInt(priorityFeeWei)).toString(10)

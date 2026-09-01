@@ -415,8 +415,8 @@ describe("WalletService reports the file it wrote when the audit append fails", 
   });
 });
 
-// §3.10's problem, restated: a seed account holds a DIFFERENT private key per family (§1.2 puts
-// TRON at coin 195 and EVM at coin 60). A V3 keystore holds exactly one key, so "export my
+// The problem, restated: a seed account holds a DIFFERENT private key per family (derivation
+// puts TRON at coin 195 and EVM at coin 60). A V3 keystore holds exactly one key, so "export my
 // private key" has two answers and the wallet must be told which.
 describe("keystore export follows the selected network's family", () => {
   const MNEMONIC = "test test test test test test test test test test test junk";
@@ -457,7 +457,7 @@ describe("keystore export follows the selected network's family", () => {
 
 /**
  * The audit log answers "which key left this machine". A seed account holds a different key per
- * family (§1.2), so filing an EVM export under the account's TRON address names the wrong key —
+ * family, so filing an EVM export under the account's TRON address names the wrong key —
  * and the log's only job is to name the right one.
  */
 describe("WalletService.backupKeystore — what the audit log records", () => {

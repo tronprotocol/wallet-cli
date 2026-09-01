@@ -10,7 +10,7 @@ wallet-cli token add (--contract <address> | --asset-id <id>) [options]
 
 ## Description
 
-Fetches the token's name, symbol and decimals from the contract and adds it to the local token address book. Works on both TRON (TRC20/TRC10) and EVM (ERC20) networks. The book is scoped to **network + account**: a token added on `tron:nile` for one account does not appear for other networks or accounts.
+Fetches the token's name, symbol and decimals from the contract and adds it to the local token address book. Works on both TRON (TRC20/TRC10) and EVM (ERC20) networks. The book is scoped to **network + account**: a token added on `tron:3448148188` for one account does not appear for other networks or accounts.
 
 Once added, the token can be used by symbol elsewhere — e.g. `tx send --token USDT`. The book has two layers: **official** (bundled, read-only) and **user** (the ones you add). If the token is already bundled in the official layer, it fails with `token_already_listed` (no need to add it again); if you have already added it before, adding it again does not error — it re-fetches the token's metadata (symbol/decimals/name) and updates it, returning `action: refreshed`.
 
@@ -23,12 +23,12 @@ Once added, the token can be used by symbol elsewhere — e.g. `tx send --token 
 
 Plus the [global options](../index.md#global-options-every-command).
 
-`--asset-id` is a TRON-only flag: help tags it `(tron only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
+`--asset-id` is a TRON-only flag: help tags it `(TRON only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
 
 ## Examples
 
 ```bash
-wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile
+wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
 ```
 
 ```console
@@ -39,17 +39,17 @@ wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tro
 ```
 
 ```bash
-wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:nile -o json
+wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"token.add","data":{"network":"tron:nile","account":"wlt_b2.0","action":"added","token":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"token.add","data":{"network":"tron:3448148188","account":"wlt_b2.0","action":"added","token":{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD"}},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 An ERC20 token on an EVM network, where `token.kind` is `erc20`:
 
 ```bash
-wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --network evm:11155111
+wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --network eip155:11155111
 ```
 
 ## Output
@@ -67,7 +67,7 @@ wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --net
 
 ## Exit status
 
-`0` added · `1` execution failure (`token_metadata_unavailable` — metadata could not be fetched, nothing is stored; `token_already_listed` — already in the official layer) · `2` usage error (`invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
+`0` added · `1` execution failure (`token_metadata_unavailable` — metadata could not be fetched, nothing is stored; `encoding_error` / `io_error` — the local token book could not be decoded or written) · `2` usage error (`token_already_listed` — already in the official layer; `invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
 
 ## See also
 

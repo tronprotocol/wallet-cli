@@ -27,7 +27,7 @@ Only the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli account portfolio --network tron:nile
+wallet-cli account portfolio --network tron:3448148188
 ```
 
 ```console
@@ -41,21 +41,21 @@ Total ≈ $0.00
 ```
 
 ```bash
-wallet-cli account portfolio --network tron:nile -o json
+wallet-cli account portfolio --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"tron:nile","account":"wlt_gd2x8vyk","address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"TRX","decimals":6,"rawBalance":"9915803110","balance":"9915.80311","priceUsd":0,"valueUsd":0},{"kind":"trc20","symbol":"USDT","decimals":6,"rawBalance":"17061463423","balance":"17061.463423","priceUsd":0,"valueUsd":0,"id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"Tether USD","source":"official"}],"totalValueUsd":0},"meta":{"durationMs":724,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"tron:3448148188","account":"wlt_gd2x8vyk","address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"TRX","decimals":6,"rawBalance":"9915803110","balance":"9915.80311","priceUsd":0,"valueUsd":0},{"kind":"trc20","symbol":"USDT","decimals":6,"rawBalance":"17061463423","balance":"17061.463423","priceUsd":0,"valueUsd":0,"id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"Tether USD","source":"official"}],"totalValueUsd":0},"meta":{"durationMs":724,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The same command on an EVM network, with `kind` reporting `erc20` instead of `trc20`:
 
 ```bash
-wallet-cli account portfolio --network evm:11155111 -o json
+wallet-cli account portfolio --network eip155:11155111 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"evm:11155111","account":"wlt_fjeca27y.0","address":"0x541B10b92b45C08513e67bb8209f035D810212B6","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"ETH","decimals":18,"rawBalance":"0","balance":"0","priceUsd":0,"valueUsd":0}],"totalValueUsd":0},"meta":{"durationMs":232,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.portfolio","data":{"network":"eip155:11155111","account":"wlt_fjeca27y.0","address":"0x541B10b92b45C08513e67bb8209f035D810212B6","priceSource":"coingecko","holdings":[{"kind":"native","symbol":"ETH","decimals":18,"rawBalance":"0","balance":"0","priceUsd":0,"valueUsd":0}],"totalValueUsd":0},"meta":{"durationMs":232,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ## Output

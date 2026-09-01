@@ -12,7 +12,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const net = {
-  id: "evm:1",
+  id: "eip155:1",
   family: "evm",
   nativeSymbol: "ETH",
   chainId: "1",
@@ -194,13 +194,13 @@ describe("EvmContractService.deploy", () => {
 });
 
 /**
- * `approve(address,uint256)` — §7.2's one receipt special case.
+ * `approve(address,uint256)` — the one receipt special case.
  *
  * The uint256 a caller types is scaled by the token's decimals, and its maximum is 78 digits, so
  * the one thing they cannot check is the thing that matters most: how much they just approved.
  */
 describe("EvmContractService.send — approve", () => {
-  const SEPOLIA = { ...net, id: "evm:11155111", chainId: "11155111" } as NetworkDescriptor;
+  const SEPOLIA = { ...net, id: "eip155:11155111", chainId: "11155111" } as NetworkDescriptor;
   const scope = () =>
     ({
       activeAccount: "wlt_test",

@@ -45,7 +45,7 @@ wallet-cli contact remove bob -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — no such contact, `encoding_error`, `insecure_permissions`) · `2` usage error.
+`0` success · `1` execution failure (`encoding_error`, `insecure_permissions`) · `2` usage error (`contact_not_found` — no contact by that name; `invalid_value`).
 
 ## See also
 

@@ -6,14 +6,14 @@ Broadcast a presigned transaction.
 
 ```
 wallet-cli tx broadcast (--hex <hex> | --file <path> | --transaction <json> | --tx-stdin)
-                        [--dry-run] --network <id> [options]
+                        [--dry-run] [--network <id>] [options]
 ```
 
 ## Description
 
 Submits a transaction that was signed elsewhere, on TRON or EVM networks alike. No wallet unlock is needed; the transaction is already signed. The signed input can be **hex** — `--hex` inline or `--file` from a file (the format emitted by `--sign-only` and `tx sign`; protobuf on TRON, RLP `0x02…` on EVM) — or **JSON** — `--transaction` inline or `--tx-stdin` from stdin, both **TRON only**. Exactly one of the four; prefer `--file` for long hex.
 
-A presigned transaction carries no network of its own, so pass `--network` to say which network to broadcast to (falls back to the config default network when omitted).
+TRON signed transactions do not carry a network id. EVM signed transactions do carry an EIP-155 chain id, but `--network` still selects the endpoint and the CLI rejects the transaction if that chain id does not match. When omitted, `--network` falls back to the config default.
 
 ### Validation before submission
 
@@ -61,24 +61,24 @@ Plus the [global options](../index.md#global-options-every-command).
 Broadcast a signed hex from a file:
 
 ```bash
-wallet-cli tx broadcast --file tx.signed.hex --network tron:nile
+wallet-cli tx broadcast --file tx.signed.hex --network tron:3448148188
 ```
 
 ```console
 ⏳ Broadcast
   TxID    72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid 72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
+! Track it: wallet-cli tx info --network tron:3448148188 --txid 72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5
 ```
 
 Or inline hex, and the JSON receipt:
 
 ```bash
-wallet-cli tx broadcast --hex 0a02...9f31 --network tron:nile -o json
+wallet-cli tx broadcast --hex 0a02...9f31 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.broadcast","data":{"kind":"broadcast","stage":"submitted","txId":"72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5"},"meta":{"durationMs":926,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.broadcast","data":{"kind":"broadcast","stage":"submitted","txId":"72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5","transaction":{"txId":"72a315303323125708f426c77b94c5215afd8964ed27d67e49c29b56e29078f5","contractType":"TransferContract","operation":"Transfer TRX","from":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","to":"TVjsyZ7fYF3qLF6BQgPmTEZy1xrNNyVAAA","rawAmount":"1000000","permission":{"id":0,"name":"owner","threshold":1},"currentWeight":1,"missingWeight":0,"thresholdReached":true,"approved":[{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","weight":1}],"expiration":1784388720000,"expired":false,"signatures":1},"multiSignFeeSun":0},"meta":{"durationMs":926,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -87,8 +87,10 @@ wallet-cli tx broadcast --hex 0a02...9f31 --network tron:nile -o json
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind`, `stage: "submitted"`, `txId` |
-| `--wait` (confirmed/failed) | above, plus `confirmed`, `blockNumber`, `failed`, and result fields — `netUsed` / `feeSun` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
+| default (submit, TRON) | `kind`, `stage: "submitted"`, `txId`, `transaction` (approval view), `multiSignFeeSun` |
+| default (submit, EVM) | `kind`, `stage: "submitted"`, `txId`, and `alreadyKnown: true` when the node had already seen the transaction |
+| `--wait` (confirmed/failed) | submit fields, plus `confirmed`, `blockNumber`, `failed`, and result fields — `netUsed` / `feeSun` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
+| `--dry-run` (TRON) | `kind`, `mode: "dry-run"`, `transaction` (approval view), `multiSignFeeSun` |
 | `--dry-run` (EVM) | `kind`, `mode: "dry-run"`, `txId`, `hash`, `address` (recovered signer), `to`, `rawAmount`, `fee` (`feeModel`, `maxCostWei`, `gasLimit`, `maxPerGasWei`), `tx`, and `checks[]` (`name`, `status` — `ok` / `warning` / `skipped` — and `detail`) |
 
 On EVM a node that already knows the transaction sets `alreadyKnown: true` on the submitted receipt rather than failing.

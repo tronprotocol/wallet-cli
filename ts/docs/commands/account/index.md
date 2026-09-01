@@ -8,7 +8,7 @@ Query on-chain account state, and activate & name accounts.
 wallet-cli account COMMAND
 ```
 
-Subcommands act on the **active account** by default; override with `--account <accountId|label>` or change the default with `wallet-cli use <account>`. Which address is queried follows the selected network's family — the same account has a TRON base58 address and an EVM `0x` address. The first four are read-only queries; `activate` and `set` change on-chain state and need the master password.
+Subcommands act on the **active account** by default; override with `--account <accountId|label>` or change the default with `wallet-cli use <account>`. Which address is queried follows the selected network's family — the same account has a TRON base58 address and an EVM `0x` address. The first four are read-only queries; `activate` and `set` change on-chain state. Software signing needs the master password, Ledger signing confirms on device, and `--dry-run` / `--build-only` do not unlock the wallet.
 
 ## Subcommands
 

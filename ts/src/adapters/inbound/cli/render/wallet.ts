@@ -12,7 +12,7 @@ export const WalletFormatters = {
   walletWatch: ((data) => {
     const d = asObj(data);
     return receipt(ok(), `Added watch-only account ${quote(displayName(d))}`, [
-      // The family label, not a bare `Address` (§3.5): once two families coexist, "Address" does
+      // The family label, not a bare `Address`: once two families coexist, "Address" does
       // not tell the reader which chain this account lives on.
       ...addressPairs(d),
       ["Note", "read-only; signing operations will be rejected"],
@@ -47,9 +47,8 @@ export const WalletFormatters = {
   }) satisfies TextFormatter,
   walletDerive: ((data) => {
     const d = asObj(data);
-    // One derive produces an address per family (§3.9), so the receipt lists every one of them —
-    // showing only the first made this release's headline invisible on the command that performs
-    // it. `Index` and `Account ID` come along for the same reason `create` carries them: they are
+    // One derive produces an address per family, so the receipt lists every one of them —
+    // showing only the first hides what the command actually did. `Index` and `Account ID` come along for the same reason `create` carries them: they are
     // what the next command is addressed by.
     return receipt(ok(), `Derived sub-account ${quote(displayName(d))}`, [
       ["Account ID", String(d.accountId ?? "")],
@@ -141,7 +140,7 @@ function renderLedgerImported(d: Obj): string {
  *  Plain text only — the text-mode frame is control-byte-stripped (CLI-OUT-001) so ANSI colour
  *  can't survive here anyway; the active account is marked with a trailing `(active)`. */
 function renderWalletList(items: Obj[], family?: string): string {
-  // One family at a time (§3.7): showing both side by side doubles the table's width, and the
+  // One family at a time: showing both side by side doubles the table's width, and the
   // user only cares about the chain they are on. An account with no address in this family is
   // dropped rather than given an empty row — json still carries every family.
   const shown = family ? items.filter((d) => addressFor(d, family) !== undefined) : items;
@@ -190,7 +189,7 @@ function firstAddress(d: Obj): string {
   return first ? first[1] : "";
 }
 
-/** per-family address field pairs, addresses shown in full (§0.4 ②). */
+/** per-family address field pairs, addresses shown in full. */
 function addressPairs(d: Obj): Pair[] {
   return nonEmptyAddressEntries(d).map(
     ([family, address]) => [familyAddressLabel(family), address] as Pair,

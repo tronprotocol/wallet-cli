@@ -31,7 +31,7 @@ export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
 
 export interface ConfigCommandInput {
-  /** a flat key, or a nested `networks.<id-or-alias>[.<field>]` path (§2.4). */
+  /** a flat key, or a nested `networks.<id-or-alias>[.<field>]` path. */
   key?: string;
   value?: string;
 }
@@ -56,7 +56,7 @@ interface NetworkKey {
   field?: string;
 }
 
-/** A canonical id holds a colon, never a dot (`tron:nile`), so the last dot — when there is one —
+/** A canonical id holds a colon, never a dot (`tron:3448148188`), so the last dot — when there is one —
  *  always separates the field. An alias containing a dot would be misread as `<ref>.<field>`; the
  *  book is hand-written and no builtin does that. */
 function parseNetworkKey(key: string): NetworkKey | null {
@@ -125,7 +125,7 @@ export class ConfigService {
   }
 
   /** `networks.<id-or-alias>.<field>` — the key's network ref is normalised to its canonical
-   *  id before writing, so config.yaml can never hold the same network under two names (§2.4). */
+   *  id before writing, so config.yaml can never hold the same network under two names. */
   private setNetworkField(
     { networkRef, field }: NetworkKey,
     value: string,
@@ -138,11 +138,28 @@ export class ConfigService {
     // The key never travels back out, in the receipt or in the echoed input.
     const secret = configurable === "apiKey";
     return this.documents.update((current) => {
-      const existing = (current as { networks?: Record<string, Record<string, unknown>> }).networks;
+      const existing =
+        (current as { networks?: Record<string, Record<string, unknown>> }).networks ?? {};
+      // The document may hold this network under an alias key. Carrying that entry's fields over
+      // and dropping its key is what keeps one network out of two keys — a shape the loader
+      // refuses outright rather than picking a winner.
+      const sameNetwork = (candidate: string): boolean => {
+        try {
+          return networks.resolve(candidate).id === id;
+        } catch {
+          return false;
+        }
+      };
+      const kept: Record<string, Record<string, unknown>> = {};
+      let folded: Record<string, unknown> = {};
+      for (const [existingKey, fields] of Object.entries(existing)) {
+        if (sameNetwork(existingKey)) folded = { ...folded, ...fields };
+        else kept[existingKey] = fields;
+      }
       return {
         document: {
           ...current,
-          networks: { ...existing, [id]: { ...existing?.[id], [configurable]: normalized } },
+          networks: { ...kept, [id]: { ...folded, [configurable]: normalized } },
         },
         result: {
           key,

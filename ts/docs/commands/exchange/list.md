@@ -30,7 +30,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli exchange list --limit 3 --network tron:nile
+wallet-cli exchange list --limit 3 --network tron:3448148188
 ```
 
 ```console
@@ -43,11 +43,11 @@ Exchanges (limit 3, offset 0)
 ```
 
 ```bash
-wallet-cli exchange list --limit 3 --network tron:nile -o json
+wallet-cli exchange list --limit 3 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.list","data":{"kind":"exchange-list","exchanges":[{"exchangeId":14,"pair":"1000124:TRX","creatorAddress":"TBeta9mR...","firstTokenId":"1000124","firstTokenBalance":"2500000000000","secondTokenId":"_","secondTokenBalance":"50000000000"},{"exchangeId":13,"pair":"1000125:TRX","creatorAddress":"TAlpha7k...","firstTokenId":"1000125","firstTokenBalance":"16000000","secondTokenId":"_","secondTokenBalance":"8000000000"},{"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenBalance":"10000000000","secondTokenId":"1000123","secondTokenBalance":"500000000000"}]},"meta":{"durationMs":52,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.list","data":{"kind":"exchange-list","exchanges":[{"exchangeId":14,"pair":"1000124:TRX","creatorAddress":"TBeta9mR...","firstTokenId":"1000124","firstTokenBalance":"2500000000000","secondTokenId":"_","secondTokenBalance":"50000000000"},{"exchangeId":13,"pair":"1000125:TRX","creatorAddress":"TAlpha7k...","firstTokenId":"1000125","firstTokenBalance":"16000000","secondTokenId":"_","secondTokenBalance":"8000000000"},{"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenBalance":"10000000000","secondTokenId":"1000123","secondTokenBalance":"500000000000"}]},"meta":{"durationMs":52,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

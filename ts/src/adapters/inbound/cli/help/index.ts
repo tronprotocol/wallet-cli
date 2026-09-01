@@ -145,9 +145,9 @@ export class HelpService {
       ["import", "Import a wallet", ""],
       ["list", "List wallets / accounts", ""],
     ] as const;
-    // Rows, order and wording follow the §10.2 spec block, with two deliberate departures
-    // recorded in needs-doc §U-3: `exchange` keeps a verb phrase (the spec's "On-chain Bancor
-    // exchange" is a noun phrase, which §10.1 rule 1 forbids), and `contract` keeps "govern"
+    // Rows, order and wording follow the spec, with two deliberate departures recorded in
+    // needs-doc: `exchange` keeps a verb phrase (the spec's "On-chain Bancor exchange" is a
+    // noun phrase, which the verb-first rule forbids), and `contract` keeps "govern"
     // (the spec's "send" drops any mention of the four governance sub-commands).
     // Descriptions are verb summaries and must NOT name sub-commands — a TRON-only verb named
     // here (`chain`'s old "params") sends EVM readers hunting for a command they cannot run.
@@ -165,7 +165,7 @@ export class HelpService {
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
-      // No (tron only) tag: `chain node` and `chain prices` both serve EVM. Only `chain params`
+      // No (TRON only) tag: `chain node` and `chain prices` both serve EVM. Only `chain params`
       // is TRON-only, and that difference belongs on the sub-command row in the group help.
       ["chain", "Query chain and node state", ""],
       ["message", "Sign arbitrary messages", ""],
@@ -193,7 +193,7 @@ export class HelpService {
     const commandRow = (name: string, desc: string, tag: string): string => {
       const body = `  ${name.padEnd(nameWidth)}${dim(desc)}`;
       return tag
-        ? `${body}${" ".repeat(Math.max(2, tagCol - desc.length))}(${tag} only)`
+        ? `${body}${" ".repeat(Math.max(2, tagCol - desc.length))}(${tag.toUpperCase()} only)`
         : body.trimEnd();
     };
     const row =
@@ -247,8 +247,8 @@ export class HelpService {
     const commands = this.#chainGroupCommands(group);
     const tags = commands.map((c) => groupRowTag(c.families));
     // A group whose every command belongs to the same single family is already tagged as a whole
-    // at the root (`stake … (tron only)`). Repeating it on all six rows adds a column that never
-    // varies — §10.3: "其組 help 內部不再逐條重複". Tag rows only where they DISCRIMINATE.
+    // at the root (`stake … (TRON only)`). Repeating it on all six rows adds a column that never
+    // varies — 其組 help 內部不再逐條重複. Tag rows only where they DISCRIMINATE.
     const uniform = tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
     const rows = commands.map(
       (c, i) => [c.path[1] ?? "", c.summary ?? "", uniform ? "" : tags[i]!] as const,
@@ -273,7 +273,7 @@ export class HelpService {
       const body = `  ${verb.padEnd(width)} ${summary}`;
       lines.push(
         tag
-          ? `${body}${" ".repeat(Math.max(2, tagCol - summary.length))}(${tag} only)`
+          ? `${body}${" ".repeat(Math.max(2, tagCol - summary.length))}(${tag.toUpperCase()} only)`
           : body.trimEnd(),
       );
     }
@@ -409,7 +409,7 @@ export class HelpService {
           head: flagHead(f),
           desc: f.description ?? "",
           tag: flagTag(f),
-          ...(family ? { familyTag: `(${family} only)` } : {}),
+          ...(family ? { familyTag: `(${family.toUpperCase()} only)` } : {}),
         };
       }),
       ...c.inputFlags.map((g) => ({
@@ -417,12 +417,12 @@ export class HelpService {
         head: globalFlagHead(g),
         desc: g.description,
         tag: globalFlagTag(g),
-        ...(c.stdinFamily ? { familyTag: `(${c.stdinFamily} only)` } : {}),
+        ...(c.stdinFamily ? { familyTag: `(${c.stdinFamily.toUpperCase()} only)` } : {}),
       })),
     ];
     if (optionRows.length) {
       const width = Math.min(34, Math.max(...optionRows.map((r) => r.head.length)));
-      // Two independent tags: "[optional]" says whether the flag may be omitted, "(tron only)" says
+      // Two independent tags: "[optional]" says whether the flag may be omitted, "(TRON only)" says
       // which family reads it. They are joined here so the family tag survives on its own in an
       // exclusive block, where the optional tag is deliberately dropped.
       const rowLine = (r: OptionRow, tag: string): string => {
@@ -596,7 +596,7 @@ interface OptionRow {
   desc: string;
   /** "[optional]" / "[required]" — dropped inside a jointly-required exclusive block. */
   tag: string;
-  /** "(tron only)" — which family reads this flag; independent of `tag`, so it survives that block. */
+  /** "(TRON only)" — which family reads this flag; independent of `tag`, so it survives that block. */
   familyTag?: string;
 }
 
@@ -642,13 +642,13 @@ function globalFlagsForText(
 }
 
 /**
- * The `(tron only)` / `(evm only)` tag for one sub-command row in a group help page.
+ * The `(TRON only)` / `(EVM only)` tag for one sub-command row in a group help page.
  *
- * §10.1: the tag means "only this family can serve this command IN THE CURRENT VERSION" — it is
+ * The tag means "only this family can serve this command IN THE CURRENT VERSION" — it is
  * not a promise about the future. So it is derived from the registry rather than written down:
  * a command bound to exactly one family is tagged, one bound to both is not, and the tag drops
  * off by itself the day the missing binding lands (`contract info` will, once EVM gets an
- * indexer). Hand-written tags are how `chain` came to be labelled `(tron only)` at the root long
+ * indexer). Hand-written tags are how `chain` came to be labelled `(TRON only)` at the root long
  * after `chain node` and `chain prices` started serving EVM.
  */
 function groupRowTag(families: readonly string[]): string {

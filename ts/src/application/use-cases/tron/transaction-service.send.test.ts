@@ -9,7 +9,7 @@ import { TronTransactionService } from "./transaction-service.js";
 const OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 const RECEIVER = "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT";
 const NETWORK = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

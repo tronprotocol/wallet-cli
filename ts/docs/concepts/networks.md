@@ -1,43 +1,43 @@
 # Networks
 
-wallet-cli addresses networks by **canonical id** — `family:chain-id` — and every network belongs to one of two chain **families**, `tron` or `evm`:
+wallet-cli addresses networks by **canonical id**, which is a [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference`. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`. Every network belongs to one of two chain **families**, `tron` or `evm`:
 
 ```bash
 wallet-cli networks
 ```
 
 ```console
-| Network      | Alias       | Family | Chain id | Fee model     | Endpoint                            |
-| ------------ | ----------- | ------ | -------- | ------------- | ----------------------------------- |
-| tron:mainnet | tron        | tron   | mainnet  | tron-resource | api.trongrid.io                     |
-| tron:nile    | nile        | tron   | nile     | tron-resource | nile.trongrid.io                    |
-| tron:shasta  | shasta      | tron   | shasta   | tron-resource | api.shasta.trongrid.io              |
-| evm:1        | ethereum    | evm    | 1        | evm-gas       | ethereum-rpc.publicnode.com         |
-| evm:11155111 | sepolia     | evm    | 11155111 | evm-gas       | ethereum-sepolia-rpc.publicnode.com |
-| evm:56       | bsc         | evm    | 56       | evm-gas       | bsc-dataseed.bnbchain.org           |
-| evm:97       | bsc-testnet | evm    | 97       | evm-gas       | bsc-testnet-dataseed.bnbchain.org   |
+| Network         | Alias       | Family | Chain id   | Fee model     | Endpoint                            |
+| --------------- | ----------- | ------ | ---------- | ------------- | ----------------------------------- |
+| tron:728126428  | tron        | tron   | 728126428  | tron-resource | api.trongrid.io                     |
+| tron:3448148188 | nile        | tron   | 3448148188 | tron-resource | nile.trongrid.io                    |
+| tron:2494104990 | shasta      | tron   | 2494104990 | tron-resource | api.shasta.trongrid.io              |
+| eip155:1        | ethereum    | evm    | 1          | evm-gas       | ethereum-rpc.publicnode.com         |
+| eip155:11155111 | sepolia     | evm    | 11155111   | evm-gas       | ethereum-sepolia-rpc.publicnode.com |
+| eip155:56       | bsc         | evm    | 56         | evm-gas       | bsc-dataseed.bnbchain.org           |
+| eip155:97       | bsc-testnet | evm    | 97         | evm-gas       | bsc-testnet-dataseed.bnbchain.org   |
 ```
 
 | Id | Alias | What it is | Native coin value |
 |---|---|---|---|
-| `tron:mainnet` | `tron` | Production TRON | **Real money** |
-| `tron:nile` | `nile` | Primary TRON testnet; faucet at nileex.io | none — use freely |
-| `tron:shasta` | `shasta` | Alternative TRON testnet | none |
-| `evm:1` | `ethereum` | Ethereum mainnet | **Real money** |
-| `evm:11155111` | `sepolia` | Ethereum test network | none |
-| `evm:56` | `bsc` | BNB Smart Chain | **Real money** |
-| `evm:97` | `bsc-testnet` | BNB Smart Chain test network | none |
+| `tron:728126428` | `tron` | Production TRON | **Real money** |
+| `tron:3448148188` | `nile` | Primary TRON testnet; faucet at nileex.io | none — use freely |
+| `tron:2494104990` | `shasta` | Alternative TRON testnet | none |
+| `eip155:1` | `ethereum` | Ethereum mainnet | **Real money** |
+| `eip155:11155111` | `sepolia` | Ethereum test network | none |
+| `eip155:56` | `bsc` | BNB Smart Chain | **Real money** |
+| `eip155:97` | `bsc-testnet` | BNB Smart Chain test network | none |
 
 An **alias** is a short name you may type instead of the id. It resolves once, at selection, and nothing downstream ever sees it — `chain.network` in the JSON envelope always reports the canonical id. Aliases live in config and can be re-pointed, so scripts should pass canonical ids.
 
-The **chain id** means different things per family: a TRON network names itself (`nile`), while an EVM network's is its EIP-155 number as a string (`11155111`) — the same value the canonical id's second segment carries, and the value every EVM signature commits to.
+The **chain id** is always the canonical id's second segment, for both families. On EVM it is the EIP-155 number every signature commits to (`56`); on TRON it is the decimal genesis-hash prefix (`3448148188`), which nothing but the display layer reads. The readable name for a TRON network lives in its alias (`nile`), not in this field.
 
 Point a network at your own node, or at a commercial endpoint, with [`config`](../commands/config.md):
 
 ```bash
-wallet-cli config networks.tron:nile.httpEndpoint http://127.0.0.1:8090
-wallet-cli config networks.tron:mainnet.apiKeyHeader TRON-PRO-API-KEY
-wallet-cli config networks.tron:mainnet.apiKey <your-key>
+wallet-cli config networks.tron:3448148188.httpEndpoint http://127.0.0.1:8090
+wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY
+wallet-cli config networks.tron:728126428.apiKey <your-key>
 ```
 
 Listings (`networks`, `config`) print an endpoint's **host only**, because a commercial URL can carry a key in its path; a named read (`config networks.<id>.httpEndpoint`) gives the full value.
@@ -45,8 +45,10 @@ Listings (`networks`, `config`) print an endpoint's **host only**, because a com
 ## How a command picks its network
 
 1. Explicit `--network <id|alias>` on the command;
-2. otherwise `config.defaultNetwork` (`wallet-cli config defaultNetwork tron:nile`);
-3. chain commands with neither will tell you a network is required.
+2. otherwise `config.defaultNetwork` (`wallet-cli config defaultNetwork tron:3448148188`);
+3. if the config file does not override it, the built-in default is `tron:728126428` (TRON mainnet).
+
+Omitting `--network` therefore does not stop a chain command. For operations involving funds, pass the canonical network id explicitly so the destination chain is visible in shell history and audit logs.
 
 Balances, tokens, and transactions are entirely separate per network. A txid from Nile does not exist on mainnet — querying it there returns `not_found`/`rpc_error`.
 
@@ -72,7 +74,7 @@ wallet-cli fills all of it in from the node unless you say otherwise: the gas li
 
 Units: **1 coin = 10^18 wei**, and `--max-fee` / `--priority-fee` are given in **gwei** (`25` or `25gwei`). JSON payloads carry raw wei as strings.
 
-The coin itself is a **network** fact, not a family one: `evm:1` pays in ETH and `evm:56` in BNB. The base unit and its 18 decimals are shared; the symbol is not.
+The coin itself is a **network** fact, not a family one: `eip155:1` pays in ETH and `eip155:56` in BNB. The base unit and its 18 decimals are shared; the symbol is not.
 
 ## See also
 

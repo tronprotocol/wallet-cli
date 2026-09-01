@@ -4,7 +4,7 @@ How to call wallet-cli from shell scripts and CI. This is the gentle version; th
 
 ## Discovering the surface
 
-Before hard-coding anything, ask the CLI what it supports. One call returns every command, its flags as JSON Schema, which chain families it serves, and the complete error-code index:
+Before hard-coding anything, ask the CLI what it supports. One call returns every command, its flags as JSON Schema, which chain families it serves, and the maintained error-code discovery index:
 
 ```bash
 wallet-cli --json-schema | jq '.commands[] | select(.id == "tx.send") | {families, examples}'
@@ -18,38 +18,38 @@ Prefer this to scraping `--help`; the catalog is the same source the parser and 
 **1. Always `-o json`.** Text output is for eyeballs and may change; JSON is the contract. stdout carries exactly one JSON object per run:
 
 ```bash
-wallet-cli account balance --network tron:nile -o json
+wallet-cli account balance --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 **2. Check the exit code, then `error.code`.** `0` success, `1` runtime failure, `2` you built the command wrong. Two of the exit-`2` codes are worth handling by name when a script switches networks: `family_mismatch` (this command or account does not belong to the selected network's chain) and `invalid_option` (a flag that belongs to the other family):
 
 ```bash
-if out=$(wallet-cli account balance --network tron:nile -o json); then
+if out=$(wallet-cli account balance --network tron:3448148188 -o json); then
   bal=$(jq -r '.data.balance' <<<"$out")     # raw SUN, as a *string*
 else
   code=$(jq -r '.error.code' <<<"$out")      # e.g. timeout, rpc_error
 fi
 ```
 
-**3. Secrets via stdin, never argv.** Passwords/mnemonics/keys in arguments would end up in shell history and `ps` output:
+**3. Secrets via stdin, never argv.** Passwords/mnemonics/keys in arguments would end up in shell history and `ps` output. wallet-cli does not read dedicated secret environment variables either:
 
 ```bash
 printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
-  --network tron:nile --password-stdin -o json
+  --network tron:3448148188 --password-stdin -o json
 ```
 
-(`$PW` should come from your secret store, not from a file in the repo. Only one `*-stdin` flag per run.)
+(`$PW` should come from your secret store as a short-lived shell variable for this pipe, not from a file in the repo and not from a long-lived `export`. Only one `*-stdin` flag per run.)
 
 ## Waiting for confirmation
 
 `tx send` returns at submission. For scripts, the simplest safe form is `--wait`:
 
 ```bash
-wallet-cli tx send --to T... --amount 1 --network tron:nile \
+wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
   --password-stdin --wait --wait-timeout 90000 -o json
 ```
 
@@ -57,22 +57,28 @@ Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.
 
 ## Sign here, broadcast there
 
-`--sign-only` and `tx broadcast` split signing from submission, so the machine holding keys never needs chain access:
+`--sign-only` separates signing from broadcast, but it still builds and estimates through the selected RPC endpoint before signing. For a signing machine with no chain access, build unsigned hex online, sign that artifact offline, then broadcast from an online machine:
 
 ```bash
-# on the signing machine
-wallet-cli tx send --to T... --amount 1 --network tron:nile \
-  --password-stdin --sign-only -o json | jq -r '.data.hex' > signed.hex
+# on the connected build machine
+wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
+  --build-only --expiration 3600000 -o json | jq -r '.data.hex' > unsigned.hex
+
+# on the offline signing machine
+printf '%s' "$PW" | wallet-cli tx sign --file unsigned.hex --network tron:3448148188 \
+  --offline --password-stdin --out signed.hex
 
 # on the connected machine
-wallet-cli tx broadcast --file signed.hex --network tron:nile -o json
+wallet-cli tx broadcast --file signed.hex --network tron:3448148188 -o json
 ```
 
-The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. The JSON form is TRON-only:
+The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. `--expiration` is TRON-only; its value above gives the transfer one hour for file movement and signing (maximum 24 hours). The node default is about 60 seconds, and `tx sign --offline` refuses an expired artifact, so choose the shortest practical window and rebuild after it expires. Omit the flag for EVM, whose transaction format has no expiration field. If the signing machine does have RPC access and you only want to withhold broadcast, `tx send --sign-only` emits signed hex directly.
+
+TRON also accepts signed transaction JSON, but JSON must go through `--transaction` or `--tx-stdin`; `--file` and `--hex` are hex-only:
 
 ```bash
 wallet-cli tx send ... --sign-only -o json | jq -c '.data.signed' > signed.json
-wallet-cli tx broadcast --tx-stdin --network tron:nile -o json < signed.json
+wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.json
 ```
 
 `--transaction` and `--tx-stdin` are tagged `(tron only)`; on an EVM network they fail with `invalid_option`. Prefer `--file` / `--hex` in scripts that may target either.

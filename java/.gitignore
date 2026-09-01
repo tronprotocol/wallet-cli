@@ -18,10 +18,4 @@ Wallet/
 Mnemonic/
 wallet_data/
 
-# QA runtime output
-qa/results/
-qa/runtime/
-qa/report.txt
-qa/.verify.lock/
-
 docs/superpowers

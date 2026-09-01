@@ -40,7 +40,7 @@ function command(
   // ExecutionContext always carries these; --qr now reads the selected network to choose which
   // family's address to encode, so a fixture without them represents no real invocation.
   const tronNet = {
-    id: "tron:mainnet",
+    id: "tron:728126428",
     family: "tron",
     nativeSymbol: "TRX",
     chainId: "mainnet",
@@ -120,19 +120,23 @@ function withNetwork(
     output: "text" as "text" | "json",
     warn: vi.fn(),
   };
-  // the shell resolves --network (else config.defaultNetwork) and hands it to run()
-  const network = net(selected ? (selected.startsWith("evm") ? "evm" : "tron") : defaultFamily);
+  // the shell resolves --network (else config.defaultNetwork) and hands it to run().
+  // A namespace is not a family — `eip155` addresses the EVM family — so this maps the two
+  // builtin namespaces by hand. Production never parses an id for this: it reads the
+  // descriptor's own `family` field.
+  const familyOf = (id: string) => (id.startsWith("eip155:") ? "evm" : "tron");
+  const network = net(selected ? familyOf(selected) : defaultFamily);
   return { current, context, network, qr };
 }
 
-// §3.8: --qr encodes the address for the SELECTED NETWORK's family. Handing someone a receive
+// --qr encodes the address for the SELECTED NETWORK's family. Handing someone a receive
 // code for a different chain is a fund-loss shape, so this never falls back to whatever the
 // account happens to have.
 describe("current --qr picks the address by network family", () => {
   const both = { tron: ADDRESS, evm: EVM_ADDRESS };
 
   it("encodes the EVM address when an EVM network is selected", async () => {
-    const f = withNetwork(both, "evm:11155111");
+    const f = withNetwork(both, "eip155:11155111");
     const result = (await f.current.run(f.context as never, f.network as never, { qr: true })) as {
       receiveAddress: string;
     };
@@ -142,7 +146,7 @@ describe("current --qr picks the address by network family", () => {
   });
 
   it("encodes the TRON address when a TRON network is selected", async () => {
-    const f = withNetwork(both, "tron:nile");
+    const f = withNetwork(both, "tron:3448148188");
     const result = (await f.current.run(f.context as never, f.network as never, { qr: true })) as {
       receiveAddress: string;
     };
@@ -160,7 +164,7 @@ describe("current --qr picks the address by network family", () => {
   });
 
   it("refuses instead of falling back when the account has no address for that family", async () => {
-    const f = withNetwork({ evm: EVM_ADDRESS }, "tron:nile");
+    const f = withNetwork({ evm: EVM_ADDRESS }, "tron:3448148188");
 
     let code: string | undefined;
     try {
@@ -177,7 +181,7 @@ describe("current --qr picks the address by network family", () => {
   // command exited 2 with family_mismatch for a human and 0 with success for an agent — and the
   // agent is the one that cannot see the QR it was supposedly refusing to draw.
   it("refuses under -o json too, not just in text", async () => {
-    const f = withNetwork({ evm: EVM_ADDRESS }, "tron:nile");
+    const f = withNetwork({ evm: EVM_ADDRESS }, "tron:3448148188");
     f.context.output = "json";
 
     await expect(
@@ -189,7 +193,7 @@ describe("current --qr picks the address by network family", () => {
   // The error is scoped to --qr. Looking at an account is local and must not depend on which
   // network happens to be selected.
   it("still shows a mismatched single-family account when --qr is absent", async () => {
-    const f = withNetwork({ evm: EVM_ADDRESS }, "tron:nile");
+    const f = withNetwork({ evm: EVM_ADDRESS }, "tron:3448148188");
 
     const result = await f.current.run(f.context as never, f.network as never, { qr: false });
 

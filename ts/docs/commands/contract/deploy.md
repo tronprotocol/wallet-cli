@@ -32,11 +32,13 @@ An artifact is read for `.bytecode.object`, `.bytecode`, or `.evm.bytecode.objec
 
 **TRON needs an ABI.** Pass `--artifact` or `--abi`; passing both is an error. `--abi` is TRON-only, and the ABI's `constructor` entry needs a string `stateMutability` (`"nonpayable"` / `"payable"`) — `solc` emits it, but a hand-trimmed ABI or one from `solc` older than 0.5 may not. EVM deploys need no ABI when the types come from `--constructor-signature` or the arguments are self-describing.
 
-Same execution model as other broadcast commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` an unsigned one, default returns at submission, `--wait` blocks until confirmed/failed.
+Execution modes match the transaction-building write commands: `--dry-run` previews, `--sign-only` outputs a signed transaction for [`tx broadcast`](../tx/broadcast.md), `--build-only` an unsigned one, default returns at submission, `--wait` blocks until confirmed/failed.
 
 Fee flags follow the family — `--fee-limit` (TRON, default `100000000` SUN) or `--gas-limit` / `--max-fee` / `--priority-fee` / `--nonce` (EVM). Help tags each set, and using one on the other family is refused with `invalid_option`.
 
 Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+
+On TRON, the Ledger app cannot sign `CreateSmartContract`; Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported`. This restriction does not apply to EVM deployment through the Ethereum app.
 
 ## Options
 
@@ -50,7 +52,7 @@ Requires an account. The master password (via `--password-stdin`) is needed only
 | `--constructor-signature <sig>` | The constructor's types when there is no ABI, e.g. `constructor(uint256,string)`; excludes `--artifact`, and not accepted on TRON |
 | `--dry-run` | Estimate only; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -81,8 +83,8 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 From a compiler artifact — the same command on either family, since the artifact carries the ABI:
 
 ```bash
-echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '["18","MyToken"]' --network tron:nile --password-stdin
-echo "$PW" | wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '["18","MyToken"]' --network evm:11155111 --password-stdin
+echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '["18","MyToken"]' --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '["18","MyToken"]' --network eip155:11155111 --password-stdin
 ```
 
 ```console
@@ -90,19 +92,19 @@ echo "$PW" | wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --
   Address  TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU
   TxID     b7c...
   Status   pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid b7c...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid b7c...
 ```
 
 From bare bytecode on EVM, stating the constructor's types yourself:
 
 ```bash
-echo "$PW" | wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '["18","MyToken"]' --network evm:11155111 --password-stdin
+echo "$PW" | wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '["18","MyToken"]' --network eip155:11155111 --password-stdin
 ```
 
 Rehearsing an EVM deploy — the address is already known, and the fee is a gas ceiling:
 
 ```bash
-wallet-cli contract deploy --code 0x60006000f3 --network evm:11155111 --dry-run
+wallet-cli contract deploy --code 0x60006000f3 --network eip155:11155111 --dry-run
 ```
 
 ```console
@@ -113,15 +115,15 @@ wallet-cli contract deploy --code 0x60006000f3 --network evm:11155111 --dry-run
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"117739814894256","gasLimit":"53857","maxPerGasWei":"2186156208"},"tx":{"data":"0x60006000f3","value":"0","chainId":11155111,"nonce":0,"gasLimit":"53857","type":2,"maxFeePerGas":"2186156208","maxPriorityFeePerGas":"1000000"},"nonce":0,"contractAddress":"0xF3741D160A1E64A8D71fFE64CC0F111ddC7720E5"},"meta":{"durationMs":565,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","mode":"dry-run","fee":{"feeModel":"eip1559","maxCostWei":"117739814894256","gasLimit":"53857","maxPerGasWei":"2186156208"},"tx":{"data":"0x60006000f3","value":"0","chainId":11155111,"nonce":0,"gasLimit":"53857","type":2,"maxFeePerGas":"2186156208","maxPriorityFeePerGas":"1000000"},"nonce":0,"contractAddress":"0xF3741D160A1E64A8D71fFE64CC0F111ddC7720E5"},"meta":{"durationMs":565,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","contractAddress":"TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU","stage":"submitted","txId":"b7c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.deploy","data":{"kind":"contract-deploy","contractAddress":"TXg3jWThoa5AxuwRA4aRyFAhmRN9hjhQFU","stage":"submitted","txId":"b7c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -139,7 +141,7 @@ echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json 
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact/bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; an artifact that is not JSON, has no creation bytecode, or holds only `"0x"`; `--constructor-args` with no type source; `--constructor-params` or `--constructor-signature` alongside `--artifact`; a TRON deploy with neither `--abi` nor `--artifact`, or with both; `--constructor-signature` on TRON; an ABI constructor without a string `stateMutability`.
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported` — TRON signing only, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact/bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; an artifact that is not JSON, has no creation bytecode, or holds only `"0x"`; `--constructor-args` with no type source; `--constructor-params` or `--constructor-signature` alongside `--artifact`; a TRON deploy with neither `--abi` nor `--artifact`, or with both; `--constructor-signature` on TRON; an ABI constructor without a string `stateMutability`.
 
 ## See also
 

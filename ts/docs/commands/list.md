@@ -23,7 +23,7 @@ Only the [global options](index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli list --network tron:nile
+wallet-cli list --network tron:3448148188
 ```
 
 ```console
@@ -39,7 +39,7 @@ watch-only
 The same accounts under an EVM network — the seed account reappears under its EVM address, and the TRON-only watch-only entries drop out:
 
 ```bash
-wallet-cli list --network evm:11155111
+wallet-cli list --network eip155:11155111
 ```
 
 ```console
@@ -55,7 +55,7 @@ wallet-cli list -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"list","data":[{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":false,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},{"accountId":"wlt_whxjk6na","label":"watch-test","type":"watch","index":null,"active":false,"addresses":{"tron":"THdUXD3mZqT5aMnPQMtBSJX9ANGjaeUwQK"},"family":"tron","derivationPath":null},{"accountId":"wlt_n5v4r992","label":"watch_evm","type":"watch","index":null,"active":true,"addresses":{"evm":"0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961"},"family":"evm","derivationPath":null}],"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:mainnet","chainId":"mainnet"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"list","data":[{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":false,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},{"accountId":"wlt_whxjk6na","label":"watch-test","type":"watch","index":null,"active":false,"addresses":{"tron":"THdUXD3mZqT5aMnPQMtBSJX9ANGjaeUwQK"},"family":"tron","derivationPath":null},{"accountId":"wlt_n5v4r992","label":"watch_evm","type":"watch","index":null,"active":true,"addresses":{"evm":"0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961"},"family":"evm","derivationPath":null}],"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output

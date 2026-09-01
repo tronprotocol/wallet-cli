@@ -1,7 +1,7 @@
 /**
  * How deep a transaction is buried — the one number `--wait` does not answer.
  *
- * `--wait` stops at the receipt, which is inclusion, not finality. §6.4 leaves "how many
+ * `--wait` stops at the receipt, which is inclusion, not finality. The spec leaves "how many
  * confirmations are enough" to the caller and gives them this to judge by, so it is reported
  * identically on every family rather than each computing its own variant.
  */
@@ -9,7 +9,7 @@
 /**
  * `head - block`, when both are known.
  *
- * The including block is NOT counted, so a transaction just mined reports 0 — §6.4 fixes the
+ * The including block is NOT counted, so a transaction just mined reports 0 — the spec fixes the
  * arithmetic that way, and it is the reading that makes "0 confirmations" mean what it says.
  *
  * Absent rather than 0 when the head could not be read: "we could not ask" and "nothing has been

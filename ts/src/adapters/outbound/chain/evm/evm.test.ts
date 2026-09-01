@@ -979,7 +979,11 @@ describe("EvmRpcClient transport failure classification", () => {
   });
 
   it("maps a transport timeout to ChainError(timeout)", async () => {
-    const client = new EvmRpcClient("http://node.invalid", 60_000, transportThrowing(new HttpTransportError("timeout")));
+    const client = new EvmRpcClient(
+      "http://node.invalid",
+      60_000,
+      transportThrowing(new HttpTransportError("timeout")),
+    );
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({
       code: "timeout",
       message: "eth_getBalance timed out",
@@ -988,13 +992,21 @@ describe("EvmRpcClient transport failure classification", () => {
 
   it("keeps every other transport failure an rpc_error", async () => {
     for (const kind of ["network", "http_status", "redirect", "invalid_request"] as const) {
-      const client = new EvmRpcClient("http://node.invalid", 60_000, transportThrowing(new HttpTransportError(kind)));
+      const client = new EvmRpcClient(
+        "http://node.invalid",
+        60_000,
+        transportThrowing(new HttpTransportError(kind)),
+      );
       await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
     }
   });
 
   it("keeps a non-transport throw an rpc_error", async () => {
-    const client = new EvmRpcClient("http://node.invalid", 60_000, transportThrowing(new Error("boom")));
+    const client = new EvmRpcClient(
+      "http://node.invalid",
+      60_000,
+      transportThrowing(new Error("boom")),
+    );
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
   });
 });

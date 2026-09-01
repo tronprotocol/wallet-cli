@@ -18,7 +18,7 @@ export interface BackupRecord {
    * The exported key's on-chain address — the identity that outlives the local id.
    *
    * For `backup --keystore` this is the address of the family whose key was written, NOT the
-   * account's TRON address: a seed account holds a different key per family (§1.2), and logging
+   * account's TRON address: a seed account holds a different key per family, and logging
    * one family's export under another family's address makes the trail name the wrong key.
    */
   account: string;

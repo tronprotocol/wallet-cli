@@ -58,7 +58,7 @@ export class TronContractService {
     const gateway = this.gateways.get(network, "tron");
     // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a dry
     // run of an approve exists to confirm. TRC20 shares the method and the hazard with ERC-20, so
-    // it shares the receipt (§7.2).
+    // it shares the receipt.
     const approval = await approveRows({
       method: input.method,
       params: input.parameters,

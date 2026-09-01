@@ -7,7 +7,7 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
 
 const NETWORK = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

@@ -3,7 +3,7 @@
  */
 import type { OutputMode } from "./primitives.js";
 
-export type NetworkId = string; // canonical, e.g. "tron:nile"
+export type NetworkId = string; // canonical, e.g. "tron:3448148188"
 export type AccountRef = string; // "wlt_x.0" (HD) / "wlt_k" (privateKey)
 
 export type FeeModel = "legacy" | "eip1559" | "tron-resource" | "evm-gas";
@@ -15,7 +15,7 @@ interface NetworkBase {
   /**
    * Display symbol of this chain's native coin — TRX / ETH / BNB.
    *
-   * A NETWORK fact, not a family one: `evm:1` and `evm:56` share every encoding and arithmetic
+   * A NETWORK fact, not a family one: `eip155:1` and `eip155:56` share every encoding and arithmetic
    * rule that makes them EVM, but their coins are ETH and BNB. Reading this off the family table
    * renders a BNB balance as ETH, which is a wallet naming the wrong currency. The family still
    * owns what is genuinely family-wide — the base-unit name (wei) and its decimals.
@@ -24,7 +24,7 @@ interface NetworkBase {
   /**
    * A test network — its coin is not traded, so it has no USD value to report.
    *
-   * Declared per network rather than guessed from the id: `evm:11155111` says nothing about
+   * Declared per network rather than guessed from the id: `eip155:11155111` says nothing about
    * being a testnet, and a guess would be wrong for exactly the chains nobody checked.
    */
   testnet?: boolean;
@@ -73,7 +73,7 @@ export function isTronNetwork(network: NetworkDescriptor): network is TronNetwor
  * The host of an endpoint URL — what listings show instead of the URL itself.
  *
  * A commercial RPC endpoint carries its API key IN THE URL (`…/v2/<key>`, `…?apikey=<key>`), and
- * §2.2 tells users to configure exactly that. Any output that prints an endpoint it was not
+ * Users are told to configure exactly that. Any output that prints an endpoint it was not
  * explicitly asked for therefore prints a credential — and `chain node` is the command whose
  * output people paste into issues and CI logs. Trimming to the host is the one cut that needs no
  * guess about which path segment is the secret.

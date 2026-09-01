@@ -126,14 +126,14 @@ describe("contract deploy — ABI constructor guard", () => {
 });
 
 /**
- * §7.3 renamed the deploy inputs and changed the parameter form.
+ * The deploy inputs were renamed and the parameter form changed.
  *
  * `--params` meant `{type,value}` on `contract call`/`send` but bare positional values on
  * `deploy` — one flag name, two incompatible formats across sibling commands, which is why a
  * guard existed to explain the difference. `--constructor-params` unifies the form, so that
  * guard now points the other way: the typed form is the accepted one.
  *
- * `--abi` stays REQUIRED on TRON and is tagged (tron only). TronWeb's createSmartContract derives
+ * `--abi` stays REQUIRED on TRON and is tagged (TRON only). TronWeb's createSmartContract derives
  * constructor types from the ABI and takes only bare values; ethers needs no ABI at all.
  * Synthesising an ABI from the caller's inline types would hand TronWeb something nothing can
  * check — a mistyped parameter would encode cleanly and deploy a wrong contract.
@@ -217,7 +217,7 @@ describe("contract deploy — code input channel", () => {
 
 describe("contract deploy — EVM flag surface", () => {
   // A flag that is offered but ignored is worse than an absent one: the caller believes the
-  // value was applied. `deploy` hardcodes value 0, and §7.3's usage line does not list
+  // value was applied. `deploy` hardcodes value 0, and the usage line does not list
   // --call-value, so it must not appear here — unlike `contract send`, which does use it.
   it("offers no --call-value, which deploy would ignore", () => {
     expect(Object.keys(contractDeployEvmBinding({} as never).fields?.shape ?? {})).not.toContain(
@@ -231,7 +231,7 @@ describe("contract deploy — EVM flag surface", () => {
   });
 
   /**
-   * The call value moved to the SHARED spec as `--value` (§7.2, 2026-08-24 ruling): the concept
+   * The call value moved to the SHARED spec as `--value`: the concept
    * is the same on every chain, so it is one flag with one unit rather than a per-family name.
    * `contract deploy` still offers none — its value is always zero.
    */

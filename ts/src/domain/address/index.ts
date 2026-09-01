@@ -17,8 +17,8 @@ export interface AddressCodec {
   /**
    * The one spelling of a VALID address that this CLI stores and prints.
    *
-   * Input is accepted in more forms than output is written in (§1.3 takes an all-lower or
-   * all-upper EVM address as "no checksum was offered"), so without a normalising step the same
+   * Input is accepted in more forms than output is written in (an all-lower or
+   * all-upper EVM address means "no checksum was offered"), so without a normalising step the same
    * address reaches the screen in two different spellings depending on which command put it
    * there — and a user comparing them concludes they are different addresses.
    */
@@ -112,7 +112,7 @@ export class EvmAddress implements AddressCodec {
   validate(addr: string): boolean {
     return isEvmAddress(addr);
   }
-  /** EIP-55, always — the form §1.3 says every EVM address leaves this CLI in. */
+  /** EIP-55, always — the form every EVM address leaves this CLI in. */
   canonical(addr: string): string {
     return isEvmAddress(addr) ? evmChecksumAddress(hexToBytes(addr.slice(2).toLowerCase())) : addr;
   }
@@ -148,7 +148,7 @@ export function tronBytesToBase58(payload: Uint8Array): string {
 }
 
 /**
- * EIP-55 acceptance policy for an EVM address supplied by a caller (§1.3).
+ * EIP-55 acceptance policy for an EVM address supplied by a caller.
  *
  * All-lower and all-upper carry no case information and are accepted unverified, as EIP-55
  * permits. A mixed-case address MUST carry a valid checksum. The protocol itself is case-insensitive, so

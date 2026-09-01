@@ -11,8 +11,8 @@ describe("NullPriceProvider", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const p = new NullPriceProvider();
     expect(p.source).toBe("none");
-    expect(await p.nativeUsd("tron:mainnet")).toBeNull();
-    expect(await p.tokenUsd("tron:mainnet", ["TR7..."])).toEqual(new Map([["TR7...", null]]));
+    expect(await p.nativeUsd("tron:728126428")).toBeNull();
+    expect(await p.tokenUsd("tron:728126428", ["TR7..."])).toEqual(new Map([["TR7...", null]]));
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
@@ -27,19 +27,19 @@ describe("createPriceProvider", () => {
   });
 
   /**
-   * §4.2 / C5: a test network's coin is not traded, so its holdings are worth zero — and ZERO,
+   * A test network's coin is not traded, so its holdings are worth zero — and ZERO,
    * not null. `null` means "we could not find out"; on a testnet there is nothing to find out,
    * and the honest answer is that the money is not real.
    */
   describe("testnet valuation", () => {
-    const provider = createPriceProvider(undefined, undefined, new Set(["evm:11155111"]));
+    const provider = createPriceProvider(undefined, undefined, new Set(["eip155:11155111"]));
 
     it("values a testnet coin at zero without asking anyone", async () => {
-      expect(await provider.nativeUsd("evm:11155111")).toBe(0);
+      expect(await provider.nativeUsd("eip155:11155111")).toBe(0);
     });
 
     it("values testnet tokens at zero too", async () => {
-      const prices = await provider.tokenUsd("evm:11155111", ["0xabc", "0xdef"]);
+      const prices = await provider.tokenUsd("eip155:11155111", ["0xabc", "0xdef"]);
       expect([...prices.values()]).toEqual([0, 0]);
     });
 

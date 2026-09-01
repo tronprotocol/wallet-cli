@@ -111,17 +111,19 @@ Example:
 ## TriggerConstantContract
 
 ```console
-> TriggerConstantContract [ownerAddress] contractAddress method args isHex fee_limit value token_value token_id
+> TriggerConstantContract ownerAddress contractAddress method args isHex [value token_value token_id]
 ```
 
-- `OwnerAddress` — the address of the account that initiated the transaction, optional, default is the address of the login account.
+- `ownerAddress` — required. Pass a base58 address, or `#` to use the logged-in account.
 - `contractAddress` — smart contract address.
 - `method` — the name of the function and parameters; refer to the example.
 - `args` — parameter value; if you want to call `receive`, pass `#` instead.
 - `isHex` — the format of the parameters `method` and `args`; hex string or not.
-- `fee_limit` — the most TRX allowed for consumption.
+- `value` — optional call value in SUN; when supplied, `token_value` and `token_id` are required too.
 - `token_value` — number of TRC10.
 - `token_id` — TRC10 id; if not, use `#` instead.
+
+The command accepts exactly five parameters without value/token fields, or eight parameters with all three optional fields. It does not take `fee_limit`.
 
 Example:
 

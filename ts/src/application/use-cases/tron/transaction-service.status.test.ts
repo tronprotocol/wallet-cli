@@ -5,7 +5,7 @@ import type { TronGateway, TronTxInfo, TronTx } from "../../ports/chain/tron-gat
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const NET = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",
@@ -76,7 +76,7 @@ describe("TronTransactionService.status — four-state", () => {
 });
 
 /**
- * `Confirmations` — new in this release and NOT EVM-specific (§6.4). `--wait` stops at the
+ * `Confirmations` is NOT EVM-specific. `--wait` stops at the
  * receipt, so how deep is deep enough is the caller's judgement to make, and this is the number
  * they make it with.
  */

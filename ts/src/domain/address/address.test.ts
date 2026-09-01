@@ -25,7 +25,7 @@ describe("isEvmAddress", () => {
 });
 
 describe("isEvmAddress rejects a broken checksum", () => {
-  // §1.3: a checksummed address with ONE character altered must fail. Letting it through turns
+  // A checksummed address with ONE character altered must fail. Letting it through turns
   // "typed one character wrong" and "clipboard was swapped" straight into fund loss.
   it.each([
     ["0x5aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed", "A->a at index 2"],
@@ -38,7 +38,7 @@ describe("isEvmAddress rejects a broken checksum", () => {
 });
 
 describe("isEvmAddress accepts unchecksummed input", () => {
-  // §1.3: all-lower and all-upper carry no case information, so there is nothing to verify —
+  // All-lower and all-upper carry no case information, so there is nothing to verify —
   // EIP-55 itself says clients may accept them. Both forms below are the same address as the
   // first CHECKSUMMED vector, whose checksum form is neither all-lower nor all-upper.
   it("accepts an all-lowercase address", () => {
@@ -97,7 +97,7 @@ describe("evmAddressFromPublicKey", () => {
 });
 
 /**
- * §1.3 accepts more spellings than it prints: an all-lower or all-upper EVM address offers no
+ * Input accepts more spellings than output prints: an all-lower or all-upper EVM address offers no
  * checksum to verify, so it is valid input — but everything this CLI stores and shows is EIP-55.
  * Without the normalising step the same address appears in two spellings depending on which
  * command wrote it, and a user comparing them concludes they are different addresses.

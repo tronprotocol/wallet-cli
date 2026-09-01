@@ -73,7 +73,7 @@ Import a derived account from a Ledger device into wallet-cli.
 
 ```console
 wallet> ImportWalletByLedger
-((Note:This will pair Ledger to user your hardward wallet)
+(Note:This will pair Ledger to user your hardware wallet)
 Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected.
 Ledger device found: Nano X
 Please input password.

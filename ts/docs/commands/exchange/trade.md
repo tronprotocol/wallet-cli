@@ -45,7 +45,7 @@ Slippage grows with trade size relative to the reserves — that is the curve, n
 | `--slippage <percent>` | Derive the floor from current reserves, minus this percentage; > 0 and < 100 |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -60,7 +60,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 With an explicit floor:
 
 ```bash
-echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -79,11 +79,11 @@ echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received
 The same trade via `--slippage 1`: the CLI computes 4,950 from the current reserves, takes 1 % off, and sends 4,900 as the floor.
 
 ```bash
-echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.trade","data":{"kind":"exchange-trade","stage":"confirmed","txId":"d9a...","confirmed":true,"blockNumber":57884455,"failed":false,"exchangeId":12,"pair":"TRX:1000123","traderAddress":"TQkXm4vN...","soldTokenId":"_","soldQuant":"100000000","soldLabel":"TRX","soldDecimals":6,"receivedTokenId":"1000123","receivedLabel":"MyToken","receivedDecimals":6,"receivedQuant":"4950000000","estimatedReceivedQuant":"4950000000","minReceivedQuant":"4900000000","feeSun":0},"meta":{"durationMs":6490,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.trade","data":{"kind":"exchange-trade","stage":"confirmed","txId":"d9a...","confirmed":true,"blockNumber":57884455,"failed":false,"exchangeId":12,"pair":"TRX:1000123","traderAddress":"TQkXm4vN...","soldTokenId":"_","soldQuant":"100000000","soldLabel":"TRX","soldDecimals":6,"receivedTokenId":"1000123","receivedLabel":"MyToken","receivedDecimals":6,"receivedQuant":"4950000000","estimatedReceivedQuant":"4950000000","minReceivedQuant":"4900000000","feeSun":0},"meta":{"durationMs":6490,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

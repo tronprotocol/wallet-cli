@@ -5,7 +5,7 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const net = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

@@ -67,7 +67,7 @@ describe("RecipientResolver — EVM", () => {
     expect(resolver.resolve("evm", EVM)).toEqual({ address: EVM });
   });
 
-  // §1.3 takes an all-lowercase address as "no checksum was offered" and accepts it — but what
+  // An all-lowercase address counts as "no checksum was offered" and is accepted — but what
   // comes back is the canonical spelling, so the receipt shows the same address the wallet does
   // rather than a second style the reader has to compare character by character.
   it("accepts an unchecksummed EVM address and returns it in EIP-55", () => {

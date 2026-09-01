@@ -9,7 +9,7 @@ import { TronPermissionService } from "./permission-service.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-const NETWORK = { id: "tron:nile", family: "tron", nativeSymbol: "TRX" } as never;
+const NETWORK = { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as never;
 
 function permissions(): AccountPermissionsView {
   return {

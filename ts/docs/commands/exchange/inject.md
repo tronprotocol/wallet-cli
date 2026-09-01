@@ -33,7 +33,7 @@ If the amount is so small that the computed other side rounds to zero, the chain
 | `--raw-amount <n>` | The same amount in minimal units. One of `--amount` / `--raw-amount` |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -46,7 +46,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli exchange inject 12 --token TRX --amount 1000 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange inject 12 --token TRX --amount 1000 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -62,11 +62,11 @@ echo "$PW" | wallet-cli exchange inject 12 --token TRX --amount 1000 --network t
 ```
 
 ```bash
-echo "$PW" | wallet-cli exchange inject 12 --token TRX --amount 1000 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange inject 12 --token TRX --amount 1000 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.inject","data":{"kind":"exchange-inject","stage":"confirmed","txId":"5c3...","confirmed":true,"blockNumber":57884180,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","tokenId":"_","tokenQuant":"1000000000","tokenLabel":"TRX","tokenDecimals":6,"otherTokenId":"1000123","otherTokenQuant":"50000000000","otherTokenLabel":"MyToken","otherTokenDecimals":6,"reserveAfter":"11000000000","otherReserveAfter":"550000000000","feeSun":0},"meta":{"durationMs":6440,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.inject","data":{"kind":"exchange-inject","stage":"confirmed","txId":"5c3...","confirmed":true,"blockNumber":57884180,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","tokenId":"_","tokenQuant":"1000000000","tokenLabel":"TRX","tokenDecimals":6,"otherTokenId":"1000123","otherTokenQuant":"50000000000","otherTokenLabel":"MyToken","otherTokenDecimals":6,"reserveAfter":"11000000000","otherReserveAfter":"550000000000","feeSun":0},"meta":{"durationMs":6440,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

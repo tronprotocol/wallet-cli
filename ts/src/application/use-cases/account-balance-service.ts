@@ -21,7 +21,7 @@ export class AccountBalanceService {
       balance: await this.gateways.client(network).getNativeBalance(address),
       // Decimals are a FAMILY fact (sun→TRX is 6, wei→ether is 18) …
       decimals: FAMILIES[family].nativeDecimals,
-      // … but the coin's name is a NETWORK fact. `evm:1` is ETH and `evm:56` is BNB, one family
+      // … but the coin's name is a NETWORK fact. `eip155:1` is ETH and `eip155:56` is BNB, one family
       // with two coins, so a family-level symbol would be right for at most one of them.
       symbol: network.nativeSymbol,
     };

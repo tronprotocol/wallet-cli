@@ -14,10 +14,12 @@ Reports which step a transaction is at, using **four states**, on TRON and EVM n
 
 | `data.state` | Meaning | Terminal? |
 |---|---|---|
-| `confirmed` | On chain — solidified on TRON, receipted on EVM; `blockNumber` present | yes |
+| `confirmed` | Included in a block and an execution result/receipt is available; `blockNumber` present | yes |
 | `failed` | Included and reverted / rejected | yes |
-| `pending` | Seen by the node, not yet solidified | no — keep polling |
-| `not_found` | Unknown to the queried node (wrong network? not propagated yet?) | no — poll within your own deadline |
+| `pending` | Seen by the node, with no execution result/receipt yet | no — keep polling |
+| `not_found` | Unknown to the queried endpoint (wrong network, not propagated, dropped, or pruned); outcome unknown | no — keep polling/reconcile; do not assume failure |
+
+> `confirmed` is an inclusion-and-receipt state, not a finality guarantee. If a workflow needs finality, verify it separately with a TRON SolidityNode view or an EVM finalized block.
 
 ## Options
 
@@ -30,7 +32,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli tx status --txid 7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364 --network tron:nile
+wallet-cli tx status --txid 7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364 --network tron:3448148188
 ```
 
 ```console
@@ -41,23 +43,23 @@ Confirmations  1
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","state":"confirmed","confirmed":true,"failed":false,"blockNumber":70433563,"confirmations":1},"meta":{"durationMs":732,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","state":"confirmed","confirmed":true,"failed":false,"blockNumber":70433563,"confirmations":1},"meta":{"durationMs":732,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The same query on an EVM network, by `0x` hash:
 
 ```bash
-wallet-cli tx status --txid 0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80 --network evm:11155111 -o json
+wallet-cli tx status --txid 0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80 --network eip155:11155111 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","state":"confirmed","confirmed":true,"failed":false,"blockNumber":11576586,"confirmations":0},"meta":{"durationMs":408,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","state":"confirmed","confirmed":true,"failed":false,"blockNumber":11576586,"confirmations":0},"meta":{"durationMs":408,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
-An unknown txid is a **success** with `state: "not_found"` (exit 0) — the query worked; the answer is "not there":
+An unknown txid is a **success** with `state: "not_found"` (exit 0) — the query worked; this endpoint has no record of that hash:
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":1022,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.status","data":{"txid":"0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":1022,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On EVM, `not_found` also carries a `meta.warnings` entry, because a public endpoint that has pruned its history is indistinguishable from a hash that never existed:
@@ -65,6 +67,8 @@ On EVM, `not_found` also carries a `meta.warnings` entry, because a public endpo
 ```json
 {"…":"…","data":{"txid":"0x0000…0000","state":"not_found","confirmed":false,"failed":false},"meta":{"durationMs":407,"warnings":["0x0000…0000 is unknown to this endpoint. Public nodes often prune history, so this may mean the node has no record of it rather than that it never existed; try an archival endpoint."]}}
 ```
+
+> A polling deadline that ends in `pending` or `not_found` is still an unknown outcome. Do not treat it as failure or use it as an automatic resend trigger; reconcile the txid against the intended network and endpoint history first.
 
 ## Output
 

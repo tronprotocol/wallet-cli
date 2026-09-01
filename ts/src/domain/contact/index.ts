@@ -56,7 +56,7 @@ export function createContact(
     family,
     name,
     nameKey: contactNameKey(name),
-    // Canonical (§1.3): the book is a display surface as much as a lookup, and the loader runs
+    // Canonical: the book is a display surface as much as a lookup, and the loader runs
     // this same constructor, so an entry written before this rule normalises when it is read.
     address: addressCodec(family).canonical(address),
     note: contactNote(noteInput),

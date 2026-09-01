@@ -44,6 +44,7 @@ wallet-cli import keystore ./tronlink-export.json --label imported
   Account ID    wlt_7h2k9m1a
   Type          private key
   TRON address  TZx9kP2m...7bWq
+  EVM address   0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961
   Active        yes
 
 ⚠️ The keystore password was read from hidden input and was not printed.
@@ -56,7 +57,7 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 ```console
 ? Master password (hidden):
 ? Keystore file password (hidden):
-{"schema":"wallet-cli.result.v1","success":true,"command":"import.keystore","data":{"status":"created","accountId":"wlt_7h2k9m1a","label":"imported","type":"privateKey","index":null,"active":true,"addresses":{"tron":"TZx9kP2m...7bWq"}},"meta":{"durationMs":44,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"import.keystore","data":{"status":"created","accountId":"wlt_7h2k9m1a","label":"imported","type":"privateKey","index":null,"active":true,"addresses":{"tron":"TZx9kP2m...7bWq","evm":"0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961"},"derivationPath":null},"meta":{"durationMs":44,"warnings":[]}}
 ```
 
 ## Output
@@ -71,11 +72,12 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 | `type` | string | `"privateKey"` (standalone, no seed) |
 | `index` | number \| null | Non-HD account, always `null` |
 | `active` | boolean | Became the active account |
-| `addresses.tron` | string | Base58 TRON address |
+| `addresses` | object | Both encodings of the imported key: `tron` (base58) and `evm` (EIP-55) |
+| `derivationPath` | null | A Web3 keystore contains one raw key and has no derivation path |
 
 ## Exit status
 
-`0` imported · `1` execution failure (`keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `wrong_keystore_password`; `account_exists` — this address is already in the wallet; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; duplicate label).
+`0` imported · `1` execution failure (`wrong_keystore_password`; `account_exists` — this address is already in the wallet; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; `keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `invalid_value` — duplicate or invalid label).
 
 ## See also
 

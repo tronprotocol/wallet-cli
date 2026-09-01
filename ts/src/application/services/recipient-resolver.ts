@@ -19,7 +19,7 @@ export class RecipientResolver {
     const value = input.trim();
 
     if (addressCodec(family).validate(value)) {
-      // Canonical (§1.3): what goes into the transaction is what the receipt will show, so a
+      // Canonical: what goes into the transaction is what the receipt will show, so a
       // lowercase paste does not come back looking like a different recipient.
       return { address: addressCodec(family).canonical(value) };
     }

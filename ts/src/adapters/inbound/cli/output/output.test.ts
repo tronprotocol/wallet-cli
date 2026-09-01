@@ -21,7 +21,7 @@ function capture(output: "text" | "json") {
 
 const cmd = { path: ["account", "balance"] } as unknown as CommandDefinition;
 const net: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",
@@ -35,7 +35,7 @@ describe("createOutputFormatter (json)", () => {
     const env = JSON.parse(f.success(commandId(cmd), net, { balance: "1" }));
     expect(env.success).toBe(true);
     expect(env.command).toBe("account.balance");
-    expect(env.chain).toMatchObject({ network: "tron:nile", chainId: "nile" });
+    expect(env.chain).toMatchObject({ network: "tron:3448148188", chainId: "nile" });
     expect(env.data).toEqual({ balance: "1" });
     expect(env.meta).toMatchObject({ warnings: [] });
   });
@@ -131,7 +131,7 @@ describe("createOutputFormatter (json)", () => {
 describe("createOutputFormatter (text)", () => {
   it("generic output identifies the network by canonical id", () => {
     const text = renderGenericText("tron.test", net, {});
-    expect(text).toContain("network: tron:nile");
+    expect(text).toContain("network: tron:3448148188");
     expect(text).not.toContain("network: nile");
   });
 

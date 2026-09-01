@@ -41,7 +41,7 @@ wallet-cli rename main-1 --label hot-hd -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"rename","data":{"previousLabel":"main-1","accountId":"wlt_0y2z0gvr.1","label":"hot-hd","type":"seed","index":1,"active":true,"addresses":{"tron":"TRzaAZWRvPCcmqNETTWvmMLDi6cKwM3gbR","evm":"0x94f2e5cbb4BcA39A3F6c252217a0F30A0D23660b"},"seedId":"wlt_0y2z0gvr","derivationPath":{"tron":"m/44'/195'/0'/0/1","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":14,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"rename","data":{"previousLabel":"main-1","accountId":"wlt_0y2z0gvr.1","label":"hot-hd","type":"seed","index":1,"active":true,"addresses":{"tron":"TRzaAZWRvPCcmqNETTWvmMLDi6cKwM3gbR","evm":"0x94f2e5cbb4BcA39A3F6c252217a0F30A0D23660b"},"seedId":"wlt_0y2z0gvr","derivationPath":{"tron":"m/44'/195'/1'/0/0","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":14,"warnings":[]}}
 ```
 
 ## Output

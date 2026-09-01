@@ -15,7 +15,7 @@ import type { PriceProvider } from "../../ports/price-provider.js";
 
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
 const net = {
-  id: "evm:1",
+  id: "eip155:1",
   family: "evm",
   nativeSymbol: "ETH",
   chainId: "1",

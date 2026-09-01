@@ -26,7 +26,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli asset list --limit 3 --network tron:nile
+wallet-cli asset list --limit 3 --network tron:3448148188
 ```
 
 ```console
@@ -39,11 +39,11 @@ Assets (limit 3, offset 0)
 ```
 
 ```bash
-wallet-cli asset list --limit 3 --network tron:nile -o json
+wallet-cli asset list --limit 3 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.list","data":{"kind":"asset-list","assets":[{"assetId":"1000125","name":"AlphaCoin","issuerAddress":"TAlpha7k...","totalSupply":"50000000000","precision":2},{"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","totalSupply":"2000000000000000","precision":6},{"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6}]},"meta":{"durationMs":48,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.list","data":{"kind":"asset-list","assets":[{"assetId":"1000125","name":"AlphaCoin","issuerAddress":"TAlpha7k...","totalSupply":"50000000000","precision":2},{"assetId":"1000124","name":"BetaToken","issuerAddress":"TBeta9mR...","totalSupply":"2000000000000000","precision":6},{"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6}]},"meta":{"durationMs":48,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

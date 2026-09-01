@@ -121,23 +121,23 @@ describe("ConfigService GasFree credentials", () => {
 const twoNetworks = {
   timeoutMs: 60_000,
   waitTimeoutMs: 60_000,
-  aliases: { nile: "tron:nile", sepolia: "evm:11155111" },
+  aliases: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
   networks: {
-    "tron:nile": { id: "tron:nile", httpEndpoint: "https://nile.trongrid.io" },
-    "evm:11155111": { id: "evm:11155111", httpEndpoint: "https://sepolia.example/abc123" },
+    "tron:3448148188": { id: "tron:3448148188", httpEndpoint: "https://nile.trongrid.io" },
+    "eip155:11155111": { id: "eip155:11155111", httpEndpoint: "https://sepolia.example/abc123" },
   },
 } as unknown as Config;
 
 const registry = {
   resolve: (id: string) => {
-    const key = { nile: "tron:nile", sepolia: "evm:11155111" }[id] ?? id;
+    const key = { nile: "tron:3448148188", sepolia: "eip155:11155111" }[id] ?? id;
     const net = (twoNetworks.networks as Record<string, unknown>)[key];
     if (!net) throw new Error(`unknown network: ${id}`);
     return net;
   },
 } as unknown as NetworkRegistry;
 
-// §2.4: `config networks` used to return only ids, so there was no way to confirm an endpoint
+// `config networks` used to return only ids, so there was no way to confirm an endpoint
 // change had taken effect.
 describe("ConfigService networks view", () => {
   it("maps each canonical id to its configurable fields, endpoint trimmed to the host", () => {
@@ -145,9 +145,9 @@ describe("ConfigService networks view", () => {
     expect(svc.execute({ key: "networks" }, twoNetworks, registry)).toMatchObject({
       key: "networks",
       value: {
-        "tron:nile": { httpEndpoint: "nile.trongrid.io" },
+        "tron:3448148188": { httpEndpoint: "nile.trongrid.io" },
         // host only — an endpoint may carry an API key in its path
-        "evm:11155111": { httpEndpoint: "sepolia.example" },
+        "eip155:11155111": { httpEndpoint: "sepolia.example" },
       },
     });
   });
@@ -157,17 +157,17 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
   it("writes an endpoint addressed by canonical id", () => {
     const { svc, update } = service();
     const result = svc.execute(
-      { key: "networks.evm:11155111.httpEndpoint", value: "https://my-node.example/key" },
+      { key: "networks.eip155:11155111.httpEndpoint", value: "https://my-node.example/key" },
       twoNetworks,
       registry,
     );
 
-    expect(result).toMatchObject({ key: "networks.evm:11155111.httpEndpoint" });
+    expect(result).toMatchObject({ key: "networks.eip155:11155111.httpEndpoint" });
     expect(update).toHaveBeenCalled();
   });
 
-  // §2.4: an alias in the key is normalised to the canonical id ON WRITE, so config.yaml can
-  // never end up holding both `networks.sepolia` and `networks.evm:11155111`.
+  // An alias in the key is normalised to the canonical id ON WRITE, so config.yaml can
+  // never end up holding both `networks.sepolia` and `networks.eip155:11155111`.
   it("normalises an alias in the key to the canonical id", () => {
     const { svc, update } = service();
     svc.execute(
@@ -177,7 +177,30 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
     );
 
     const document = update.mock.calls[0]![0]({}).document as Record<string, any>;
-    expect(Object.keys(document.networks)).toEqual(["evm:11155111"]);
+    expect(Object.keys(document.networks)).toEqual(["eip155:11155111"]);
+  });
+
+  // The document itself may already hold the network under an alias key. Writing under the
+  // canonical id without folding that entry in leaves the file with one network under two keys,
+  // which the loader refuses outright — the CLI stops working until someone hand-edits the file.
+  it("folds an alias-keyed entry into the canonical id instead of adding a second one", () => {
+    const { svc, update } = service();
+    svc.execute(
+      { key: "networks.eip155:11155111.httpEndpoint", value: "https://new.example" },
+      twoNetworks,
+      registry,
+    );
+
+    const document = update.mock.calls[0]![0]({
+      networks: { sepolia: { httpEndpoint: "https://old.example", apiKeyHeader: "X-Key" } },
+    }).document as Record<string, any>;
+    expect(Object.keys(document.networks)).toEqual(["eip155:11155111"]);
+    // the folded entry keeps the fields this write did not touch
+    expect(document.networks["eip155:11155111"]).toEqual({
+      // normalised on write, like any other endpoint
+      httpEndpoint: "https://new.example/",
+      apiKeyHeader: "X-Key",
+    });
   });
 
   it("rejects an unknown network in the key", () => {
@@ -217,14 +240,14 @@ describe("ConfigService alias book view", () => {
     const { svc } = service();
     expect(svc.execute({ key: "aliases" }, twoNetworks, registry)).toMatchObject({
       key: "aliases",
-      value: { nile: "tron:nile", sepolia: "evm:11155111" },
+      value: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
     });
   });
 
   it("includes the book in the whole-config view", () => {
     const { svc } = service();
     expect(svc.execute({}, twoNetworks, registry)).toMatchObject({
-      aliases: { nile: "tron:nile" },
+      aliases: { nile: "tron:3448148188" },
     });
   });
 
@@ -243,9 +266,9 @@ describe("ConfigService reads a nested network key", () => {
   it("returns the endpoint instead of demanding a value", () => {
     const { svc } = service();
     expect(
-      svc.execute({ key: "networks.evm:11155111.httpEndpoint" }, twoNetworks, registry),
+      svc.execute({ key: "networks.eip155:11155111.httpEndpoint" }, twoNetworks, registry),
     ).toEqual({
-      key: "networks.evm:11155111.httpEndpoint",
+      key: "networks.eip155:11155111.httpEndpoint",
       value: "https://sepolia.example/abc123",
     });
   });
@@ -254,7 +277,7 @@ describe("ConfigService reads a nested network key", () => {
     const { svc } = service();
     expect(
       svc.execute({ key: "networks.sepolia.httpEndpoint" }, twoNetworks, registry),
-    ).toMatchObject({ key: "networks.evm:11155111.httpEndpoint" });
+    ).toMatchObject({ key: "networks.eip155:11155111.httpEndpoint" });
   });
 
   it("reads back what was just written", () => {
@@ -272,27 +295,27 @@ describe("ConfigService reads a nested network key", () => {
   });
 });
 
-// §2.4 (revised): `config` shows what a user can SET. A network therefore renders as an object of
+// `config` shows what a user can SET. A network therefore renders as an object of
 // its configurable fields — endpoint plus the API-key pair — not as a bare endpoint string, so a
 // new configurable field appears everywhere at once instead of needing a display site per view.
 const keyedNetworks = {
   timeoutMs: 60_000,
   waitTimeoutMs: 60_000,
-  aliases: { nile: "tron:nile", sepolia: "evm:11155111" },
+  aliases: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
   networks: {
-    "tron:nile": {
-      id: "tron:nile",
+    "tron:3448148188": {
+      id: "tron:3448148188",
       httpEndpoint: "https://nile.trongrid.io",
       apiKeyHeader: "TRON-PRO-API-KEY",
       apiKey: "topsecret",
     },
-    "evm:11155111": { id: "evm:11155111", httpEndpoint: "https://sepolia.example/abc123" },
+    "eip155:11155111": { id: "eip155:11155111", httpEndpoint: "https://sepolia.example/abc123" },
   },
 } as unknown as Config;
 
 const keyedRegistry = {
   resolve: (id: string) => {
-    const key = { nile: "tron:nile", sepolia: "evm:11155111" }[id] ?? id;
+    const key = { nile: "tron:3448148188", sepolia: "eip155:11155111" }[id] ?? id;
     const net = (keyedNetworks.networks as Record<string, unknown>)[key];
     if (!net) throw new Error(`unknown network: ${id}`);
     return net;
@@ -302,8 +325,8 @@ const keyedRegistry = {
 describe("ConfigService network subtree read", () => {
   it("reads one network as its configurable fields", () => {
     const { svc } = service();
-    expect(svc.execute({ key: "networks.tron:nile" }, keyedNetworks, keyedRegistry)).toEqual({
-      key: "networks.tron:nile",
+    expect(svc.execute({ key: "networks.tron:3448148188" }, keyedNetworks, keyedRegistry)).toEqual({
+      key: "networks.tron:3448148188",
       value: {
         httpEndpoint: "https://nile.trongrid.io",
         apiKeyHeader: "TRON-PRO-API-KEY",
@@ -317,21 +340,21 @@ describe("ConfigService network subtree read", () => {
   it("gives the full endpoint URL when a single network is named", () => {
     const { svc } = service();
     expect(
-      svc.execute({ key: "networks.evm:11155111" }, keyedNetworks, keyedRegistry),
+      svc.execute({ key: "networks.eip155:11155111" }, keyedNetworks, keyedRegistry),
     ).toMatchObject({ value: { httpEndpoint: "https://sepolia.example/abc123" } });
   });
 
   it("resolves an alias to the canonical id, exactly as the leaf read does", () => {
     const { svc } = service();
     expect(svc.execute({ key: "networks.sepolia" }, keyedNetworks, keyedRegistry)).toMatchObject({
-      key: "networks.evm:11155111",
+      key: "networks.eip155:11155111",
     });
   });
 
   it("omits fields the network has not configured", () => {
     const { svc } = service();
     const value = (
-      svc.execute({ key: "networks.evm:11155111" }, keyedNetworks, keyedRegistry) as {
+      svc.execute({ key: "networks.eip155:11155111" }, keyedNetworks, keyedRegistry) as {
         value: Record<string, unknown>;
       }
     ).value;
@@ -352,12 +375,12 @@ describe("ConfigService network listings keep endpoints host-only", () => {
     expect(svc.execute({ key: "networks" }, keyedNetworks, keyedRegistry)).toMatchObject({
       key: "networks",
       value: {
-        "tron:nile": {
+        "tron:3448148188": {
           httpEndpoint: "nile.trongrid.io",
           apiKeyHeader: "TRON-PRO-API-KEY",
           apiKey: "********",
         },
-        "evm:11155111": { httpEndpoint: "sepolia.example" },
+        "eip155:11155111": { httpEndpoint: "sepolia.example" },
       },
     });
   });
@@ -365,7 +388,7 @@ describe("ConfigService network listings keep endpoints host-only", () => {
   it("nests them the same way in the whole-config view", () => {
     const { svc } = service();
     expect(svc.execute({}, keyedNetworks, keyedRegistry)).toMatchObject({
-      networks: { "tron:nile": { httpEndpoint: "nile.trongrid.io" } },
+      networks: { "tron:3448148188": { httpEndpoint: "nile.trongrid.io" } },
     });
   });
 });
@@ -375,7 +398,7 @@ describe("ConfigService apiKey is write-only", () => {
   it("masks it in the leaf read", () => {
     const { svc } = service();
     expect(svc.execute({ key: "networks.nile.apiKey" }, keyedNetworks, keyedRegistry)).toEqual({
-      key: "networks.tron:nile.apiKey",
+      key: "networks.tron:3448148188.apiKey",
       value: "********",
     });
   });
@@ -397,9 +420,9 @@ describe("ConfigService writes the API-key pair", () => {
         keyedNetworks,
         keyedRegistry,
       ),
-    ).toMatchObject({ key: "networks.tron:nile.apiKeyHeader", value: "TRON-PRO-API-KEY" });
+    ).toMatchObject({ key: "networks.tron:3448148188.apiKeyHeader", value: "TRON-PRO-API-KEY" });
     const document = update.mock.calls[0]![0]({}).document as Record<string, any>;
-    expect(document.networks["tron:nile"]).toEqual({ apiKeyHeader: "TRON-PRO-API-KEY" });
+    expect(document.networks["tron:3448148188"]).toEqual({ apiKeyHeader: "TRON-PRO-API-KEY" });
   });
 
   it("never echoes the apiKey it just wrote", () => {
@@ -410,9 +433,13 @@ describe("ConfigService writes the API-key pair", () => {
         keyedNetworks,
         keyedRegistry,
       ),
-    ).toMatchObject({ key: "networks.tron:nile.apiKey", value: "********", input: "********" });
+    ).toMatchObject({
+      key: "networks.tron:3448148188.apiKey",
+      value: "********",
+      input: "********",
+    });
     const document = update.mock.calls[0]![0]({}).document as Record<string, any>;
-    expect(document.networks["tron:nile"].apiKey).toBe("topsecret");
+    expect(document.networks["tron:3448148188"].apiKey).toBe("topsecret");
   });
 
   // A header NAME travels into an HTTP request line; a newline in it would be header injection.

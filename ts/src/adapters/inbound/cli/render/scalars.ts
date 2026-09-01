@@ -29,13 +29,13 @@ export function formatDecimal(v: unknown): string {
   return `${sign}${integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction}`;
 }
 
-/** A USD *valuation* — always 2 decimals, per §1.4. */
+/** A USD *valuation* — always 2 decimals */
 export function formatUsd(v: unknown): string {
   return usd(v, 2);
 }
 
 /**
- * A USD *unit price* — 4 decimals, per §1.4. Prices need the extra precision valuations do not:
+ * A USD *unit price* — 4 decimals Prices need the extra precision valuations do not:
  * a stablecoin at $0.9998 rendered as "$1.00" hides a depeg, and a sub-cent token collapses to
  * "$0.00" entirely.
  */
@@ -50,12 +50,12 @@ function usd(v: unknown, digits: number): string {
     : String(v ?? "");
 }
 
-/** §1.4: text output shows at most this many fractional digits, whatever the asset's precision. */
+/** Text output shows at most this many fractional digits, whatever the asset's precision. */
 const DISPLAY_DECIMALS = 6;
 const SMALLEST_SHOWN = `0.${"0".repeat(DISPLAY_DECIMALS - 1)}1`; // 0.000001
 
 /**
- * Base-unit integer → the human amount text output shows (§1.4).
+ * Base-unit integer → the human amount text output shows.
  *
  * Three rules, each protecting against a specific way of misleading a reader:
  *   - **Truncate, never round.** Rounding 1.9999999 to "2" OVERSTATES a balance, which is the

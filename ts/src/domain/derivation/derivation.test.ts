@@ -35,7 +35,7 @@ describe("AddressCodec.validate", () => {
   });
 });
 
-// §1.2: each family follows its own ecosystem's template, so the account number hangs at a
+// Each family follows its own ecosystem's template, so the account number hangs at a
 // DIFFERENT level per family. Swapping the coin type alone is not enough.
 describe("Derivation.path follows each family's own BIP44 template", () => {
   it("puts the TRON account number at the account level", () => {

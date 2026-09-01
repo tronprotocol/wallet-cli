@@ -12,7 +12,7 @@ import type { AccountScope } from "../contracts/execution-scope.js";
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../domain/types/index.js";
 
 const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
-const net = { id: "evm:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
+const net = { id: "eip155:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
 
 const USDT: EffectiveTokenEntry = {
   kind: "erc20",
@@ -38,11 +38,11 @@ describe("TokenBookService.list", () => {
     const { repository, calls } = repo([USDT]);
 
     expect(new TokenBookService(repository).list(scope, net)).toEqual({
-      network: "evm:1",
+      network: "eip155:1",
       account: "wlt_test.0",
       tokens: [USDT],
     });
-    expect(calls).toEqual([["evm:1", "wlt_test.0"]]);
+    expect(calls).toEqual([["eip155:1", "wlt_test.0"]]);
   });
 
   it("reports an empty book rather than failing", () => {

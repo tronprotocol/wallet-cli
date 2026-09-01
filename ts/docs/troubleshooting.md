@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes) defined in the machine interface (the single authority on what each code *is* — this page only covers what to *do*). For a code not covered here, the complete one-line index is `wallet-cli --json-schema | jq '.errorCodes'`.
+Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes) defined in the machine interface (the single authority on what each code *is* — this page only covers what to *do*). For a code not covered here, the maintained discovery index is `wallet-cli --json-schema | jq '.errorCodes'`; still fall back to the exit-code class if a runtime envelope carries a code outside that catalog.
 
 ## `usage_error` / `invalid_value` (exit 2)
 
@@ -21,7 +21,7 @@ The command, the account, or the transaction does not belong to the selected net
 
 ## `invalid_option`: "a tron option on this command" (exit 2)
 
-A flag that belongs to the other chain family. `--asset-id`, `--fee-limit`, `--permission-id`, `--expiration`, `--transaction` and `--tx-stdin` are TRON's; `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` are EVM's. `--help` tags each one `(tron only)` / `(evm only)`.
+A flag that belongs to the other chain family. `--asset-id`, `--fee-limit`, `--permission-id`, `--expiration`, `--transaction` and `--tx-stdin` are TRON's; `--gas-limit`, `--max-fee`, `--priority-fee` and `--nonce` are EVM's. `--help` tags each one `(TRON only)` / `(EVM only)`.
 
 `--max-fee` / `--priority-fee` additionally need an **EIP-1559** chain; on a network that still prices in `gasPrice` they are refused with the same code.
 
@@ -40,10 +40,10 @@ A nonce that is *ahead* of the account's next one is not an error: it is a `meta
 
 ## `tty_required` / `auth_required` (exit 2 / exit 1)
 
-A secret was needed but none could be read.
+A credential, secret, or signing-device approval was needed but none was available.
 
 - `tty_required` — no terminal is attached (CI, pipes). For commands with a stdin path, provide the matching `*-stdin` flag (`--password-stdin`, `--tx-stdin`). `import mnemonic`, `import private-key`, and `change-password` are interactive-only — they must run in a real TTY; there is no non-interactive alternative.
-- `auth_required` — the command needs the master password; pass `--password-stdin` or run it interactively.
+- `auth_required` — software signing needs the master password, or Ledger signing needs the right app/device state. For software accounts, pass `--password-stdin` or run interactively; for Ledger, unlock the device and open the TRON or Ethereum app that matches the account family.
 - `auth_failed` — the password was wrong (decryption failed); re-enter it.
 
 ## `timeout` (exit 1)
@@ -70,7 +70,7 @@ An unexpected failure. The message is intentionally generic (secret-redaction). 
 
 ## Not an error code, but frequently asked
 
-- **`tx status` says `pending` for a long time** — the tx is seen but not solidified; keep polling. If it never leaves `pending`/`not_found` past your deadline, treat it as failed and investigate on a block explorer before resending.
+- **`tx status` says `pending` for a long time** — the tx is seen, but no execution result/receipt is available yet; keep polling. If it never leaves `pending`/`not_found` past your deadline, the outcome is unknown, not failed. Reconcile it on the intended network, preferably with an explorer or archival endpoint, before any resend.
 - **"only one *-stdin flag can consume stdin per run"** — pipe one secret per invocation; for send-with-password use `--password-stdin` and let the mnemonic/key live in the encrypted store.
 - **Forgot the master password** — there is no recovery; restore from your BIP39 mnemonic (`import mnemonic`) into a fresh wallet and set a new password.
 - **`account history` fails while other queries work** — history requires a TronGrid endpoint; plain node RPC is not enough. It is also TRON-only: on an EVM network it fails with `family_mismatch`.

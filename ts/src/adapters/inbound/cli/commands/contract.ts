@@ -91,7 +91,7 @@ function assertConstructorEncodable(abi: unknown): void {
  * `contract send` take.
  *
  * Deploy used to take bare positional values here while its siblings took typed entries: one
- * flag name, two incompatible formats. That is what §7.3 unified, so the guard that used to
+ * flag name, two incompatible formats. That is what unifying the flag fixed, so the guard that used to
  * reject the typed form now rejects the bare one.
  */
 function typedConstructorParams(raw: string | undefined): TronContractParameter[] {
@@ -120,7 +120,7 @@ export const contractCallSpec: ChainSpec = {
   auth: "none",
   capability: "contract.call",
   summary: "Read-only contract call",
-  // §7.1: no ABI is fetched — the caller supplies the types. Without this the reader has no way
+  // No ABI is fetched — the caller supplies the types. Without this the reader has no way
   // to know why a signature is required, or why the result comes back undecoded.
   description:
     "Read-only contract call. The function signature and parameter types are supplied\n" +
@@ -156,7 +156,7 @@ const sendFields = z.object({
     .string()
     .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
-  // Family-neutral and in WHOLE COINS, like `tx send --amount` (§7.2). The concept — native coin
+  // Family-neutral and in WHOLE COINS, like `tx send --amount`. The concept — native coin
   // attached to a call — is the same on every chain, so it gets one flag and one unit; the unit
   // in `--call-value-sun`'s name is what made it unusable off TRON.
   // Zero is a legitimate call value (it is the default), so this is not the transfer amount's
@@ -208,7 +208,7 @@ const evmGasFields = z.object({
     .describe("transaction nonce; defaults to the account's pending nonce"),
 });
 
-/** `contract send`'s call value is the shared `--value` (§7.2); `contract deploy` has none — a
+/** `contract send`'s call value is the shared `--value`; `contract deploy` has none — a
  *  deployment's value is always zero here, and offering a flag the command ignores is worse than
  *  omitting it. */
 const evmContractWrite = {
@@ -233,7 +233,7 @@ export const contractSendSpec: ChainSpec = {
   summary: "State-changing contract call",
   description:
     "Call a contract method that changes state, signing and broadcasting the transaction.\n" +
-    "Flags marked (tron only) or (evm only) are accepted only on networks of that family; using one on the other family is rejected.",
+    "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   baseRefine: governanceTxRefine,
   examples: [
@@ -570,7 +570,7 @@ function codeSourceRefine(
  * derives the constructor's types from the ABI and takes only bare values, so without it there
  * is nothing to encode against. Synthesising an ABI from the caller's inline types would hand
  * TronWeb something no one can check — a mistyped parameter would encode cleanly and deploy a
- * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(tron only)`.
+ * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(TRON only)`.
  */
 const tronDeployFields = z.object({
   abi: z
@@ -625,7 +625,7 @@ export const contractDeploySpec: ChainSpec = {
   summary: "Deploy contract bytecode",
   description:
     "Deploy contract creation bytecode and report the new contract's address.\n" +
-    "Flags marked (tron only) or (evm only) are accepted only on networks of that family; using one on the other family is rejected.",
+    "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: deployFields,
   baseRefine: deployRefine,
   examples: [

@@ -103,13 +103,13 @@ export class EvmAccountService {
       gateway.getCode(address),
     ]);
     // "0x" is the empty-code answer, i.e. an externally-owned account. `type` rather than a
-    // boolean (§4.3): it is the field agents match on, and it has room for a third kind of
+    // boolean: it is the field agents match on, and it has room for a third kind of
     // account without every reader having to relearn the meaning of a flag.
     const isContract = code !== "0x" && code !== "";
     return {
       address,
       balance,
-      // A number, matching `tx info`'s own `nonce` (§4.3): one field name must not arrive as two
+      // A number, matching `tx info`'s own `nonce`: one field name must not arrive as two
       // types across two commands. Safe as a number — a nonce counts an account's transactions,
       // so it cannot approach 2^53 the way a wei balance does.
       nonce: Number(nonce),

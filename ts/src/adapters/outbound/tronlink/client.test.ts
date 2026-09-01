@@ -17,7 +17,7 @@ const CONFIG = {
   tronlinkChannel: "wallet-cli",
 } as Config;
 const NETWORK = {
-  id: "tron:mainnet",
+  id: "tron:728126428",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "mainnet",

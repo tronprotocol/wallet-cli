@@ -10,7 +10,7 @@ import type { PriceProvider } from "../../ports/price-provider.js";
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
 
 const net: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",

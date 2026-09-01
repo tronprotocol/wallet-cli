@@ -15,7 +15,7 @@ import { DETACHED } from "./detached.js";
 //     mismatch in ethers' internals (`invalid BigNumberish value (argument="value")`) — an
 //     argument name that collides with the user's own key and explains nothing.
 //
-// §7.3 inverted WHICH form is correct: `--params` (bare positional values) became
+// The rename inverted WHICH form is correct: `--params` (bare positional values) became
 // `--constructor-params` ({type,value}), unifying deploy with contract call/send, which always
 // took the typed form. Issue #2's protection is unchanged — only its direction is.
 //
@@ -65,7 +65,7 @@ function deploy(
   params: string,
   opts: { dryRun?: boolean; wait?: boolean; timeoutMs?: number } = {},
 ) {
-  const globals = ["--output", "json", "--network", "tron:nile"];
+  const globals = ["--output", "json", "--network", "tron:3448148188"];
   if (opts.wait) globals.push("--wait"); // --wait is a global flag (before the subcommand)
   const local = [
     "contract",

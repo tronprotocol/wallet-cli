@@ -7,7 +7,7 @@ export const MiscFormatters = {
   config: ((data) => renderConfig(asObj(data))) satisfies TextFormatter,
   networks: ((data) =>
     table(
-      // "Chain id", not "Chain": the value IS the second half of the canonical id (§2.3), and the
+      // "Chain id", not "Chain": the value IS the second half of the canonical id, and the
       // shorter header read as though it might hold the chain's name.
       ["Network", "Alias", "Family", "Chain id", "Fee model", "Endpoint"],
       (Array.isArray(data) ? data : [])
@@ -121,12 +121,12 @@ function renderConfig(d: Obj): string {
  * The config document as it is: scalars as `key  value`, a nested map as its bare key plus the
  * body indented one level.
  *
- * No `key:` separator, because the keys here CONTAIN colons — `tron:mainnet:` gives no way to see
+ * No `key:` separator, because the keys here CONTAIN colons — `tron:728126428:` gives no way to see
  * where the network id ends. Indentation already marks the nesting, so the colon only adds
  * ambiguity to the one thing a reader needs to copy verbatim.
  *
  * The whole-config view used to summarise a map by listing its keys, which told a reader that
- * `networks.tron:nile` existed but never what it held — and the summary had to be maintained
+ * `networks.tron:3448148188` existed but never what it held — and the summary had to be maintained
  * separately from the values themselves. Rendering the tree means a new configurable field shows
  * up here the moment the service returns it.
  */

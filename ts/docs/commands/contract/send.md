@@ -36,7 +36,7 @@ Requires an account. The master password (via `--password-stdin`) is needed only
 | `--value <string>` | Native coin sent with the call, in whole coins |
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -67,28 +67,28 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — broadcasts and returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[{"type":"address","value":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"},{"type":"uint256","value":"1000000"}]' --network tron:nile --password-stdin
+echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[{"type":"address","value":"TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc"},{"type":"uint256","value":"1000000"}]' --network tron:3448148188 --password-stdin
 ```
 
 ```console
 ⏳ Called transfer
   TxID    c8d...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid c8d...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid c8d...
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.send","data":{"kind":"contract-send","stage":"submitted","txId":"c8d...","method":"transfer(address,uint256)","contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.send","data":{"kind":"contract-send","stage":"submitted","txId":"c8d...","method":"transfer(address,uint256)","contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 With `--wait`, blocks until confirmed — on success:
 
 ```bash
-echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -104,7 +104,7 @@ echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkA
 An on-chain failure (e.g. out of energy) returns `stage: "failed"`:
 
 ```bash
-echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli contract send --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "transfer(address,uint256)" --params '[...]' --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -134,7 +134,7 @@ The `fee` object is shaped by the network's fee model: `tron-resource` reports t
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value`, conflicting modes; `invalid_option` when a `(tron only)` flag is used on EVM or vice versa).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value`, conflicting modes; `invalid_option` when a `(TRON only)` flag is used on EVM or vice versa).
 
 ## See also
 

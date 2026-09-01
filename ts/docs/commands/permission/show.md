@@ -27,38 +27,12 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
-**A never-modified account** shows the chain-default structure — the active group covers every ordinary operation type:
-
-```bash
-wallet-cli permission show --account solo --network tron:nile
-```
-
-```console
-Account  solo (TWfd2K9nP4rH7gL3jM6cV1bN8yS5aQ0eXt)
-
-Permission Name   owner  (id 0)
-Threshold         1
-Authorized To     Address                             Weight
-                  TWfd2K9nP4rH7gL3jM6cV1bN8yS5aQ0eXt  1      (this wallet: solo)
-
-Permission Name   active  (id 2, active)
-Operation(s)      Activate Account · Transfer TRX · Transfer TRC10
-                  Vote · Issue TRC10 · Update Account Name
-                  TRX Stake (1.0) · TRX Unstake (1.0)
-                  Claim Voting Rewards · Create Smart Contract
-                  Trigger Smart Contract · TRX Stake (2.0)
-                  TRX Unstake (2.0) · Withdraw Unstaked TRX
-                  Delegate Resources · Reclaim Resources
-                  Cancel Unstake · …  (40 total)
-Threshold         1
-Authorized To     Address                             Weight
-                  TWfd2K9nP4rH7gL3jM6cV1bN8yS5aQ0eXt  1      (this wallet: solo)
-```
+**A never-modified account** shows the chain-default owner and active groups. The active group's complete operation set is line-wrapped to fit the terminal; labels are never replaced with an ellipsis. Unknown bitmap bits are printed as `Unknown contract type <id>`.
 
 **A multi-sig account** — here the owner group is a 2-of-3 and a scoped `finance` active group handles day-to-day transfers. This wallet holds only one of the keys (`main`); the other two are held by external co-signers, so they carry no annotation:
 
 ```bash
-wallet-cli permission show --account main --network tron:nile
+wallet-cli permission show --account main --network tron:3448148188
 ```
 
 ```console
@@ -72,7 +46,7 @@ Authorized To     Address                             Weight
                   TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  1
 
 Permission Name   finance  (id 2, active)
-Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract
+Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract  (3 total)
 Threshold         2
 Authorized To     Address                             Weight
                   TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  1      (this wallet: main)
@@ -81,11 +55,11 @@ Authorized To     Address                             Weight
 ```
 
 ```bash
-wallet-cli permission show --account main --network tron:nile -o json
+wallet-cli permission show --account main --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"permission.show","data":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]},"meta":{"durationMs":21,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"permission.show","data":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"name":"owner","threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationLabels":["Transfer TRX","Transfer TRC10","Trigger Smart Contract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","unknownOperationIds":[],"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]},"meta":{"durationMs":21,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -93,16 +67,18 @@ wallet-cli permission show --account main --network tron:nile -o json
 | Field | Type | Meaning |
 |---|---|---|
 | `address` | string | Queried account |
-| `owner` | object | Owner group `{id, threshold, keys[]}` |
-| `witness` | object \| null | Witness group (SRs only), else `null` |
-| `actives[]` | array | Active groups, each `{id, name, threshold, operations[], operationsHex, keys[]}` |
+| `owner` | object | Owner group `{id, name, threshold, keys[]}` |
+| `witness` | object \| null | Witness group with `{id, name, threshold, keys[]}` for SRs, else `null` |
+| `actives[]` | array | Active groups, each `{id, name, threshold, operations[], operationLabels[], operationsHex, unknownOperationIds[], keys[]}` |
 | `…operations[]` | string[] | Contract-type names the active group may perform |
+| `…operationLabels[]` | string[] | Human-readable labels corresponding to known operation ids |
 | `…operationsHex` | string | Raw 32-byte operations bitmap, hex |
+| `…unknownOperationIds[]` | number[] | Set bits this build cannot map to a known contract type; empty when all operations are known |
 | `…keys[]` | array | Group keys: `{address, weight, local}` — `local` is the wallet label if held locally, else `null` |
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`invalid_value`, or `not_found` when the address is unactivated / absent on chain).
+`0` success · `1` execution failure (`not_found` — the address is unactivated / absent on chain; `rpc_error`) · `2` usage error (`invalid_value`).
 
 ## See also
 

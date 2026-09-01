@@ -49,10 +49,10 @@ Active account: main
 The QR encodes **one** address — the receive address for the selected network. Pass `--network` to choose which:
 
 ```bash
-wallet-cli current --qr --network evm:11155111
+wallet-cli current --qr --network eip155:11155111
 ```
 
-The QR is a terminal rendering only and scans from a real terminal (where the block characters line up); `-o json` is unchanged by `--qr` (machine consumers take the address and generate their own code). If the terminal is non-interactive or too narrow to fit it, it degrades to printing the addresses with a warning:
+The QR is a terminal rendering only and scans from a real terminal (where the block characters line up). In JSON mode no QR pixels are rendered; `--qr` validates that the selected account has an address for the selected network and adds that value as `data.receiveAddress`. If the text terminal is non-interactive or too narrow to fit the QR, it degrades to printing the addresses with a warning:
 
 ```console
 warning: terminal is non-interactive or too narrow for a complete QR code; showing the full address only
@@ -63,7 +63,7 @@ wallet-cli current -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:mainnet","chainId":"mainnet"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 With no active account yet, it fails with `missing_wallet_address` (exit 1):
@@ -91,6 +91,7 @@ error [missing_wallet_address]: no active account; import one first
 | `derivationPath` | object \| null | Per-family BIP32 path for `seed` accounts; `null` otherwise |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
+| `receiveAddress` | string | Present in JSON only when `--qr` was requested; address selected by `--network` |
 
 The `chain` block echoes the network selected for display; the command contacts no node.
 

@@ -25,7 +25,7 @@ describe("tx sign spec", () => {
     expect(txSignSpec.baseFields.safeParse({ hex: "abcd", offline: true }).success).toBe(true);
   });
 
-  // The online permission/approval check is the default (doc §3.2.1); --offline opts out of it.
+  // The online permission/approval check is the default; --offline opts out of it.
   // --check is gone: it was the inverted spelling and never shipped in a release.
   it("exposes --offline and no longer exposes --check", () => {
     expect(Object.keys(txSignSpec.baseFields.shape)).toContain("offline");
@@ -98,7 +98,7 @@ describe("tx sign binding", () => {
     },
   };
 
-  // Default: verify signer permission and resulting weight online (doc §3.2.1). A co-signer who is
+  // Default: verify signer permission and resulting weight online. A co-signer who is
   // not in the permission group, or who already signed, must fail before a signature is produced —
   // not silently emit a hex that only `tx broadcast` will reject, after it has been passed on.
   it("routes hex signing through the multisig authorization service by default", async () => {
@@ -167,10 +167,10 @@ describe("tx sign binding", () => {
   });
 });
 
-// v4.10.0 shipped `tx sign --transaction <json>` as the only form. That contract must survive the
+// `tx sign --transaction <json>` was once the only form, and that contract must survive the
 // multisig work: the JSON route still returns the transaction service's result verbatim, and the
-// new `kind:"tx-sign"` shape appears only for --hex/--file, which did not exist in 4.10.0.
-describe("tx sign 4.10.0 JSON compatibility", () => {
+// newer `kind:"tx-sign"` shape appears only for --hex/--file.
+describe("tx sign legacy JSON compatibility", () => {
   it("returns the transaction service result unwrapped and unannotated", async () => {
     const legacy = {
       kind: "sign",
@@ -190,7 +190,7 @@ describe("tx sign 4.10.0 JSON compatibility", () => {
     expect(result).not.toHaveProperty("approval");
   });
 
-  it("still accepts the 4.10.0 invocation with no new flags", () => {
+  it("still accepts the legacy invocation with no new flags", () => {
     expect(txSignSpec.baseFields.safeParse({ transaction: '{"txID":"abc"}' }).success).toBe(true);
   });
 });

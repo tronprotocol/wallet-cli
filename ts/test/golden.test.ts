@@ -19,7 +19,7 @@ beforeEach(() => {
   HOME = mkdtempSync(join(tmpdir(), "wcli-"));
 });
 
-// Secret model (§7.13.1): master password via stdin (--password-stdin); two-secret import is
+// Secret model: master password via stdin (--password-stdin); two-secret import is
 // interactive so it can't run as a black-box subprocess — wallet setup uses seedWallet() to write
 // the keystore in-process instead. No MASTER_PASSWORD env. password:null → no source (auth_required).
 function run(args: string[], opts: { input?: string; password?: string | null } = {}) {
@@ -71,7 +71,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe("4.12.0");
+    expect(r.stdout.trim()).toBe("4.13.0");
   });
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -92,7 +92,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toMatch(/^  encoding\s/m);
     expect(r.stdout).toMatch(/^  address\s/m);
     expect(r.stdout).toMatch(/^  contact\s/m);
-    // The root row names the command, not its flags (§10.1: root descriptions are verb
+    // The root row names the command, not its flags (root descriptions are verb
     // summaries). `--qr` stays discoverable one level down, in `current --help`.
     expect(r.stdout).toMatch(/^  current\s+Show the current \(active\) account$/m);
     expect(r.stdout).not.toContain("Learn more:");
@@ -114,23 +114,23 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // Both families ship as of v4.13.0 (§2.2): 3 TRON + 4 EVM, each mainnet paired with a
-    // testnet. This assertion previously read "only the 3 TRON networks ship" — EVM was
-    // deliberately hidden then, and is deliberately exposed now.
+    // Both families ship: 3 TRON + 4 EVM, each mainnet paired with a testnet. EVM was
+    // hidden while it was incomplete, and is deliberately exposed now.
     expect(ids).toEqual(
       expect.arrayContaining([
-        "tron:mainnet",
-        "tron:nile",
-        "tron:shasta",
-        "evm:1",
-        "evm:11155111",
-        "evm:56",
-        "evm:97",
+        "tron:728126428",
+        "tron:3448148188",
+        "tron:2494104990",
+        "eip155:1",
+        "eip155:11155111",
+        "eip155:56",
+        "eip155:97",
       ]),
     );
     expect(ids).toHaveLength(7);
-    // machine surfaces carry canonical ids only, never aliases (ADR-0010)
-    expect(ids.every((id: string) => /^(tron|evm):/.test(id))).toBe(true);
+    // machine surfaces carry canonical ids only, never aliases (ADR-0010) — and a canonical id is
+    // CAIP-2, so its namespace is `eip155` for the EVM family rather than the family's own name
+    expect(ids.every((id: string) => /^(tron|eip155):/.test(id))).toBe(true);
   });
 
   it("--json-schema emits an agent schema for a command", () => {
@@ -184,24 +184,24 @@ describe("golden CLI — meta & introspection", () => {
   it("config shorthand shows, reads, and writes defaultNetwork", () => {
     const all = run(["--output", "json", "config"], { password: null });
     expect(all.status).toBe(0);
-    expect(all.json.data.defaultNetwork).toBe("tron:mainnet");
+    expect(all.json.data.defaultNetwork).toBe("tron:728126428");
 
     const get = run(["--output", "json", "config", "defaultNetwork"], { password: null });
     expect(get.status).toBe(0);
-    expect(get.json.data).toMatchObject({ key: "defaultNetwork", value: "tron:mainnet" });
+    expect(get.json.data).toMatchObject({ key: "defaultNetwork", value: "tron:728126428" });
 
-    const set = run(["--output", "json", "config", "defaultNetwork", "tron:nile"], {
+    const set = run(["--output", "json", "config", "defaultNetwork", "tron:3448148188"], {
       password: null,
     });
     expect(set.status).toBe(0);
     expect(set.json.data).toMatchObject({
       key: "defaultNetwork",
-      value: "tron:nile",
-      input: "tron:nile",
+      value: "tron:3448148188",
+      input: "tron:3448148188",
     });
 
     const getAgain = run(["--output", "json", "config", "defaultNetwork"], { password: null });
-    expect(getAgain.json.data.value).toBe("tron:nile");
+    expect(getAgain.json.data.value).toBe("tron:3448148188");
   });
 });
 
@@ -229,13 +229,13 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
       "message",
       "sign",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--message",
       "hello world",
     ]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("message.sign");
-    expect(r.json.chain.network).toBe("tron:nile");
+    expect(r.json.chain.network).toBe("tron:3448148188");
   });
 
   it("routes root-level send and validates human amount decimals before RPC", () => {
@@ -246,7 +246,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
       "tx",
       "send",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--to",
       TRON1,
       "--amount",
@@ -266,7 +266,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
       "tx",
       "send",
       "--network",
-      "tron:mainnet",
+      "tron:728126428",
       "--to",
       "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
       "--token",
@@ -314,7 +314,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     expect(backup.json.data.out).toBe(out);
   });
 
-  it("derive makes the newly derived HD account the active one (§1.7)", () => {
+  it("derive makes the newly derived HD account the active one", () => {
     const seedId = seedWallet().split(".")[0]!; // "main" at index 0, active; seed id = wlt_x
     const r = run(["--output", "json", "derive", "--seed-id", seedId, "--label", "child"]);
     expect(r.status).toBe(0);
@@ -338,7 +338,7 @@ describe("golden CLI — command help contracts", () => {
   it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
     const r = run(["tx", "send", "--help"], { password: null });
     expect(r.status).toBe(0);
-    // Leads with the imperative verb (§10.1 rule 1) and stays family-neutral; the human-unit
+    // Leads with the imperative verb and stays family-neutral; the human-unit
     // --amount flag is what the E2 contract is really about, so assert it directly.
     expect(r.stdout).toMatch(/^Send the native coin, or a token/m);
     expect(r.stdout).toMatch(/^ +--amount <string> +human amount/m);
@@ -372,7 +372,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
   });
 
   /**
-   * §3.3: watch is the exception to "an import becomes the active account". It holds no key, so
+   * Watch is the exception to "an import becomes the active account". It holds no key, so
    * activating it turns the next write command into watch_only_no_signer for a reason the user
    * never chose — `use <account>` is how the active account changes.
    */
@@ -389,9 +389,9 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
   });
 
-  // §1.3/§11 name this one `invalid_address`; it used to be the generic invalid_value, which
+  // This one is `invalid_address`; it used to be the generic invalid_value, which
   // said nothing about WHICH argument was wrong.
-  it("rejects an unrecognised watch address → invalid_address, exit 2 (§7.14.2)", () => {
+  it("rejects an unrecognised watch address → invalid_address, exit 2", () => {
     const r = run(["--output", "json", "import", "watch", "--address", "not-an-address"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_address");
@@ -414,7 +414,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
   });
 
   /**
-   * The companion to storing canonically: §1.3 accepts three spellings as INPUT, so an account
+   * The companion to storing canonically: three spellings are accepted as INPUT, so an account
    * has to be findable by all of them. Canonicalising only the stored side would make the CLI
    * refuse to find an account by the very spelling it just told the user was valid.
    */
@@ -440,7 +440,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     }
   });
 
-  // §1.3: an all-lowercase address offers no checksum, so it is accepted — and stored in the one
+  // An all-lowercase address offers no checksum, so it is accepted — and stored in the one
   // spelling this CLI prints, so it never shows up looking like a different address.
   it("stores an all-lowercase EVM watch address in EIP-55", () => {
     const r = run([
@@ -467,7 +467,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
   it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
     run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
-    // Explicitly selected: registering one no longer activates it (§3.3), and this test is about
+    // Explicitly selected: registering one no longer activates it, and this test is about
     // what happens when a watch account IS the one being signed with.
     run(["--output", "json", "use", "obs"]);
     const r = run([
@@ -476,7 +476,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
       "message",
       "sign",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--message",
       "hi",
     ]);
@@ -487,7 +487,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
 describe("golden CLI — error contract (exit codes)", () => {
   it("unknown command → exit 2", () => {
-    const r = run(["--output", "json", "tron", "bogus", "action", "--network", "tron:nile"]);
+    const r = run(["--output", "json", "tron", "bogus", "action", "--network", "tron:3448148188"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("unknown_command");
   });
@@ -502,7 +502,7 @@ describe("golden CLI — error contract (exit codes)", () => {
     const r = run(["--output", "json", "tx", "send"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("missing_option");
-    expect(r.json.chain.network).toBe("tron:mainnet");
+    expect(r.json.chain.network).toBe("tron:728126428");
   });
 
   it("invalid address value → exit 2", () => {
@@ -512,7 +512,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "token",
       "balance",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--contract",
       "0xnope",
     ]);
@@ -529,7 +529,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       ["account", "activate", "--address", "notanaddress", "--dry-run"],
     ],
   ])("%s with a malformed address → invalid_value, exit 2", (_label, args) => {
-    const r = run(["--output", "json", ...args, "--network", "tron:nile"]);
+    const r = run(["--output", "json", ...args, "--network", "tron:3448148188"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_value");
     expect(r.json.error.message).toMatch(/invalid tron address/);
@@ -542,7 +542,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "stake",
       "delegate",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--amount-sun",
       "1000000",
       "--receiver",
@@ -561,7 +561,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "tx",
       "send",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--to",
       "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
       "--amount",
@@ -578,7 +578,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "stake",
       "freeze",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--amount-sun",
       "0",
       "--resource",
@@ -595,7 +595,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "contract",
       "call",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--contract",
       "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
       "--method",
@@ -610,7 +610,7 @@ describe("golden CLI — error contract (exit codes)", () => {
   it("wrong master password → auth_failed, exit 1", () => {
     seedWallet();
     const r = run(
-      ["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"],
+      ["--output", "json", "message", "sign", "--network", "tron:3448148188", "--message", "hi"],
       { password: "WRONGpw999" },
     );
     expect(r.status).toBe(1);
@@ -620,7 +620,7 @@ describe("golden CLI — error contract (exit codes)", () => {
   it("auth-required command with no password source → auth_required up front, exit 1", () => {
     seedWallet();
     const r = run(
-      ["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"],
+      ["--output", "json", "message", "sign", "--network", "tron:3448148188", "--message", "hi"],
       { password: null },
     );
     expect(r.status).toBe(1);
@@ -638,7 +638,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "vote",
       "cast",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--for",
       `${TRON1}=5`,
       "--for",
@@ -661,7 +661,7 @@ describe("golden CLI — error contract (exit codes)", () => {
       "vote",
       "cast",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--for",
       "foo",
       "--dry-run",
@@ -725,9 +725,10 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.stdout).toContain("in SUN; 1 TRX = 1,000,000 SUN");
   });
 
-  it("chain node --help explains the sync-vs-tx diagnostic use", () => {
+  it("chain node --help states the family difference and the unavailable-field marker", () => {
     const r = run(["chain", "node", "--help"], { password: null });
-    expect(r.stdout).toContain("node out of sync");
+    expect(r.stdout).toContain("Fields differ by family");
+    expect(r.stdout).toContain('shown as "—" (null in json)');
   });
 
   it("change-password --help notes Ledger/watch are unaffected and TTY-only secrets", () => {
@@ -763,7 +764,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     seedWallet();
     const r = run(["--output", "json", "token", "list"]);
     expect(r.status).toBe(0);
-    expect(r.json.data.network).toBe("tron:mainnet");
+    expect(r.json.data.network).toBe("tron:728126428");
     expect(r.json.data.tokens.map((t: { symbol: string }) => t.symbol)).toEqual([
       "USDT",
       "USDC",
@@ -777,13 +778,13 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
     const r = run(["--output", "json", "token", "list"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("token.list");
-    expect(r.json.chain.network).toBe("tron:mainnet");
+    expect(r.json.chain.network).toBe("tron:728126428");
   });
 
   it("token list lists nile's official tokens first, then a user-added token tagged user", () => {
     const ref = seedWallet();
-    seedToken("tron:nile", ref, CUSTOM);
-    const r = run(["--output", "json", "token", "list", "--network", "tron:nile"]);
+    seedToken("tron:3448148188", ref, CUSTOM);
+    const r = run(["--output", "json", "token", "list", "--network", "tron:3448148188"]);
     expect(r.status).toBe(0);
     expect(
       r.json.data.tokens.map((t: { source: string; symbol: string }) => `${t.source}:${t.symbol}`),
@@ -806,14 +807,14 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
 
   it("token remove of a user token succeeds; removing an absent one → token_not_in_book, exit 2", () => {
     const ref = seedWallet();
-    seedToken("tron:nile", ref, CUSTOM);
+    seedToken("tron:3448148188", ref, CUSTOM);
     const ok = run([
       "--output",
       "json",
       "token",
       "remove",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--contract",
       CUSTOM.id,
     ]);
@@ -825,7 +826,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
       "token",
       "remove",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--contract",
       CUSTOM.id,
     ]);
@@ -835,7 +836,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
 
   it("token add/remove require exactly one of --contract / --asset-id → exit 2", () => {
     seedWallet();
-    const r = run(["--output", "json", "token", "remove", "--network", "tron:nile"]);
+    const r = run(["--output", "json", "token", "remove", "--network", "tron:3448148188"]);
     expect(r.status).toBe(2);
   });
 });
@@ -856,7 +857,7 @@ describe("golden CLI — fixes regression", () => {
       "tx",
       "send",
       "--network",
-      "tron:nile",
+      "tron:3448148188",
       "--to",
       TRON1,
       "--raw-amount",
@@ -868,7 +869,7 @@ describe("golden CLI — fixes regression", () => {
   });
 });
 
-describe("golden CLI — v4.12 governance surface", () => {
+describe("golden CLI — governance surface", () => {
   it("registers proposal, witness, and contract-governance command groups", () => {
     const proposal = run(["proposal", "--help"], { password: null });
     expect(proposal.status).toBe(0);
@@ -1038,9 +1039,9 @@ describe("golden CLI — flags spelled like the command path", () => {
 
   // The commands themselves must still run — the path segments arrive as positionals, not flags.
   it("leaves the commands' own invocations working", () => {
-    expect(run(["--output", "json", "token", "list", "--network", "tron:nile"]).json.command).toBe(
-      "token.list",
-    );
+    expect(
+      run(["--output", "json", "token", "list", "--network", "tron:3448148188"]).json.command,
+    ).toBe("token.list");
     expect(run(["--output", "json", "contact", "list"]).json.command).toBe("contact.list");
     expect(run(["--output", "json", "encoding", "convert", "deadbeef"]).json.command).toBe(
       "encoding.convert",
@@ -1049,15 +1050,16 @@ describe("golden CLI — flags spelled like the command path", () => {
 });
 
 /**
- * §2.3 fixes what `networks` shows. The header is worth pinning because the column NAMES carry
- * meaning here: `Chain id` says the value is the second half of the canonical id (`evm` + `1` =
- * `evm:1`), which the shorter "Chain" left open to reading as the chain's name.
+ * The spec fixes what `networks` shows. The header is worth pinning because the column NAMES carry
+ * meaning here: `Chain id` says the value is the second half of the canonical id (`eip155` + `1` =
+ * `eip155:1`), which the shorter "Chain" left open to reading as the chain's name.
  */
 describe("golden CLI — networks table", () => {
-  it("names its columns as §2.3 specifies", () => {
+  it("names its columns as the spec specifies", () => {
     const header = run(["networks"]).stdout.split("\n")[0];
 
-    expect(header).toContain("| Chain id |");
+    // the column NAME is the contract; its width follows whatever the widest value happens to be
+    expect(header).toMatch(/\|\s*Chain id\s*\|/);
     // canonical id and alias are separate columns: one is stable, the other is readable
     expect(header).toContain("| Network ");
     expect(header).toContain("| Alias ");

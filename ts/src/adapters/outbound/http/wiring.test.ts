@@ -28,14 +28,14 @@ async function listen(
 describe("network API-key wire coverage", () => {
   it("maps a missing HTTP endpoint to the existing RPC error before I/O", () => {
     const evm = {
-      id: "evm:1",
+      id: "eip155:1",
       family: "evm",
       chainId: "1",
       nativeSymbol: "ETH",
       capabilities: [],
     } satisfies EvmNetworkDescriptor;
     const tron = {
-      id: "tron:nile",
+      id: "tron:3448148188",
       family: "tron",
       chainId: "nile",
       nativeSymbol: "TRX",
@@ -64,7 +64,7 @@ describe("network API-key wire coverage", () => {
       response.end(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0x0" }));
     });
     const network: EvmNetworkDescriptor = {
-      id: "evm:1",
+      id: "eip155:1",
       family: "evm",
       chainId: "1",
       nativeSymbol: "ETH",
@@ -89,7 +89,7 @@ describe("network API-key wire coverage", () => {
       response.end(JSON.stringify({ balance: 42 }));
     });
     const network: TronNetworkDescriptor = {
-      id: "tron:nile",
+      id: "tron:3448148188",
       family: "tron",
       chainId: "nile",
       nativeSymbol: "TRX",
@@ -114,7 +114,7 @@ describe("network API-key wire coverage", () => {
       response.end("{}");
     });
     const network: TronNetworkDescriptor = {
-      id: "tron:nile",
+      id: "tron:3448148188",
       family: "tron",
       chainId: "nile",
       nativeSymbol: "TRX",
@@ -137,7 +137,7 @@ describe("network API-key wire coverage", () => {
       response.end('{"data":[]}');
     });
     const network: TronNetworkDescriptor = {
-      id: "tron:nile",
+      id: "tron:3448148188",
       family: "tron",
       chainId: "nile",
       nativeSymbol: "TRX",

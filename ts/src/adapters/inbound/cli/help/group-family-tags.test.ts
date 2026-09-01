@@ -7,11 +7,11 @@ import { isChainCommand, type StreamManager } from "../contracts/index.js";
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
 
 /**
- * Group help tags a sub-command with `(tron only)` / `(evm only)` when only that family can serve it.
+ * Group help tags a sub-command with `(TRON only)` / `(EVM only)` when only that family can serve it.
  *
- * The tag is DERIVED from the registry, never written by hand, because §10.1 defines it as a
+ * The tag is DERIVED from the registry, never written by hand, because it is defined as a
  * statement about the current bindings ("補齊後標註即摘掉"). A hand-maintained tag goes stale
- * silently and then lies: the root listing kept `chain (tron only)` long after `chain node` and
+ * silently and then lies: the root listing kept `chain (TRON only)` long after `chain node` and
  * `chain prices` gained EVM bindings. These tests pin the derivation, not a copy of the text.
  */
 describe("group help family tags are derived from the registry", () => {
@@ -59,7 +59,7 @@ describe("group help family tags are derived from the registry", () => {
       if (inCommands) {
         if (!line.trim()) break;
         const verb = line.trim().split(/\s+/)[0]!;
-        rows.set(verb, /\((tron|evm) only\)$/.exec(line.trimEnd())?.[1] ?? "");
+        rows.set(verb, /\((TRON|EVM) only\)$/.exec(line.trimEnd())?.[1]?.toLowerCase() ?? "");
       }
     }
 
@@ -92,7 +92,7 @@ describe("group help family tags are derived from the registry", () => {
 
   it("does not repeat a group-level tag on every row of a single-family group", () => {
     // `asset` is TRON-only end to end, and the root listing already says so. A column whose
-    // value never varies is noise, not information (§10.3: 其組 help 內部不再逐條重複).
+    // value never varies is noise, not information (其組 help 內部不再逐條重複).
     const { rows } = groupHelp("asset");
     expect(rows.size).toBeGreaterThan(1);
     expect([...rows.values()].every((tag) => tag === "")).toBe(true);

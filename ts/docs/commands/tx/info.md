@@ -27,7 +27,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli tx info --txid 52332505ab6b605aff626aaef2b07f3718d4bac8f45cdab1c0ea9465eb98e065 --network tron:nile
+wallet-cli tx info --txid 52332505ab6b605aff626aaef2b07f3718d4bac8f45cdab1c0ea9465eb98e065 --network tron:3448148188
 ```
 
 ```console
@@ -41,26 +41,26 @@ Confirmations  2
 Fee            2.1 TRX
 ```
 
-`-o json` returns the full detail (`transaction` is the raw tx, `info` is the receipt; elided as `{…}` here):
+`-o json` returns the full detail (`transaction` is the raw tx, `info` is the receipt; shown as empty objects here):
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","from":"TR66PwBkGtktmiRhGjP9C6o8ts2ndDo4sP","to":"TVMV1gstFzkDyBfrpNc1Sa72Az2dMgDCLY","amount":"1","symbol":"TRX","status":"success","blockNumber":70433563,"confirmations":5,"feeSun":2100000,"transaction":{…},"info":{…}},"meta":{"durationMs":1396,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b","from":"TR66PwBkGtktmiRhGjP9C6o8ts2ndDo4sP","to":"TVMV1gstFzkDyBfrpNc1Sa72Az2dMgDCLY","amount":"1","symbol":"TRX","status":"success","blockNumber":70433563,"confirmations":5,"feeSun":2100000,"transaction":{},"info":{}},"meta":{"durationMs":1396,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the summary adds `type` and `nonce`, prices the fee in wei, and nests `receipt` instead of `info`:
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","type":"contract-call","from":"0x88878d9250e68C574912f5618ad3b43f675B8888","nonce":342,"to":"0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E","rawAmount":"0","amount":"0","symbol":"ETH","blockTime":1787817996,"status":"success","blockNumber":11576586,"gasUsed":"127165","feeWei":"635825000000000","effectiveGasPriceWei":"5000000000","confirmations":0,"transaction":{…},"receipt":{…}},"meta":{"durationMs":706,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","type":"contract-call","from":"0x88878d9250e68C574912f5618ad3b43f675B8888","nonce":342,"to":"0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E","rawAmount":"0","amount":"0","symbol":"ETH","blockTime":1787817996,"status":"success","blockNumber":11576586,"gasUsed":"127165","feeWei":"635825000000000","effectiveGasPriceWei":"5000000000","confirmations":0,"transaction":{},"receipt":{}},"meta":{"durationMs":706,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 An unknown txid errors out (exit 1) — unlike `tx status`'s `not_found` (exit 0):
 
 ```json
-{"schema":"wallet-cli.result.v1","success":false,"command":"tx.info","error":{"code":"rpc_error","message":"TRON getTransaction failed: Transaction not found"},"meta":{"durationMs":1033,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":false,"command":"tx.info","error":{"code":"rpc_error","message":"TRON getTransaction failed: Transaction not found"},"meta":{"durationMs":1033,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":false,"command":"tx.info","error":{"code":"not_found","message":"no transaction with hash 0x0000…0000 on evm:11155111"},"meta":{"durationMs":412,"warnings":[]},"chain":{"family":"evm","network":"evm:11155111","chainId":"11155111"}}
+{"schema":"wallet-cli.result.v1","success":false,"command":"tx.info","error":{"code":"not_found","message":"no transaction with hash 0x0000…0000 on eip155:11155111"},"meta":{"durationMs":412,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
 ## Output

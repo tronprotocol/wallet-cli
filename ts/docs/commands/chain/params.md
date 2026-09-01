@@ -37,7 +37,7 @@ Plus the [global options](../index.md#global-options-every-command).
 A single parameter with `--key`:
 
 ```bash
-wallet-cli chain params --key getEnergyFee --network tron:nile
+wallet-cli chain params --key getEnergyFee --network tron:3448148188
 ```
 
 ```console
@@ -48,7 +48,7 @@ Value  210 SUN
 All parameters (excerpt):
 
 ```bash
-wallet-cli chain params --network tron:nile
+wallet-cli chain params --network tron:3448148188
 ```
 
 ```console
@@ -62,11 +62,11 @@ wallet-cli chain params --network tron:nile
 ```
 
 ```bash
-wallet-cli chain params --network tron:nile -o json
+wallet-cli chain params --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":210},{"key":"getTransactionFee","value":1000},{"key":"getCreateAccountFee","value":100000}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":210},{"key":"getTransactionFee","value":1000},{"key":"getCreateAccountFee","value":100000}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -80,7 +80,7 @@ wallet-cli chain params --network tron:nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`; `not_found` — `--key` doesn't exist) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`not_found` — `--key` doesn't exist; `invalid_value`).
 
 ## See also
 

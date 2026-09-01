@@ -4,7 +4,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const net = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "nile",
@@ -130,7 +130,7 @@ describe("TronChainService.node", () => {
       peers: { connected: 30, active: 27 },
     });
   });
-  /** §2.2 tells users to point this at a commercial gateway, whose API key lives in the URL.
+  /** Users are told to point this at a commercial gateway, whose API key lives in the URL.
    *  `chain node` is pasted into issues and CI logs, so it reports the host and nothing else. */
   it("never echoes an endpoint's path or query, which is where API keys live", async () => {
     const gateway = {

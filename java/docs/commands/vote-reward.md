@@ -14,7 +14,7 @@ Voting requires share. Share can be obtained by freezing funds.
 For example:
 
 ```console
-> freezeBalance 100000000 3 1 address  # Freeze 10TRX and acquire 10 units of shares
+> freezeBalance 10000000 3 1 address  # Freeze 10 TRX and acquire 10 units of shares
 
 > votewitness 123455 witness1 4 witness2 6  # Cast 4 votes for witness1 and 6 votes for witness2 at the same time
 
@@ -97,7 +97,7 @@ Apply to become a super representative candidate.
 ```
 
 ```console
-> CreateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+> CreateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp https://sr.example.com
 ```
 
 ### UpdateWitness
@@ -105,7 +105,7 @@ Apply to become a super representative candidate.
 Edit the URL of the SR's official website.
 
 ```console
-> UpdateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+> UpdateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp https://sr.example.com/v2
 ```
 
 ## ListWitnesses

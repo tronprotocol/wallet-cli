@@ -77,7 +77,8 @@ describe("no command declares a field named after a yargs tail key", () => {
         : [cmd.fields.shape];
       for (const shape of shapes) {
         for (const key of Object.keys(shape)) {
-          if ((YARGS_TAIL_KEYS as readonly string[]).includes(key)) offenders.push(`${path}.${key}`);
+          if ((YARGS_TAIL_KEYS as readonly string[]).includes(key))
+            offenders.push(`${path}.${key}`);
         }
       }
     }

@@ -12,7 +12,7 @@ import { asObj, type Obj, type Pair } from "./layout.js";
  */
 /**
  * Every hook takes the native coin's `symbol` rather than baking one in. This table is keyed by
- * FAMILY, so `evm:1` and `evm:56` share one entry — and their coins are ETH and BNB. A hook that
+ * FAMILY, so `eip155:1` and `eip155:56` share one entry — and their coins are ETH and BNB. A hook that
  * hardcoded the symbol rendered a BNB balance as "ETH".
  */
 interface FamilyRenderHooks {
@@ -35,7 +35,7 @@ interface FamilyRenderHooks {
   /** `chain node` rows. TRON has a p2p network to report on, EVM has a chain id to check the
    *  endpoint against — neither field exists on the other side. */
   chainNodeRows(d: Obj): Pair[];
-  /** `block` rows. The payload is the node's own object (§9.1), so the two families arrive in
+  /** `block` rows. The payload is the node's own object, so the two families arrive in
    *  different shapes and each picks its own fields out. */
   blockRows(block: Obj, timestampMs: number | undefined): Pair[];
   /** rows a broadcast receipt shows BEFORE the TxID — the transaction's own identifiers.
@@ -192,10 +192,10 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
         ["Nonce", formatInt(d.nonce)],
         // The distinction a reader needs before sending: an address with code may reject a plain
         // transfer. `EOA` rather than a spelled-out phrase: it is the standard name on this chain,
-        // it is what json's `eoa` says, and it stays a noun beside `contract` (§4.3).
+        // it is what json's `eoa` says, and it stays a noun beside `contract`.
         ["Type", d.type === "contract" ? "contract" : "EOA"],
       ];
-      // Only a contract has code, so only a contract gets the row (§4.3 — an EOA is not a
+      // Only a contract has code, so only a contract gets the row (an EOA is not a
       // contract with zero bytes).
       if (d.codeSize !== undefined) rows.push(["Code size", `${formatInt(d.codeSize)} bytes`]);
       return rows;
@@ -246,7 +246,7 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
         ],
       ];
     },
-    // The node's own block object: hex QUANTITIES throughout (§9.1 keeps json verbatim), so every
+    // The node's own block object: hex QUANTITIES throughout (json keeps them verbatim), so every
     // number here is converted for display only. Gas and base fee are what say whether the chain
     // is busy and what it costs — the reason to look at a block at all.
     blockRows: (block, timestampMs) => {
@@ -274,7 +274,7 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       if (baseFee !== undefined) rows.push(["Base fee", `${formatGwei(baseFee)} gwei`]);
       return rows;
     },
-    // §4.3 calls the nonce the entry point for diagnosing a stuck transaction, and a stuck one is
+    // The nonce is the entry point for diagnosing a stuck transaction, and a stuck one is
     // precisely the case where the receipt never arrives — so it is stated from `submitted` on.
     receiptIdentityRows: (r) =>
       r.nonce === undefined ? [] : [["Nonce", formatInt(r.nonce)] as Pair],
@@ -291,7 +291,7 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       ["Nonce", r.nonce === undefined ? "" : formatInt(r.nonce)],
       ["Status", r.status ?? "unknown"],
       ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
-      // Seconds on the wire (§6.5), milliseconds for the formatter.
+      // Seconds on the wire, milliseconds for the formatter.
       ["Block time", r.blockTime === undefined ? "" : formatUtc(r.blockTime * 1000)],
       ["Confirmations", r.confirmations === undefined ? "" : formatInt(r.confirmations)],
       ["Gas", r.gasUsed === undefined ? "" : formatInt(r.gasUsed)],

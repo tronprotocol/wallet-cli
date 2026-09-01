@@ -88,7 +88,7 @@ interface CommandDefinitionBase<I, O> {
    *  auto-derived network/auth/account lines (e.g. a connected Ledger for `import ledger`). */
   requires?: string[];
   /** preconditions that must render AFTER the auto-derived master-password line rather than
-   *  before it. §10.1 rule 4 orders same-class prerequisites by the order the user supplies
+   *  before it. Same-class prerequisites are ordered by the order the user supplies
    *  them, and `change-password` asks for the current password before the new one — so its
    *  "new master password" line has to follow the generated one, not lead it. */
   requiresAfterAuth?: string[];

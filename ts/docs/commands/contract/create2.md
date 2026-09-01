@@ -58,7 +58,7 @@ wallet-cli contract create2 --deployer TQkXm4vN...5Zt7Uw --code 6080604052... --
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.create2","data":{"deployerAddress":"TQkXm4vN...","salt":255,"saltHex":"0x00000000000000000000000000000000000000000000000000000000000000ff","codeHash":"c8f4a1...b91b","address":"TWq8dK3n...2mHb"},"meta":{"durationMs":3,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.create2","data":{"deployerAddress":"TQkXm4vN...","salt":255,"saltHex":"0x00000000000000000000000000000000000000000000000000000000000000ff","codeHash":"c8f4a1...b91b","address":"TWq8dK3n...2mHb"},"meta":{"durationMs":3,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -75,7 +75,7 @@ This is a local command, so the envelope carries no `chain` block.
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error` — `--code-file` cannot be read) · `2` usage error (`missing_option` — no `--deployer` / `--salt`, or neither code source; `invalid_option` — both `--code` and `--code-file`; `invalid_value` — malformed deployer address, non-hex code, or a salt outside the 64-bit signed range).
+`0` success · `1` execution failure · `2` usage error (`missing_option` — no `--deployer` or `--salt`; `file_not_found` — `--code-file` does not exist; `invalid_value` — neither or both code sources, an unreadable code file, malformed deployer address, non-hex code, or a salt outside the signed 64-bit range).
 
 ## See also
 

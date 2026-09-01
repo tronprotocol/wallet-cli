@@ -195,10 +195,10 @@ describe("TRON-only commands on an EVM network", () => {
     ["gasfree", "info"],
     ["stake", "info"],
     ["permission", "show"],
-  ])("refuses `%s %s` on evm:1", async (group, verb) => {
+  ])("refuses `%s %s` on eip155:1", async (group, verb) => {
     const { code, stdout } = await runIn(
       { version: 2, activeAccount: null, labels: {}, wallets: [] },
-      ["-o", "json", group, verb, "--network", "evm:1"],
+      ["-o", "json", group, verb, "--network", "eip155:1"],
     );
 
     expect(JSON.parse(stdout).error.code).toBe("family_mismatch");
@@ -221,7 +221,7 @@ describe("aliases resolve at selection and nowhere else", () => {
 
     const { error } = JSON.parse(stdout);
     // resolved (not "unknown network"), and everything past resolution speaks canonical ids
-    expect(error.message).toContain("evm:11155111");
+    expect(error.message).toContain("eip155:11155111");
     expect(error.message).not.toContain("sepolia");
   });
 
@@ -232,9 +232,9 @@ describe("aliases resolve at selection and nowhere else", () => {
       "stake",
       "info",
       "--network",
-      "evm:11155111",
+      "eip155:11155111",
     ]);
-    expect(JSON.parse(stdout).error.message).toContain("evm:11155111");
+    expect(JSON.parse(stdout).error.message).toContain("eip155:11155111");
   });
 });
 
@@ -246,15 +246,15 @@ describe("networks lists both families with their endpoints", () => {
     const rows: Array<Record<string, string>> = JSON.parse(stdout).data;
     const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
 
-    expect(byId["evm:11155111"]).toMatchObject({
+    expect(byId["eip155:11155111"]).toMatchObject({
       family: "evm",
       chainId: "11155111",
       feeModel: "evm-gas",
       alias: "sepolia",
     });
-    // §2.3 shows the HOST, not the full URL with any embedded key
-    expect(byId["evm:11155111"]!.endpoint).toBe("ethereum-sepolia-rpc.publicnode.com");
-    expect(byId["tron:nile"]!.endpoint).toBe("nile.trongrid.io");
+    // The listing shows the HOST, not the full URL with any embedded key
+    expect(byId["eip155:11155111"]!.endpoint).toBe("ethereum-sepolia-rpc.publicnode.com");
+    expect(byId["tron:3448148188"]!.endpoint).toBe("nile.trongrid.io");
   });
 
   it("renders the endpoint column in text mode", async () => {
@@ -278,15 +278,15 @@ describe("config addresses networks by nested key", () => {
 
     expect(code).toBe(0);
     expect(JSON.parse(stdout).data).toMatchObject({
-      key: "networks.evm:11155111.httpEndpoint",
+      key: "networks.eip155:11155111.httpEndpoint",
     });
   });
 
   it("shows each network's endpoint host so a change can be confirmed", async () => {
     const { stdout } = await runIn(emptyKeystore, ["-o", "json", "config", "networks"]);
     expect(JSON.parse(stdout).data.value).toMatchObject({
-      "tron:nile": { httpEndpoint: "nile.trongrid.io" },
-      "evm:11155111": { httpEndpoint: "ethereum-sepolia-rpc.publicnode.com" },
+      "tron:3448148188": { httpEndpoint: "nile.trongrid.io" },
+      "eip155:11155111": { httpEndpoint: "ethereum-sepolia-rpc.publicnode.com" },
     });
   });
 
@@ -294,11 +294,13 @@ describe("config addresses networks by nested key", () => {
   // naming ONE network is the deliberate act that reveals the whole URL.
   it("reveals the full endpoint URL only when a single network is named", async () => {
     const listed = await runIn(emptyKeystore, ["-o", "json", "config", "networks"]);
-    expect(JSON.parse(listed.stdout).data.value["tron:nile"].httpEndpoint).toBe("nile.trongrid.io");
+    expect(JSON.parse(listed.stdout).data.value["tron:3448148188"].httpEndpoint).toBe(
+      "nile.trongrid.io",
+    );
 
     const named = await runIn(emptyKeystore, ["-o", "json", "config", "networks.nile"]);
     expect(JSON.parse(named.stdout).data).toMatchObject({
-      key: "networks.tron:nile",
+      key: "networks.tron:3448148188",
       value: { httpEndpoint: "https://nile.trongrid.io" },
     });
   });
@@ -306,9 +308,9 @@ describe("config addresses networks by nested key", () => {
   it("shows the alias book so a short name can be traced to its network", async () => {
     const { stdout } = await runIn(emptyKeystore, ["-o", "json", "config", "aliases"]);
     expect(JSON.parse(stdout).data.value).toMatchObject({
-      nile: "tron:nile",
-      sepolia: "evm:11155111",
-      "bsc-testnet": "evm:97",
+      nile: "tron:3448148188",
+      sepolia: "eip155:11155111",
+      "bsc-testnet": "eip155:97",
     });
   });
 

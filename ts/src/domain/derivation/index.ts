@@ -38,7 +38,7 @@ export class Derivation {
     return entropyToMnemonic(entropy, wordlist);
   }
 
-  /** the family's own BIP44 template with `account` slotted into the level it uses (§1.2). */
+  /** the family's own BIP44 template with `account` slotted into the level it uses. */
   static path(family: ChainFamily, account: number): string {
     const { coinType, indexAt } = FAMILIES[family];
     return indexAt === "account"

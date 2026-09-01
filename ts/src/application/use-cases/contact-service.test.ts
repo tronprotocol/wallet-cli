@@ -27,7 +27,7 @@ function repo() {
   };
 }
 
-// §3.11: an entry persists its family, and the family is inferred from the address — asking the
+// An entry persists its family, and the family is inferred from the address — asking the
 // user to restate what the address already says is a chance to get it wrong.
 describe("ContactService infers the family from the address", () => {
   it.each([

@@ -4,7 +4,7 @@
  * This is the one call where the number on the command line is unreadable: an allowance is a
  * `uint256` scaled by the token's own decimals, and the maximum is 78 digits. Approving is also
  * the operation that most often costs people their funds, so the receipt states WHO was approved
- * and FOR HOW MUCH rather than leaving the caller to check their own arithmetic (§7.2).
+ * and FOR HOW MUCH rather than leaving the caller to check their own arithmetic.
  *
  * Family-neutral because the danger is: TRC20 and ERC-20 share this method, this hazard, and this
  * unreadable argument. Only two things differ per family — how a spender address is written, and

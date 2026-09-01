@@ -41,8 +41,8 @@ export const chainNodeSpec: ChainSpec = {
   summary: "Connected node status",
   description:
     "Show the connected node's status: version, head/solid block height, sync state,\n" +
-    'and peer connections. Useful to tell "node out of sync" from "problem with my\n' +
-    'transaction". Fields the endpoint does not expose are shown as "—" (null in json).',
+    "and peer connections. Fields differ by family, and anything the endpoint does not\n" +
+    'expose is shown as "—" (null in json).',
   baseFields: z.object({}),
   examples: [
     { cmd: "wallet-cli chain node --network nile" },

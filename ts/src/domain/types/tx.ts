@@ -257,7 +257,7 @@ export interface TxReceiptView {
    * The transaction's own nonce (EVM).
    *
    * Captured while building rather than read back from a receipt: it is decided before the
-   * transaction is signed, and §4.3 names it the entry point for diagnosing a stuck transaction —
+   * transaction is signed, and it is the entry point for diagnosing a stuck transaction —
    * which is exactly the case where no receipt will ever arrive.
    */
   nonce?: number | string;

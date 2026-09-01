@@ -70,7 +70,7 @@ printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
 | `index` | number | HD derivation index (0 for the first account) |
 | `active` | boolean | Whether it became the active account |
 | `addresses` | object | One address per family the account can produce: `tron` (base58) and `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object | The BIP44 template each address came from: `{"tron":"m/44'/195'/0'/0/<index>","evm":"m/44'/60'/0'/0/<index>"}` |
+| `derivationPath` | object | The BIP44 path each address came from: `{"tron":"m/44'/195'/<index>'/0/0","evm":"m/44'/60'/0'/0/<index>"}` |
 | `seedId` | string | Owning seed wallet id |
 
 ## Exit status

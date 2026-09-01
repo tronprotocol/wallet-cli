@@ -14,7 +14,7 @@ When a transaction needs more than you have, the node **burns TRX** from your ba
 Check your standing anytime:
 
 ```bash
-wallet-cli account info --network tron:nile -o json | jq '.data.resources'
+wallet-cli account info --network tron:3448148188 -o json | jq '.data.resources'
 ```
 
 ```json

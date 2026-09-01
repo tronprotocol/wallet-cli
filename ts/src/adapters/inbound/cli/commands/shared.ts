@@ -127,6 +127,11 @@ export const messageSignSpec: ChainSpec = {
   auth: "required",
   capability: "message.sign",
   summary: "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
+  // The summary can only put the two standard names side by side; which one applies is what the
+  // caller actually needs, so the leaf page spells the mapping out.
+  description:
+    "Sign an arbitrary message. The prefix follows the selected network's family:\n" +
+    "TIP-191/V2 for TRON, EIP-191 for EVM.",
   baseFields: messageSignFields,
   // SecretResolver.pick enforces this: both sources → invalid_option, neither → missing_option.
   exclusive: [
