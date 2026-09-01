@@ -60,7 +60,10 @@ public class ClientMainTest {
     Assert.assertEquals("", captured.stdout);
     Assert.assertTrue(captured.stderr.contains("Standard CLI has been removed"));
     Assert.assertTrue(captured.stderr.contains(TS_PACKAGE));
-    Assert.assertEquals(1, captured.stderr.trim().split("\\R").length);
+    Assert.assertTrue(captured.stderr.contains("npx " + TS_PACKAGE));
+    Assert.assertTrue(captured.stderr.contains(
+        "https://github.com/tronprotocol/wallet-cli/blob/HEAD/ts/docs/commands/index.md"));
+    Assert.assertEquals(3, captured.stderr.trim().split("\\R").length);
   }
 
   private static Captured run(String... args) throws Exception {

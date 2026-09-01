@@ -4745,8 +4745,10 @@ public class Client {
   }
 
   private static final String STANDARD_CLI_REMOVED_HINT =
-      "Standard CLI has been removed in" + VERSION
-          + ". Use the TypeScript CLI instead: @tron-walletcli/wallet-cli";
+      "Standard CLI has been removed in" + VERSION + ".\n"
+          + "Run the TypeScript CLI instead: npx @tron-walletcli/wallet-cli --help\n"
+          + "Command reference: "
+          + "https://github.com/tronprotocol/wallet-cli/blob/HEAD/ts/docs/commands/index.md";
 
   public static void main(String[] args) {
     System.exit(runMain(args));
