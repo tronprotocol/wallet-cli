@@ -208,6 +208,15 @@ describe("EvmRpcClient.getBlock", () => {
     stubRpc(null);
     expect(await new EvmRpcClient("https://node.example", 5_000).getBlock("999999999")).toBeNull();
   });
+
+  it("rejects a response with neither result nor error as invalid_node_response", async () => {
+    // stubRpc(undefined) drops `result` from the JSON entirely (JSON.stringify omits an
+    // `undefined` property) — a malformed answer, not a stated "no such block".
+    stubRpc(undefined);
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000).getBlock("999999999"),
+    ).rejects.toMatchObject({ code: "invalid_node_response" });
+  });
 });
 
 const TOKEN = "0xdAC17F958D2ee523a2206206994597C13D831ec7";

@@ -92,6 +92,12 @@ export class EvmRpcClient implements EvmGateway {
    * else: a decimal height becomes a QUANTITY, while a tag ("latest", "finalized", "safe") goes
    * through untouched. Resolves to null when the chain has no such block rather than throwing —
    * callers asking for "finalized" on a chain that does not serve it need a value to degrade on.
+   *
+   * `result: null` and a MISSING `result` are not the same thing, so they are not collapsed with
+   * `?? null`: a null `result` is the node correctly answering "no such block" — a fact about the
+   * chain. A response with neither `result` nor `error` is not a fact about the chain at all; it
+   * is the node breaking the JSON-RPC contract, and must surface as `invalid_node_response`
+   * rather than being read as "there is no block here".
    */
   async getBlock(numberOrTag?: string): Promise<unknown> {
     const target =
@@ -100,7 +106,15 @@ export class EvmRpcClient implements EvmGateway {
         : /^\d+$/.test(numberOrTag)
           ? `0x${BigInt(numberOrTag).toString(16)}`
           : numberOrTag;
-    return (await this.#call("eth_getBlockByNumber", [target, false])) ?? null;
+    const result = await this.#call("eth_getBlockByNumber", [target, false]);
+    if (result === undefined) {
+      throw new ChainError(
+        "invalid_node_response",
+        "the node's answer to eth_getBlockByNumber had neither a result nor an error field, " +
+          "in violation of JSON-RPC",
+      );
+    }
+    return result;
   }
 
   /** false when the node is in sync; an object of progress counters while it catches up. */
