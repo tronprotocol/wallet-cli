@@ -167,7 +167,17 @@ The **exit code is the hard contract**: `2` means the call was malformed (it wil
 wallet-cli --json-schema | jq '.errorCodes'
 ```
 
-That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`, `not_found`, `token_metadata_unavailable`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+Each entry is an object, not a bare string:
+
+```json
+{ "not_found": { "exit": 1, "meaning": "the transaction, block or record does not exist at this node" } }
+```
+
+`exit` is the authority for that code's exit status — the tables below are generated from it and
+kept honest by a test. A handful of codes carry `"either"`: they genuinely arise on both sides,
+and the exit status is the one the process returned.
+
+That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and the strings carrying `"either"` (`invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
@@ -200,6 +210,7 @@ Common codes at exit **2** (usage — fix the call):
 | `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
+| `migration_required` | Persisted wallet data needs an upgrade that this invocation cannot perform — see [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
 
 Common codes at exit **1** (execution — runtime failure):
 
@@ -229,7 +240,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `ledger_unsupported` | The selected Ledger app cannot sign this transaction type — refused before the device is touched (TRON account activation, account id, asset writes, contract deploy/governance, witness writes, and cancel-unfreeze) |
 | `not_a_witness` / `already_witness` / `not_proposal_owner` | Governance identity does not meet the operation's rule |
 | `already_approved` / `not_approved` / `proposal_expired` / `already_canceled` | Proposal voting conditions |
-| `account_not_active` / `account_already_active` / `name_already_set` / `id_already_set` / `chain_parameter_unavailable` | Account activation/name/id conditions, or `witness create` could not read `getAccountUpgradeCost` |
+| `account_not_active` / `account_already_active` / `chain_parameter_unavailable` | Account activation conditions, or `witness create` could not read `getAccountUpgradeCost` |
 | `not_contract_deployer` | The account did not deploy that contract |
 | `already_issued_asset` / `not_an_issuer` | The account has already issued a TRC10, or has never issued one |
 | `not_in_ico_window` / `self_participation` | TRC10 ICO participation conditions |
