@@ -725,9 +725,10 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.stdout).toContain("in SUN; 1 TRX = 1,000,000 SUN");
   });
 
-  it("chain node --help explains the sync-vs-tx diagnostic use", () => {
+  it("chain node --help states the family difference and the unavailable-field marker", () => {
     const r = run(["chain", "node", "--help"], { password: null });
-    expect(r.stdout).toContain("node out of sync");
+    expect(r.stdout).toContain("Fields differ by family");
+    expect(r.stdout).toContain('shown as "—" (null in json)');
   });
 
   it("change-password --help notes Ledger/watch are unaffected and TTY-only secrets", () => {
