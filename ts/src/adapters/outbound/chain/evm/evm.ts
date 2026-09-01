@@ -513,7 +513,18 @@ export class EvmRpcClient implements EvmGateway {
     if (body.error) {
       const message = body.error.message ?? "";
       const known = classifyEvmRejection(method, message);
-      if (known) throw new ChainError(known.code, known.message, { nodeMessage: message });
+      if (known) {
+        // execution_reverted only: fold the node's own words (the contract's revert reason, e.g.
+        // "execution reverted: ERC20: transfer amount exceeds balance") into the main message.
+        // Text mode renders only `error.message` — it never surfaces `details.nodeMessage` — so
+        // without this the single most useful line for debugging a revert was silently dropped.
+        // This is a targeted regression fix, not a decision that every classified rule should keep
+        // the node's wording in the main message (that is the open, undecided G3-2 question) —
+        // do not extend this pattern to the other PATTERNS rules without revisiting G3-2.
+        const text =
+          known.code === "execution_reverted" ? `${known.message}: ${message}` : known.message;
+        throw new ChainError(known.code, text, { nodeMessage: message });
+      }
       throw new ChainError("rpc_error", `${method} failed: ${message}`);
     }
     return body.result;

@@ -1064,6 +1064,19 @@ describe("EvmRpcClient node-error classification", () => {
     await expect(client().call(ADDR, "0x")).rejects.toMatchObject({ code: "execution_reverted" });
   });
 
+  // Regression: the node's revert reason is the most useful line for debugging a contract call,
+  // and text mode only ever prints `error.message` (never `details.nodeMessage`) — so the reason
+  // has to survive inside the main message, not just in details.
+  it("call folds the node's revert reason into error.message", async () => {
+    stubError("execution reverted: ERC20: transfer amount exceeds balance");
+
+    await expect(client().call(ADDR, "0x")).rejects.toMatchObject({
+      code: "execution_reverted",
+      message: expect.stringContaining("ERC20: transfer amount exceeds balance"),
+      details: { nodeMessage: "execution reverted: ERC20: transfer amount exceeds balance" },
+    });
+  });
+
   /**
    * The pins that keep the classification from spreading. A read method has no transaction to
    * judge, so a node error from it is the node failing — a rate limit, an unimplemented method,
