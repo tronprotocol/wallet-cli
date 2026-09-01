@@ -168,11 +168,12 @@ export class EvmRpcClient implements EvmGateway {
    */
   async sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }> {
     assertBroadcastAllowed();
-    const body = await this.#request("eth_sendRawTransaction", [raw]);
+    const method = "eth_sendRawTransaction";
+    const body = await this.#request(method, [raw]);
     if (body.error) {
       const message = body.error.message ?? "";
       if (isAlreadyKnown(message)) return { alreadyKnown: true };
-      const known = classifyEvmRejection(message);
+      const known = classifyEvmRejection(method, message);
       throw new ChainError(
         known?.code ?? "transaction_rejected",
         known?.message ?? `EVM broadcast rejected: ${message}`,
@@ -401,18 +402,11 @@ export class EvmRpcClient implements EvmGateway {
    *
    * A revert is the CONTRACT's answer, not a transport failure, so it gets its own code
    * (`execution_reverted`) carrying whatever reason the node decoded. `rpc_error` here would
-   * read as "the network is broken" for what is in fact a definite reply.
+   * read as "the network is broken" for what is in fact a definite reply. `eth_call` is one of
+   * the classified methods, so #call already draws that line — nothing to do here.
    */
   async call(to: string, data: string): Promise<string> {
-    try {
-      return toData(await this.#call("eth_call", [{ to, data }, "latest"]));
-    } catch (e) {
-      const message = (e as Error).message ?? "";
-      if (isNotAContractAnswer(message)) {
-        throw new ChainError("execution_reverted", message, { contract: to });
-      }
-      throw e;
-    }
+    return toData(await this.#call("eth_call", [{ to, data }, "latest"]));
   }
 
   async getErc20Balance(contract: string, owner: string): Promise<string> {
@@ -421,7 +415,7 @@ export class EvmRpcClient implements EvmGateway {
     // read as such — a revert surfacing as rpc_error says "the network is broken" instead.
     const raw = await this.call(contract, ERC20.encodeFunctionData("balanceOf", [owner])).catch(
       (e: unknown) => {
-        if (isNotAContractAnswer((e as Error).message ?? "")) return "0x";
+        if (isContractAnswer(e)) return "0x";
         throw e;
       },
     );
@@ -449,7 +443,7 @@ export class EvmRpcClient implements EvmGateway {
     try {
       raw = await this.call(contract, data);
     } catch (e) {
-      if (isNotAContractAnswer((e as Error).message ?? "")) return undefined;
+      if (isContractAnswer(e)) return undefined;
       throw e;
     }
     return raw === "0x" || raw === "" ? undefined : raw;
@@ -509,22 +503,35 @@ export class EvmRpcClient implements EvmGateway {
     }
   }
 
+  /**
+   * A JSON-RPC error is a node FAULT by default. It is only a verdict on the caller's transaction
+   * when the method executed something, and `classifyEvmRejection` owns that judgement — the
+   * method name is the whole context it needs, so no call site has to remember to classify.
+   */
   async #call(method: string, params: unknown[]): Promise<unknown> {
     const body = await this.#request(method, params);
     if (body.error) {
-      throw new ChainError("rpc_error", `${method} failed: ${body.error.message}`);
+      const message = body.error.message ?? "";
+      const known = classifyEvmRejection(method, message);
+      if (known) throw new ChainError(known.code, known.message, { nodeMessage: message });
+      throw new ChainError("rpc_error", `${method} failed: ${message}`);
     }
     return body.result;
   }
 }
 
 /**
- * Does this failure mean "the address holds no such contract method", as opposed to "the node
- * could not answer"? A revert and an empty return are the contract speaking; a refused connection
- * or an HTTP error is not, and must never be reported as a fact about the contract.
+ * Was this failure the CONTRACT speaking, as opposed to the node failing to answer? A revert (or
+ * an invalid opcode, or the EVM running out of gas inside the call) is a definite reply from the
+ * address; a refused connection or an HTTP error is not, and must never be reported as a fact
+ * about the contract.
+ *
+ * The test is the error CODE, not the wording: `eth_call` is a classified method, so #call has
+ * already turned the node's phrasing into `execution_reverted` and moved the original text into
+ * details.nodeMessage — there is no node wording left here to match on.
  */
-function isNotAContractAnswer(message: string): boolean {
-  return /execution reverted|invalid opcode|out of gas/i.test(message);
+function isContractAnswer(e: unknown): boolean {
+  return e instanceof ChainError && e.code === "execution_reverted";
 }
 
 /** Accept `constructor(uint256,string)`, `(uint256,string)` or a bare `uint256,string` — the

@@ -361,10 +361,16 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     decodeTransactionHex(hex);
     const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));
     if (response.result !== true) {
-      const reason = decodeTronMessage(response.message) || response.code || "rejected by node";
+      const reason = String(
+        decodeTronMessage(response.message) || response.code || "rejected by node",
+      );
+      // Same rejections as broadcastTransaction, so the same classification: `tx broadcast --hex`
+      // must not report insufficient_balance as a bare transaction_rejected.
+      const known = classifyNodeRejection(reason);
       throw new ChainError(
-        "transaction_rejected",
-        `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`,
+        known?.code ?? "transaction_rejected",
+        known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+        { code: response.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
     const returnedTxId =

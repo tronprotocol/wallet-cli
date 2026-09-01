@@ -1010,3 +1010,89 @@ describe("EvmRpcClient transport failure classification", () => {
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
   });
 });
+
+/**
+ * Where the classification is WIRED, as opposed to what the table says (node-errors.test.ts).
+ *
+ * The rule lives on the RPC method, so every call site gets it without remembering to — which is
+ * the point: `eth_estimateGas` used to answer `rpc_error` for the same funding failure that
+ * `eth_sendRawTransaction` reported as `insufficient_balance`, so `tx send --dry-run` and the
+ * broadcast disagreed about the same account.
+ */
+describe("EvmRpcClient node-error classification", () => {
+  const client = () => new EvmRpcClient("https://node.example", 5_000);
+
+  function stubError(message: string) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        text: async () => JSON.stringify({ id: 1, error: { code: -32000, message } }),
+      })),
+    );
+  }
+
+  it("estimateGas reports a funding failure as insufficient_balance, not rpc_error", async () => {
+    stubError("insufficient funds for gas * price + value: balance 0");
+
+    await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
+      code: "insufficient_balance",
+      // the node's own words survive alongside the canned message, as everywhere else
+      details: { nodeMessage: "insufficient funds for gas * price + value: balance 0" },
+    });
+  });
+
+  it("estimateGas reports a revert as execution_reverted", async () => {
+    stubError("execution reverted: ERC20: transfer amount exceeds balance");
+
+    await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
+      code: "execution_reverted",
+    });
+  });
+
+  it("sendRawTransaction reports a stale nonce as nonce_too_low", async () => {
+    stubError("nonce too low");
+
+    await expect(client().sendRawTransaction("0x02f8b1")).rejects.toMatchObject({
+      code: "nonce_too_low",
+    });
+  });
+
+  it("call reports a revert as execution_reverted", async () => {
+    stubError("execution reverted");
+
+    await expect(client().call(ADDR, "0x")).rejects.toMatchObject({ code: "execution_reverted" });
+  });
+
+  /**
+   * The pins that keep the classification from spreading. A read method has no transaction to
+   * judge, so a node error from it is the node failing — a rate limit, an unimplemented method,
+   * a proxy returning someone else's text — and it must stay `rpc_error` however business-like
+   * the wording looks. Reading "insufficient funds" out of `eth_getBalance` and calling it
+   * `insufficient_balance` would report an endpoint fault as a fact about the user's money.
+   */
+  it("leaves eth_getBalance an rpc_error even when the text reads like a verdict", async () => {
+    stubError("insufficient funds for gas * price + value");
+
+    await expect(client().getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
+  });
+
+  it("leaves eth_getTransactionCount an rpc_error even when the text reads like a verdict", async () => {
+    stubError("nonce too low");
+
+    await expect(client().getTransactionCount(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
+  });
+
+  // `out of gas` means different things to the two methods; the method name is what separates them.
+  it("splits `out of gas` between a simulation and a submission", async () => {
+    stubError("out of gas");
+    await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
+      code: "execution_reverted",
+    });
+
+    stubError("out of gas");
+    await expect(client().sendRawTransaction("0x02f8b1")).rejects.toMatchObject({
+      code: "gas_too_low",
+    });
+  });
+});

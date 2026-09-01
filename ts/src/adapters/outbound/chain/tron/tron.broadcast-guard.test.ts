@@ -83,3 +83,36 @@ describe("TronRpcClient broadcast guard — node rejection must never read as ac
     });
   });
 });
+
+/**
+ * Both broadcast paths reach the same actuators, so they must read the same rejection the same
+ * way. broadcastHex used to hard-code `transaction_rejected`, so `tx broadcast --hex` gave an
+ * agent nothing to branch on for a rejection that `tx send` classified.
+ */
+describe("TronRpcClient.broadcastHex classifies a recognised rejection", () => {
+  it("gives a known rejection its own code, as broadcast does", async () => {
+    const rejection = {
+      result: false,
+      code: "CONTRACT_VALIDATE_ERROR",
+      message: Buffer.from(
+        "Contract validate error : ExchangeTransactionContract is rejected",
+      ).toString("hex"),
+    };
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendHexTransaction = (() => Promise.resolve(rejection)) as never;
+
+    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+      code: "exchange_trading_disabled",
+    });
+  });
+
+  it("still falls back to transaction_rejected for wording it does not know", async () => {
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendHexTransaction = (() =>
+      Promise.resolve({ result: false, code: "SIGERROR" })) as never;
+
+    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+      code: "transaction_rejected",
+    });
+  });
+});
