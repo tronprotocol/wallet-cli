@@ -15,7 +15,7 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { Transaction, TypedDataEncoder, hashMessage, type TransactionLike } from "ethers";
 import type { TypedDataPayload, TypedDataSignature } from "../../../../domain/types/index.js";
 import type { SignStrategy } from "../../../../domain/types/index.js";
-import { ChainError } from "../../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 
 const strip0x = (hex: string): string => (hex.startsWith("0x") ? hex.slice(2) : hex);
 
@@ -54,7 +54,7 @@ export const evmSignStrategy: SignStrategy = {
     try {
       transaction = Transaction.from(tx as TransactionLike);
     } catch (e) {
-      throw new ChainError(
+      throw new UsageError(
         "invalid_payload",
         `EVM transaction could not be encoded: ${(e as Error).message}`,
       );

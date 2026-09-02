@@ -39,16 +39,16 @@ function isReferencedType(types: Record<string, TypedDataField[]>, name: string)
  * - `value` is accepted as an alias for `message`; some producers emit that spelling.
  */
 export function normalizeTypedData(raw: unknown): TypedDataPayload {
-  if (!isObject(raw)) throw new UsageError("invalid_value", "typed data must be a JSON object");
+  if (!isObject(raw)) throw new UsageError("invalid_payload", "typed data must be a JSON object");
   const { domain, types, primaryType } = raw;
   if (!isObject(domain))
-    throw new UsageError("invalid_value", "typed data `domain` must be an object");
+    throw new UsageError("invalid_payload", "typed data `domain` must be an object");
   if (!isObject(types))
-    throw new UsageError("invalid_value", "typed data `types` must be an object");
+    throw new UsageError("invalid_payload", "typed data `types` must be an object");
 
   const message = raw.message ?? raw.value;
   if (!isObject(message))
-    throw new UsageError("invalid_value", "typed data `message` must be an object");
+    throw new UsageError("invalid_payload", "typed data `message` must be an object");
 
   const structs: Record<string, TypedDataField[]> = {};
   for (const [name, fields] of Object.entries(types)) {
@@ -71,12 +71,12 @@ export function normalizeTypedData(raw: unknown): TypedDataPayload {
   }
   if (Object.keys(structs).length === 0) {
     throw new UsageError(
-      "invalid_value",
+      "invalid_payload",
       "typed data `types` must declare at least one struct type besides EIP712Domain",
     );
   }
   if (primaryType !== undefined && typeof primaryType !== "string") {
-    throw new UsageError("invalid_value", "typed data `primaryType` must be a string");
+    throw new UsageError("invalid_payload", "typed data `primaryType` must be a string");
   }
   if (typeof primaryType === "string" && !(primaryType in structs)) {
     throw new UsageError(

@@ -88,7 +88,7 @@ export const ERROR_CODES = {
 
   // ── transaction construction & signing ────────────────────────────────────
   invalid_transaction: { exit: 1, retry: "never", meaning: "the transaction is malformed, or already carries a signature" },
-  invalid_payload: { exit: 1, retry: "never", meaning: "the payload does not decode as what the flag says it is" },
+  invalid_payload: { exit: 2, retry: "never", meaning: "the payload does not decode as what the flag says it is" },
   invalid_amount: { exit: 2, retry: "never", meaning: "the amount is not positive, or is finer than the asset's precision" },
   precision_loss: { exit: 1, retry: "never", meaning: "the amount cannot be represented exactly at the required precision" },
   tx_integrity: { exit: 1, retry: "never", meaning: "the transaction re-encoded differently than it arrived — it was altered in flight" },

@@ -55,10 +55,12 @@ describe("typed-data sign binding", () => {
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  it("rejects a structurally invalid payload with invalid_value", async () => {
+  // BUG-V413-020: missing/malformed top-level fields (domain/types/message) don't decode as what
+  // --typed-data says they are, so they're invalid_payload (exit 2), not invalid_value.
+  it("rejects a structurally invalid payload with invalid_payload", async () => {
     const svc = { sign: async () => stubResult };
     await expect(
       typedDataSignBinding(svc as never).run(ctx, net, { typedData: '{"domain":{},"types":{}}' }),
-    ).rejects.toMatchObject({ code: "invalid_value" });
+    ).rejects.toMatchObject({ code: "invalid_payload" });
   });
 });

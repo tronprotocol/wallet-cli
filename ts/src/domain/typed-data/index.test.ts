@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { normalizeTypedData } from "./index.js";
+import { CliError } from "../errors/index.js";
 
 const DOMAIN = { name: "SunPerp", version: "1", chainId: 728126428 };
 const TYPES = {
@@ -109,5 +110,31 @@ describe("normalizeTypedData", () => {
     expect(() =>
       normalizeTypedData({ domain: DOMAIN, types: { Order: [{ name: "x" }] }, message: {} }),
     ).toThrow(/without a name\/type/);
+  });
+
+  // BUG-V413-020: a payload missing/malformed at the top-level shape is invalid_payload — "the
+  // payload does not decode as what --typed-data says it is" — exit 2 (a caller can fix the JSON
+  // and rerun), not invalid_value.
+  describe("missing top-level fields report invalid_payload, exit 2", () => {
+    const cases: Array<[string, unknown]> = [
+      ["whole payload not an object", "not an object"],
+      ["missing domain", { types: TYPES, message: {} }],
+      ["missing types", { domain: DOMAIN, message: {} }],
+      ["empty types (no struct besides EIP712Domain)", { domain: DOMAIN, types: {}, message: {} }],
+      ["missing message", { domain: DOMAIN, types: TYPES }],
+    ];
+
+    it.each(cases)("%s", (_label, raw) => {
+      let error: unknown;
+      try {
+        normalizeTypedData(raw);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(CliError);
+      const cliError = error as CliError;
+      expect(cliError.code).toBe("invalid_payload");
+      expect(cliError.exitCode()).toBe(2);
+    });
   });
 });
