@@ -100,6 +100,64 @@ describe("EvmTransactionService.send — native transfer", () => {
     expect(gateway.getTransactionCount).toHaveBeenCalledWith(OWNER, "pending");
   });
 
+  it("warns when an explicit nonce leaves a gap above the pending nonce", async () => {
+    const { service, gateway } = harness({ nonce: "42" });
+    const transactionScope = scope();
+
+    await service.send(transactionScope, SEPOLIA, {
+      to: RECEIVER,
+      amount: "1",
+      nonce: 44,
+    } as never);
+
+    expect(gateway.getTransactionCount).toHaveBeenCalledWith(OWNER, "pending");
+    expect(transactionScope.warn).toHaveBeenCalledWith(expect.stringMatching(/nonce 44.*42.*gap/i));
+  });
+
+  // With --nonce given, the pending-nonce read exists only to warn about a gap. It must not be
+  // able to fail a build that already has everything it needs.
+  it("still builds when --nonce is given and the pending-nonce read fails", async () => {
+    const gateway = {
+      getTransactionCount: vi.fn(async () => {
+        throw new Error("connect ECONNREFUSED");
+      }),
+      feeData: vi.fn(async () => ({
+        baseFeeWei: "100",
+        gasPriceWei: "110",
+        suggestedPriorityWei: "10",
+      })),
+      estimateGas: vi.fn(async () => "21000"),
+      encodeErc20Transfer: vi.fn(() => "0xa9059cbb-encoded"),
+      getErc20Metadata: vi.fn(async () => ({ symbol: "TKN", decimals: 6 })),
+    };
+    const built: Record<string, unknown>[] = [];
+    const pipeline = {
+      assertCanSign: vi.fn(),
+      run: vi.fn(async (params: TxPipelineParams) => {
+        const tx = (await params.build(OWNER)) as Record<string, unknown>;
+        built.push(tx);
+        return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
+      }),
+    } as unknown as TxPipeline;
+    const service = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      pipeline,
+      { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+    );
+    const transactionScope = scope();
+
+    const out = await service.send(transactionScope, SEPOLIA, {
+      to: RECEIVER,
+      amount: "1",
+      nonce: 44,
+    } as never);
+
+    expect((out as { nonce?: number }).nonce).toBe(44);
+    expect(built[0]).toMatchObject({ nonce: 44 });
+    expect(transactionScope.warn).not.toHaveBeenCalled();
+  });
+
   it("refuses to sign before anything else when the account cannot sign", async () => {
     const { service, pipeline } = harness();
     await service.send(scope(), SEPOLIA, { to: RECEIVER, amount: "1" } as never);

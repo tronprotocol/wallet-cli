@@ -41,14 +41,20 @@ function invalidInteger(message: string) {
 
 export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmBuildResult> {
   const { gateway, network, from, call, input } = request;
-  const [nonce, fee] = await Promise.all([
+  // With --nonce given, the pending-nonce read exists only to warn about a gap below — it must
+  // not be able to fail a build that already has everything it needs, so it is best-effort.
+  // Without --nonce, that same read IS the nonce, so it stays a hard dependency (contrast
+  // `getBlockNumber` in transaction-service.ts, which is best-effort because it only adds a
+  // field to a status view that already has an answer without it).
+  const [pendingNonce, fee] = await Promise.all([
     // "pending", not "latest": a latest-based nonce refuses to queue behind a transaction of
     // our own that has not been mined yet.
     input.nonce === undefined
       ? gateway.getTransactionCount(from, "pending")
-      : Promise.resolve(String(input.nonce)),
+      : gateway.getTransactionCount(from, "pending").catch(() => undefined),
     gateway.feeData(),
   ]);
+  const nonce = input.nonce === undefined ? (pendingNonce as string) : String(input.nonce);
   request.onNonce?.(from, nonce);
 
   const gasEstimate = await resolveGasLimit(gateway, { from, ...call }, input.gasLimit);
@@ -59,6 +65,16 @@ export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmB
     declaredFeeModel: network.feeModel,
     overrides: overridesOf(input),
   });
+  const warnings = [...(plan.warnings ?? [])];
+  if (
+    input.nonce !== undefined &&
+    pendingNonce !== undefined &&
+    BigInt(nonce) > BigInt(pendingNonce)
+  ) {
+    warnings.push(
+      `explicit nonce ${nonce} is above pending nonce ${pendingNonce}, leaving a nonce gap`,
+    );
+  }
 
   return {
     tx: {
@@ -76,6 +92,6 @@ export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmB
       gasLimit: plan.gasLimit,
       maxPerGasWei: plan.maxFeeWei ?? plan.gasPriceWei,
     },
-    ...(plan.warnings === undefined ? {} : { warnings: plan.warnings }),
+    ...(warnings.length === 0 ? {} : { warnings }),
   };
 }
