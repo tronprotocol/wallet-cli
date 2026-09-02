@@ -35,7 +35,7 @@ export class SignerResolver {
     family: ChainFamily,
     opts?: { requireSoftware?: boolean },
   ): void {
-    const { wallet, index } = this.keystore.resolveAccount(refOrLabel);
+    const { wallet, index } = this.keystore.resolveAccount(refOrLabel, family);
     const address = walletAddress(wallet, family, index);
     if (!address) {
       // The account exists but lives on another chain — the same condition resolveAddress
@@ -58,7 +58,7 @@ export class SignerResolver {
   }
 
   resolve(refOrLabel: string, family: ChainFamily): Signer {
-    const { wallet, index } = this.keystore.resolveAccount(refOrLabel);
+    const { wallet, index } = this.keystore.resolveAccount(refOrLabel, family);
     const address = walletAddress(wallet, family, index);
     if (!address) {
       // The account exists but lives on another chain — the same condition resolveAddress

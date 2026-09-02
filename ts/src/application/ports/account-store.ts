@@ -1,4 +1,5 @@
 import type { AccountDescriptor, AccountRef, Bytes, Wallet } from "../../domain/types/index.js";
+import type { ChainFamily } from "../../domain/family/index.js";
 
 /**
  * Application-facing wallet boundary.
@@ -8,7 +9,7 @@ import type { AccountDescriptor, AccountRef, Bytes, Wallet } from "../../domain/
  */
 export interface AccountStore {
   activeAccount(): AccountRef | null;
-  resolveAccount(refOrLabel: string): { wallet: Wallet; index: number };
+  resolveAccount(refOrLabel: string, family?: ChainFamily): { wallet: Wallet; index: number };
   describe(refOrLabel: string): AccountDescriptor;
   list(): AccountDescriptor[];
   isInitialized(): boolean;

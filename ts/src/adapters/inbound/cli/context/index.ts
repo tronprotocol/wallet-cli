@@ -98,7 +98,7 @@ class ExecutionContextImpl implements ExecutionContext {
     if (this.globals.account && addressCodec(family).validate(this.globals.account)) {
       return this.globals.account;
     }
-    const { wallet, index } = this.deps.keystore.resolveAccount(this.activeAccount);
+    const { wallet, index } = this.deps.keystore.resolveAccount(this.activeAccount, family);
     const address = walletAddress(wallet, family, index);
     if (!address) {
       // The account exists, it simply lives on another chain — the one error here where the user
