@@ -314,7 +314,7 @@ function unwrapBusinessResponse(value: unknown): unknown {
     // The code alone does not separate a rejected signature from a bad parameter or a stale one.
     const providerMessage = boundedProviderMessage(root.message);
     throw new ChainError("provider_error", "TronLink collaboration service rejected the request", {
-      code,
+      providerCode: code,
       ...(providerMessage === undefined ? {} : { providerMessage }),
     });
   }

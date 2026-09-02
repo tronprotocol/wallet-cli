@@ -163,7 +163,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       throw new ChainError(
         known?.code ?? "transaction_rejected",
         known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
-        { code: res.code, nodeMessage: redactErrorMessage(reason) },
+        { nodeCode: res.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
     return { txId: res.txid ?? res.transaction?.txID };
@@ -370,7 +370,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       throw new ChainError(
         known?.code ?? "transaction_rejected",
         known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
-        { code: response.code, nodeMessage: redactErrorMessage(reason) },
+        { nodeCode: response.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
     const returnedTxId =
