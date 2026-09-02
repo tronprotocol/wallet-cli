@@ -231,13 +231,14 @@ Common codes at exit **2** (usage — fix the call):
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
 | `migration_required` | Persisted wallet data needs an upgrade that this invocation cannot perform — see [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
+| `ambiguous_account` | `--account <address>` matches more than one account and they are not interchangeable signers for the family being acted on; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
 
 Common codes at exit **1** (execution — runtime failure):
 
 | Code | Meaning |
 |---|---|
 | `rpc_error` | The node rejected or failed the request — a TRON API call, or a JSON-RPC method such as `eth_estimateGas` |
-| `invalid_node_response` | The node's answer contradicts the request or the protocol: a TRC10/exchange record whose id is not the one asked for, a `precision` outside 0..6, or a rate pair that is not a positive int32. These decide signed amounts, so the command stops rather than acting on them. List reads drop the offending record and keep the page |
+| `invalid_node_response` | The node's answer contradicts the request or the protocol: a TRC10/exchange record whose id is not the one asked for, a `precision` outside 0..6, or a rate pair that is not a positive int32; an EVM JSON-RPC response with neither a `result` nor an `error` field, in violation of JSON-RPC; or a request for the latest block that came back without one. These decide signed amounts, so the command stops rather than acting on them. List reads drop the offending record and keep the page |
 | `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
 | `auth_required` | Required credential was unavailable — a software master password, or Ledger app/device readiness |
 | `auth_failed` | Wrong master password (decryption failed) |
@@ -280,6 +281,12 @@ Some failures are a **choice**, not a dead end: the call was well formed but nam
 
 ```json
 {"code":"ambiguous_asset_name","message":"2 TRC10 tokens are named MyToken; re-run with the id","details":{"name":"MyToken","assetIds":["1000123","1000488"],"matches":[{"assetId":"1000123","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6},{"assetId":"1000488","issuerAddress":"TZx9kP2m...","totalSupply":"5000000000","precision":2}]}}
+```
+
+`ambiguous_account` is the second citizen of this convention, and the more commonly hit one — any `--account <address>` that doesn't resolve to a single interchangeable signer on the family being acted on returns it:
+
+```json
+{"code":"ambiguous_account","message":"address T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb matches 2 accounts; address it by accountId","details":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","accountIds":["wlt_a1b2c.0","wlt_d3e4f.0"],"matches":[{"accountId":"wlt_a1b2c.0","label":"main","type":"seed","index":0},{"accountId":"wlt_d3e4f.0","label":"cold","type":"watch","index":null}]}}
 ```
 
 `matches` is the convention, not a per-code special case: **any** error may carry it, and any that does gets the same treatment. In text mode the candidates are printed as a table under the `error [...]` line, on stderr. Quantities inside `matches` stay raw (minimal units), matching how the corresponding success payload reports them; the text table scales them for display when the row carries a `precision`.
