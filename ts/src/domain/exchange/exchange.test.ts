@@ -123,3 +123,52 @@ describe("token ids", () => {
     }
   });
 });
+
+// Basis points can only express two decimal places, so a finer percentage had to be rounded to the
+// nearest one — in EITHER direction. Rounding it down loosened the user's floor below what they
+// asked for; rounding it up tightened it past what they asked for, and for anything under 0.005%
+// it snapped the floor to the predicted output itself, demanding a return the estimate cannot
+// promise. The resolution is now fine enough that every percentage a person types is exact.
+describe("slippage floor at finer than basis-point precision", () => {
+  const predicted = 1_000_000n;
+
+  it("honours a three-decimal percentage exactly", () => {
+    // 1.006% of 1,000,000 is 10,060 → floor 989,940. Basis points gave 989,900, which accepts
+    // 40 units less than asked for.
+    expect(slippageFloor(predicted, 1.006)).toBe(989_940n);
+  });
+
+  it("does not tighten a percentage that used to round up", () => {
+    // 1.004% → 989,960. Basis points gave 990,000, refusing a trade the user would have taken.
+    expect(slippageFloor(predicted, 1.004)).toBe(989_960n);
+    expect(slippageFloor(predicted, 0.334)).toBe(996_660n);
+  });
+
+  it("keeps a very tight tolerance below the predicted output", () => {
+    // Anything under 0.005% used to snap to 10,000 bps, making the floor the prediction itself —
+    // and the prediction is an estimate, so that trade reverts on any last-unit disagreement.
+    expect(slippageFloor(predicted, 0.001)).toBe(999_990n);
+    expect(slippageFloor(predicted, 0.001)).toBeLessThan(predicted);
+    expect(slippageFloor(predicted, 0.0049)).toBeLessThan(predicted);
+  });
+
+  it("leaves every percentage basis points could already express unchanged", () => {
+    expect(slippageFloor(predicted, 1)).toBe(990_000n);
+    expect(slippageFloor(predicted, 0.5)).toBe(995_000n);
+    expect(slippageFloor(predicted, 0.01)).toBe(999_900n);
+    expect(slippageFloor(predicted, 2.5)).toBe(975_000n);
+    expect(slippageFloor(4950n, 1)).toBe(4900n);
+  });
+
+  // Resolution has to stop somewhere. Below it the TOLERANCE rounds down, which can only raise the
+  // floor — the direction that never hands the user a weaker guarantee than the one they asked for.
+  it("rounds a tolerance finer than its resolution down, never up", () => {
+    const finer = slippageFloor(predicted, 1.0000001);
+    expect(finer).toBeGreaterThanOrEqual(slippageFloor(predicted, 1.000001));
+    expect(finer).toBe(990_000n);
+  });
+
+  it("still clamps to a positive floor at an extreme tolerance", () => {
+    expect(slippageFloor(1n, 99.999)).toBe(1n);
+  });
+});
