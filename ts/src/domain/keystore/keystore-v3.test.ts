@@ -263,3 +263,87 @@ describe("V3 import compares the MAC by value, not by how it was written", () =>
     expect(() => KeystoreV3.decrypt(withMac(mac), PW)).toThrowError(/not a valid V3 keystore/);
   });
 });
+
+/**
+ * An imported keystore chooses its own KDF cost, and the KDF runs to completion BEFORE the MAC is
+ * checked — so the file's author needs no password to decide how much work this process does.
+ *
+ * scrypt is already bounded: @noble/hashes refuses a non-power-of-two `n` outright and caps
+ * `128 * r * (n + p + 1)` at its 1 GiB `maxmem`, which no bound of ours would improve on. pbkdf2
+ * has no such ceiling — `c` is unbounded, and `dklen` is limited only by `(2^32 - 1) * 32` — so a
+ * file can name a cost that runs for hours, or an output size that exhausts memory, and the failure
+ * is a hang rather than a message naming the parameter that caused it.
+ */
+describe("V3 import bounds the work an imported file can demand", () => {
+  function withKdfParams(kdf: "scrypt" | "pbkdf2", kdfparams: Record<string, unknown>) {
+    const base = kdf === "scrypt" ? lightV3() : pbkdf2V3();
+    return {
+      ...base,
+      crypto: { ...base.crypto, kdfparams: { ...base.crypto.kdfparams, ...kdfparams } },
+    };
+  }
+
+  it("refuses a pbkdf2 iteration count beyond the supported ceiling", () => {
+    expect(() =>
+      KeystoreV3.decrypt(withKdfParams("pbkdf2", { c: 1_000_000_000 }), PW),
+    ).toThrowError(/crypto\.kdfparams\.c/i);
+  });
+
+  it("refuses a derived-key length far past any real keystore", () => {
+    expect(() => KeystoreV3.decrypt(withKdfParams("pbkdf2", { dklen: 2 ** 30 }), PW)).toThrowError(
+      /dklen/i,
+    );
+    expect(() => KeystoreV3.decrypt(withKdfParams("scrypt", { dklen: 2 ** 30 }), PW)).toThrowError(
+      /dklen/i,
+    );
+  });
+
+  // The bound has to be checked BEFORE the KDF runs, or it protects nothing: refusal must be
+  // immediate, not the result of doing the work first.
+  it("refuses before doing the work", () => {
+    const started = performance.now();
+    expect(() =>
+      KeystoreV3.decrypt(withKdfParams("pbkdf2", { c: 1_000_000_000 }), PW),
+    ).toThrowError();
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
+  // A rejected parameter is a malformed FILE, not a wrong password: the two send the reader to
+  // completely different places.
+  it("reports an out-of-range parameter as an invalid keystore, not a bad password", () => {
+    try {
+      KeystoreV3.decrypt(withKdfParams("pbkdf2", { c: 1_000_000_000 }), PW);
+      expect.unreachable("should have thrown");
+    } catch (e) {
+      expect((e as { code?: string }).code).toBe("invalid_keystore");
+    }
+  });
+
+  it("still accepts the costs real wallets actually write", () => {
+    // what our own export writes, and what MEW / TronLink emit
+    expect(KeystoreV3.decrypt(lightV3(), PW)).toEqual(KEY);
+    expect(KeystoreV3.decrypt(pbkdf2V3(), PW)).toEqual(KEY);
+    expect(() => KeystoreV3.decrypt(withKdfParams("pbkdf2", { c: 262_144 }), PW)).toThrowError(
+      /password/i, // the MAC no longer matches, but the COST was accepted
+    );
+  });
+
+  // scrypt's ceiling belongs to noble, and it already refuses these without our help — but it says
+  // so with a bare Error. Left alone that reads as an internal fault of ours, sending the reader to
+  // debug the CLI over a file that simply names impossible parameters.
+  it("reports scrypt's own refusals as an invalid keystore too", () => {
+    for (const params of [{ n: 2 ** 30 }, { n: 3 }]) {
+      try {
+        KeystoreV3.decrypt(withKdfParams("scrypt", params), PW);
+        expect.unreachable("should have thrown");
+      } catch (e) {
+        expect((e as { code?: string }).code, JSON.stringify(params)).toBe("invalid_keystore");
+      }
+    }
+    // and the library's own wording survives, because it names the parameter at fault
+    expect(() => KeystoreV3.decrypt(withKdfParams("scrypt", { n: 2 ** 30 }), PW)).toThrowError(
+      /maxmem/i,
+    );
+    expect(() => KeystoreV3.decrypt(withKdfParams("scrypt", { n: 3 }), PW)).toThrowError(/power/i);
+  });
+});
