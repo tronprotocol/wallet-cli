@@ -17,6 +17,7 @@ import type { BackupFormat } from "../ports/backup-writer.js";
 import { Derivation } from "../../domain/derivation/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { tronHexAddress } from "../../domain/address/index.js";
+import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { WalletService } from "./wallet-service.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
@@ -364,6 +365,40 @@ describe("WalletService.importKeystore", () => {
     expect(() =>
       h.service.importKeystore(v3(bytesToHex(hdKey), "file-pw"), "file-pw"),
     ).toThrowError(/already holds this address/);
+  });
+
+  it("rejects an out-of-range private key as invalid_private_key, not internal_error", () => {
+    // 32 zero bytes: well-formed as a V3 keystore payload (right shape, right length), but not a
+    // valid secp256k1 scalar — derivePrivAddresses() would otherwise throw a raw RangeError that
+    // classifyError redacts to internal_error, hiding the actionable cause.
+    const zeroKey = "00".repeat(32);
+    let err: any;
+    try {
+      h.service.importKeystore(v3(zeroKey, "file-pw"), "file-pw");
+    } catch (e) {
+      err = e;
+    }
+    expect(err?.code).toBe("invalid_private_key");
+    expect(h.keystore.list()).toEqual([]);
+  });
+
+  it("does not refuse a same-address WATCH account — it holds no secret an import could destroy", () => {
+    const watchAddress = derivePrivAddresses(Buffer.from(RAW_KEY, "hex")).tron!;
+    h.keystore.registerWatch({ family: "tron", address: watchAddress });
+    const result = h.service.importKeystore(v3(), "file-pw", "now-imported");
+    expect(result.status).toBe("created");
+    expect(h.keystore.list()).toHaveLength(2);
+  });
+
+  it("still refuses a same-address PRIVATEKEY account (unaffected by the watch-only carve-out)", () => {
+    h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "already-here" });
+    let err: any;
+    try {
+      h.service.importKeystore(v3(), "file-pw");
+    } catch (e) {
+      err = e;
+    }
+    expect(err?.code).toBe("account_exists");
   });
 });
 

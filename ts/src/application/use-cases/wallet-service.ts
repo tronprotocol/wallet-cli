@@ -16,6 +16,7 @@ import {
 } from "../../domain/address/index.js";
 import type { Bytes } from "../../domain/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
+import { SOURCE_KINDS } from "../../domain/sources/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
@@ -244,11 +245,23 @@ export class WalletService {
    */
   importKeystore(file: unknown, keystorePassword: string, label?: string) {
     const privateKey = KeystoreV3.decrypt(file, keystorePassword);
+    // Same reasoning as the raw-private-key import path (adapters/outbound/keystore): a scalar
+    // outside secp256k1's valid range would otherwise blow up inside derivePrivAddresses(), where
+    // classifyError redacts it to internal_error instead of the actionable invalid_private_key.
+    if (!Derivation.isValidPrivateKey(privateKey))
+      throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
     const addresses = derivePrivAddresses(privateKey);
+    // Only a clash with an account that holds a local secret (seed/privateKey) is refused: the
+    // ADR-0007 rationale is "don't destroy a seed to add an account", which doesn't apply to a
+    // watch/Ledger account at the same address — it has no secret to destroy.
     const clash = this.wallets
       .list()
-      .find((a) =>
-        CHAIN_FAMILIES.some((f) => a.addresses[f] !== undefined && a.addresses[f] === addresses[f]),
+      .find(
+        (a) =>
+          SOURCE_KINDS[a.type].hasSecret &&
+          CHAIN_FAMILIES.some(
+            (f) => a.addresses[f] !== undefined && a.addresses[f] === addresses[f],
+          ),
       );
     if (clash) {
       throw new WalletError(
