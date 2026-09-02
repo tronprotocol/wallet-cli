@@ -263,9 +263,9 @@ export class Keystore {
 
   // ── selection / lookup ─────────────────────────────────────────────────────
   /** index is meaningful only for seed wallets; privateKey/ledger report -1. */
-  resolveAccount(refOrLabel: string): { wallet: Wallet; index: number } {
+  resolveAccount(refOrLabel: string, family?: ChainFamily): { wallet: Wallet; index: number } {
     const file = this.#read();
-    const ref = this.#toRef(file, refOrLabel);
+    const ref = this.#toRef(file, refOrLabel, family);
     const [walletId, idxStr] = ref.split(".");
     const wallet = file.wallets.find((w) => w.id === walletId);
     if (!wallet) throw new UsageError("account_not_found", `unknown account ${refOrLabel}`);
@@ -612,31 +612,53 @@ export class Keystore {
     }
   }
 
-  /** ref|address|label → canonical account ref (exact ref, unique address, or unique label). */
-  #toRef(file: WalletsFile, input: string): AccountRef {
+  /** ref|address|label → canonical account ref (exact ref, unique address, or unique label).
+   *
+   *  `family` is the chain the caller is about to act on. It matters only when one address is
+   *  held by more than one account — which the wallet now allows, because a seed account and a
+   *  privateKey account can legitimately hold the same key. Two accounts matching one address in
+   *  one family hold the SAME key for that family, so on that chain they are interchangeable and
+   *  either will do. On any OTHER chain they are different addresses, and picking one would act
+   *  on something the caller never named — so that case refuses rather than guesses, the same
+   *  rule the multi-account seed branch of resolveAccount already follows. */
+  #toRef(file: WalletsFile, input: string, family?: ChainFamily): AccountRef {
     const v = input.trim();
     if (v.startsWith("wlt_")) return v;
     // address form (T… / 0x…): match the unique account holding it in its cache.
-    if (familyOf(v) !== undefined) {
+    const addrFamily = familyOf(v);
+    if (addrFamily !== undefined) {
       // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and the CLI accepts an
       // all-lower or all-upper EVM address as input. Comparing raw strings would refuse to find an
       // account by the very spelling the user was told is valid.
       const wanted = canonicalAddress(v);
-      const hits: AccountRef[] = [];
+      const hits: Array<{ ref: AccountRef; wallet: Wallet; index: number | null }> = [];
       for (const w of file.wallets) {
         for (const { index, addr } of enumerateAddresses(w)) {
-          if (CHAIN_FAMILIES.some((f) => addr[f] === wanted)) hits.push(accountRefOf(w, index));
+          if (addr[addrFamily] === wanted)
+            hits.push({ ref: accountRefOf(w, index), wallet: w, index });
         }
       }
       if (hits.length === 0)
         throw new UsageError("account_not_found", `no account with address ${input}`);
-      if (hits.length > 1) {
+      if (hits.length > 1 && family !== addrFamily) {
+        // `accountIds` is the machine-readable answer ("which accountId do I re-run with?");
+        // `matches` carries the columns a human needs to actually pick one.
         throw new UsageError(
-          "invalid_value",
-          `address ${input} matches multiple accounts: ${hits.join(", ")}`,
+          "ambiguous_account",
+          `address ${input} matches ${hits.length} accounts; address it by accountId`,
+          {
+            address: wanted,
+            accountIds: hits.map((h) => h.ref),
+            matches: hits.map((h) => ({
+              accountId: h.ref,
+              label: file.labels[h.ref] ?? "",
+              type: h.wallet.source.type,
+              index: SOURCE_KINDS[h.wallet.source.type].isHD ? h.index : null,
+            })),
+          },
         );
       }
-      return hits[0]!;
+      return hits[0]!.ref;
     }
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),

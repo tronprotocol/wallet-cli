@@ -8,7 +8,7 @@ vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
-import { mkdtempSync, readdirSync, readFileSync, renameSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -17,6 +17,7 @@ import type { CliError } from "../../../domain/errors/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
+import type { WalletsFile } from "../../../domain/types/index.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
 // the canonical TRON address derived from MNEMONIC at account 0 — the cached address every
@@ -450,6 +451,85 @@ describe("lookup and secret-shape failures carry their own codes", () => {
   it("still imports a private key within the valid range", () => {
     const { accountId } = ks.import({ secret: "a".repeat(64), type: "privateKey", label: "hot" });
     expect(accountId).toBeTruthy();
+  });
+});
+
+/**
+ * Two accounts can legitimately hold the same key: a seed account and a privateKey account,
+ * derived/imported independently, can share one family's address (import's own dedup only
+ * catches the two easy paths — this fixture writes wallets.json directly to exercise the case
+ * Task 2 unlocks). The two accounts here share one EVM address but hold DIFFERENT tron
+ * addresses, which is what makes "which one" matter on a TRON command but not on an EVM one.
+ */
+const EVM_ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const TRON_ADDR_SEED = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
+
+function keystoreWithDuplicateEvmAddress(): Keystore {
+  const root = mkdtempSync(join(tmpdir(), "ks-dup-"));
+  const file: WalletsFile = {
+    version: WALLETS_VERSION,
+    activeAccount: null,
+    wallets: [
+      {
+        id: "wlt_seed1",
+        source: {
+          type: "seed",
+          vaultId: "vlt_seed1",
+          addresses: { "0": { evm: EVM_ADDR, tron: TRON_ADDR_SEED } },
+        },
+      },
+      {
+        id: "wlt_key1",
+        source: {
+          type: "privateKey",
+          keyId: "key_key1",
+          addresses: { evm: EVM_ADDR, tron: TRON0 },
+        },
+      },
+    ],
+    labels: {},
+  };
+  writeFileSync(join(root, "wallets.json"), JSON.stringify(file));
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+}
+
+describe("resolving an address held by more than one account", () => {
+  it("returns the first match when the requested family is the address's own family", () => {
+    // two accounts sharing one EVM address: they hold the SAME evm key, so on an EVM
+    // network they are interchangeable and picking either is correct.
+    const ks = keystoreWithDuplicateEvmAddress();
+    expect(ks.resolveAccount(EVM_ADDR, "evm").wallet).toBeDefined();
+  });
+
+  it("refuses to guess when the address's family is not the one being asked for", () => {
+    // the two accounts share an EVM address but hold DIFFERENT tron addresses, so
+    // "which one" changes what a TRON command would act on.
+    const ks = keystoreWithDuplicateEvmAddress();
+    expect(() => ks.resolveAccount(EVM_ADDR, "tron")).toThrowError(
+      expect.objectContaining({ code: "ambiguous_account" }),
+    );
+  });
+
+  it("refuses to guess when no family narrows the choice", () => {
+    const ks = keystoreWithDuplicateEvmAddress();
+    expect(() => ks.describe(EVM_ADDR)).toThrowError(
+      expect.objectContaining({ code: "ambiguous_account" }),
+    );
+  });
+
+  it("hands the caller the candidates it has to choose between", () => {
+    const ks = keystoreWithDuplicateEvmAddress();
+    try {
+      ks.describe(EVM_ADDR);
+      throw new Error("expected ambiguous_account");
+    } catch (e) {
+      const details = (e as { details?: Record<string, unknown> }).details ?? {};
+      expect(details.accountIds).toHaveLength(2);
+      expect(details.matches).toEqual([
+        expect.objectContaining({ type: "seed" }),
+        expect.objectContaining({ type: "privateKey" }),
+      ]);
+    }
   });
 });
 

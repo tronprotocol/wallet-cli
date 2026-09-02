@@ -85,6 +85,7 @@ export const ERROR_CODES = {
   unsupported_token: { exit: 2, retry: "never", meaning: "the token standard is not one this command handles" },
   ambiguous_token_symbol: { exit: 2, retry: "never", meaning: "the symbol matches more than one token; address it by contract" },
   ambiguous_asset_name: { exit: 1, retry: "never", meaning: "the TRC10 name matches more than one asset; address it by id" },
+  ambiguous_account: { exit: 2, retry: "never", meaning: "the address matches more than one account; address it by accountId" },
 
   // ── transaction construction & signing ────────────────────────────────────
   invalid_transaction: { exit: 1, retry: "never", meaning: "the transaction is malformed, or already carries a signature" },
