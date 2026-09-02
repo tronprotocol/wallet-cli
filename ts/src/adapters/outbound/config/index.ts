@@ -86,8 +86,16 @@ export class ConfigLoader {
         // Resolution is single-hop, so fold the target here rather than leave an entry resolve()
         // cannot follow. One hop only: the book is hand-written, and a chain of two is a mistake
         // to surface, not a feature to support.
+        //
+        // A canonical id is a TERMINAL target, never a hop. Without that stop the fold reaches
+        // BACKWARDS into the built-in book: a config keyed on `tron:3448148188` — accepted,
+        // because resolve() consults ids before the book, so such an entry is merely dead —
+        // would rewrite the built-in `nile -> tron:3448148188` to that key's own target, and
+        // `--network nile` would build, sign and broadcast on mainnet.
         for (const [alias, target] of Object.entries(aliases)) {
-          const forwarded = aliases[target.toLowerCase()];
+          const key = target.toLowerCase();
+          if (networks[key] !== undefined) continue;
+          const forwarded = aliases[key];
           if (forwarded !== undefined && forwarded !== target) aliases[alias] = forwarded;
         }
       }
@@ -237,7 +245,7 @@ export class NetworkRegistry implements INetworkRegistry {
       throw new UsageError("missing_network", "this command requires --network <id>");
     }
     const key = id.toLowerCase();
-    // Canonical FIRST, book second (ADR-0010): an alias can never shadow a real network id,
+    // Canonical FIRST, book second: an alias can never shadow a real network id,
     // whatever a hand-edited config.yaml contains.
     const direct = this.#byId.get(key);
     if (direct) return { ...direct };

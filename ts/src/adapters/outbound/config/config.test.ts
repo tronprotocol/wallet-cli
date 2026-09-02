@@ -166,8 +166,8 @@ describe("builtin EVM networks", () => {
   });
 });
 
-// ADR-0010 supersedes architecture-source-of-truth.md:499 ("aliases are not accepted as network
-// selectors"). Aliases now resolve, but ONLY here — everything downstream carries the canonical id.
+// Aliases resolve, but ONLY here — everything downstream carries the canonical id. This reverses
+// an earlier rule that aliases were not accepted as network selectors at all.
 describe("network alias book", () => {
   const registry = (yaml = "") => new NetworkRegistry(ConfigLoader.load(envWithConfig(yaml)));
 
@@ -416,5 +416,18 @@ describe("alias targets are normalised to canonical ids", () => {
   it("leaves a target that is already canonical alone", () => {
     const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: tron:3448148188\n"));
     expect(config.aliases.mynile).toBe("tron:3448148188");
+  });
+
+  // The fold walks the WHOLE book, built-in entries included, so it can reach BACKWARDS. A
+  // canonical id is accepted as an alias key (it is merely dead — a canonical id can never be
+  // shadowed at resolution), but if the fold followed it, `nile -> tron:3448148188` would be
+  // rewritten to that key's own target and `--network nile` would settle on MAINNET.
+  it("does not let a config entry keyed on a canonical id redirect a builtin alias", () => {
+    const config = ConfigLoader.load(
+      envWithConfig("aliases:\n  tron:3448148188: tron:728126428\n"),
+    );
+    expect(config.aliases.nile).toBe("tron:3448148188");
+    expect(new NetworkRegistry(config).resolve("nile").id).toBe("tron:3448148188");
+    expect(new NetworkRegistry(config).resolve("tron:nile").id).toBe("tron:3448148188");
   });
 });
