@@ -48,7 +48,23 @@ function reportBootstrapFailure(
 export async function main(argv: string[]): Promise<ExitCode> {
   const startedAt = Date.now();
   const tokens = hideBin(argv);
-  const { globals, secretPaths, invalid } = parseGlobals(tokens);
+  const { globals, secretPaths, invalid, stdinFlags } = parseGlobals(tokens);
+
+  // Reject more than one `--*-stdin` flag before anything else runs: stdin (fd 0) can serve only
+  // one secret channel per invocation, so this is a flag COMBINATION error (invalid_option, exit
+  // 2), not a read failure — it must be caught before the migration gate or any command logic
+  // gets a chance to read a secret, not discovered later as secret_source_error when the second
+  // read finds stdin already consumed.
+  if (stdinFlags.length > 1) {
+    return reportBootstrapFailure(
+      new UsageError(
+        "invalid_option",
+        `${stdinFlags.join(" and ")} cannot be combined: only one secret may be read from stdin per run`,
+      ),
+      globals,
+      startedAt,
+    );
+  }
 
   let runtime: ReturnType<typeof composeCliRuntime>;
   try {

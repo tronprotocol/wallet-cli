@@ -1,8 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { main } from "./runner.js";
+
+// Wraps the real readFileSync so a test can observe (and, for fd 0 only, control) its calls —
+// vitest cannot vi.spyOn an ESM module's own export at runtime, so the mock has to be declared
+// here instead. Every call other than fd 0 falls straight through to the real implementation.
+let stdinReply: string | undefined;
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    readFileSync: vi.fn((...args: Parameters<typeof actual.readFileSync>) =>
+      args[0] === 0 && stdinReply !== undefined ? stdinReply : actual.readFileSync(...args),
+    ),
+  };
+});
 import { parseGlobals, hasCommand } from "./argv.js";
 import { FAMILY_REGISTRY } from "./family-registry.js";
 import { CHAIN_FAMILIES } from "../domain/family/index.js";
@@ -93,9 +107,89 @@ describe("parseGlobals", () => {
     expect(secretPaths.password).toBeUndefined();
   });
 
+  // BUG-V413-019: stdin (fd 0) can serve only one secret per run. `stdinFlags` names every
+  // distinct `--*-stdin` flag seen so the caller (runner.ts) can reject a combination BEFORE
+  // any secret is read, rather than discovering it later as secret_source_error.
+  it("collects every distinct --*-stdin flag seen, in order", () => {
+    expect(
+      parseGlobals(["message", "sign", "--message-stdin", "--password-stdin"]).stdinFlags,
+    ).toEqual(["--message-stdin", "--password-stdin"]);
+    expect(parseGlobals(["tx", "broadcast", "--tx-stdin"]).stdinFlags).toEqual(["--tx-stdin"]);
+    expect(parseGlobals(["account", "balance"]).stdinFlags).toEqual([]);
+  });
+
+  it("does not double-count the same --*-stdin flag repeated", () => {
+    expect(
+      parseGlobals(["message", "sign", "--message-stdin", "--message-stdin"]).stdinFlags,
+    ).toEqual(["--message-stdin"]);
+  });
+
   it("ignores a value flag with no following token at end of argv", () => {
     expect(() => parseGlobals(["--network"])).not.toThrow();
     expect(parseGlobals(["--network"]).globals.network).toBeUndefined();
+  });
+});
+
+// BUG-V413-019: two `--*-stdin` flags used to surface only when the second secret read found
+// stdin already consumed by the first (secret_source_error, exit 1) — a read failure, reported
+// after work had already started. It is really a FLAG COMBINATION mistake, catchable from argv
+// alone, so it must be invalid_option/exit 2 and caught before any secret is read.
+describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
+  async function runIsolated(tokens: string[], stdinData?: string) {
+    const root = mkdtempSync(join(tmpdir(), "wcli-stdin-"));
+    const previous = process.env.WALLET_CLI_HOME;
+    process.env.WALLET_CLI_HOME = root;
+    const stdout: string[] = [];
+    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdout.push(String(chunk));
+      return true;
+    });
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    stdinReply = stdinData;
+    vi.mocked(readFileSync).mockClear();
+    try {
+      const code = await main(["node", "wallet-cli", ...tokens]);
+      const stdinReads = vi.mocked(readFileSync).mock.calls.filter((args) => args[0] === 0);
+      return { code, stdout: stdout.join(""), stdinReads };
+    } finally {
+      outSpy.mockRestore();
+      errSpy.mockRestore();
+      stdinReply = undefined;
+      if (previous === undefined) delete process.env.WALLET_CLI_HOME;
+      else process.env.WALLET_CLI_HOME = previous;
+    }
+  }
+
+  it("two --*-stdin flags: invalid_option, exit 2, and stdin is never read", async () => {
+    const { code, stdout, stdinReads } = await runIsolated([
+      "message",
+      "sign",
+      "--message-stdin",
+      "--password-stdin",
+      "-o",
+      "json",
+    ]);
+    expect(code).toBe(2);
+    expect(JSON.parse(stdout)).toMatchObject({
+      success: false,
+      error: { code: "invalid_option" },
+    });
+    expect(stdinReads).toEqual([]);
+  });
+
+  it("a single --*-stdin flag is unaffected: it reaches command logic normally", async () => {
+    const { code, stdout } = await runIsolated(
+      ["message", "sign", "--message-stdin", "-o", "json"],
+      "hello world",
+    );
+    // No account exists in this fresh, isolated wallet dir — a later, unrelated failure that
+    // proves the run was NOT stopped by the two-flag check above (which would have reported
+    // invalid_option instead, before command logic runs at all).
+    expect(JSON.parse(stdout)).toMatchObject({
+      success: false,
+      error: { code: "missing_wallet_address" },
+    });
+    expect(code).toBe(1);
   });
 });
 
