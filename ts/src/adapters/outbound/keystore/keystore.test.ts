@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Keystore, walletAddress } from "./index.js";
+import type { CliError } from "../../../domain/errors/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
@@ -412,6 +413,29 @@ describe("lookup and secret-shape failures carry their own codes", () => {
         expect.objectContaining({ code: "invalid_private_key" }),
       );
     }
+  });
+
+  // BUG-V413-038: a scalar outside secp256k1's valid range [1, n-1] — all-zero, or at/past the
+  // curve order (64 `f`s) — is a THIRD way to mistype a private key. It passes the hex and
+  // length checks above, so it used to blow up inside derivePrivAddresses() and get REDACTED to
+  // internal_error. It must report invalid_private_key, exit 1, the same as the other two shapes.
+  it("reports an out-of-range scalar (all-zero or past the curve order) as invalid_private_key, not internal_error", () => {
+    for (const bad of ["0".repeat(64), "f".repeat(64)]) {
+      let error: unknown;
+      try {
+        ks.import({ secret: bad, type: "privateKey" });
+      } catch (e) {
+        error = e;
+      }
+      expect(error, bad).toBeInstanceOf(Error);
+      expect((error as CliError).code, bad).toBe("invalid_private_key");
+      expect((error as CliError).exitCode(), bad).toBe(1);
+    }
+  });
+
+  it("still imports a private key within the valid range", () => {
+    const { accountId } = ks.import({ secret: "a".repeat(64), type: "privateKey", label: "hot" });
+    expect(accountId).toBeTruthy();
   });
 });
 

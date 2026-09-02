@@ -60,4 +60,9 @@ export class Derivation {
   static publicKeyFromPrivate(privateKey: Bytes): Bytes {
     return secp256k1.getPublicKey(privateKey, false);
   }
+
+  /** whether a 32-byte scalar is in secp256k1's valid private-key range `[1, n-1]`. */
+  static isValidPrivateKey(privateKey: Bytes): boolean {
+    return secp256k1.utils.isValidSecretKey(privateKey);
+  }
 }

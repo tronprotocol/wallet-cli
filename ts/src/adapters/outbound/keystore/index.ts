@@ -138,6 +138,14 @@ export class Keystore {
         }
         if (pk.length !== 32)
           throw new WalletError("invalid_private_key", "private key must be 32 bytes");
+        // Same reasoning as the hex/length checks above: a scalar outside secp256k1's valid range
+        // `[1, n-1]` (all-zero, or at/past the curve order — 64 `f`s included) is a third way to
+        // mistype a private key, and it would otherwise sail past both checks above and blow up
+        // inside derivePrivAddresses(), where classifyError redacts it to internal_error. That
+        // would make the SAME mistake (a bad private key) answer with a third, wrong code instead
+        // of the one the caller can act on.
+        if (!Derivation.isValidPrivateKey(pk))
+          throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
         const addr = derivePrivAddresses(pk);
         const dup = findByAddress(file, addr);
         if (dup) {
