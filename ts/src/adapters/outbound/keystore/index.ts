@@ -236,7 +236,7 @@ export class Keystore {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
-      if (!wallet) throw new WalletError("account_not_found", `unknown wallet ${walletId}`);
+      if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${walletId}`);
       // only seed wallets are HD: privateKey has no derivation, ledger must be re-imported per path.
       if (wallet.source.type !== "seed") {
         const hint =
@@ -268,7 +268,7 @@ export class Keystore {
     const ref = this.#toRef(file, refOrLabel);
     const [walletId, idxStr] = ref.split(".");
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new WalletError("account_not_found", `unknown account ${refOrLabel}`);
+    if (!wallet) throw new UsageError("account_not_found", `unknown account ${refOrLabel}`);
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
     if (idxStr === undefined) {
@@ -296,7 +296,7 @@ export class Keystore {
     const ref = this.#toRef(file, idOrLabel);
     const walletId = ref.split(".")[0]!;
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new WalletError("account_not_found", `unknown wallet ${idOrLabel}`);
+    if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${idOrLabel}`);
     return wallet;
   }
 
@@ -629,7 +629,7 @@ export class Keystore {
         }
       }
       if (hits.length === 0)
-        throw new WalletError("account_not_found", `no account with address ${input}`);
+        throw new UsageError("account_not_found", `no account with address ${input}`);
       if (hits.length > 1) {
         throw new UsageError(
           "invalid_value",
@@ -647,7 +647,7 @@ export class Keystore {
     // The ambiguous cases below keep `invalid_value`: the reference IS valid, it just picks more
     // than one account, and the fix is to narrow it rather than to go looking for it.
     if (matches.length === 0)
-      throw new WalletError("account_not_found", `no account labelled '${input}'`);
+      throw new UsageError("account_not_found", `no account labelled '${input}'`);
     if (matches.length > 1) {
       throw new UsageError(
         "invalid_value",

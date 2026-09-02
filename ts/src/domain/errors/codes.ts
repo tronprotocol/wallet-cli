@@ -41,7 +41,7 @@ export const ERROR_CODES = {
   unsupported_network: { exit: 2, retry: "never", meaning: "no network by that id or alias" },
   unsupported_network_capability: { exit: 2, retry: "never", meaning: "the selected network does not offer what this command needs" },
   missing_wallet_address: { exit: 1, retry: "never", meaning: "no account is available to act as" },
-  account_not_found: { exit: 1, retry: "never", meaning: "no local account by that id, label or address" },
+  account_not_found: { exit: 2, retry: "never", meaning: "no local account by that id, label or address" },
   seed_not_found: { exit: 2, retry: "never", meaning: "the reference does not name a seed (HD) wallet" },
   account_exists: { exit: 1, retry: "never", meaning: "an account with that address is already in the keystore" },
   invalid_account: { exit: 2, retry: "never", meaning: "the account reference is not well-formed" },

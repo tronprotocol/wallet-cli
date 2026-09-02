@@ -388,6 +388,20 @@ describe("lookup and secret-shape failures carry their own codes", () => {
     }
   });
 
+  // account_not_found is a "--account foo doesn't exist" mistake: fix the flag and rerun, same as
+  // its twin seed_not_found. It must exit 2, not 1.
+  it("exits 2 for account_not_found, like its twin seed_not_found", () => {
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    for (const ref of ["nosuchlabel", "wlt_doesnotexist", TRON0.replace(/.$/, "x")]) {
+      try {
+        ks.resolveAccount(ref);
+        expect.unreachable(ref);
+      } catch (e) {
+        expect((e as CliError).exitCode(), ref).toBe(2);
+      }
+    }
+  });
+
   // An ambiguous reference is NOT the same failure: the value is valid and simply picks more than
   // one account, so the fix is to narrow it, not to go looking for a missing account.
   it("keeps invalid_value for a reference that matches more than one account", () => {
