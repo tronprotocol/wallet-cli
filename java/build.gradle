@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'Tron'
-version '1.0-SNAPSHOT'
+version '4.13.0'
 
 apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
@@ -143,6 +143,9 @@ run {
     mainClassName = 'org.tron.walletcli.Client'
 }
 
+test {
+    systemProperty 'walletCli.projectVersion', project.version.toString()
+}
 
 shadowJar {
     baseName = 'wallet-cli'
