@@ -84,7 +84,7 @@ function scope(): TransactionScope {
 
 function writeHarness() {
   const gateway = {
-    getTransactionCount: vi.fn(async () => "9"),
+    getTransactionCount: vi.fn(async (_address: string, _block: string) => "9"),
     feeData: vi.fn(async () => ({
       baseFeeWei: "100",
       gasPriceWei: "110",
@@ -297,5 +297,56 @@ describe("EvmContractService.send — approve", () => {
 
     expect(out).not.toHaveProperty("spender");
     expect(out).not.toHaveProperty("allowance");
+  });
+});
+
+/**
+ * The nonce check lives in tx-build, which every EVM write shares — so `contract send` and
+ * `contract deploy` inherit what `tx send --dry-run` does, without their own copy of the rule.
+ * See transaction-service.test.ts for the full matrix (replacement, no --dry-run, read failure).
+ */
+describe("EvmContractService --dry-run — an explicit nonce the chain has moved past", () => {
+  function staleNonceHarness() {
+    const { service, gateway, built } = writeHarness();
+    gateway.getTransactionCount.mockImplementation(async (_a: string, block: string) =>
+      block === "latest" ? "10" : "12",
+    );
+    return { service, gateway, built };
+  }
+
+  it("refuses a contract send", async () => {
+    const { service } = staleNonceHarness();
+    await expect(
+      service.send(scope(), net, {
+        contract: TOKEN,
+        method: "deposit()",
+        dryRun: true,
+        nonce: 9,
+      } as never),
+    ).rejects.toThrowError(expect.objectContaining({ code: "nonce_too_low" }));
+  });
+
+  it("refuses a deploy", async () => {
+    const { service } = staleNonceHarness();
+    await expect(
+      service.deploy(scope(), net, { bytecode: "0x60006000", dryRun: true, nonce: 9 } as never),
+    ).rejects.toThrowError(expect.objectContaining({ code: "nonce_too_low" }));
+  });
+
+  // The predicted address is derived from (sender, nonce). Handing one back for a nonce the chain
+  // has already used would name an address this deployment can never occupy.
+  it("does not predict a contract address for a deploy it refuses", async () => {
+    const { service, gateway } = staleNonceHarness();
+    await expect(
+      service.deploy(scope(), net, { bytecode: "0x60006000", dryRun: true, nonce: 9 } as never),
+    ).rejects.toThrow();
+    expect(gateway.contractAddressFor).not.toHaveBeenCalled();
+  });
+
+  it("still builds a deploy at the nonce the chain expects", async () => {
+    const { service } = staleNonceHarness();
+    await expect(
+      service.deploy(scope(), net, { bytecode: "0x60006000", dryRun: true, nonce: 10 } as never),
+    ).resolves.toBeDefined();
   });
 });

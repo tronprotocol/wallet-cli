@@ -169,6 +169,7 @@ export class EvmContractService {
           from,
           call,
           input,
+          dryRun: input.dryRun,
           onNonce,
         });
         for (const warning of built.warnings ?? []) scope.warn(warning);

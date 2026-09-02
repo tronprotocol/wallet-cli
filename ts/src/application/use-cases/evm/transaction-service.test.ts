@@ -1118,3 +1118,94 @@ describe("EvmTransactionService.info address style", () => {
     expect(out.to).toBe("0x000000000000000000000000000000000000dEaD");
   });
 });
+
+/**
+ * `--dry-run` asks "would this go through?", so an explicit nonce is checked against the chain
+ * rather than merely used. Read at "latest" (mined), not "pending": a nonce below pending may be
+ * a deliberate replacement of a transaction still in the mempool, which is legitimate.
+ *
+ * The check lives in tx-build, so `tx send`, `contract send` and `contract deploy` all inherit it
+ * — the same place the nonce-gap warning above already comes from.
+ */
+describe("EvmTransactionService.send --dry-run — an explicit nonce the chain has moved past", () => {
+  /** distinct counts per block tag, which the shared harness cannot express. */
+  function nonceHarness(counts: { latest: string; pending: string }) {
+    const gateway = {
+      getTransactionCount: vi.fn(async (_addr: string, block: string) =>
+        block === "latest" ? counts.latest : counts.pending,
+      ),
+      feeData: vi.fn(async () => ({
+        baseFeeWei: "100",
+        gasPriceWei: "110",
+        suggestedPriorityWei: "10",
+      })),
+      estimateGas: vi.fn(async () => "21000"),
+      encodeErc20Transfer: vi.fn(() => "0x"),
+      getErc20Metadata: vi.fn(async () => ({ symbol: "TKN", decimals: 6 })),
+    };
+    const pipeline = {
+      assertCanSign: vi.fn(),
+      run: vi.fn(async (params: TxPipelineParams) => {
+        const tx = (await params.build(OWNER)) as Record<string, unknown>;
+        return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
+      }),
+    } as unknown as TxPipeline;
+    const service = new EvmTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      { effective: () => [] } as never,
+      pipeline,
+      { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+    );
+    return { service, gateway };
+  }
+
+  const send = (service: EvmTransactionService, input: Record<string, unknown>) =>
+    service.send(scope(), SEPOLIA, { to: RECEIVER, amount: "1", ...input } as never);
+
+  it("refuses a nonce below the mined count", async () => {
+    const { service } = nonceHarness({ latest: "10", pending: "12" });
+    await expect(send(service, { dryRun: true, nonce: 9 })).rejects.toThrowError(
+      expect.objectContaining({ code: "nonce_too_low" }),
+    );
+  });
+
+  // The estimate would fail for its own reasons on a doomed transaction, reporting the wrong one.
+  it("refuses before spending an eth_estimateGas", async () => {
+    const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
+    await expect(send(service, { dryRun: true, nonce: 9 })).rejects.toThrow();
+    expect(gateway.estimateGas).not.toHaveBeenCalled();
+  });
+
+  it("accepts the next nonce the chain expects", async () => {
+    const { service } = nonceHarness({ latest: "10", pending: "12" });
+    await expect(send(service, { dryRun: true, nonce: 10 })).resolves.toBeDefined();
+  });
+
+  // Below PENDING but at or above LATEST: replacing one of our own unmined transactions.
+  it("allows replacing a transaction that is still in the mempool", async () => {
+    const { service } = nonceHarness({ latest: "10", pending: "12" });
+    await expect(send(service, { dryRun: true, nonce: 11 })).resolves.toBeDefined();
+  });
+
+  it("does not read the mined count outside --dry-run", async () => {
+    const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
+    await send(service, { buildOnly: true, nonce: 9 });
+    expect(gateway.getTransactionCount).not.toHaveBeenCalledWith(OWNER, "latest");
+  });
+
+  // A derived nonce IS the pending count, so it cannot be behind — nothing to check, nothing to read.
+  it("does not read the mined count when no nonce was given", async () => {
+    const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
+    await send(service, { dryRun: true });
+    expect(gateway.getTransactionCount).not.toHaveBeenCalledWith(OWNER, "latest");
+  });
+
+  it("still builds when the mined-count read fails", async () => {
+    const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
+    gateway.getTransactionCount.mockImplementation(async (_a: string, block: string) => {
+      if (block === "latest") throw new Error("node down");
+      return "12";
+    });
+    await expect(send(service, { dryRun: true, nonce: 9 })).resolves.toBeDefined();
+  });
+});

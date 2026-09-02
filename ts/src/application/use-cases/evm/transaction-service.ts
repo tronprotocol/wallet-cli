@@ -226,6 +226,7 @@ export class EvmTransactionService {
       from,
       call,
       input,
+      dryRun: input.dryRun,
     });
     for (const warning of built.warnings ?? []) scope.warn(warning);
     return built;
