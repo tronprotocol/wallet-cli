@@ -1,0 +1,9 @@
+#!/usr/bin/expect -f
+set timeout 60
+log_user 1
+spawn java -jar $env(JAR)
+expect -re "wallet> $"
+send -- "help\r"
+expect -re "wallet> $"
+send -- "exit\r"
+expect eof
