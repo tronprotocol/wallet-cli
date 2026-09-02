@@ -615,12 +615,16 @@ export class Keystore {
   /** ref|address|label → canonical account ref (exact ref, unique address, or unique label).
    *
    *  `family` is the chain the caller is about to act on. It matters only when one address is
-   *  held by more than one account — which the wallet now allows, because a seed account and a
-   *  privateKey account can legitimately hold the same key. Two accounts matching one address in
-   *  one family hold the SAME key for that family, so on that chain they are interchangeable and
-   *  either will do. On any OTHER chain they are different addresses, and picking one would act
-   *  on something the caller never named — so that case refuses rather than guesses, the same
-   *  rule the multi-account seed branch of resolveAccount already follows. */
+   *  held by more than one account — which the wallet allows, because a seed account and a
+   *  privateKey account can legitimately hold the same key, and a watch/ledger account can be
+   *  registered against an address a software account already holds (registerWatch's dedup is
+   *  scoped to other watch entries, not across types). Two accounts matching one address in one
+   *  family are interchangeable on that chain ONLY when both actually hold that family's key
+   *  locally (`hasSecret`) — a watch account holds nothing to sign with, and a ledger's key lives
+   *  on the device under a DIFFERENT account, so "pick either" would silently swap in an account
+   *  that cannot sign. So the take-first shortcut requires every hit to have a secret; otherwise
+   *  this refuses rather than guesses, the same rule the multi-account seed branch of
+   *  resolveAccount already follows. */
   #toRef(file: WalletsFile, input: string, family?: ChainFamily): AccountRef {
     const v = input.trim();
     if (v.startsWith("wlt_")) return v;
@@ -640,7 +644,9 @@ export class Keystore {
       }
       if (hits.length === 0)
         throw new UsageError("account_not_found", `no account with address ${input}`);
-      if (hits.length > 1 && family !== addrFamily) {
+      const interchangeable =
+        family === addrFamily && hits.every((h) => SOURCE_KINDS[h.wallet.source.type].hasSecret);
+      if (hits.length > 1 && !interchangeable) {
         // `accountIds` is the machine-readable answer ("which accountId do I re-run with?");
         // `matches` carries the columns a human needs to actually pick one.
         throw new UsageError(

@@ -531,6 +531,32 @@ describe("resolving an address held by more than one account", () => {
       ]);
     }
   });
+
+  // Fix round 1 regression: same family is NOT enough to say two candidates are interchangeable.
+  // A watch account holds no secret at all — it only observes the address — so "pick either" would
+  // silently swap in an account that cannot sign. registerWatch's own dedup only rejects a
+  // duplicate watch entry (see its comment: "stays distinct from a software account with the same
+  // address"), so a seed and a watch account CAN genuinely end up sharing one address through the
+  // real import/registerWatch paths — this uses those real paths, not the hand-built fixture.
+  it("refuses to guess when one of the candidates has no local key (watch)", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-watch-dup-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const evmAddr = ks.list()[0]!.addresses.evm!;
+    ks.registerWatch({ family: "evm", address: evmAddr }); // real dup: not blocked by dedup
+
+    expect(() => ks.resolveAccount(evmAddr, "evm")).toThrowError(
+      expect.objectContaining({ code: "ambiguous_account" }),
+    );
+  });
+
+  // Companion to the test above: confirm the fix didn't overshoot and start refusing the case
+  // it is still supposed to allow — seed + privateKey both hold the evm key locally, so on the
+  // evm family they remain interchangeable and the first match is still returned.
+  it("still returns the first match when every candidate holds the key locally", () => {
+    const ks = keystoreWithDuplicateEvmAddress();
+    expect(ks.resolveAccount(EVM_ADDR, "evm").wallet).toBeDefined();
+  });
 });
 
 describe("password sentinel queries", () => {
