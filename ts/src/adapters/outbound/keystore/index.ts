@@ -101,7 +101,7 @@ export class Keystore {
         const entropy = Derivation.mnemonicToEntropy(mnemonic);
         const seed = Derivation.mnemonicToSeed(mnemonic, p.passphrase);
         const addr0 = deriveSeedAddresses(seed, 0);
-        const dup = findByAddress(file, addr0);
+        const dup = findByAddress(file, addr0, "seed");
         if (dup) {
           file.activeAccount = dup;
           this.#write(file);
@@ -147,7 +147,7 @@ export class Keystore {
         if (!Derivation.isValidPrivateKey(pk))
           throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
         const addr = derivePrivAddresses(pk);
-        const dup = findByAddress(file, addr);
+        const dup = findByAddress(file, addr, "privateKey");
         if (dup) {
           file.activeAccount = dup;
           this.#write(file);

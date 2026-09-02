@@ -25,6 +25,12 @@ const MNEMONIC = "test test test test test test test test test test test junk";
 const TRON0 = new TronAddress().fromPublicKey(
   Derivation.derive(Derivation.mnemonicToSeed(MNEMONIC), Derivation.path("tron", 0)).publicKey,
 );
+// the raw private key MNEMONIC derives at m/44'/60'/0'/0/0 — importing this as a bare privateKey
+// and then importing MNEMONIC as a seed makes the two land on the same EVM address via two
+// DIFFERENT source kinds, which is the case findByAddress's ofType scoping exists for.
+const EVM_KEY_OF_MNEMONIC_ACCOUNT_0 = bytesToHex(
+  Derivation.derive(Derivation.mnemonicToSeed(MNEMONIC), Derivation.path("evm", 0)).privateKey,
+);
 
 function freshKeystore() {
   const root = mkdtempSync(join(tmpdir(), "ks-"));
@@ -83,6 +89,23 @@ describe("Keystore", () => {
     expect(a.created).toBe(true);
     expect(b.created).toBe(false);
     expect(ks.list()).toHaveLength(1);
+  });
+
+  it("keeps a repeated import of the same mnemonic idempotent", () => {
+    const first = ks.import({ secret: MNEMONIC, type: "seed" });
+    const second = ks.import({ secret: MNEMONIC, type: "seed" });
+    expect(second.created).toBe(false);
+    expect(second.accountId).toBe(first.accountId);
+  });
+
+  it("stores the seed even when a privateKey account already holds that address", () => {
+    // Before: findByAddress matched across source types, so this returned the existing
+    // privateKey account and returned before the vault was written — the seed was silently
+    // dropped, and `derive` then failed on an import the caller was told had succeeded.
+    ks.import({ secret: EVM_KEY_OF_MNEMONIC_ACCOUNT_0, type: "privateKey" });
+    const seeded = ks.import({ secret: MNEMONIC, type: "seed" });
+    expect(seeded.created).toBe(true);
+    expect(ks.resolveAccount(seeded.accountId).wallet.source.type).toBe("seed");
   });
 
   it("makes every imported or derived SIGNING target active, including dedup hits", () => {

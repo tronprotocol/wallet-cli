@@ -136,10 +136,21 @@ export function viewAddresses(w: Wallet, index: number | null): Partial<ChainAdd
   return enumerateAddresses(w).find((e) => e.index === index)?.addr ?? {};
 }
 
-/** software-account dedup (seed/privateKey only). Ledger/watch dedup by source match below. */
-export function findByAddress(file: WalletsFile, addr: Partial<ChainAddresses>): AccountRef | null {
+/** software-account dedup (seed/privateKey only). Ledger/watch dedup by source match below.
+ *
+ *  `ofType` scopes the scan to one source kind, and every caller passes it: a repeated import of
+ *  the same secret is idempotent, but a seed and a privateKey holding the same key are two
+ *  different things and both are worth keeping. Matching across kinds made the stronger one lose
+ *  — importing a mnemonic whose account #0 was already present as a raw key returned the existing
+ *  account and never stored the seed, so `derive` failed on an import reported as successful. */
+export function findByAddress(
+  file: WalletsFile,
+  addr: Partial<ChainAddresses>,
+  ofType?: Source["type"],
+): AccountRef | null {
   for (const w of file.wallets) {
     if (w.source.type === "ledger" || w.source.type === "watch") continue;
+    if (ofType !== undefined && w.source.type !== ofType) continue;
     for (const { index, addr: a } of enumerateAddresses(w)) {
       if (CHAIN_FAMILIES.some((f) => addr[f] !== undefined && a[f] === addr[f])) {
         return accountRefOf(w, index);
