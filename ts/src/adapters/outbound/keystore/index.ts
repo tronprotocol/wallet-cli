@@ -631,6 +631,19 @@ export class Keystore {
     // address form (T… / 0x…): match the unique account holding it in its cache.
     const addrFamily = familyOf(v);
     if (addrFamily !== undefined) {
+      // An address names ONE chain. When a chain is being acted on, `--account <address>` can
+      // only mean "this address" — resolving it to the same account's address on a different
+      // chain would act on something the caller never typed, which on a send is funds leaving
+      // an address they did not name. Checked before the scan so a registered and an
+      // unregistered cross-chain address get the same answer: it is the same mistake.
+      // Wallet commands (backup/delete/rename/derive/use) pass no family — they have no chain,
+      // so there an address is just a handle and the lookup below is right.
+      if (family !== undefined && family !== addrFamily) {
+        throw new UsageError(
+          "family_mismatch",
+          `${input} is ${addrFamily === "evm" ? "an" : "a"} ${addrFamily} address, but this command runs on ${family}; address the account by its accountId or label to use it here`,
+        );
+      }
       // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and the CLI accepts an
       // all-lower or all-upper EVM address as input. Comparing raw strings would refuse to find an
       // account by the very spelling the user was told is valid.

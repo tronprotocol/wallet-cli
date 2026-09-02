@@ -179,7 +179,10 @@ Individual flags are family-scoped the same way. `--help` tags them `(TRON only)
 -o, --output <text|json>   result format (default: config.defaultOutput, built-in text)
 --network <string>         network id or alias, e.g. nile, sepolia, bsc, eip155:11155111
                            (falls back to config.defaultNetwork)
---account <string>         accountId, label, or address (wallet-bound commands; falls back to active)
+--account <string>         accountId, label, or address (wallet-bound commands; falls back to active);
+                           an address is only valid on its own chain, use accountId or label to cross
+                           chains; read-only commands accept any address of that chain, signing
+                           commands require you to hold it
 --timeout <number>         per node, service, or device call timeout, ms (default: config.timeoutMs, built-in 60000)
 -v, --verbose              extra diagnostic output
 -h, --help / -V, --version

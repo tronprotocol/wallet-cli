@@ -61,7 +61,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     kind: "value",
     valueType: "string",
     description:
-      "accountId, label, or address for wallet-bound commands; falls back to the active account set by use",
+      "accountId, label, or address for wallet-bound commands; an address is only valid on its own chain (use accountId or label to cross chains); read-only commands accept any address of that chain, signing commands require you to hold it; falls back to the active account set by use",
   },
   {
     name: "timeout",

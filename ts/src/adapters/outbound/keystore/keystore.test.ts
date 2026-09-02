@@ -524,12 +524,13 @@ describe("resolving an address held by more than one account", () => {
     expect(ks.resolveAccount(EVM_ADDR, "evm").wallet).toBeDefined();
   });
 
-  it("refuses to guess when the address's family is not the one being asked for", () => {
-    // the two accounts share an EVM address but hold DIFFERENT tron addresses, so
-    // "which one" changes what a TRON command would act on.
+  it("refuses an evm address when the family being acted on is tron, before any ambiguity check", () => {
+    // EVM_ADDR is an evm address; asking for it under family "tron" now fails on the
+    // family mismatch itself (Task 1), before the scan that would otherwise find the two
+    // accounts sharing it and report ambiguous_account.
     const ks = keystoreWithDuplicateEvmAddress();
     expect(() => ks.resolveAccount(EVM_ADDR, "tron")).toThrowError(
-      expect.objectContaining({ code: "ambiguous_account" }),
+      expect.objectContaining({ code: "family_mismatch" }),
     );
   });
 
@@ -579,6 +580,49 @@ describe("resolving an address held by more than one account", () => {
   it("still returns the first match when every candidate holds the key locally", () => {
     const ks = keystoreWithDuplicateEvmAddress();
     expect(ks.resolveAccount(EVM_ADDR, "evm").wallet).toBeDefined();
+  });
+});
+
+// The account holds tron TRON0 and its own evm address — one seed, two chains. Before this fix,
+// resolveAccount(evmAddr, "tron") silently returned the SAME account's tron address, one the
+// caller never typed; on tx send that is funds leaving an address they did not name.
+function keystoreWithSeedAccount(): { ks: Keystore; evmAddr: string } {
+  const ks = freshKeystore();
+  ks.import({ secret: MNEMONIC, type: "seed" });
+  const evmAddr = ks.list()[0]!.addresses.evm!;
+  return { ks, evmAddr };
+}
+
+describe("an address names one chain: --account cannot cross families", () => {
+  it("refuses an address from another chain when a family is being acted on", () => {
+    // The account holds both addresses, so this used to succeed and silently act on the
+    // account's TRON address — an address the caller never typed.
+    const { ks, evmAddr } = keystoreWithSeedAccount();
+    expect(() => ks.resolveAccount(evmAddr, "tron")).toThrowError(
+      expect.objectContaining({ code: "family_mismatch" }),
+    );
+  });
+
+  it("answers the same way whether or not the cross-chain address is registered", () => {
+    // Before: registered → silent switch; unregistered → account_not_found. Same mistake, two
+    // answers. The check runs before the scan so both now say family_mismatch.
+    const { ks } = keystoreWithSeedAccount();
+    const unregisteredEvmAddr = "0x000000000000000000000000000000000000dEaD";
+    expect(() => ks.resolveAccount(unregisteredEvmAddr, "tron")).toThrowError(
+      expect.objectContaining({ code: "family_mismatch" }),
+    );
+  });
+
+  it("still resolves an address of the family being acted on", () => {
+    const { ks, evmAddr } = keystoreWithSeedAccount();
+    expect(ks.resolveAccount(evmAddr, "evm").wallet).toBeDefined();
+  });
+
+  it("still resolves an address with no family in play, for wallet commands", () => {
+    // backup/delete/rename/derive/use pass no family: they have no chain, so an address is
+    // just a handle and looking it up across families is correct.
+    const { ks, evmAddr } = keystoreWithSeedAccount();
+    expect(ks.describe(evmAddr).accountId).toBeDefined();
   });
 });
 
