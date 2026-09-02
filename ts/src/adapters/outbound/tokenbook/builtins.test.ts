@@ -6,7 +6,15 @@ import { isEvmAddress } from "../../../domain/address/index.js";
 // contract AND decimals without asking the chain. A mistyped address is therefore a fund-loss
 // shape — and EIP-55 is what catches it, since altering one character breaks the checksum.
 describe("official EVM token entries", () => {
-  const evmNetworks = Object.entries(OFFICIAL_TOKENS).filter(([id]) => id.startsWith("evm:"));
+  const evmNetworks = Object.entries(OFFICIAL_TOKENS).filter(([id]) => id.startsWith("eip155:"));
+
+  // The selection is a filter over a namespace that has been renamed once already (`evm:` →
+  // `eip155:`). An empty selection makes every case below vacuous — three it.each blocks that
+  // report green while checking nothing — so assert the filter still matches before trusting it.
+  it("selects the EVM entries it is about to validate", () => {
+    expect(evmNetworks.length).toBeGreaterThan(0);
+    expect(evmNetworks.some(([, tokens]) => tokens.length > 0)).toBe(true);
+  });
 
   it.each(evmNetworks)("%s lists only valid, checksummed contracts", (_id, tokens) => {
     for (const token of tokens) {
