@@ -101,7 +101,7 @@ wallet-cli asset info 1000123 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.info","data":{"kind":"asset-info","assetId":"1000123","name":"MyToken","abbr":"MTK","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1000000,"num":100000000,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30,"expireTime":1788134400000},{"amount":"50000000000000","days":90,"expireTime":1793318400000}]},"meta":{"durationMs":26,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.info","data":{"kind":"asset-info","assetId":"1000123","name":"MyToken","abbr":"MTK","issuerAddress":"TQkXm4vN...","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30,"expireTime":1788134400000},{"amount":"50000000000000","days":90,"expireTime":1793318400000}]},"meta":{"durationMs":26,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The ambiguous-name failure, in json:
@@ -126,7 +126,7 @@ wallet-cli asset info MyToken --network tron:3448148188 -o json
 | `totalSupply` | string | Total supply, raw (whole tokens × 10^`precision`). A **string**: supplies reach int64 and would lose precision as a JSON number |
 | `precision` | number | Decimal places, 0–6 |
 | `price` | string | The issued rate as `trx:tokens`, in whole units — what text renders as `1 TRX = 100 MyToken` |
-| `trxNum` / `num` | number | The same rate exactly as stored on chain, in sun and minimal units. For a `precision` of 6, `1:100` is stored as `1000000` / `100000000` |
+| `trxNum` / `num` | number | The rate exactly as the chain stores it, in sun and minimal units, reduced to lowest terms when the token was issued. At a `precision` of 6, `1:100` is stored as `trxNum=1` / `num=100` |
 | `startTime` / `endTime` | number | ICO window, ms since epoch |
 | `url` / `description` | string | Project page and description |
 | `freeAssetNetLimit` / `publicFreeAssetNetLimit` | number | Free bandwidth per holder, and the shared pool |

@@ -4,12 +4,12 @@ Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes
 
 ## `usage_error` / `invalid_value` (exit 2)
 
-The command was malformed — a flag is unknown, missing, conflicting, or has a bad value.
+The command was malformed — a flag is unknown, missing, conflicting, or has a bad value. All of those exit 2, but the codes differ: `invalid_option` for an unknown or wrongly-combined flag, `missing_option` for an absent required one, `invalid_value` for a bad value, and `usage_error` only when the parser itself rejects the line.
 
 - Re-run with `--help` on the exact subcommand: `wallet-cli tx send --help`.
-- Common conflicts: `--amount` vs `--raw-amount`; `--token` vs `--contract` vs `--asset-id`; `--dry-run` vs `--sign-only`; two `*-stdin` flags in one run.
+- Common conflicts: `--amount` vs `--raw-amount`; `--token` vs `--contract` vs `--asset-id`; `--dry-run` vs `--sign-only` (this one reports `invalid_option`, still exit 2). Two `*-stdin` flags in one run is **not** in this class — it is `secret_source_error` at exit **1**.
 - Common conflicts continued: `--constructor-args` vs `--constructor-params`, and `--artifact` vs `--code` vs `--code-file` on `contract deploy`.
-- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`) and values (`defaultOutput` is `text` or `json`).
+- `invalid_value` on `config`: check the allowed keys and values (`defaultOutput` is `text` or `json`). Readable keys are `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks`, `aliases`, `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret`, plus the `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}` paths; `networks` and `aliases` are read-only, everything else is writable.
 
 ## `family_mismatch` (exit 2)
 
@@ -32,7 +32,7 @@ EVM-only, both about a transaction that cannot go where you are sending it.
 - `chain_id_mismatch` — the signed transaction was built for another chain. The chain id is inside the transaction and is what the signature commits to, so it cannot be retargeted; rebuild it against the network you want. This check runs **before** signing too, so you cannot sign a mainnet transaction by pointing `tx sign` at a testnet.
 - `nonce_too_low` — the account has already mined a transaction at that nonce. Rebuild without `--nonce` to take the account's pending nonce, or pass the correct one.
 
-A nonce that is *ahead* of the account's next one is not an error: it is a `meta.warnings` entry, and the transaction sits queued until the gap is filled.
+A nonce that is *ahead* of the account's next one is only a `meta.warnings` entry in `tx broadcast --dry-run`, which compares it against the account's nonce read from the node (and degrades to a `skipped` check with a warning if that read fails). On a real broadcast the node decides: if it rejects the gap, that comes back as `nonce_too_high` at exit 1; if it accepts, the transaction sits queued until the gap is filled.
 
 ## `weak_password` (exit 2)
 
@@ -43,7 +43,7 @@ A nonce that is *ahead* of the account's next one is not an error: it is a `meta
 A credential, secret, or signing-device approval was needed but none was available.
 
 - `tty_required` — no terminal is attached (CI, pipes). For commands with a stdin path, provide the matching `*-stdin` flag (`--password-stdin`, `--tx-stdin`). `import mnemonic`, `import private-key`, and `change-password` are interactive-only — they must run in a real TTY; there is no non-interactive alternative.
-- `auth_required` — software signing needs the master password, or Ledger signing needs the right app/device state. For software accounts, pass `--password-stdin` or run interactively; for Ledger, unlock the device and open the TRON or Ethereum app that matches the account family.
+- `auth_required` — software signing needs the master password, or Ledger signing needs the right app/device state. Signing commands never prompt, so an attached terminal does not help: pass `--password-stdin`. For Ledger, unlock the device and open the TRON or Ethereum app that matches the account family.
 - `auth_failed` — the password was wrong (decryption failed); re-enter it.
 
 ## `timeout` (exit 1)

@@ -25,7 +25,7 @@ Known keys:
 |---|---|---|---|
 | `defaultNetwork` | network id | `tron:728126428` | Network used when `--network` is omitted |
 | `defaultOutput` | `text` \| `json` | `text` | Output format when `-o` is omitted |
-| `timeoutMs` | integer ms | `60000` | Default per RPC/device call timeout (`--timeout` overrides) |
+| `timeoutMs` | ms, any finite number > 0 | `60000` | Default per node, service, or device call timeout (`--timeout` overrides). Unlike `waitTimeoutMs` it is not required to be an integer |
 | `waitTimeoutMs` | integer ms ≥ 0 | `60000` | Default `--wait` polling cap for broadcast commands |
 | `gasfreeApiKey` | string | (unset) | GasFree API key ([`gasfree`](gasfree/index.md)) |
 | `gasfreeApiSecret` | string | (unset) | GasFree API secret |
@@ -71,12 +71,27 @@ networks
     httpEndpoint  api.trongrid.io
   tron:3448148188
     httpEndpoint  nile.trongrid.io
+  tron:2494104990
+    httpEndpoint  api.shasta.trongrid.io
+  eip155:1
+    httpEndpoint  ethereum-rpc.publicnode.com
   eip155:11155111
     httpEndpoint  ethereum-sepolia-rpc.publicnode.com
+  eip155:56
+    httpEndpoint  bsc-dataseed.bnbchain.org
+  eip155:97
+    httpEndpoint  bsc-testnet-dataseed.bnbchain.org
 aliases
-  tron         tron:728126428
-  nile         tron:3448148188
-  sepolia      eip155:11155111
+  tron          tron:728126428
+  tron:mainnet  tron:728126428
+  nile          tron:3448148188
+  tron:nile     tron:3448148188
+  shasta        tron:2494104990
+  tron:shasta   tron:2494104990
+  ethereum      eip155:1
+  sepolia       eip155:11155111
+  bsc           eip155:56
+  bsc-testnet   eip155:97
 tronlinkSecretId   TEST
 tronlinkSecretKey  ********
 tronlinkChannel    test

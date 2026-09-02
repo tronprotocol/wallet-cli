@@ -32,9 +32,9 @@ GasFree address  TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw
 Status           active
 Nonce            4
 
-| Token | Balance | Activation fee | Transfer fee |
-| ----- | ------- | -------------- | ------------ |
-| USDT  | 125 USDT | 1 USDT       | 0.5 USDT     |
+| Token | Balance  | Activation fee | Transfer fee |
+| ----- | -------- | -------------- | ------------ |
+| USDT  | 125 USDT | 1 USDT         | 0.5 USDT     |
 ```
 
 ```bash
@@ -42,7 +42,7 @@ wallet-cli gasfree info --account main --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":"4","tokens":[{"symbol":"USDT","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"activateFee":"1000000","transferFee":"500000","balance":"125000000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":"4","tokens":[{"symbol":"USDT","address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"activateFee":"1000000","transferFee":"500000","balance":"125000000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -57,7 +57,7 @@ wallet-cli gasfree info --account main --network tron:3448148188 -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`gasfree_integrity` — the provider's fee metadata disagreed between the token list and the address response, `provider_error` — service error / rate limit) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
+`0` success · `1` execution failure (`gasfree_integrity` — the provider's fee metadata disagreed between the token list and the address response, `provider_error` — the service failed, answered with malformed or oversized JSON, returned a field this CLI will not act on, or returned any non-429 error status; `provider_rate_limited` — the service returned 429, with `details.retryAfter` when it sent one) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
 
 ## See also
 

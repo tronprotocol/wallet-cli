@@ -29,23 +29,25 @@ wallet-cli list --network tron:3448148188
 ```console
 warning: 1 account(s) have no tron address and are not shown; use --network to switch, or --output json to see every family
 HD  wlt_z259a1hq
-└─ [0] main           TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
+└─ [0] main    TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
 
 watch-only
-├─ watch-test         THdUXD3mZqT5aMnPQMtBSJX9ANGjaeUwQK
-└─ wallet_769028      TJBy2jgV1CAZtqyTQH8CMseqZr6fBwxHSd
+└─ watch-test  THdUXD3mZqT5aMnPQMtBSJX9ANGjaeUwQK
 ```
 
-The same accounts under an EVM network — the seed account reappears under its EVM address, and the TRON-only watch-only entries drop out:
+The label column is padded to the longest label **that is actually shown**, so the same accounts line up differently once the filter changes. Under an EVM network the seed account reappears under its EVM address, the TRON-only watch-only entry drops out, and the EVM-only one takes its place:
 
 ```bash
 wallet-cli list --network eip155:11155111
 ```
 
 ```console
-warning: 2 account(s) have no evm address and are not shown; use --network to switch, or --output json to see every family
+warning: 1 account(s) have no evm address and are not shown; use --network to switch, or --output json to see every family
 HD  wlt_z259a1hq
-└─ [0] main           0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
+└─ [0] main   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
+
+watch-only
+└─ watch_evm  0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961  (active)
 ```
 
 HD accounts are grouped by seed and carry an `[index]`; non-HD entries (private key / watch-only / Ledger) are grouped by type and have no `[index]`.
@@ -70,7 +72,7 @@ wallet-cli list -o json
 | `index` | number \| null | HD derivation index within the seed; `null` for non-HD accounts |
 | `active` | boolean | Whether this is the account commands default to |
 | `addresses` | object | One entry per family the account can produce: `tron` (base58) and/or `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object \| null | Per-family BIP32 path for `seed` accounts (`{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}`); `null` for accounts that were not derived |
+| `derivationPath` | object \| null | The BIP32 path behind each address: every family for a `seed` account (`{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}`), the single chosen path for a `ledger` account; `null` for `privateKey` and `watch`, which were never derived |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family this account is bound to — present only on single-family accounts (`watch`, `ledger`) |
 

@@ -36,14 +36,13 @@ wallet-cli change-password
 ```
 
 ```console
-? Current master password (hidden):
+? Master password (hidden):
 ? New master password (hidden):
-? Confirm new password (hidden):
+? Confirm new password:
 ? Re-encrypt 3 software wallet(s) with the new password? [y/N]: y
 ✅ Master password changed — re-encrypted 3 software wallet(s)
   Wallets  wallet1, wallet2, imported-1
-
-⚠️ Ledger / watch-only accounts have no secrets and are unaffected.
+  Note     Ledger / watch-only accounts are unaffected
 ```
 
 ## Output

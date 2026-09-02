@@ -22,7 +22,7 @@ After the funds are frozen, the corresponding number of shares and bandwidth wil
 For example:
 
 ```console
-> freezeBalance 100000000 3 1 address
+> freezeBalance 100000000 3 1 TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
 ```
 
 After the freeze operation, frozen funds will be transferred from Account Balance to Frozen. You can view frozen funds from your account information. After being unfrozen, it is transferred back to Balance from Frozen, and the frozen funds cannot be used for trading.

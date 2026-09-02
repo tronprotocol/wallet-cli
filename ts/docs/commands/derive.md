@@ -13,7 +13,7 @@ wallet-cli derive --seed-id <wlt_…> [--index <n>] [--label <l>] [options]
 | Option | Description |
 |---|---|
 | `--seed-id <string>` | seed id of the HD wallet to derive from — the HD group header in `list`  [required] |
-| `--index <number>` | explicit HD account index; omit to use the next free index |
+| `--index <number>` | explicit HD account index; omit to use the next free index. An index that already exists is not re-derived — the existing account is made active and `status` comes back `"existing"` |
 | `--label <string>` | label for the new account, 1-64 chars; omit to auto-generate |
 | `--password-stdin` | read the master password from stdin (fd 0) |
 
@@ -55,7 +55,7 @@ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o
 
 | Field | Type | Meaning |
 |---|---|---|
-| `status` | string | `"created"` |
+| `status` | string | `"created"` for a newly derived index, `"existing"` when `--index` names an index this wallet already holds — that account is simply made active again, and no new key is derived |
 | `accountId` | string | Stable id `<seedId>.<index>` |
 | `label` | string | Account label (default `<wallet-name>-<index>`, e.g. `main-1`) |
 | `type` | string | Always `"seed"` |

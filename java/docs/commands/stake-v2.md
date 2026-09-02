@@ -2,6 +2,8 @@
 
 FreezeV2-based staking, resource delegation, and unfreeze withdrawal — the current staking model. For the difference from the legacy model, see [concepts/staking-models](../concepts/staking-models.md).
 
+The transaction examples below are abridged: every signing command also prints the permission-id prompt, the key selector, the before/after signing hex strings, and a trailing `<command> successful !!!` line. Only the `TxId is …` line is kept here, because it is the part you carry to `GetTransactionById`.
+
 ## FreezeBalanceV2 / UnfreezeBalanceV2
 
 ### FreezeBalanceV2
@@ -18,7 +20,7 @@ Example:
 
 ```console
 wallet> FreezeBalanceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1000000000000000 0
-txid is 82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
+TxId is 82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
 wallet> GetTransactionById  82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
 {
     "ret":[
@@ -66,7 +68,7 @@ Example:
 
 ```console
 wallet> UnFreezeBalanceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 9000000 0
-txid is dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3b9c73bea634
+TxId is dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3b9c73bea634
 wallet> GetTransactionById dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3b9c73bea634
 {
     "ret":[
@@ -118,7 +120,7 @@ Example:
 
 ```console
 wallet> DelegateResource TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 10000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3 true
-txid is 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
+TxId is 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
 wallet> GetTransactionById 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
 {
     "ret":[
@@ -170,7 +172,7 @@ Example:
 
 ```console
 wallet> UnDelegateResource TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3
-txid is feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
+TxId is feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
 wallet> GetTransactionById  feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
 {
     "ret":[
@@ -217,7 +219,7 @@ Example:
 
 ```console
 wallet> withdrawexpireunfreeze TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
-txid is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+TxId is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
 wallet> GetTransactionById e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
 {
     "ret":[
@@ -262,7 +264,7 @@ Example:
 
 ```console
 wallet> cancelAllUnfreezeV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
-txid is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+TxId is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
 wallet> GetTransactionById e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
 {
     "ret":[
@@ -360,9 +362,8 @@ Example:
 
 ```console
 wallet> getCanDelegatedMaxSize TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 0
-{
-	"max_size": 999999978708334
-}
+GetCanDelegatedMaxSize=999999978708334
+GetCanDelegatedMaxSize  successful !!!
 ```
 
 ### GetAvailableUnfreezeCount
@@ -379,9 +380,8 @@ Example:
 
 ```console
 wallet> getAvailableUnfreezeCount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
-{
-	"count": 31
-}
+GetAvailableUnfreezeCount=31
+GetAvailableUnfreezeCount  successful!!!
 ```
 
 ### GetCanWithdrawUnfreezeAmount
@@ -399,9 +399,7 @@ Example:
 
 ```console
 wallet> getCanWithdrawUnfreezeAmount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1671100335000
-{
-	"amount": 9000000
-}
+GetCanWithdrawUnfreezeAmount  successful amount:9000000 !!!
 ```
 
 ## See also

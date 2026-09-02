@@ -40,7 +40,7 @@ wallet-cli create --label main
   Account ID    wlt_2dbv24de.0
   Type          HD
   TRON address  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ
-  EVM address   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
+  EVM address   0x5c8e1b04A7f39d62C0B3e85A1d47F9028b6ce713
   Active        yes
 
 ⚠️ Recovery phrase is encrypted locally and was not printed.
@@ -54,7 +54,7 @@ printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_2dbv24de.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_2dbv24de","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":38,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_2dbv24de.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ","evm":"0x5c8e1b04A7f39d62C0B3e85A1d47F9028b6ce713"},"seedId":"wlt_2dbv24de","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":38,"warnings":[]}}
 ```
 
 ## Output

@@ -2,7 +2,7 @@
 
 TRON's protocol-level Bancor exchange.
 
-Pairs trade **TRX against TRC10** — never TRC20 — and settle instantly against a bonding curve: no order book, no counterparty, no matching. Four properties differ from the AMMs most people are used to, and all four matter before you touch this group:
+Pairs trade **TRX and TRC10 assets** — never TRC20 — and settle instantly against a bonding curve. Either side may be TRX or a TRC10 id, so a TRC10-against-TRC10 pair is legal too; the only rule is that the two sides differ: no order book, no counterparty, no matching. Four properties differ from the AMMs most people are used to, and all four matter before you touch this group:
 
 - **A pair is private to its creator.** Only the account that created a pair can inject or withdraw its liquidity, and that binding cannot be transferred. There are no LP tokens and no outside liquidity providers.
 - **Anyone can trade**, though — trading is open even though liquidity is not.
@@ -35,7 +35,7 @@ wallet-cli exchange COMMAND
 | `exchange withdraw` | [withdraw.md](withdraw.md) | Take liquidity out in proportion to reserves |
 | `exchange trade` | [trade.md](trade.md) | Swap one side for the other |
 | `exchange show` | [show.md](show.md) | One pair's creator, creation time, and reserves |
-| `exchange list` | [list.md](list.md) | List every pair on chain |
+| `exchange list` | [list.md](list.md) | List exchange pairs, one page at a time |
 
 ## See also
 

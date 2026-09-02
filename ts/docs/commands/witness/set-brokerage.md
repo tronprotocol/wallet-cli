@@ -78,7 +78,7 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wai
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_a_witness`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — percent missing, not an integer, or outside 0–100).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_a_witness`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no percent given; `invalid_value` — percent not an integer, or outside 0–100).
 
 ## See also
 

@@ -23,9 +23,10 @@ wallet-cli contact list
 ```
 
 ```console
-Name   Address                             Note
-alice  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub  Alice mainnet
-bob    TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  —
+| Name  | Address                            | Note          |
+| ----- | ---------------------------------- | ------------- |
+| alice | TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub | Alice mainnet |
+| bob   | TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz | —             |
 ```
 
 ```bash

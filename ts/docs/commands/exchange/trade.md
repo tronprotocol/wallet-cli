@@ -76,14 +76,14 @@ echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received
   Status        success
 ```
 
-The same trade via `--slippage 1`: the CLI computes 4,950 from the current reserves, takes 1 % off, and sends 4,900 as the floor.
+The same trade via `--slippage 1`: the CLI computes 4,950 from the current reserves, takes 1 % off, and sends 4,900.5 as the floor. The percentage is first converted to basis points, **rounded to the nearest** one — so `--slippage 1.006` tolerates 1.01 % — and the floor itself is then integer-divided, i.e. rounded down.
 
 ```bash
 echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.trade","data":{"kind":"exchange-trade","stage":"confirmed","txId":"d9a...","confirmed":true,"blockNumber":57884455,"failed":false,"exchangeId":12,"pair":"TRX:1000123","traderAddress":"TQkXm4vN...","soldTokenId":"_","soldQuant":"100000000","soldLabel":"TRX","soldDecimals":6,"receivedTokenId":"1000123","receivedLabel":"MyToken","receivedDecimals":6,"receivedQuant":"4950000000","estimatedReceivedQuant":"4950000000","minReceivedQuant":"4900000000","feeSun":0},"meta":{"durationMs":6490,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.trade","data":{"kind":"exchange-trade","stage":"confirmed","txId":"d9a...","confirmed":true,"blockNumber":57884455,"failed":false,"exchangeId":12,"pair":"TRX:1000123","traderAddress":"TQkXm4vN...","soldTokenId":"_","soldQuant":"100000000","soldLabel":"TRX","soldDecimals":6,"receivedTokenId":"1000123","receivedLabel":"MyToken","receivedDecimals":6,"receivedQuant":"4950000000","estimatedReceivedQuant":"4950000000","minReceivedQuant":"4900500000","feeSun":0},"meta":{"durationMs":6490,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -102,7 +102,7 @@ TRX is identified as `"_"`; every quantity is a **string** in minimal units. Bef
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`exchange_not_found` — no such pair, `token_not_in_exchange`, `exchange_closed` — a side holds zero, `exchange_trading_disabled` — the network is not accepting Bancor trades, `slippage_exceeded` — the return fell below the floor, `transaction_rejected` — the node refused it, for example for lack of balance, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--sell`; `invalid_option` — both or neither of `--amount` / `--raw-amount`, or more than one floor flag; `invalid_amount` — the amount or `--min-received` is not a decimal number, or has more decimal places than that token allows; `invalid_value` — amount ≤ 0, or a `--slippage` outside 0–100).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`exchange_not_found` — no such pair, `token_not_in_exchange`, `exchange_closed` — a side holds zero, `exchange_trading_disabled` — the network is not accepting Bancor trades, `slippage_exceeded` — the return fell below the floor, `transaction_rejected` — the node refused it, for example for lack of balance, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--sell`; `invalid_option` — both or neither of `--amount` / `--raw-amount`, or more than one floor flag; `invalid_amount` — the amount or `--min-received` is not a decimal number, or has more decimal places than that token allows; `invalid_value` — amount ≤ 0, or a `--slippage` that is not both greater than 0 and less than 100; `0` and `100` are themselves rejected).
 
 ## See also
 

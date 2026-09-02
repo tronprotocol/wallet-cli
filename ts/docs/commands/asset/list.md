@@ -1,6 +1,6 @@
 # wallet-cli asset list
 
-List every TRC10 on chain.
+List TRC10 tokens on chain, one page at a time.
 
 ## Synopsis
 

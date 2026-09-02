@@ -5,7 +5,7 @@ Register a Ledger account. Watch-only locally; signs on the device.
 ## Synopsis
 
 ```
-wallet-cli import ledger --app <tron|ethereum> (--index <n> | --path <bip32> | --address <addr>)
+wallet-cli import ledger --app <tron|ethereum> [--index <n> | --path <bip32> | --address <addr>]
                          [--scan-limit <n>] [--label <l>] [options]
 ```
 

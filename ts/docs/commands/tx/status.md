@@ -32,7 +32,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli tx status --txid 7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364 --network tron:3448148188
+wallet-cli tx status --txid 34d9da372cd7fa9d4e7384744c0925af9d682eef4c9410fb831e0b87b355171b --network tron:3448148188
 ```
 
 ```console

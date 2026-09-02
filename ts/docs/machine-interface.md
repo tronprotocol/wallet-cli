@@ -29,7 +29,7 @@ One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCode
 A network belongs to one **chain family**, `tron` or `evm`, and that is what decides which commands and which flags apply:
 
 - A command declares the families it serves (`families` in the catalog). Calling one on a network of another family fails with **`family_mismatch`** at exit `2`, before any node call.
-- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(tron only)` / `(evm only)`.
+- A flag may belong to one family too (`--asset-id` and `--permission-id` are TRON's, `--gas-limit` and `--nonce` are EVM's). Using one on the other family is **`invalid_option`** at exit `2`. `--help` tags them `(TRON only)` / `(EVM only)`.
 - An **account** is not family-bound when it holds a key — a seed or private-key account has both a TRON and an EVM address. Watch-only and Ledger accounts hold one address and therefore one family; selecting one on a mismatched network is also `family_mismatch`.
 
 Command-family and flag-family checks are static and can be decided from the catalog. Account-family compatibility also depends on the selected wallet account: key-backed accounts serve both families, while watch-only and Ledger accounts are family-bound.
@@ -48,7 +48,7 @@ In an interactive terminal, every stale wallet asks for consent before changing 
 user chooses `Upgrade now`, seed/private-key migrations ask for the master password while
 Ledger/watch-only migrations proceed without one. Non-interactive Ledger/watch-only migrations
 remain automatic; a password-bearing migration requires `--password-stdin` or returns
-`migration_required`.
+`migration_required` at exit `2` — the invocation itself has to change, so it is a usage error.
 
 Interactive users may choose `Exit without upgrading`. That is a successful cancellation, not a
 failure: it returns exit `0` with `command: "migration"`, `upgraded: false`, `cancelled: true`, and
@@ -167,13 +167,13 @@ The **exit code is the hard contract**: `2` means the call was malformed (it wil
 wallet-cli --json-schema | jq '.errorCodes'
 ```
 
-That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`, `not_found`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and a few strings (e.g. `invalid_value`, `aborted`, `not_found`, `token_metadata_unavailable`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
 | Code | Meaning |
 |---|---|
-| `usage_error` | Unknown / missing / conflicting flags (raised by the parser) |
+| `usage_error` | Raised by the argument parser itself — a yargs usage failure, or too many positional arguments. Specific problems get their own code instead: an unknown flag is `invalid_option`, a missing required flag is `missing_option`, and a failed value or cross-field rule is `invalid_value` |
 | `family_mismatch` | The command, the account, the recipient, or the raw transaction does not belong to the selected network's chain family |
 | `missing_option` | A required flag was not provided |
 | `invalid_option` | A flag was used in an invalid combination, or is scoped to the other chain family |
@@ -189,6 +189,7 @@ Common codes at exit **2** (usage — fix the call):
 | `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
 | `file_not_found` | An input file named by a flag does not exist (`contract deploy --artifact` / `--code-file`, `contract create2 --code-file`) |
 | `keystore_not_found` | `import keystore`: no file at the given path |
+| `migration_required` | Persisted wallet data needs an upgrade this invocation cannot perform, because the master password was not available — re-run in a terminal, or pipe it with `--password-stdin`. See [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
 | `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, an unsupported cipher/KDF, or a payload that is not a 32-byte private key |
 | `invalid_config` | `config.yaml` cannot be read or is not valid YAML — fix or remove the file. The parser detail is withheld: it quotes the offending line, which may carry a credential |
 | `insecure_config` | `config.yaml` holds service credentials but is a symlink or is group/world-readable — run `chmod 600` on it (POSIX only; not enforced on Windows) |
@@ -212,15 +213,15 @@ Common codes at exit **1** (execution — runtime failure):
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; interactive import normally catches it at the prompt and asks again |
-| `token_metadata_unavailable` | Required token metadata could not be read from the selected network |
+| `token_metadata_unavailable` | Required token metadata could not be read from the selected network. This one crosses exit codes: most sites raise it at exit `1`, but `tx send` on TRON raises it at exit **2** when a contract answers no `decimals()` and the address book has no entry either — there, the call itself has to change |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
-| `provider_error` | An external service (GasFree, TronLink multi-sig) returned an error or rate-limited |
+| `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory, or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, or an error status from GasFree / TronLink. TronLink reports **every** non-404 status this way, 429 included |
+| `provider_rate_limited` | **GasFree only** — the service returned HTTP 429; `error.details.retryAfter` carries its `Retry-After` header when it sent one. TronLink's 429 is `provider_error` instead |
 | `tx_expired` | The transaction's expiration passed before signatures were collected (TRON) |
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
-| `migration_required` | Persisted wallet data needs an upgrade that this invocation cannot perform — see [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
 | `history_not_supported` | The endpoint lacks TronGrid history support (`account history`, TRON) |
 | `not_found` | The addressed thing does not exist — for example an unactivated account, transaction, block, or GasFree / TronLink resource. Some command-level lookups raise the same string as a usage error instead; branch on exit code first |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
@@ -259,7 +260,7 @@ Alongside it, an error may carry a scalar list of just the identifiers to retry 
 wallet-cli never reads passwords, mnemonics, or private keys from argv or from dedicated secret environment variables. Arguments and exported environment values leak into shell history, process listings, and CI logs. For secrets, use these CLI channels:
 
 1. **stdin flags** — `--password-stdin` for the master password; `--tx-stdin` / `--message-stdin` for large payloads. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
-2. **Interactive TTY prompt** — when running with a terminal attached.
+2. **Interactive TTY prompt** — only on the commands that declare themselves interactive: `create`, the `import` variants, `backup`, `change-password`, and `delete`'s confirmation. Everywhere else a terminal changes nothing: `tx send`, `contract *`, `stake *`, `message sign` and friends never prompt, and a missing master password is `auth_required` (exit `1`) whether or not a TTY is attached.
 
 Shell variables in examples are only a shell-side source for a pipe; wallet-cli does not read them. Keep them process-local and short-lived, and do not export them long term.
 
