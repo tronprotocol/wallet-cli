@@ -103,7 +103,7 @@ This is a **TRON blockchain CLI wallet** built on the [Trident SDK](https://gith
 
 ### One CLI Mode
 
-**REPL 交互模式** — `Client` class with JCommander `@Parameters` inner classes. Entry point:
+**Interactive REPL** — `Client` class with JCommander `@Parameters` inner classes. Entry point:
 `org.tron.walletcli.Client`. Features tab completion, interactive prompts, and conversational
 output. This is the largest file (~4800 lines).
 
@@ -148,7 +148,7 @@ User Input → Client (JCommander) → WalletApiWrapper → WalletApi → Triden
 ### Key Frameworks & Libraries
 
 - **Trident SDK 0.11.0** — All gRPC API calls to TRON nodes
-- **JCommander 1.82** — CLI argument parsing (REPL 交互模式)
+- **JCommander 1.82** — CLI argument parsing (interactive REPL)
 - **JLine 3.25.0** — Interactive terminal/readline
 - **BouncyCastle** — Cryptographic operations
 - **Protobuf 3.25.8 / gRPC 1.75.0** — Protocol definitions and transport

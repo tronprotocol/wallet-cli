@@ -12,7 +12,8 @@
  * belongs in the message, which can name the file, flag or address involved.
  */
 
-/** 1 = 執行失敗，2 = 命令寫錯（重試仍錯）。"either" 只給文件明文授權的碼。 */
+/** 1 = the operation failed, 2 = the command was written wrong (a retry fails the same way).
+ *  "either" is reserved for the codes the docs explicitly allow it for. */
 export type ErrorExit = 1 | 2 | "either";
 
 /** what the caller should do next: retry as-is, retry as-is but after a delay, retry after

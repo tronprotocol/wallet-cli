@@ -966,7 +966,7 @@ describe("EvmTransactionService.info", () => {
       blockNumber: 5,
       gasUsed: "21000",
       feeWei: "1000",
-      // 收斂: one case throughout, so an agent matches "success" and never "SUCCESS".
+      // Normalized: one case throughout, so an agent matches "success" and never "SUCCESS".
       status: "success",
       // Flat keys, out of the node objects rather than buried in the passthrough
       type: "transfer",

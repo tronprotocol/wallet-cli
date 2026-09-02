@@ -248,7 +248,7 @@ export class HelpService {
     const tags = commands.map((c) => groupRowTag(c.families));
     // A group whose every command belongs to the same single family is already tagged as a whole
     // at the root (`stake … (TRON only)`). Repeating it on all six rows adds a column that never
-    // varies — 其組 help 內部不再逐條重複. Tag rows only where they DISCRIMINATE.
+    // varies — the group's own help stops repeating it. Tag rows only where they DISCRIMINATE.
     const uniform = tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
     const rows = commands.map(
       (c, i) => [c.path[1] ?? "", c.summary ?? "", uniform ? "" : tags[i]!] as const,

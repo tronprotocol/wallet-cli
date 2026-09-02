@@ -37,7 +37,8 @@ describe("official EVM token entries", () => {
     }
   });
 
-  // "official 条目按规范 id 内置（eip155:1 填 USDT / USDC；测试网留空）"
+  // Official entries are built in under their canonical ids (eip155:1 carries USDT / USDC;
+  // testnets stay empty).
   it("ships USDT and USDC on ethereum mainnet", () => {
     expect(OFFICIAL_TOKENS["eip155:1"]?.map((t) => t.symbol)).toEqual(["USDT", "USDC"]);
   });
