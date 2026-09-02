@@ -583,6 +583,41 @@ describe("resolving an address held by more than one account", () => {
   });
 });
 
+function keystoreWithUnknownSourceType(): Keystore {
+  const root = mkdtempSync(join(tmpdir(), "ks-unknown-source-"));
+  const file: WalletsFile = {
+    version: WALLETS_VERSION,
+    activeAccount: null,
+    wallets: [
+      {
+        id: "wlt_known",
+        source: { type: "watch", family: "evm", address: EVM_ADDR },
+      },
+      // A source.type this build does not recognise — a newer format, or leftover from a
+      // downgrade. Cast through unknown: WalletsFile's Source union does not (and should not)
+      // include kinds this build has never heard of.
+      {
+        id: "wlt_future",
+        source: {
+          type: "quantum",
+          addresses: { "0": { tron: TRON_ADDR_SEED } },
+        } as unknown as WalletsFile["wallets"][number]["source"],
+      },
+    ],
+    labels: {},
+  };
+  writeFileSync(join(root, "wallets.json"), JSON.stringify(file));
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+}
+
+describe("an account whose source kind this build does not know", () => {
+  it("is skipped by list() instead of failing the whole listing", () => {
+    const ks = keystoreWithUnknownSourceType();
+    expect(ks.list().map((a) => a.accountId)).toEqual(["wlt_known"]);
+    expect(ks.unreadable()).toEqual(["wlt_future"]);
+  });
+});
+
 // The account holds tron TRON0 and its own evm address — one seed, two chains. Before this fix,
 // resolveAccount(evmAddr, "tron") silently returned the SAME account's tron address, one the
 // caller never typed; on tx send that is funds leaving an address they did not name.

@@ -405,7 +405,7 @@ describe("list reports what the family filter hid", () => {
   function listCommand(accounts: unknown[], family: string) {
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {
-      walletService: { list: () => accounts } as never,
+      walletService: { list: () => accounts, unreadableWallets: () => [] } as never,
       ledger: {} as never,
       qr: { encode: () => null },
     });

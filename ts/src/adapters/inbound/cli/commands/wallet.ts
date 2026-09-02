@@ -396,6 +396,13 @@ export function registerWalletCommands(
     ],
     formatText: TextFormatters.walletList,
     run: async (context, network) => {
+      const unreadable = wallets.unreadableWallets();
+      if (unreadable.length > 0) {
+        context.warn(
+          `${unreadable.length} account(s) use a wallet format this version does not understand ` +
+            `and were skipped: ${unreadable.join(", ")}. Upgrade wallet-cli to use them.`,
+        );
+      }
       const accounts = wallets.list();
       // The text table is filtered to one family; say so, or a user whose only hardware account
       // is on the other chain sees an empty list with no hint that --network would reveal it.

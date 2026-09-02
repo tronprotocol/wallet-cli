@@ -87,6 +87,11 @@ export class WalletService {
     return this.wallets.list();
   }
 
+  /** ids of wallets skipped by list() because this build does not know their source kind. */
+  unreadableWallets() {
+    return this.wallets.unreadable();
+  }
+
   use(account: string) {
     const result = this.wallets.setActive(account);
     return { previous: result.previous, ...this.wallets.describe(result.accountId) };

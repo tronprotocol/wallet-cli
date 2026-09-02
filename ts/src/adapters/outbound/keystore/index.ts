@@ -329,11 +329,23 @@ export class Keystore {
     const file = this.#read();
     const views: AccountDescriptor[] = [];
     for (const w of file.wallets) {
+      // A source.type this build does not recognise (older/newer format) is skipped rather than
+      // failing the whole listing: SOURCE_KINDS[w.source.type] would be undefined and every
+      // consumer below (isHD/hasSecret/label, enumerateAddresses) assumes a known kind. One
+      // unreadable account should not make every readable one unreachable — see unreadable().
+      if (SOURCE_KINDS[w.source.type] === undefined) continue;
       // seed → one view per known index; privateKey/ledger → a single index-less view.
       const indices = w.source.type === "seed" ? accountIndices(w.source) : [null];
       for (const index of indices) views.push(this.#describe(file, w, index));
     }
     return views;
+  }
+
+  /** ids of wallets whose source.type this build does not know, skipped by list() rather than
+   *  failing it — surfaced so the command layer can warn the user to upgrade. */
+  unreadable(): string[] {
+    const file = this.#read();
+    return file.wallets.filter((w) => SOURCE_KINDS[w.source.type] === undefined).map((w) => w.id);
   }
 
   /** the full max-disclosure descriptor of one account (resolves accountId/label/address). */
