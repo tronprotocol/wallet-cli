@@ -49,9 +49,13 @@ stdout/stderr discipline).
 Key points:
 - **Ports live in `application/ports/`** (e.g. `wallet-repository`, `tron-gateway`, `ledger-device`,
   `price-provider`); outbound adapters implement them (dependency inversion).
-- **Chain-family differences** are isolated in the `tron` family — `application/use-cases/tron/`,
-  `adapters/outbound/chain/tron/`, and the family plugin under `bootstrap/families/`. EVM is planned,
-  not yet public.
+- **Chain-family differences** are isolated per family — `application/use-cases/<family>/`,
+  `adapters/outbound/chain/<family>/`, and the family plugin under `bootstrap/families/`. Both
+  `tron` and `evm` are registered unconditionally (`bootstrap/composition.ts`) and reachable: the
+  builtin networks and aliases cover ETH, Sepolia, BSC and BSC testnet alongside the TRON three.
+  There is no family-level feature gate. EVM simply binds a narrower command set (~22 bindings:
+  account, block, tx, token, contract, message/typed-data signing) against TRON's ~53, which adds
+  stake, permission, proposal, asset, GasFree and TronLink multisig.
 - **A single Zod schema per command** drives validation, yargs arity, help text, and JSON Schema.
 - **Secrets** (private keys, mnemonics, BIP39 passphrases) are encrypted at rest and never accepted
   from argv or env — only a dedicated stdin channel or hidden TTY prompt.
@@ -92,10 +96,20 @@ Java 8 source/target compatibility. Protobuf sources are in `src/main/protos/` a
 
 ## End-to-end coverage
 
-There is none, and there never was: the `qa/` harness that used to live here
-only ever drove the standard CLI, which was removed in v4.13.0. `./gradlew build`
-passing does **not** mean the interactive shell still works — changes that touch
-shared helpers must be walked through by hand against a funded Nile account.
+`java/qa-repl/` drives the real interactive shell over a pty (`expect`) against a
+funded Nile account — wallet lifecycle, account queries, a signed 1 TRX transfer, and
+the not-logged-in guards. `./gradlew build` passing does **not** mean the shell still
+works, so run it whenever you touch shared helpers:
+
+```bash
+cd java
+./gradlew shadowJar
+./qa-repl/run.sh build/libs/wallet-cli.jar head        # REPL regression
+./qa-repl/cli-boundary.sh build/libs/wallet-cli.jar    # entry point takes only --version/--help
+```
+
+See `java/qa-repl/README.md`. The older `qa/` harness only ever drove the standard
+CLI, which was removed in v4.13.0.
 
 ## Architecture
 
