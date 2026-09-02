@@ -70,7 +70,7 @@ const ISSUE = {
 
 describe("asset issue", () => {
   it("refuses a Ledger account before touching the device", () => {
-    // The Ledger TRON app cannot parse AssetIssueContract at all (docs/adr/0003).
+    // The Ledger TRON app cannot parse AssetIssueContract at all.
     const assertCanSign = vi.fn();
     const svc = service({}, { assertCanSign });
     void svc.issue(scope, NET, { ...ISSUE }).catch(() => {});

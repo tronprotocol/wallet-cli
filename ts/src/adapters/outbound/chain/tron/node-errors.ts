@@ -3,7 +3,7 @@
  *
  * A rejected broadcast otherwise surfaces as `transaction_rejected` carrying the node's own text,
  * which reads fine for a human but gives an agent nothing to branch on. This is the narrow,
- * anchored allowlist ADR-0006 describes: only messages whose meaning we are sure of, and any
+ * anchored allowlist this family keeps: only messages whose meaning we are sure of, and any
  * unrecognised message falls through to `transaction_rejected` unchanged.
  *
  * Anchoring matters. A loose substring match (`/insufficient/`) is how you end up confidently

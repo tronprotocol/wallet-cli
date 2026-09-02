@@ -84,8 +84,9 @@ describe("evmAddressFromPublicKey", () => {
     expect(isEvmAddress(evmAddressFromPublicKey(pub))).toBe(true);
   });
 
-  // ADR-0008 leans on this: a privateKey wallet's EVM address is a pure RE-ENCODING of its
-  // cached TRON address, so that half of the migration needs no secret and no password.
+  // The wallets.json v1 → v2 migration leans on this: a privateKey wallet's EVM address is a
+  // pure RE-ENCODING of its cached TRON address, so that half of the migration needs no secret
+  // and no password.
   it("shares its 20-byte body with the TRON address of the same key", () => {
     const pub = Derivation.publicKeyFromPrivate(hexToBytes(ANVIL_KEY));
     const tron = new TronAddress().fromPublicKey(pub);

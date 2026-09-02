@@ -73,7 +73,7 @@ export class Keystore {
   #read(): WalletsFile {
     const f = this.store.readJson<WalletsFile>(this.walletsPath);
     // Absent = a fresh keystore, so it is born CURRENT. This default is persisted on the first
-    // write, so a literal version here would stamp every new keystore stale (ADR-0008).
+    // write, so a literal version here would stamp every new keystore stale.
     return f ?? { version: WALLETS_VERSION, activeAccount: null, wallets: [], labels: {} };
   }
   /** caller must already hold the wallets.json lock (mutators wrap in withLock). */

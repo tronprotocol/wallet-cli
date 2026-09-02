@@ -76,7 +76,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
   try {
     // Every invocation runs the migration preflight before help, version, schema output, argument
     // validation, or command dispatch. A current/absent wallet is a no-op; stale state is handled
-    // consistently regardless of which surface caused wallet-cli to start — ADR-0008.
+    // consistently regardless of which surface caused wallet-cli to start.
     const migration = await runMigrationGate(
       new MigrationRunner(runtime.store),
       migrationSteps(runtime.root, runtime.store),

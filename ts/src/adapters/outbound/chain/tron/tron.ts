@@ -741,7 +741,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   /**
    * AssetIssue and UnfreezeAsset are built through our own codec: TronWeb's serialiser drops every
-   * frozen tranche after the first, and has no UnfreezeAssetContract at all. See ADR-0001 and
+   * frozen tranche after the first, and has no UnfreezeAssetContract at all. See
    * asset-contract-codec.ts. The node still only supplies the reference block, exactly as it does
    * for every tronweb-built transaction here.
    */

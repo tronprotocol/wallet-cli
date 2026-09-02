@@ -1,5 +1,5 @@
 /**
- * wallets.json v1 → v2: every account gains its EVM address (ADR-0008).
+ * wallets.json v1 → v2: every account gains its EVM address.
  *
  * The migration re-runs the SAME address derivation the creation path uses — deriveSeedAddresses
  * and derivePrivAddresses — so it produces exactly what `create` / `import` would have produced.

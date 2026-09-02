@@ -103,7 +103,7 @@ export interface Config {
   /** default polling cap for broadcast commands' --wait, in ms (overridden by --wait-timeout). */
   waitTimeoutMs: number;
   networks: Record<NetworkId, NetworkDescriptor>;
-  /** short human-typed names for canonical ids (ADR-0010). Consulted ONLY when resolving
+  /** short human-typed names for canonical ids. Consulted ONLY when resolving
    *  `--network`; nothing downstream ever sees an alias. */
   aliases: Record<string, NetworkId>;
   /** USD-valuation source for `account portfolio`. Missing → builtin CoinGecko. */

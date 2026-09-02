@@ -100,7 +100,7 @@ describe("address derivation covers every family", () => {
 
   // A privateKey account is ONE key wearing two encodings, which is why derivePrivAddresses
   // feeds the same public key to every family codec. (The migration deliberately does NOT
-  // exploit this to skip decryption — see ADR-0008.)
+  // exploit this to skip decryption.)
   it("derives a private-key account's two addresses from the same key", () => {
     const priv = Derivation.derive(seed, "m/44'/195'/0'/0/0").privateKey;
     const addresses = derivePrivAddresses(priv);

@@ -771,7 +771,7 @@ describe("changePassword", () => {
 describe("wallets.json schema version", () => {
   // The synthesised default is not just read, it is PERSISTED on first write. A literal 1 here
   // would stamp every freshly created keystore as stale and send it straight to the migration
-  // gate on its very next run (ADR-0008).
+  // gate on its very next run.
   it("stamps a newly created keystore at the current version", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
     const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");

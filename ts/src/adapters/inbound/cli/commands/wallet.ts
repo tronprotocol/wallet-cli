@@ -552,7 +552,9 @@ export function registerWalletCommands(
     wallet: "none",
     auth: "required",
     summary: "Derive the next HD account from a seed wallet (by --seed-id)",
-    // Minus the `--path` sentence — that flag is not implemented, see ADR-0009.
+    // Minus the `--path` sentence — that flag is not implemented: a hand-picked derivation path
+    // would yield an account that exists on ONE family, and every seed account here is derived
+    // for all of them at once.
     description:
       "Derive the next HD account from a seed wallet (by --seed-id). Each family uses\n" +
       "its own BIP44 template, so one derive yields an address per family.",

@@ -1,5 +1,5 @@
 /**
- * The registered migrations (ADR-0008). Adding one = one entry here.
+ * The registered migrations. Adding one = one entry here.
  *
  * contacts.json needs none: it is family-keyed at rest (`entries` is
  * Partial<Record<ChainFamily, …>> and every entry carries its own `family`), so a new family only

@@ -128,7 +128,7 @@ describe("golden CLI — meta & introspection", () => {
       ]),
     );
     expect(ids).toHaveLength(7);
-    // machine surfaces carry canonical ids only, never aliases (ADR-0010) — and a canonical id is
+    // machine surfaces carry canonical ids only, never aliases — and a canonical id is
     // CAIP-2, so its namespace is `eip155` for the EVM family rather than the family's own name
     expect(ids.every((id: string) => /^(tron|eip155):/.test(id))).toBe(true);
   });
@@ -944,7 +944,7 @@ describe("golden CLI — governance surface", () => {
   });
 });
 
-// ADR-0008. Every other migration test fakes something: the gate's unit tests fake the password
+// Every other migration test fakes something: the gate's unit tests fake the password
 // source, the step test calls migrate() directly. This is the only one that runs the real binary,
 // against a real encrypted vault, with the password arriving down fd 0 the way CI supplies it.
 describe("golden CLI — startup migration", () => {

@@ -21,7 +21,7 @@ describe("planMigrations", () => {
     expect(plan.stale.map((c) => c.path)).toEqual(["wallets.json"]);
   });
 
-  // ADR-0008: the check is `<`, not `!==`. A file written by a NEWER binary is left alone
+  // The check is `<`, not `!==`. A file written by a NEWER binary is left alone
   // rather than being "migrated" downward into a shape this binary invented.
   it("leaves a file newer than the binary alone", () => {
     const plan = planMigrations([
@@ -42,7 +42,7 @@ describe("planMigrations", () => {
   });
 
   // A keystore holding only ledger / watch accounts migrates with no secret at all: they are
-  // single-family by construction and carry no address map to fill in (ADR-0008).
+  // single-family by construction and carry no address map to fill in.
   it("requires no password when no stale file needs one", () => {
     const plan = planMigrations([
       { path: "wallets.json", currentVersion: 2, storedVersion: 1, needsPassword: false },

@@ -231,7 +231,7 @@ export class TronContractService {
     const gateway = this.gateways.get(network, "tron");
     // ClearABIContract / UpdateEnergyLimitContract / UpdateSettingContract are all absent from the
     // Ledger TRON app's contract-type allowlist, so the device cannot parse any of them (APDU
-    // 0x6a80). Refuse before the unlock prompt and before any RPC — docs/adr/0003. `send` above is
+    // 0x6a80). Refuse before the unlock prompt and before any RPC. `send` above is
     // deliberately ungated: TriggerSmartContract IS allowlisted.
     const mode = governanceTransactionMode(this.pipeline, scope, input, { requireSoftware: true });
     const owner = scope.resolveAddress("tron");

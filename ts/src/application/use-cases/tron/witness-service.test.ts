@@ -107,7 +107,7 @@ describe("TronWitnessService", () => {
 
   // The Ledger TRON app has no parser for WitnessCreate / WitnessUpdate / UpdateBrokerage
   // (java's ledger/wrapper/ContractTypeChecker lists neither), so every write in this group must be
-  // refused as software-only BEFORE the device is touched — docs/adr/0003. Asserted per command
+  // refused as software-only BEFORE the device is touched. Asserted per command
   // because the flag is passed at each call site and is easy to drop in one of them.
   describe("Ledger accounts", () => {
     const cases = [

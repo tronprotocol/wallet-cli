@@ -123,7 +123,7 @@ describe("clearPrimed (CP-08)", () => {
 });
 
 describe("primePassword reuses an already-primed password", () => {
-  // The migration gate (ADR-0008) primes the master password before the command runs. Without
+  // The migration gate primes the master password before the command runs. Without
   // this, an interactive run prompts TWICE for the same password: once for the gate, once for
   // the command.
   it("does not prompt again when the password is already primed", async () => {

@@ -1,5 +1,5 @@
 /**
- * The startup migration gate (ADR-0008). Runs on every invocation before help/meta handling,
+ * The startup migration gate. Runs on every invocation before help/meta handling,
  * argument validation, or command dispatch.
  *
  * The gate is absolute: while a registered file lags this binary, no command runs. That is what
