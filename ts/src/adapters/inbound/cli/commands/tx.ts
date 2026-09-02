@@ -122,8 +122,18 @@ function evmHexOnly(
   return hexInput(input);
 }
 
-export const txSignEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
-  run: async (ctx, net, input) => svc.sign(ctx, net, evmHexOnly(input)),
+export const txSignEvmBinding = (
+  svc: EvmTransactionService,
+  writer: TransactionArtifactWriter,
+): FamilyBinding => ({
+  run: async (ctx, net, input) => {
+    const result = await svc.sign(ctx, net, evmHexOnly(input));
+    if (!input.out) return result;
+    // The two families name this differently: TRON's `tx sign` writes `result.hex`, EVM's writes
+    // `result.signed.raw` — not a shared field, so nothing here can be written generically.
+    writer.write(input.out, result.signed.raw);
+    return { ...result, out: input.out };
+  },
 });
 
 export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({

@@ -3,6 +3,7 @@ import {
   txBroadcastSpec,
   txBroadcastTronBinding,
   txSendSpec,
+  txSignEvmBinding,
   txSignSpec,
   txSignTronBinding,
   txTronLinkMultisigSpec,
@@ -164,6 +165,27 @@ describe("tx sign binding", () => {
         offline: true,
       }),
     ).rejects.toMatchObject({ code: "invalid_option" });
+  });
+});
+
+describe("EVM tx sign binding", () => {
+  it("writes the signed raw transaction when --out is provided", async () => {
+    const signed = { raw: "0x02signed", hash: "0xabc" };
+    const svc = { sign: async () => ({ kind: "sign", signed }) };
+    let written: unknown;
+    const writer = {
+      write: (path: string, hex: string) => {
+        written = { path, hex };
+      },
+    };
+
+    const result = await txSignEvmBinding(svc as never, writer as never).run(ctx, net, {
+      hex: "0x02unsigned",
+      out: "signed.hex",
+    });
+
+    expect(written).toEqual({ path: "signed.hex", hex: signed.raw });
+    expect(result).toMatchObject({ out: "signed.hex", signed });
   });
 });
 

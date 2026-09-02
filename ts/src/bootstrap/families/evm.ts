@@ -82,6 +82,7 @@ import type { RecipientResolver } from "../../application/services/recipient-res
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
+import { SecureTransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
 import type { FamilyPlugin } from "./types.js";
 
 export const evmFamily: FamilyPlugin<"evm"> = {
@@ -126,7 +127,11 @@ export function registerEvmChainCommands(
     deps.recipients,
   );
   reg.addChain(txSendSpec, "evm", txSendEvmBinding(transaction));
-  reg.addChain(txSignSpec, "evm", txSignEvmBinding(transaction));
+  reg.addChain(
+    txSignSpec,
+    "evm",
+    txSignEvmBinding(transaction, new SecureTransactionArtifactWriter()),
+  );
   reg.addChain(txBroadcastSpec, "evm", txBroadcastEvmBinding(transaction));
   reg.addChain(txStatusSpec, "evm", txStatusEvmBinding(transaction));
   reg.addChain(txInfoSpec, "evm", txInfoEvmBinding(transaction));

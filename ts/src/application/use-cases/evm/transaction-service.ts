@@ -30,6 +30,14 @@ import {
 
 type EvmTokenMetadata = Awaited<ReturnType<EvmGateway["getErc20Metadata"]>>;
 
+/** what `evmSignStrategy` always produces for `signOnly` (see signing-strategy.ts): the raw
+ *  serialisation `eth_sendRawTransaction` takes, plus its hash. `TxOutcome.signed` is typed
+ *  `unknown` because TRON's shape differs — this is the EVM family's own, narrower promise. */
+interface EvmSignedTx {
+  raw: string;
+  hash: string;
+}
+
 export interface EvmSendInput extends TransactionModeInput {
   to: string;
   token?: string;
@@ -229,7 +237,11 @@ export class EvmTransactionService {
    * the output is the signed one. A transaction that already carries a signature is refused
    * rather than re-signed: the result would be a different transaction wearing the same intent.
    */
-  async sign(scope: TransactionScope, network: NetworkDescriptor, hex: string) {
+  async sign(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    hex: string,
+  ): Promise<{ kind: "sign"; signed: EvmSignedTx } & Record<string, unknown>> {
     const parsed = parseEvmTransaction(hex);
     // BEFORE the signature: a transaction states the chain it is for, and signing keeps that
     // value. Nothing downstream can catch this — no node is consulted when signing — so a
@@ -248,7 +260,13 @@ export class EvmTransactionService {
       account: scope.activeAccount,
       tx: parsed.toJSON ? JSON.parse(JSON.stringify(parsed.toJSON())) : parsed,
     });
-    return { kind: "sign" as const, ...outcomeData(outcome) };
+    // `outcomeData` types its result as `Record<string, unknown>` because it is shared across
+    // stages and families; `signed` is narrowed to what THIS family's signing strategy actually
+    // produces (see EvmSignedTx) rather than left for a caller to cast blind.
+    return { kind: "sign" as const, ...outcomeData(outcome) } as {
+      kind: "sign";
+      signed: EvmSignedTx;
+    } & Record<string, unknown>;
   }
 
   /**
