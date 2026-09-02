@@ -2,6 +2,7 @@ package org.tron.walletserver;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.common.enums.NetType;
 import org.tron.keystore.WalletFile;
 
 public class WalletApiTest {
@@ -88,4 +89,60 @@ public class WalletApiTest {
     Assert.assertTrue(result.contains("active_permissions"));
   }
 
+  // --- identifyNetwork tests ---
+
+  /**
+   * soliditynode.ip.list is documented as optional, and ApiClient already honours its absence by
+   * switching to local-create. Identification used to compare the value the fallback had just
+   * copied from fullnode, so omitting it turned a known network into CUSTOM -- which makes the
+   * GasFree commands refuse ("MAIN or NILE only") and adds an endpoint filter to the history.
+   */
+  @Test
+  public void identify_fullnodeOnly_stillNamesTheKnownNetwork() {
+    Assert.assertEquals(NetType.NILE,
+        WalletApi.identifyNetwork(NetType.NILE.getGrpc().getFullNode(), null));
+    Assert.assertEquals(NetType.MAIN,
+        WalletApi.identifyNetwork(NetType.MAIN.getGrpc().getFullNode(), null));
+    Assert.assertEquals(NetType.SHASTA,
+        WalletApi.identifyNetwork(NetType.SHASTA.getGrpc().getFullNode(), null));
+  }
+
+  @Test
+  public void identify_solidityOnly_stillNamesTheKnownNetwork() {
+    Assert.assertEquals(NetType.NILE,
+        WalletApi.identifyNetwork(null, NetType.NILE.getGrpc().getSolidityNode()));
+    Assert.assertEquals(NetType.MAIN,
+        WalletApi.identifyNetwork(null, NetType.MAIN.getGrpc().getSolidityNode()));
+  }
+
+  @Test
+  public void identify_bothSupplied_matchesOnlyWhenBothAgree() {
+    Assert.assertEquals(NetType.NILE, WalletApi.identifyNetwork(
+        NetType.NILE.getGrpc().getFullNode(), NetType.NILE.getGrpc().getSolidityNode()));
+    Assert.assertEquals(NetType.MAIN, WalletApi.identifyNetwork(
+        NetType.MAIN.getGrpc().getFullNode(), NetType.MAIN.getGrpc().getSolidityNode()));
+  }
+
+  /** Endpoints from two different networks are not a network -- naming one of them would be a lie. */
+  @Test
+  public void identify_mismatchedPair_isCustom() {
+    Assert.assertEquals(NetType.CUSTOM, WalletApi.identifyNetwork(
+        NetType.NILE.getGrpc().getFullNode(), NetType.MAIN.getGrpc().getSolidityNode()));
+  }
+
+  @Test
+  public void identify_unknownEndpoint_isCustom() {
+    Assert.assertEquals(NetType.CUSTOM,
+        WalletApi.identifyNetwork("grpc.example.com:50051", null));
+    Assert.assertEquals(NetType.CUSTOM,
+        WalletApi.identifyNetwork(null, "grpc.example.com:50052"));
+    Assert.assertEquals(NetType.CUSTOM,
+        WalletApi.identifyNetwork("grpc.example.com:50051", "grpc.example.com:50052"));
+  }
+
+  /** With nothing declared every candidate would vacuously "agree", so guard the empty case. */
+  @Test
+  public void identify_nothingDeclared_isCustom() {
+    Assert.assertEquals(NetType.CUSTOM, WalletApi.identifyNetwork(null, null));
+  }
 }

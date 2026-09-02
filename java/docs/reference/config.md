@@ -111,7 +111,7 @@ tronlink = {
 
 ## Connecting to Java-tron
 
-wallet-cli connects to Java-tron via gRPC. The startup network is inferred by comparing `fullnode.ip.list` and `soliditynode.ip.list` with the built-in Mainnet, Nile, and Shasta endpoints; any other pair is `CUSTOM`. Consequently, `net.type = mainnet` with Nile endpoints still starts on Nile. Check the endpoints themselves before sending funds.
+wallet-cli connects to Java-tron via gRPC. The startup network is inferred by comparing the endpoints you supplied — `fullnode.ip.list`, `soliditynode.ip.list`, or both — with the built-in Mainnet, Nile, and Shasta endpoints. An endpoint you leave out is not compared, so naming only Nile's full node still starts on Nile; anything that does not match a built-in network is `CUSTOM`. Consequently, `net.type = mainnet` with Nile endpoints still starts on Nile. Check the endpoints themselves before sending funds.
 
 To override the bundled file without rebuilding the jar, place `config.conf` in the directory from which you launch `java -jar`. You can also use `SwitchNetwork` to switch among mainnet, Nile, Shasta, and custom endpoints at runtime — see [commands/network](../commands/network.md).
 

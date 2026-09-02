@@ -273,15 +273,16 @@ public class WalletApi {
       lockAccount = config.getBoolean("lockAccount");
     }
     if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
-      if (fullNode.equals(NILE.getGrpc().getFullNode()) && solidityNode.equals(NILE.getGrpc().getSolidityNode())) {
-        currentNetwork = NILE;
-      } else if (fullNode.equals(SHASTA.getGrpc().getFullNode()) && solidityNode.equals(SHASTA.getGrpc().getSolidityNode())) {
-        currentNetwork = SHASTA;
-      } else if (fullNode.equals(MAIN.getGrpc().getFullNode()) && solidityNode.equals(MAIN.getGrpc().getSolidityNode())) {
-        currentNetwork = MAIN;
-      } else {
-        currentNetwork = CUSTOM;
-      }
+      // Identify from what the user actually supplied, NOT from the values the fallback above
+      // just mutated. soliditynode.ip.list is documented as optional, and every other consumer of
+      // that choice honours it -- ApiClient switches to local-create when it is absent. Comparing
+      // the filled-in copy instead means a config naming only Nile's fullnode can never match
+      // Nile's (fullnode, solidity) pair, so a known network is reported as CUSTOM. That is not
+      // cosmetic: the GasFree commands refuse any network other than MAIN or NILE, and the
+      // transaction history applies an extra endpoint filter once the network is CUSTOM.
+      currentNetwork = identifyNetwork(
+          isFullnodeEmpty ? null : fullNode,
+          isSoliditynodeEmpty ? null : solidityNode);
     } else {
       throw new IllegalStateException("The config.conf configuration is invalid. "
           + greenBoldHighlight("fullnode.ip.lit") + " and "
@@ -290,6 +291,29 @@ public class WalletApi {
     }
     WalletApi.setCustomNodes(Pair.of(Pair.of(fullNode, isFullnodeEmpty), Pair.of(solidityNode, isSoliditynodeEmpty)));
     return new ApiClient(fullNode, solidityNode, isFullnodeEmpty, isSoliditynodeEmpty);
+  }
+
+  /**
+   * The built-in network these endpoints name, or CUSTOM.
+   *
+   * A null argument means the config did not supply that endpoint, so it says nothing about which
+   * network this is and is not compared. Every endpoint that WAS supplied has to match, and at
+   * least one has to be supplied -- otherwise every network would "match" a config naming none.
+   */
+  static NetType identifyNetwork(String declaredFullNode, String declaredSolidityNode) {
+    if (declaredFullNode == null && declaredSolidityNode == null) {
+      return CUSTOM;
+    }
+    for (NetType candidate : new NetType[] {NILE, SHASTA, MAIN}) {
+      boolean fullNodeAgrees = declaredFullNode == null
+          || declaredFullNode.equals(candidate.getGrpc().getFullNode());
+      boolean solidityAgrees = declaredSolidityNode == null
+          || declaredSolidityNode.equals(candidate.getGrpc().getSolidityNode());
+      if (fullNodeAgrees && solidityAgrees) {
+        return candidate;
+      }
+    }
+    return CUSTOM;
   }
 
   public static String selectFullNode() {
