@@ -269,6 +269,7 @@ export class Keystore {
     const [walletId, idxStr] = ref.split(".");
     const wallet = file.wallets.find((w) => w.id === walletId);
     if (!wallet) throw new UsageError("account_not_found", `unknown account ${refOrLabel}`);
+    this.#assertReadable(wallet, refOrLabel);
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
     if (idxStr === undefined) {
@@ -297,6 +298,7 @@ export class Keystore {
     const walletId = ref.split(".")[0]!;
     const wallet = file.wallets.find((w) => w.id === walletId);
     if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${idOrLabel}`);
+    this.#assertReadable(wallet, idOrLabel);
     return wallet;
   }
 
@@ -395,6 +397,7 @@ export class Keystore {
       const [walletId, idxStr] = ref.split(".");
       const wallet = file.wallets.find((w) => w.id === walletId);
       if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${refOrWallet}`);
+      this.#assertReadable(wallet, refOrWallet);
 
       // account-level delete: a non-root HD sub-account ref (wlt_x.N, N>0) forgets just that index
       // (re-derivable from the seed). The vault/secret survives until the wallet itself is deleted.
@@ -616,6 +619,25 @@ export class Keystore {
     }
   }
 
+  /**
+   * A source kind this build does not know. `list` skips it and warns, but a command that NAMES
+   * one has to answer for it — every accessor below (SOURCE_KINDS, enumerateAddresses) reads
+   * fields the kind may not have, and reaching one produces a redacted `internal_error` instead
+   * of a diagnosis.
+   *
+   * Called before the operation starts, not while assembling its result: `delete` used to remove
+   * the wallet, write the file, and only then read `SOURCE_KINDS[...].hasSecret` for its receipt
+   * — so the account was already gone from disk when the throw arrived, and the caller was told
+   * the command had failed.
+   */
+  #assertReadable(wallet: Wallet, input: string): void {
+    if (SOURCE_KINDS[wallet.source.type] !== undefined) return;
+    throw new WalletError(
+      "encoding_error",
+      `${input} uses a wallet format this version does not understand; upgrade wallet-cli to use it`,
+    );
+  }
+
   #freshId(prefix: IdPrefix, file: WalletsFile): string {
     const taken = new Set(file.wallets.flatMap((w) => [w.id, secretId(w.source)]));
     for (;;) {
@@ -662,6 +684,11 @@ export class Keystore {
       const wanted = canonicalAddress(v);
       const hits: Array<{ ref: AccountRef; wallet: Wallet; index: number | null }> = [];
       for (const w of file.wallets) {
+        // Skipped for the same reason list() skips it: enumerateAddresses reads fields a kind
+        // this build does not know may not have. Scanning it would make ONE unreadable account
+        // cost every OTHER account its address lookup — and an address the caller can see in
+        // `list` has to keep resolving.
+        if (SOURCE_KINDS[w.source.type] === undefined) continue;
         for (const { index, addr } of enumerateAddresses(w)) {
           if (addr[addrFamily] === wanted)
             hits.push({ ref: accountRefOf(w, index), wallet: w, index });

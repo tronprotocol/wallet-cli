@@ -616,6 +616,36 @@ describe("an account whose source kind this build does not know", () => {
     expect(ks.list().map((a) => a.accountId)).toEqual(["wlt_known"]);
     expect(ks.unreadable()).toEqual(["wlt_future"]);
   });
+
+  // The regression that matters: delete removed the wallet, wrote the file, and only THEN read
+  // SOURCE_KINDS[...].hasSecret for its receipt. The throw arrived after the write, so the
+  // account was already gone from disk while the caller was told the command had failed.
+  it("is not deleted by a delete that reports failure", () => {
+    const ks = keystoreWithUnknownSourceType();
+    const before = readFileSync(join(ks.walletsPath), "utf8");
+    expect(() => ks.delete("wlt_future")).toThrowError(
+      expect.objectContaining({ code: "encoding_error" }),
+    );
+    expect(readFileSync(join(ks.walletsPath), "utf8")).toBe(before);
+  });
+
+  it.each([
+    ["resolveAccount", (ks: Keystore) => ks.resolveAccount("wlt_future")],
+    ["resolveWallet", (ks: Keystore) => ks.resolveWallet("wlt_future")],
+    ["describe", (ks: Keystore) => ks.describe("wlt_future")],
+  ])("answers %s with encoding_error rather than a redacted internal_error", (_name, act) => {
+    expect(() => act(keystoreWithUnknownSourceType())).toThrowError(
+      expect.objectContaining({ code: "encoding_error" }),
+    );
+  });
+
+  // One unreadable account must not cost every OTHER account its address lookup — the same
+  // promise list() makes. The scan reached enumerateAddresses on the unknown kind and threw
+  // before it could match the account the caller actually named.
+  it("does not break address lookup for the accounts that are readable", () => {
+    const ks = keystoreWithUnknownSourceType();
+    expect(ks.resolveAccount(EVM_ADDR).wallet.id).toBe("wlt_known");
+  });
 });
 
 // The account holds tron TRON0 and its own evm address — one seed, two chains. Before this fix,
