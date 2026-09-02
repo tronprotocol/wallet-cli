@@ -442,6 +442,29 @@ describe("EvmRpcClient.feeData", () => {
     expect(fee.suggestedPriorityWei).toBeUndefined();
     expect(fee.baseFeeWei).toBe("16");
   });
+
+  // feeData reads the head block through getBlock(), not a raw #call: a node that breaks the
+  // JSON-RPC contract (neither result nor error) must fail loudly, not silently read as a chain
+  // with no base fee — which the fee model would then treat as legacy instead of EIP-1559.
+  it("fails loudly, instead of degrading to a legacy fee model, when the node's block answer is malformed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: { body: string }) => {
+        const { method } = JSON.parse(init.body) as { method: string };
+        return {
+          ok: true,
+          text: async () =>
+            method === "eth_getBlockByNumber"
+              ? JSON.stringify({ id: 1 }) // neither result nor error
+              : JSON.stringify({ id: 1, result: "0x1" }),
+        };
+      }),
+    );
+
+    await expect(new EvmRpcClient("https://node.example", 5_000).feeData()).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
+  });
 });
 
 describe("EvmRpcClient.estimateGas", () => {

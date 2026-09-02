@@ -142,8 +142,11 @@ export class EvmRpcClient implements EvmGateway {
     gasPriceWei: string;
     suggestedPriorityWei?: string;
   }> {
+    // Routed through getBlock(), not a raw #call: that's what turns a node breaking the JSON-RPC
+    // contract (neither result nor error) into invalid_node_response instead of a silently
+    // undefined head, which would make an EIP-1559 chain read as legacy — see the class doc above.
     const [head, gasPrice, priority] = await Promise.all([
-      this.#call("eth_getBlockByNumber", ["latest", false]),
+      this.getBlock("latest"),
       this.#call("eth_gasPrice", []),
       this.#call("eth_maxPriorityFeePerGas", []).catch(() => undefined),
     ]);
