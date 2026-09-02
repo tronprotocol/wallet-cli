@@ -191,9 +191,11 @@ export class EvmRpcClient implements EvmGateway {
       const message = body.error.message ?? "";
       if (isAlreadyKnown(message)) return { alreadyKnown: true };
       const known = classifyEvmRejection(method, message);
+      // As above: a classified rejection keeps the node's words in the message, not just in
+      // details.nodeMessage, because text mode never renders details.
       throw new ChainError(
         known?.code ?? "transaction_rejected",
-        known?.message ?? `EVM broadcast rejected: ${message}`,
+        known ? `${known.message}: ${message}` : `EVM broadcast rejected: ${message}`,
         { nodeMessage: message },
       );
     }
@@ -556,16 +558,13 @@ export class EvmRpcClient implements EvmGateway {
       const message = body.error.message ?? "";
       const known = classifyEvmRejection(method, message);
       if (known) {
-        // execution_reverted only: fold the node's own words (the contract's revert reason, e.g.
-        // "execution reverted: ERC20: transfer amount exceeds balance") into the main message.
-        // Text mode renders only `error.message` — it never surfaces `details.nodeMessage` — so
-        // without this the single most useful line for debugging a revert was silently dropped.
-        // This is a targeted regression fix, not a decision that every classified rule should keep
-        // the node's wording in the main message (that is the open, undecided G3-2 question) —
-        // do not extend this pattern to the other PATTERNS rules without revisiting G3-2.
-        const text =
-          known.code === "execution_reverted" ? `${known.message}: ${message}` : known.message;
-        throw new ChainError(known.code, text, { nodeMessage: message });
+        // Every classified rejection folds the node's own words (the contract's revert reason,
+        // the specific balance shortfall, etc.) into the main message. Text mode renders only
+        // `error.message` — it never surfaces `details.nodeMessage` — so a canned category alone
+        // told the reader what kind of problem it was and nothing about theirs. The category
+        // stays first (scannable, stable, translatable); the node's wording stays visible after
+        // it. `details.nodeMessage` is kept unchanged for machine readers.
+        throw new ChainError(known.code, `${known.message}: ${message}`, { nodeMessage: message });
       }
       throw new ChainError("rpc_error", `${method} failed: ${message}`);
     }

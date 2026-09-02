@@ -1199,4 +1199,25 @@ describe("EvmRpcClient node-error classification", () => {
       code: "gas_too_low",
     });
   });
+
+  // Regression: text mode renders only `error.message` and never `details.nodeMessage`, so a
+  // classified rejection that kept only the canned category told the reader what kind of problem
+  // it was and nothing about theirs (which account, by how much). This generalizes what
+  // execution_reverted already did to every classified rule, not just reverts.
+  it("keeps the node's own words in the message for every classified rejection, not just reverts", async () => {
+    stubError("insufficient funds for gas * price + value: have 1 want 1000");
+
+    await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
+      code: "insufficient_balance",
+      message: expect.stringContaining("have 1 want 1000"),
+    });
+  });
+
+  it("still carries the node's words in details for machine readers", async () => {
+    stubError("insufficient funds for gas * price + value");
+
+    await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
+      details: { nodeMessage: expect.stringContaining("insufficient funds") },
+    });
+  });
 });

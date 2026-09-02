@@ -160,9 +160,15 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       // A recognised rejection gets a code an agent can branch on; everything else keeps the
       // node's own words under transaction_rejected (see node-errors.ts).
       const known = classifyNodeRejection(reason);
+      // A classified rejection keeps the node's own words in the message, not just in
+      // details.nodeMessage: text mode renders only `message`, so the category alone would tell
+      // the reader what kind of problem it is and nothing about theirs. Redact BEFORE folding —
+      // the node's text can carry a path or URL, and folding must not bypass that scrub.
       throw new ChainError(
         known?.code ?? "transaction_rejected",
-        known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+        known?.message
+          ? `${known.message}: ${redactErrorMessage(reason)}`
+          : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
         { nodeCode: res.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
@@ -367,9 +373,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       // Same rejections as broadcastTransaction, so the same classification: `tx broadcast --hex`
       // must not report insufficient_balance as a bare transaction_rejected.
       const known = classifyNodeRejection(reason);
+      // Same reasoning as broadcast(): fold the redacted node text into the message so text mode
+      // shows it, keeping details.nodeMessage for machine readers.
       throw new ChainError(
         known?.code ?? "transaction_rejected",
-        known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+        known?.message
+          ? `${known.message}: ${redactErrorMessage(reason)}`
+          : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
         { nodeCode: response.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
