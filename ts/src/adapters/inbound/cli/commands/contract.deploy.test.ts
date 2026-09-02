@@ -298,6 +298,15 @@ describe("contract deploy — creation bytecode is validated locally", () => {
     expect(deploy.mock.calls[0]![2]).toMatchObject({ bytecode: expected });
   });
 
+  // Before: checkedCreationCode stripped /^0x/i for the hex check but returned the value as
+  // given, so ethers refused it later as invalid_transaction at exit 1 — the very
+  // "local check misses it, downstream misclassifies it" shape this validation exists to kill.
+  it("normalises an uppercase 0X prefix on --code instead of leaking it downstream", async () => {
+    const { run, deploy } = evmDeployWith({ code: "0X6080604052" });
+    await expect(run()).resolves.toBeDefined();
+    expect(deploy.mock.calls[0]![2]).toMatchObject({ bytecode: "0x6080604052" });
+  });
+
   it("reads --code-file and drops the trailing newline every editor writes", async () => {
     const dir = mkdtempSync(join(tmpdir(), "wcli-deploy-code-"));
     const file = join(dir, "Token.bin");

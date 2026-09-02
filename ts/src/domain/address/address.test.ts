@@ -50,11 +50,25 @@ describe("isEvmAddress accepts unchecksummed input", () => {
   });
 });
 
+describe("isEvmAddress accepts an uppercase 0X prefix", () => {
+  // 0X is valid hex notation; only our downstream library insists on lowercase 0x. Refusing it
+  // would make the caller carry our implementation detail.
+  it("accepts an all-lowercase body with an uppercase 0X prefix", () => {
+    expect(isEvmAddress("0X5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")).toBe(true);
+  });
+
+  // The trap: evmChecksumAddress() returns a lowercase-0x string, so comparing the WHOLE input
+  // string against it (rather than just the body) makes a correctly-checksummed 0X… address fail
+  // the very check meant to accept it. This is the case that catches that mistake.
+  it("accepts a correctly-checksummed body with an uppercase 0X prefix", () => {
+    expect(isEvmAddress("0X5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed")).toBe(true);
+  });
+});
+
 describe("isEvmAddress rejects malformed input", () => {
   it.each([
     ["empty", ""],
     ["no 0x prefix", "5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"],
-    ["uppercase 0X prefix", "0X5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"],
     ["one nibble short", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAe"],
     ["one nibble long", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAedd"],
     ["non-hex character", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAeg"],
@@ -117,6 +131,10 @@ describe("AddressCodec.canonical", () => {
 
   it("leaves an already-checksummed address untouched", () => {
     expect(codec.canonical(CHECKSUMMED)).toBe(CHECKSUMMED);
+  });
+
+  it("checksums an all-lowercase EVM address with an uppercase 0X prefix", () => {
+    expect(codec.canonical(`0X${CHECKSUMMED.slice(2).toLowerCase()}`)).toBe(CHECKSUMMED);
   });
 
   // Not this function's job to decide a non-address is wrong: callers hand it labels and refs too.

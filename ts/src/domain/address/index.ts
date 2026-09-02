@@ -156,9 +156,12 @@ export function tronBytesToBase58(payload: Uint8Array): string {
  * into fund loss — the same reason ethers' getAddress() throws and hardware wallets refuse.
  */
 export function isEvmAddress(address: string): boolean {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return false;
+  if (!/^0x[0-9a-fA-F]{40}$/i.test(address)) return false;
   const body = address.slice(2);
   // No mixed case ⇒ no checksum was ever encoded ⇒ nothing to verify.
   if (body === body.toLowerCase() || body === body.toUpperCase()) return true;
-  return address === evmChecksumAddress(hexToBytes(body.toLowerCase()));
+  // 0X is valid hex notation, same as 0x; only our downstream checksum encoder is opinionated
+  // about the prefix's own case. Normalise it before comparing, or a correctly-checksummed
+  // 0X… address would fail the very check meant to accept it.
+  return "0x" + body === evmChecksumAddress(hexToBytes(body.toLowerCase()));
 }

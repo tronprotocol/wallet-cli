@@ -295,6 +295,13 @@ async function creationBytecode(input: { code?: string; codeFile?: string }): Pr
  * cannot succeed (ethers refuses `"0x6080 604052"` at RLP serialisation), so refusing it here
  * convicts no one. A trailing newline is different: a code file all but always has one — an
  * editor's save, `echo`, `jq -r` — and it is objectively not bytecode.
+ *
+ * The `0x`/`0X` prefix is normalised to lowercase rather than accepted as-is: `0X` is valid hex
+ * notation with no semantic difference from `0x`, but ethers rejects it downstream as
+ * invalid_transaction — a local check that let it through while the encoder refused it would be
+ * exactly the "misses it locally, misclassifies it downstream" failure this validation exists to
+ * prevent. Normalising, not rejecting, is the fix: this CLI's own acceptance policy is "refuse
+ * only what cannot succeed", and `0X...` bytecode succeeds once spelled the way the encoder wants.
  */
 function checkedCreationCode(raw: string, source: string): string {
   const code = raw.trim();
@@ -305,7 +312,7 @@ function checkedCreationCode(raw: string, source: string): string {
       `${source} must hold even-length hex creation bytecode, or exactly 0x to deploy empty code; it must not be empty`,
     );
   }
-  return code;
+  return /^0x/i.test(code) ? `0x${hex}` : code;
 }
 
 interface DeploySource {
