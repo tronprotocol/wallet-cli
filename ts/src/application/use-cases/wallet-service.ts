@@ -8,7 +8,6 @@ import {
 } from "../../domain/family/index.js";
 import { resembledFamily } from "../../domain/contact/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
-import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import {
   TronAddress,
   evmAddressFromPublicKey,
@@ -16,7 +15,6 @@ import {
 } from "../../domain/address/index.js";
 import type { Bytes } from "../../domain/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
-import { SOURCE_KINDS } from "../../domain/sources/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
@@ -239,9 +237,15 @@ export class WalletService {
    * Import the single private key held in a parsed V3 keystore, re-encrypted under the master
    * password and made active.
    *
-   * Deliberate deviation from the Java implementation, which silently overwrites a same-address
-   * wallet: a clash is refused, because that account may be an HD account whose seed backup the
-   * overwrite would destroy in exchange for one derived key. Delete it explicitly instead.
+   * A V3 keystore is a private key wrapped in an encrypted file; what lands in the wallet is
+   * exactly what `import private-key` stores — a `privateKey` source. The two commands differ
+   * only in how the key arrives (file + password vs. a raw string on the secret channel), never
+   * in what it becomes, so this delegates to the same `importSecret` path and inherits the same
+   * dedup/clash behavior: idempotent against an existing `privateKey` account holding this key,
+   * a new sibling account against an existing `seed`/`watch`/Ledger account at the same address.
+   * ADR-0007's promise not to overwrite a same-address account still holds — more strongly than
+   * before, since there is no longer an overwrite path here to refuse in the first place
+   * (ADR-0011).
    */
   importKeystore(file: unknown, keystorePassword: string, label?: string) {
     const privateKey = KeystoreV3.decrypt(file, keystorePassword);
@@ -250,25 +254,6 @@ export class WalletService {
     // classifyError redacts it to internal_error instead of the actionable invalid_private_key.
     if (!Derivation.isValidPrivateKey(privateKey))
       throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
-    const addresses = derivePrivAddresses(privateKey);
-    // Only a clash with an account that holds a local secret (seed/privateKey) is refused: the
-    // ADR-0007 rationale is "don't destroy a seed to add an account", which doesn't apply to a
-    // watch/Ledger account at the same address — it has no secret to destroy.
-    const clash = this.wallets
-      .list()
-      .find(
-        (a) =>
-          SOURCE_KINDS[a.type].hasSecret &&
-          CHAIN_FAMILIES.some(
-            (f) => a.addresses[f] !== undefined && a.addresses[f] === addresses[f],
-          ),
-      );
-    if (clash) {
-      throw new WalletError(
-        "account_exists",
-        `${clash.accountId}${clash.label ? ` (${clash.label})` : ""} already holds this address; delete it first to replace it`,
-      );
-    }
     return this.importSecret(bytesToHex(privateKey), "privateKey", label);
   }
 

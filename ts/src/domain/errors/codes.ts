@@ -43,7 +43,6 @@ export const ERROR_CODES = {
   missing_wallet_address: { exit: 1, retry: "never", meaning: "no account is available to act as" },
   account_not_found: { exit: 2, retry: "never", meaning: "no local account by that id, label or address" },
   seed_not_found: { exit: 2, retry: "never", meaning: "the reference does not name a seed (HD) wallet" },
-  account_exists: { exit: 1, retry: "never", meaning: "an account with that address is already in the keystore" },
   invalid_account: { exit: 2, retry: "never", meaning: "the account reference is not well-formed" },
   not_exportable: { exit: 1, retry: "never", meaning: "the account holds no exportable secret (watch-only or Ledger)" },
   no_software_wallet: { exit: 1, retry: "never", meaning: "the operation needs a locally stored key and none exists" },

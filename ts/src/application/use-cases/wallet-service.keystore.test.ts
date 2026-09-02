@@ -342,29 +342,32 @@ describe("WalletService.importKeystore", () => {
     expect(h.keystore.list()).toEqual([]);
   });
 
-  it("refuses a same-address account instead of overwriting it (unlike the Java implementation)", () => {
-    h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "already-here" });
-    let err: any;
-    try {
-      h.service.importKeystore(v3(), "file-pw");
-    } catch (e) {
-      err = e;
-    }
-    expect(err?.code).toBe("account_exists");
-    expect(err.message).toMatch(/already-here/);
+  it("is idempotent against an existing privateKey account holding the same key (matches import private-key)", () => {
+    const { accountId } = h.keystore.import({
+      secret: RAW_KEY,
+      type: "privateKey",
+      label: "already-here",
+    });
+    const result = h.service.importKeystore(v3(), "file-pw");
+    expect(result).toMatchObject({ accountId, status: "existing" });
     expect(h.keystore.list()).toHaveLength(1);
   });
 
-  it("refuses a keystore whose key belongs to an existing HD account, protecting its seed", () => {
-    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+  it("creates a second account when the key belongs to an existing HD account's derived address", () => {
+    const { accountId: seedAccountId } = h.keystore.import({
+      secret: MNEMONIC,
+      type: "seed",
+      label: "main",
+    });
     const hdKey = Derivation.derive(
       Derivation.mnemonicToSeed(MNEMONIC),
       Derivation.path("tron", 0),
     ).privateKey;
-    expect(h.keystore.describe(accountId).type).toBe("seed");
-    expect(() =>
-      h.service.importKeystore(v3(bytesToHex(hdKey), "file-pw"), "file-pw"),
-    ).toThrowError(/already holds this address/);
+    expect(h.keystore.describe(seedAccountId).type).toBe("seed");
+    const result = h.service.importKeystore(v3(bytesToHex(hdKey), "file-pw"), "file-pw");
+    expect(result.status).toBe("created");
+    expect(result.type).toBe("privateKey");
+    expect(h.keystore.list()).toHaveLength(2);
   });
 
   it("rejects an out-of-range private key as invalid_private_key, not internal_error", () => {
@@ -388,17 +391,6 @@ describe("WalletService.importKeystore", () => {
     const result = h.service.importKeystore(v3(), "file-pw", "now-imported");
     expect(result.status).toBe("created");
     expect(h.keystore.list()).toHaveLength(2);
-  });
-
-  it("still refuses a same-address PRIVATEKEY account (unaffected by the watch-only carve-out)", () => {
-    h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "already-here" });
-    let err: any;
-    try {
-      h.service.importKeystore(v3(), "file-pw");
-    } catch (e) {
-      err = e;
-    }
-    expect(err?.code).toBe("account_exists");
   });
 });
 

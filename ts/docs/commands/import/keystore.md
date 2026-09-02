@@ -20,7 +20,7 @@ Two passwords are involved and they are unrelated: your master password encrypts
 
 Without a TTY the command fails with `tty_required` at exit `2`, and that check runs **first**, ahead of the file. In a non-interactive environment every call fails the same way whether the path is good or not; the file-before-password ordering above only applies once you have a terminal.
 
-If an account with the same address already exists locally, the import is **refused** rather than overwriting it: replacing an address silently could destroy the seed backup an existing account depends on. Delete the existing account first if replacement is what you want.
+Import never overwrites an existing account. Importing the same key twice is idempotent (`status: "existing"`, the existing account is selected); importing a key that matches an address already held by a *different kind* of account (an HD seed's derived address, a watch-only or Ledger address) adds a second, independent `privateKey` account at that address rather than replacing what is there. See [`import private-key`](private-key.md), which this command matches exactly once the key is decrypted.
 
 ## Options
 
@@ -66,7 +66,7 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 
 | Field | Type | Meaning |
 |---|---|---|
-| `status` | string | `"created"` |
+| `status` | string | `"created"`, or `"existing"` when the same key was already present (the existing account is selected) |
 | `accountId` | string | Stable account id |
 | `label` | string | Account label |
 | `type` | string | `"privateKey"` (standalone, no seed) |
@@ -77,7 +77,7 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 
 ## Exit status
 
-`0` imported · `1` execution failure (`wrong_keystore_password`; `account_exists` — this address is already in the wallet; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; `keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `invalid_value` — duplicate or invalid label).
+`0` imported · `1` execution failure (`wrong_keystore_password`; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; `keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `invalid_value` — duplicate or invalid label).
 
 ## See also
 

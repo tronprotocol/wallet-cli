@@ -323,11 +323,11 @@ describe("import keystore", () => {
     ).rejects.toMatchObject({ code: "invalid_keystore" });
   });
 
-  it("refuses a same-address account with account_exists", async () => {
+  it("is idempotent against an existing privateKey account holding the same key", async () => {
     const f = fixture({ tty: true });
-    await seedWallet(f, RAW_KEY, "privateKey");
-    await expect(
-      buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]),
-    ).rejects.toMatchObject({ code: "account_exists" });
+    const accountId = await seedWallet(f, RAW_KEY, "privateKey");
+    await buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]);
+    const env = f.envelope();
+    expect(env.data).toMatchObject({ accountId, status: "existing" });
   });
 });
