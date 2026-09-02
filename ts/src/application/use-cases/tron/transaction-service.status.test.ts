@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TronTransactionService } from "./transaction-service.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway, TronTxInfo, TronTx } from "../../ports/chain/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
@@ -12,7 +13,7 @@ const NET = {
 } as unknown as NetworkDescriptor;
 
 // Minimal fake gateway: status() only touches the two lookup endpoints.
-function service(opts: { tx?: TronTx | Error; info?: TronTxInfo; head?: number | Error }) {
+function service(opts: { tx?: TronTx | Error; info?: TronTxInfo | Error; head?: number | Error }) {
   const gateway = {
     async getTransactionById(): Promise<TronTx> {
       if (opts.tx instanceof Error) throw opts.tx;
@@ -20,6 +21,7 @@ function service(opts: { tx?: TronTx | Error; info?: TronTxInfo; head?: number |
       return opts.tx;
     },
     async getTransactionInfoById(): Promise<TronTxInfo> {
+      if (opts.info instanceof Error) throw opts.info;
       return opts.info ?? {};
     },
     async getBlock(): Promise<unknown> {
@@ -71,6 +73,28 @@ describe("TronTransactionService.status — four-state", () => {
 
   it("not_found: getTransactionById resolves without a txID", async () => {
     const s = await service({ tx: {} as TronTx, info: {} }).status(NET, "abc");
+    expect(s.state).toBe("not_found");
+  });
+
+  it("fails instead of reporting not_found when the node cannot be reached", async () => {
+    // getTransactionInfoById resolving is what proves the node answered at all. If it rejects,
+    // nothing here knows whether the transaction exists — and `not_found` in the four-state model
+    // means "keep polling", which would loop forever against a node that is simply down.
+    await expect(
+      service({
+        tx: new ChainError("rpc_error", "boom"),
+        info: new ChainError("rpc_error", "boom"),
+      }).status(NET, "abc"),
+    ).rejects.toMatchObject({ code: "rpc_error" });
+  });
+
+  it("still reports not_found when the node answers and simply has no such transaction", async () => {
+    // The node is healthy: getTransactionInfoById resolved (Nile returns {} for an unknown hash).
+    // getTransactionById rejecting is then a fact about the transaction, not about the node.
+    const s = await service({
+      tx: new Error("Transaction not found"),
+      info: {},
+    }).status(NET, "abc");
     expect(s.state).toBe("not_found");
   });
 });

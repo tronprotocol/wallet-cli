@@ -141,9 +141,17 @@ export class TronTransactionService {
     const [exists, info, head] = await Promise.all([
       gateway.getTransactionById(txid).then(
         (tx) => tx?.txID !== undefined,
+        // tronweb throws "Transaction not found" for an unknown hash, so a rejection here cannot
+        // by itself separate "no such transaction" from "no such node". The info call below is
+        // what settles that: it RESOLVES ({} on Nile) for an unknown hash and only rejects when
+        // the node itself failed, so if we get past it the node answered and this rejection is a
+        // fact about the transaction.
         () => false,
       ),
-      gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
+      // NOT caught, deliberately. Swallowing a node failure here made `state` "not_found" at
+      // exit 0 — and `not_found` means "keep polling" in the four-state model, so a script would
+      // wait forever on an endpoint that is simply down.
+      gateway.getTransactionInfoById(txid),
       // Best-effort, exactly as on the EVM side: it adds a field and must never cost the answer.
       headBlockNumber(gateway),
     ]);
