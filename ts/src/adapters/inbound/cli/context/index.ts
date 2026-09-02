@@ -96,7 +96,7 @@ class ExecutionContextImpl implements ExecutionContext {
 
   resolveAddress(family: ChainFamily): string {
     if (this.globals.account && addressCodec(family).validate(this.globals.account)) {
-      return this.globals.account;
+      return addressCodec(family).canonical(this.globals.account);
     }
     const { wallet, index } = this.deps.keystore.resolveAccount(this.activeAccount, family);
     const address = walletAddress(wallet, family, index);
