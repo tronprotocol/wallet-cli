@@ -42,7 +42,7 @@ Three contract types cannot be field-by-field re-encoded by the bundled decoder 
 | `--file <path>` | **Required** (one of). File containing the transaction hex (prefer this for long hex) |
 | `--transaction <json>` | **Required** (one of). **TRON only.** Unsigned TRON transaction JSON; compatibility path, never checked online |
 | `--offline` | Sign locally without contacting a node; skips the signer-permission and approval-weight checks. Only meaningful on TRON — EVM signing contacts no node either way |
-| `--out <path>` | **TRON artifact path only.** Atomically write the resulting co-signed protobuf hex to a mode-0644 file instead of stdout. Do not use on EVM: the current EVM binding accepts but ignores this option |
+| `--out <path>` | Atomically write the signed transaction to a mode-0644 file — the co-signed protobuf hex on TRON, the signed RLP on EVM. It *adds* a file; the same hex still appears in the result body, so a consumer that wants only the summary drops that field itself. Not valid with `--transaction` |
 
 Plus the [global options](../index.md#global-options-every-command) and `--password-stdin` for software accounts.
 
@@ -136,9 +136,9 @@ The two input modes return different shapes.
 | `transaction` | object | Locally decoded summary: `txId`, `contractType`, `operation`, `from`, `to`, `rawAmount`, `permissionId` (a scalar — no group name or threshold), `expiration`, `expired`, `signatures` (count) |
 | `signerWeight` | number | The signer's weight in the group. TRON, and only when `checked` is `true` |
 | `approval` | object | Authoritative online approval state, same shape as [`tx approvals`](approvals.md) `data`. TRON, and only when `checked` is `true` |
-| `out` | string | The path the signed hex was written to. Present only when `--out` was given |
+| `out` | string | The path the signed hex was written to. Present only when `--out` was given; it is added to the result, never a replacement for the hex |
 
-On EVM the result is the single-signature shape instead — `kind: "sign"`, `mode: "sign-only"`, `signed` (`{raw, hash}`), `address`, and `txId`. There is no top-level `hex`; the raw signed transaction is `signed.raw`. The accepted `--out` option is currently ignored by the EVM binding, so write `data.signed.raw` yourself or omit the flag.
+On EVM the result is the single-signature shape instead — `kind: "sign"`, `mode: "sign-only"`, `signed` (`{raw, hash}`), `address`, and `txId`. There is no top-level `hex`; the raw signed transaction is `signed.raw`, and `--out` writes exactly that string to the file while leaving it in the result.
 
 For TRON `--hex` / `--file` results, `transaction` is always present in online and offline modes, so a consumer can read it unconditionally; test `checked` before reaching for `approval`. EVM results do not contain `transaction` or `checked`.
 
