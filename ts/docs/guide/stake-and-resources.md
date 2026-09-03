@@ -15,7 +15,7 @@ wallet-cli account info --network tron:3448148188
 ```console
 Label        main
 Address      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
-Balance      1976.489 TRX
+Balance      1,976.489 TRX
 Staked       12 TRX (energy 12 + bandwidth 0)
 Energy       used 0 / 888
 Bandwidth    used 0 / 600

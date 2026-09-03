@@ -32,11 +32,11 @@ wallet-cli account portfolio --network tron:3448148188
 
 ```console
 "demo" Portfolio
-| Token | Balance      | Price (USD) | Value (USD) |
-| ----- | ------------ | ----------- | ----------- |
-| TRX   | 9915.80311   | $0.0000     | $0.00       |
-| USDT  | 17061.463423 | $0.0000     | $0.00       |
-| USDD  | 0            | $0.0000     | $0.00       |
+| Token | Balance       | Price (USD) | Value (USD) |
+| ----- | ------------- | ----------- | ----------- |
+| TRX   | 9,915.80311   | $0.0000     | $0.00       |
+| USDT  | 17,061.463423 | $0.0000     | $0.00       |
+| USDD  | 0             | $0.0000     | $0.00       |
 Total ≈ $0.00
 ```
 

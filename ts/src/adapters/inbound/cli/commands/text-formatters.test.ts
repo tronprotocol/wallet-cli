@@ -124,7 +124,9 @@ describe("accountBalance formatter", () => {
       { address: "TXaddress", balance: "1983993000", decimals: 6, symbol: "TRX" },
       ctx(),
     );
-    expect(out).toContain("1983.993 TRX");
+    // Grouped, like every other amount the CLI prints — this now goes through the shared
+    // formatter rather than a bare unit conversion.
+    expect(out).toContain("1,983.993 TRX");
     expect(out).not.toContain("sun");
   });
   it("falls back to raw scalar balance when decimals are missing", () => {
@@ -141,6 +143,25 @@ describe("accountBalance formatter", () => {
     );
     expect(out).toContain("main");
     expect(out).not.toContain("TXaddress");
+  });
+
+  // An 18-decimal balance printed in full is 18 fractional digits of noise around the two or
+  // three that carry meaning. json keeps every one of them; text is for a person reading a
+  // terminal, so it obeys the same display rule as every other amount the CLI prints.
+  it("caps an 18-decimal balance at six fractional digits", () => {
+    const out = TextFormatters.accountBalance(
+      { address: "0xabc", balance: "12345678901234567890", decimals: 18, symbol: "ETH" },
+      ctx(),
+    );
+    expect(out).toContain("12.345678 ETH");
+  });
+
+  it("renders a non-zero balance below display precision as <0.000001, never as 0", () => {
+    const out = TextFormatters.accountBalance(
+      { address: "0xabc", balance: "1", decimals: 18, symbol: "ETH" },
+      ctx(),
+    );
+    expect(out).toContain("<0.000001 ETH");
   });
 });
 
@@ -231,7 +252,7 @@ describe("tokenBalance formatter", () => {
       },
       ctx(),
     );
-    expect(out).toContain("1204.56");
+    expect(out).toContain("1,204.56");
     expect(out).toContain("USDT");
   });
   it("falls back to raw scalar balance when metadata is missing", () => {
@@ -1024,6 +1045,30 @@ describe("portfolio price vs valuation precision", () => {
 
   it("does not collapse a sub-cent price to zero", () => {
     expect(portfolio("0.0001", "0.10")).toContain("$0.0001");
+  });
+
+  // The Balance column reads the base-unit integer and the row's own decimals, so it obeys the
+  // same six-digit rule as `account balance`. It used to print the pre-scaled string verbatim.
+  it("caps the balance column at six fractional digits", () => {
+    const out = TextFormatters.accountPortfolio(
+      {
+        address: "0xowner",
+        holdings: [
+          {
+            symbol: "ETH",
+            rawBalance: "12345678901234567890",
+            balance: "12.34567890123456789",
+            decimals: 18,
+            priceUsd: 2,
+            valueUsd: 24.69,
+          },
+        ],
+        totalValueUsd: 24.69,
+      },
+      ctx(),
+    ) as string;
+    expect(out).toContain("12.345678");
+    expect(out).not.toContain("12.34567890123456789");
   });
 });
 

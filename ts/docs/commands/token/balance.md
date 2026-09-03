@@ -30,7 +30,7 @@ wallet-cli token balance --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network
 ```console
 Label    demo
 Symbol   USDT
-Balance  17061.463423
+Balance  17,061.463423
 ```
 
 ```bash

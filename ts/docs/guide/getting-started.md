@@ -58,7 +58,7 @@ wallet-cli account balance --network tron:3448148188
 
 ```console
 Label    main
-Balance  1976.489 TRX
+Balance  1,976.489 TRX
 ```
 
 Tip: set Nile as your default so you can drop `--network` while learning:

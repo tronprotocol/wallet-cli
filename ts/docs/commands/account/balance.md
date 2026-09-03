@@ -26,7 +26,7 @@ wallet-cli account balance --network tron:3448148188
 
 ```console
 Label    demo
-Balance  9915.80311 TRX
+Balance  9,915.80311 TRX
 ```
 
 ```bash

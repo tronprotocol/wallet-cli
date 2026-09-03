@@ -1,14 +1,31 @@
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
-import { fromBaseUnits } from "../../../../domain/amounts/index.js";
-import { formatScalar, formatUsd, formatUsdPrice, formatTime, num, quote } from "./scalars.js";
+import {
+  formatAmount,
+  formatScalar,
+  formatUsd,
+  formatUsdPrice,
+  formatTime,
+  num,
+  quote,
+} from "./scalars.js";
 import { type Obj, type Pair, asObj, query, receipt, table, ok, fail, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 
-/** humanize a raw base-unit balance: scale by `decimals` when known, else show the raw integer. */
+/** humanize a raw base-unit balance: scale by `decimals` when known, else show the raw integer.
+ *  Scaling goes through `formatAmount`, so a balance obeys the same display rule here as
+ *  everywhere else text prints an amount — without it an 18-decimal coin printed in full. */
 function humanBalance(d: Obj): string {
   return d.decimals !== undefined
-    ? fromBaseUnits(String(d.balance ?? "0"), num(d.decimals, 0))
+    ? formatAmount(d.balance ?? "0", num(d.decimals, 0))
     : formatScalar(d.balance);
+}
+
+/** a portfolio row's balance. `holding()` reports the base-unit integer alongside the scaled
+ *  string, so the column can format from `rawBalance` rather than reprinting the pre-scaled one. */
+function holdingBalance(h: Obj): string {
+  return h.rawBalance !== undefined && h.rawBalance !== null && h.decimals !== undefined
+    ? formatAmount(h.rawBalance, num(h.decimals, 0))
+    : formatScalar(h.balance);
 }
 
 export const AccountFormatters = {
@@ -60,7 +77,7 @@ export const AccountFormatters = {
     const holdings = (Array.isArray(d.holdings) ? d.holdings : []).map(asObj);
     const rows = holdings.map((h) => [
       String(h.symbol ?? ""),
-      h.balanceUnavailable ? "unavailable" : formatScalar(h.balance),
+      h.balanceUnavailable ? "unavailable" : holdingBalance(h),
       h.priceUsd === null || h.priceUsd === undefined ? "-" : `$${formatUsdPrice(h.priceUsd)}`,
       h.valueUsd === null || h.valueUsd === undefined ? "-" : `$${formatUsd(h.valueUsd)}`,
     ]);
