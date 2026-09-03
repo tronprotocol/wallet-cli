@@ -67,7 +67,6 @@ Every command has a reference page, and the JSON contract, exit codes, and agent
 - [Getting started](ts/docs/guide/getting-started.md) — create a wallet and send your first transaction
 - [Command reference](ts/docs/commands/index.md) — every command, A–Z
 - [Machine interface](ts/docs/machine-interface.md) — JSON envelope, exit codes, script safety
-- [Agent skill](ts/skills/wallet-cli/SKILL.md) — for AI agents
 
 ## Which should I use?
 
