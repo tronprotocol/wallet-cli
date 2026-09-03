@@ -1,12 +1,22 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 import type { HttpTransport } from "../../http/index.js";
+
+// A virtual clock, so the spacing asserted here is the spacing the client asked for rather than
+// whatever the machine managed under load.
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
 
 const ADDRESS = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
 /** the client's configured spacing; asserted against rather than restated per test */
 const INTERVAL_MS = 400;
-/** timer jitter can shave a millisecond or two off a setTimeout */
-const SLACK_MS = 10;
+
+/** Run the virtual clock out so `work` can finish, without orphaning a rejection while it runs. */
+const settle = async <T>(work: Promise<T>): Promise<T> => {
+  work.catch(() => {});
+  await vi.runAllTimersAsync();
+  return work;
+};
 
 /** Records when each request starts and how many are in flight, whichever path it took. */
 const tracker = () => {
@@ -37,10 +47,10 @@ describe("TronRpcClient request pacing", () => {
       },
     };
     const client = new TronRpcClient("http://localhost:1", 30_000, transport);
-    await Promise.all(Array.from({ length: 3 }, () => client.getAccount(ADDRESS)));
+    await settle(Promise.all(Array.from({ length: 3 }, () => client.getAccount(ADDRESS))));
     expect(t.starts).toHaveLength(3);
     expect(t.peak()).toBeLessThanOrEqual(2);
-    expect(t.gaps().every((g) => g >= INTERVAL_MS - SLACK_MS)).toBe(true);
+    expect(t.gaps()).toEqual([INTERVAL_MS, INTERVAL_MS]);
   });
 
   /** tronweb has its own axios client, so the pacer is installed on its providers. Stubbing the
@@ -53,10 +63,10 @@ describe("TronRpcClient request pacing", () => {
       await t.enter();
       return { data: {} };
     }) as never;
-    await Promise.all(Array.from({ length: 3 }, () => client.getAccountResources(ADDRESS)));
+    await settle(Promise.all(Array.from({ length: 3 }, () => client.getAccountResources(ADDRESS))));
     expect(t.starts).toHaveLength(3);
     expect(t.peak()).toBeLessThanOrEqual(2);
-    expect(t.gaps().every((g) => g >= INTERVAL_MS - SLACK_MS)).toBe(true);
+    expect(t.gaps()).toEqual([INTERVAL_MS, INTERVAL_MS]);
   });
 
   it("shares one pacer between both transports", async () => {
@@ -72,16 +82,18 @@ describe("TronRpcClient request pacing", () => {
       await t.enter();
       return { data: {} };
     }) as never;
-    await Promise.all([
-      client.getAccount(ADDRESS),
-      client.getAccountResources(ADDRESS),
-      client.getAccount(ADDRESS),
-      client.getAccountResources(ADDRESS),
-    ]);
+    await settle(
+      Promise.all([
+        client.getAccount(ADDRESS),
+        client.getAccountResources(ADDRESS),
+        client.getAccount(ADDRESS),
+        client.getAccountResources(ADDRESS),
+      ]),
+    );
     expect(t.starts).toHaveLength(4);
     expect(t.peak()).toBeLessThanOrEqual(2);
     // one shared budget: starts are spaced across both transports, not per transport
-    expect(t.gaps().every((g) => g >= INTERVAL_MS - SLACK_MS)).toBe(true);
+    expect(t.gaps()).toEqual([INTERVAL_MS, INTERVAL_MS, INTERVAL_MS]);
   });
 
   /** The pacer's wait is self-imposed, so it must not be charged against --timeout: a fan-out that
@@ -92,9 +104,9 @@ describe("TronRpcClient request pacing", () => {
     const client = new TronRpcClient("http://localhost:1", 500, transport);
     const started = Date.now();
     await expect(
-      Promise.all(Array.from({ length: 4 }, () => client.getAccount(ADDRESS))),
+      settle(Promise.all(Array.from({ length: 4 }, () => client.getAccount(ADDRESS)))),
     ).resolves.toHaveLength(4);
-    expect(Date.now() - started).toBeGreaterThan(1_000);
+    expect(Date.now() - started).toBe(3 * INTERVAL_MS);
   });
 
   /** A caller that has already been told it timed out must not have its request sent later: the
@@ -109,12 +121,28 @@ describe("TronRpcClient request pacing", () => {
       },
     };
     const client = new TronRpcClient("http://localhost:1", 500, transport);
-    const results = await Promise.allSettled(
-      Array.from({ length: 4 }, () => client.getAccount(ADDRESS)),
+    const results = await settle(
+      Promise.allSettled(Array.from({ length: 4 }, () => client.getAccount(ADDRESS))),
     );
     expect(results.every((r) => r.status === "rejected")).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
     // only the two that took a permit reached the wire; the queued pair were dropped
     expect(sent).toBe(2);
+  });
+
+  /** setHeader/setFullNode and friends each install a brand-new HttpProvider, dropping any patch
+   *  held on the old instance. Nothing calls them today, so without this the pacer would silently
+   *  stop applying the first time someone does. */
+  it("keeps pacing after tronweb swaps its providers", async () => {
+    const t = tracker();
+    const client = new TronRpcClient("http://localhost:1", 30_000);
+    client.tronweb.setHeader({ "TRON-PRO-API-KEY": "key" });
+    client.tronweb.fullNode.instance.request = (async () => {
+      await t.enter();
+      return { data: {} };
+    }) as never;
+    await settle(Promise.all(Array.from({ length: 3 }, () => client.getAccountResources(ADDRESS))));
+    expect(t.starts).toHaveLength(3);
+    expect(t.peak()).toBeLessThanOrEqual(2);
+    expect(t.gaps()).toEqual([INTERVAL_MS, INTERVAL_MS]);
   });
 });

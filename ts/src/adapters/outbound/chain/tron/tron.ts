@@ -96,6 +96,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
    * own transport against the same host (one request per command, so it cannot burst on its own).
    */
   readonly #pacer = new RequestPacer({ minIntervalMs: 400, maxInFlight: 2 });
+  readonly #pacedProviders = new WeakSet<object>();
   constructor(
     fullHostOrConfig: string | NetworkDescriptor | HttpEndpointConfig,
     timeoutMs = 60_000,
@@ -151,20 +152,33 @@ export class TronRpcClient implements TronGateway, Broadcaster {
    * ref-block read, every constant call — would bypass the pacer entirely. All three providers are
    * patched because the constructor builds a distinct HttpProvider for each.
    *
-   * The patch lives on the provider *instances*, so anything that swaps a provider drops it:
-   * `setHeader`/`setFullNodeHeader`/`setEventHeader` and `setFullNode`/`setSolidityNode`/
-   * `setEventServer` each install a fresh HttpProvider. Nothing calls them today (headers are
-   * passed at construction instead) — re-run this after any such call, or the pacer silently stops
-   * applying with no test to catch it. The Set guards against wrapping one provider twice, which
-   * would make a single call need two permits and deadlock.
+   * The patch lives on the provider *instances*, and `setFullNode`/`setSolidityNode`/
+   * `setEventServer` each install a fresh HttpProvider — as do `setHeader`/`setFullNodeHeader`/
+   * `setEventHeader`, which delegate to those three. So those three are wrapped to re-pace
+   * whatever they installed; a provider that slips through is not an error, just an unpaced
+   * client that draws 429s under load.
    */
   #paceTronWebProviders(): void {
-    for (const provider of new Set([
-      this.#tw.fullNode,
-      this.#tw.solidityNode,
-      this.#tw.eventServer,
-    ])) {
-      if (!provider) continue;
+    // tronweb types these as concrete methods; patching them needs an indexable view.
+    const tw = this.#tw as unknown as Record<string, (...args: unknown[]) => unknown>;
+    for (const swap of ["setFullNode", "setSolidityNode", "setEventServer"]) {
+      const original = tw[swap]!.bind(this.#tw);
+      tw[swap] = (...args: unknown[]) => {
+        const result = original(...args);
+        this.#paceCurrentProviders();
+        return result;
+      };
+    }
+    this.#paceCurrentProviders();
+  }
+  /**
+   * The WeakSet is what makes this safe to re-run: wrapping one provider twice would make a single
+   * request take two permits and deadlock the pacer.
+   */
+  #paceCurrentProviders(): void {
+    for (const provider of [this.#tw.fullNode, this.#tw.solidityNode, this.#tw.eventServer]) {
+      if (!provider || this.#pacedProviders.has(provider)) continue;
+      this.#pacedProviders.add(provider);
       const request = provider.request.bind(provider);
       provider.request = ((...args: Parameters<typeof request>) =>
         this.#pacer.run(() => request(...args))) as typeof request;
