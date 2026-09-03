@@ -41,7 +41,7 @@ import type {
 } from "../../../../application/ports/chain/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
-import { withTimeout } from "../../../../domain/async/index.js";
+import { withDeadline } from "../../../../domain/async/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
@@ -68,6 +68,7 @@ import {
   type HttpEndpointConfig,
   type HttpTransport,
 } from "../../http/index.js";
+import { PacedHttpTransport, RequestPacer } from "../../http/request-pacer.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -84,6 +85,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   #tw: InstanceType<typeof TronWeb>;
   readonly #timeoutMs: number;
   readonly #transport: HttpTransport;
+  /**
+   * Paces every node request this client issues. See RequestPacer for why the interval, not the
+   * in-flight cap, is what prevents a 429; the values are measured against TronGrid's anonymous
+   * tier, where getnowblock sits in a separate and far looser bucket than the account-scoped
+   * endpoints this mostly serves.
+   *
+   * Scope: this client only. ChainGatewayRegistry caches one per network id and a run touches one
+   * network, so in practice it covers a whole invocation — but TronGridHistoryReader builds its
+   * own transport against the same host (one request per command, so it cannot burst on its own).
+   */
+  readonly #pacer = new RequestPacer({ minIntervalMs: 400, maxInFlight: 2 });
   constructor(
     fullHostOrConfig: string | NetworkDescriptor | HttpEndpointConfig,
     timeoutMs = 60_000,
@@ -125,9 +137,40 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       eventServer: tronProvider(),
     });
     this.#timeoutMs = config.timeoutMs;
-    this.#transport = transport ?? new FetchHttpTransport(config);
+    // an injected transport is paced too: the endpoint's budget does not care who built the client
+    this.#transport = new PacedHttpTransport(
+      transport ?? new FetchHttpTransport(config),
+      this.#pacer,
+    );
     this.#tw.setAddress(TRON_READ_OWNER);
+    this.#paceTronWebProviders();
   }
+  /**
+   * tronweb owns its own axios client, so the pacer has to be installed on its providers: without
+   * this every `#tw.trx.*` and `#tw.transactionBuilder.*` call — broadcast, every builder's
+   * ref-block read, every constant call — would bypass the pacer entirely. All three providers are
+   * patched because the constructor builds a distinct HttpProvider for each.
+   *
+   * The patch lives on the provider *instances*, so anything that swaps a provider drops it:
+   * `setHeader`/`setFullNodeHeader`/`setEventHeader` and `setFullNode`/`setSolidityNode`/
+   * `setEventServer` each install a fresh HttpProvider. Nothing calls them today (headers are
+   * passed at construction instead) — re-run this after any such call, or the pacer silently stops
+   * applying with no test to catch it. The Set guards against wrapping one provider twice, which
+   * would make a single call need two permits and deadlock.
+   */
+  #paceTronWebProviders(): void {
+    for (const provider of new Set([
+      this.#tw.fullNode,
+      this.#tw.solidityNode,
+      this.#tw.eventServer,
+    ])) {
+      if (!provider) continue;
+      const request = provider.request.bind(provider);
+      provider.request = ((...args: Parameters<typeof request>) =>
+        this.#pacer.run(() => request(...args))) as typeof request;
+    }
+  }
+
   get tronweb(): InstanceType<typeof TronWeb> {
     return this.#tw;
   }
@@ -140,10 +183,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
     try {
       // bound the RPC so a standalone `tx broadcast` (not routed through the pipeline) can't hang.
-      res = await withTimeout(
+      // withDeadline, so a broadcast still queued behind the pacer is not reported as a timeout for
+      // a transaction that has not been sent yet.
+      res = await withDeadline(this.#timeoutMs, () =>
         this.#tw.trx.sendRawTransaction(signed as Types.SignedTransaction),
-        this.#timeoutMs,
-        () => {},
       );
     } catch (e) {
       if (e instanceof ChainError) throw e; // preserve timeout as ChainError, don't remap to rpc_error
@@ -484,8 +527,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   // ── generic error wrapper for node reads/builds ──────────────────────────────
   // Timeout wraps the guard (not the reverse) so a timed-out call surfaces as ChainError("timeout")
   // rather than being remapped to a generic rpc_error by the catch below.
+  // withDeadline rather than withTimeout because requests are paced: the wait the pacer imposes is
+  // progress, not a hang, and must not be charged against this call's budget.
   #wrap<T>(label: string, fn: () => Promise<T>): Promise<T> {
-    return withTimeout(this.#guard(label, fn), this.#timeoutMs, () => {});
+    return withDeadline(this.#timeoutMs, () => this.#guard(label, fn));
   }
   async #guard<T>(label: string, fn: () => Promise<T>): Promise<T> {
     try {
