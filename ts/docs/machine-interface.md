@@ -199,6 +199,13 @@ retry, exactly as the four-state model below requires.
 
 That index is the machine-readable catalog exposed by this build. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code not present in `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) can appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
+The catalog deliberately does not prescribe retry behavior. A transport `timeout` or `rpc_error`
+only says that the CLI did not observe a successful response. For a read-only call, retrying the same
+request is normally harmless. On a submit path, however, the node may have accepted the transaction
+before the response was lost. Treat that outcome as unknown: reconcile by `txId` when available, or
+by sender and nonce for EVM, before building and signing another transaction. Re-running a send does
+not retry the same transaction; it creates a second transaction and can duplicate a payment.
+
 Common codes at exit **2** (usage — fix the call):
 
 | Code | Meaning |
