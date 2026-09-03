@@ -7,6 +7,7 @@ import type {
   TronHistoryResult,
 } from "../../../../application/ports/chain/tron-history-reader.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+import { FetchHttpTransport, HttpTransportError, networkHttpConfig } from "../../http/index.js";
 
 export class TronGridHistoryReader implements HistoryPort {
   constructor(private readonly timeoutMs = 60_000) {}
@@ -24,23 +25,27 @@ export class TronGridHistoryReader implements HistoryPort {
       );
     }
     const resource = query.only === "token" ? "transactions/trc20" : "transactions";
-    const url = `${endpoint.replace(/\/$/, "")}/v1/accounts/${address}/${resource}?limit=${query.limit}&visible=true`;
-    let response: Response;
+    const path = `/v1/accounts/${encodeURIComponent(address)}/${resource}?limit=${query.limit}&visible=true`;
+    let text: string;
     try {
-      response = await fetch(url, { signal: AbortSignal.timeout(this.timeoutMs) });
+      const transport = new FetchHttpTransport(networkHttpConfig(network, this.timeoutMs));
+      text = await transport.requestText({ method: "GET", path });
     } catch (error) {
+      const status = error instanceof HttpTransportError ? error.status : undefined;
       throw new ExecutionError(
         "history_not_supported",
-        `account history is not supported on this endpoint: ${(error as Error).message}`,
+        `account history is not supported on this endpoint${status === undefined ? "" : ` (HTTP ${status})`}`,
       );
     }
-    if (!response.ok) {
+    let body: { data?: unknown[] };
+    try {
+      body = JSON.parse(text) as { data?: unknown[] };
+    } catch {
       throw new ExecutionError(
         "history_not_supported",
-        `account history is not supported on this endpoint (HTTP ${response.status})`,
+        "account history is not supported on this endpoint (malformed response)",
       );
     }
-    const body = (await response.json()) as { data?: unknown[] };
     const records = (body.data ?? []).map((record) => this.normalize(record, address));
     return {
       address,

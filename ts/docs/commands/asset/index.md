@@ -13,6 +13,8 @@ Four facts shape everything here:
 
 Amounts on the command line and in text output are in **whole tokens**; json carries the on-chain raw value (whole tokens × 10^precision).
 
+**TRON only.** TRC10 is a TRON protocol feature with no EVM counterpart; every subcommand here fails with `family_mismatch` on an EVM network.
+
 ## Synopsis
 
 ```
@@ -28,7 +30,7 @@ wallet-cli asset COMMAND
 | `asset participate` | [participate.md](participate.md) | Buy into a token's ICO with TRX |
 | `asset unfreeze` | [unfreeze.md](unfreeze.md) | Release matured frozen supply |
 | `asset info` | [info.md](info.md) | Full detail of one TRC10 |
-| `asset list` | [list.md](list.md) | List every TRC10 on chain |
+| `asset list` | [list.md](list.md) | List TRC10 tokens, one page at a time |
 
 ## See also
 

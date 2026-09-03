@@ -14,6 +14,15 @@ export interface AddressCodec {
   family: ChainFamily;
   fromPublicKey(pub: Bytes): string;
   validate(addr: string): boolean;
+  /**
+   * The one spelling of a VALID address that this CLI stores and prints.
+   *
+   * Input is accepted in more forms than output is written in (an all-lower or
+   * all-upper EVM address means "no checksum was offered"), so without a normalising step the same
+   * address reaches the screen in two different spellings depending on which command put it
+   * there — and a user comparing them concludes they are different addresses.
+   */
+  canonical(addr: string): string;
 }
 
 const b58c = createBase58check(sha256);
@@ -89,6 +98,24 @@ export class TronAddress implements AddressCodec {
       return false;
     }
   }
+  /** Base58Check is already one-form-per-address: its own checksum fixes every character. */
+  canonical(addr: string): string {
+    return addr;
+  }
+}
+
+export class EvmAddress implements AddressCodec {
+  readonly family: ChainFamily = "evm";
+  fromPublicKey(pub: Bytes): string {
+    return evmAddressFromPublicKey(pub);
+  }
+  validate(addr: string): boolean {
+    return isEvmAddress(addr);
+  }
+  /** EIP-55, always — the form every EVM address leaves this CLI in. */
+  canonical(addr: string): string {
+    return isEvmAddress(addr) ? evmChecksumAddress(hexToBytes(addr.slice(2).toLowerCase())) : addr;
+  }
 }
 
 /** Convert a 41-prefixed TRON hex address to base58; preserve non-hex values unchanged. */
@@ -118,4 +145,23 @@ export function tronBytesToBase58(payload: Uint8Array): string {
     throw new Error("invalid TRON address payload");
   }
   return b58c.encode(payload);
+}
+
+/**
+ * EIP-55 acceptance policy for an EVM address supplied by a caller.
+ *
+ * All-lower and all-upper carry no case information and are accepted unverified, as EIP-55
+ * permits. A mixed-case address MUST carry a valid checksum. The protocol itself is case-insensitive, so
+ * accepting a mismatched one would turn "typed one character wrong" and "clipboard was swapped"
+ * into fund loss — the same reason ethers' getAddress() throws and hardware wallets refuse.
+ */
+export function isEvmAddress(address: string): boolean {
+  if (!/^0x[0-9a-fA-F]{40}$/i.test(address)) return false;
+  const body = address.slice(2);
+  // No mixed case ⇒ no checksum was ever encoded ⇒ nothing to verify.
+  if (body === body.toLowerCase() || body === body.toUpperCase()) return true;
+  // 0X is valid hex notation, same as 0x; only our downstream checksum encoder is opinionated
+  // about the prefix's own case. Normalise it before comparing, or a correctly-checksummed
+  // 0X… address would fail the very check meant to accept it.
+  return "0x" + body === evmChecksumAddress(hexToBytes(body.toLowerCase()));
 }

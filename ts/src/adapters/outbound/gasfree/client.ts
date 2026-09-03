@@ -1,3 +1,4 @@
+import { isTronNetwork } from "../../../domain/types/network.js";
 import { createHmac } from "node:crypto";
 import {
   isLosslessNumber,
@@ -188,7 +189,7 @@ export class GasFreeClient implements GasFreeProvider {
 }
 
 function endpoint(network: NetworkDescriptor): { baseUrl: string; apiPrefix: string } {
-  const value = network.gasfree;
+  const value = isTronNetwork(network) ? network.gasfree : undefined;
   if (!value) {
     throw new UsageError("unsupported_network", `network ${network.id} does not support GasFree`);
   }

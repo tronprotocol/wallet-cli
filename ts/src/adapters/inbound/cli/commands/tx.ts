@@ -2,39 +2,34 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronTransactionService } from "../../../../application/use-cases/tron/transaction-service.js";
+import type { EvmTransactionService } from "../../../../application/use-cases/evm/transaction-service.js";
+import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
 import type { TronSigService } from "../../../../application/use-cases/tron/sig-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
 import type { TransactionArtifactWriter } from "../../../../application/ports/transaction-artifact-writer.js";
-import { Schemas } from "../schemas/index.js";
-import { amountSelector, txModeFields, unifiedAmountFields } from "./shared.js";
+import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
+import { amountSelector, tronTxModeFields, txModeFields, unifiedAmountFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 
-// baseFields today (single family). When EVM lands, move feeLimit/assetId/contract into the TRON
-// binding.fields and put gasPrice/gasLimit/nonce into the EVM binding.fields (spec §4 base/delta).
+// baseFields carry only what every family has: a recipient, an asset selector that is either a
+// book symbol or a contract, and an amount. Everything priced or numbered per chain — TRON's
+// fee limit and TRC10 asset id, EVM's gas flags and nonce — lives on that family's binding.
 const sendFields = z.object({
   to: z
     .string()
     .trim()
     .min(1)
     .max(128)
-    .describe("recipient TRON base58 address or local contact name"),
+    .describe("recipient address for the selected network, or a local contact name"),
   token: z.string().min(1).optional().describe("token symbol from the address book"),
-  contract: Schemas.addressFor("tron")
+  contract: Schemas.address()
     .optional()
-    .describe("TRC20 contract address; omit with --asset-id for native TRX"),
-  assetId: z
-    .string()
-    .regex(/^\d+$/)
-    .optional()
-    .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
-  feeLimit: Schemas.positiveIntString()
-    .default("100000000")
-    .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
+    .describe("token contract address; omit for a native-coin transfer"),
   ...unifiedAmountFields(
-    "human amount: TRX for native, token units for TRC20/TRC10",
-    "raw integer amount in SUN or token base units",
+    "human amount: native coin for native transfers, token units for token transfers",
+    "raw integer amount in native base units or token base units",
   ),
   ...txModeFields,
 });
@@ -46,40 +41,142 @@ export const txSendSpec: ChainSpec = {
   auth: "conditional",
   broadcasts: true,
   capability: "tx.send",
-  summary: "Send native TRX or TRC20/TRC10 tokens with human --amount",
+  summary: "Send native coins or tokens with human --amount",
+  description:
+    "Send the native coin, or a token selected with --token / --contract.\n" +
+    // A command whose Options show BOTH families' tags must say what the tags mean —
+    // help has to be readable on its own, without the reader having seen the spec.
+    "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   exclusive: [
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
     // omitting all three is the native-TRX path, so this set is optional as a whole.
     {
-      label: "which asset to send; omit for native TRX",
-      flags: ["token", "contract", "asset-id"],
+      // `--asset-id` is TRON-only and is declared on that binding; this group is spec-level, so
+      // it may only name flags every family actually has.
+      label: "which asset to send; omit for the network's native coin",
+      flags: ["token", "contract"],
       select: "at-most-one",
     },
   ],
   baseRefine: amountSelector,
   examples: [
-    { cmd: "wallet-cli tx send --to T... --amount 1" },
-    { cmd: "wallet-cli tx send --to T... --token USDT --amount 5" },
-    { cmd: "wallet-cli tx send --to T... --contract TR7... --amount 5" },
-    { cmd: "wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000" },
+    { cmd: "wallet-cli tx send --to T... --amount 1 --network nile" },
+    { cmd: "wallet-cli tx send --to 0x742d... --amount 1 --network sepolia" },
+    { cmd: "wallet-cli tx send --to T... --token USDT --amount 5 --network nile" },
+    { cmd: "wallet-cli tx send --to 0x742d... --token USDC --amount 5 --network sepolia" },
+    { cmd: "wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network nile" },
   ],
   formatText: TextFormatters.txReceipt,
 };
 
+const tronSendFields = z.object({
+  assetId: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
+    .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
+  feeLimit: Schemas.positiveIntString()
+    .default("100000000")
+    .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
+  ...tronTxModeFields,
+});
+
+/** EVM pricing: gwei for the per-gas fields, because that is the unit every wallet, explorer and
+ *  human uses for gas — wei would be nine zeros longer and a real typo risk. */
+const evmSendFields = z.object({
+  gasLimit: Schemas.positiveIntString()
+    .optional()
+    .describe("gas units to authorise; defaults to the node's estimate, unpadded"),
+  maxFee: z
+    .string()
+    .optional()
+    .describe("maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 chains only)"),
+  priorityFee: z
+    .string()
+    .optional()
+    .describe("tip per gas paid to the proposer, in gwei — 25 or 25gwei (EIP-1559 chains only)"),
+  nonce: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("transaction nonce; defaults to the account's pending nonce"),
+});
+
+/** EVM has no multi-signature relay, so the artifact both ends exchange is raw hex: an unsigned
+ *  serialisation in, a signed one out. TRON's `--transaction` JSON has no EVM meaning. */
+function evmHexOnly(
+  input: { transaction?: string; hex?: string; file?: string },
+  hasStdin = false,
+): string {
+  // `--transaction` no longer reaches here — it is declared by the TRON binding, so the flag check
+  // refuses it first. `--tx-stdin` is not a flag but a channel, so it still needs saying: a piped
+  // payload that is silently ignored is worse than one that is refused.
+  if (hasStdin) {
+    throw new UsageError(
+      "invalid_option",
+      "--tx-stdin carries the TRON JSON form; on an EVM network pass raw hex with --hex or --file",
+    );
+  }
+  return hexInput(input);
+}
+
+export const txSignEvmBinding = (
+  svc: EvmTransactionService,
+  writer: TransactionArtifactWriter,
+): FamilyBinding => ({
+  run: async (ctx, net, input) => {
+    const result = await svc.sign(ctx, net, evmHexOnly(input));
+    if (!input.out) return result;
+    // The two families name this differently: TRON's `tx sign` writes `result.hex`, EVM's writes
+    // `result.signed.raw` — not a shared field, so nothing here can be written generically.
+    writer.write(input.out, result.signed.raw);
+    return { ...result, out: input.out };
+  },
+});
+
+export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => {
+    if (input.dryRun && ctx.wait) {
+      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
+    }
+    return svc.broadcast(ctx, net, evmHexOnly(input, ctx.secrets.has("tx")), input.dryRun === true);
+  },
+});
+
+export const txSendEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  fields: evmSendFields,
+  refine: addressFieldsFor("evm", "contract"),
+  run: async (ctx, net, input) =>
+    svc.send(ctx, net, {
+      ...input,
+      // gwei on the flag, wei everywhere below it.
+      ...(input.maxFee === undefined ? {} : { maxFee: gweiToWei(input.maxFee) }),
+      ...(input.priorityFee === undefined ? {} : { priorityFee: gweiToWei(input.priorityFee) }),
+    }),
+});
+
 export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding => ({
-  refine: tokenOptional,
+  fields: tronSendFields,
+  refine: allRefines(tokenOptional, addressFieldsFor("tron", "contract")),
   run: async (ctx, net, input) => svc.send(ctx, net, input),
 });
 
+/** TRON's JSON form of a signed transaction. Declared by the TRON binding alone, which is what
+ *  makes help tag it `(TRON only)` and every other family refuse it — the same treatment `--asset-id`
+ *  gets. EVM has no JSON transaction: it exchanges RLP hex. */
+const tronBroadcastFields = z.object({
+  transaction: z.string().optional().describe("signed transaction JSON"),
+});
+
 const broadcastFields = z.object({
-  transaction: z.string().optional().describe("signed TRON transaction JSON"),
-  hex: z.string().min(2).optional().describe("complete signed protocol.Transaction hex"),
-  file: z
+  hex: z
     .string()
-    .min(1)
+    .min(2)
     .optional()
-    .describe("file containing complete signed protocol.Transaction hex"),
+    .describe("signed transaction hex: protobuf hex for TRON, RLP for EVM"),
+  file: z.string().min(1).optional().describe("file containing the signed transaction hex"),
   dryRun: z
     .boolean()
     .default(false)
@@ -91,12 +188,19 @@ const broadcastFields = z.object({
 export const txBroadcastSpec: ChainSpec = {
   path: ["tx", "broadcast"],
   stdin: "tx",
+  // The channel carries TRON's transaction JSON, and only the TRON binding reads it. Declaring
+  // that is what tags it `(TRON only)` in help and lets any other family refuse it outright, instead
+  // of ignoring a payload the caller piped in.
+  stdinFamily: "tron",
   network: "optional",
   wallet: "none",
   auth: "none",
   broadcasts: true,
   capability: "tx.broadcast",
-  summary: "Validate and broadcast a presigned JSON or protobuf-hex transaction",
+  summary: "Broadcast a presigned transaction",
+  description:
+    "Broadcast an already-signed transaction. It must have been built for the network you\n" +
+    "select — one built for another chain is rejected before it is sent.",
   baseFields: broadcastFields,
   exclusive: [
     {
@@ -105,6 +209,25 @@ export const txBroadcastSpec: ChainSpec = {
     },
   ],
   baseRefine: (input, context) => {
+    if ([input.hex, input.file].filter((entry) => entry !== undefined).length > 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["hex"],
+        message: "--hex and --file are mutually exclusive",
+      });
+    }
+  },
+  examples: [
+    { cmd: "wallet-cli tx broadcast --file signed.hex --network nile" },
+    { cmd: "wallet-cli tx broadcast --file signed.hex --network sepolia" },
+    { cmd: "wallet-cli tx broadcast --tx-stdin < signed.json --network nile" },
+  ],
+  formatText: TextFormatters.txReceipt,
+};
+
+export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBinding => ({
+  fields: tronBroadcastFields,
+  refine: (input, context) => {
     if (
       [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1
     ) {
@@ -115,14 +238,6 @@ export const txBroadcastSpec: ChainSpec = {
       });
     }
   },
-  examples: [
-    { cmd: "wallet-cli tx broadcast --tx-stdin < signed.json" },
-    { cmd: "wallet-cli tx broadcast --file signed.hex" },
-  ],
-  formatText: TextFormatters.txReceipt,
-};
-
-export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBinding => ({
   run: async (ctx, net, input) => {
     if (input.dryRun && ctx.wait) {
       throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
@@ -150,8 +265,8 @@ export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBind
 });
 
 const artifactFields = {
-  hex: z.string().min(2).optional().describe("complete protocol.Transaction hex"),
-  file: z.string().min(1).optional().describe("file containing complete protocol.Transaction hex"),
+  hex: z.string().min(2).optional().describe("transaction hex: protobuf hex for TRON, RLP for EVM"),
+  file: z.string().min(1).optional().describe("file containing the transaction hex"),
 };
 
 const approvalsFields = z.object(artifactFields);
@@ -162,7 +277,7 @@ export const txApprovalsSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "tx.multisig.local",
-  summary: "Show permission, signature approvals, current weight, and expiration",
+  summary: "Show collected signatures on a multi-sig transaction",
   description:
     "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
   baseFields: approvalsFields,
@@ -176,12 +291,18 @@ export const txApprovalsTronBinding = (service: TronMultisigService): FamilyBind
   run: async (_ctx, network, input) => service.approvals(network, hexInput(input)),
 });
 
-const signFields = z.object({
+/** The TRON compatibility path, declared by the TRON binding so help tags it `(TRON only)`; see
+ *  tronBroadcastFields. Its two companion rules (`--out` / `--offline` are hex-only) travel with
+ *  it, because they are only meaningful where `--transaction` exists. */
+const tronSignFields = z.object({
   transaction: z
     .string()
     .min(1)
     .optional()
-    .describe("unsigned TRON transaction JSON; retained for direct single-signature compatibility"),
+    .describe("unsigned transaction JSON; TRON compatibility path, never checked online"),
+});
+
+const signFields = z.object({
   ...artifactFields,
   offline: z
     .boolean()
@@ -203,17 +324,53 @@ export const txSignSpec: ChainSpec = {
   auth: "required",
   broadcasts: false,
   capability: "tx.sign",
-  summary: "Sign transaction JSON or append a signature to transaction hex",
+  summary: "Sign a transaction built elsewhere",
   description:
-    "With --transaction, preserve the direct JSON signing flow. With --hex/--file, append exactly\n" +
-    "one signature while preserving prior signatures, verifying online that this account is in the\n" +
-    "transaction's permission group and has not already signed, and reporting the resulting\n" +
-    "approval weight. Add --offline to sign without contacting a node, which skips those checks.\n" +
-    "This command never broadcasts.",
+    "Sign a transaction that was built elsewhere and output the signed result; broadcast it\n" +
+    "later with `tx broadcast`. A transaction built for another network is rejected before it\n" +
+    "is signed.\n" +
+    "On TRON, --hex/--file append one signature to those already collected and report the\n" +
+    "resulting approval weight; --offline skips the online permission checks. An EVM\n" +
+    "transaction carries exactly one signature, so an already-signed one is refused.",
   baseFields: signFields,
   // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
   baseRefine: (input, context) => {
+    // On a family without `--transaction` this is the whole rule: one of --hex / --file.
+    if (
+      input.transaction === undefined &&
+      [input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["hex"],
+        message: "provide exactly one of --hex or --file",
+      });
+    }
+  },
+  examples: [
+    {
+      cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
+    },
+    {
+      cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin",
+    },
+    {
+      cmd: "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin",
+    },
+    { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
+  ],
+  formatText: TextFormatters.txSign,
+};
+
+export const txSignTronBinding = (
+  transactionService: TronTransactionService,
+  signingService: TronSigService,
+  multisigService: TronMultisigService,
+  writer: TransactionArtifactWriter,
+): FamilyBinding => ({
+  fields: tronSignFields,
+  refine: (input, context) => {
     if (
       [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
     ) {
@@ -238,22 +395,6 @@ export const txSignSpec: ChainSpec = {
       });
     }
   },
-  examples: [
-    {
-      cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
-    },
-    { cmd: "wallet-cli tx sign --file partially-signed.hex --out signed.hex --password-stdin" },
-    { cmd: "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin" },
-  ],
-  formatText: TextFormatters.txSign,
-};
-
-export const txSignTronBinding = (
-  transactionService: TronTransactionService,
-  signingService: TronSigService,
-  multisigService: TronMultisigService,
-  writer: TransactionArtifactWriter,
-): FamilyBinding => ({
   run: async (ctx, net, input) => {
     exactlyOne(
       [input.transaction, input.hex, input.file],
@@ -316,7 +457,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   wallet: "optional",
   auth: "conditional",
   capability: "tx.multisig.tronlink",
-  summary: "Coordinate multi-signature collection through the TronLink service",
+  summary: "Create / co-sign a multi-sig transaction",
   description:
     "With no mode flag, list service-managed transactions for the selected account. --create signs\n" +
     "an UNSIGNED transaction locally and submits it, which opens the collection at the first\n" +
@@ -370,7 +511,7 @@ export const txTronLinkMultisigBinding = (
   },
 });
 
-const statusFields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
+const statusFields = z.object({ txid: z.string().min(1).describe("transaction id/hash") });
 
 export const txStatusSpec: ChainSpec = {
   path: ["tx", "status"],
@@ -379,7 +520,10 @@ export const txStatusSpec: ChainSpec = {
   auth: "none",
   summary: "Show confirmation status of a transaction",
   baseFields: statusFields,
-  examples: [{ cmd: "wallet-cli tx status --txid abc123" }],
+  examples: [
+    { cmd: "wallet-cli tx status --txid abc123 --network nile" },
+    { cmd: "wallet-cli tx status --txid 0x9c4e... --network sepolia" },
+  ],
   formatText: TextFormatters.txStatus,
 };
 
@@ -387,7 +531,11 @@ export const txStatusTronBinding = (svc: TronTransactionService): FamilyBinding 
   run: async (_ctx, net, input) => svc.status(net, input.txid),
 });
 
-const infoFields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
+export const txStatusEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.status(ctx, net, input.txid),
+});
+
+const infoFields = z.object({ txid: z.string().min(1).describe("transaction id/hash") });
 
 export const txInfoSpec: ChainSpec = {
   path: ["tx", "info"],
@@ -396,12 +544,19 @@ export const txInfoSpec: ChainSpec = {
   auth: "none",
   summary: "Show full transaction detail + receipt",
   baseFields: infoFields,
-  examples: [{ cmd: "wallet-cli tx info --txid abc123" }],
+  examples: [
+    { cmd: "wallet-cli tx info --txid abc123 --network nile" },
+    { cmd: "wallet-cli tx info --txid 0x9c4e... --network sepolia" },
+  ],
   formatText: TextFormatters.txInfo,
 };
 
 export const txInfoTronBinding = (svc: TronTransactionService): FamilyBinding => ({
   run: async (_ctx, net, input) => svc.info(net, input.txid),
+});
+
+export const txInfoEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.info(ctx, net, input.txid),
 });
 
 function tokenOptional(

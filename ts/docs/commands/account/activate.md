@@ -12,11 +12,13 @@ wallet-cli account activate --address <T...>
 
 ## Description
 
-A TRON address doesn't exist on-chain until it receives its first asset or is explicitly created — until then queries return `not_found` and it cannot initiate a transaction. This command creates (activates) such an account **without transferring any asset**; the payer account covers the on-chain account-creation fee.
+A TRON address doesn't exist on-chain until it receives its first asset or is explicitly created — until then `account set` refuses it with `not_found` (a plain `account info` still succeeds, returning an empty `account` object) and it cannot initiate a transaction. This command creates (activates) such an account **without transferring any asset**; the payer account covers the on-chain account-creation fee.
 
 Use it only when an address needs to *exist* on its own — to be queryable, or able to initiate its own transactions. If you're sending it funds anyway, [`tx send`](../tx/send.md) activates the recipient automatically in one step; and adding an address to a multi-sig permission does **not** require activation.
 
-Requires the payer account and the master password via `--password-stdin`; watch-only accounts fail with `watch_only_no_signer`.
+Requires the payer account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+
+The Ledger TRON app cannot sign `AccountCreateContract`: Ledger accounts may use `--dry-run` or `--build-only`, but `--sign-only`, default submission, and `--wait` fail with `ledger_unsupported` before device interaction.
 
 ## Options
 
@@ -25,7 +27,7 @@ Requires the payer account and the master password via `--password-stdin`; watch
 | `--address <T...>` | **Required.** The address to activate (a valid, not-yet-activated TRON address) |
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -40,40 +42,40 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Default — broadcast and return the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:nile --password-stdin
+echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:3448148188 --password-stdin
 ```
 
 ```console
-⏳ Submitted — activate account
-  TxID     a1b...
+⏳ Account activated
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
-  Status   pending
-! Track it: wallet-cli tx info --network tron:nile --txid a1b...
+  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  TxID     a1b...
+  Status   pending — not yet on-chain
+! Track it: wallet-cli tx info --network tron:3448148188 --txid a1b...
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"submitted","txId":"a1b...","address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"submitted","txId":"a1b...","address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed, with the actual block and fee:
 
 ```bash
-echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
 ✅ Account activated
-  TxID     e7a...
   Address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw (main)
+  Payer    TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  TxID     e7a...
   Block    #84,340,277
   Fee      1.1 TRX
   Status   success
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"confirmed","txId":"e7a...","confirmed":true,"blockNumber":84340277,"feeSun":1100000,"failed":false,"address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6540,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"confirmed","txId":"e7a...","confirmed":true,"blockNumber":84340277,"feeSun":1100000,"failed":false,"address":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","payer":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6540,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -88,7 +90,7 @@ echo "$PW" | wallet-cli account activate --address TNewAddr9k2fP7cW4bXm1sV8dRj6e
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_activate_postcheck_mismatch` / `account_activate_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

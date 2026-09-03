@@ -7,7 +7,7 @@
  * Three things shape this file:
  *   - **Only the creator may inject or withdraw.** A pair is private market-making, not a public
  *     pool, and the binding cannot be transferred.
- *   - **Our pricing advises, it never gates** (docs/adr/0002). `bancorOutput` derives the
+ *   - **Our pricing advises, it never gates.** `bancorOutput` derives the
  *     `--slippage` floor and the `--dry-run` estimate; nothing is refused on its say-so. Rejections
  *     come only from exact integer checks or from the node.
  *   - **Token ids only, never names.** A TRC10 name may contain `:`, which would make
@@ -88,7 +88,7 @@ export class TronExchangeService {
     const gateway = this.gateways.get(network, "tron");
     const exchange = await this.#requireExchange(gateway, input.id);
     // One pair, so two O(1) lookups at most: enough to render whole tokens and names. `list` is the
-    // command that must never fan out (docs/adr/0005).
+    // command that must never fan out.
     const [first, second] = await Promise.all([
       this.#tokenMeta(gateway, exchange.firstTokenId),
       this.#tokenMeta(gateway, exchange.secondTokenId),
@@ -110,7 +110,7 @@ export class TronExchangeService {
     };
   }
 
-  /** Exactly one RPC, whatever the page size — no per-row token lookups (docs/adr/0005). */
+  /** Exactly one RPC, whatever the page size — no per-row token lookups. */
   async list(network: NetworkDescriptor, input: ExchangeListInput) {
     const gateway = this.gateways.get(network, "tron");
     const exchanges = await gateway.listExchanges(input.limit, input.offset);
@@ -212,7 +212,7 @@ export class TronExchangeService {
     ]);
     const sellQuant = this.#amount(input, sellMeta, "--amount");
 
-    // Advisory only: this drives --slippage and the dry-run preview, and never rejects (ADR-0002).
+    // Advisory only: this drives --slippage and the dry-run preview, and never rejects.
     const predicted = bancorOutput(sides.reserve, sides.otherReserve, sellQuant);
     const floor = this.#tradeFloor(scope, input, predicted, buyMeta);
 

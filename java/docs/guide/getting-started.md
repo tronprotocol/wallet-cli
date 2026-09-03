@@ -9,13 +9,13 @@ Build, create an account, and send your first transfer — all from the interact
 ```console
 # 1. Build
 $ git clone https://github.com/tronprotocol/wallet-cli.git
-$ cd wallet-cli && ./gradlew build && cd build/libs
+$ cd wallet-cli/java && ./gradlew build && cd build/libs
 
 # 2. Start the interactive wallet
 $ java -jar wallet-cli.jar
 
 # 3. In the wallet prompt: create an account (or ImportWallet), unlock, and inspect it
-> RegisterWallet 123456      # create a keystore with password 123456
+> RegisterWallet             # prompts twice for the password, then for mnemonic length
 > Login                      # unlock the account
 > GetAddress                 # show your address
 > GetBalance                 # TRX balance

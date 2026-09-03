@@ -204,8 +204,10 @@ describe("backup --records", () => {
       ["backup", "--records", "--keystore"],
       ["backup", "--records", "--out", "./x.json"],
     ]) {
+      // BUG-V413-033: --keystore/--out describe an export, so combining either with --records is
+      // a flag conflict (invalid_option), not a bad value.
       await expect(buildCli(f.shellOpts).parseAsync(argv)).rejects.toMatchObject({
-        code: "invalid_value",
+        code: "invalid_option",
       });
     }
   });
@@ -321,11 +323,11 @@ describe("import keystore", () => {
     ).rejects.toMatchObject({ code: "invalid_keystore" });
   });
 
-  it("refuses a same-address account with account_exists", async () => {
+  it("is idempotent against an existing privateKey account holding the same key", async () => {
     const f = fixture({ tty: true });
-    await seedWallet(f, RAW_KEY, "privateKey");
-    await expect(
-      buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]),
-    ).rejects.toMatchObject({ code: "account_exists" });
+    const accountId = await seedWallet(f, RAW_KEY, "privateKey");
+    await buildCli(f.shellOpts).parseAsync(["import", "keystore", keystoreFile(f.root)]);
+    const env = f.envelope();
+    expect(env.data).toMatchObject({ accountId, status: "existing" });
   });
 });

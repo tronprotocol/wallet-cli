@@ -20,10 +20,14 @@ export function parseGlobals(tokens: string[]): {
   globals: Globals;
   secretPaths: SecretPaths;
   invalid: InvalidGlobal[];
+  /** the literal `--*-stdin` flags seen, one per distinct secret kind, in the order they appeared —
+   *  used to reject more than one before any secret is read (stdin serves at most one per run). */
+  stdinFlags: string[];
 } {
   const globals = { verbose: false } as Globals;
   const secretPaths: SecretPaths = {};
   const invalid: InvalidGlobal[] = [];
+  const stdinFlags: string[] = [];
   for (let i = 0; i < tokens.length; i++) {
     let token = tokens[i]!;
     let inlineValue: string | undefined;
@@ -46,6 +50,7 @@ export function parseGlobals(tokens: string[]): {
 
     const stdinKind = SECRET_STDIN_FLAGS[token];
     if (stdinKind) {
+      if (secretPaths[stdinKind] === undefined) stdinFlags.push(token);
       secretPaths[stdinKind] = "-";
       continue;
     }
@@ -53,7 +58,7 @@ export function parseGlobals(tokens: string[]): {
     const booleanField = BOOLEAN_FLAGS[token];
     if (booleanField) (globals as unknown as Record<string, unknown>)[booleanField] = true;
   }
-  return { globals, secretPaths, invalid };
+  return { globals, secretPaths, invalid, stdinFlags };
 }
 
 /** True when argv contains a command token rather than only global flags and their values. */

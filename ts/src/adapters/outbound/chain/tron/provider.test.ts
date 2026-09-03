@@ -17,6 +17,10 @@ describe("ChainGatewayRegistry injected factories", () => {
   const p = new ChainGatewayRegistry(
     {
       tron: (n, timeoutMs) => new TronRpcClient(n.httpEndpoint ?? "", timeoutMs),
+      // no EVM adapter yet — this suite only exercises the TRON factory
+      evm: () => {
+        throw new Error("evm gateway not wired");
+      },
     },
     60_000,
   );

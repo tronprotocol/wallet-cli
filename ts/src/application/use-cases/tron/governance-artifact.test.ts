@@ -9,10 +9,10 @@ import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
 
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: [],
   capabilities: [],
 };
 const OWNER = "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB";

@@ -6,7 +6,8 @@ import { spawnSync } from "node:child_process";
 
 const executable = process.argv[2] ? resolve(process.argv[2]) : undefined;
 const expectedVersion =
-  process.argv[3] ?? JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+  process.argv[3] ??
+  JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 
 if (!executable) {
   throw new Error("usage: node scripts/verify-standalone.mjs EXECUTABLE [EXPECTED_VERSION]");
@@ -39,10 +40,10 @@ if (help.status !== 0 || !help.stdout.includes("Usage:  wallet-cli")) {
 // three outcomes prove the addon loaded, while binding/dynamic-library failures remain rejected.
 const isolatedHome = mkdtempSync(join(tmpdir(), "wallet-cli-standalone-"));
 try {
-  const ledger = run(
-    ["import", "ledger", "--app", "tron", "--index", "0", "--output", "json"],
-    { ...process.env, WALLET_CLI_HOME: isolatedHome },
-  );
+  const ledger = run(["import", "ledger", "--app", "tron", "--index", "0", "--output", "json"], {
+    ...process.env,
+    WALLET_CLI_HOME: isolatedHome,
+  });
   const output = `${ledger.stdout}\n${ledger.stderr}`;
   let result;
   try {

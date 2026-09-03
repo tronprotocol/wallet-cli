@@ -7,10 +7,36 @@ import type { PriceProvider } from "../../../application/ports/price-provider.js
 
 export class CoinGeckoPriceProvider implements PriceProvider {
   readonly source = "coingecko";
-  // CoinGecko native coin ids keyed by our network-id prefix (only TRON ships in phase 1).
-  static readonly #NATIVE_IDS: Record<string, string> = { "tron:": "tron" };
-  // CoinGecko asset-platform slugs for token_price lookups, keyed by network-id prefix.
-  static readonly #PLATFORMS: Record<string, string> = { "tron:": "tron" };
+  /**
+   * CoinGecko native coin ids.
+   *
+   * MAINNETS ONLY. Test networks never reach this map — they are answered as zero before the
+   * lookup (see TestnetZeroPriceProvider), because their coins are not traded.
+   *
+   * Each chain is listed EXPLICITLY: a bare `eip155:` prefix would price every EVM chain as
+   * Ethereum, so an unlisted chain like Gnosis (`eip155:100`) would be valued in ETH — a claim
+   * about money that nobody made. An unknown chain is worth `null`, not a guess.
+   *
+   * `tron:` keeps its prefix form because every TRON network shares that namespace and one coin;
+   * its testnets are likewise intercepted before they arrive here.
+   */
+  static readonly #NATIVE_IDS: Record<string, string> = {
+    "tron:": "tron",
+    "eip155:1": "ethereum",
+    "eip155:56": "binancecoin",
+  };
+  /**
+   * CoinGecko asset-platform slugs for token_price lookups; same keying rule as above.
+   *
+   * Mainnets only, for the same reason as above — which also closes a real exposure: a testnet
+   * contract used to be looked up against its MAINNET platform, and deterministic deployment can
+   * put the same address on both chains, so a testnet token could take a real token's price.
+   */
+  static readonly #PLATFORMS: Record<string, string> = {
+    "tron:": "tron",
+    "eip155:1": "ethereum",
+    "eip155:56": "binance-smart-chain",
+  };
 
   constructor(
     private readonly baseUrl = "https://api.coingecko.com/api/v3",
@@ -59,9 +85,20 @@ export class CoinGeckoPriceProvider implements PriceProvider {
     }
   }
 
+  /**
+   * Exact network id first, then namespace prefixes (the keys ending in ":").
+   *
+   * The exact-first rule is not a nicety: a bare startsWith would let `eip155:11155111` match the
+   * key `eip155:1` BY ACCIDENT, and the same accident would catch every other chain whose id starts
+   * with those characters. Sepolia does inherit Ethereum's price, but because it is listed, not
+   * because its digits happen to line up. A prefix key covers a whole NAMESPACE, never a
+   * partial reference.
+   */
   static #prefixed(map: Record<string, string>, networkId: string): string | undefined {
-    for (const [prefix, value] of Object.entries(map)) {
-      if (networkId.startsWith(prefix)) return value;
+    const exact = map[networkId];
+    if (exact) return exact;
+    for (const [key, value] of Object.entries(map)) {
+      if (key.endsWith(":") && networkId.startsWith(key)) return value;
     }
     return undefined;
   }

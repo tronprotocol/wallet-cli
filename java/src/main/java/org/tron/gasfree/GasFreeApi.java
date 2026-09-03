@@ -261,9 +261,8 @@ public class GasFreeApi {
     return keccak256(domainSeparatorAbiEncode);
   }
 
-  // REPL-facing entry point: preserves legacy behavior — prints failure reasons and fee info to
-  // stdout, and swallows recoverable failures by returning an empty byte array. Do not call from
-  // the standard CLI path; use getMessageOrThrow instead.
+  // Prints failure reasons and fee info to stdout, and swallows recoverable failures by returning
+  // an empty byte array.
   public static byte[] getMessage(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest)
       throws NoSuchAlgorithmException, IOException, InvalidKeyException {
     try {
@@ -272,13 +271,6 @@ public class GasFreeApi {
       System.out.println(e.getMessage());
       return new byte[0];
     }
-  }
-
-  // Standard-CLI-facing entry point: never prints to stdout and propagates an IllegalStateException
-  // on recoverable failures so handlers can map them to a CommandErrorException envelope.
-  public static byte[] getMessageOrThrow(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest)
-      throws NoSuchAlgorithmException, IOException, InvalidKeyException {
-    return buildMessage(netType, gasFreeSubmitRequest, false);
   }
 
   private static byte[] buildMessage(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest,

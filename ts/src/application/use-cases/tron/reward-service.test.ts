@@ -7,10 +7,10 @@ import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: [],
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";

@@ -49,11 +49,11 @@ export const CAP_SUMMARIES: Record<string, string> = {
 };
 
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
-  "tron:mainnet": {
-    id: "tron:mainnet",
+  "tron:728126428": {
+    id: "tron:728126428",
+    nativeSymbol: "TRX",
     family: "tron",
-    chainId: "mainnet",
-    aliases: ["tron"],
+    chainId: "728126428",
     httpEndpoint: "https://api.trongrid.io",
     tronlinkHttpEndpoint: "https://api.walletadapter.org",
     gasfree: {
@@ -65,11 +65,12 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     feeModel: "tron-resource",
     capabilities: [],
   },
-  "tron:nile": {
-    id: "tron:nile",
+  "tron:3448148188": {
+    id: "tron:3448148188",
+    testnet: true,
+    nativeSymbol: "TRX",
     family: "tron",
-    chainId: "nile",
-    aliases: ["nile"],
+    chainId: "3448148188",
     httpEndpoint: "https://nile.trongrid.io",
     tronlinkHttpEndpoint: "https://apinile.walletadapter.org",
     gasfree: {
@@ -81,20 +82,86 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     feeModel: "tron-resource",
     capabilities: [],
   },
-  "tron:shasta": {
-    id: "tron:shasta",
+  "tron:2494104990": {
+    id: "tron:2494104990",
+    testnet: true,
+    nativeSymbol: "TRX",
     family: "tron",
-    chainId: "shasta",
-    aliases: ["shasta"],
+    chainId: "2494104990",
     httpEndpoint: "https://api.shasta.trongrid.io",
     tronlinkHttpEndpoint: "https://apishasta.walletadapter.org",
     feeModel: "tron-resource",
     capabilities: [],
   },
+  // One L1 pair per chain. Endpoints are third-party public RPC: rate-limited, no SLA,
+  // and they see the addresses queried. Production use should point these at a private gateway.
+  "eip155:1": {
+    id: "eip155:1",
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "1",
+    httpEndpoint: "https://ethereum-rpc.publicnode.com",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "eip155:11155111": {
+    id: "eip155:11155111",
+    testnet: true,
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "11155111",
+    httpEndpoint: "https://ethereum-sepolia-rpc.publicnode.com",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "eip155:56": {
+    id: "eip155:56",
+    nativeSymbol: "BNB",
+    family: "evm",
+    chainId: "56",
+    httpEndpoint: "https://bsc-dataseed.bnbchain.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "eip155:97": {
+    id: "eip155:97",
+    testnet: true,
+    nativeSymbol: "BNB",
+    family: "evm",
+    chainId: "97",
+    httpEndpoint: "https://bsc-testnet-dataseed.bnbchain.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+};
+
+/** The short name a person types, plus — for TRON only — the id this CLI carried before its
+ *  canonical ids became CAIP-2. A flat map, so global uniqueness is structural: a duplicate key
+ *  cannot exist. Each short name precedes its legacy spelling because listings show the FIRST
+ *  entry pointing at an id, and the short name is the one worth showing.
+ *
+ *  The EVM networks get no legacy entry: they were never part of a published release, so no
+ *  config.yaml or script can be holding an `evm:56` spelling to keep working. An alias is a
+ *  promise to resolve something forever, and one nobody can have written is only clutter in
+ *  `config aliases`.
+ *
+ *  There is deliberately no bare `evm` entry either — EVM is a family, not a chain, so it has no
+ *  mainnet to claim the family name. */
+export const BUILTIN_ALIASES: Record<string, string> = {
+  tron: "tron:728126428",
+  "tron:mainnet": "tron:728126428",
+  nile: "tron:3448148188",
+  "tron:nile": "tron:3448148188",
+  shasta: "tron:2494104990",
+  "tron:shasta": "tron:2494104990",
+  ethereum: "eip155:1",
+  sepolia: "eip155:11155111",
+  bsc: "eip155:56",
+  "bsc-testnet": "eip155:97",
 };
 
 export const DEFAULT_CONFIG = {
-  defaultNetwork: "tron:mainnet",
+  defaultNetwork: "tron:728126428",
   defaultOutput: "text" as const,
   timeoutMs: 60000,
   waitTimeoutMs: 60000,

@@ -11,10 +11,13 @@ import { DETACHED } from "./detached.js";
 
 // Regression coverage for issue #2: `contract deploy` constructor params.
 //   • --constructor-sig was a dead flag (types come from the ABI); it was removed.
-//   • --params must be RAW positional values ([100, "T..."]) — the {type,value} form that
-//     contract call/send use is rejected by TronWeb's createSmartContract ABI encoder, and is now
-//     named as a format error at the command boundary before it gets there (see
-//     commands/contract.deploy.test.ts for that guard's own alignment coverage).
+//   • The format is named at the COMMAND BOUNDARY rather than reaching TronWeb, which reports a
+//     mismatch in ethers' internals (`invalid BigNumberish value (argument="value")`) — an
+//     argument name that collides with the user's own key and explains nothing.
+//
+// The rename inverted WHICH form is correct: `--params` (bare positional values) became
+// `--constructor-params` ({type,value}), unifying deploy with contract call/send, which always
+// took the typed form. Issue #2's protection is unchanged — only its direction is.
 //
 // The negative case fails at client-side ABI encoding *before* any node call, so it runs
 // hermetically (random key, no network, no funds). The positive/broadcast cases hit real Nile
@@ -62,18 +65,18 @@ function deploy(
   params: string,
   opts: { dryRun?: boolean; wait?: boolean; timeoutMs?: number } = {},
 ) {
-  const globals = ["--output", "json", "--network", "tron:nile"];
+  const globals = ["--output", "json", "--network", "tron:3448148188"];
   if (opts.wait) globals.push("--wait"); // --wait is a global flag (before the subcommand)
   const local = [
     "contract",
     "deploy",
     "--abi",
     ABI,
-    "--bytecode",
+    "--code",
     BYTECODE,
     "--fee-limit",
     "1000000000",
-    "--params",
+    "--constructor-params",
     params,
   ];
   if (opts.dryRun) local.push("--dry-run");
@@ -93,24 +96,22 @@ describe("contract deploy — constructor params (issue #2)", () => {
     HOME = mkdtempSync(join(tmpdir(), "wcli-deploy-"));
   });
 
-  it("rejects the {type,value} param form (raw positional values are required)", () => {
+  it("rejects the bare positional form (--constructor-params takes {type,value})", () => {
     seed(randomBytes(32).toString("hex")); // rejected at the command boundary → hermetic
-    const out = deploy(TYPED_PARAMS, { dryRun: true });
+    const out = deploy(RAW_PARAMS, { dryRun: true });
     expect(out.success).toBe(false);
     // A malformed call, not a failed execution: deterministic on retry, so exit 2 / invalid_value.
-    // (Before the guard this reached TronWeb and came back as rpc_error / `invalid BigNumberish
-    // value (argument="value")` — same refusal, worded in ethers' internals.)
     expect(out.error.code).toBe("invalid_value");
-    expect(out.error.message).toMatch(/raw positional values/i);
+    expect(out.error.message).toMatch(/type/i);
   });
 
   const PK = loadTestPrivateKey();
   const LIVE = process.env.RUN_LIVE === "1" || process.env.RUN_LIVE_BROADCAST === "1";
 
   describe.runIf(LIVE && !!PK)("on Nile (live)", () => {
-    it("builds a constructor-arg deploy (dry-run) with raw positional params", () => {
+    it("builds a constructor-arg deploy (dry-run) with typed constructor params", () => {
       seed(PK!);
-      const out = deploy(RAW_PARAMS, { dryRun: true });
+      const out = deploy(TYPED_PARAMS, { dryRun: true });
       expect(out.success).toBe(true);
       expect(out.data.mode).toBe("dry-run");
       const bytecode: string =
@@ -124,7 +125,7 @@ describe("contract deploy — constructor params (issue #2)", () => {
       "deploys and confirms a constructor-arg contract on-chain",
       () => {
         seed(PK!);
-        const out = deploy(RAW_PARAMS, { wait: true, timeoutMs: 120_000 });
+        const out = deploy(TYPED_PARAMS, { wait: true, timeoutMs: 120_000 });
         expect(out.success).toBe(true);
         expect(out.data.stage).toBe("confirmed");
         expect(out.data.confirmed).toBe(true);

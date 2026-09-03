@@ -129,6 +129,19 @@ describe("backup --records flag gating", () => {
     });
   }
 
+  // BUG-V413-033: --keystore/--out describe an export, so combining either with --records is a
+  // flag conflict, not a bad value — machine-interface.md reserves invalid_option for that.
+  for (const args of [["--keystore"], ["--out", "./out.json"]]) {
+    it(`rejects ${args[0]} with --records as invalid_option`, async () => {
+      const { shellOpts, spyPrime } = fixture({ tty: false });
+
+      await expect(
+        buildCli(shellOpts).parseAsync(["backup", "--records", ...args]),
+      ).rejects.toMatchObject({ code: "invalid_option" });
+      expect(spyPrime).not.toHaveBeenCalled();
+    });
+  }
+
   it("passes the filters through with --records", async () => {
     const { shellOpts, walletService } = fixture({ tty: false });
     const spy = vi.spyOn(walletService, "backupRecords");
@@ -147,5 +160,42 @@ describe("backup --records flag gating", () => {
 
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ offset: undefined }));
     expect(spy.mock.results[0]!.value).toMatchObject({ pagination: { offset: 0, limit: null } });
+  });
+});
+
+// A V3 keystore holds ONE private key, and a seed account has a different one per family (derivation puts
+// TRON at coin 195, EVM at coin 60). The selected network picks which — `family` is
+// never exposed as a flag, because it is an internal concept and --network already selects it
+// everywhere else in the CLI.
+describe("backup --keystore exports the selected network's key", () => {
+  // --network reaches the shell through parseGlobals, not through argv, so it is supplied the
+  // way the real runner supplies it.
+  async function exportWith(network?: string) {
+    const f = fixture({ tty: true });
+    await f.secrets.primePassword({ mode: "set" });
+    f.keystore.import({
+      secret: "test test test test test test test test test test test junk",
+      type: "seed",
+      label: "main",
+    });
+    const spy = vi.spyOn(f.walletService, "backupKeystore").mockReturnValue({} as never);
+    if (network) f.shellOpts.globals.network = network;
+
+    await buildCli(f.shellOpts).parseAsync(["backup", "main", "--keystore"]);
+
+    return spy.mock.calls[0]!.at(-1);
+  }
+
+  it.each([
+    ["sepolia", "evm"],
+    ["nile", "tron"],
+  ])("exports %s's family (%s)", async (network, family) => {
+    expect(await exportWith(network)).toBe(family);
+  });
+
+  // No --family flag to forget, and no error either: the default network decides. The receipt
+  // names the family so the choice is never silent.
+  it("falls back to the configured default network", async () => {
+    expect(await exportWith()).toBe("tron"); // built-in default is tron:728126428
   });
 });

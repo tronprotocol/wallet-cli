@@ -7,10 +7,10 @@ import type { TronAsset, TronExchange, TronGateway } from "../../ports/chain/tro
 import type { TxPipeline } from "../../services/pipeline/index.js";
 
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: [],
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -30,7 +30,7 @@ const scope: TransactionScope = {
   },
 };
 
-/** TRX:MyToken, 10,000 TRX / 500,000 tokens at precision 6 — the spec's §4.4 pool. */
+/** TRX:MyToken, 10,000 TRX / 500,000 tokens at precision 6 — the spec's worked-example pool. */
 function pool(over: Partial<TronExchange> = {}): TronExchange {
   return {
     exchangeId: 12,
@@ -204,7 +204,7 @@ describe("exchange trade", () => {
   it("prices the trade and derives the floor from --slippage", async () => {
     const svc = service({ getExchangeById: async () => pool() });
     const result = await svc.trade(scope, NET, { ...base, slippage: 1 });
-    // the spec's §4.4 worked example states 4,950 whole tokens predicted, 1% below → 4,900
+    // the spec's worked example states 4,950 whole tokens predicted, 1% below → 4,900
     expect(BigInt(result.estimatedReceivedQuant) / 1_000_000n).toBe(4950n);
     expect(BigInt(result.minReceivedQuant) / 1_000_000n).toBe(4900n);
     // and the exact minimal-unit figures, so a change in the curve port is visible

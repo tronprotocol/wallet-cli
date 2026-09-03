@@ -18,7 +18,7 @@ import {
  * `ledger/wrapper/ContractTypeChecker`), and none of this group's types are on it:
  * `WitnessCreateContract`, `WitnessUpdateContract`, `UpdateBrokerageContract`. The device answers
  * APDU 0x6a80 and no app setting changes that, so refuse before the user is sent to unlock it and
- * before any RPC is spent — the rule established for the asset group in docs/adr/0003.
+ * before any RPC is spent — the same rule the asset group follows.
  *
  * The `proposal` group is deliberately NOT gated: ProposalCreate/Approve/Delete *are* allowlisted.
  */

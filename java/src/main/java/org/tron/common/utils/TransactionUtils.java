@@ -52,7 +52,6 @@ import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.trident.proto.Chain;
 
 public class TransactionUtils {
-  private static final ThreadLocal<Integer> PERMISSION_ID_OVERRIDE = new ThreadLocal<>();
 
   /**
    * Obtain a data bytes after removing the id and SHA-256(data)
@@ -397,26 +396,6 @@ public class TransactionUtils {
       return transaction;
     }
 
-    Integer permissionIdOverride = PERMISSION_ID_OVERRIDE.get();
-    if (permissionIdOverride != null) {
-      if (permissionIdOverride < 0) {
-        throw new CancelException("User cancelled");
-      }
-      if (permissionIdOverride != 0) {
-        Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
-        Transaction.Contract.Builder contract =
-            raw.getContract(0).toBuilder().setPermissionId(permissionIdOverride);
-        raw.clearContract();
-        raw.addContract(contract);
-        return transaction.toBuilder().setRawData(raw).build();
-      }
-      return transaction;
-    }
-
-    if (tipString == null) {
-      return transaction;
-    }
-
     System.out.println(tipString);
     int permissionId = inputPermissionId();
     if (permissionId < 0) {
@@ -431,22 +410,6 @@ public class TransactionUtils {
       transaction = transaction.toBuilder().setRawData(raw).build();
     }
     return transaction;
-  }
-
-  public static void setPermissionIdOverride(Integer permissionId) {
-    if (permissionId == null) {
-      PERMISSION_ID_OVERRIDE.remove();
-      return;
-    }
-    if (permissionId < 0 || permissionId > 2) {
-      throw new IllegalArgumentException(
-          "permissionId must be 0 (Owner), 1 (Witness), or 2 (Active), got: " + permissionId);
-    }
-    PERMISSION_ID_OVERRIDE.set(permissionId);
-  }
-
-  public static void clearPermissionIdOverride() {
-    PERMISSION_ID_OVERRIDE.remove();
   }
 
   private static int inputPermissionId() {

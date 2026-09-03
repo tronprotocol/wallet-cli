@@ -38,9 +38,12 @@ export class Derivation {
     return entropyToMnemonic(entropy, wordlist);
   }
 
-  /** m/44'/{coin}'/{account}'/0/0 */
+  /** the family's own BIP44 template with `account` slotted into the level it uses. */
   static path(family: ChainFamily, account: number): string {
-    return `m/44'/${FAMILIES[family].coinType}'/${account}'/0/0`;
+    const { coinType, indexAt } = FAMILIES[family];
+    return indexAt === "account"
+      ? `m/44'/${coinType}'/${account}'/0/0`
+      : `m/44'/${coinType}'/0'/0/${account}`;
   }
 
   /** Derive a keypair from a 64-byte seed at the given BIP44 path. publicKey is uncompressed (65B). */
@@ -56,5 +59,10 @@ export class Derivation {
   /** raw private key → uncompressed public key (for privateKey-source wallets). */
   static publicKeyFromPrivate(privateKey: Bytes): Bytes {
     return secp256k1.getPublicKey(privateKey, false);
+  }
+
+  /** whether a 32-byte scalar is in secp256k1's valid private-key range `[1, n-1]`. */
+  static isValidPrivateKey(privateKey: Bytes): boolean {
+    return secp256k1.utils.isValidSecretKey(privateKey);
   }
 }

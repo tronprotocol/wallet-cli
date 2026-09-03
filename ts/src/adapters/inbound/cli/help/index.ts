@@ -17,6 +17,7 @@ import type {
   StreamManager,
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
+import { UsageError } from "../../../../domain/errors/index.js";
 import { introspectFields, type FieldInfo } from "../arity/index.js";
 import { GLOBAL_FLAGS, type GlobalFlag, inputFlagsFor, buildCatalog } from "./catalog.js";
 
@@ -44,12 +45,13 @@ export class HelpService {
 
     if (tokens.includes("--json-schema")) {
       if (concrete) {
-        const input = isChainCommand(concrete) ? mergedFields(concrete) : concrete.input;
+        const input = isChainCommand(concrete) ? mergedFields(concrete, family) : concrete.input;
         this.streams.result(JSON.stringify(z.toJSONSchema(input)));
         return 0;
       }
-      // no concrete command → machine catalog (every command + flags), optionally scoped to a
-      // chain family (`tron --json-schema`). Mirrors the help tree.
+      this.#assertResolvable(family, path);
+      // no path → machine catalog (every command + flags), optionally scoped to a chain family
+      // (`tron --json-schema`). Mirrors the help tree.
       this.streams.result(this.#catalog(family));
       return 0;
     }
@@ -66,8 +68,32 @@ export class HelpService {
       this.streams.result(this.#renderNeutralGroup(path[0]!));
       return 0;
     }
+    this.#assertResolvable(family, path);
     this.streams.result(this.#renderTree(path[0]));
     return 0;
+  }
+
+  /**
+   * A path that names nothing is an error here, exactly as it is at dispatch.
+   *
+   * Before this, ANY unresolved path fell through to the root listing (or the full catalog) and
+   * returned 0 — so `wallet-cli tx snd --help` answered a question nobody asked and called it
+   * success. A typo has to fail the same way with `--help` on the line as without it, or the
+   * meta flags become a hole in the CLI's own exit-code contract.
+   */
+  #assertResolvable(family: ChainFamily | undefined, path: string[]): void {
+    if (path.length === 0) return;
+    const head = path[0]!;
+    // A bare group name is legitimate — that is what renders the group page.
+    if (path.length === 1 && (this.#isChainGroup(head) || this.#isNeutralGroup(head))) return;
+
+    // Distinguish "no such command" from "that command exists, just not for this family":
+    // the second is what a family-prefixed query (`evm account history --help`) really hit,
+    // and answering it with unknown_command would send the reader looking for a typo.
+    if (family && this.registry.resolveChain(path)) {
+      throw new UsageError("family_mismatch", `${path.join(" ")} has no ${family} implementation`);
+    }
+    throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`);
   }
 
   /** strip an optional leading family token (e.g. tron) — a help/catalog addressing prefix. */
@@ -79,16 +105,27 @@ export class HelpService {
     return { path: positionals };
   }
 
-  /** resolve to a single command: a neutral command by full path, or a family-pinned chain command. */
+  /**
+   * Resolve to a single command: the LONGEST prefix of the path that names one.
+   *
+   * People reach help by appending --help to the line they were already typing, so the path
+   * still carries arguments: `tx send --to T... --help` arrives as ["tx","send","T..."] because
+   * `metaPositionals` only knows which GLOBAL flags consume a value, and positionals
+   * (`block 123`, `contract clear-abi TQ5...`) are genuinely part of the path. Everything past
+   * the command is an argument, so the prefix is what we resolve.
+   *
+   * A prefix that names only a GROUP does not count — otherwise `tx bogus` would resolve to
+   * `tx` and a mistyped verb would silently get someone else's help page.
+   */
   #resolveConcrete(family: ChainFamily | undefined, path: string[]): StoredCommand | null {
-    if (path.length === 0) return null;
-    const chain = this.registry.resolveChain(path);
-    if (chain && (!family || chain.families[family])) return chain;
-    const chainHeadLeaf = this.registry.resolveChain([path[0]!]);
-    if (chainHeadLeaf && (!family || chainHeadLeaf.families[family])) return chainHeadLeaf;
-    if (family) return null;
-    const neutral = this.registry.resolveNeutral(path);
-    if (neutral) return neutral;
+    for (let end = path.length; end > 0; end -= 1) {
+      const prefix = path.slice(0, end);
+      const chain = this.registry.resolveChain(prefix);
+      if (chain && (!family || chain.families[family])) return chain;
+      if (family) continue;
+      const neutral = this.registry.resolveNeutral(prefix);
+      if (neutral) return neutral;
+    }
     return null;
   }
 
@@ -108,28 +145,36 @@ export class HelpService {
       ["import", "Import a wallet", ""],
       ["list", "List wallets / accounts", ""],
     ] as const;
+    // Rows, order and wording follow the spec, with two deliberate departures recorded in
+    // needs-doc: `exchange` keeps a verb phrase (the spec's "On-chain Bancor exchange" is a
+    // noun phrase, which the verb-first rule forbids), and `contract` keeps "govern"
+    // (the spec's "send" drops any mention of the four governance sub-commands).
+    // Descriptions are verb summaries and must NOT name sub-commands — a TRON-only verb named
+    // here (`chain`'s old "params") sends EVM readers hunting for a command they cannot run.
     const management = [
-      ["account", "Query on-chain account state, activate & name accounts", ""],
-      ["permission", "View and update account multi-sign permissions", "tron"],
+      ["account", "Query on-chain account state", ""],
+      ["permission", "View / update account permissions (multi-sig)", "tron"],
       ["token", "Manage the token address book and query tokens", ""],
-      ["asset", "Issue and manage TRC10 tokens", "tron"],
-      ["exchange", "Create and trade Bancor exchange pairs", "tron"],
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
-      ["contract", "Call, deploy, govern, and inspect smart contracts", ""],
       ["gasfree", "Gas-free token transfers via the GasFree service", "tron"],
-      ["proposal", "Create and vote on governance proposals", "tron"],
-      ["witness", "Register and operate an SR candidacy", "tron"],
+      ["contract", "Call, deploy, govern, and inspect smart contracts", ""],
+      ["proposal", "Create / vote on governance proposals", "tron"],
+      ["witness", "Register / operate a super representative", "tron"],
+      ["asset", "Issue & manage TRC10 tokens", "tron"],
+      ["exchange", "Create and trade Bancor exchange pairs", "tron"],
       ["stake", "Stake / delegate resources & query state", "tron"],
       ["vote", "Vote for super representatives", "tron"],
       ["reward", "Query / withdraw voting rewards", "tron"],
-      ["chain", "Query chain params, prices & node info", "tron"],
+      // No (TRON only) tag: `chain node` and `chain prices` both serve EVM. Only `chain params`
+      // is TRON-only, and that difference belongs on the sub-command row in the group help.
+      ["chain", "Query chain and node state", ""],
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
     ] as const;
     const commands = [
       ["use", "Set the active account", ""],
-      ["current", "Show the current account (--qr for a receive QR code)", ""],
+      ["current", "Show the current (active) account", ""],
       ["rename", "Rename an account label", ""],
       ["derive", "Derive the next HD account from a seed wallet", ""],
       ["backup", "Export an account's secret + metadata (0600)", ""],
@@ -137,7 +182,7 @@ export class HelpService {
       ["config", "Show / get / set configuration values", ""],
       ["networks", "List known networks", ""],
       ["change-password", "Change the master password (re-encrypt keystores)", ""],
-      ["encoding", "Convert / validate addresses & encodings across formats", ""],
+      ["encoding", "Convert / validate addresses & encodings", ""],
       ["address", "Generate a random keypair (local, not stored)", ""],
       ["contact", "Manage the recipient address book", ""],
     ] as const;
@@ -148,7 +193,7 @@ export class HelpService {
     const commandRow = (name: string, desc: string, tag: string): string => {
       const body = `  ${name.padEnd(nameWidth)}${dim(desc)}`;
       return tag
-        ? `${body}${" ".repeat(Math.max(2, tagCol - desc.length))}(${tag})`
+        ? `${body}${" ".repeat(Math.max(2, tagCol - desc.length))}(${tag.toUpperCase()} only)`
         : body.trimEnd();
     };
     const row =
@@ -157,7 +202,7 @@ export class HelpService {
         `  ${name.padEnd(width)}${desc ? dim(desc) : ""}`.trimEnd();
     const optionRows = [
       ["-o, --output string", 'Output format ("text", "json") (default from config)'],
-      ["--network string", 'Canonical network id, e.g. "tron:mainnet", "tron:nile", "tron:shasta"'],
+      ["--network string", 'Network id or alias, e.g. "tron", "ethereum", "sepolia"'],
       ["--account string", "Account label or address to act as (overrides active)"],
       ["--timeout int", "Request timeout in milliseconds"],
       ["-v, --verbose", "Verbose / debug logging"],
@@ -170,7 +215,7 @@ export class HelpService {
     const lines = [
       `${bold("Usage:")}  wallet-cli [OPTIONS] COMMAND`,
       "",
-      `${bold("wallet-cli")} — CLI wallet for TRON.`,
+      `${bold("wallet-cli")} — CLI wallet for TRON and EVM networks.`,
       "Agent-first: deterministic exit codes, JSON output.",
       "",
       bold("Common Commands:"),
@@ -189,31 +234,49 @@ export class HelpService {
     return lines.join("\n");
   }
 
-  /** neutral group (`import --help`): list the group's sub-commands. Derived from the registry. */
+  /** neutral group (`import --help`): list the group's sub-commands. Derived from the registry.
+   *  Neutral commands are not chain-bound at all, so no row carries a family tag. */
   #renderNeutralGroup(head: string): string {
     const cmds = this.#neutralGroupCommands(head);
-    const rows = cmds.map((c) => [c.path[1] ?? "", c.summary ?? ""] as const);
+    const rows = cmds.map((c) => [c.path[1] ?? "", c.summary ?? "", ""] as const);
     return this.#renderGroup(head, rows);
   }
 
   /** logical resource group (`account --help`): default surface, implementations chosen by --network/defaultNetwork. */
   #renderLogicalNs(group: string): string {
     const commands = this.#chainGroupCommands(group);
-    const rows = commands.map((c) => [c.path[1] ?? "", c.summary ?? ""] as const);
+    const tags = commands.map((c) => groupRowTag(c.families));
+    // A group whose every command belongs to the same single family is already tagged as a whole
+    // at the root (`stake … (TRON only)`). Repeating it on all six rows adds a column that never
+    // varies — the group's own help stops repeating it. Tag rows only where they DISCRIMINATE.
+    const uniform = tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
+    const rows = commands.map(
+      (c, i) => [c.path[1] ?? "", c.summary ?? "", uniform ? "" : tags[i]!] as const,
+    );
     return this.#renderGroup(group, rows);
   }
 
   /** shared group skeleton: inline Usage → description → verb list → footer. */
-  #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string]>): string {
+  #renderGroup(group: string, rows: ReadonlyArray<readonly [string, string, string]>): string {
     // Width is the longest verb, uncapped: a cap cannot shorten an over-long verb, it only stops
     // padEnd from reaching it — so every summary in the group loses its column the moment one verb
     // exceeds the cap (`contract set-user-resource-percent`, 25 chars, did exactly that).
     const width = Math.max(0, ...rows.map(([verb]) => verb.length)) + 2;
+    // Family tags share one column, aligned past the widest summary, so they read as a column
+    // rather than as trailing prose. Two spaces minimum, matching the leaf Options tags.
+    const tagCol = Math.max(0, ...rows.map(([, summary]) => summary.length)) + 2;
     const lines = [`${bold("Usage:")}  wallet-cli ${group} COMMAND`, ""];
     const desc = GROUP_DESCRIPTIONS[group];
     if (desc) lines.push(desc, "");
     lines.push(bold("Commands:"));
-    for (const [verb, summary] of rows) lines.push(`  ${verb.padEnd(width)} ${summary}`.trimEnd());
+    for (const [verb, summary, tag] of rows) {
+      const body = `  ${verb.padEnd(width)} ${summary}`;
+      lines.push(
+        tag
+          ? `${body}${" ".repeat(Math.max(2, tagCol - summary.length))}(${tag.toUpperCase()} only)`
+          : body.trimEnd(),
+      );
+    }
     lines.push("", `Run 'wallet-cli ${group} COMMAND --help' for more information on a command.`);
     return lines.join("\n");
   }
@@ -235,6 +298,7 @@ export class HelpService {
       positionals: cmd.positionals,
       secretsTtyOnly: cmd.secretsTtyOnly,
       interactive: cmd.interactive,
+      requiresAfterAuth: cmd.requiresAfterAuth,
     });
   }
 
@@ -249,7 +313,9 @@ export class HelpService {
       wallet: spec.wallet,
       broadcasts: spec.broadcasts,
       fields: introspectFields(mergedFields(def)),
+      fieldFamilies: fieldFamilies(def),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
+      stdinFamily: spec.stdinFamily,
       exclusive: spec.exclusive,
       examples: spec.examples,
       requires: spec.requires,
@@ -268,10 +334,15 @@ export class HelpService {
     wallet: CommandDefinition["wallet"];
     broadcasts?: boolean;
     fields: FieldInfo[];
+    /** family-specific flags, so each can be marked with the family it belongs to. */
+    fieldFamilies?: Map<string, ChainFamily>;
     inputFlags: readonly GlobalFlag[];
+    /** family that owns the stdin channel, when only one family reads it. */
+    stdinFamily?: ChainFamily;
     exclusive?: ChainSpec["exclusive"];
     examples: CommandDefinition["examples"];
     requires?: string[];
+    requiresAfterAuth?: string[];
     positionals?: { field: string; placeholder?: string }[];
     secretsTtyOnly?: boolean;
     interactive?: boolean;
@@ -307,9 +378,10 @@ export class HelpService {
         c.secretsTtyOnly
           ? "the master password — entered interactively in a TTY"
           : c.interactive
-            ? "master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY"
-            : "master password — pass --password-stdin; this command never prompts",
+            ? "the master password — pass --password-stdin, or enter it interactively in a TTY"
+            : "the master password — pass --password-stdin; this command never prompts",
       );
+      requires.push(...(c.requiresAfterAuth ?? []));
     } else if (c.auth === "conditional") {
       requires.push(
         "the master password only when the selected mode signs — pass --password-stdin then; other modes need no password",
@@ -330,23 +402,33 @@ export class HelpService {
     const posNames = new Set((c.positionals ?? []).map((p) => p.field));
     const flagFields = posNames.size ? c.fields.filter((f) => !posNames.has(f.name)) : c.fields;
     const optionRows: OptionRow[] = [
-      ...flagFields.map((f) => ({
-        key: f.kebab,
-        head: flagHead(f),
-        desc: f.description ?? "",
-        tag: flagTag(f),
-      })),
+      ...flagFields.map((f) => {
+        const family = c.fieldFamilies?.get(f.name);
+        return {
+          key: f.kebab,
+          head: flagHead(f),
+          desc: f.description ?? "",
+          tag: flagTag(f),
+          ...(family ? { familyTag: `(${family.toUpperCase()} only)` } : {}),
+        };
+      }),
       ...c.inputFlags.map((g) => ({
         key: g.flag.replace(/^--/, ""),
         head: globalFlagHead(g),
         desc: g.description,
         tag: globalFlagTag(g),
+        ...(c.stdinFamily ? { familyTag: `(${c.stdinFamily.toUpperCase()} only)` } : {}),
       })),
     ];
     if (optionRows.length) {
       const width = Math.min(34, Math.max(...optionRows.map((r) => r.head.length)));
-      const rowLine = (r: OptionRow, tag: string): string =>
-        `  ${r.head.padEnd(width)}  ${r.desc}${r.desc && tag ? "  " : ""}${tag}`.trimEnd();
+      // Two independent tags: "[optional]" says whether the flag may be omitted, "(TRON only)" says
+      // which family reads it. They are joined here so the family tag survives on its own in an
+      // exclusive block, where the optional tag is deliberately dropped.
+      const rowLine = (r: OptionRow, tag: string): string => {
+        const tags = [tag, r.familyTag].filter(Boolean).join("  ");
+        return `  ${r.head.padEnd(width)}  ${r.desc}${r.desc && tags ? "  " : ""}${tags}`.trimEnd();
+      };
       // an exclusive set renders as its own labelled block, ahead of the free-standing options.
       // A jointly-required set drops the per-member "[optional]" tag: individually true, but read
       // together it says the whole set may be omitted — which is exactly what the runtime rejects.
@@ -416,11 +498,21 @@ export class HelpService {
   }
 
   /** chain group sub-commands, one row per logical chain definition. */
-  #chainGroupCommands(group: string): Array<{ path: string[]; summary?: string }> {
-    const out: Array<{ path: string[]; summary?: string }> = [];
+  #chainGroupCommands(
+    group: string,
+  ): Array<{ path: string[]; summary?: string; families: string[] }> {
+    const out: Array<{ path: string[]; summary?: string; families: string[] }> = [];
     for (const c of this.registry.all()) {
       if (isChainCommand(c) && c.spec.path[0] === group) {
-        out.push({ path: c.spec.path, summary: c.spec.summary });
+        out.push({
+          path: c.spec.path,
+          summary: c.spec.summary,
+          // Which families actually have a binding — the tag is DERIVED from that, never
+          // hand-written, so it disappears on its own the day the second family is bound.
+          families: Object.entries(c.families)
+            .filter(([, binding]) => binding !== undefined)
+            .map(([family]) => family),
+        });
       }
     }
     return out;
@@ -446,11 +538,36 @@ export class HelpService {
   }
 }
 
-function mergedFields(def: ChainCommandDefinition): ZodObject<ZodRawShape> {
+function mergedFields(def: ChainCommandDefinition, family?: ChainFamily): ZodObject<ZodRawShape> {
   let shape = { ...def.spec.baseFields.shape };
-  for (const b of Object.values(def.families))
-    if (b?.fields) shape = { ...shape, ...b.fields.shape };
+  const bindings = family ? [def.families[family]] : Object.values(def.families);
+  for (const b of bindings) if (b?.fields) shape = { ...shape, ...b.fields.shape };
   return z.object(shape);
+}
+
+/**
+ * Which family a flag belongs to, for the flags that belong to exactly one.
+ *
+ * Help is static — `--network` does not shape it — so every family's flags are listed together
+ * and each says who it is for. A flag declared by more than one family, or present in
+ * baseFields, is shared: tagging it would imply a restriction that does not exist.
+ */
+function fieldFamilies(def: ChainCommandDefinition): Map<string, ChainFamily> {
+  const owners = new Map<string, ChainFamily[]>();
+  for (const [family, binding] of Object.entries(def.families) as [
+    ChainFamily,
+    ChainCommandDefinition["families"][ChainFamily],
+  ][]) {
+    for (const name of Object.keys(binding?.fields?.shape ?? {})) {
+      owners.set(name, [...(owners.get(name) ?? []), family]);
+    }
+  }
+  const shared = new Set(Object.keys(def.spec.baseFields.shape));
+  return new Map(
+    [...owners]
+      .filter(([name, families]) => families.length === 1 && !shared.has(name))
+      .map(([name, families]) => [name, families[0]!]),
+  );
 }
 
 function metaPositionals(tokens: string[]): string[] {
@@ -477,7 +594,10 @@ interface OptionRow {
   key: string;
   head: string;
   desc: string;
+  /** "[optional]" / "[required]" — dropped inside a jointly-required exclusive block. */
   tag: string;
+  /** "(TRON only)" — which family reads this flag; independent of `tag`, so it survives that block. */
+  familyTag?: string;
 }
 
 function flagHead(f: FieldInfo): string {
@@ -521,6 +641,20 @@ function globalFlagsForText(
   });
 }
 
+/**
+ * The `(TRON only)` / `(EVM only)` tag for one sub-command row in a group help page.
+ *
+ * The tag means "only this family can serve this command IN THE CURRENT VERSION" — it is
+ * not a promise about the future. So it is derived from the registry rather than written down:
+ * a command bound to exactly one family is tagged, one bound to both is not, and the tag drops
+ * off by itself the day the missing binding lands (`contract info` will, once EVM gets an
+ * indexer). Hand-written tags are how `chain` came to be labelled `(TRON only)` at the root long
+ * after `chain node` and `chain prices` started serving EVM.
+ */
+function groupRowTag(families: readonly string[]): string {
+  return families.length === 1 ? families[0]! : "";
+}
+
 /** one rendered "  --flag <type>   description  [tag]" line, used by the Global options section. */
 function globalFlagLine(g: GlobalFlag): string {
   const tag = globalFlagTag(g);
@@ -531,8 +665,8 @@ function globalFlagLine(g: GlobalFlag): string {
 // behavior warrants it may span multiple lines (embed "\n"). Only groups that surface a
 // `<group> --help` page need an entry; absent → the description line is omitted.
 const GROUP_DESCRIPTIONS: Record<string, string> = {
-  import: "Import a wallet from an existing secret or device.",
-  account: "Query on-chain account state, activate accounts, and set on-chain identity fields.",
+  import: "Import a wallet.",
+  account: "Query on-chain account state.",
   token: "Manage the token address book and query tokens.",
   tx: "Build, send, broadcast, and inspect transactions.",
   contract: "Call, deploy, govern, and inspect smart contracts.",
@@ -547,14 +681,15 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   // pinned to mainnet rather than stated as an absolute.
   permission:
     "View and update account permissions (TRON multi-sign).\nAn account has one owner permission (full control), up to 8 active permissions (scoped operations),\nand — for SRs — one witness permission. Replacing the structure burns a chain-set fee (100 TRX on mainnet).\nMisconfiguring owner permission can permanently lock the account.",
-  chain: "Query on-chain parameters, resource prices, and node status.",
+  chain: "Query chain and node state.",
   message: "Sign arbitrary messages.",
   "typed-data": "Sign EIP-712 / TIP-712 structured data.",
+  asset: "Issue and manage TRC10 tokens.",
+  exchange: "Create and trade Bancor exchange pairs.",
   block: "Get a block (latest if omitted).",
   encoding: "Convert and validate addresses and encodings across formats.",
   address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
-  contact:
-    "Manage the local recipient address book.\nNames can be used directly in 'tx send --to' and 'gasfree transfer --to'.",
+  contact: "Manage the recipient address book.",
 };
 
 /** "--output, -o <text|json>" style header for text help. */

@@ -1,10 +1,10 @@
 # Configuration reference
 
-Full reference for `config.conf`. wallet-cli reads the node config from `src/main/resources/config.conf`. You can also switch networks at runtime with the [`SwitchNetwork`](../commands/network.md) command, so editing `config.conf` is only needed for a custom node or the advanced features below.
+Full reference for `config.conf`. At startup, wallet-cli first reads `./config.conf` from the process working directory. If that file does not exist, it loads the bundled classpath resource (`src/main/resources/config.conf` in a source checkout). You can also switch networks at runtime with [`SwitchNetwork`](../commands/network.md).
 
 ## Minimal config
 
-A minimal `config.conf` only needs a network type and a full node to talk to:
+A minimal `config.conf` needs a full-node endpoint. Keeping `net.type` is useful when configuring a mainnet API key, but it does not select the active network:
 
 ```
 net {
@@ -99,7 +99,7 @@ tronlink = {
 
 | Field | Purpose |
 |---|---|
-| `net.type` | Network type (e.g. `mainnet`). |
+| `net.type` | Controls whether `grpc.mainnet.apiKey` is loaded. It does not select the active network. |
 | `fullnode.ip.list` | Full node endpoint(s) `ip : port`. |
 | `soliditynode.ip.list` | Optional Solidity node endpoint(s). |
 | `ledger_debug` | Enable Ledger debug output. |
@@ -111,7 +111,9 @@ tronlink = {
 
 ## Connecting to Java-tron
 
-wallet-cli connects to Java-tron via the gRPC protocol, which can be deployed locally or remotely. Configure the Java-tron node IP and port in `src/main/resources/config.conf` so wallet-cli can talk to the node. You can also use `SwitchNetwork` to switch among mainnet, testnets (Nile and Shasta), and custom networks — see [commands/network](../commands/network.md).
+wallet-cli connects to Java-tron via gRPC. The startup network is inferred by comparing the endpoints you supplied — `fullnode.ip.list`, `soliditynode.ip.list`, or both — with the built-in Mainnet, Nile, and Shasta endpoints. An endpoint you leave out is not compared, so naming only Nile's full node still starts on Nile; anything that does not match a built-in network is `CUSTOM`. Consequently, `net.type = mainnet` with Nile endpoints still starts on Nile. Check the endpoints themselves before sending funds.
+
+To override the bundled file without rebuilding the jar, place `config.conf` in the directory from which you launch `java -jar`. You can also use `SwitchNetwork` to switch among mainnet, Nile, Shasta, and custom endpoints at runtime — see [commands/network](../commands/network.md).
 
 ## See also
 

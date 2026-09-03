@@ -6,7 +6,11 @@
 import yargs, { type Argv } from "yargs";
 import { randomBytes } from "node:crypto";
 import { type RefinementCtx, type ZodObject, type ZodRawShape, type ZodType } from "zod";
-import type { AccountDescriptor, NetworkDescriptor } from "../../../../domain/types/index.js";
+import type {
+  AccountDescriptor,
+  ChainFamily,
+  NetworkDescriptor,
+} from "../../../../domain/types/index.js";
 import { isChainCommand } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
@@ -20,6 +24,7 @@ import type {
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js";
+import { barBroadcasts } from "../../../../application/services/broadcast-guard.js";
 import { buildExecutionContext, type RuntimeDeps } from "../context/index.js";
 import { TargetResolver } from "../../../../application/services/target/index.js";
 import { OutputFormatter } from "../output/index.js";
@@ -31,6 +36,7 @@ import {
   isAccountRef,
 } from "../arity/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
+import { ERROR_CODES, type ErrorCodeEntry } from "../../../../domain/errors/codes.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, globalYargsOptions } from "../globals/index.js";
 
@@ -253,7 +259,7 @@ async function executeChainCommand(
   if (!binding) {
     const families = Object.keys(def.families).join(", ");
     throw new UsageError(
-      "network_family_mismatch",
+      "family_mismatch",
       `command ${spec.path.join(" ")} supports ${families} but selected network ${net.id} is ${net.family}`,
     );
   }
@@ -265,7 +271,7 @@ async function executeChainCommand(
   const effectiveInput = composeRefines(effectiveFields, spec.baseRefine, binding.refine);
   const executionSpec = withFields(spec, effectiveFields);
   // order matters: the flag check must see argv before positionals are bound onto their fields
-  assertKnownFlags(executionSpec, argv);
+  assertKnownFlags(executionSpec, argv, otherFamilyFlags(def, net.family));
   argv = bindGroupedPositionals(spec, argv);
   deps.prompter.setInteractive(isInteractiveCommand(spec));
   caps.check(spec, net);
@@ -283,7 +289,13 @@ async function executeChainCommand(
 
   const ctx = buildExecutionContext(globals, deps);
   if (spec.wallet !== "none") void ctx.activeAccount;
-  const data = await binding.run(ctx, net, input);
+  // --dry-run is declared on the shared spec but honoured by each family binding independently,
+  // so the promise is also enforced here: nothing reaches a Broadcaster for the duration.
+  const run = () => binding.run(ctx, net, input);
+  const data =
+    spec.broadcasts && (input as { dryRun?: unknown }).dryRun === true
+      ? await barBroadcasts(`${spec.path.join(" ")} --dry-run`, run)
+      : await run();
   streams.result(
     formatter.success(id, net, data, spec.formatText, activeAccountLabel(spec, ctx, deps)),
   );
@@ -348,7 +360,7 @@ async function executeCommand(
   const ctx = buildExecutionContext(globals, deps);
   if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
 
-  const data = await cmd.run(ctx, undefined, input);
+  const data = await cmd.run(ctx, net, input);
   // A mode-switching command may report a more precise semantic id than its path (backup.records).
   const resultId = cmd.commandIdFor?.(input) ?? commandId(cmd);
   session.current = { commandId: resultId, net };
@@ -470,11 +482,62 @@ function randomWalletLabel(): string {
  * and zod would silently strip them). Allowed = positionals + globals + THIS command's fields
  * (a sibling command's flag in the same namespace is unknown here). → invalid_option, exit 2.
  */
+/** Flags another family of this command declares, so a flag that exists — just not here — can say
+ *  so instead of arriving as a bare "unknown option". */
+function otherFamilyFlags(
+  def: ChainCommandDefinition,
+  selected: ChainFamily,
+): Map<string, ChainFamily> {
+  const out = new Map<string, ChainFamily>();
+  for (const [family, binding] of Object.entries(def.families) as [
+    ChainFamily,
+    ChainCommandDefinition["families"][ChainFamily],
+  ][]) {
+    if (family === selected) continue;
+    for (const name of Object.keys(binding?.fields?.shape ?? {})) {
+      out.set(camelToKebab(name), family);
+    }
+  }
+  return out;
+}
+
+/**
+ * yargs' own keys for a command tail: the group head, the sub-verb, and the captured positionals.
+ * They have to stay in assertKnownFlags' allowlist, because yargs really does put them in argv —
+ * but argv cannot say whether YARGS put them there or the USER typed `--args`.
+ *
+ * That ambiguity made them work as undocumented aliases: `chain --verb node` ran chain.node, and
+ * `use --args main` bound `main` as a positional. `contract call --args <addr>` was the bad one —
+ * it bound into a slot the command does not have, so the call ran with no argument and answered
+ * `0`, a wrong result that reads like a real one.
+ *
+ * No command declares a field by these names (pinned by a meta-test), so a TOKEN spelling one is
+ * always user-typed and always wrong. The raw tokens still tell the two apart, so the check
+ * belongs there — before yargs folds them together.
+ */
+export const YARGS_TAIL_KEYS = ["group", "verb", "args", "source"] as const;
+
+export function assertNoTailFlags(tokens: string[]): void {
+  const typed = new Set<string>();
+  for (const token of tokens) {
+    if (token === "--") break; // everything past a bare `--` is a value, not a flag
+    const match = /^--([A-Za-z0-9-]+)(?:=|$)/.exec(token);
+    if (match && (YARGS_TAIL_KEYS as readonly string[]).includes(match[1]!)) typed.add(match[1]!);
+  }
+  if (typed.size > 0) {
+    throw new UsageError(
+      "invalid_option",
+      `unknown option(s): ${[...typed].map((name) => `--${name}`).join(", ")}`,
+    );
+  }
+}
+
 function assertKnownFlags(
   cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals">,
   argv: any,
+  otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
-  const allowed = new Set<string>(["_", "$0", "group", "verb", "args", "source"]);
+  const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {
     allowed.add(name);
     allowed.add(camelToKebab(name));
@@ -482,7 +545,12 @@ function assertKnownFlags(
   };
   for (const k of Object.keys(GLOBAL_OPTS)) add(k);
   for (const f of GLOBAL_FLAG_SPECS) if (f.alias) allowed.add(f.alias); // -o / -v short aliases
-  for (const p of cmd.path) add(p);
+  // The command's OWN path segments are deliberately not allowed. Adding them made `--token` a
+  // silently accepted no-op on `token balance`, `--contract` one on `contract deploy`, `--watch`
+  // one on `import watch` — a flag the command does not have, ignored instead of refused, which is
+  // the failure mode this whole function exists to prevent. yargs delivers the path in `_` (and,
+  // for grouped commands, in the `group`/`verb`/`source` keys already allowed above), so nothing
+  // needs them here.
   // Positional fields are deliberately absent: they arrive in `args` and are bound to their field
   // AFTER this check, so a field name present here can only be a `--field` the user typed — which
   // this command does not accept (see CommandDefinition.positionals). A positional named after a
@@ -502,7 +570,14 @@ function assertKnownFlags(
   if (unknown.length > 0) {
     throw new UsageError(
       "invalid_option",
-      `unknown option(s): ${unknown.map((u) => `--${u}`).join(", ")}`,
+      `unknown option(s): ${unknown
+        .map((u) => {
+          const family = otherFamily.get(u);
+          // "--transaction is a tron option" is the answer; "unknown option --transaction" sends
+          // the reader hunting for a typo in a flag that exists.
+          return family ? `--${u} (a ${family} option on this command)` : `--${u}`;
+        })
+        .join(", ")}`,
     );
   }
 }
@@ -511,7 +586,7 @@ function parseInput(cmd: CommandDefinition, argv: any): unknown {
   return parseInputSchema(cmd.input, argv);
 }
 
-function parseInputSchema(schema: ZodType, argv: any): unknown {
+export function parseInputSchema(schema: ZodType, argv: any): unknown {
   const result = schema.safeParse(argv);
   if (result.success) return result.data;
   const issue = result.error.issues[0]!;
@@ -524,14 +599,30 @@ function parseInputSchema(schema: ZodType, argv: any): unknown {
       `missing required option --${camelToKebab(String(key))}`,
     );
   }
-  throw new UsageError("invalid_value", `invalid --${camelToKebab(field)}: ${issue.message}`);
+  // A refine may name the code its rule deserves — `invalid_option` for a flag combination,
+  // `invalid_address` for a malformed address. Saying nothing keeps `invalid_value`, so a refine
+  // that has not opted in is unaffected. The declared code must exist in the index AND be a usage
+  // code (exit 2 or "either"): parseInputSchema always throws UsageError, and CliError.exitCode()
+  // now looks up exit by code, not by class — so an exit-1 code declared here would silently
+  // produce a UsageError whose real exit is 1, invisible to error-codes.test.ts's literal scan
+  // (it only sees `new UsageError("invalid_value", …)`; a variable is never scraped). Input
+  // validation is definitionally usage-layer, so no legitimate refine wants an exit-1 code.
+  const declared = (issue as { params?: { errorCode?: unknown } }).params?.errorCode;
+  const declaredCode = typeof declared === "string" ? declared : undefined;
+  const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
+  const entry = declaredCode ? table[declaredCode] : undefined;
+  const code =
+    declaredCode && entry && (entry.exit === 2 || entry.exit === "either")
+      ? declaredCode
+      : "invalid_value";
+  throw new UsageError(code, `invalid --${camelToKebab(field)}: ${issue.message}`);
 }
 
 function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExecutionSpec {
   return { ...spec, fields };
 }
 
-function composeRefines(
+export function composeRefines(
   fields: ZodObject<ZodRawShape>,
   baseRefine?: (value: any, ctx: RefinementCtx) => void,
   familyRefine?: (value: any, ctx: RefinementCtx) => void,

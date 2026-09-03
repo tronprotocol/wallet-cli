@@ -7,10 +7,10 @@ import type { TronAsset, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: [],
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -70,7 +70,7 @@ const ISSUE = {
 
 describe("asset issue", () => {
   it("refuses a Ledger account before touching the device", () => {
-    // The Ledger TRON app cannot parse AssetIssueContract at all (docs/adr/0003).
+    // The Ledger TRON app cannot parse AssetIssueContract at all.
     const assertCanSign = vi.fn();
     const svc = service({}, { assertCanSign });
     void svc.issue(scope, NET, { ...ISSUE }).catch(() => {});
@@ -252,7 +252,7 @@ describe("asset participate", () => {
 
 describe("ambiguous asset names", () => {
   // A name collision is a choice, not a dead end: the error has to carry enough for the caller to
-  // pick — ids for a machine, and the columns a human compares on (§3.7).
+  // pick — ids for a machine, and the columns a human compares on.
   it("carries the queried name, the ids, and one comparable row per match", async () => {
     const svc = service({
       getAssetsByName: async () => [

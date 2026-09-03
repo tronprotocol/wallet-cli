@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'Tron'
-version '1.0-SNAPSHOT'
+version '4.13.0'
 
 apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
@@ -143,26 +143,13 @@ run {
     mainClassName = 'org.tron.walletcli.Client'
 }
 
+test {
+    systemProperty 'walletCli.projectVersion', project.version.toString()
+}
 
 shadowJar {
     baseName = 'wallet-cli'
     classifier = null
     version = null
     mergeServiceFiles() //  https://github.com/grpc/grpc-java/issues/10853
-}
-
-task qaJar(type: Jar, dependsOn: [shadowJar, testClasses]) {
-    from zipTree(shadowJar.archiveFile)
-    from sourceSets.test.output
-    archiveBaseName.set('wallet-cli-qa')
-    archiveClassifier.set('')
-    archiveVersion.set('')
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-task qaRun(type: JavaExec) {
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'org.tron.qa.QARunner'
-    args = project.hasProperty('qaArgs') ? project.property('qaArgs').split(' ') : ['list']
-    standardInput = System.in
 }

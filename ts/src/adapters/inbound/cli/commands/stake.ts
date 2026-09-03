@@ -5,7 +5,7 @@ import type { TronStakeService } from "../../../../application/use-cases/tron/st
 import { RESOURCES } from "../../../../domain/resources/index.js";
 import { Schemas } from "../schemas/index.js";
 import { ciEnum } from "../arity/index.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 const resourceField = (description: string) =>
@@ -30,7 +30,7 @@ function stakeCommand(
   extra: z.ZodRawShape = {},
   options: StakeCommandOptions = {},
 ): { spec: ChainSpec; binding: FamilyBinding } {
-  const fields = z.object({ ...extra, ...txModeFields });
+  const fields = z.object({ ...extra, ...txModeFields, ...tronTxModeFields });
   return {
     spec: {
       path: ["stake", action],
@@ -56,7 +56,7 @@ export function stakeDefinitions(
   return [
     stakeCommand(
       "freeze",
-      "Stake TRX for energy/bandwidth (FreezeBalanceV2)",
+      "Stake TRX for energy/bandwidth",
       (context, network, input) => service.freeze(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe("amount to freeze as staked TRX, in SUN"),
@@ -65,17 +65,15 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "unfreeze",
-      "Unstake TRX (UnfreezeBalanceV2)",
+      "Unstake TRX",
       (context, network, input) => service.unfreeze(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe("amount to unfreeze as staked TRX, in SUN"),
         resource: resourceField("resource type to release"),
       },
     ),
-    stakeCommand(
-      "withdraw",
-      "Withdraw expired unfrozen TRX (WithdrawExpireUnfreeze)",
-      (context, network, input) => service.withdraw(context, network, input),
+    stakeCommand("withdraw", "Withdraw expired unfrozen TRX", (context, network, input) =>
+      service.withdraw(context, network, input),
     ),
     stakeCommand(
       "cancel-unfreeze",
@@ -92,7 +90,7 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "delegate",
-      "Delegate resource to another address (DelegateResourceV2)",
+      "Delegate resource to another address",
       (context, network, input) => service.delegate(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe(
@@ -125,7 +123,7 @@ export function stakeDefinitions(
     ),
     stakeCommand(
       "undelegate",
-      "Reclaim delegated resource (UnDelegateResourceV2)",
+      "Reclaim delegated resource",
       (context, network, input) => service.undelegate(context, network, input),
       {
         amountSun: Schemas.positiveIntString().describe(

@@ -1,0 +1,216 @@
+#!/usr/bin/expect -f
+# REPL regression for PR #990: removing the Java standard CLI must leave the
+# interactive shell untouched. Drives a real REPL over a pty against Nile.
+#
+#   TERM=dumb JAR=<wallet-cli.jar> REPL_LOG=<file> \
+#   TEST_TRON_PRIVATE_KEY=... TEST_TRON_MNEMONIC=... expect -f regression.exp
+#
+# Run it from a scratch directory: the shell writes ./Wallet and ./Mnemonic there.
+
+set timeout 90
+log_user 0
+source [file dirname $argv0]/lib.exp
+
+set PK   $env(TEST_TRON_PRIVATE_KEY)
+set MN   $env(TEST_TRON_MNEMONIC)
+set PWD  "Test1234@abc"
+set PWD2 "Test5678@xyz"
+set PAYEE "TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N"
+# A Nile transfer that solidified long ago: the read paths are asserted against it
+# so they do not depend on how far behind the solidity node currently is.
+set KNOWN_TXID "b51eb603c0df7114e06a4f738e943ce30e1aec8642c10397ad7c86014675008b"
+set ADDR ""
+set TXID ""
+
+if {[info exists env(REPL_LOG)]} { log_file -a $env(REPL_LOG) }
+
+spawn java -jar $env(JAR)
+expect {
+  -re $PROMPT {}
+  timeout { puts "FATAL: the shell never reached the prompt"; exit 2 }
+}
+record "shell-start" 1 ""
+
+# ---------- read-only, no wallet ----------
+step "help"               "help"             "GAS FREE"
+step "help-sendcoin"      "help SendCoin"    "sendcoin"
+step "currentnetwork"     "currentnetwork"   "nile"
+step "getaddress-nologin" "getaddress"       "please login first"
+step "getblock"           "getblock"         "block_header|blockID|number"
+step "getchainparameters" "getchainparameters" "key|value"
+step "getnextmaintenancetime" "getnextmaintenancetime" "\[0-9\]"
+step "listwitnesses"      "listwitnesses"    "address|voteCount"
+
+# ---------- import the funded test key ----------
+banner "importwallet"
+send -- "importwallet\r"
+send_secret "importwallet" $PWD
+send_secret "importwallet" $PWD
+wait_for "importwallet" "please input private key"
+sleep 0.3
+send -- "$PK\r"
+wait_for "importwallet" "name your wallet"
+sleep 0.3
+send -- "qa1\r"
+expect {
+  -re "Import a wallet.*keystore file" { record "importwallet" 1 "" }
+  -nocase -re "import wallet.*failed"  { record "importwallet" 0 "the shell reported failure" }
+  timeout                              { record "importwallet" 0 "timeout after the wallet name" }
+}
+expect -re $PROMPT
+
+# ---------- login ----------
+banner "login"
+send -- "login\r"
+send_secret "login" $PWD
+expect {
+  -re "Login.*successful"  { record "login" 1 "" }
+  -nocase -re "login.*failed" { record "login" 0 "the shell reported failure" }
+  timeout                  { record "login" 0 "timeout" }
+}
+expect -re $PROMPT
+
+# ---------- logged-in queries ----------
+banner "getaddress"
+send -- "getaddress\r"
+expect {
+  -re "(T\[1-9A-HJ-NP-Za-km-z\]{33})" {
+    set ADDR $expect_out(1,string)
+    record "getaddress" 1 ""
+    puts "  address = $ADDR"
+  }
+  timeout { record "getaddress" 0 "no address in the output" }
+}
+expect -re $PROMPT
+
+step "getbalance"         "getbalance"                "balance"
+step "getaccount"         "getaccount $ADDR"          "address|balance"
+step "getaccountnet"      "getaccountnet $ADDR"       "freeNetLimit|netLimit|NetUsed"
+step "getaccountresource" "getaccountresource $ADDR"  "EnergyLimit|TronPowerLimit|NetLimit"
+step "getbrokerage"       "getbrokerage $ADDR"        "brokerage|\[0-9\]"
+step "getreward"          "getreward $ADDR"           "reward|\[0-9\]"
+
+# ---------- backup must hand back the key we imported ----------
+banner "backupwallet"
+send -- "backupwallet\r"
+send_secret "backupwallet" $PWD
+expect {
+  -nocase -re "$PK" { record "backupwallet" 1 ""; puts "  backup returned the imported key" }
+  -nocase -re "failed" { record "backupwallet" 0 "the shell reported failure" }
+  timeout { record "backupwallet" 0 "timeout, or the key did not come back" }
+}
+expect -re $PROMPT
+
+# ---------- a real broadcast on Nile ----------
+banner "sendcoin"
+send -- "sendcoin $PAYEE 1000000\r"
+wait_for "sendcoin" "permission id"
+sleep 0.4
+send -- "y\r"
+send_secret "sendcoin" $PWD
+expect {
+  -nocase -re "send 1000000 sun to .*successful" {
+    # the id is wrapped in ANSI colour codes, whose digits look like hex
+    regsub -all {\x1b\[[0-9;]*m} $expect_out(buffer) "" clean
+    if {[regexp -- {TxId is\s*([0-9a-f]{64})} $clean -> t]} { set TXID $t }
+    record "sendcoin" 1 ""
+    puts "  txid = $TXID"
+  }
+  -nocase -re "sendcoin.*failed" { record "sendcoin" 0 "the broadcast was rejected" }
+  timeout { record "sendcoin" 0 "timeout" }
+}
+# the shell offers to store the payee in the address book
+expect {
+  -nocase -re "address book" { sleep 0.3; send -- "N\r" }
+  -re $PROMPT {}
+  timeout {}
+}
+expect {
+  -re $PROMPT {}
+  timeout {}
+}
+
+if {$TXID ne ""} {
+  # gettransactionbyid reads the solidity node, which trails the fullnode the
+  # broadcast went to, so give it a couple of minutes to catch up.
+  step_retry "gettransactionbyid-fresh" "gettransactionbyid $TXID" "contract|raw_data|signature" 20 6
+  step_retry "gettransactioninfobyid-fresh" "gettransactioninfobyid $TXID" "blockNumber|receipt|fee" 5 6
+}
+
+step "gettransactionbyid"     "gettransactionbyid $KNOWN_TXID"     "contract|raw_data|signature"
+step "gettransactioninfobyid" "gettransactioninfobyid $KNOWN_TXID" "blockNumber|receipt|fee"
+
+# ---------- a second wallet, from the mnemonic ----------
+banner "importwalletbymnemonic"
+send -- "importwalletbymnemonic\r"
+send_secret "importwalletbymnemonic" $PWD
+send_secret "importwalletbymnemonic" $PWD
+wait_for "importwalletbymnemonic" "12 or 24 words"
+sleep 0.3
+send -- "$MN\r"
+# the shell then offers the derivation path: 1 = the default m/44'/195'/0'/0/x
+wait_for "importwalletbymnemonic" "enter your choice"
+sleep 0.4
+send -- "1\r"
+expect {
+  -nocase -re "name your wallet" {
+    sleep 0.3
+    send -- "qa2\r"
+    expect {
+      -nocase -re "importwalletbymnemonic.*successful" { record "importwalletbymnemonic" 1 "" }
+      -nocase -re "importwalletbymnemonic.*failed"     { record "importwalletbymnemonic" 0 "the shell reported failure" }
+      timeout { record "importwalletbymnemonic" 0 "timeout after the wallet name" }
+    }
+  }
+  -nocase -re "importwalletbymnemonic.*successful" { record "importwalletbymnemonic" 1 "" }
+  -nocase -re "importwalletbymnemonic.*failed"     { record "importwalletbymnemonic" 0 "the shell reported failure" }
+  timeout { record "importwalletbymnemonic" 0 "timeout after the words" }
+}
+expect -re $PROMPT
+
+# ---------- password rotation ----------
+banner "changepassword"
+send -- "changepassword\r"
+send_secret "changepassword" $PWD
+send_secret "changepassword" $PWD2
+send_secret "changepassword" $PWD2
+expect {
+  -nocase -re "choose no\\. between" {
+    # two keystores are on disk by now; pick the one we are logged in as
+    regsub -all {\x1b\[[0-9;]*m} $expect_out(buffer) "" clean
+    set pick 1
+    if {[regexp -- "(\\d+)\\s+$ADDR" $clean -> n]} { set pick $n }
+    sleep 0.4
+    send -- "$pick\r"
+    exp_continue
+  }
+  -nocase -re "changepassword.*successful" { record "changepassword" 1 "" }
+  -nocase -re "changepassword.*failed"     { record "changepassword" 0 "the shell reported failure" }
+  timeout { record "changepassword" 0 "timeout" }
+}
+expect -re $PROMPT
+
+# ---------- session lifecycle ----------
+step "logout"                  "logout"     "logout|successful"
+step "getaddress-after-logout" "getaddress" "please login first"
+banner "resetwallet"
+send -- "resetwallet\r"
+wait_for "resetwallet" "continue\\?"
+sleep 0.4
+send -- "y\r"
+# a second, typed confirmation follows
+wait_for "resetwallet" "confirm: \\(delete\\)"
+sleep 0.4
+send -- "DELETE\r"
+expect {
+  -nocase -re "resetwallet.*successful" { record "resetwallet" 1 "" }
+  -nocase -re "resetwallet.*failed"     { record "resetwallet" 0 "the shell reported failure" }
+  timeout { record "resetwallet" 0 "timeout" }
+}
+expect -re $PROMPT
+step "getaddress-after-reset"  "getaddress"  "please login first"
+
+send -- "exit\r"
+expect eof
+record "exit" 1 ""
+summary

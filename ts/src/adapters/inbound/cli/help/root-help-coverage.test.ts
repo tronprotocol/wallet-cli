@@ -66,7 +66,7 @@ describe("wallet-cli --help lists every registered top-level command", () => {
     expect(heads.filter((head) => !listed.has(head))).toEqual([]);
   });
 
-  it("covers the v4.12.0 additions specifically", () => {
+  it("covers the TRC10 and governance groups specifically", () => {
     const { text } = rootHelp();
     for (const group of ["asset", "exchange", "proposal", "witness"]) {
       expect(text, `${group} missing from wallet-cli --help`).toMatch(

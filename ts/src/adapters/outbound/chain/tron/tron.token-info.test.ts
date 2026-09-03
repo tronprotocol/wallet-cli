@@ -118,9 +118,30 @@ describe("TronRpcClient.getTokenInfo", () => {
     });
   });
 
-  it("propagates 'no contract at this address' rather than blanking the fields", async () => {
+  /**
+   * "No contract at this address" is not a network fault, and it used to be reported as one
+   * (`rpc_error`) — which reads as "the node is broken" when the truth is "that address holds no
+   * token". It is now classified, and the code matches what the EVM side answers for the same
+   * situation so a caller can branch on one value across both families.
+   *
+   * The test above is the other half of the pair and must keep passing: a transport failure is
+   * still `rpc_error`. Classification here means naming two known node answers, not catching
+   * everything — the difference the getTokenInfo comment exists to protect.
+   */
+  it("classifies 'no contract at this address' as missing token metadata", async () => {
     await expect(notAContract().getTokenInfo(CONTRACT)).rejects.toMatchObject({
-      code: "rpc_error",
+      code: "token_metadata_unavailable",
+      message: expect.stringContaining("may not be a token contract"),
+    });
+  });
+
+  it("classifies a reverted view call the same way", async () => {
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.transactionBuilder.triggerConstantContract = (() =>
+      Promise.reject(new Error("REVERT opcode executed"))) as never;
+
+    await expect(client.getTokenInfo(CONTRACT)).rejects.toMatchObject({
+      code: "token_metadata_unavailable",
     });
   });
 });

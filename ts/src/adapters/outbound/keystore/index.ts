@@ -3,6 +3,7 @@
  * registry + root labels + selection (--account/--wallet). Atomic writes under lock.
  * BIP39 passphrase plumbed. Data shapes live in SharedTypes.
  */
+import { WALLETS_VERSION } from "../../../domain/migration/wallets-v2.js";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes, hexToBytes } from "@noble/hashes/utils.js";
@@ -20,7 +21,7 @@ import type {
 } from "../../../domain/types/index.js";
 import { CryptoEnvelope } from "../persistence/crypto/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
-import { familyOf, CHAIN_FAMILIES } from "../../../domain/family/index.js";
+import { familyOf, canonicalAddress, CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { SOURCE_KINDS, sourceFamily } from "../../../domain/sources/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../../domain/errors/index.js";
@@ -71,7 +72,9 @@ export class Keystore {
   // ── registry IO ───────────────────────────────────────────────────────────
   #read(): WalletsFile {
     const f = this.store.readJson<WalletsFile>(this.walletsPath);
-    return f ?? { version: 1, activeAccount: null, wallets: [], labels: {} };
+    // Absent = a fresh keystore, so it is born CURRENT. This default is persisted on the first
+    // write, so a literal version here would stamp every new keystore stale.
+    return f ?? { version: WALLETS_VERSION, activeAccount: null, wallets: [], labels: {} };
   }
   /** caller must already hold the wallets.json lock (mutators wrap in withLock). */
   #write(f: WalletsFile): void {
@@ -89,13 +92,16 @@ export class Keystore {
 
       if (p.type === "seed") {
         const mnemonic = p.secret.trim();
+        // Its own code, not the generic bucket: the phrase is entered at a hidden prompt, so the
+        // envelope carries no field path to say WHICH value was wrong — the code is all the
+        // caller gets, and `invalid_value` says nothing it did not already know.
         if (!Derivation.validateMnemonic(mnemonic)) {
-          throw new WalletError("invalid_value", "invalid BIP39 mnemonic");
+          throw new WalletError("invalid_mnemonic", "invalid BIP39 mnemonic");
         }
         const entropy = Derivation.mnemonicToEntropy(mnemonic);
         const seed = Derivation.mnemonicToSeed(mnemonic, p.passphrase);
         const addr0 = deriveSeedAddresses(seed, 0);
-        const dup = findByAddress(file, addr0);
+        const dup = findByAddress(file, addr0, "seed");
         if (dup) {
           file.activeAccount = dup;
           this.#write(file);
@@ -118,11 +124,30 @@ export class Keystore {
         );
         source = { type: "seed", vaultId, addresses: { "0": addr0 } };
       } else {
-        const pk = hexToBytes(p.secret.trim().replace(/^0x/, ""));
+        // hexToBytes throws its own Error on a non-hex character, which classifyError would turn
+        // into a REDACTED internal_error — the two ways to mistype a private key would then answer
+        // with two different codes, one of them wrong. Both are the same mistake, so both say so.
+        let pk: Uint8Array;
+        try {
+          pk = hexToBytes(p.secret.trim().replace(/^0x/, ""));
+        } catch {
+          throw new WalletError(
+            "invalid_private_key",
+            "private key must be 32 bytes of hex, with or without a 0x prefix",
+          );
+        }
         if (pk.length !== 32)
-          throw new WalletError("invalid_value", "private key must be 32 bytes");
+          throw new WalletError("invalid_private_key", "private key must be 32 bytes");
+        // Same reasoning as the hex/length checks above: a scalar outside secp256k1's valid range
+        // `[1, n-1]` (all-zero, or at/past the curve order — 64 `f`s included) is a third way to
+        // mistype a private key, and it would otherwise sail past both checks above and blow up
+        // inside derivePrivAddresses(), where classifyError redacts it to internal_error. That
+        // would make the SAME mistake (a bad private key) answer with a third, wrong code instead
+        // of the one the caller can act on.
+        if (!Derivation.isValidPrivateKey(pk))
+          throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
         const addr = derivePrivAddresses(pk);
-        const dup = findByAddress(file, addr);
+        const dup = findByAddress(file, addr, "privateKey");
         if (dup) {
           file.activeAccount = dup;
           this.#write(file);
@@ -187,11 +212,10 @@ export class Keystore {
         file,
         (s) => s.type === "watch" && s.family === p.family && s.address === p.address,
       );
-      if (dup) {
-        file.activeAccount = dup;
-        this.#write(file);
-        return { accountId: dup, created: false };
-      }
+      // Registering a watch account does NOT make it active: it holds no key, so making
+      // it the active account turns the next write command into `watch_only_no_signer` for a
+      // reason the user never chose. `use <account>` is how the active account changes.
+      if (dup) return { accountId: dup, created: false };
       const walletId = this.#freshId("wlt", file);
       // no encrypted blob: a watch account holds no secret, only family+address.
       const wallet: Wallet = {
@@ -201,7 +225,6 @@ export class Keystore {
       const ref = accountRefOf(wallet, null);
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
-      file.activeAccount = ref;
       this.#write(file);
       return { accountId: ref, created: true };
     });
@@ -213,13 +236,13 @@ export class Keystore {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
-      if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${walletId}`);
+      if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${walletId}`);
       // only seed wallets are HD: privateKey has no derivation, ledger must be re-imported per path.
       if (wallet.source.type !== "seed") {
         const hint =
           wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
-        throw new WalletError(
-          "invalid_value",
+        throw new UsageError(
+          "seed_not_found",
           `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`,
         );
       }
@@ -240,12 +263,13 @@ export class Keystore {
 
   // ── selection / lookup ─────────────────────────────────────────────────────
   /** index is meaningful only for seed wallets; privateKey/ledger report -1. */
-  resolveAccount(refOrLabel: string): { wallet: Wallet; index: number } {
+  resolveAccount(refOrLabel: string, family?: ChainFamily): { wallet: Wallet; index: number } {
     const file = this.#read();
-    const ref = this.#toRef(file, refOrLabel);
+    const ref = this.#toRef(file, refOrLabel, family);
     const [walletId, idxStr] = ref.split(".");
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new WalletError("invalid_value", `unknown account ${refOrLabel}`);
+    if (!wallet) throw new UsageError("account_not_found", `unknown account ${refOrLabel}`);
+    this.#assertReadable(wallet, refOrLabel);
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
     if (idxStr === undefined) {
@@ -273,7 +297,8 @@ export class Keystore {
     const ref = this.#toRef(file, idOrLabel);
     const walletId = ref.split(".")[0]!;
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${idOrLabel}`);
+    if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${idOrLabel}`);
+    this.#assertReadable(wallet, idOrLabel);
     return wallet;
   }
 
@@ -306,11 +331,23 @@ export class Keystore {
     const file = this.#read();
     const views: AccountDescriptor[] = [];
     for (const w of file.wallets) {
+      // A source.type this build does not recognise (older/newer format) is skipped rather than
+      // failing the whole listing: SOURCE_KINDS[w.source.type] would be undefined and every
+      // consumer below (isHD/hasSecret/label, enumerateAddresses) assumes a known kind. One
+      // unreadable account should not make every readable one unreachable — see unreadable().
+      if (SOURCE_KINDS[w.source.type] === undefined) continue;
       // seed → one view per known index; privateKey/ledger → a single index-less view.
       const indices = w.source.type === "seed" ? accountIndices(w.source) : [null];
       for (const index of indices) views.push(this.#describe(file, w, index));
     }
     return views;
+  }
+
+  /** ids of wallets whose source.type this build does not know, skipped by list() rather than
+   *  failing it — surfaced so the command layer can warn the user to upgrade. */
+  unreadable(): string[] {
+    const file = this.#read();
+    return file.wallets.filter((w) => SOURCE_KINDS[w.source.type] === undefined).map((w) => w.id);
   }
 
   /** the full max-disclosure descriptor of one account (resolves accountId/label/address). */
@@ -338,6 +375,7 @@ export class Keystore {
     if (s.type === "seed") {
       d.seedId = w.id; // the seed id `derive --seed` takes; also the `list` HD group header.
     }
+    d.derivationPath = derivationPathsOf(s, index);
     return d;
   }
 
@@ -359,6 +397,7 @@ export class Keystore {
       const [walletId, idxStr] = ref.split(".");
       const wallet = file.wallets.find((w) => w.id === walletId);
       if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${refOrWallet}`);
+      this.#assertReadable(wallet, refOrWallet);
 
       // account-level delete: a non-root HD sub-account ref (wlt_x.N, N>0) forgets just that index
       // (re-derivable from the seed). The vault/secret survives until the wallet itself is deleted.
@@ -580,6 +619,25 @@ export class Keystore {
     }
   }
 
+  /**
+   * A source kind this build does not know. `list` skips it and warns, but a command that NAMES
+   * one has to answer for it — every accessor below (SOURCE_KINDS, enumerateAddresses) reads
+   * fields the kind may not have, and reaching one produces a redacted `internal_error` instead
+   * of a diagnosis.
+   *
+   * Called before the operation starts, not while assembling its result: `delete` used to remove
+   * the wallet, write the file, and only then read `SOURCE_KINDS[...].hasSecret` for its receipt
+   * — so the account was already gone from disk when the throw arrived, and the caller was told
+   * the command had failed.
+   */
+  #assertReadable(wallet: Wallet, input: string): void {
+    if (SOURCE_KINDS[wallet.source.type] !== undefined) return;
+    throw new WalletError(
+      "encoding_error",
+      `${input} uses a wallet format this version does not understand; upgrade wallet-cli to use it`,
+    );
+  }
+
   #freshId(prefix: IdPrefix, file: WalletsFile): string {
     const taken = new Set(file.wallets.flatMap((w) => [w.id, secretId(w.source)]));
     for (;;) {
@@ -588,33 +646,88 @@ export class Keystore {
     }
   }
 
-  /** ref|address|label → canonical account ref (exact ref, unique address, or unique label). */
-  #toRef(file: WalletsFile, input: string): AccountRef {
+  /** ref|address|label → canonical account ref (exact ref, unique address, or unique label).
+   *
+   *  `family` is the chain the caller is about to act on. It matters only when one address is
+   *  held by more than one account — which the wallet allows, because a seed account and a
+   *  privateKey account can legitimately hold the same key, and a watch/ledger account can be
+   *  registered against an address a software account already holds (registerWatch's dedup is
+   *  scoped to other watch entries, not across types). Two accounts matching one address in one
+   *  family are interchangeable on that chain ONLY when both actually hold that family's key
+   *  locally (`hasSecret`) — a watch account holds nothing to sign with, and a ledger's key lives
+   *  on the device under a DIFFERENT account, so "pick either" would silently swap in an account
+   *  that cannot sign. So the take-first shortcut requires every hit to have a secret; otherwise
+   *  this refuses rather than guesses, the same rule the multi-account seed branch of
+   *  resolveAccount already follows. */
+  #toRef(file: WalletsFile, input: string, family?: ChainFamily): AccountRef {
     const v = input.trim();
     if (v.startsWith("wlt_")) return v;
     // address form (T… / 0x…): match the unique account holding it in its cache.
-    if (familyOf(v) !== undefined) {
-      const hits: AccountRef[] = [];
+    const addrFamily = familyOf(v);
+    if (addrFamily !== undefined) {
+      // An address names ONE chain. When a chain is being acted on, `--account <address>` can
+      // only mean "this address" — resolving it to the same account's address on a different
+      // chain would act on something the caller never typed, which on a send is funds leaving
+      // an address they did not name. Checked before the scan so a registered and an
+      // unregistered cross-chain address get the same answer: it is the same mistake.
+      // Wallet commands (backup/delete/rename/derive/use) pass no family — they have no chain,
+      // so there an address is just a handle and the lookup below is right.
+      if (family !== undefined && family !== addrFamily) {
+        throw new UsageError(
+          "family_mismatch",
+          `${input} is ${addrFamily === "evm" ? "an" : "a"} ${addrFamily} address, but this command runs on ${family}; address the account by its accountId or label to use it here`,
+        );
+      }
+      // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and the CLI accepts an
+      // all-lower or all-upper EVM address as input. Comparing raw strings would refuse to find an
+      // account by the very spelling the user was told is valid.
+      const wanted = canonicalAddress(v);
+      const hits: Array<{ ref: AccountRef; wallet: Wallet; index: number | null }> = [];
       for (const w of file.wallets) {
+        // Skipped for the same reason list() skips it: enumerateAddresses reads fields a kind
+        // this build does not know may not have. Scanning it would make ONE unreadable account
+        // cost every OTHER account its address lookup — and an address the caller can see in
+        // `list` has to keep resolving.
+        if (SOURCE_KINDS[w.source.type] === undefined) continue;
         for (const { index, addr } of enumerateAddresses(w)) {
-          if (CHAIN_FAMILIES.some((f) => addr[f] === v)) hits.push(accountRefOf(w, index));
+          if (addr[addrFamily] === wanted)
+            hits.push({ ref: accountRefOf(w, index), wallet: w, index });
         }
       }
       if (hits.length === 0)
-        throw new WalletError("invalid_value", `no account with address ${input}`);
-      if (hits.length > 1) {
+        throw new UsageError("account_not_found", `no account with address ${input}`);
+      const interchangeable =
+        family === addrFamily && hits.every((h) => SOURCE_KINDS[h.wallet.source.type].hasSecret);
+      if (hits.length > 1 && !interchangeable) {
+        // `accountIds` is the machine-readable answer ("which accountId do I re-run with?");
+        // `matches` carries the columns a human needs to actually pick one.
         throw new UsageError(
-          "invalid_value",
-          `address ${input} matches multiple accounts: ${hits.join(", ")}`,
+          "ambiguous_account",
+          `address ${input} matches ${hits.length} accounts; address it by accountId`,
+          {
+            address: wanted,
+            accountIds: hits.map((h) => h.ref),
+            matches: hits.map((h) => ({
+              accountId: h.ref,
+              label: file.labels[h.ref] ?? "",
+              type: h.wallet.source.type,
+              index: SOURCE_KINDS[h.wallet.source.type].isHD ? h.index : null,
+            })),
+          },
         );
       }
-      return hits[0]!;
+      return hits[0]!.ref;
     }
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),
     );
+    // This is the code for exactly this case. `invalid_value` is the bucket every malformed
+    // option lands in; "that account does not exist here" has one obvious next step (`list`), and
+    // an agent can only take it if the code says so — the message is not something to match on.
+    // The ambiguous cases below keep `invalid_value`: the reference IS valid, it just picks more
+    // than one account, and the fix is to narrow it rather than to go looking for it.
     if (matches.length === 0)
-      throw new WalletError("invalid_value", `no account labelled '${input}'`);
+      throw new UsageError("account_not_found", `no account labelled '${input}'`);
     if (matches.length > 1) {
       throw new UsageError(
         "invalid_value",
@@ -643,4 +756,19 @@ export class Keystore {
     while (used.has(`wallet-${n}`)) n++;
     return `wallet-${n}`;
   }
+}
+
+/**
+ * The BIP44 path behind each of an account's addresses.
+ *   - seed: computed per family from the index — the templates differ, which is exactly
+ *     what a caller cannot otherwise see.
+ *   - ledger: the single path the user picked on the device, for its one family.
+ *   - watch / privateKey: never derived, so `null` rather than an empty object.
+ */
+function derivationPathsOf(source: Source, index: number | null): Record<string, string> | null {
+  if (source.type === "seed" && index !== null) {
+    return Object.fromEntries(CHAIN_FAMILIES.map((f) => [f, Derivation.path(f, index)]));
+  }
+  if (source.type === "ledger") return { [source.family]: source.path };
+  return null;
 }

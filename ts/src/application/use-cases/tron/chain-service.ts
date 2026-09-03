@@ -1,4 +1,4 @@
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 
@@ -34,7 +34,7 @@ export class TronChainService {
     const params = await this.gateways.get(network, "tron").getChainParameters();
     if (key === undefined) return { params };
     const hit = params.find((p) => p.key === key);
-    if (!hit) throw new UsageError("not_found", `unknown chain parameter: ${key}`);
+    if (!hit) throw new UsageError("unknown_parameter", `unknown chain parameter: ${key}`);
     return { key: hit.key, value: hit.value };
   }
 
@@ -65,7 +65,10 @@ export class TronChainService {
     const solidNumber = blockNum(info.solidityBlock);
     const codeVersion = info.configNodeInfo?.codeVersion;
     return {
-      endpoint: network.httpEndpoint ?? null,
+      // HOST only: a configured endpoint can carry an API key in its path, and this command's
+      // output is the one people paste into issues and CI logs. `config networks.<id>.httpEndpoint`
+      // is where a full URL is handed over, because there it was asked for by name.
+      endpoint: endpointHost(network.httpEndpoint) || null,
       version: codeVersion ? `java-tron ${codeVersion}` : null,
       p2pVersion: info.configNodeInfo?.p2pVersion ?? null,
       headBlock: { number: headNumber, timestamp: headTimestamp },

@@ -16,10 +16,10 @@ const DIGEST = "0x006c1bfb7e397bc2975949b80aa099a33a69a9b8835d84a9714723d25652f5
 const SIGNATURE =
   "0x580aab9832cf56d8f418711aa55653a02e51fb97a04fcd09c3bd4cd41cd376f73336a48257ca0d74bbcb8f70cc1bf6e310ca31f167a2ef8b2b93317d9f9a68e31b";
 const NETWORK = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: ["nile"],
   capabilities: [],
   gasfree: {
     baseUrl: "https://open-test.gasfree.io",

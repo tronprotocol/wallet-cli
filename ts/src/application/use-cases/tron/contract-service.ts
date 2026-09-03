@@ -1,7 +1,7 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronContractParameter } from "../../ports/chain/tron-gateway.js";
+import type { TronContractParameter, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { computeTronCreate2Address } from "../../../domain/governance/create2.js";
@@ -18,6 +18,8 @@ import {
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
+import { fromBaseUnits } from "../../../domain/amounts/index.js";
+import { approveRows } from "../../services/approve-receipt.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronContractService {
@@ -54,6 +56,21 @@ export class TronContractService {
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
+    // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a dry
+    // run of an approve exists to confirm. TRC20 shares the method and the hazard with ERC-20, so
+    // it shares the receipt.
+    const approval = await approveRows({
+      method: input.method,
+      params: input.parameters,
+      metadata: () =>
+        gateway.getTokenInfo(input.contract).then((info) => ({
+          decimals: info.decimals ?? info.precision,
+          symbol: typeof info.symbol === "string" ? info.symbol : undefined,
+        })),
+      // A TRON address may arrive as 41-hex from a caller pasting what a node returned.
+      displayAddress: tronHexToBase58,
+      fromBaseUnits,
+    });
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
@@ -82,6 +99,7 @@ export class TronContractService {
     return {
       kind: "contract-send" as const,
       ...outcomeData(outcome),
+      ...approval,
       method: input.method,
       contract: input.contract,
     };
@@ -207,13 +225,13 @@ export class TronContractService {
       | "contract-clear-abi"
       | "contract-set-origin-energy-limit"
       | "contract-set-user-resource-percent",
-    build: (gateway: ReturnType<ChainGatewayProvider["get"]>, owner: string) => Promise<UnsignedTx>,
+    build: (gateway: TronGateway, owner: string) => Promise<UnsignedTx>,
     fields: Record<string, unknown>,
   ) {
     const gateway = this.gateways.get(network, "tron");
     // ClearABIContract / UpdateEnergyLimitContract / UpdateSettingContract are all absent from the
     // Ledger TRON app's contract-type allowlist, so the device cannot parse any of them (APDU
-    // 0x6a80). Refuse before the unlock prompt and before any RPC — docs/adr/0003. `send` above is
+    // 0x6a80). Refuse before the unlock prompt and before any RPC. `send` above is
     // deliberately ungated: TriggerSmartContract IS allowlisted.
     const mode = governanceTransactionMode(this.pipeline, scope, input, { requireSoftware: true });
     const owner = scope.resolveAddress("tron");

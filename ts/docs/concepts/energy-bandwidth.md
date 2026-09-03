@@ -1,6 +1,6 @@
 # Energy and Bandwidth
 
-TRON's fee model, and why `stake` exists. Units first: **1 TRX = 1,000,000 SUN**; all CLI amounts named `*-sun` and all JSON amounts are raw SUN strings.
+TRON's fee model, and why `stake` exists. **TRON only** — EVM networks price transactions in gas instead; see [Networks → the `evm-gas` model](networks.md#fees-the-evm-gas-model). Units first: **1 TRX = 1,000,000 SUN**; every CLI flag named `*-sun` takes raw SUN. JSON reports raw SUN too, but not always as a string: balances and other int64-sized amounts are decimal strings, while bounded counters and fees such as `feeSun`, `multiSignFeeSun`, `energyUsed` and `netUsed` may come back as JSON numbers. Follow each command's field table rather than assuming one type — see [machine-interface](../machine-interface.md#the-result-envelope).
 
 ## Two resources instead of gas
 
@@ -14,7 +14,7 @@ When a transaction needs more than you have, the node **burns TRX** from your ba
 Check your standing anytime:
 
 ```bash
-wallet-cli account info --network tron:nile -o json | jq '.data.resources'
+wallet-cli account info --network tron:3448148188 -o json | jq '.data.resources'
 ```
 
 ```json

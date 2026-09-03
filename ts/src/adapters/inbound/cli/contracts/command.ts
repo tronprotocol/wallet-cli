@@ -87,6 +87,11 @@ interface CommandDefinitionBase<I, O> {
   /** extra command-specific preconditions rendered in the help "Requires:" block, ahead of the
    *  auto-derived network/auth/account lines (e.g. a connected Ledger for `import ledger`). */
   requires?: string[];
+  /** preconditions that must render AFTER the auto-derived master-password line rather than
+   *  before it. Same-class prerequisites are ordered by the order the user supplies
+   *  them, and `change-password` asks for the current password before the new one — so its
+   *  "new master password" line has to follow the generated one, not lead it. */
+  requiresAfterAuth?: string[];
   /** mutually-exclusive option sets, surfaced in help; see ExclusiveGroup. */
   exclusive?: ExclusiveGroup[];
   /** per-field zod object; feeds the arity adapter + HelpService. */
@@ -102,11 +107,19 @@ interface CommandDefinitionBase<I, O> {
   commandIdFor?: (input: I) => string;
 }
 
-/** A neutral (family-less) command — wallet/config/meta operations that never receive a
- *  chain target. Networked commands are ChainCommandDefinitions. */
+/**
+ * A neutral (family-less) command — wallet/config/meta operations that are not dispatched by
+ * family. Networked *chain* commands are ChainCommandDefinitions.
+ *
+ * `network: "optional"` does not make it a chain command: it means the selected network is a
+ * DISPLAY SELECTOR (which family's address to show), not a target to act on. No node is
+ * contacted. Such a command must be `wallet: "none"`, or the target resolver's single-family
+ * ACCOUNT check applies and it would refuse to run whenever the active account's family differs
+ * from the network — wrong for a purely local listing.
+ */
 export interface CommandDefinition<I = any, O = any> extends CommandDefinitionBase<I, O> {
-  network: "none";
-  run(ctx: ExecutionContext, net: undefined, input: I): Promise<O>;
+  network: "none" | "optional";
+  run(ctx: ExecutionContext, net: NetworkDescriptor | undefined, input: I): Promise<O>;
 }
 
 /** One family's slice of a chain command: how it runs + its extra flags/validation.
@@ -129,6 +142,10 @@ export interface ChainSpec<_I = any, O = any> {
   broadcasts?: boolean;
   capability?: string;
   stdin?: StdinChannel;
+  /** the stdin channel belongs to ONE family (e.g. `--tx-stdin` carries TRON's transaction JSON).
+   *  Help tags the flag with it and every other family refuses it, the same way a flag declared in
+   *  a single family's binding behaves — a channel no other family reads must say so. */
+  stdinFamily?: ChainFamily;
   interactive?: boolean;
   passwordMode?: "establish" | "verify";
   positionals?: { field: string; placeholder?: string }[];

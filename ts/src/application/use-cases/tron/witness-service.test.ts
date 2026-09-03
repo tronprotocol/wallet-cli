@@ -7,10 +7,10 @@ import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index
 import { TronWitnessService } from "./witness-service.js";
 
 const NET: NetworkDescriptor = {
-  id: "tron:nile",
+  id: "tron:3448148188",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "nile",
-  aliases: [],
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -107,7 +107,7 @@ describe("TronWitnessService", () => {
 
   // The Ledger TRON app has no parser for WitnessCreate / WitnessUpdate / UpdateBrokerage
   // (java's ledger/wrapper/ContractTypeChecker lists neither), so every write in this group must be
-  // refused as software-only BEFORE the device is touched — docs/adr/0003. Asserted per command
+  // refused as software-only BEFORE the device is touched. Asserted per command
   // because the flag is passed at each call site and is easy to drop in one of them.
   describe("Ledger accounts", () => {
     const cases = [

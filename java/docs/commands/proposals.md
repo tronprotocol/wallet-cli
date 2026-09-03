@@ -14,7 +14,7 @@ Initiate a proposal.
 - `id0` — the serial number of the parameter. Every parameter of the TRON network has a serial number. Please refer to `http://tronscan.org/#/sr/committee`.
 - `Value0` — the modified value.
 
-In the example, modification No.4 (modifying token issuance fee) costs 1000 TRX as follows:
+Values are passed to the chain verbatim — the CLI does no unit conversion, so a SUN-denominated parameter must be given in SUN. In the example, proposal No.4 (the token issuance fee) is set to the raw value `1000`, which is 1000 SUN:
 
 ```console
 > createProposal 4 1000

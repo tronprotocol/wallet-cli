@@ -14,8 +14,21 @@ export interface BackupRecord {
   operation: "backup" | "backup --keystore";
   /** the account whose secret was exported (its local id at the time). */
   accountId: string;
-  /** that account's on-chain address — the identity that outlives the local id. */
+  /**
+   * The exported key's on-chain address — the identity that outlives the local id.
+   *
+   * For `backup --keystore` this is the address of the family whose key was written, NOT the
+   * account's TRON address: a seed account holds a different key per family, and logging
+   * one family's export under another family's address makes the trail name the wrong key.
+   */
   account: string;
+  /**
+   * The family whose key was exported, when exactly one was.
+   *
+   * Absent for a native `backup`: a mnemonic (or a raw private key) covers every family at once,
+   * so naming one of them would be a narrower claim than what actually left the machine.
+   */
+  family?: string;
   label: string | null;
   /** the file the secret was written to (absolute path, as reported by the writer). */
   out: string;

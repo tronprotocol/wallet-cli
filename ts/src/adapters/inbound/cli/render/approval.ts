@@ -3,7 +3,7 @@ import { formatAtWithRelative, formatInt, formatSun } from "./scalars.js";
 import { query, table } from "./layout.js";
 
 function transactionType(value: TxApprovalView): string {
-  // human name only — the machine-readable contractType enum stays in json (doc §3.2). The raw
+  // human name only — the machine-readable contractType enum stays in json. The raw
   // enum is the fallback, since an unmapped contract type has no human name to show.
   const label = value.operation ?? value.contractType;
   if (!value.rawAmount) return label;

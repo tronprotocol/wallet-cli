@@ -1,0 +1,106 @@
+# Shared helpers for the REPL regression driver.
+
+# Whole-block answers (getblock, listwitnesses, chain parameters) run well past
+# expect's default 2000-byte match buffer, which would silently drop the head of
+# the output the assertions look for.
+match_max -d 200000
+set PASS 0
+set FAIL 0
+set FAILED_CASES {}
+
+# The prompt only counts when it sits at the very end of the buffer: help texts
+# print literal "wallet> " inside their usage examples.
+set PROMPT "wallet> $"
+
+proc banner {name} {
+  puts "\n===== CASE: $name ====="
+}
+
+proc record {name ok detail} {
+  global PASS FAIL FAILED_CASES
+  if {$ok} {
+    incr PASS
+    puts "\[PASS\] $name"
+  } else {
+    incr FAIL
+    lappend FAILED_CASES $name
+    puts "\[FAIL\] $name -- $detail"
+  }
+}
+
+# Drop the echoed command line so a pattern cannot match its own input.
+proc strip_echo {out} {
+  set i [string first "\n" $out]
+  if {$i < 0} { return $out }
+  return [string range $out [expr {$i + 1}] end]
+}
+
+# Send a REPL command, collect everything up to the next prompt, then assert.
+proc step {name cmd pattern} {
+  global PROMPT
+  banner $name
+  send -- "$cmd\r"
+  expect {
+    -re $PROMPT {
+      set out [strip_echo $expect_out(buffer)]
+      if {[regexp -nocase -- $pattern $out]} {
+        record $name 1 ""
+      } else {
+        record $name 0 "output did not match: $pattern"
+      }
+    }
+    timeout { record $name 0 "timeout waiting for the prompt" }
+  }
+}
+
+proc summary {} {
+  global PASS FAIL FAILED_CASES
+  puts "\n========================================"
+  puts "TOTAL PASS=$PASS FAIL=$FAIL"
+  if {$FAIL > 0} {
+    puts "FAILED: $FAILED_CASES"
+  }
+  puts "========================================"
+  if {$FAIL > 0} { exit 1 }
+  exit 0
+}
+
+# Console.readPassword flips the tty into no-echo mode and discards whatever was
+# already buffered, so wait for the prompt to be the last thing on screen and give
+# the JVM a moment before typing the secret.
+proc send_secret {label line} {
+  expect {
+    -re "password: $" {}
+    timeout { record $label 0 "no password prompt"; summary }
+  }
+  sleep 0.4
+  send -- "$line\r"
+}
+
+proc wait_for {label pattern} {
+  expect {
+    -nocase -re $pattern {}
+    timeout { record $label 0 "timeout waiting for: $pattern"; summary }
+  }
+}
+
+# Same as `step`, but a freshly broadcast transaction needs a block or two before
+# the node can answer for it.
+proc step_retry {name cmd pattern tries delay} {
+  global PROMPT
+  banner $name
+  for {set i 1} {$i <= $tries} {incr i} {
+    send -- "$cmd\r"
+    set matched 0
+    expect {
+      -re $PROMPT {
+        set out [strip_echo $expect_out(buffer)]
+        if {[regexp -nocase -- $pattern $out]} { set matched 1 }
+      }
+      timeout { record $name 0 "timeout waiting for the prompt"; return }
+    }
+    if {$matched} { record $name 1 "(attempt $i)"; return }
+    sleep $delay
+  }
+  record $name 0 "still unmatched after $tries attempts: $pattern"
+}

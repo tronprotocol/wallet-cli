@@ -3,17 +3,19 @@
 A worked end-to-end example of an interactive session: build and run, register, back up, inspect, issue an asset, and transfer it.
 
 ```console
-$ cd wallet-cli
+$ cd wallet-cli/java
 $ ./gradlew build
 $ ./gradlew run
-> RegisterWallet 123456      (password = 123456)
-> login 123456
+> RegisterWallet             (prompts twice for the password, then for mnemonic length)
+> login                      (prompts for the password)
 > getAddress
-address = TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm'  # backup it!
-> BackupWallet 123456
-priKey = 1234567890123456789012345678901234567890123456789012345678901234  # backup it!!! (BackupWallet2Base64 option)
+GetAddress  successful !!
+address = TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm   # backup it!
+> BackupWallet               (prompts for the password)
+BackupWallet  successful !!
+1234567890123456789012345678901234567890123456789012345678901234  # backup it!!! (BackupWallet2Base64 prints the same key base64-encoded)
 > getbalance
-Balance = 0
+Balance = 0 SUN = 0.000000 TRX
 > AssetIssue TestTRX TRX 75000000000000000 1 1 2 "2019-10-02 15:10:00" "2020-07-11" "just for test121212" www.test.com 100 100000 10000 10 10000 1
 > getaccount TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm
 (Print balance: 9999900000

@@ -17,6 +17,7 @@ import type { BackupFormat } from "../ports/backup-writer.js";
 import { Derivation } from "../../domain/derivation/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { tronHexAddress } from "../../domain/address/index.js";
+import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { WalletService } from "./wallet-service.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
@@ -83,7 +84,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("exports an HD account's OWN derived key, not the seed", () => {
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
-    h.service.backupKeystore(accountId, undefined, PW);
+    h.service.backupKeystore(accountId, undefined, PW, "tron");
 
     const expected = Derivation.derive(
       Derivation.mnemonicToSeed(MNEMONIC),
@@ -102,7 +103,7 @@ describe("WalletService.backupKeystore", () => {
     const walletId = root.split(".")[0]!;
     const { accountId } = h.keystore.addAccount(walletId, 3);
 
-    h.service.backupKeystore(accountId, undefined, PW);
+    h.service.backupKeystore(accountId, undefined, PW, "tron");
     const expected = Derivation.derive(
       Derivation.mnemonicToSeed(MNEMONIC),
       Derivation.path("tron", 3),
@@ -114,7 +115,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("exports a privateKey wallet's stored key and records the account's TRON address", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "hot" });
-    const result = h.service.backupKeystore(accountId, undefined, PW);
+    const result = h.service.backupKeystore(accountId, undefined, PW, "tron");
 
     const file = h.writer.writes[0]!.payload as { address: string };
     expect(bytesToHex(KeystoreV3.decrypt(file, PW))).toBe(RAW_KEY);
@@ -124,7 +125,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("encrypts with the master password it was given, not with a fixed one", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
-    h.service.backupKeystore(accountId, undefined, "a-different-password");
+    h.service.backupKeystore(accountId, undefined, "a-different-password", "tron");
     expect(() => KeystoreV3.decrypt(h.writer.writes[0]!.payload, PW)).toThrowError(
       /incorrect keystore file password/,
     );
@@ -132,7 +133,7 @@ describe("WalletService.backupKeystore", () => {
 
   it("asks the writer for the keystore filename shape and reports format: keystore", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
-    const result = h.service.backupKeystore(accountId, undefined, PW);
+    const result = h.service.backupKeystore(accountId, undefined, PW, "tron");
     expect(h.writer.writes[0]!.format).toBe("keystore");
     expect(result).toMatchObject({
       format: "keystore",
@@ -146,7 +147,7 @@ describe("WalletService.backupKeystore", () => {
       family: "tron",
       address: "TQ5NMqJjCu5zSvSHSsuMEwjZ8pmpBRhkHm",
     });
-    expect(() => h.service.backupKeystore(accountId, undefined, PW)).toThrowError(
+    expect(() => h.service.backupKeystore(accountId, undefined, PW, "tron")).toThrowError(
       /hold no exportable secret/,
     );
   });
@@ -176,7 +177,7 @@ describe("WalletService export audit log", () => {
 
   it("distinguishes a keystore export from a native one", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "hot" });
-    h.service.backupKeystore(accountId, "./hot.keystore.json", PW);
+    h.service.backupKeystore(accountId, "./hot.keystore.json", PW, "tron");
     expect(h.store.list()[0]).toMatchObject({
       operation: "backup --keystore",
       out: "./hot.keystore.json",
@@ -196,7 +197,7 @@ describe("WalletService export audit log", () => {
       h.store,
       () => NOW,
     );
-    expect(() => failing.backupKeystore(accountId, undefined, PW)).toThrowError();
+    expect(() => failing.backupKeystore(accountId, undefined, PW, "tron")).toThrowError();
     expect(h.store.list()).toEqual([]);
   });
 
@@ -341,29 +342,55 @@ describe("WalletService.importKeystore", () => {
     expect(h.keystore.list()).toEqual([]);
   });
 
-  it("refuses a same-address account instead of overwriting it (unlike the Java implementation)", () => {
-    h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "already-here" });
-    let err: any;
-    try {
-      h.service.importKeystore(v3(), "file-pw");
-    } catch (e) {
-      err = e;
-    }
-    expect(err?.code).toBe("account_exists");
-    expect(err.message).toMatch(/already-here/);
+  it("is idempotent against an existing privateKey account holding the same key (matches import private-key)", () => {
+    const { accountId } = h.keystore.import({
+      secret: RAW_KEY,
+      type: "privateKey",
+      label: "already-here",
+    });
+    const result = h.service.importKeystore(v3(), "file-pw");
+    expect(result).toMatchObject({ accountId, status: "existing" });
     expect(h.keystore.list()).toHaveLength(1);
   });
 
-  it("refuses a keystore whose key belongs to an existing HD account, protecting its seed", () => {
-    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+  it("creates a second account when the key belongs to an existing HD account's derived address", () => {
+    const { accountId: seedAccountId } = h.keystore.import({
+      secret: MNEMONIC,
+      type: "seed",
+      label: "main",
+    });
     const hdKey = Derivation.derive(
       Derivation.mnemonicToSeed(MNEMONIC),
       Derivation.path("tron", 0),
     ).privateKey;
-    expect(h.keystore.describe(accountId).type).toBe("seed");
-    expect(() =>
-      h.service.importKeystore(v3(bytesToHex(hdKey), "file-pw"), "file-pw"),
-    ).toThrowError(/already holds this address/);
+    expect(h.keystore.describe(seedAccountId).type).toBe("seed");
+    const result = h.service.importKeystore(v3(bytesToHex(hdKey), "file-pw"), "file-pw");
+    expect(result.status).toBe("created");
+    expect(result.type).toBe("privateKey");
+    expect(h.keystore.list()).toHaveLength(2);
+  });
+
+  it("rejects an out-of-range private key as invalid_private_key, not internal_error", () => {
+    // 32 zero bytes: well-formed as a V3 keystore payload (right shape, right length), but not a
+    // valid secp256k1 scalar — derivePrivAddresses() would otherwise throw a raw RangeError that
+    // classifyError redacts to internal_error, hiding the actionable cause.
+    const zeroKey = "00".repeat(32);
+    let err: any;
+    try {
+      h.service.importKeystore(v3(zeroKey, "file-pw"), "file-pw");
+    } catch (e) {
+      err = e;
+    }
+    expect(err?.code).toBe("invalid_private_key");
+    expect(h.keystore.list()).toEqual([]);
+  });
+
+  it("does not refuse a same-address WATCH account — it holds no secret an import could destroy", () => {
+    const watchAddress = derivePrivAddresses(Buffer.from(RAW_KEY, "hex")).tron!;
+    h.keystore.registerWatch({ family: "tron", address: watchAddress });
+    const result = h.service.importKeystore(v3(), "file-pw", "now-imported");
+    expect(result.status).toBe("created");
+    expect(h.keystore.list()).toHaveLength(2);
   });
 });
 
@@ -395,7 +422,10 @@ describe("WalletService reports the file it wrote when the audit append fails", 
 
   it.each([
     ["native backup", (s: WalletService, id: string) => s.backup(id, undefined)],
-    ["keystore backup", (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW)],
+    [
+      "keystore backup",
+      (s: WalletService, id: string) => s.backupKeystore(id, undefined, PW, "tron"),
+    ],
   ])("%s still fails, but names the file it already committed", (_label, run) => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
@@ -409,5 +439,87 @@ describe("WalletService reports the file it wrote when the audit append fails", 
         "/tmp/exported-secret.json",
       );
     }
+  });
+});
+
+// The problem, restated: a seed account holds a DIFFERENT private key per family (derivation
+// puts TRON at coin 195 and EVM at coin 60). A V3 keystore holds exactly one key, so "export my
+// private key" has two answers and the wallet must be told which.
+describe("keystore export follows the selected network's family", () => {
+  const MNEMONIC = "test test test test test test test test test test test junk";
+  const seed = Derivation.mnemonicToSeed(MNEMONIC);
+
+  function exported(family: "tron" | "evm") {
+    const h = harness();
+    h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    h.service.backupKeystore("main", undefined, PW, family);
+    return h.writer.writes.at(-1)!.payload as { address: string };
+  }
+
+  it.each([
+    ["tron", "m/44'/195'/0'/0/0"],
+    ["evm", "m/44'/60'/0'/0/0"],
+  ])("encrypts the %s key, derived at %s", (family, path) => {
+    const file = exported(family as "tron" | "evm");
+    const expected = Derivation.derive(seed, path).privateKey;
+
+    expect(bytesToHex(KeystoreV3.decrypt(file, PW))).toBe(bytesToHex(expected));
+  });
+
+  // The two keys are genuinely different, so exporting the wrong one hands the user an address
+  // their wallet has never shown them.
+  it("exports two different keys for the two families", () => {
+    expect(KeystoreV3.decrypt(exported("tron"), PW)).not.toEqual(
+      KeystoreV3.decrypt(exported("evm"), PW),
+    );
+  });
+
+  // `address` is informational — every reader derives the real address from the key it decrypts
+  // (our own importer ignores it) — but writing the wrong family's encoding is still misleading.
+  it("writes the address in the exported family's own encoding", () => {
+    expect(exported("tron").address).toMatch(/^41[0-9a-f]{40}$/);
+    expect(exported("evm").address).toMatch(/^0x[0-9a-fA-F]{40}$/);
+  });
+});
+
+/**
+ * The audit log answers "which key left this machine". A seed account holds a different key per
+ * family, so filing an EVM export under the account's TRON address names the wrong key —
+ * and the log's only job is to name the right one.
+ */
+describe("WalletService.backupKeystore — what the audit log records", () => {
+  it("files a keystore export under the exported family's address", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const account = h.keystore.describe(accountId);
+
+    h.service.backupKeystore(accountId, undefined, PW, "evm");
+    h.service.backupKeystore(accountId, undefined, PW, "tron");
+
+    const [tron, evm] = h.store.list(); // newest first
+    expect(evm).toMatchObject({ family: "evm", account: account.addresses.evm });
+    expect(tron).toMatchObject({ family: "tron", account: account.addresses.tron });
+    expect(evm!.account).not.toBe(tron!.account);
+  });
+
+  // A mnemonic is every family's key at once, so naming one would claim less than what left.
+  it("records no family for a native backup", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    h.service.backup(accountId, undefined);
+
+    expect(h.store.list()[0]).not.toHaveProperty("family");
+  });
+
+  // Filtering used to compare the TRON address alone, which hid an account's own EVM exports.
+  it("finds an EVM export when filtering by that account", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    h.service.backupKeystore(accountId, undefined, PW, "evm");
+
+    const { records } = h.service.backupRecords({ account: accountId });
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ family: "evm" });
   });
 });

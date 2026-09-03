@@ -3,7 +3,7 @@
  * Broadcaster port plus TRON-specific reads, TRC10/TRC20, Stake 2.0, and contract operations.
  * (builtin TRON networks carry an HTTP fullHost; tronweb is HTTP-based.)
  */
-import { TronWeb, utils as tronUtils } from "tronweb";
+import { providers, TronWeb, utils as tronUtils } from "tronweb";
 import type { Types } from "tronweb";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type {
@@ -11,12 +11,14 @@ import type {
   ActivePermissionView,
   BroadcastResult,
   PermissionGroupView,
+  NetworkDescriptor,
   SignedTx,
   TronTransactionArtifact,
   UnsignedTx,
 } from "../../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../../domain/resources/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
+import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
 import type {
   DecodedTronTransaction,
   TronContractParameter,
@@ -39,7 +41,7 @@ import type {
 } from "../../../../application/ports/chain/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
-import { withTimeout } from "../../../../domain/async/index.js";
+import { withDeadline } from "../../../../domain/async/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
@@ -58,6 +60,15 @@ import {
 } from "./transaction-codec.js";
 import { decodeOperations } from "../../../../domain/permission/index.js";
 import { addressCodec } from "../../../../domain/family/index.js";
+import {
+  FetchHttpTransport,
+  HttpTransportError,
+  httpTransportFailure,
+  networkHttpConfig,
+  type HttpEndpointConfig,
+  type HttpTransport,
+} from "../../http/index.js";
+import { PacedHttpTransport, RequestPacer } from "../../http/request-pacer.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -72,15 +83,108 @@ export function hexToBase58(addr: unknown): string {
 
 export class TronRpcClient implements TronGateway, Broadcaster {
   #tw: InstanceType<typeof TronWeb>;
-  readonly #fullHost: string;
   readonly #timeoutMs: number;
-  constructor(fullHost: string, timeoutMs = 60_000) {
+  readonly #transport: HttpTransport;
+  /**
+   * Paces every node request this client issues. See RequestPacer for why the interval, not the
+   * in-flight cap, is what prevents a 429; the values are measured against TronGrid's anonymous
+   * tier, where getnowblock sits in a separate and far looser bucket than the account-scoped
+   * endpoints this mostly serves.
+   *
+   * Scope: this client only. ChainGatewayRegistry caches one per network id and a run touches one
+   * network, so in practice it covers a whole invocation — but TronGridHistoryReader builds its
+   * own transport against the same host (one request per command, so it cannot burst on its own).
+   */
+  readonly #pacer = new RequestPacer({ minIntervalMs: 400, maxInFlight: 2 });
+  readonly #pacedProviders = new WeakSet<object>();
+  constructor(
+    fullHostOrConfig: string | NetworkDescriptor | HttpEndpointConfig,
+    timeoutMs = 60_000,
+    transport?: HttpTransport,
+  ) {
+    let config: HttpEndpointConfig;
+    try {
+      config =
+        typeof fullHostOrConfig === "string"
+          ? { endpoint: fullHostOrConfig, timeoutMs, headers: {} }
+          : "endpoint" in fullHostOrConfig
+            ? fullHostOrConfig
+            : networkHttpConfig(fullHostOrConfig, timeoutMs);
+    } catch (error) {
+      const failure =
+        error instanceof HttpTransportError ? httpTransportFailure(error) : "invalid HTTP endpoint";
+      throw new TransportError("rpc_error", `TRON RPC configuration failed: ${failure}`);
+    }
     // a dummy address keeps tronweb happy for read-only/builder use (no key → cannot sign)
-    this.#tw = new TronWeb({ fullHost });
-    this.#fullHost = fullHost.replace(/\/+$/, "");
-    this.#timeoutMs = timeoutMs;
+    const tronProvider = () => {
+      const provider = new providers.HttpProvider(config.endpoint, config.timeoutMs, "", "", {
+        ...config.headers,
+      });
+      // tronweb talks through its own axios instance, which follows redirects and re-sends the
+      // headers to wherever it lands — so a credentialed request would hand the API key to
+      // whatever host the endpoint points at. Mirror FetchHttpTransport's `redirect: "error"`.
+      // Conditional on purpose: with nothing to leak, a provider that legitimately redirects
+      // must keep working.
+      if (Object.keys(config.headers).length > 0) {
+        // tronweb types `instance` as request-only; the axios defaults are there at runtime.
+        const axios = provider.instance as unknown as { defaults: { maxRedirects: number } };
+        axios.defaults.maxRedirects = 0;
+      }
+      return provider;
+    };
+    this.#tw = new TronWeb({
+      fullNode: tronProvider(),
+      solidityNode: tronProvider(),
+      eventServer: tronProvider(),
+    });
+    this.#timeoutMs = config.timeoutMs;
+    // an injected transport is paced too: the endpoint's budget does not care who built the client
+    this.#transport = new PacedHttpTransport(
+      transport ?? new FetchHttpTransport(config),
+      this.#pacer,
+    );
     this.#tw.setAddress(TRON_READ_OWNER);
+    this.#paceTronWebProviders();
   }
+  /**
+   * tronweb owns its own axios client, so the pacer has to be installed on its providers: without
+   * this every `#tw.trx.*` and `#tw.transactionBuilder.*` call — broadcast, every builder's
+   * ref-block read, every constant call — would bypass the pacer entirely. All three providers are
+   * patched because the constructor builds a distinct HttpProvider for each.
+   *
+   * The patch lives on the provider *instances*, and `setFullNode`/`setSolidityNode`/
+   * `setEventServer` each install a fresh HttpProvider — as do `setHeader`/`setFullNodeHeader`/
+   * `setEventHeader`, which delegate to those three. So those three are wrapped to re-pace
+   * whatever they installed; a provider that slips through is not an error, just an unpaced
+   * client that draws 429s under load.
+   */
+  #paceTronWebProviders(): void {
+    // tronweb types these as concrete methods; patching them needs an indexable view.
+    const tw = this.#tw as unknown as Record<string, (...args: unknown[]) => unknown>;
+    for (const swap of ["setFullNode", "setSolidityNode", "setEventServer"]) {
+      const original = tw[swap]!.bind(this.#tw);
+      tw[swap] = (...args: unknown[]) => {
+        const result = original(...args);
+        this.#paceCurrentProviders();
+        return result;
+      };
+    }
+    this.#paceCurrentProviders();
+  }
+  /**
+   * The WeakSet is what makes this safe to re-run: wrapping one provider twice would make a single
+   * request take two permits and deadlock the pacer.
+   */
+  #paceCurrentProviders(): void {
+    for (const provider of [this.#tw.fullNode, this.#tw.solidityNode, this.#tw.eventServer]) {
+      if (!provider || this.#pacedProviders.has(provider)) continue;
+      this.#pacedProviders.add(provider);
+      const request = provider.request.bind(provider);
+      provider.request = ((...args: Parameters<typeof request>) =>
+        this.#pacer.run(() => request(...args))) as typeof request;
+    }
+  }
+
   get tronweb(): InstanceType<typeof TronWeb> {
     return this.#tw;
   }
@@ -89,13 +193,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return account.balance ?? "0";
   }
   async broadcast(signed: SignedTx): Promise<BroadcastResult> {
+    assertBroadcastAllowed();
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
     try {
       // bound the RPC so a standalone `tx broadcast` (not routed through the pipeline) can't hang.
-      res = await withTimeout(
+      // withDeadline, so a broadcast still queued behind the pacer is not reported as a timeout for
+      // a transaction that has not been sent yet.
+      res = await withDeadline(this.#timeoutMs, () =>
         this.#tw.trx.sendRawTransaction(signed as Types.SignedTransaction),
-        this.#timeoutMs,
-        () => {},
       );
     } catch (e) {
       if (e instanceof ChainError) throw e; // preserve timeout as ChainError, don't remap to rpc_error
@@ -112,10 +217,16 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       // A recognised rejection gets a code an agent can branch on; everything else keeps the
       // node's own words under transaction_rejected (see node-errors.ts).
       const known = classifyNodeRejection(reason);
+      // A classified rejection keeps the node's own words in the message, not just in
+      // details.nodeMessage: text mode renders only `message`, so the category alone would tell
+      // the reader what kind of problem it is and nothing about theirs. Redact BEFORE folding —
+      // the node's text can carry a path or URL, and folding must not bypass that scrub.
       throw new ChainError(
         known?.code ?? "transaction_rejected",
-        known?.message ?? `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
-        { code: res.code, nodeMessage: redactErrorMessage(reason) },
+        known?.message
+          ? `${known.message}: ${redactErrorMessage(reason)}`
+          : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+        { nodeCode: res.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
     return { txId: res.txid ?? res.transaction?.txID };
@@ -308,14 +419,25 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   async broadcastHex(input: string): Promise<BroadcastResult> {
+    assertBroadcastAllowed();
     const hex = normalizeTransactionHex(input);
     decodeTransactionHex(hex);
     const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));
     if (response.result !== true) {
-      const reason = decodeTronMessage(response.message) || response.code || "rejected by node";
+      const reason = String(
+        decodeTronMessage(response.message) || response.code || "rejected by node",
+      );
+      // Same rejections as broadcastTransaction, so the same classification: `tx broadcast --hex`
+      // must not report insufficient_balance as a bare transaction_rejected.
+      const known = classifyNodeRejection(reason);
+      // Same reasoning as broadcast(): fold the redacted node text into the message so text mode
+      // shows it, keeping details.nodeMessage for machine readers.
       throw new ChainError(
-        "transaction_rejected",
-        `TRON broadcast rejected: ${redactErrorMessage(String(reason))}`,
+        known?.code ?? "transaction_rejected",
+        known?.message
+          ? `${known.message}: ${redactErrorMessage(reason)}`
+          : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+        { nodeCode: response.code, nodeMessage: redactErrorMessage(reason) },
       );
     }
     const returnedTxId =
@@ -419,8 +541,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   // ── generic error wrapper for node reads/builds ──────────────────────────────
   // Timeout wraps the guard (not the reverse) so a timed-out call surfaces as ChainError("timeout")
   // rather than being remapped to a generic rpc_error by the catch below.
+  // withDeadline rather than withTimeout because requests are paced: the wait the pacer imposes is
+  // progress, not a hang, and must not be charged against this call's budget.
   #wrap<T>(label: string, fn: () => Promise<T>): Promise<T> {
-    return withTimeout(this.#guard(label, fn), this.#timeoutMs, () => {});
+    return withDeadline(this.#timeoutMs, () => this.#guard(label, fn));
   }
   async #guard<T>(label: string, fn: () => Promise<T>): Promise<T> {
     try {
@@ -428,6 +552,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     } catch (e) {
       if (e instanceof ChainError || e instanceof UsageError || e instanceof TransportError)
         throw e;
+      if (e instanceof HttpTransportError) {
+        if (e.kind === "timeout") {
+          throw new ChainError("timeout", `TRON ${label} timed out`);
+        }
+        throw new TransportError("rpc_error", `TRON ${label} failed: ${httpTransportFailure(e)}`);
+      }
       throw new TransportError(
         "rpc_error",
         `TRON ${label} failed: ${redactErrorMessage((e as Error).message?.split("\n")[0] ?? "")}`,
@@ -438,40 +568,28 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   // ── account / query ──────────────────────────────────────────────────────────
   /** node POST returning the raw body, so the caller can parse it losslessly. */
   async #post(path: string, body: unknown): Promise<string> {
-    const response = await fetch(`${this.#fullHost}${path}`, {
+    return this.#transport.requestText({
       method: "POST",
+      path,
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(this.#timeoutMs),
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
   }
 
   async getAccount(address: string): Promise<TronAccount> {
     return this.#wrap("getAccount", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getaccount`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return parseTronAccountResponse(await response.text());
+      return parseTronAccountResponse(
+        await this.#post("/wallet/getaccount", { address: this.#tw.address.toHex(address) }),
+      );
     });
   }
   async getAccountById(accountId: string): Promise<TronAccount> {
     return this.#wrap("getAccountById", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getaccountbyid`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+      return parseTronAccountResponse(
+        await this.#post("/wallet/getaccountbyid", {
           account_id: Buffer.from(accountId, "utf8").toString("hex"),
         }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return parseTronAccountResponse(await response.text());
+      );
     });
   }
   async getAccountResources(address: string): Promise<Types.AccountResourceMessage> {
@@ -483,14 +601,9 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       numberOrLatest === undefined ? undefined : this.#safeNumber(numberOrLatest, "block number");
     return this.#wrap("getBlock", async () => {
       const endpoint = height === undefined ? "getnowblock" : "getblockbynum";
-      const response = await fetch(`${this.#fullHost}/wallet/${endpoint}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(height === undefined ? {} : { num: height }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return parseTronBlockResponse(await response.text());
+      return parseTronBlockResponse(
+        await this.#post(`/wallet/${endpoint}`, height === undefined ? {} : { num: height }),
+      );
     });
   }
   async getTransactionById(txid: string): Promise<TronTx> {
@@ -537,40 +650,67 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async getTrc20Balance(contract: string, address: string): Promise<string> {
     return this.#wrap("trc20 balanceOf", async () => {
-      const [hex] = await this.#constant(contract, "balanceOf(address)", [
-        { type: "address", value: address },
-      ]);
+      const [hex] = await this.#notAToken(contract, "balanceOf", () =>
+        this.#constant(contract, "balanceOf(address)", [{ type: "address", value: address }]),
+      );
       return hex ? BigInt("0x" + hex).toString() : "0";
     });
   }
 
+  /**
+   * Re-label the two node answers that mean "there is no token here", leaving every other failure
+   * alone.
+   *
+   * This is classification, not swallowing — the distinction the getTokenInfo comment below is
+   * about. A node outage, a timeout, a malformed response all still surface as themselves; only
+   * "no contract at this address" and a reverted view call become token_metadata_unavailable,
+   * which is the same code the EVM side reports for the same two situations. Without this, asking
+   * about a non-token answered `rpc_error`, which reads as "the network is broken".
+   */
+  async #notAToken<T>(contract: string, method: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (e) {
+      const message = (e as Error).message ?? "";
+      if (/smart contract is not exist|revert opcode executed/i.test(message)) {
+        throw new ChainError(
+          "token_metadata_unavailable",
+          `${contract} did not answer ${method} — it may not be a token contract`,
+        );
+      }
+      throw e;
+    }
+  }
+
   async getTokenInfo(contract: string): Promise<TronTokenInfo> {
-    return this.#wrap("trc20 tokenInfo", async () => {
-      // Read the view methods by selector rather than via contract().at(): tokens deployed without a
-      // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
-      //
-      // No catch here on purpose. A method the contract does not implement is NOT an error at this
-      // layer — the node answers `result: true` with an empty `constant_result`, which decodes to
-      // undefined on its own. The only failures that reach this point are a transport fault and
-      // "no contract at this address", and swallowing either would report a node outage as missing
-      // token metadata — which callers then escalate into far more specific (and wrong) claims.
-      const read = async (fn: string): Promise<string | undefined> =>
-        this.#constant(contract, fn, []).then(([hex]) => hex);
-      const [name, symbol, decimals, totalSupply] = await Promise.all([
-        read("name()"),
-        read("symbol()"),
-        read("decimals()"),
-        read("totalSupply()"),
-      ]);
-      const scale = decodeAbiUint(decimals);
-      return {
-        contract,
-        name: decodeAbiString(name),
-        symbol: decodeAbiString(symbol),
-        decimals: scale !== undefined && scale <= 255n ? Number(scale) : undefined,
-        totalSupply: decodeAbiUint(totalSupply)?.toString(),
-      };
-    });
+    return this.#wrap("trc20 tokenInfo", async () =>
+      this.#notAToken(contract, "the TRC-20 view methods", async () => {
+        // Read the view methods by selector rather than via contract().at(): tokens deployed without a
+        // published ABI (e.g. USDD on Nile) resolve to a contract object with no methods at all.
+        //
+        // No catch here on purpose. A method the contract does not implement is NOT an error at this
+        // layer — the node answers `result: true` with an empty `constant_result`, which decodes to
+        // undefined on its own. The only failures that reach this point are a transport fault and
+        // "no contract at this address", and swallowing either would report a node outage as missing
+        // token metadata — which callers then escalate into far more specific (and wrong) claims.
+        const read = async (fn: string): Promise<string | undefined> =>
+          this.#constant(contract, fn, []).then(([hex]) => hex);
+        const [name, symbol, decimals, totalSupply] = await Promise.all([
+          read("name()"),
+          read("symbol()"),
+          read("decimals()"),
+          read("totalSupply()"),
+        ]);
+        const scale = decodeAbiUint(decimals);
+        return {
+          contract,
+          name: decodeAbiString(name),
+          symbol: decodeAbiString(symbol),
+          decimals: scale !== undefined && scale <= 255n ? Number(scale) : undefined,
+          totalSupply: decodeAbiUint(totalSupply)?.toString(),
+        };
+      }),
+    );
   }
 
   async getTrc10Balance(assetId: string, address: string): Promise<string> {
@@ -670,7 +810,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   /**
    * AssetIssue and UnfreezeAsset are built through our own codec: TronWeb's serialiser drops every
-   * frozen tranche after the first, and has no UnfreezeAssetContract at all. See ADR-0001 and
+   * frozen tranche after the first, and has no UnfreezeAssetContract at all. See
    * asset-contract-codec.ts. The node still only supplies the reference block, exactly as it does
    * for every tronweb-built transaction here.
    */
@@ -1032,17 +1172,15 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getWitnesses(limit: number): Promise<TronWitness[]> {
     const capped = Math.min(Math.max(Math.trunc(limit), 1), 127);
     return this.#wrap("getNowWitnessList", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getpaginatednowwitnesslist`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ offset: 0, limit: capped, visible: true }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<
-        string,
-        unknown
-      >;
+      const raw = normalizeAccountValue(
+        parseLosslessJson(
+          await this.#post("/wallet/getpaginatednowwitnesslist", {
+            offset: 0,
+            limit: capped,
+            visible: true,
+          }),
+        ),
+      ) as Record<string, unknown>;
       const witnesses = Array.isArray(raw.witnesses) ? raw.witnesses : [];
       return witnesses.map(normalizeWitness).filter((w): w is TronWitness => w !== null);
     });
@@ -1062,17 +1200,9 @@ export class TronRpcClient implements TronGateway, Broadcaster {
    */
   async getWitness(address: string): Promise<TronWitness | null> {
     return this.#wrap("listWitnesses", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/listwitnesses`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<
-        string,
-        unknown
-      >;
+      const raw = normalizeAccountValue(
+        parseLosslessJson(await this.#post("/wallet/listwitnesses", {})),
+      ) as Record<string, unknown>;
       const witnesses = Array.isArray(raw.witnesses) ? raw.witnesses : [];
       // normalizeWitness yields base58; compare against the caller's ref in the same form.
       const wanted = hexToBase58(address) || address;
@@ -1087,17 +1217,9 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getProposals(): Promise<TronProposal[]> {
     return this.#wrap("listProposals", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/listproposals`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: "{}",
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<
-        string,
-        unknown
-      >;
+      const raw = normalizeAccountValue(
+        parseLosslessJson(await this.#post("/wallet/listproposals", {})),
+      ) as Record<string, unknown>;
       const proposals = Array.isArray(raw.proposals) ? raw.proposals : [];
       return proposals
         .map(normalizeProposal)
@@ -1106,14 +1228,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getProposal(id: number): Promise<TronProposal | null> {
     return this.#wrap("getProposalById", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getproposalbyid`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return normalizeProposal(normalizeAccountValue(parseLosslessJson(await response.text())));
+      return normalizeProposal(
+        normalizeAccountValue(
+          parseLosslessJson(await this.#post("/wallet/getproposalbyid", { id })),
+        ),
+      );
     });
   }
   async buildProposalCreate(
@@ -1195,17 +1314,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getBrokerage(address: string): Promise<number> {
     return this.#wrap("getBrokerage", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getBrokerage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<
-        string,
-        unknown
-      >;
+      const raw = normalizeAccountValue(
+        parseLosslessJson(
+          await this.#post("/wallet/getBrokerage", {
+            address: this.#tw.address.toHex(address),
+          }),
+        ),
+      ) as Record<string, unknown>;
       if (raw.brokerage === undefined) throw new Error("brokerage not found");
       const brokerage = Number(raw.brokerage);
       return Number.isFinite(brokerage) ? brokerage : 0;
@@ -1213,17 +1328,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getReward(address: string): Promise<string> {
     return this.#wrap("getReward", async () => {
-      const response = await fetch(`${this.#fullHost}/wallet/getReward`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
-        signal: AbortSignal.timeout(this.#timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const raw = normalizeAccountValue(parseLosslessJson(await response.text())) as Record<
-        string,
-        unknown
-      >;
+      const raw = normalizeAccountValue(
+        parseLosslessJson(
+          await this.#post("/wallet/getReward", { address: this.#tw.address.toHex(address) }),
+        ),
+      ) as Record<string, unknown>;
       return quantityString(raw.reward);
     });
   }

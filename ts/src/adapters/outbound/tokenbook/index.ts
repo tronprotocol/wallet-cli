@@ -4,6 +4,7 @@
  * and portfolio walk. Atomic writes under lock (same store as wallets.json). No secrets.
  */
 import { join } from "node:path";
+import { TOKENS_VERSION } from "../../../domain/migration/tokens-v2.js";
 import type {
   AccountRef,
   EffectiveTokenEntry,
@@ -94,7 +95,9 @@ export class TokenBook implements TokenRepository {
 
   // ── internals ──────────────────────────────────────────────────────────────
   #read(): TokensFile {
-    return this.store.readJson<TokensFile>(this.tokensPath) ?? { version: 1, entries: {} };
+    return (
+      this.store.readJson<TokensFile>(this.tokensPath) ?? { version: TOKENS_VERSION, entries: {} }
+    );
   }
   #write(file: TokensFile): void {
     this.store.writeJson(this.tokensPath, file);

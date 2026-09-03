@@ -17,11 +17,19 @@ import { asObj, table } from "./layout.js";
 import { formatDecimal, formatInt, formatScalar, num } from "./scalars.js";
 
 /** key → column header; keys not listed fall back to their own name. */
+// `label` is deliberately NOT mapped here: it stays whatever key case a row carries. Mapping it
+// would collide with error-details.test.ts's "derives its columns from whatever keys the rows
+// carry" case, which uses an unmapped `label` key specifically to prove the fallback path works —
+// an existing test this batch must not edit to fit the implementation. `ambiguous_account`'s
+// label column therefore prints as the raw key ("label"), same as any other unmapped column.
 const HEADERS: Record<string, string> = {
   assetId: "ID",
   issuerAddress: "Issuer",
   totalSupply: "Total supply",
   precision: "Precision",
+  accountId: "Account",
+  type: "Type",
+  index: "Index",
 };
 
 /**
