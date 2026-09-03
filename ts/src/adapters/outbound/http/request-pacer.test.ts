@@ -172,9 +172,9 @@ describe("RequestPacer deadline credit", () => {
 
   it("still lets the deadline fire on work that genuinely hangs", async () => {
     const pacer = new RequestPacer({ minIntervalMs: 10, maxInFlight: 1 });
-    await expect(settle(withDeadline(60, () => pacer.run(() => tick(5_000))))).rejects.toMatchObject(
-      { code: "timeout" },
-    );
+    await expect(
+      settle(withDeadline(60, () => pacer.run(() => tick(5_000)))),
+    ).rejects.toMatchObject({ code: "timeout" });
   });
 });
 
