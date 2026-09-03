@@ -24,7 +24,10 @@ describe("ConfigLoader defaultNetwork", () => {
     expect(registry.resolveDefault().id).toBe("tron:3448148188");
   });
 
-  it("does not resolve hidden-family networks (EVM is not currently exposed)", () => {
+  // Base is an L2, so it is in neither table (see the evm-gas fee-model note below); a name that
+  // reaches neither is rejected outright. There is no family-level gate — every builtin EVM
+  // network and alias resolves, as the alias-book cases assert.
+  it("rejects a name that is in neither the builtin table nor the alias book", () => {
     const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
     expect(() => registry.resolve("base")).toThrow(/unknown network/);
   });
