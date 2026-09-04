@@ -60,7 +60,7 @@ describe("wallet-cli --help lists every registered top-level command", () => {
     const listed = new Set(
       text
         .split("\n")
-        .map((line) => /^ {2}([a-z][a-z0-9-]*)\s{2,}\S/.exec(line)?.[1])
+        .map((line) => /^ {2}([a-z0-9][a-z0-9-]*)\s{2,}\S/.exec(line)?.[1])
         .filter((name): name is string => name !== undefined),
     );
     expect(heads.filter((head) => !listed.has(head))).toEqual([]);

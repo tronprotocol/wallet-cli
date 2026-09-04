@@ -9,6 +9,7 @@ export const TRONLINK_CONFIG_KEYS = [
   "tronlinkChannel",
 ] as const;
 export const GASFREE_CONFIG_KEYS = ["gasfreeApiKey", "gasfreeApiSecret"] as const;
+export const BAI_CONFIG_KEYS = ["baiApiKey"] as const;
 export const CONFIG_KEYS = [
   "defaultNetwork",
   "defaultOutput",
@@ -18,6 +19,7 @@ export const CONFIG_KEYS = [
   "aliases",
   ...TRONLINK_CONFIG_KEYS,
   ...GASFREE_CONFIG_KEYS,
+  ...BAI_CONFIG_KEYS,
 ] as const;
 export const WRITABLE_CONFIG_KEYS = [
   "defaultNetwork",
@@ -26,6 +28,7 @@ export const WRITABLE_CONFIG_KEYS = [
   "waitTimeoutMs",
   ...TRONLINK_CONFIG_KEYS,
   ...GASFREE_CONFIG_KEYS,
+  ...BAI_CONFIG_KEYS,
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
@@ -92,6 +95,7 @@ export class ConfigService {
       tronlinkChannel: effective.tronlinkChannel,
       gasfreeApiKey: effective.gasfreeApiKey,
       gasfreeApiSecret: maskSecret(effective.gasfreeApiSecret),
+      baiApiKey: maskSecret(effective.baiApiKey),
     };
     if (input.key === undefined) return view;
 
@@ -112,7 +116,7 @@ export class ConfigService {
 
     const key = input.key as WritableConfigKey;
     const value = this.normalize(key, input.value, networks);
-    if (key === "tronlinkSecretKey" || key === "gasfreeApiSecret") {
+    if (key === "tronlinkSecretKey" || key === "gasfreeApiSecret" || key === "baiApiKey") {
       return this.documents.update((current) => ({
         document: { ...current, [key]: value },
         result: { key, value: maskSecret(String(value)), input: "********" },
@@ -199,6 +203,15 @@ export class ConfigService {
       (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key) ||
       (GASFREE_CONFIG_KEYS as readonly string[]).includes(key)
     ) {
+      if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
+        throw new UsageError(
+          "invalid_value",
+          `${key} must be 1 to 256 characters without control characters`,
+        );
+      }
+      return raw;
+    }
+    if (key === "baiApiKey") {
       if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
         throw new UsageError(
           "invalid_value",

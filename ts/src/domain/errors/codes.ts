@@ -122,6 +122,11 @@ export const ERROR_CODES = {
   invalid_node_response: { exit: 1, retry: "same", meaning: "the node's answer was not in the shape the API defines" },
   provider_error: { exit: 1, retry: "same", meaning: "an external service failed" },
   provider_rate_limited: { exit: 1, retry: "later", meaning: "an external service is rate-limiting this client" },
+  invalid_x402_response: { exit: 1, retry: "same", meaning: "an x402 response could not be decoded" },
+  invalid_settlement: { exit: 1, retry: "never", meaning: "the paid response carried an invalid settlement receipt" },
+  no_matching_requirement: { exit: 1, retry: "never", meaning: "no offered x402 payment route matched the requested filters" },
+  amount_exceeds_limit: { exit: 1, retry: "never", meaning: "the requested x402 payment exceeds its configured limit" },
+  response_too_large: { exit: 1, retry: "changed", meaning: "the remote response exceeded the CLI safety limit" },
   timeout: { exit: 1, retry: "same", meaning: "the node, service or device did not answer in time" },
   aborted: { exit: "either", retry: "never", meaning: "the operation was stopped before it finished" },
   cancelled: { exit: 1, retry: "never", meaning: "the operation was cancelled before it reached the device" },
@@ -131,6 +136,8 @@ export const ERROR_CODES = {
   gasfree_credentials_missing: { exit: 2, retry: "never", meaning: "no GasFree credentials are configured" },
   gasfree_integrity: { exit: 1, retry: "never", meaning: "the GasFree service's answer failed its integrity check" },
   gasfree_rejected: { exit: 1, retry: "never", meaning: "the GasFree service refused the transfer" },
+  bai_auth_failed: { exit: 1, retry: "never", meaning: "the B.AI service rejected the configured API key" },
+  bai_credentials_missing: { exit: 2, retry: "never", meaning: "no B.AI API key is configured" },
   tronlink_credentials_missing: { exit: 2, retry: "never", meaning: "no TronLink multi-sig service credentials are configured" },
 
   // ── hardware wallet ───────────────────────────────────────────────────────

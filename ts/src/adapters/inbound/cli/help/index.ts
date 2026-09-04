@@ -171,6 +171,9 @@ export class HelpService {
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
+      ["x402", "Pay and inspect x402 service providers", ""],
+      ["bai", "Query and recharge a B.AI account", ""],
+      ["8004", "Read and manage ERC-8004 Agent identities", ""],
     ] as const;
     const commands = [
       ["use", "Set the active account", ""],
@@ -690,6 +693,9 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   encoding: "Convert and validate addresses and encodings across formats.",
   address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
   contact: "Manage the recipient address book.",
+  bai: "Query B.AI account credits, usage records, and recharge orders.",
+  "8004": "Read and manage ERC-8004 Agent identities on supported networks.",
+  x402: "Pay x402 endpoints and inspect the provider catalog.",
 };
 
 /** "--output, -o <text|json>" style header for text help. */

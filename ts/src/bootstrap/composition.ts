@@ -43,6 +43,18 @@ import { SecureKeypairWriter } from "../adapters/outbound/persistence/keypair-wr
 import { registerEncodingCommands } from "../adapters/inbound/cli/commands/encoding.js";
 import { registerAddressCommands } from "../adapters/inbound/cli/commands/address.js";
 import { TerminalQrEncoder } from "../adapters/outbound/qr/index.js";
+import { BaiClient } from "../adapters/outbound/bai/client.js";
+import { BaiService } from "../application/use-cases/bai-service.js";
+import { registerBaiCommands } from "../adapters/inbound/cli/commands/bai.js";
+import { EvmContractService } from "../application/use-cases/evm/contract-service.js";
+import { TronContractService } from "../application/use-cases/tron/contract-service.js";
+import { AgentService } from "../application/use-cases/agent-service.js";
+import { registerAgentCommands } from "../adapters/inbound/cli/commands/erc8004.js";
+import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
+import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
+import { X402Service } from "../application/use-cases/x402-service.js";
+import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
+import { X402HttpServer } from "../adapters/outbound/x402/server.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -110,6 +122,22 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
+  const x402Payments = new X402PaymentClient(signerResolver);
+  registerBaiCommands(
+    registry,
+    new BaiService(new BaiClient(config, timeoutMs), () => new Date(), x402Payments),
+  );
+  registerAgentCommands(
+    registry,
+    new AgentService({
+      evm: new EvmContractService(gatewayProvider, txPipeline),
+      tron: new TronContractService(gatewayProvider, txPipeline),
+    }),
+  );
+  registerX402Commands(
+    registry,
+    new X402Service(x402Payments, new X402ProviderCatalog(), new X402HttpServer()),
+  );
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
   registerTronChainCommands(registry, {

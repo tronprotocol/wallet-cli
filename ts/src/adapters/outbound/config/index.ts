@@ -42,6 +42,7 @@ export class ConfigLoader {
     let tronlinkChannel: string | undefined;
     let gasfreeApiKey: string | undefined;
     let gasfreeApiSecret: string | undefined;
+    let baiApiKey: string | undefined;
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
@@ -49,6 +50,7 @@ export class ConfigLoader {
       if (
         (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "") ||
         (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "") ||
+        (typeof raw.baiApiKey === "string" && raw.baiApiKey !== "") ||
         // A network's RPC apiKey is a credential too, and it sits NESTED under `networks`; a gate
         // that only inspected top-level keys would hand out a 644 file holding one.
         holdsNetworkApiKey(raw.networks)
@@ -76,6 +78,7 @@ export class ConfigLoader {
       if (validCredential(raw.tronlinkChannel)) tronlinkChannel = raw.tronlinkChannel;
       if (validCredential(raw.gasfreeApiKey)) gasfreeApiKey = raw.gasfreeApiKey;
       if (validCredential(raw.gasfreeApiSecret)) gasfreeApiSecret = raw.gasfreeApiSecret;
+      if (validCredential(raw.baiApiKey)) baiApiKey = raw.baiApiKey;
       // aliases first: a network key may be written as an alias, and normalising it needs the
       // book the same file may have just extended.
       if (raw.aliases && typeof raw.aliases === "object" && !Array.isArray(raw.aliases)) {
@@ -133,6 +136,7 @@ export class ConfigLoader {
       tronlinkChannel,
       gasfreeApiKey,
       gasfreeApiSecret,
+      baiApiKey,
     };
   }
 }

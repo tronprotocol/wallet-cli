@@ -91,9 +91,18 @@ describe("every registered positional command rejects its --<field> spelling", (
       .map((c) => c.path.join(" "))
       .sort();
     expect(found).toEqual([
+      "8004 approve",
+      "8004 operator-add",
+      "8004 operator-check",
+      "8004 operator-remove",
+      "8004 register",
+      "8004 show",
+      "8004 transfer",
+      "8004 update",
       "asset info",
       "asset participate",
       "backup",
+      "bai recharge",
       "block",
       "config",
       "contact add",
@@ -115,6 +124,9 @@ describe("every registered positional command rejects its --<field> spelling", (
       "rename",
       "use",
       "witness set-brokerage",
+      "x402 pay",
+      "x402 provider-endpoints",
+      "x402 provider-show",
     ]);
   });
 

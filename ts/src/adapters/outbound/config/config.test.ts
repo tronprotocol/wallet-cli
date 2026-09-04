@@ -100,6 +100,23 @@ describe("ConfigLoader GasFree credentials", () => {
   );
 });
 
+describe("ConfigLoader B.AI configuration", () => {
+  const configured = ["baiApiKey: bai_test_secret", ""].join("\n");
+
+  it("loads the B.AI key only from a private config file", () => {
+    expect(ConfigLoader.load(envWithConfig(configured, 0o600))).toMatchObject({
+      baiApiKey: "bai_test_secret",
+    });
+  });
+
+  it.runIf(process.platform !== "win32")(
+    "rejects a B.AI key in a group/world-readable file",
+    () => {
+      expect(() => ConfigLoader.load(envWithConfig(configured, 0o644))).toThrow(/mode 0600/);
+    },
+  );
+});
+
 // A broken config.yaml is the user's typo, not an internal fault — but the underlying errors quote
 // file content (YAML parse) or OS detail, and a credential can sit on the very line that failed.
 describe("ConfigLoader unreadable/malformed config", () => {
