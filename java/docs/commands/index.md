@@ -2,7 +2,7 @@
 
 Commands are grouped into family pages below; the A–Z index links each command to its owning page. Every family page is populated. Links point to the owning page (open it and jump to the command's section).
 
-Type any command in the interactive wallet to see its built-in usage tips.
+Run `help <command>` in the interactive wallet to see a command's built-in usage tips; `help` on its own prints the full table. Typing a command bare does not reliably show usage — most commands that need no argument simply run.
 
 ## By family
 
@@ -15,7 +15,7 @@ Type any command in the interactive wallet to see its built-in usage tips.
 | USDT & TRC20 | [usdt.md](usdt.md) |
 | Staking (Stake 2.0) | [stake-v2.md](stake-v2.md) |
 | Staking (Stake 1.0, legacy) | [stake-v1-legacy.md](stake-v1-legacy.md) |
-| Resource prices & withdrawals | [resources.md](resources.md) |
+| Resource prices & memo fee | [resources.md](resources.md) |
 | Voting, rewards & witnesses | [vote-reward.md](vote-reward.md) |
 | Smart contracts | [contract.md](contract.md) |
 | Proposals | [proposals.md](proposals.md) |

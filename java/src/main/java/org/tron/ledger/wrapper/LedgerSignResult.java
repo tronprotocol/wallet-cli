@@ -110,34 +110,6 @@ public class LedgerSignResult {
     }
   }
 
-  public static void upsertState(String devicePath, String txid, String state) {
-    lock.writeLock().lock();
-    try {
-      List<String> lines = readAllLines(devicePath);
-      List<String> updatedLines = new ArrayList<>();
-      boolean updated = false;
-      for (String line : lines) {
-        if (line.startsWith(txid + ":")) {
-          updatedLines.add(txid + ":" + state);
-          updated = true;
-        } else {
-          updatedLines.add(line);
-        }
-      }
-      if (!updated) {
-        updatedLines.add(txid + ":" + state);
-      }
-      Path path = getFilePath(devicePath);
-      Files.createDirectories(path.getParent());
-      writeAllLines(devicePath, updatedLines);
-    } catch (IOException e) {
-      if (DebugConfig.isDebugEnabled()) {
-        System.err.println("Error upserting sign state: " + e.getMessage());
-      }
-    } finally {
-      lock.writeLock().unlock();
-    }
-  }
 
   // Update the state for a specific txid
   public static void updateState(String devicePath, String txid, String newState) {
@@ -162,24 +134,6 @@ public class LedgerSignResult {
     }
   }
 
-  // Get the state for a specific txid
-  public static Optional<String> getStateByTxid(String devicePath, String txid) {
-    lock.readLock().lock();
-    try {
-      List<String> lines = readAllLines(devicePath);
-      for (String line : lines) {
-        if (line.startsWith(txid + ":")) {
-          String[] parts = line.split(":");
-          if (parts.length == 2) {
-            return Optional.of(parts[1]);
-          }
-        }
-      }
-    } finally {
-      lock.readLock().unlock();
-    }
-    return Optional.empty();
-  }
 
   // Get the last line's txid and state
   public static Optional<String> getLastTransaction(String devicePath) {

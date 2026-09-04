@@ -23,7 +23,7 @@ Withdrawing also frees up unstake slots (max 32 pending unstakes per account).
 |---|---|
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -38,28 +38,28 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin
+echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdin
 ```
 
 ```console
 ⏳ Withdrew expired TRX to balance
   TxID    e5f...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid e5f...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.withdraw","data":{"kind":"stake-withdraw","stage":"submitted","txId":"e5f..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.withdraw","data":{"kind":"stake-withdraw","stage":"submitted","txId":"e5f..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console

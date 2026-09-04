@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { normalizeTypedData } from "./index.js";
+import { CliError } from "../errors/index.js";
 
 const DOMAIN = { name: "SunPerp", version: "1", chainId: 728126428 };
 const TYPES = {
@@ -109,5 +110,153 @@ describe("normalizeTypedData", () => {
     expect(() =>
       normalizeTypedData({ domain: DOMAIN, types: { Order: [{ name: "x" }] }, message: {} }),
     ).toThrow(/without a name\/type/);
+  });
+
+  // BUG-V413-020: a payload missing/malformed at the top-level shape is invalid_payload — "the
+  // payload does not decode as what --typed-data says it is" — exit 2 (a caller can fix the JSON
+  // and rerun), not invalid_value.
+  describe("missing top-level fields report invalid_payload, exit 2", () => {
+    const cases: Array<[string, unknown]> = [
+      ["whole payload not an object", "not an object"],
+      ["missing domain", { types: TYPES, message: {} }],
+      ["missing types", { domain: DOMAIN, message: {} }],
+      ["empty types (no struct besides EIP712Domain)", { domain: DOMAIN, types: {}, message: {} }],
+      ["missing message", { domain: DOMAIN, types: TYPES }],
+    ];
+
+    it.each(cases)("%s", (_label, raw) => {
+      let error: unknown;
+      try {
+        normalizeTypedData(raw);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(CliError);
+      const cliError = error as CliError;
+      expect(cliError.code).toBe("invalid_payload");
+      expect(cliError.exitCode()).toBe(2);
+    });
+  });
+});
+
+// `primaryType` is what the EIP-712 JSON-RPC schema uses to say WHICH struct is being signed, and
+// it exists precisely because the type map alone does not determine the root. A payload may
+// therefore declare types the chosen root never reaches — a dApp shipping one shared dictionary for
+// `Permit` / `Order` / `Cancel` is the ordinary case. Handing that whole map to an encoder makes it
+// see several roots and refuse, so narrow `types` to the closure the declared root actually reaches.
+describe("normalizeTypedData narrows types to the primaryType's closure", () => {
+  const Person = [
+    { name: "name", type: "string" },
+    { name: "wallet", type: "address" },
+  ];
+  const Mail = [
+    { name: "from", type: "Person" },
+    { name: "to", type: "Person" },
+    { name: "contents", type: "string" },
+  ];
+
+  it("drops a type the declared root never reaches", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: { Person, Mail, Unrelated: [{ name: "x", type: "uint256" }] },
+      primaryType: "Mail",
+      message: {},
+    });
+    expect(Object.keys(p.types).sort()).toEqual(["Mail", "Person"]);
+  });
+
+  it("keeps a second root when THAT is the one being signed", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: { Person, Mail, Receipt: [{ name: "id", type: "uint256" }] },
+      primaryType: "Receipt",
+      message: {},
+    });
+    expect(Object.keys(p.types)).toEqual(["Receipt"]);
+  });
+
+  it("follows array fields into the closure", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: {
+        Person,
+        Group: [{ name: "members", type: "Person[]" }],
+        Unrelated: [{ name: "x", type: "uint256" }],
+      },
+      primaryType: "Group",
+      message: {},
+    });
+    expect(Object.keys(p.types).sort()).toEqual(["Group", "Person"]);
+  });
+
+  it("follows fixed-size and nested array fields", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: {
+        Person,
+        Grid: [{ name: "rows", type: "Person[2][]" }],
+        Unrelated: [{ name: "x", type: "uint256" }],
+      },
+      primaryType: "Grid",
+      message: {},
+    });
+    expect(Object.keys(p.types).sort()).toEqual(["Grid", "Person"]);
+  });
+
+  // A self-referencing type references itself, so the existing root rule already refuses it as the
+  // declared root — narrowing must not quietly start accepting one.
+  it("still refuses a self-referencing type as the root", () => {
+    expect(() =>
+      normalizeTypedData({
+        domain: DOMAIN,
+        types: {
+          Node: [
+            { name: "value", type: "uint256" },
+            { name: "next", type: "Node" },
+          ],
+        },
+        primaryType: "Node",
+        message: {},
+      }),
+    ).toThrow(/not a root type/);
+  });
+
+  // A cycle BELOW the root passes that rule, so the walk itself has to terminate.
+  it("terminates on a cycle reached from the root", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: {
+        Root: [{ name: "a", type: "A" }],
+        A: [{ name: "b", type: "B" }],
+        B: [{ name: "a", type: "A" }],
+        Unrelated: [{ name: "x", type: "uint256" }],
+      },
+      primaryType: "Root",
+      message: {},
+    });
+    expect(Object.keys(p.types).sort()).toEqual(["A", "B", "Root"]);
+  });
+
+  // Narrowing must never change what an already-signable payload hashes to. Every type in a
+  // single-root payload is reachable from that root by definition, so the closure is the whole map.
+  it("leaves a payload whose types are all reachable untouched", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: { Person, Mail },
+      primaryType: "Mail",
+      message: {},
+    });
+    expect(p.types).toEqual({ Person, Mail });
+  });
+
+  // Without a declared root there is nothing to compute a closure from; the encoder infers it,
+  // which is only well-defined when exactly one root exists. Unchanged behaviour.
+  it("leaves types alone when no primaryType is declared", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: { Person, Mail, Unrelated: [{ name: "x", type: "uint256" }] },
+      message: {},
+    });
+    expect(Object.keys(p.types).sort()).toEqual(["Mail", "Person", "Unrelated"]);
   });
 });

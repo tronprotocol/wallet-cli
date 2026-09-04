@@ -36,6 +36,19 @@ export const SCRYPT_STANDARD = { n: 262144, r: 8, p: 1, dklen: 32 } as const;
 
 const PRIVATE_KEY_BYTES = 32;
 
+/**
+ * Ceilings on the work an IMPORTED file may demand. Its KDF runs to completion before the MAC is
+ * checked, so these are the only thing standing between a chosen file and an unbounded computation.
+ *
+ * Only the two dimensions nothing else bounds are listed. scrypt's `n`, `r` and `p` are left to
+ * @noble/hashes, which refuses a non-power-of-two `n` and caps `128 * r * (n + p + 1)` at a 1 GiB
+ * `maxmem` — a second, tighter limit here would only risk refusing a file that library accepts.
+ */
+/** 32 is all a V3 file ever needs; the headroom is for a producer that pads. */
+const MAX_DKLEN = 1024;
+/** ~8s on a 2026 laptop. Real producers write 262,144, so this is ~38x the going rate. */
+const MAX_PBKDF2_ITERATIONS = 10_000_000;
+
 export const Web3Crypto = {
   scryptKey(
     password: string,
@@ -158,23 +171,52 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
       `crypto.kdfparams.dklen must be at least ${PRIVATE_KEY_BYTES}, got ${dklen}: a shorter derived key cannot bind the MAC to the password`,
     );
   }
+  // Both KDFs allocate the derived key up front, and pbkdf2 accepts a dklen of (2^32 - 1) * 32.
+  if (dklen > MAX_DKLEN) {
+    throw invalid(
+      `crypto.kdfparams.dklen must be at most ${MAX_DKLEN}, got ${dklen}: no keystore needs a derived key that long`,
+    );
+  }
   if (c.kdf === "scrypt") {
-    return Web3Crypto.scryptKey(password, salt, {
-      n: intField(p.n, "crypto.kdfparams.n"),
-      r: intField(p.r, "crypto.kdfparams.r"),
-      p: intField(p.p, "crypto.kdfparams.p"),
-      dklen,
-    });
+    // scrypt's own limits — a power-of-two `n`, and `128 * r * (n + p + 1)` under a 1 GiB maxmem —
+    // are the ceiling for this KDF, and they are better than anything we would impose. But the
+    // library signals them with a bare Error, which would surface as OUR internal_error; a file
+    // that names impossible parameters is a bad FILE, and has to read as one.
+    return derived(() =>
+      Web3Crypto.scryptKey(password, salt, {
+        n: intField(p.n, "crypto.kdfparams.n"),
+        r: intField(p.r, "crypto.kdfparams.r"),
+        p: intField(p.p, "crypto.kdfparams.p"),
+        dklen,
+      }),
+    );
   }
   if (c.kdf === "pbkdf2") {
     if (p.prf !== undefined && p.prf !== "hmac-sha256")
       throw invalid(`unsupported pbkdf2 prf ${JSON.stringify(p.prf)}`);
-    return pbkdf2(sha256, utf8ToBytes(password), salt, {
-      c: intField(p.c, "crypto.kdfparams.c"),
-      dkLen: dklen,
-    });
+    const c = intField(p.c, "crypto.kdfparams.c");
+    // scrypt's cost is bounded by noble's maxmem; pbkdf2's is bounded by nothing at all.
+    if (c > MAX_PBKDF2_ITERATIONS) {
+      throw invalid(
+        `crypto.kdfparams.c must be at most ${MAX_PBKDF2_ITERATIONS}, got ${c}: deriving the key would take longer than any import should`,
+      );
+    }
+    return derived(() => pbkdf2(sha256, utf8ToBytes(password), salt, { c, dkLen: dklen }));
   }
   throw invalid(`unsupported kdf ${JSON.stringify(c.kdf)}`);
+}
+
+/**
+ * Run a KDF whose parameters came out of the file. Everything it can throw here is a statement
+ * about those parameters — the cost the library refuses, the allocation the size demands — so it
+ * is reported as an invalid keystore rather than escaping untyped as an internal error.
+ */
+function derived(kdf: () => Bytes): Bytes {
+  try {
+    return kdf();
+  } catch (e) {
+    throw invalid(`crypto.kdfparams could not derive a key: ${(e as Error).message}`);
+  }
 }
 
 function asRecord(value: unknown, why: string): Record<string, unknown> {

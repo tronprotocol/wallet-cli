@@ -7,7 +7,7 @@ import {
   accountActivateSpec,
   accountActivateTronBinding,
   accountBalanceSpec,
-  accountBalanceTronBinding,
+  accountBalanceBinding,
   accountHistorySpec,
   accountHistoryTronBinding,
   accountInfoSpec,
@@ -25,7 +25,7 @@ import {
   tokenInfoSpec,
   tokenInfoTronBinding,
   tokenListSpec,
-  tokenListTronBinding,
+  tokenListBinding,
   tokenRemoveSpec,
   tokenRemoveTronBinding,
 } from "../../adapters/inbound/cli/commands/token.js";
@@ -59,7 +59,15 @@ import {
 import { stakeDefinitions } from "../../adapters/inbound/cli/commands/stake.js";
 import { assetDefinitions } from "../../adapters/inbound/cli/commands/asset.js";
 import { exchangeDefinitions } from "../../adapters/inbound/cli/commands/exchange.js";
-import { chainDefinitions } from "../../adapters/inbound/cli/commands/chain.js";
+import {
+  chainDefinitions,
+  chainNodeSpec,
+  chainNodeTronBinding,
+  chainPricesSpec,
+  chainPricesTronBinding,
+} from "../../adapters/inbound/cli/commands/chain.js";
+import type { AccountBalanceService } from "../../application/use-cases/account-balance-service.js";
+import type { TokenBookService } from "../../application/use-cases/token-book-service.js";
 import {
   voteCastSpec,
   voteCastTronBinding,
@@ -156,7 +164,7 @@ import {
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
   signStrategy: tronSignStrategy,
-  createGateway: (network, timeoutMs) => new TronRpcClient(network.httpEndpoint ?? "", timeoutMs),
+  createGateway: (network, timeoutMs) => new TronRpcClient(network, timeoutMs),
 };
 
 export interface TronChainCommandDependencies {
@@ -170,6 +178,8 @@ export interface TronChainCommandDependencies {
   tronlink: TronLinkCollaborationPort;
   gasfree: GasFreeProvider;
   recipients: RecipientResolver;
+  balances: AccountBalanceService;
+  tokenBook: TokenBookService;
 }
 
 export function registerTronChainCommands(
@@ -212,16 +222,18 @@ export function registerTronChainCommands(
   const witness = new TronWitnessService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
-  reg.addChain(accountActivateSpec, "tron", accountActivateTronBinding(account));
-  reg.addChain(accountBalanceSpec, "tron", accountBalanceTronBinding(account));
+  // Registration order is what the group help lists, so these follow the documented running order:
+  // the two-family read commands first, then the TRON-only ones.
+  reg.addChain(accountBalanceSpec, "tron", accountBalanceBinding(deps.balances));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
-  reg.addChain(accountHistorySpec, "tron", accountHistoryTronBinding(account));
   reg.addChain(accountPortfolioSpec, "tron", accountPortfolioTronBinding(account));
+  reg.addChain(accountHistorySpec, "tron", accountHistoryTronBinding(account));
+  reg.addChain(accountActivateSpec, "tron", accountActivateTronBinding(account));
   reg.addChain(accountSetSpec, "tron", accountSetTronBinding(account));
   reg.addChain(tokenBalanceSpec, "tron", tokenBalanceTronBinding(token));
   reg.addChain(tokenInfoSpec, "tron", tokenInfoTronBinding(token));
   reg.addChain(tokenAddSpec, "tron", tokenAddTronBinding(token));
-  reg.addChain(tokenListSpec, "tron", tokenListTronBinding(token));
+  reg.addChain(tokenListSpec, "tron", tokenListBinding(deps.tokenBook));
   reg.addChain(tokenRemoveSpec, "tron", tokenRemoveTronBinding(token));
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
@@ -231,14 +243,15 @@ export function registerTronChainCommands(
     "tron",
     txSignTronBinding(transaction, signing, multisig, new SecureTransactionArtifactWriter()),
   );
+  reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
+  reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
+  reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
+  // TRON-only, so they sit at the end of the `tx` group listing.
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(multisigCollaboration));
   reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
   reg.addChain(gasFreeTransferSpec, "tron", gasFreeTransferTronBinding(gasfree));
   reg.addChain(gasFreeTraceSpec, "tron", gasFreeTraceTronBinding(gasfree));
-  reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
-  reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
-  reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
   reg.addChain(permissionShowSpec, "tron", permissionShowTronBinding(permission));
   reg.addChain(permissionUpdateSpec, "tron", permissionUpdateTronBinding(permission));
   for (const definition of stakeDefinitions(stake)) {
@@ -255,6 +268,9 @@ export function registerTronChainCommands(
   reg.addChain(voteStatusSpec, "tron", voteStatusTronBinding(vote));
   reg.addChain(rewardBalanceSpec, "tron", rewardBalanceTronBinding(reward));
   reg.addChain(rewardWithdrawSpec, "tron", rewardWithdrawTronBinding(reward));
+  reg.addChain(chainNodeSpec, "tron", chainNodeTronBinding(chain));
+  reg.addChain(chainPricesSpec, "tron", chainPricesTronBinding(chain));
+  // `chain params` is TRON-only and goes last in the group listing.
   for (const definition of chainDefinitions(chain)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }

@@ -17,8 +17,12 @@ import { registerContactCommands } from "./contact.js";
 import { registerAddressCommands } from "./address.js";
 import { registerEncodingCommands } from "./encoding.js";
 
+// A chain command always has a resolved network by the time its formatter runs, so the default
+// carries one. renderFamily() now refuses to guess (it used to silently default to tron, which
+// would render wei as TRX), and a fixture without `net` would not represent any real invocation.
 const ctx = (over: Partial<TextRenderContext> = {}): TextRenderContext => ({
   command: "x",
+  net: { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as never,
   ...over,
 });
 
@@ -97,7 +101,7 @@ describe("permissionShow formatter", () => {
     ],
   } as any;
 
-  // Doc §3.1.1 keeps operationsHex in json — it is a machine value, and the human column already
+  // operationsHex stays in json — it is a machine value, and the human column already
   // carries the decoded operation labels next to it.
   it("does not print the operations bitmap in the text card", () => {
     const out = TextFormatters.permissionShow(view, ctx()) as string;
@@ -120,7 +124,9 @@ describe("accountBalance formatter", () => {
       { address: "TXaddress", balance: "1983993000", decimals: 6, symbol: "TRX" },
       ctx(),
     );
-    expect(out).toContain("1983.993 TRX");
+    // Grouped, like every other amount the CLI prints — this now goes through the shared
+    // formatter rather than a bare unit conversion.
+    expect(out).toContain("1,983.993 TRX");
     expect(out).not.toContain("sun");
   });
   it("falls back to raw scalar balance when decimals are missing", () => {
@@ -137,6 +143,25 @@ describe("accountBalance formatter", () => {
     );
     expect(out).toContain("main");
     expect(out).not.toContain("TXaddress");
+  });
+
+  // An 18-decimal balance printed in full is 18 fractional digits of noise around the two or
+  // three that carry meaning. json keeps every one of them; text is for a person reading a
+  // terminal, so it obeys the same display rule as every other amount the CLI prints.
+  it("caps an 18-decimal balance at six fractional digits", () => {
+    const out = TextFormatters.accountBalance(
+      { address: "0xabc", balance: "12345678901234567890", decimals: 18, symbol: "ETH" },
+      ctx(),
+    );
+    expect(out).toContain("12.345678 ETH");
+  });
+
+  it("renders a non-zero balance below display precision as <0.000001, never as 0", () => {
+    const out = TextFormatters.accountBalance(
+      { address: "0xabc", balance: "1", decimals: 18, symbol: "ETH" },
+      ctx(),
+    );
+    expect(out).toContain("<0.000001 ETH");
   });
 });
 
@@ -169,11 +194,14 @@ describe("stake/chain TRX amount formatting", () => {
       },
       ctx(),
     );
-    const chain = TextFormatters.chainPrices({
-      energy: { currentSunPerUnit: 210 },
-      bandwidth: { currentSunPerUnit: 1000 },
-      memoFeeSun: "1234456789",
-    });
+    const chain = TextFormatters.chainPrices(
+      {
+        energy: { currentSunPerUnit: 210 },
+        bandwidth: { currentSunPerUnit: 1000 },
+        memoFeeSun: "1234456789",
+      },
+      ctx(),
+    );
     expect(stake).toContain("1,234.456789 TRX");
     expect(chain).toContain("1,234.456789 TRX");
   });
@@ -224,7 +252,7 @@ describe("tokenBalance formatter", () => {
       },
       ctx(),
     );
-    expect(out).toContain("1204.56");
+    expect(out).toContain("1,204.56");
     expect(out).toContain("USDT");
   });
   it("falls back to raw scalar balance when metadata is missing", () => {
@@ -258,11 +286,11 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
       },
       ctx({
         net: {
-          id: "tron:nile",
+          id: "tron:3448148188",
           family: "tron",
+          nativeSymbol: "TRX",
           chainId: "nile",
           feeModel: "tron-resource",
-          aliases: [],
           capabilities: [],
         },
       }),
@@ -272,43 +300,52 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("TrecipientAddress");
     expect(out).toContain("abc123");
     expect(out).toContain("pending — not yet on-chain");
-    expect(out).toContain("Track it: wallet-cli tx info --network tron:nile --txid abc123");
+    expect(out).toContain("Track it: wallet-cli tx info --network tron:3448148188 --txid abc123");
     expect(out).not.toContain("Fee");
   });
   it("tx send TRC20 via --contract --raw-amount (no symbol): never mislabels as TRX", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "submitted",
-      txId: "t20",
-      rawAmount: "10000",
-      contract: "TXYZtokenContract",
-      to: "Tdest",
-    });
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "submitted",
+        txId: "t20",
+        rawAmount: "10000",
+        contract: "TXYZtokenContract",
+        to: "Tdest",
+      },
+      ctx(),
+    );
     expect(out).toContain("Sent 10000 TXYZtokenContract");
     expect(out).not.toContain("TRX");
   });
   it("tx send TRC10 via --asset-id --raw-amount (no symbol): labels by asset id, not TRX", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "submitted",
-      txId: "t10",
-      rawAmount: "500000",
-      assetId: "1005416",
-      to: "Tdest",
-    });
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "submitted",
+        txId: "t10",
+        rawAmount: "500000",
+        assetId: "1005416",
+        to: "Tdest",
+      },
+      ctx(),
+    );
     expect(out).toContain("Sent 500000 asset 1005416");
     expect(out).not.toContain("TRX");
   });
   it("tx send confirmed (--wait): success receipt with real block + fee", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "confirmed",
-      txId: "abc",
-      rawAmount: "1000000",
-      to: "Tdest",
-      blockNumber: 66000000,
-      feeSun: "268000",
-    });
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "confirmed",
+        txId: "abc",
+        rawAmount: "1000000",
+        to: "Tdest",
+        blockNumber: 66000000,
+        feeSun: "268000",
+      },
+      ctx(),
+    );
     expect(out).toContain("✅");
     expect(out).toContain("Sent 1 TRX");
     expect(out).toContain("#66,000,000");
@@ -316,31 +353,37 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("success");
   });
   it("confirmed receipt preserves legitimate zero-valued chain fields", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      stage: "confirmed",
-      txId: "zero",
-      rawAmount: "0",
-      to: "Tdest",
-      blockNumber: 0,
-      energyUsed: 0,
-      feeSun: 0,
-    });
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        stage: "confirmed",
+        txId: "zero",
+        rawAmount: "0",
+        to: "Tdest",
+        blockNumber: 0,
+        energyUsed: 0,
+        feeSun: 0,
+      },
+      ctx(),
+    );
     expect(out).toContain("#0");
     expect(out).toMatch(/Energy\s+0/);
     expect(out).toContain("0 TRX");
   });
   it("contract send failed (--wait): failure receipt with reason", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "contract-send",
-      stage: "failed",
-      txId: "abc",
-      method: "transfer(address,uint256)",
-      contract: "TR7contract",
-      result: "OUT_OF_ENERGY",
-      blockNumber: 1,
-      failed: true,
-    });
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "contract-send",
+        stage: "failed",
+        txId: "abc",
+        method: "transfer(address,uint256)",
+        contract: "TR7contract",
+        result: "OUT_OF_ENERGY",
+        blockNumber: 1,
+        failed: true,
+      },
+      ctx(),
+    );
     expect(out).toContain("❌");
     expect(out).toContain("Called transfer");
     expect(out).toContain("TR7contract");
@@ -356,11 +399,11 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
       },
       ctx({
         net: {
-          id: "tron:nile",
+          id: "tron:3448148188",
           family: "tron",
+          nativeSymbol: "TRX",
           chainId: "nile",
           feeModel: "tron-resource",
-          aliases: [],
           capabilities: [],
         },
       }),
@@ -370,30 +413,36 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
   });
   it("dry-run with an energy estimate (TRC20/contract): renders energy, never [object Object]", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      mode: "dry-run",
-      fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 133440569 } as any,
-      tx: { txID: "deadbeef" } as any,
-      rawAmount: "10000",
-      contract: "TXYZtoken",
-      to: "Tdest",
-    } as any);
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        mode: "dry-run",
+        fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 133440569 } as any,
+        tx: { txID: "deadbeef" } as any,
+        rawAmount: "10000",
+        contract: "TXYZtoken",
+        to: "Tdest",
+      } as any,
+      ctx(),
+    );
     expect(out).toContain("Dry run");
     expect(out).not.toContain("[object Object]");
     expect(out).toContain("29,650 energy");
     expect(out).toContain("covered by staked energy"); // availableEnergy >= energy
   });
   it("dry-run energy estimate with insufficient available energy: no 'covered' note", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "send",
-      mode: "dry-run",
-      fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 100 } as any,
-      tx: { txID: "deadbeef" } as any,
-      rawAmount: "10000",
-      contract: "TXYZtoken",
-      to: "Tdest",
-    } as any);
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "send",
+        mode: "dry-run",
+        fee: { feeModel: "tron-resource", energy: 29650, availableEnergy: 100 } as any,
+        tx: { txID: "deadbeef" } as any,
+        rawAmount: "10000",
+        contract: "TXYZtoken",
+        to: "Tdest",
+      } as any,
+      ctx(),
+    );
     expect(out).toContain("29,650 energy");
     expect(out).not.toContain("covered by staked energy");
   });
@@ -408,19 +457,22 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     balanceSun: "1862126000",
   };
   const dryRun = (fee: unknown) =>
-    TextFormatters.txReceipt({
-      kind: "account-activate",
-      mode: "dry-run",
-      fee,
-      tx: { txID: "cc0a6f68" },
-      address: "TEF2CvkixrkzwbreCRFCQ7sZGj9AVFAkQq",
-      payer: "TMSgJxtPw29",
-    } as any) as string;
+    TextFormatters.txReceipt(
+      {
+        kind: "account-activate",
+        mode: "dry-run",
+        fee,
+        tx: { txID: "cc0a6f68" },
+        address: "TEF2CvkixrkzwbreCRFCQ7sZGj9AVFAkQq",
+        payer: "TMSgJxtPw29",
+      } as any,
+      ctx(),
+    ) as string;
 
   it("account activate dry-run: renders the total creation fee, not [object Object]", () => {
     const out = dryRun(activateFee);
     expect(out).not.toContain("[object Object]");
-    // doc §3.4.1 shows the confirmed receipt as `Fee 1.1 TRX`; dry-run must be comparable
+    // The confirmed receipt shows `Fee 1.1 TRX`; dry-run must be comparable
     expect(out).toContain("1.1 TRX");
   });
 
@@ -428,7 +480,7 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     ["createAccountFeeSun alone", { minimumFeeSun: "100000" }, "0.1 TRX"],
     ["a zero fee", { minimumFeeSun: "0" }, "0 TRX"],
     // fees use fromBaseUnits (exact decimal, no thousands separators) like every other Fee row
-    ["a large fee", { minimumFeeSun: "9000000000" }, "9000 TRX"],
+    ["a large fee", { minimumFeeSun: "9000000000" }, "9,000 TRX"], // grouped
   ])("account activate dry-run: %s", (_name, fee, expected) => {
     expect(dryRun(fee)).toContain(expected);
   });
@@ -486,12 +538,15 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   };
 
   it("broadcast dry-run: projects the permission and approval block json already carries", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      mode: "dry-run",
-      transaction: broadcastApproval,
-      multiSignFeeSun: 1000000,
-    } as any) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        mode: "dry-run",
+        transaction: broadcastApproval,
+        multiSignFeeSun: 1000000,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out).toContain("Dry run tx broadcast");
     expect(out).toContain('Permission  active "finance" (id 2)  threshold 2');
     expect(out).toContain("Progress  2 / 2 — threshold reached");
@@ -500,12 +555,15 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
 
   it("broadcast dry-run: identifies the transaction instead of leaving an empty Tx row", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      mode: "dry-run",
-      transaction: broadcastApproval,
-      multiSignFeeSun: 0,
-    } as any) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        mode: "dry-run",
+        transaction: broadcastApproval,
+        multiSignFeeSun: 0,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out).toContain("abc123");
   });
 
@@ -513,24 +571,30 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     ["non-zero multi-sign fee", 1000000, "1 TRX"],
     ["zero multi-sign fee", 0, "0 TRX"],
   ])("broadcast dry-run: states the multi-sign fee exactly once (%s)", (_n, fee, expected) => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      mode: "dry-run",
-      transaction: broadcastApproval,
-      multiSignFeeSun: fee,
-    } as any) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        mode: "dry-run",
+        transaction: broadcastApproval,
+        multiSignFeeSun: fee,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out.match(/multi-sign fee/gi) ?? []).toHaveLength(1);
     expect(out).toContain(expected);
   });
 
   it("broadcast submitted: keeps txid, status and the tracking hint, and does not duplicate the fee", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "broadcast",
-      stage: "submitted",
-      txId: "abc123",
-      transaction: broadcastApproval,
-      multiSignFeeSun: 1000000,
-    } as any) as string;
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "broadcast",
+        stage: "submitted",
+        txId: "abc123",
+        transaction: broadcastApproval,
+        multiSignFeeSun: 1000000,
+      } as any,
+      ctx(),
+    ) as string;
     expect(out).toContain("abc123");
     expect(out).toContain("pending — not yet on-chain");
     expect(out).toContain("Track it:");
@@ -538,13 +602,16 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
   });
 
   it("stake freeze submitted: renders staked amount and resource", () => {
-    const out = TextFormatters.txReceipt({
-      kind: "stake-freeze",
-      stage: "submitted",
-      txId: "abc",
-      amountSun: "2000000",
-      resource: "energy",
-    });
+    const out = TextFormatters.txReceipt(
+      {
+        kind: "stake-freeze",
+        stage: "submitted",
+        txId: "abc",
+        amountSun: "2000000",
+        resource: "energy",
+      },
+      ctx(),
+    );
     expect(out).toContain("Staked");
     expect(out).toContain("2 TRX");
     expect(out).toContain("energy");
@@ -577,7 +644,7 @@ describe("local multisig formatters", () => {
     expect(out).toContain("Tsigner");
   });
 
-  // Doc §3.2.1: the default `tx sign` receipt is the action block plus the same transaction and
+  // The default `tx sign` receipt is the action block plus the same transaction and
   // signature-progress block `tx approvals` prints — permission group name and threshold, a
   // Progress line, and the per-signer weight table. The offline receipt cannot carry any of it.
   it("prints the documented progress block on the default (checked) sign receipt", () => {
@@ -606,7 +673,7 @@ describe("local multisig formatters", () => {
     expect(out).not.toContain("was not checked online");
   });
 
-  // Doc §3.2: text gets the human operation name; the machine-readable contractType enum stays in
+  // Text gets the human operation name; the machine-readable contractType enum stays in
   // json. Printing both put a machine value in a human column.
   it("prints the human operation name without the contract-type enum", () => {
     const out = TextFormatters.txApprovals({ ...approval, operation: "Transfer TRX" }) as string;
@@ -763,11 +830,11 @@ describe("txInfo formatter (per-family, narrowed on ctx.net.family)", () => {
       },
       ctx({
         net: {
-          id: "tron:nile",
+          id: "tron:3448148188",
           family: "tron",
+          nativeSymbol: "TRX",
           chainId: "nile",
           feeModel: "tron-resource",
-          aliases: [],
           capabilities: [],
         },
       }),
@@ -792,7 +859,9 @@ describe("accountInfo staking summary", () => {
     );
 
   it("preserves staking amounts above Number.MAX_SAFE_INTEGER when supplied as strings", () => {
-    expect(accountInfo("9007199254740993")).toContain("9007199254.740993 TRX");
+    // grouped; the point of this test is that the fraction survives intact past
+    // Number.MAX_SAFE_INTEGER, which it still does.
+    expect(accountInfo("9007199254740993")).toContain("9,007,199,254.740993 TRX");
   });
 
   it("omits the staking summary for an already-unsafe numeric amount", () => {
@@ -852,7 +921,10 @@ describe("sign-only receipt", () => {
     address: "TSigner",
     txId: "abc123",
   };
-  const ctx = { command: "tx sign", net: { family: "tron", id: "nile" } } as never;
+  const ctx = {
+    command: "tx sign",
+    net: { family: "tron", nativeSymbol: "TRX", id: "nile" },
+  } as never;
 
   // The signature is the product of a signing command and has to be copied somewhere, so it must
   // never be shortened. Before this it showed a truncated txID — redundant with the TxID row and
@@ -885,5 +957,233 @@ describe("sign-only receipt", () => {
       ctx,
     ) as string;
     expect(out).not.toContain("Fee");
+  });
+});
+
+// `config networks` used to be a list of ids (an array, which rendered fine). It is now a map of
+// id -> endpoint, and `aliases` is a map too — both printed as "[object Object]" until this.
+describe("config renders map-valued keys", () => {
+  it("renders a single-key read as a titled block", () => {
+    const out = TextFormatters.config({
+      key: "aliases",
+      value: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
+    });
+
+    // `titled` is the house shape: bare title line, then indented fields (no colon) — see
+    // asset.ts / exchange.ts / governance.ts for the same form.
+    expect(out.split("\n")[0]).toBe("aliases");
+    expect(out).toMatch(/^ {2}nile\s+tron:3448148188$/m);
+    expect(out).toMatch(/^ {2}sepolia\s+eip155:11155111$/m);
+    expect(out).not.toContain("[object Object]");
+  });
+
+  // The whole-config view used to SUMMARISE a map by listing its keys ("networks  tron:3448148188,
+  // eip155:1"), which said a network existed but never what it was configured with. The revised shape:
+  // config renders every configurable value, nested — the file's own shape, indented.
+  it("expands map-valued keys in the whole-config view", () => {
+    const out = TextFormatters.config({
+      defaultOutput: "text",
+      networks: {
+        "tron:3448148188": { httpEndpoint: "nile.trongrid.io" },
+        "eip155:1": { httpEndpoint: "ethereum-rpc.publicnode.com" },
+      },
+    });
+
+    // No trailing colon: a network id already contains one, so `tron:3448148188:` would hide where the
+    // id ends — and the id is what a reader copies into `--network` / `config networks.<id>`.
+    expect(out).toMatch(/^networks$/m);
+    expect(out).toMatch(/^ {2}tron:3448148188$/m);
+    expect(out).toMatch(/^ {4}httpEndpoint {2}nile\.trongrid\.io$/m);
+    expect(out).toMatch(/^ {2}eip155:1$/m);
+    expect(out).not.toContain("[object Object]");
+  });
+
+  // Two levels deep, under a named read: the block below a network is its fields, indented once.
+  it("renders a single network read as a nested block", () => {
+    const out = TextFormatters.config({
+      key: "networks.tron:3448148188",
+      value: {
+        httpEndpoint: "https://nile.trongrid.io",
+        apiKeyHeader: "TRON-PRO-API-KEY",
+        apiKey: "********",
+      },
+    });
+
+    expect(out.split("\n")[0]).toBe("networks.tron:3448148188");
+    expect(out).toMatch(/^ {2}httpEndpoint {2}https:\/\/nile\.trongrid\.io$/m);
+    expect(out).toMatch(/^ {2}apiKey {8}\*{8}$/m);
+  });
+
+  // A scalar leaf keeps its one-line form; nesting must not swallow the simple case.
+  it("keeps a scalar read on one line", () => {
+    expect(TextFormatters.config({ key: "timeoutMs", value: 60_000 })).toMatch(
+      /^timeoutMs {2}60000$/,
+    );
+  });
+});
+
+// A distinction the renderer previously did not draw: a VALUATION gets 2 decimals, a UNIT
+// PRICE gets 4. This column had no coverage at all, so the two were silently the same.
+describe("portfolio price vs valuation precision", () => {
+  const portfolio = (priceUsd: string, valueUsd: string) =>
+    TextFormatters.accountPortfolio(
+      {
+        address: "Towner",
+        holdings: [{ symbol: "USDT", balance: "1000", priceUsd, valueUsd }],
+        totalValueUsd: valueUsd,
+      },
+      ctx(),
+    ) as string;
+
+  it("shows a depegged stablecoin's price instead of rounding it to a dollar", () => {
+    expect(portfolio("0.9998", "999.80")).toContain("$0.9998");
+  });
+
+  it("keeps the valuation at two decimals", () => {
+    expect(portfolio("0.9998", "999.8")).toContain("$999.80");
+  });
+
+  it("does not collapse a sub-cent price to zero", () => {
+    expect(portfolio("0.0001", "0.10")).toContain("$0.0001");
+  });
+
+  // The Balance column reads the base-unit integer and the row's own decimals, so it obeys the
+  // same six-digit rule as `account balance`. It used to print the pre-scaled string verbatim.
+  it("caps the balance column at six fractional digits", () => {
+    const out = TextFormatters.accountPortfolio(
+      {
+        address: "0xowner",
+        holdings: [
+          {
+            symbol: "ETH",
+            rawBalance: "12345678901234567890",
+            balance: "12.34567890123456789",
+            decimals: 18,
+            priceUsd: 2,
+            valueUsd: 24.69,
+          },
+        ],
+        totalValueUsd: 24.69,
+      },
+      ctx(),
+    ) as string;
+    expect(out).toContain("12.345678");
+    expect(out).not.toContain("12.34567890123456789");
+  });
+});
+
+// The address already says which chain it is (T… / 0x…), so a Family column repeats it in
+// vocabulary the user never needs otherwise. Externally the book is a flat name↔address map.
+describe("contact list is a flat name-to-address map", () => {
+  const listed = () =>
+    TextFormatters.contactList({
+      contacts: [
+        { name: "tron-friend", address: "TWer2Ygk5", note: null },
+        { name: "evm-friend", address: "0xe2E1a549", note: "team" },
+      ],
+    }) as string;
+
+  it("has no Family column — the address already tells you the chain", () => {
+    expect(listed().split("\n")[0]).not.toMatch(/\bFamily\b/);
+  });
+
+  it("still lists every entry, whichever chain it belongs to", () => {
+    const out = listed();
+    expect(out).toContain("TWer2Ygk5");
+    expect(out).toContain("0xe2E1a549");
+  });
+});
+
+// The address column follows the SELECTED NETWORK's family. text never puts both families
+// side by side — the table doubles in width and the user only cares about the chain in use.
+describe("list shows one family's addresses at a time", () => {
+  const accounts = [
+    {
+      accountId: "wlt_a.0",
+      label: "main",
+      type: "seed",
+      index: 0,
+      active: true,
+      addresses: { tron: "TSRmq8kP9dEf", evm: "0x7a3fc19b" },
+    },
+    {
+      accountId: "wlt_l",
+      label: "ledger-evm",
+      type: "ledger",
+      index: null,
+      active: false,
+      family: "evm",
+      nativeSymbol: "ETH",
+      addresses: { evm: "0x91b24d0e" },
+    },
+    {
+      accountId: "wlt_w",
+      label: "team-vault",
+      type: "watch",
+      index: null,
+      active: false,
+      family: "tron",
+      nativeSymbol: "TRX",
+      addresses: { tron: "TBhCfAyt3TCUp" },
+    },
+  ];
+  const listed = (family: "tron" | "evm") =>
+    TextFormatters.walletList(accounts, ctx({ net: { family } as never })) as string;
+
+  it("shows the TRON column under a TRON network", () => {
+    const out = listed("tron");
+    expect(out).toContain("TSRmq8kP9dEf");
+    expect(out).not.toContain("0x7a3fc19b");
+  });
+
+  it("shows the EVM column under an EVM network", () => {
+    const out = listed("evm");
+    expect(out).toContain("0x7a3fc19b");
+    expect(out).not.toContain("TSRmq8kP9dEf");
+  });
+
+  // A single-family account has nothing to show on the other family's network, and an empty row
+  // is worse than no row.
+  it("hides single-family accounts that do not belong to the selected network", () => {
+    expect(listed("tron")).not.toContain("ledger-evm");
+    expect(listed("evm")).not.toContain("team-vault");
+  });
+
+  it("keeps the accounts that do belong", () => {
+    expect(listed("tron")).toContain("team-vault");
+    expect(listed("evm")).toContain("ledger-evm");
+  });
+});
+
+// `--keystore` picks ONE of a seed account's two keys, and with --network omitted that choice
+// comes from config.defaultNetwork. The receipt has to say which key was written, or the same
+// command on two machines silently produces different secrets with nothing to tell them apart.
+describe("keystore receipt names the exported family", () => {
+  const receipt = (extra: Record<string, unknown>) =>
+    TextFormatters.walletBackup({
+      accountId: "wlt_a.0",
+      out: "/tmp/x.keystore.json",
+      format: "keystore",
+      secretType: "privateKey",
+      fileMode: "0600",
+      bytes: 491,
+      ...extra,
+    }) as string;
+
+  it("shows the family a keystore export used", () => {
+    expect(receipt({ family: "evm" })).toMatch(/^\s*Family\s+evm$/m);
+  });
+
+  // A mnemonic covers every family, so there is nothing to disambiguate and a row would imply
+  // a choice that was never made.
+  it("omits the row for a native backup", () => {
+    const out = TextFormatters.walletBackup({
+      accountId: "wlt_a.0",
+      out: "/tmp/x.json",
+      secretType: "mnemonic",
+      bytes: 313,
+    }) as string;
+
+    expect(out).not.toMatch(/\bFamily\b/);
   });
 });

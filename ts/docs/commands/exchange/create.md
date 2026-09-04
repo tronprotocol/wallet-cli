@@ -36,7 +36,7 @@ The creation fee is **burned** — the chain parameter `getExchangeCreateFee`, c
 | `--raw-amounts <a>:<b>` | The same two amounts in minimal units. One of `--amounts` / `--raw-amounts` |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -49,7 +49,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
@@ -64,11 +64,11 @@ echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:50000
 ```
 
 ```bash
-echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange create --pair TRX:1000123 --amounts 10000:500000 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.create","data":{"kind":"exchange-create","stage":"confirmed","txId":"2b7...","confirmed":true,"blockNumber":57884020,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenQuant":"10000000000","firstTokenLabel":"TRX","firstTokenDecimals":6,"secondTokenId":"1000123","secondTokenQuant":"500000000000","secondTokenLabel":"MyToken","secondTokenDecimals":6,"feeSun":1024000000},"meta":{"durationMs":6680,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.create","data":{"kind":"exchange-create","stage":"confirmed","txId":"2b7...","confirmed":true,"blockNumber":57884020,"failed":false,"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenQuant":"10000000000","firstTokenLabel":"TRX","firstTokenDecimals":6,"secondTokenId":"1000123","secondTokenQuant":"500000000000","secondTokenLabel":"MyToken","secondTokenDecimals":6,"feeSun":1024000000},"meta":{"durationMs":6680,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

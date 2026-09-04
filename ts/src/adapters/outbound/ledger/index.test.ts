@@ -8,10 +8,19 @@ import { Ledger } from "./index.js";
 const { closeSpy, tip712Calls, failures } = vi.hoisted(() => ({
   closeSpy: vi.fn(async () => {}),
   tip712Calls: [] as Array<{ path: string; domainHash: string; messageHash: string }>,
-  failures: { tip712: undefined as Error | undefined, tip712Hang: false },
+  failures: {
+    tip712: undefined as Error | undefined,
+    tip712Hang: false,
+    open: undefined as Error | undefined,
+  },
 }));
 vi.mock("@ledgerhq/hw-transport-node-hid-noevents", () => ({
-  default: { open: async () => ({ close: closeSpy }) },
+  default: {
+    open: async () => {
+      if (failures.open) throw failures.open;
+      return { close: closeSpy };
+    },
+  },
 }));
 // Every device APDU never resolves — models an on-device prompt that is never tapped.
 vi.mock("@ledgerhq/hw-app-trx", () => ({
@@ -293,5 +302,56 @@ describe("Ledger TIP-712", () => {
       }),
     ).rejects.toMatchObject({ code: "invalid_transaction" });
     expect(tip712Calls).toHaveLength(0);
+  });
+});
+
+/**
+ * The two device states a user hits most, and they used to arrive as the same code.
+ *
+ * `auth_required` for an unplugged device claims a credential is missing when nothing is
+ * connected, and it read identically to a connected-but-locked device — whose fix (enter the PIN)
+ * has nothing to do with the other one (plug it in). The error-code index names them separately for that reason.
+ */
+describe("Ledger device states", () => {
+  it("reports an unreachable device as device_not_found, not auth_required", async () => {
+    failures.open = new Error("cannot open device");
+    try {
+      await expect(new Ledger(2000).getAddress("tron", PATH)).rejects.toMatchObject({
+        code: "device_not_found",
+      });
+    } finally {
+      failures.open = undefined;
+    }
+  });
+
+  it("reports a locked device as device_locked, whichever way the transport says so", async () => {
+    for (const e of [
+      Object.assign(new Error("Ledger device: Locked device (0x5515)"), { statusCode: 0x5515 }),
+      Object.assign(new Error("Locked device"), { name: "LockedDeviceError" }),
+    ]) {
+      failures.open = e;
+      try {
+        await expect(new Ledger(2000).getAddress("tron", PATH)).rejects.toMatchObject({
+          code: "device_locked",
+        });
+      } finally {
+        failures.open = undefined;
+      }
+    }
+  });
+
+  it("maps a locked device reported as an APDU status word to device_locked", async () => {
+    failures.tip712 = Object.assign(new Error("Locked device (0x5515)"), { statusCode: 0x5515 });
+    try {
+      await expect(
+        new Ledger(2000).signTypedData("tron", PATH, {
+          domain: { name: "X", version: "1", chainId: 1 },
+          types: { A: [{ name: "x", type: "uint256" }] },
+          message: { x: "1" },
+        }),
+      ).rejects.toMatchObject({ code: "device_locked" });
+    } finally {
+      failures.tip712 = undefined;
+    }
   });
 });

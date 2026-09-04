@@ -14,7 +14,6 @@ For the current wallet address:
 
 ```console
 wallet> gasfreeinfo
-balanceOf(address):70a08231
 {
 	"gasFreeAddress":"TCtSt8fCkZcVdrGpaVHUr6P8EmdjysswMF",
 	"active":true,
@@ -30,7 +29,6 @@ For a specified address:
 
 ```console
 wallet> gasfreeinfo TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe
-balanceOf(address):70a08231
 {
 	"gasFreeAddress":"TCtSt8fCkZcVdrGpaVHUr6P8EmdjysswMF",
 	"active":true,
@@ -49,7 +47,8 @@ Submit a gas-free token transfer request.
 ```console
 wallet> gasfreetransfer TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT 100000
 
-GasFreeTransfer result: {
+GasFreeTransfer result: 
+{
 	"code":200,
 	"data":{
 		"amount":100000,
@@ -81,7 +80,8 @@ Track transfer status — check the progress of a GasFree transfer using the `id
 
 ```console
 wallet> gasfreetrace 6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0
-GasFreeTrace result: {
+GasFreeTrace result: 
+{
 	"code":200,
 	"data":{
 		"amount":100000,

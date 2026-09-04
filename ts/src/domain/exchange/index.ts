@@ -12,7 +12,7 @@
  * result may differ from the node's in the last unit. That is fine for deriving a percentage
  * slippage floor or showing a `--dry-run` preview, and unacceptable as a reason to refuse a
  * transaction — a local rejection that is one unit wrong blocks a trade the chain would accept,
- * with no override. See docs/adr/0002-bancor-math-advises-never-gates.md.
+ * with no override.
  *
  * The proportional helpers below are different in kind: `proportionalOther` is the exact integer
  * arithmetic the inject/withdraw actuators perform, so it *is* safe to reject on.
@@ -54,9 +54,19 @@ export function slippageFloor(predicted: bigint, percent: number): bigint {
       "this trade is too small to return anything at the current reserves",
     );
   }
-  // basis points keep the percentage in integer arithmetic; fractions finer than 0.01% round down.
-  const bps = BigInt(Math.round((100 - percent) * 100));
-  const floor = (predicted * bps) / 10_000n;
+  // Millionths of a percent keep the percentage in integer arithmetic while staying fine enough
+  // that every precision a person types is exact. Basis points were not: they can only express two
+  // decimal places, so anything finer was rounded to the NEAREST one, in either direction — 1.006%
+  // silently became 1.01% and accepted a return below the floor that was asked for, while 1.004%
+  // became 1.00% and refused one the user would have taken. Under 0.005% the floor snapped to the
+  // prediction itself, which is an estimate (see bancorOutput) and so cannot be demanded exactly.
+  //
+  // Below this resolution the TOLERANCE rounds down, never up: that can only raise the floor, and
+  // handing back a stronger guarantee than asked for is the only safe direction to err in.
+  const MICRO_PERCENT = 1_000_000;
+  const micro = BigInt(Math.floor(percent * MICRO_PERCENT));
+  const scale = BigInt(100 * MICRO_PERCENT);
+  const floor = (predicted * (scale - micro)) / scale;
   return floor > 0n ? floor : 1n;
 }
 

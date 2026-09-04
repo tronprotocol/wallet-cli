@@ -17,8 +17,9 @@ const CONFIG = {
   tronlinkChannel: "wallet-cli",
 } as Config;
 const NETWORK = {
-  id: "tron:mainnet",
+  id: "tron:728126428",
   family: "tron",
+  nativeSymbol: "TRX",
   chainId: "mainnet",
   tronlinkHttpEndpoint: "https://api.walletadapter.org",
 } as NetworkDescriptor;
@@ -201,7 +202,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       client.list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }),
     ).rejects.toMatchObject({
       code: "provider_error",
-      details: { code: 4000, providerMessage: "Authentication failed." },
+      details: { providerCode: 4000, providerMessage: "Authentication failed." },
     });
   });
 
@@ -236,7 +237,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
         start: 0,
         limit: 20,
       }),
-    ).rejects.toMatchObject({ code: "provider_error", details: { code: 20004 } });
+    ).rejects.toMatchObject({ code: "provider_error", details: { providerCode: 20004 } });
     await expect(
       client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
         state: 255,

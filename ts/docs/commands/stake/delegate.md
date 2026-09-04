@@ -31,7 +31,7 @@ Check how much you can still delegate with [`stake delegated`](delegated.md) (`M
 | `--lock-period <number>` | Lock duration in blocks (~3 s/block); requires `--lock` |
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -46,7 +46,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin
+echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin
 ```
 
 ```console
@@ -54,15 +54,15 @@ echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtj
   To      TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx
   TxID    b7c...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:nile --txid b7c...
+! Track it: wallet-cli tx info --network tron:3448148188 --txid b7c...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:nile --password-stdin -o json
+echo "$PW" | wallet-cli stake delegate --receiver TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"stake.delegate","data":{"kind":"stake-delegate","stage":"submitted","txId":"b7c...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"stake.delegate","data":{"kind":"stake-delegate","stage":"submitted","txId":"b7c...","amountSun":"1000000000","resource":"energy","receiver":"TYzp9RbQmtAjCtyGeHb9W7GRwjDKtjUvvx"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

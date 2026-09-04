@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { typedDataSignSpec, typedDataSignBinding } from "./typed-data.js";
 
 const ctx = { activeAccount: "main" } as never;
-const net = { family: "tron", id: "nile", chainId: "728126428" } as never;
+const net = { family: "tron", nativeSymbol: "TRX", id: "nile", chainId: "728126428" } as never;
 
 const PAYLOAD = JSON.stringify({
   domain: { name: "SunPerp", version: "1", chainId: 728126428 },
@@ -55,10 +55,12 @@ describe("typed-data sign binding", () => {
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  it("rejects a structurally invalid payload with invalid_value", async () => {
+  // BUG-V413-020: missing/malformed top-level fields (domain/types/message) don't decode as what
+  // --typed-data says they are, so they're invalid_payload (exit 2), not invalid_value.
+  it("rejects a structurally invalid payload with invalid_payload", async () => {
     const svc = { sign: async () => stubResult };
     await expect(
       typedDataSignBinding(svc as never).run(ctx, net, { typedData: '{"domain":{},"types":{}}' }),
-    ).rejects.toMatchObject({ code: "invalid_value" });
+    ).rejects.toMatchObject({ code: "invalid_payload" });
   });
 });

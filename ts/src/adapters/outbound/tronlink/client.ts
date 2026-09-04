@@ -1,3 +1,4 @@
+import { isTronNetwork } from "../../../domain/types/network.js";
 import { randomUUID } from "node:crypto";
 import WebSocket, { type ClientOptions, type RawData } from "ws";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
@@ -254,7 +255,8 @@ function httpError(response: Response): CliError {
 }
 
 function tronLinkEndpoint(network: NetworkDescriptor): string {
-  if (!network.tronlinkHttpEndpoint) {
+  const endpoint = isTronNetwork(network) ? network.tronlinkHttpEndpoint : undefined;
+  if (!endpoint) {
     throw new UsageError(
       "unsupported_network",
       `network ${network.id} has no TronLink collaboration endpoint`,
@@ -262,7 +264,7 @@ function tronLinkEndpoint(network: NetworkDescriptor): string {
   }
   let parsed: URL;
   try {
-    parsed = new URL(network.tronlinkHttpEndpoint);
+    parsed = new URL(endpoint);
   } catch {
     throw new UsageError(
       "invalid_config",
@@ -312,7 +314,7 @@ function unwrapBusinessResponse(value: unknown): unknown {
     // The code alone does not separate a rejected signature from a bad parameter or a stale one.
     const providerMessage = boundedProviderMessage(root.message);
     throw new ChainError("provider_error", "TronLink collaboration service rejected the request", {
-      code,
+      providerCode: code,
       ...(providerMessage === undefined ? {} : { providerMessage }),
     });
   }

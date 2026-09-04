@@ -12,7 +12,12 @@ export function readBoundedTextFile(path: string, maxBytes: number, label: strin
     if (!stat.isFile()) throw new UsageError("invalid_value", `${label} must be a regular file`);
     if (stat.size > maxBytes)
       throw new UsageError("invalid_value", `${label} exceeds the ${maxBytes}-byte limit`);
-    return readFileSync(fd, "utf8");
+    // Trimmed, not stripped: a file saved by an editor, `echo` or `jq -r` always carries a
+    // trailing newline, and every current caller (hex, JSON) treats surrounding whitespace as
+    // insignificant — but the trim must stop at the edges. Removing *all* whitespace would
+    // silently concatenate two hex/JSON tokens separated by an internal blank line instead of
+    // rejecting the file as malformed.
+    return readFileSync(fd, "utf8").trim();
   } catch (error) {
     if (error instanceof UsageError) throw error;
     throw new UsageError("invalid_value", `could not read ${label}: ${(error as Error).message}`);

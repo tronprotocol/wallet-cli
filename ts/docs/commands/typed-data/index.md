@@ -10,9 +10,11 @@ wallet-cli typed-data COMMAND
 
 ## Subcommands
 
-| Command | Page | Description |
-|---|---|---|
-| `typed-data sign` | [sign.md](sign.md) | Sign EIP-712 / TIP-712 structured data |
+| Command | Page | Description | Networks |
+|---|---|---|---|
+| `typed-data sign` | [sign.md](sign.md) | Sign EIP-712 / TIP-712 structured data | TRON, EVM |
+
+Signing is local — no node is contacted. The selected network chooses which of the account's keys signs and which address is reported.
 
 ## See also
 

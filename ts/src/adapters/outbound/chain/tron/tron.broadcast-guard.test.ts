@@ -83,3 +83,98 @@ describe("TronRpcClient broadcast guard — node rejection must never read as ac
     });
   });
 });
+
+/**
+ * Both broadcast paths reach the same actuators, so they must read the same rejection the same
+ * way. broadcastHex used to hard-code `transaction_rejected`, so `tx broadcast --hex` gave an
+ * agent nothing to branch on for a rejection that `tx send` classified.
+ */
+describe("TronRpcClient.broadcastHex classifies a recognised rejection", () => {
+  it("gives a known rejection its own code, as broadcast does", async () => {
+    const rejection = {
+      result: false,
+      code: "CONTRACT_VALIDATE_ERROR",
+      message: Buffer.from(
+        "Contract validate error : ExchangeTransactionContract is rejected",
+      ).toString("hex"),
+    };
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendHexTransaction = (() => Promise.resolve(rejection)) as never;
+
+    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+      code: "exchange_trading_disabled",
+    });
+  });
+
+  it("still falls back to transaction_rejected for wording it does not know", async () => {
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendHexTransaction = (() =>
+      Promise.resolve({ result: false, code: "SIGERROR" })) as never;
+
+    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+      code: "transaction_rejected",
+    });
+  });
+});
+
+/**
+ * Regression: text mode renders only `error.message`, never `details.nodeMessage`, so a
+ * classified rejection that dropped the node's own words to details told the reader only the
+ * category — same failure mode as the EVM side, see evm.test.ts.
+ */
+describe("TronRpcClient broadcast keeps the node's own words in the message", () => {
+  // Extra wording around the anchored rule text, carrying a URL — this pins that redaction still
+  // runs BEFORE the fold, not that redaction never fires: redactErrorMessage collapses a URL to
+  // `scheme://host`, dropping path/query, so the raw path/token must never reach the message.
+  const NODE_TEXT =
+    "token required must greater than expected (see https://node.example.com/report?token=SECRET123)";
+
+  it("folds the node's words into the message, not just details, for a recognised rejection", async () => {
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendRawTransaction = (() =>
+      Promise.resolve({
+        code: "CONTRACT_VALIDATE_ERROR",
+        message: Buffer.from(NODE_TEXT).toString("hex"),
+        txid: "abc",
+      })) as never;
+
+    await expect(client.broadcast(SIGNED)).rejects.toMatchObject({
+      code: "slippage_exceeded",
+      message: expect.stringContaining("token required must greater than expected"),
+    });
+  });
+
+  it("keeps details.nodeMessage for machine readers", async () => {
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendRawTransaction = (() =>
+      Promise.resolve({
+        code: "CONTRACT_VALIDATE_ERROR",
+        message: Buffer.from(NODE_TEXT).toString("hex"),
+        txid: "abc",
+      })) as never;
+
+    await expect(client.broadcast(SIGNED)).rejects.toMatchObject({
+      details: {
+        nodeMessage: expect.stringContaining("token required must greater than expected"),
+      },
+    });
+  });
+
+  it("still redacts the node's words before folding them into the message", async () => {
+    const client = new TronRpcClient("http://localhost:1", 200);
+    client.tronweb.trx.sendRawTransaction = (() =>
+      Promise.resolve({
+        code: "CONTRACT_VALIDATE_ERROR",
+        message: Buffer.from(NODE_TEXT).toString("hex"),
+        txid: "abc",
+      })) as never;
+
+    const error = await client.broadcast(SIGNED).catch((e) => e);
+    // The URL's path and query (the secret token) must not survive into the message or details —
+    // only scheme://host does, per redactErrorMessage's contract.
+    expect(error.message).not.toContain("/report");
+    expect(error.message).not.toContain("SECRET123");
+    expect(error.message).toContain("https://node.example.com");
+    expect(error.details.nodeMessage).not.toContain("SECRET123");
+  });
+});

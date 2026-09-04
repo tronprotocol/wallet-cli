@@ -2,15 +2,14 @@
  * `asset` — TRC10, the TRON protocol's own token type (issuance, ICO window, frozen supply).
  * TRC20 contracts live under `token`; TRC10 *transfer* is `tx send` with an asset id.
  *
- * Deviations from the v4.12.0 command spec for this group are recorded in
- * docs/asset-exchange-spec-deviations-v4.12.0.md — notably: Ledger cannot sign any of these
- * contract types, `asset list` defaults to one page rather than the whole chain, and an ambiguous
- * token name is an error rather than a differently-shaped result.
+ * Departures from the command spec for this group: Ledger cannot sign any of these contract
+ * types, `asset list` defaults to one page rather than the whole chain, and an ambiguous token
+ * name is an error rather than a differently-shaped result.
  */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAssetService } from "../../../../application/use-cases/tron/asset-service.js";
-import { txModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields } from "./shared.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 
@@ -74,6 +73,7 @@ export const assetIssueSpec: ChainSpec = {
       .optional()
       .describe("frozen tranche <amount>:<days>, amount in whole tokens; repeatable"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [
     {
@@ -115,6 +115,7 @@ export const assetUpdateSpec: ChainSpec = {
       .optional()
       .describe("shared free bandwidth pool for holders"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli asset update --url https://mytoken.io/v2 --wait" }],
   formatText: TextFormatters.txReceipt,
@@ -142,6 +143,7 @@ export const assetParticipateSpec: ChainSpec = {
     assetRef: assetReference,
     pay: z.string().min(1).describe("TRX to spend (decimal, not the number of tokens)"),
     ...txModeFields,
+    ...tronTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli asset participate 1000124 --pay 100 --wait" }],
   formatText: TextFormatters.txReceipt,
@@ -162,7 +164,7 @@ export const assetUnfreezeSpec: ChainSpec = {
     "have not matured yet are untouched — run it again later for those.\n\n" +
     "This is unrelated to 'stake unfreeze', which releases staked TRX.",
   requires: ["an account that has issued a TRC10 and has matured frozen supply", LEDGER_NOTE],
-  baseFields: z.object({ ...txModeFields }),
+  baseFields: z.object({ ...txModeFields, ...tronTxModeFields }),
   examples: [{ cmd: "wallet-cli asset unfreeze --wait" }],
   formatText: TextFormatters.txReceipt,
 };

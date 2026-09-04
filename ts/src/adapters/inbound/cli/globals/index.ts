@@ -54,14 +54,14 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     kind: "value",
     valueType: "string",
     description:
-      "canonical network id, e.g. tron:mainnet, tron:nile, tron:shasta; chain commands fall back to config.defaultNetwork when omitted",
+      "network id or alias, e.g. nile, sepolia, bsc, or eip155:11155111; falls back to config.defaultNetwork when omitted",
   },
   {
     name: "account",
     kind: "value",
     valueType: "string",
     description:
-      "accountId, label, or address for wallet-bound commands; falls back to the active account set by use",
+      "accountId, label, or address for wallet-bound commands; an address is only valid on its own chain (use accountId or label to cross chains); read-only commands accept any address of that chain, signing commands require you to hold it; falls back to the active account set by use",
   },
   {
     name: "timeout",

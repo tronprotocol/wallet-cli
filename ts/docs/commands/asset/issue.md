@@ -24,11 +24,13 @@ Creates a TRC10 token and, in the same transaction, fixes the terms of its ICO: 
 
 Amounts (`--supply`, `--freeze`) are in **whole tokens** — `--supply 1000000000 --precision 6` becomes an on-chain `total_supply` of `1000000000000000`.
 
-Dates are read as **UTC**, as `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss`; a bare date means `00:00:00`. `--start` must be later than the chain's current time, so a bare date is at the earliest tomorrow — to start a sale the same day, give the time as well.
+Dates are read as **UTC**, as `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss`; a bare date means `00:00:00`. `--start` must be later than **this machine's** clock at build time (the check is local, not a node read), so a bare date is at the earliest tomorrow — to start a sale the same day, give the time as well. The chain applies its own window check on top.
 
-Constraints are checked locally before broadcast: `--name` and `--abbr` are 1–32 visible ASCII characters (`0x21`–`0x7E`, so no spaces and no non-ASCII); `--url` is required and at most 256 bytes; `--description` at most 200 bytes; `--precision` 0–6; `--end` after `--start`; each `--freeze` tranche's days within `getMinFrozenSupplyTime`…`getMaxFrozenSupplyTime`, the number of tranches within `getMaxFrozenSupplyNumber`, and their sum within the total supply; both free-bandwidth limits below `getOneDayNetLimit`.
+Constraints are checked locally before broadcast: `--name` and `--abbr` are 1–32 visible ASCII characters (`0x21`–`0x7E`, so no spaces and no non-ASCII); `--url` is required and at most 256 bytes; `--description` at most 200 bytes; `--precision` 0–6; `--start` in the future and `--end` after `--start`; each `--freeze` tranche's amount and days greater than zero. One extra pre-flight read refuses an account that has already issued a TRC10, because the fee is burned either way. Every other bound belongs to the node — the chain's limits on frozen tranches (`getMinFrozenSupplyTime`, `getMaxFrozenSupplyTime`, `getMaxFrozenSupplyNumber`, and the tranche sum against the total supply) and on the free-bandwidth limits (`getOneDayNetLimit`) are enforced at broadcast, and violating one comes back as `transaction_rejected` in the node's own words.
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+
+The Ledger TRON app cannot sign TRC10 issuance contract types. Ledger accounts may dry-run or build unsigned hex, but signing modes fail with `ledger_unsupported` before device interaction.
 
 ## Options
 
@@ -48,7 +50,7 @@ Constraints are checked locally before broadcast: `--name` and `--abbr` are 1–
 | `--freeze <amount>:<days>` | **Repeatable.** Frozen tranche; amount in whole tokens, e.g. `100000000:30` |
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
-| `--build-only` | Build only, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
+| `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
@@ -63,38 +65,38 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 ```bash
 echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 1000000000 --price 1:100 --precision 6 \
   --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --description "Demo TRC10" \
-  --freeze 100000000:30 --freeze 50000000:90 --network tron:nile --wait --password-stdin
+  --freeze 100000000:30 --freeze 50000000:90 --network tron:3448148188 --wait --password-stdin
 ```
 
 ```console
 ✅ Asset issued
   Asset             MyToken  (id 1000123)
-  Issuer            TQkXm4vN...5Zt7Uw (main)
+  Issuer            TQkXm4vN...5Zt7Uw
   Total supply      1,000,000,000
   Precision         6
   Price             1 TRX = 100 MyToken
-  ICO start time    2026-08-01 00:00 UTC
-  ICO end time      2026-08-31 00:00 UTC
+  ICO start time    2026-08-01 00:00:00 UTC
+  ICO end time      2026-08-31 00:00:00 UTC
   Url               https://mytoken.io
   Description       Demo TRC10
   Free net/account  0
   Public free net   0
-  Frozen (2)
-    100,000,000  for 30 days
-     50,000,000  for 90 days
+    100,000,000     for 30 days
+    50,000,000      for 90 days
   TxID              7d1...
-  Block             57,883,010
-  Fee               1,024 TRX  (312 bandwidth)
+  Block             #57,883,010
+  Fee               1,024 TRX
   Status            success
 ```
 
 ```bash
 echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 1000000000 --price 1:100 --precision 6 \
-  --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --network tron:nile --wait --password-stdin -o json
+  --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --description "Demo TRC10" \
+  --freeze 100000000:30 --freeze 50000000:90 --network tron:3448148188 --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"failed":false,"assetId":"1000123","name":"MyToken","abbr":"MTK","totalSupply":1000000000000000,"precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":100000000000000,"days":30},{"amount":50000000000000,"days":90}],"feeSun":1024000000,"resource":{"netUsage":312,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.issue","data":{"kind":"asset-issue","stage":"confirmed","txId":"7d1...","confirmed":true,"blockNumber":57883010,"feeSun":1024000000,"netUsed":312,"netFeeSun":0,"failed":false,"assetId":"1000123","issuerAddress":"TQkXm4vN...","name":"MyToken","abbr":"MTK","totalSupply":"1000000000000000","precision":6,"price":"1:100","trxNum":1,"num":100,"startTime":1785542400000,"endTime":1788134400000,"url":"https://mytoken.io","description":"Demo TRC10","freeAssetNetLimit":0,"publicFreeAssetNetLimit":0,"frozenSupply":[{"amount":"100000000000000","days":30},{"amount":"50000000000000","days":90}]},"meta":{"durationMs":6720,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -104,13 +106,13 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "asset-issue"`, `stage: "submitted"`, `txId`, and the token definition below except `assetId` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `resource`, `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
 
-Definition fields: `name`, `abbr`, `totalSupply` (raw), `precision`, `price` (the `trx:tokens` string as given) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw, `days`).
+Definition fields: `issuerAddress`, `name`, `abbr`, `totalSupply` (raw decimal string), `precision`, `price` (a `trx:tokens` string derived back from the stored pair, so it is the **reduced** rate, not necessarily what you typed — `--price 2:200 --precision 6` reports `"1:100"`) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw decimal string, `days`). Confirmation resource fields are flat; there is no `resource` object and the bandwidth field is `netUsed`, not `netUsage`.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `insufficient_balance` — below the issuance fee, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — rate, precision, dates, bandwidth limits, or frozen tranches out of range, or the rate exceeding int32 after conversion).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `transaction_rejected` — the node refused it, e.g. the balance cannot cover the issuance fee or a chain-side bound was exceeded, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — a malformed or non-positive rate, precision, supply or frozen tranche, a malformed date, `--start` not in the future, `--end` not after `--start`, or the rate exceeding int32 after reduction).
 
 ## See also
 

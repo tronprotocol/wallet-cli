@@ -18,7 +18,7 @@ git clone https://github.com/tronprotocol/wallet-cli.git
 
 ### Configuration
 
-A minimal `config.conf` only needs a network type and a full node to talk to:
+A minimal `config.conf` needs a full-node endpoint. `net.type` does not select the network; it only controls whether `grpc.mainnet.apiKey` is applied. The startup network is inferred from the configured node endpoints.
 
 ```
 net {
@@ -40,13 +40,13 @@ You can also switch networks at runtime with the [`SwitchNetwork`](docs/commands
 - **Compile and run**:
 
     ```console
-    $ cd wallet-cli
+    $ cd wallet-cli/java
     $ ./gradlew build
     $ cd build/libs
     $ java -jar wallet-cli.jar
     ```
 
-wallet-cli connects to java-tron via the gRPC protocol, which can be deployed locally or remotely. Configure the java-tron node IP and port in `src/main/resources/config.conf`, or use `SwitchNetwork` to switch among mainnet, testnets (Nile and Shasta), and custom networks.
+wallet-cli connects to java-tron via gRPC. At startup it first looks for `config.conf` in the current working directory, then falls back to the bundled classpath resource. Use `SwitchNetwork` to switch among mainnet, testnets (Nile and Shasta), and custom networks.
 
 ## Quickstart
 
@@ -55,13 +55,13 @@ Build, create an account, and send your first transfer — all from the interact
 ```console
 # 1. Build
 $ git clone https://github.com/tronprotocol/wallet-cli.git
-$ cd wallet-cli && ./gradlew build && cd build/libs
+$ cd wallet-cli/java && ./gradlew build && cd build/libs
 
 # 2. Start the interactive wallet
 $ java -jar wallet-cli.jar
 
 # 3. In the wallet prompt: create an account (or ImportWallet), unlock, and inspect it
-> RegisterWallet 123456      # create a keystore with password 123456
+> RegisterWallet             # prompts twice for the password, then for mnemonic length
 > Login                      # unlock the account
 > GetAddress                 # show your address
 > GetBalance                 # TRX balance
@@ -76,7 +76,7 @@ The full first-run walkthrough is in the [getting-started guide](docs/guide/gett
 
 ## Commands
 
-Every command is documented on a family page under [docs/commands/](docs/commands/index.md). The **[command index](docs/commands/index.md)** has the full A–Z list linking each command to its section; in the wallet, typing any command shows its built-in usage tips.
+Every command is documented on a family page under [docs/commands/](docs/commands/index.md). The **[command index](docs/commands/index.md)** has the full A–Z list linking each command to its section; in the wallet, `help <command>` shows a command's built-in usage tips (`help` alone prints the full table).
 
 ### Wallets & accounts
 

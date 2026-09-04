@@ -13,6 +13,7 @@ export function tokenSelector(
       code: "custom",
       path: ["contract"],
       message: "exactly one of --contract (TRC20) or --asset-id (TRC10) is required",
+      params: { errorCode: "invalid_option" },
     });
   }
 }

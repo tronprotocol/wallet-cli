@@ -31,11 +31,6 @@ import static org.tron.mnemonic.MnemonicUtils.getPrivateKeyFromMnemonic;
 import static org.tron.walletserver.WalletApi.addressValid;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 
-import org.tron.walletcli.cli.GlobalOptions;
-import org.tron.walletcli.cli.CommandRegistry;
-import org.tron.walletcli.cli.OutputFormatter;
-import org.tron.walletcli.cli.StandardCliRunner;
-
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.parser.ParserConfig;
@@ -65,8 +60,6 @@ import java.util.Base64.Encoder;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -4751,44 +4744,18 @@ public class Client {
     }
   }
 
+  private static final String STANDARD_CLI_REMOVED_HINT =
+      "Standard CLI has been removed in" + VERSION + ".\n"
+          + "Run the TypeScript CLI instead: npx @tron-walletcli/wallet-cli --help\n"
+          + "Command reference: "
+          + "https://github.com/tronprotocol/wallet-cli/blob/HEAD/ts/docs/commands/index.md";
+
   public static void main(String[] args) {
     System.exit(runMain(args));
   }
 
   static int runMain(String[] args) {
-    GlobalOptions globalOpts;
-    try {
-      globalOpts = GlobalOptions.parse(args);
-    } catch (IllegalArgumentException e) {
-      OutputFormatter.OutputMode mode = requestsJsonOutput(args)
-          ? OutputFormatter.OutputMode.JSON
-          : OutputFormatter.OutputMode.TEXT;
-      OutputFormatter formatter = new OutputFormatter(mode, false, System.out, System.err);
-      try {
-        formatter.usageError(e.getMessage(), null);
-      } catch (RuntimeException ignored) {
-        // usageError intentionally aborts normal control flow after recording the outcome
-      }
-      formatter.flush();
-      return 2;
-    }
-
-    if (globalOpts.isVersion()) {
-      String version = "wallet-cli" + VERSION;
-      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
-        OutputFormatter fmt = new OutputFormatter(
-            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
-        Map<String, Object> data = new LinkedHashMap<String, Object>();
-        data.put("version", version);
-        fmt.success(version, data);
-        fmt.flush();
-      } else {
-        System.out.println(version);
-      }
-      return 0;
-    }
-
-    if (globalOpts.isInteractive() || shouldLaunchInteractiveByDefault(args, globalOpts)) {
+    if (args.length == 0) {
       Client cli = new Client();
       JCommander.newBuilder()
           .addObject(cli)
@@ -4798,86 +4765,22 @@ public class Client {
       return 0;
     }
 
-    if (globalOpts.isHelp()) {
-      CommandRegistry registry = initRegistry();
-      String helpText = registry.formatGlobalHelp(VERSION);
-      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
-        OutputFormatter formatter = new OutputFormatter(
-            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
-        formatter.help(helpText);
-        formatter.flush();
-      } else {
-        System.out.println(helpText);
-      }
+    if (args.length == 1 && "--version".equals(args[0])) {
+      System.out.println("wallet-cli" + VERSION);
       return 0;
     }
 
-    if (globalOpts.getCommand() == null) {
-      CommandRegistry registry = initRegistry();
-      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
-        OutputFormatter formatter = new OutputFormatter(
-            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
-        try {
-          formatter.usageError("Missing command.", null);
-        } catch (RuntimeException ignored) {
-          // usageError intentionally aborts normal control flow after recording the outcome
-        }
-        formatter.flush();
-      } else {
-        OutputFormatter formatter = new OutputFormatter(
-            OutputFormatter.OutputMode.TEXT, false, System.out, System.err);
-        try {
-          formatter.usageError("Missing command.", null);
-        } catch (RuntimeException ignored) {
-          // usageError intentionally aborts normal control flow after recording the outcome
-        }
-        formatter.flush();
-        System.err.println();
-        System.err.println(registry.formatGlobalHelp(VERSION));
-      }
-      return 2;
+    if (args.length == 1 && "--help".equals(args[0])) {
+      System.out.println("Usage: java -jar wallet-cli.jar");
+      System.out.println();
+      System.out.println("Starts the interactive wallet shell. Run it without arguments,"
+          + " then type 'help' at the prompt to list the available commands.");
+      System.out.println();
+      System.out.println(STANDARD_CLI_REMOVED_HINT);
+      return 0;
     }
 
-    // Standard CLI mode
-    CommandRegistry registry = initRegistry();
-    StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-    return runner.execute();
-  }
-
-  static boolean shouldLaunchInteractiveByDefault(String[] args, GlobalOptions globalOpts) {
-    return args.length == 0
-        && globalOpts.getOutputMode() == OutputFormatter.OutputMode.TEXT
-        && globalOpts.getCommand() == null
-        && !globalOpts.isHelp()
-        && !globalOpts.isVersion();
-  }
-
-  private static boolean requestsJsonOutput(String[] args) {
-    // Fallback scan for parse errors assumes --output is a standard-CLI global-only option.
-    for (int i = 0; i < args.length; i++) {
-      String token = args[i];
-      if ("--output".equals(token)) {
-        return i + 1 < args.length && "json".equalsIgnoreCase(args[i + 1]);
-      }
-      if (token.startsWith("--output=")) {
-        return "json".equalsIgnoreCase(token.substring("--output=".length()));
-      }
-    }
-    return false;
-  }
-
-  private static CommandRegistry initRegistry() {
-    CommandRegistry registry = new CommandRegistry();
-    org.tron.walletcli.cli.commands.QueryCommands.register(registry);
-    org.tron.walletcli.cli.commands.TransactionCommands.register(registry);
-    org.tron.walletcli.cli.commands.ContractCommands.register(registry);
-    org.tron.walletcli.cli.commands.StakingCommands.register(registry);
-    org.tron.walletcli.cli.commands.WitnessCommands.register(registry);
-    org.tron.walletcli.cli.commands.ProposalCommands.register(registry);
-    org.tron.walletcli.cli.commands.ExchangeCommands.register(registry);
-    org.tron.walletcli.cli.commands.AliasCommands.register(registry);
-    org.tron.walletcli.cli.commands.WalletCommands.register(registry);
-    org.tron.walletcli.cli.commands.MiscCommands.register(registry);
-    return registry;
+    System.err.println(STANDARD_CLI_REMOVED_HINT);
+    return 2;
   }
 }

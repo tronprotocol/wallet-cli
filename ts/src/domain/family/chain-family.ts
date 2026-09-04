@@ -9,5 +9,5 @@
  * a module made every type that names a family reach through the registry, which is what closed the
  * `types → family → address → types` cycle.
  */
-export const ChainFamily = { tron: "tron" } as const;
+export const ChainFamily = { tron: "tron", evm: "evm" } as const;
 export type ChainFamily = (typeof ChainFamily)[keyof typeof ChainFamily];

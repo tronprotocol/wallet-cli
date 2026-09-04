@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { icoPriceLabel, icoRate, icoTokensFor } from "./index.js";
 
 describe("TRC10 ICO rate", () => {
-  // The worked example from the v4.12.0 spec §3.1: the same --price lands differently on chain
+  // The worked example from the spec: the same --price lands differently on chain
   // depending on --precision, which is the trap the flag exists to hide.
   it("scales the same price by precision", () => {
     expect(icoRate(1n, 100n, 6)).toEqual({ trxNum: 1, num: 100 });

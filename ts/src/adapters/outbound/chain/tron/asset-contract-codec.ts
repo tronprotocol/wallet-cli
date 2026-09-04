@@ -14,8 +14,7 @@
  *
  * We drive TronWeb's own bundled proto classes for the contract message, and let TronWeb build
  * the surrounding transaction envelope (ref block, expiration, timestamp, permission id) so
- * that layer stays in one place. See docs/adr/0001-own-tron-serialisation-for-contract-types-
- * tronweb-gets-wrong.md.
+ * that layer stays in one place.
  *
  * Both encodings are verified byte-for-byte against transactions built by a live java-tron node
  * (`/wallet/unfreezeasset`, `/wallet/createassetissue`) — see the co-located tests.

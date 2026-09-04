@@ -12,7 +12,7 @@ wallet-cli reward balance [options]
 
 Shows the currently claimable voting/block reward and whether it can be withdrawn now. Read-only — the "check before you claim" companion to [`reward withdraw`](withdraw.md), so you never have to probe the 24-hour limit by triggering its `withdraw_too_frequent` error.
 
-`Withdraw status` derives from the account's on-chain `latest_withdraw_time` + 24 h: past it (or never withdrawn) → `available now`; otherwise `available from <absolute time> (~relative)`.
+`Withdraw status` derives from the account's on-chain `latest_withdraw_time` + 24 h: past it (or never withdrawn) → `available now`; otherwise `available from <absolute time> (in ~<relative>)`.
 
 ## Options
 
@@ -23,7 +23,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 Claimable right now:
 
 ```bash
-wallet-cli reward balance --account main --network tron:nile
+wallet-cli reward balance --account main --network tron:3448148188
 ```
 
 ```console
@@ -35,21 +35,21 @@ Withdraw status  available now
 Within 24 h of the last withdrawal:
 
 ```bash
-wallet-cli reward balance --account main --network tron:nile
+wallet-cli reward balance --account main --network tron:3448148188
 ```
 
 ```console
 Label            main
 Claimable        5.678901 TRX
-Withdraw status  available from 2026-07-06 09:30 (~18h)
+Withdraw status  available from 2026-07-06 09:30 (in ~18h)
 ```
 
 ```bash
-wallet-cli reward balance --account main --network tron:nile -o json
+wallet-cli reward balance --account main --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"reward.balance","data":{"address":"TQk...","rewardSun":"123456789","withdrawableNow":true,"withdrawableAt":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"reward.balance","data":{"address":"TQk...","rewardSun":"123456789","withdrawableNow":true,"withdrawableAt":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

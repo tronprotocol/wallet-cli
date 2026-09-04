@@ -31,7 +31,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli proposal list --state all --network tron:nile
+wallet-cli proposal list --state all --network tron:3448148188
 ```
 
 ```console
@@ -47,7 +47,7 @@ Proposals (4)
 Second page — skip the first two, two per page:
 
 ```bash
-wallet-cli proposal list --state all --offset 2 --limit 2 --network tron:nile
+wallet-cli proposal list --state all --offset 2 --limit 2 --network tron:3448148188
 ```
 
 ```console
@@ -59,11 +59,11 @@ Proposals (showing 2 of 4)
 ```
 
 ```bash
-wallet-cli proposal list --state all --network tron:nile -o json
+wallet-cli proposal list --state all --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.list","data":{"approvalThreshold":18,"proposals":[{"id":47,"proposerAddress":"TSRmq8kP...","state":"voting","approvals":12,"expirationTime":1784707200000,"parameters":[{"id":3,"name":"getTransactionFee","value":15,"unit":"sun/byte"}]},{"id":44,"proposerAddress":"TSRee5...","state":"disapproved","approvals":8,"expirationTime":1784534400000,"parameters":[{"id":0,"name":"getMaintenanceTimeInterval","value":10800000,"unit":"ms"},{"id":13,"name":"getMaxCpuTimeOfOneTx","value":80,"unit":"ms"}]}]},"meta":{"durationMs":31,"warnings":[],"pagination":{"offset":0,"limit":null,"total":4}},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.list","data":{"approvalThreshold":18,"proposals":[{"id":47,"proposerAddress":"TSRmq8kP...","state":"voting","approvals":12,"expirationTime":1784707200000,"parameters":[{"id":3,"name":"getTransactionFee","value":15,"unit":"sun/byte"}]},{"id":46,"proposerAddress":"TSRmq8kP...","state":"voting","approvals":5,"expirationTime":1784707200000,"parameters":[{"id":2,"name":"getCreateAccountFee","value":200000,"unit":"sun"}]},{"id":45,"proposerAddress":"TSRee5...","state":"approved","approvals":18,"expirationTime":1784620800000,"parameters":[{"id":11,"name":"getEnergyFee","value":140,"unit":"sun"}]},{"id":44,"proposerAddress":"TSRee5...","state":"disapproved","approvals":8,"expirationTime":1784534400000,"parameters":[{"id":0,"name":"getMaintenanceTimeInterval","value":10800000,"unit":"ms"},{"id":13,"name":"getMaxCpuTimeOfOneTx","value":80,"unit":"ms"}]}]},"meta":{"durationMs":31,"warnings":[],"pagination":{"offset":0,"limit":null,"total":4}},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

@@ -42,7 +42,7 @@ export const ExchangeFormatters = {
   }) satisfies TextFormatter,
 
   /**
-   * One RPC, so no token names or precisions are available (docs/adr/0005) — ids and minimal units,
+   * One RPC, so no token names or precisions are available — ids and minimal units,
    * with the column labelled so the numbers cannot be mistaken for whole tokens.
    */
   exchangeList: ((data) => {

@@ -41,7 +41,7 @@ View the current network.
 
 ```console
 wallet> currentnetwork
-currentNetwork: NILE
+current network: NILE
 ```
 
 For a custom network, the node endpoints are shown:

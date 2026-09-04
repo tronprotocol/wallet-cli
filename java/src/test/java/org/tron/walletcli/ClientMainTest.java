@@ -5,144 +5,94 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import org.junit.Assert;
 import org.junit.Test;
-import org.tron.walletcli.cli.GlobalOptions;
 
 public class ClientMainTest {
 
-  @Test
-  public void runMainPrintsGlobalHelpForHelpFlagBeforeCommand() throws Exception {
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    PrintStream originalOut = System.out;
-    System.setOut(new PrintStream(stdout));
-    try {
-      int exitCode = Client.runMain(new String[]{"--help", "get-balance"});
+  private static final String TS_PACKAGE = "@tron-walletcli/wallet-cli";
 
-      Assert.assertEquals(0, exitCode);
-      String output = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(output.contains("TRON Wallet CLI"));
-      Assert.assertTrue(output.contains("Usage:"));
-      Assert.assertFalse(output.contains("Error:"));
-    } finally {
-      System.setOut(originalOut);
-    }
+  @Test
+  public void versionFlagPrintsPlainTextVersion() throws Exception {
+    Captured captured = run("--version");
+
+    Assert.assertEquals(0, captured.exitCode);
+    Assert.assertTrue(captured.stdout.startsWith("wallet-cli v"));
+    Assert.assertFalse(captured.stdout.contains("{"));
+    Assert.assertEquals("", captured.stderr);
   }
 
   @Test
-  public void runMainPrintsVersionForVersionFlag() throws Exception {
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    PrintStream originalOut = System.out;
-    System.setOut(new PrintStream(stdout));
-    try {
-      int exitCode = Client.runMain(new String[]{"--version"});
+  public void helpFlagPrintsInteractiveUsageAndTheFallbackHint() throws Exception {
+    Captured captured = run("--help");
 
-      Assert.assertEquals(0, exitCode);
-      Assert.assertTrue(stdout.toString(StandardCharsets.UTF_8.name()).contains("wallet-cli"));
-    } finally {
-      System.setOut(originalOut);
-    }
+    Assert.assertEquals(0, captured.exitCode);
+    Assert.assertTrue(captured.stdout.contains("Usage: java -jar wallet-cli.jar"));
+    Assert.assertTrue(captured.stdout.contains("interactive wallet shell"));
+    Assert.assertTrue(captured.stdout.contains(TS_PACKAGE));
+    Assert.assertEquals("", captured.stderr);
   }
 
   @Test
-  public void runMainEmitsCleanJsonForGlobalHelp() throws Exception {
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    PrintStream originalOut = System.out;
-    System.setOut(new PrintStream(stdout));
-    try {
-      int exitCode = Client.runMain(new String[]{"--output", "json", "--help"});
-
-      Assert.assertEquals(0, exitCode);
-      String output = stdout.toString(StandardCharsets.UTF_8.name()).trim();
-      Assert.assertTrue(output.startsWith("{"));
-      Assert.assertTrue(output.contains("\"success\": true"));
-      Assert.assertTrue(output.contains("\"help\":"));
-      Assert.assertFalse(output.contains("User defined config file"));
-    } finally {
-      System.setOut(originalOut);
-    }
+  public void interactiveFlagIsNoLongerRecognised() throws Exception {
+    assertFallback(run("--interactive"));
   }
 
   @Test
-  public void runMainReturnsUsageErrorForMissingCommand() throws Exception {
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    PrintStream originalOut = System.out;
-    System.setOut(new PrintStream(stdout));
-    try {
-      int exitCode = Client.runMain(new String[]{"--output", "json"});
-
-      Assert.assertEquals(2, exitCode);
-      String output = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(output.contains("\"success\": false"));
-      Assert.assertTrue(output.contains("\"error\": \"usage_error\""));
-      Assert.assertTrue(output.contains("Missing command."));
-    } finally {
-      System.setOut(originalOut);
-    }
+  public void formerStandardCliCommandFallsBack() throws Exception {
+    assertFallback(run("get-account", "--address", "TXyz"));
   }
 
   @Test
-  public void noArgsDefaultsToInteractiveTextMode() {
-    GlobalOptions opts = GlobalOptions.parse(new String[0]);
+  public void jsonOutputRequestFallsBackWithoutAJsonEnvelope() throws Exception {
+    Captured captured = run("--output", "json", "get-account");
 
-    Assert.assertTrue(Client.shouldLaunchInteractiveByDefault(new String[0], opts));
+    assertFallback(captured);
+    Assert.assertFalse(captured.stderr.contains("{"));
+    Assert.assertFalse(captured.stderr.contains("\"success\""));
   }
 
   @Test
-  public void runMainMapsGlobalParseFailuresToExitCodeTwo() throws Exception {
+  public void bareGlobalFlagFallsBack() throws Exception {
+    assertFallback(run("--network", "nile"));
+  }
+
+  private static void assertFallback(Captured captured) {
+    Assert.assertEquals(2, captured.exitCode);
+    Assert.assertEquals("", captured.stdout);
+    Assert.assertTrue(captured.stderr.contains("Standard CLI has been removed"));
+    Assert.assertTrue(captured.stderr.contains(TS_PACKAGE));
+    Assert.assertTrue(captured.stderr.contains("npx " + TS_PACKAGE));
+    Assert.assertTrue(captured.stderr.contains(
+        "https://github.com/tronprotocol/wallet-cli/blob/HEAD/ts/docs/commands/index.md"));
+    Assert.assertEquals(3, captured.stderr.trim().split("\\R").length);
+  }
+
+  private static Captured run(String... args) throws Exception {
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
     PrintStream originalOut = System.out;
     PrintStream originalErr = System.err;
-    System.setOut(new PrintStream(stdout));
-    System.setErr(new PrintStream(stderr));
+    System.setOut(new PrintStream(stdout, true, StandardCharsets.UTF_8.name()));
+    System.setErr(new PrintStream(stderr, true, StandardCharsets.UTF_8.name()));
     try {
-      int exitCode = Client.runMain(new String[]{"--outputt", "json", "get-balance"});
-
-      Assert.assertEquals(2, exitCode);
-      String output = stderr.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(output.contains("Error: Unknown global option: --outputt"));
-      Assert.assertFalse(output.contains("Unknown command"));
-      Assert.assertEquals("", stdout.toString(StandardCharsets.UTF_8.name()));
+      int exitCode = Client.runMain(args);
+      return new Captured(exitCode,
+          stdout.toString(StandardCharsets.UTF_8.name()),
+          stderr.toString(StandardCharsets.UTF_8.name()));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
     }
   }
 
-  @Test
-  public void runMainEmitsJsonForGlobalParseFailureWhenJsonWasRequested() throws Exception {
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    PrintStream originalOut = System.out;
-    System.setOut(new PrintStream(stdout));
-    try {
-      int exitCode = Client.runMain(new String[]{"--output", "json", "--outputt", "json", "get-balance"});
+  private static final class Captured {
+    private final int exitCode;
+    private final String stdout;
+    private final String stderr;
 
-      Assert.assertEquals(2, exitCode);
-      String output = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(output.contains("\"success\": false"));
-      Assert.assertTrue(output.contains("\"error\": \"usage_error\""));
-      Assert.assertTrue(output.contains("Unknown global option: --outputt"));
-    } finally {
-      System.setOut(originalOut);
-    }
-  }
-
-  @Test
-  public void runMainEmitsJsonForPostCommandGlobalParseFailureWhenJsonWasRequested() throws Exception {
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    PrintStream originalOut = System.out;
-    System.setOut(new PrintStream(stdout));
-    try {
-      int exitCode = Client.runMain(new String[]{
-          "get-balance", "--output", "json", "--network", "beta"
-      });
-
-      Assert.assertEquals(2, exitCode);
-      String output = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(output.contains("\"success\": false"));
-      Assert.assertTrue(output.contains("\"error\": \"usage_error\""));
-      Assert.assertTrue(output.contains("Invalid value for --network: beta"));
-    } finally {
-      System.setOut(originalOut);
+    private Captured(int exitCode, String stdout, String stderr) {
+      this.exitCode = exitCode;
+      this.stdout = stdout;
+      this.stderr = stderr;
     }
   }
 }

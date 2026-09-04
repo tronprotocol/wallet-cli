@@ -3,18 +3,43 @@
  */
 import type { OutputMode } from "./primitives.js";
 
-export type NetworkId = string; // canonical, e.g. "tron:nile"
+export type NetworkId = string; // canonical, e.g. "tron:3448148188"
 export type AccountRef = string; // "wlt_x.0" (HD) / "wlt_k" (privateKey)
 
-export type FeeModel = "legacy" | "eip1559" | "tron-resource";
+export type FeeModel = "legacy" | "eip1559" | "tron-resource" | "evm-gas";
 
 /** fields shared by every family; `family` is the discriminant for the union below. */
 interface NetworkBase {
   id: NetworkId;
   chainId: string;
-  aliases: string[];
+  /**
+   * Display symbol of this chain's native coin — TRX / ETH / BNB.
+   *
+   * A NETWORK fact, not a family one: `eip155:1` and `eip155:56` share every encoding and arithmetic
+   * rule that makes them EVM, but their coins are ETH and BNB. Reading this off the family table
+   * renders a BNB balance as ETH, which is a wallet naming the wrong currency. The family still
+   * owns what is genuinely family-wide — the base-unit name (wei) and its decimals.
+   */
+  nativeSymbol: string;
+  /**
+   * A test network — its coin is not traded, so it has no USD value to report.
+   *
+   * Declared per network rather than guessed from the id: `eip155:11155111` says nothing about
+   * being a testnet, and a guess would be wrong for exactly the chains nobody checked.
+   */
+  testnet?: boolean;
   feeModel?: FeeModel;
   capabilities: string[];
+  /**
+   * Credential for a commercial RPC endpoint that authenticates by HEADER rather than by a key
+   * embedded in the URL (TronGrid's `TRON-PRO-API-KEY`, for one). Both halves are configured
+   * per network because the header NAME differs per provider.
+   *
+   * `apiKey` is a secret: it is masked wherever config is rendered, and its presence in
+   * config.yaml makes that file subject to the same 0600 check as the service credentials.
+   */
+  apiKeyHeader?: string;
+  apiKey?: string;
 }
 
 /** TRON network. Reached via tronweb, which is HTTP-based — `httpEndpoint` is a FullNode HTTP REST
@@ -28,9 +53,42 @@ export interface TronNetworkDescriptor extends NetworkBase {
   gasfree?: GasFreeNetworkConfig;
 }
 
-/** Single family today (TRON). Kept as a named alias so adding a family later means re-introducing
- *  a discriminated union here without churn at every reference. */
-export type NetworkDescriptor = TronNetworkDescriptor;
+/** EVM network. Reached over JSON-RPC; `chainId` is the EIP-155 chain id as a decimal string —
+ *  the same value the canonical id's second segment carries. */
+export interface EvmNetworkDescriptor extends NetworkBase {
+  family: "evm";
+  httpEndpoint?: string;
+}
+
+/** The discriminated union every chain-facing type narrows on via `family`. */
+export type NetworkDescriptor = TronNetworkDescriptor | EvmNetworkDescriptor;
+
+/** Narrows to the TRON descriptor. TRON-only features (GasFree, TronLink multi-sign) read fields
+ *  that simply do not exist on other families, so they must narrow before reaching for them. */
+export function isTronNetwork(network: NetworkDescriptor): network is TronNetworkDescriptor {
+  return network.family === "tron";
+}
+
+/**
+ * The host of an endpoint URL — what listings show instead of the URL itself.
+ *
+ * A commercial RPC endpoint carries its API key IN THE URL (`…/v2/<key>`, `…?apikey=<key>`), and
+ * Users are told to configure exactly that. Any output that prints an endpoint it was not
+ * explicitly asked for therefore prints a credential — and `chain node` is the command whose
+ * output people paste into issues and CI logs. Trimming to the host is the one cut that needs no
+ * guess about which path segment is the secret.
+ *
+ * `config networks.<id>.httpEndpoint` remains the way to read the full URL: named reads give the
+ * whole value, listings do not. Returns "" for a missing or unparseable URL.
+ */
+export function endpointHost(url: unknown): string {
+  if (typeof url !== "string" || url === "") return "";
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+}
 
 export interface CapabilityDescriptor {
   key: string;
@@ -45,6 +103,9 @@ export interface Config {
   /** default polling cap for broadcast commands' --wait, in ms (overridden by --wait-timeout). */
   waitTimeoutMs: number;
   networks: Record<NetworkId, NetworkDescriptor>;
+  /** short human-typed names for canonical ids. Consulted ONLY when resolving
+   *  `--network`; nothing downstream ever sees an alias. */
+  aliases: Record<string, NetworkId>;
   /** USD-valuation source for `account portfolio`. Missing → builtin CoinGecko. */
   price?: PriceConfig;
   /** TronLink collaboration credentials for the currently selected service environment. */

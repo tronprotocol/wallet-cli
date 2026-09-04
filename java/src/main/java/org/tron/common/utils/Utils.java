@@ -124,8 +124,6 @@ import org.tron.walletcli.Client;
 import org.tron.walletserver.WalletApi;
 
 public class Utils {
-  private static final ThreadLocal<Boolean> ENV_PASSWORD_INPUT_ENABLED =
-      new ThreadLocal<Boolean>();
   public static final String PERMISSION_ID = "Permission_id";
   public static final String VISIBLE = "visible";
   public static final String TRANSACTION = "transaction";
@@ -138,7 +136,7 @@ public class Utils {
 
   public static final int MIN_LENGTH = 2;
   public static final int MAX_LENGTH = 14;
-  public static final String VERSION = " v4.12.0";
+  public static final String VERSION = " v4.13.0";
   public static final String TRANSFER_METHOD_ID = "a9059cbb";
 
   private static SecureRandom random = new SecureRandom();
@@ -339,13 +337,6 @@ public class Utils {
   }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
-    if (isEnvPasswordInputEnabled()) {
-      char[] envPassword = resolveEnvPassword(System.getenv("MASTER_PASSWORD"), checkStrength);
-      if (envPassword != null) {
-        return envPassword;
-      }
-    }
-
     char[] password;
     Console cons = System.console();
     while (true) {
@@ -374,31 +365,6 @@ public class Utils {
       StringUtils.clear(password);
       System.out.println("Invalid password, please input again.");
     }
-  }
-
-  static char[] resolveEnvPassword(String envPassword, boolean checkStrength) {
-    if (envPassword == null || envPassword.isEmpty()) {
-      return null;
-    }
-
-    char[] password = envPassword.toCharArray();
-    if (!checkStrength || WalletApi.passwordValid(password)) {
-      return password;
-    }
-    StringUtils.clear(password);
-    throw new IllegalArgumentException("MASTER_PASSWORD does not meet password strength requirements");
-  }
-
-  public static void setEnvPasswordInputEnabled(boolean enabled) {
-    if (enabled) {
-      ENV_PASSWORD_INPUT_ENABLED.set(Boolean.TRUE);
-    } else {
-      ENV_PASSWORD_INPUT_ENABLED.remove();
-    }
-  }
-
-  public static boolean isEnvPasswordInputEnabled() {
-    return Boolean.TRUE.equals(ENV_PASSWORD_INPUT_ENABLED.get());
   }
 
   public static char[] inputPasswordWithoutCheck() throws IOException {

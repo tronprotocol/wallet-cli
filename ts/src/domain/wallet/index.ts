@@ -99,16 +99,36 @@ export function derivePrivAddresses(pk: Bytes): ChainAddresses {
   return out;
 }
 
-/** (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk. */
+/**
+ * (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk.
+ *
+ * Every address leaves here CANONICAL (EVM in EIP-55). Normalising at this single point
+ * rather than at each call site means a wallets.json written before this rule — a watch account
+ * registered from an all-lowercase paste — displays and matches identically to one written after
+ * it, without rewriting the file.
+ */
 export function enumerateAddresses(
   w: Wallet,
 ): Array<{ index: number | null; addr: Partial<ChainAddresses> }> {
   const s = w.source;
   if (s.type === "seed") {
-    return accountIndices(s).map((i) => ({ index: i, addr: s.addresses[String(i)]! }));
+    return accountIndices(s).map((i) => ({
+      index: i,
+      addr: canonicalAddresses(s.addresses[String(i)]!),
+    }));
   }
-  if (s.type === "privateKey") return [{ index: null, addr: s.addresses }];
-  return [{ index: null, addr: { [s.family]: s.address } }];
+  if (s.type === "privateKey") return [{ index: null, addr: canonicalAddresses(s.addresses) }];
+  return [{ index: null, addr: { [s.family]: addressCodec(s.family).canonical(s.address) } }];
+}
+
+/** every value of an address map in its canonical spelling. */
+function canonicalAddresses(addr: Partial<ChainAddresses>): Partial<ChainAddresses> {
+  const out: Partial<ChainAddresses> = {};
+  for (const f of CHAIN_FAMILIES) {
+    const value = addr[f];
+    if (value !== undefined) out[f] = addressCodec(f).canonical(value);
+  }
+  return out;
 }
 
 /** addresses projected for a single account view (seed index / privateKey / ledger). */
@@ -116,10 +136,21 @@ export function viewAddresses(w: Wallet, index: number | null): Partial<ChainAdd
   return enumerateAddresses(w).find((e) => e.index === index)?.addr ?? {};
 }
 
-/** software-account dedup (seed/privateKey only). Ledger/watch dedup by source match below. */
-export function findByAddress(file: WalletsFile, addr: Partial<ChainAddresses>): AccountRef | null {
+/** software-account dedup (seed/privateKey only). Ledger/watch dedup by source match below.
+ *
+ *  `ofType` scopes the scan to one source kind, and every caller passes it: a repeated import of
+ *  the same secret is idempotent, but a seed and a privateKey holding the same key are two
+ *  different things and both are worth keeping. Matching across kinds made the stronger one lose
+ *  — importing a mnemonic whose account #0 was already present as a raw key returned the existing
+ *  account and never stored the seed, so `derive` failed on an import reported as successful. */
+export function findByAddress(
+  file: WalletsFile,
+  addr: Partial<ChainAddresses>,
+  ofType?: Source["type"],
+): AccountRef | null {
   for (const w of file.wallets) {
     if (w.source.type === "ledger" || w.source.type === "watch") continue;
+    if (ofType !== undefined && w.source.type !== ofType) continue;
     for (const { index, addr: a } of enumerateAddresses(w)) {
       if (CHAIN_FAMILIES.some((f) => addr[f] !== undefined && a[f] === addr[f])) {
         return accountRefOf(w, index);

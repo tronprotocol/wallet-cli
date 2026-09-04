@@ -20,7 +20,12 @@ const OWNER_HEX = "417445076632894b7b844887d2bcd2e8c30bb6c6f2";
 const TO_HEX = "41a614f803b6fd780986a42c78ec9c7f77e6ded13c";
 const SIG = "ab".repeat(65);
 const NOW = 1_900_000_000_000;
-const NETWORK = { id: "tron:nile", family: "tron", chainId: "nile" } as never;
+const NETWORK = {
+  id: "tron:3448148188",
+  family: "tron",
+  nativeSymbol: "TRX",
+  chainId: "nile",
+} as never;
 
 function unsignedHex(amount = 1): string {
   return encodeTransactionHex({

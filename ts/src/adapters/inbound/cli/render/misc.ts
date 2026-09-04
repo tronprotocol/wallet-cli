@@ -1,19 +1,24 @@
 import type { TextFormatter } from "../contracts/index.js";
-import { formatScalar, formatInt, formatUtc, num, methodName } from "./scalars.js";
-import { type Obj, type Pair, asObj, kv, query, receipt, table, ok } from "./layout.js";
+import { formatScalar, num, methodName } from "./scalars.js";
+import { type Obj, asObj, kv, query, receipt, table, ok } from "./layout.js";
+import { FAMILY_RENDER, renderFamily } from "./family.js";
 
 export const MiscFormatters = {
   config: ((data) => renderConfig(asObj(data))) satisfies TextFormatter,
   networks: ((data) =>
     table(
-      ["Network", "Family", "Chain", "Fee model"],
+      // "Chain id", not "Chain": the value IS the second half of the canonical id, and the
+      // shorter header read as though it might hold the chain's name.
+      ["Network", "Alias", "Family", "Chain id", "Fee model", "Endpoint"],
       (Array.isArray(data) ? data : [])
         .map(asObj)
         .map((n) => [
           String(n.id ?? ""),
+          String(n.alias ?? ""),
           String(n.family ?? ""),
           String(n.chainId ?? ""),
           String(n.feeModel ?? ""),
+          String(n.endpoint ?? ""),
         ]),
     )) satisfies TextFormatter,
 
@@ -42,17 +47,22 @@ export const MiscFormatters = {
       ["Signature", String(d.signature ?? "")],
     ]);
   }) satisfies TextFormatter,
-  block: ((data) => {
+  // `block` reports the node's RAW object, so the two families arrive in different shapes: TRON
+  // nests its header and counts milliseconds, an EVM node is flat, hex and counts seconds.
+  // Making that readable is this renderer's job — the JSON stays as the node sent it.
+  block: ((data, ctx) => {
     const block = asObj(asObj(data).block);
     const header = asObj(asObj(block.block_header).raw_data);
-    const n = block.number ?? header.number;
-    const ts = block.timestamp ?? header.timestamp;
-    const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
-    return query([
-      ["Number", n === undefined ? "" : `#${formatInt(n)}`],
-      ["Time", ts ? formatUtc(ts) : "unknown"],
-      ["Transactions", String(txs)],
-    ]);
+    const raw = block.timestamp ?? header.timestamp;
+    // Seconds read as milliseconds would date every EVM block to 1970.
+    const family = renderFamily(ctx);
+    const timestampMs =
+      raw === undefined || raw === null
+        ? undefined
+        : family === "evm"
+          ? Number(BigInt(String(raw))) * 1000
+          : Number(raw);
+    return query(FAMILY_RENDER[family].blockRows(block, timestampMs));
   }) satisfies TextFormatter,
 };
 
@@ -97,11 +107,53 @@ function renderConfig(d: Obj): string {
       ["Value", configValue(d.value)],
     ]);
   }
-  if ("key" in d) return kv([[String(d.key), configValue(d.value)]], "");
-  return kv(
-    Object.entries(d).map(([k, v]) => [k, configValue(v)] as Pair),
-    "",
-  );
+  if ("key" in d) {
+    // A map-valued key (networks, aliases, one network) gets a titled block whose body may itself
+    // nest; a scalar stays one line.
+    return isMap(d.value)
+      ? [String(d.key), configTree(d.value, "  ")].filter(Boolean).join("\n")
+      : kv([[String(d.key), configValue(d.value)]], "");
+  }
+  return configTree(d, "");
+}
+
+/**
+ * The config document as it is: scalars as `key  value`, a nested map as its bare key plus the
+ * body indented one level.
+ *
+ * No `key:` separator, because the keys here CONTAIN colons — `tron:728126428:` gives no way to see
+ * where the network id ends. Indentation already marks the nesting, so the colon only adds
+ * ambiguity to the one thing a reader needs to copy verbatim.
+ *
+ * The whole-config view used to summarise a map by listing its keys, which told a reader that
+ * `networks.tron:3448148188` existed but never what it held — and the summary had to be maintained
+ * separately from the values themselves. Rendering the tree means a new configurable field shows
+ * up here the moment the service returns it.
+ */
+function configTree(value: Record<string, unknown>, indent: string): string {
+  const entries = Object.entries(value);
+  // Scalars align within their own level only: a deeper block has its own column.
+  const width = entries
+    .filter(([, v]) => !isMap(v))
+    .reduce((max, [key]) => Math.max(max, key.length), 0);
+  const lines: string[] = [];
+  for (const [key, v] of entries) {
+    if (isMap(v)) {
+      lines.push(`${indent}${key}`);
+      const body = configTree(v, `${indent}  `);
+      if (body) lines.push(body);
+      continue;
+    }
+    const rendered = configValue(v);
+    // kv() drops empty values; an unset key is absent rather than a blank line.
+    if (rendered !== "") lines.push(`${indent}${key.padEnd(width)}  ${rendered}`);
+  }
+  return lines.join("\n");
+}
+
+/** a plain object value, i.e. one of the map-valued config keys. */
+function isMap(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 /** config values keep their literal form (no thousands grouping, raw key names). */

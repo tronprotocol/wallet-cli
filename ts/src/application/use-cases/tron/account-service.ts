@@ -1,17 +1,14 @@
-import type {
-  ChainFamily,
-  EffectiveTokenEntry,
-  NetworkDescriptor,
-} from "../../../domain/types/index.js";
+import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
-import { fromBaseUnits } from "../../../domain/amounts/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAccount, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TronHistoryQuery, TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
+// Shared with every other family: `account portfolio` is one command, so one row shape.
+import { holding, portfolioTotal, unavailableHolding } from "../portfolio-holdings.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
@@ -24,51 +21,7 @@ import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { warnOnPostCheck } from "../../services/post-check.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
-const round6 = (value: number): number => Math.round(value * 1e6) / 1e6;
 const ADDRESS = new TronAddress();
-
-function holding(
-  kind: string,
-  symbol: string,
-  decimals: number,
-  raw: string,
-  price: number | null,
-  extra: Record<string, unknown> = {},
-) {
-  const balance = fromBaseUnits(raw, decimals);
-  return {
-    kind,
-    symbol,
-    decimals,
-    rawBalance: raw,
-    balance,
-    priceUsd: price,
-    valueUsd: price === null ? null : round6(Number(balance) * price),
-    ...extra,
-  };
-}
-
-/** degraded holding when a token balance could not be read; keeps the row (and its identity)
- *  but nulls the numeric fields and records why. Shape stays additive with holding(). */
-function unavailableHolding(
-  kind: string,
-  symbol: string,
-  decimals: number,
-  extra: Record<string, unknown> = {},
-) {
-  return {
-    kind,
-    symbol,
-    decimals,
-    rawBalance: null,
-    balance: null,
-    priceUsd: null,
-    valueUsd: null,
-    balanceUnavailable: true,
-    reason: "rpc_error",
-    ...extra,
-  };
-}
 
 export class TronAccountService {
   constructor(
@@ -213,17 +166,6 @@ export class TronAccountService {
     };
   }
 
-  async balance(scope: AccountScope, network: NetworkDescriptor, family: ChainFamily) {
-    const address = scope.resolveAddress(family);
-    const meta = FAMILIES[family];
-    return {
-      address,
-      balance: await this.gateways.client(network).getNativeBalance(address),
-      decimals: meta.nativeDecimals,
-      symbol: meta.nativeSymbol,
-    };
-  }
-
   async info(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
@@ -292,7 +234,7 @@ export class TronAccountService {
 
     const nativeMeta = FAMILIES.tron;
     const holdings: Array<Record<string, unknown>> = [
-      holding("native", nativeMeta.nativeSymbol, nativeMeta.nativeDecimals, nativeRaw, nativePrice),
+      holding("native", network.nativeSymbol, nativeMeta.nativeDecimals, nativeRaw, nativePrice),
       ...tokens.map((token: EffectiveTokenEntry, index) => {
         const result = tokenBalances[index]!;
         const extra = { id: token.id, name: token.name, source: token.source };
@@ -309,9 +251,6 @@ export class TronAccountService {
         );
       }),
     ];
-    const values = holdings
-      .map((item) => item.valueUsd)
-      .filter((value): value is number => typeof value === "number");
     return {
       network: network.id,
       account: scope.activeAccount,
@@ -319,7 +258,7 @@ export class TronAccountService {
       priceSource: this.prices.source,
       ...(priceUnavailable ? { priceUnavailable: true, priceReason: "price_provider_error" } : {}),
       holdings,
-      totalValueUsd: values.length ? round6(values.reduce((sum, value) => sum + value, 0)) : null,
+      totalValueUsd: portfolioTotal(holdings),
     };
   }
 }

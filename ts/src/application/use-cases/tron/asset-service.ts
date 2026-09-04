@@ -8,7 +8,7 @@
  * Two conventions run through everything below:
  *   - command input and text output use whole tokens; json and the chain use minimal units.
  *   - local rejection is limited to what we can compute exactly or read for free while building
- *     (see docs/adr/0006). Chain bounds we cannot read are left to the node — a rejected
+ *     Chain bounds we cannot read are left to the node — a rejected
  *     transaction never enters a block, so it costs neither fee nor bandwidth.
  */
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
@@ -129,7 +129,7 @@ export class TronAssetService {
     const frozenSupply = (input.freeze ?? []).map((entry) => parseTranche(entry, scale));
 
     // `asset issue` burns the issuance fee and an account may issue only once, ever — worth one
-    // read to refuse before that is spent. Every other bound is left to the node (ADR-0006).
+    // read to refuse before that is spent. Every other bound is left to the node.
     if (await gateway.getAssetByIssuer(owner)) {
       throw new ChainError(
         "already_issued_asset",
@@ -171,7 +171,7 @@ export class TronAssetService {
     return {
       kind: "asset-issue" as const,
       ...data,
-      // the chain assigns the id; it does not exist until the transaction confirms (ADR/deviations D6)
+      // the chain assigns the id; it does not exist until the transaction confirms
       ...(data.assetIssueID === undefined ? {} : { assetId: String(data.assetIssueID) }),
       issuerAddress: owner,
       name,
@@ -366,7 +366,7 @@ export class TronAssetService {
 
   // ── helpers ──────────────────────────────────────────────────────────────────
   /** The Ledger TRON app cannot parse any TRC10 issuance contract type — refuse before the
-   *  device is touched rather than after (docs/adr/0003). */
+   *  device is touched rather than after. */
   #assertSignable(scope: TransactionScope): void {
     this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
   }

@@ -1,6 +1,6 @@
 # wallet-cli exchange list
 
-List every exchange pair on chain.
+List exchange pairs on chain, one page at a time.
 
 ## Synopsis
 
@@ -16,13 +16,13 @@ Lists pairs with their id, both tokens, reserves, and creator. Read-only, no acc
 
 **Reserves here are in minimal units, not whole tokens.** This command makes a single RPC and so has no token precisions to divide by; `exchange show` fetches them and prints whole tokens instead. The same pair therefore reads `6,672` here and `66.72` there.
 
-Paging happens on the node, and **there is no total**: the chain exposes no count of exchange pairs. The title reports the window it asked for — `Exchanges (limit 3, offset 0)` — not `showing 3 of N`, and `meta.pagination.total` is always `null`. To get everything, pass a `--limit` large enough to cover it.
+Paging happens on the node, and **there is no total**: the chain exposes no count of exchange pairs. The title reports the window it asked for — `Exchanges (limit 3, offset 0)` — not `showing 3 of N`, and `meta.pagination.total` is always `null`. To get everything, page with `--offset` until a short page comes back: `--limit` caps at `1000`, and a larger value is rejected with `invalid_value`.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--limit <number>` | Max pairs to return (default `10`) |
+| `--limit <number>` | Max pairs to return, 1–1000 (default `10`) |
 | `--offset <number>` | Pagination offset (default `0`) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -30,7 +30,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli exchange list --limit 3 --network tron:nile
+wallet-cli exchange list --limit 3 --network tron:3448148188
 ```
 
 ```console
@@ -43,11 +43,11 @@ Exchanges (limit 3, offset 0)
 ```
 
 ```bash
-wallet-cli exchange list --limit 3 --network tron:nile -o json
+wallet-cli exchange list --limit 3 --network tron:3448148188 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.list","data":{"kind":"exchange-list","exchanges":[{"exchangeId":14,"pair":"1000124:TRX","creatorAddress":"TBeta9mR...","firstTokenId":"1000124","firstTokenBalance":"2500000000000","secondTokenId":"_","secondTokenBalance":"50000000000"},{"exchangeId":13,"pair":"1000125:TRX","creatorAddress":"TAlpha7k...","firstTokenId":"1000125","firstTokenBalance":"16000000","secondTokenId":"_","secondTokenBalance":"8000000000"},{"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenBalance":"10000000000","secondTokenId":"1000123","secondTokenBalance":"500000000000"}]},"meta":{"durationMs":52,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:nile","chainId":"nile"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"exchange.list","data":{"kind":"exchange-list","exchanges":[{"exchangeId":14,"pair":"1000124:TRX","creatorAddress":"TBeta9mR...","firstTokenId":"1000124","firstTokenBalance":"2500000000000","secondTokenId":"_","secondTokenBalance":"50000000000"},{"exchangeId":13,"pair":"1000125:TRX","creatorAddress":"TAlpha7k...","firstTokenId":"1000125","firstTokenBalance":"16000000","secondTokenId":"_","secondTokenBalance":"8000000000"},{"exchangeId":12,"pair":"TRX:1000123","creatorAddress":"TQkXm4vN...","firstTokenId":"_","firstTokenBalance":"10000000000","secondTokenId":"1000123","secondTokenBalance":"500000000000"}]},"meta":{"durationMs":52,"warnings":[],"pagination":{"offset":0,"limit":3,"total":null}},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
