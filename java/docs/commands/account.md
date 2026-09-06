@@ -17,15 +17,15 @@ Create a new account with an inactive address, burning a 1-TRX handling fee for 
 Example:
 
 ```console
-wallet> createaccount TDJ13zZzT3w91WMBm98gC3mwL7NbA6sQPA
+wallet> createaccount TDv72SsJmcVPwPfGGfRH5LZjsZRoPqSZK3
 {
 	"raw_data":{
 		"contract":[
 			{
 				"parameter":{
 					"value":{
-						"owner_address":"TQLaB7L8o3ikjRVcN7tTjMZsRYPJ23XZbd",
-						"account_address":"TDJ13zZzT3w91WMBm98gC3mwL7NbA6sQPA"
+						"owner_address":"TDv72SsJmcVPwPfGGfRH5LZjsZRoPqSZK3",
+						"account_address":"TDv72SsJmcVPwPfGGfRH5LZjsZRoPqSZK3"
 					},
 					"type_url":"type.googleapis.com/protocol.AccountCreateContract"
 				},
@@ -114,7 +114,7 @@ Set a custom unique identifier (Account ID) for an account.
 ```
 
 ```console
-> SetAccountId TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 100
+> SetAccountId TDv72SsJmcVPwPfGGfRH5LZjsZRoPqSZK3 100
 ```
 
 ## UpdateAccount
@@ -188,7 +188,7 @@ wallet> ShowReceivingQrCode
 ████ █▄▄▄█ █ ▀█▀█▄█▄▀▀█▄ ▄█  ██▀▄████
 ████▄▄▄▄▄▄▄█▄▄██▄██ ▀▀▄▄▄▄█   ▀  ████
 █████████████████████████████████████
-TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+TDv72SsJmcVPwPfGGfRH5LZjsZRoPqSZK3
 ```
 
 ## See also
