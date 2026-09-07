@@ -244,6 +244,9 @@ Common codes at exit **1** (execution — runtime failure):
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
+| `payer_mismatch` | An x402 payment payload names a payer other than the selected account. The payment is refused before any signature is requested |
+| `fee_cap_exceeded` | An x402 GasFree authorization's `maxFee` exceeds the ceiling the caller set |
+| `signed_payload_mismatch` | The signature returned is for a different struct than the one that was requested |
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; interactive import normally catches it at the prompt and asks again |
 | `token_metadata_unavailable` | Required token metadata could not be read from the selected network. This one crosses exit codes: most sites raise it at exit `1`, but `tx send` on TRON raises it at exit **2** when a contract answers no `decimals()` and the address book has no entry either — there, the call itself has to change |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeTypedData } from "./index.js";
+import { normalizeTypedData, resolvePrimaryType } from "./index.js";
 import { CliError } from "../errors/index.js";
 
 const DOMAIN = { name: "SunPerp", version: "1", chainId: 728126428 };
@@ -258,5 +258,39 @@ describe("normalizeTypedData narrows types to the primaryType's closure", () => 
       message: {},
     });
     expect(Object.keys(p.types).sort()).toEqual(["Mail", "Person", "Unrelated"]);
+  });
+});
+
+describe("resolvePrimaryType", () => {
+  const Person = [
+    { name: "name", type: "string" },
+    { name: "wallet", type: "address" },
+  ];
+  const Mail = [
+    { name: "from", type: "Person" },
+    { name: "to", type: "Person" },
+    { name: "contents", type: "string" },
+  ];
+
+  it("returns the declared primaryType without consulting types", () => {
+    expect(resolvePrimaryType({ types: { Mail, Person }, primaryType: "Mail" })).toBe("Mail");
+  });
+
+  it("infers the single root when primaryType is omitted", () => {
+    expect(resolvePrimaryType({ types: { Mail, Person } })).toBe("Mail");
+  });
+
+  it("returns undefined when more than one root exists and primaryType is omitted", () => {
+    expect(
+      resolvePrimaryType({ types: { Mail, Person, Receipt: [{ name: "id", type: "uint256" }] } }),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined when no root exists (a cycle with nothing outside it)", () => {
+    const types = {
+      A: [{ name: "b", type: "B" }],
+      B: [{ name: "a", type: "A" }],
+    };
+    expect(resolvePrimaryType({ types })).toBeUndefined();
   });
 });
