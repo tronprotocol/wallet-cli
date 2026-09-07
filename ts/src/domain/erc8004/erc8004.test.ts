@@ -1,23 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { identityRegistryFor, parseAgentId, resolveAgentId } from "./index.js";
+import { parseAgentId, resolveAgentId } from "./index.js";
 import type { NetworkDescriptor } from "../types/index.js";
 
 const net = (id: string): NetworkDescriptor => ({ id }) as NetworkDescriptor;
 
 describe("ERC-8004 deployment selection", () => {
-  it("selects the exact registry for each supported BSC/TRON network", () => {
-    expect(identityRegistryFor(net("eip155:56"))).toBe(
-      "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
-    );
-    expect(identityRegistryFor(net("tron:2494104990"))).toBe("TH775ZzfJ5V25EZkFuX6SkbAP53ykXTcma");
-  });
-
-  it("never falls back when the selected network has no registry", () => {
-    expect(() => identityRegistryFor(net("eip155:1"))).toThrowError(
-      expect.objectContaining({ code: "unsupported_network_capability" }),
-    );
-  });
-
   it("parses arbitrarily large decimal agent ids without Number coercion", () => {
     expect(parseAgentId("9007199254740993")).toBe(9007199254740993n);
     expect(() => parseAgentId("1.5")).toThrowError(/unsigned decimal/);
@@ -30,4 +17,11 @@ describe("ERC-8004 deployment selection", () => {
       expect.objectContaining({ code: "invalid_value" }),
     );
   });
+});
+
+it("rejects IDs that cannot be encoded as uint256", () => {
+  expect(() => parseAgentId((1n << 256n).toString())).toThrowError(
+    expect.objectContaining({ code: "invalid_value" }),
+  );
+  expect(parseAgentId(((1n << 256n) - 1n).toString())).toBe((1n << 256n) - 1n);
 });

@@ -25,13 +25,10 @@ describe("B.AI command surface", () => {
     expect(registry.resolveNeutral(["bai", "recharge"])?.network).toBe("optional");
   });
 
-  it("exposes usage dates and bounded list pagination", () => {
+  it("exposes summary without dates and keeps bounded list pagination", () => {
     const registry = new CommandRegistry();
     registerBaiCommands(registry, service());
-    expect(Object.keys(registry.resolveNeutral(["bai", "usage"])!.fields.shape)).toEqual([
-      "from",
-      "to",
-    ]);
+    expect(Object.keys(registry.resolveNeutral(["bai", "usage"])!.fields.shape)).toEqual([]);
     expect(
       registry.resolveNeutral(["bai", "usage-list"])!.input.safeParse({
         limit: 20,
@@ -42,5 +39,38 @@ describe("B.AI command surface", () => {
     expect(
       registry.resolveNeutral(["bai", "usage-list"])!.input.safeParse({ limit: 1001 }).success,
     ).toBe(false);
+  });
+
+  it("uses one recharge command for self recharge and recipient recharge", async () => {
+    const recharge = vi.fn(async (_ctx, _network, input) => input);
+    const registry = new CommandRegistry();
+    registerBaiCommands(registry, { ...service(), recharge } as unknown as BaiService);
+    const command = registry.resolveNeutral(["bai", "recharge"])!;
+
+    const selfInput = command.input.parse({ amount: "10", token: "USDT" });
+    await expect(
+      command.run(
+        { config: { baiApiKey: "test-key" } } as never,
+        { id: "tron:728126428" } as never,
+        selfInput,
+      ),
+    ).resolves.toMatchObject({ amount: "10", token: "USDT" });
+
+    const recipientInput = command.input.parse({
+      amount: "10",
+      token: "USDT",
+      to: "recipient@example.com",
+    });
+    await expect(
+      command.run(
+        { config: { baiApiKey: "test-key" } } as never,
+        { id: "tron:728126428" } as never,
+        recipientInput,
+      ),
+    ).resolves.toMatchObject({
+      amount: "10",
+      token: "USDT",
+      to: "recipient@example.com",
+    });
   });
 });

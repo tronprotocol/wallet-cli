@@ -1,15 +1,20 @@
+import type { BaiRechargeApi, BaiRechargeTarget } from "../ports/bai-recharge.js";
+import { BaiRechargeFlow } from "./bai-recharge-flow.js";
+import { baiPaymentResult } from "../services/bai-payment-result.js";
+import { baiChain } from "./bai-credential-setup.js";
+import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
 import { UsageError } from "../../domain/errors/index.js";
+import {
+  assertBaiRechargeMinimum,
+  BAI_RECHARGE_ADDRESSES,
+} from "../../domain/bai/recharge-policy.js";
 import type { X402PaymentPort } from "../ports/x402-payment.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 
-export interface BaiUsageCommandInput {
-  from?: string;
-  to?: string;
-}
-
 export interface BaiListCommandInput {
+  cursor?: string;
   limit: number;
   offset: number;
   sort: "asc" | "desc";
@@ -20,12 +25,14 @@ export class BaiService {
     private readonly api: BaiApi,
     private readonly now: () => Date = () => new Date(),
     private readonly payments?: X402PaymentPort,
+    private readonly bindings?: BaiBindingStore,
+    private readonly rechargeApi?: BaiRechargeApi,
   ) {}
 
   async recharge(
     scope: TransactionScope,
     network: NetworkDescriptor,
-    input: { amount: string; token: string; apiKey?: string },
+    input: { amount: string; token: string; to?: string; apiKey?: string },
   ) {
     if (!input.apiKey) {
       throw new UsageError(
@@ -33,28 +40,80 @@ export class BaiService {
         "configure baiApiKey before using B.AI recharge",
       );
     }
-    if (!this.payments) {
+    if (!this.bindings)
+      throw new UsageError("invalid_option", "B.AI recharge binding verification is unavailable");
+    const chain = baiChain(network);
+    const payer = scope.resolveAddress(network.family);
+    if (!this.bindings.isConfirmed(input.apiKey, chain, payer)) {
+      throw new UsageError(
+        "invalid_value",
+        "Confirm this API key and payer wallet first by configuring baiApiKey with --api-key-stdin for the selected account/network. No payment was sent",
+      );
+    }
+    if (!this.payments || !this.rechargeApi) {
       throw new UsageError("invalid_option", "B.AI recharge is not available in this runtime");
     }
-    const body = JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "recharge", arguments: { amount: input.amount, token: input.token } },
+    const normalizedAmount = input.amount.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    const amount = Number(normalizedAmount);
+    if (
+      !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(input.amount) ||
+      !Number.isFinite(amount) ||
+      amount <= 0 ||
+      String(amount) !== normalizedAmount
+    ) {
+      throw new UsageError(
+        "invalid_value",
+        "Recharge amount must be positive and exactly representable by the B.AI numeric API",
+      );
+    }
+    assertBaiRechargeMinimum(input.token, input.amount);
+    const identifier = input.to?.trim();
+    const self =
+      !identifier ||
+      (network.family === "evm"
+        ? identifier.toLowerCase() === payer.toLowerCase()
+        : identifier === payer);
+    let rechargeTarget: BaiRechargeTarget | undefined;
+    if (!self) {
+      const resolved = await this.rechargeApi.resolveTarget(identifier!);
+      rechargeTarget = {
+        input: { type: "personal", identifier: identifier! },
+        confirmedTarget: { type: "personal", targetId: resolved.targetId },
+      };
+    }
+    const flow = new BaiRechargeFlow(this.rechargeApi, {
+      pay: async () => {
+        const payment = await this.payments!.pay(scope, network, {
+          url: "https://recharge.bankofai.io/mcp",
+          method: "POST",
+          headers: [
+            "Content-Type: application/json",
+            "Accept: application/json, text/event-stream",
+          ],
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: { name: "recharge", arguments: { amount: input.amount, token: input.token } },
+          }),
+          token: input.token,
+          maxAmount: input.amount,
+          exactAmount: input.amount,
+          expectedPayTo: BAI_RECHARGE_ADDRESSES[chain],
+        });
+        return { ...baiPaymentResult(payment, network.id), chain };
+      },
     });
-    const result = await this.payments.pay(scope, network, {
-      url: "https://recharge.bankofai.io/mcp",
-      method: "POST",
-      headers: [
-        "Content-Type: application/json",
-        "Accept: application/json, text/event-stream",
-        `Authorization: Bearer ${input.apiKey}`,
-      ],
-      body,
-      token: input.token,
-      maxAmount: input.amount,
+    const result = await flow.execute({
+      channel: "crypto",
+      chain,
+      tokenName: input.token,
+      amount,
+      walletAddress: payer,
+      deviceType: "web",
+      ...(rechargeTarget ? { rechargeTarget } : {}),
     });
-    return { network: network.id, token: input.token, amount: input.amount, ...result };
+    return { ...result, network: network.id, token: input.token, amount: input.amount, payer };
   }
 
   async status() {
@@ -70,34 +129,15 @@ export class BaiService {
     };
   }
 
-  async usage(input: BaiUsageCommandInput) {
-    const to = input.to ?? utcDate(this.now());
-    const from = input.from ?? utcDate(addUtcDays(parseDate(to, "to"), -29));
-    const fromDate = parseDate(from, "from");
-    const toDate = parseDate(to, "to");
-    if (fromDate.getTime() > toDate.getTime()) {
-      throw new UsageError("invalid_value", "--from must not be later than --to");
-    }
-    const result = await this.api.usage({ startDate: from, endDate: to, range: [from, to] });
-    return {
-      from,
-      to,
-      messages: result.totalMessages,
-      sessions: result.totalSessions,
-      tokens: result.totalTokens,
-      credits: result.totalCost,
-      byModel: result.byModel.map((row) => ({
-        model: row.model,
-        messages: row.count,
-        tokens: row.tokens,
-        credits: row.cost,
-      })),
-      byDate: result.byDate.map((row) => ({ date: row.date, messages: row.count })),
-    };
+  async usage() {
+    return this.status();
   }
 
   async usageList(input: BaiListCommandInput) {
-    const result = await this.api.usageList(pageInput(input));
+    const result = await this.api.usageList({
+      ...pageInput(input),
+      ...(input.cursor ? { cursor: input.cursor } : {}),
+    });
     return {
       records: result.items.map((row) => ({
         id: optionalString(row.id),
@@ -110,7 +150,13 @@ export class BaiService {
         latencyMs: secondsToMilliseconds(row.duration_sec ?? row.durationSec),
         source: optionalString(row.source_type ?? row.source),
       })),
-      pagination: { offset: input.offset, limit: input.limit, total: result.total },
+      pagination: {
+        offset: input.offset,
+        limit: input.limit,
+        total: result.total,
+        ...(result.hasMore === undefined ? {} : { hasMore: result.hasMore }),
+        ...(result.nextCursor === undefined ? {} : { nextCursor: result.nextCursor }),
+      },
     };
   }
 
@@ -136,25 +182,6 @@ function pageInput(input: BaiListCommandInput): BaiPageInput {
     sortBy: "created_at",
     sortOrder: input.sort,
   };
-}
-
-function parseDate(value: string, field: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new UsageError("invalid_value", `--${field} must use YYYY-MM-DD`);
-  }
-  const date = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(date.getTime()) || utcDate(date) !== value) {
-    throw new UsageError("invalid_value", `--${field} must be a real UTC calendar date`);
-  }
-  return date;
-}
-
-function addUtcDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * 86_400_000);
-}
-
-function utcDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 function utcMonth(date: Date): string {

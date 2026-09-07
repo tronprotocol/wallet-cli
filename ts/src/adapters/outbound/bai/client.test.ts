@@ -9,6 +9,33 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe("BaiClient", () => {
+  it("uses the live B.AI origin and prevents credential-bearing redirects", async () => {
+    const fetcher = vi.fn(async () =>
+      response([
+        { result: { data: { json: { points_balance: 1, monthly_spent: 0, monthly_chart: [] } } } },
+      ]),
+    );
+    await new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher).status();
+    const [url, init] = fetcher.mock.calls[0]! as unknown as [string, RequestInit];
+    expect(new URL(url).origin).toBe("https://chat.bankofai.io");
+    expect(init.redirect).toBe("error");
+  });
+
+  it("maps the shared creation sort field to the order API's accepted spelling", async () => {
+    const fetcher = vi.fn(async () =>
+      response([{ result: { data: { json: { data: [], page: 1, pageSize: 5 } } } }]),
+    );
+    await new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher).rechargeList({
+      page: 1,
+      pageSize: 5,
+      sortBy: "created_at",
+      sortOrder: "desc",
+    });
+    const [url] = fetcher.mock.calls[0]! as unknown as [string];
+    expect(JSON.parse(new URL(url).searchParams.get("input")!)).toEqual({
+      0: { json: { page: 1, pageSize: 5, sortBy: "createdAt", order: "desc" } },
+    });
+  });
   it("queries points with a bearer key and unwraps a tRPC batch envelope", async () => {
     const fetcher = vi.fn(async () =>
       response([
@@ -38,48 +65,8 @@ describe("BaiClient", () => {
       monthlyChart: [{ month: "2026-09", points: "20" }],
     });
     const [url, init] = fetcher.mock.calls[0]! as unknown as [string | URL | Request, RequestInit];
-    expect(String(url)).toContain("/trpc/lambda/usage.summary?batch=1&input=");
+    expect(String(url)).toContain("/trpc/lambda/usage.summary");
     expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer secret" });
-  });
-
-  it("normalizes usage stats and preserves exact quantities as strings", async () => {
-    const fetcher = vi.fn(async () =>
-      response([
-        {
-          result: {
-            data: {
-              json: {
-                totalMessages: 5,
-                totalSessions: 2,
-                totalTokens: "9007199254740993",
-                totalCost: 8.25,
-                byModel: [{ model: "m", count: 5, tokens: 99, cost: 8.25 }],
-                byDate: [{ date: "2026-09-01", count: 5 }],
-              },
-            },
-          },
-        },
-      ]),
-    );
-    const client = new BaiClient(
-      { baiApiKey: "secret" },
-      1000,
-      fetcher as typeof fetch,
-      "https://bai.example",
-    );
-
-    await expect(client.usage({ range: ["2026-08-06", "2026-09-04"] })).resolves.toMatchObject({
-      totalMessages: "5",
-      totalSessions: "2",
-      totalTokens: "9007199254740993",
-      totalCost: "8.25",
-      byModel: [{ model: "m", count: "5", tokens: "99", cost: "8.25" }],
-    });
-    const call = fetcher.mock.calls[0]! as unknown as [string | URL | Request, RequestInit];
-    const input = new URL(String(call[0])).searchParams.get("input")!;
-    expect(JSON.parse(input)).toEqual({
-      0: { json: { range: ["2026-08-06", "2026-09-04"] } },
-    });
   });
 
   it("normalizes usage records and recharge orders", async () => {

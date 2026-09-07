@@ -2,6 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 import { X402ProviderCatalog } from "./provider-catalog.js";
 
 describe("X402ProviderCatalog", () => {
+  it("accepts the Base alias when filtering the online catalog's canonical chain ids", async () => {
+    const catalog = new X402ProviderCatalog(
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ providers: [{ fqn: "demo/base", chains: ["eip155:8453"] }] }),
+          ),
+      ),
+    );
+    await expect(catalog.list({ limit: 20, offset: 0, network: "base" })).resolves.toMatchObject({
+      count: 1,
+      filters: { network: "eip155:8453" },
+    });
+  });
   it("lists, filters and normalizes TRON network ids", async () => {
     const fetcher = vi.fn(
       async () =>

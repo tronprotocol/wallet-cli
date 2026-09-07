@@ -149,6 +149,16 @@ export type TxReceiptKind =
  * the subset relevant to their action.
  */
 export interface TxReceiptView {
+  /** ERC-8004 Identity Registry result fields, all IDs remain decimal strings. */
+  agentId?: string;
+  operator?: string;
+  uri?: string;
+  oldURI?: string;
+  requestedURI?: string;
+  newURI?: string;
+  oldOwner?: string;
+  requestedOwner?: string;
+  newOwner?: string;
   kind: TxReceiptKind;
   mode?: "dry-run" | "build-only" | "sign-only";
   stage?: BroadcastStage;

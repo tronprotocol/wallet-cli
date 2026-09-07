@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { X402PaymentClient } from "./payment-client.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const signer = {
   kind: "software",
@@ -24,6 +27,75 @@ const scope = {
 } as never;
 
 describe("X402PaymentClient", () => {
+  it("returns an unprotected response without resolving a wallet signer", async () => {
+    const localResolver = {
+      assertCanSign: vi.fn(),
+      resolve: vi.fn(),
+    } as unknown as SignerResolver;
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ free: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new X402PaymentClient(localResolver, fetcher as typeof fetch);
+
+    await expect(
+      client.pay(scope, net, {
+        url: "https://api.example/free",
+        method: "GET",
+        headers: [],
+      }),
+    ).resolves.toMatchObject({ delivered: true, settled: false, response: { free: true } });
+    expect(localResolver.resolve).not.toHaveBeenCalled();
+  });
+
+  it("inspects a 402 challenge in dry-run mode without resolving a signer", async () => {
+    const localResolver = {
+      assertCanSign: vi.fn(),
+      resolve: vi.fn(),
+    } as unknown as SignerResolver;
+    const challenge = {
+      x402Version: 2,
+      resource: { url: "https://api.example/paid" },
+      accepts: [
+        {
+          scheme: "exact",
+          network: "eip155:56",
+          amount: "1000000000000000000",
+          asset: "0x55d398326f99059fF775485246999027B3197955",
+          payTo: "0x1111111111111111111111111111111111111111",
+          maxTimeoutSeconds: 300,
+          extra: { assetTransferMethod: "permit2" },
+        },
+      ],
+    };
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify(challenge), {
+          status: 402,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = new X402PaymentClient(localResolver, fetcher as typeof fetch);
+
+    await expect(
+      client.pay(scope, net, {
+        url: "https://api.example/paid",
+        method: "GET",
+        headers: [],
+        dryRun: true,
+        maxAmount: "1",
+      }),
+    ).resolves.toMatchObject({
+      dryRun: true,
+      paymentRequired: true,
+      selected: challenge.accepts[0],
+    });
+    expect(localResolver.resolve).not.toHaveBeenCalled();
+  });
+
   it("uses the selected wallet signer and returns the paid resource body", async () => {
     const paidFetch = vi.fn(
       async () =>
@@ -64,5 +136,40 @@ describe("X402PaymentClient", () => {
       }),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("writes response bytes to a new output file without putting the body in the result", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "wallet-cli-x402-out-"));
+    const output = join(directory, "response.bin");
+    const paidFetch = vi.fn(
+      async () =>
+        new Response(Uint8Array.from([0, 1, 2, 255]), {
+          status: 200,
+          headers: { "content-type": "application/octet-stream" },
+        }),
+    );
+    const client = new X402PaymentClient(
+      resolver,
+      globalThis.fetch,
+      vi.fn(async () => paidFetch as typeof fetch),
+    );
+
+    const result = await client.pay(scope, net, {
+      url: "https://api.example/file",
+      method: "GET",
+      headers: [],
+      out: output,
+    });
+    expect([...(await readFile(output))]).toEqual([0, 1, 2, 255]);
+    expect(result).toMatchObject({ output: { path: output, bytes: 4 } });
+    expect(result).not.toHaveProperty("response");
+    await expect(
+      client.pay(scope, net, {
+        url: "https://api.example/file",
+        method: "GET",
+        headers: [],
+        out: output,
+      }),
+    ).rejects.toMatchObject({ code: "output_exists" });
   });
 });

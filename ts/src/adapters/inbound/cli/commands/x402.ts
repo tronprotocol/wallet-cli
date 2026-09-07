@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
+import { readFile } from "node:fs/promises";
+import { UsageError } from "../../../../domain/errors/index.js";
 
 const url = z
   .string()
@@ -14,6 +16,8 @@ const payFields = z.object({
   method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("GET"),
   header: z.array(z.string()).default([]).describe('repeatable HTTP header in "Name: value" form'),
   body: z.string().max(1_048_576).optional().describe("HTTP request body"),
+  bodyFile: z.string().trim().min(1).optional().describe("request body file; - reads stdin"),
+  out: z.string().trim().min(1).optional().describe("write response bytes to a new file"),
   token: z.string().trim().min(1).optional().describe("only accept this token symbol"),
   asset: z.string().trim().min(1).optional().describe("only accept this asset address"),
   decimals: z.coerce
@@ -30,6 +34,17 @@ const payFields = z.object({
     .optional()
     .describe("maximum payment in whole tokens; strongly recommended"),
   maxRawAmount: z.string().regex(/^\d+$/).optional().describe("maximum payment in smallest units"),
+  dryRun: z.boolean().default(false).describe("inspect the payment challenge without signing"),
+  maxGasfreeFee: z
+    .string()
+    .regex(/^\d+(?:\.\d+)?$/)
+    .optional()
+    .describe("maximum GasFree relay fee in whole tokens"),
+  maxGasfreeFeeRaw: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
+    .describe("maximum GasFree relay fee in smallest units"),
 });
 const payInput = payFields.superRefine((value, context) => {
   if (value.maxAmount && value.maxRawAmount) {
@@ -37,6 +52,20 @@ const payInput = payFields.superRefine((value, context) => {
       code: "custom",
       path: ["maxAmount"],
       message: "cannot be combined with --max-raw-amount",
+    });
+  }
+  if (value.body && value.bodyFile) {
+    context.addIssue({
+      code: "custom",
+      path: ["body"],
+      message: "cannot be combined with --body-file",
+    });
+  }
+  if (value.maxGasfreeFee && value.maxGasfreeFeeRaw) {
+    context.addIssue({
+      code: "custom",
+      path: ["maxGasfreeFee"],
+      message: "cannot be combined with --max-gasfree-fee-raw",
     });
   }
   if (value.decimals !== undefined && !value.asset) {
@@ -59,6 +88,11 @@ const payCommand: CommandDefinition = {
   input: payInput,
   exclusive: [
     { label: "payment limit", flags: ["max-amount", "max-raw-amount"], select: "at-most-one" },
+    {
+      label: "GasFree fee limit",
+      flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
+      select: "at-most-one",
+    },
   ],
   examples: [
     { cmd: "wallet-cli x402 pay https://service.example/resource --network bsc --password-stdin" },
@@ -102,17 +136,24 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     ...payCommand,
     run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 pay requires a resolved network");
+      const body = await requestBody(ctx, input.body, input.bodyFile);
       return service.pay(ctx, network, {
         url: input.url,
         method: input.method,
         headers: input.header,
-        ...(input.body === undefined ? {} : { body: input.body }),
+        ...(body === undefined ? {} : { body }),
         ...(input.token === undefined ? {} : { token: input.token }),
         ...(input.asset === undefined ? {} : { asset: input.asset }),
         ...(input.decimals === undefined ? {} : { decimals: input.decimals }),
         ...(input.scheme === undefined ? {} : { scheme: input.scheme }),
         ...(input.maxAmount === undefined ? {} : { maxAmount: input.maxAmount }),
         ...(input.maxRawAmount === undefined ? {} : { maxRawAmount: input.maxRawAmount }),
+        dryRun: input.dryRun,
+        ...(input.out === undefined ? {} : { out: input.out }),
+        ...(input.maxGasfreeFee === undefined ? {} : { maxGasfreeFee: input.maxGasfreeFee }),
+        ...(input.maxGasfreeFeeRaw === undefined
+          ? {}
+          : { maxGasfreeFeeRaw: input.maxGasfreeFeeRaw }),
       });
     },
   });
@@ -203,4 +244,37 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     examples: [{ cmd: "wallet-cli x402 provider-update" }],
     run: async () => service.providerUpdate(),
   } satisfies CommandDefinition);
+}
+
+async function requestBody(
+  ctx: Parameters<CommandDefinition["run"]>[0],
+  inline?: string,
+  path?: string,
+): Promise<string | undefined> {
+  if (!path) return inline;
+  if (path === "-") {
+    if (ctx.secrets.has("password")) {
+      throw new UsageError(
+        "invalid_option",
+        "--body-file - cannot share stdin with --password-stdin",
+      );
+    }
+    return checkedBody(ctx.streams.readStdinOnce(), "stdin");
+  }
+  try {
+    return checkedBody(await readFile(path, "utf8"), path);
+  } catch (error) {
+    if (error instanceof UsageError) throw error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new UsageError("file_not_found", `request body file not found: ${path}`);
+    }
+    throw new UsageError("invalid_value", `cannot read request body file: ${path}`);
+  }
+}
+
+function checkedBody(body: string, source: string): string {
+  if (Buffer.byteLength(body) > 1_048_576) {
+    throw new UsageError("invalid_value", `request body from ${source} exceeds 1 MiB`);
+  }
+  return body;
 }

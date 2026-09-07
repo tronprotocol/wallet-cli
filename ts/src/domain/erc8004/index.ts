@@ -1,30 +1,13 @@
 import type { NetworkDescriptor } from "../types/index.js";
 import { UsageError } from "../errors/index.js";
 
-export const ERC8004_IDENTITY_REGISTRIES: Readonly<Record<string, string>> = {
-  "eip155:56": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
-  "eip155:97": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
-  "tron:728126428": "TFLvivMdKsk6v2GrwyD2apEr9dU1w7p7Fy",
-  "tron:3448148188": "TDDk4vc69nzBCbsY4kfu7gw2jmvbinirj5",
-  "tron:2494104990": "TH775ZzfJ5V25EZkFuX6SkbAP53ykXTcma",
-};
-
-export function identityRegistryFor(network: NetworkDescriptor): string {
-  const address = ERC8004_IDENTITY_REGISTRIES[network.id];
-  if (!address) {
-    throw new UsageError(
-      "unsupported_network_capability",
-      `ERC-8004 Identity Registry is not deployed on ${network.id}`,
-    );
-  }
-  return address;
-}
-
 export function parseAgentId(value: string): bigint {
   if (!/^\d+$/.test(value)) {
     throw new UsageError("invalid_value", "agent id must be an unsigned decimal integer");
   }
-  return BigInt(value);
+  const id = BigInt(value);
+  if (id >= 1n << 256n) throw new UsageError("invalid_value", "agent id must fit uint256");
+  return id;
 }
 
 export function resolveAgentId(value: string, network: NetworkDescriptor): bigint {

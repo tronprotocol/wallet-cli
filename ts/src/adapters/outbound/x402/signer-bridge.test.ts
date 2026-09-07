@@ -84,7 +84,9 @@ describe("toX402Wallet", () => {
 
   it("accepts an EVM payer that differs only in case", async () => {
     const wallet = toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm" });
-    await expect(wallet.signTypedData(evmPayload(EVM_ADDRESS.toLowerCase()))).resolves.toBeDefined();
+    await expect(
+      wallet.signTypedData(evmPayload(EVM_ADDRESS.toLowerCase())),
+    ).resolves.toBeDefined();
   });
 
   it("refuses to sign for a different EVM payer", async () => {
@@ -219,3 +221,19 @@ describe("toX402Wallet", () => {
     });
   });
 });
+
+it.each(["Transfer", "PermitTransfer"])(
+  "accepts the TRON SDK's 20-byte payer for %s",
+  async (primaryType) => {
+    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", primaryType), {
+      family: "tron",
+      maxGasfreeFeeRaw: "10",
+    });
+    const address = `0x${TRON_HEX.slice(2)}`;
+    await expect(
+      wallet.signTypedData(
+        primaryType === "Transfer" ? evmPayload(address) : permitPayload(address, "1"),
+      ),
+    ).resolves.toBe("0xsig");
+  },
+);

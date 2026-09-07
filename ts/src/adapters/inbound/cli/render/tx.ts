@@ -395,6 +395,15 @@ function receiptRows(r: TxReceiptView): Pair[] {
   // approve(address,uint256): the two facts the caller cannot verify from what they typed — the
   // uint256 on the command line is scaled by the token's decimals, and its maximum is 78 digits.
   // Present in the dry run too, which is where an approval most wants checking.
+  if (r.agentId !== undefined) rows.push(["Agent ID", r.agentId]);
+  if (r.operator !== undefined) rows.push(["Operator", r.operator]);
+  if (r.uri !== undefined) rows.push(["URI", r.uri]);
+  if (r.oldURI !== undefined) rows.push(["Previous URI", r.oldURI]);
+  if (r.requestedURI !== undefined) rows.push(["Requested URI", r.requestedURI]);
+  if (r.newURI !== undefined) rows.push(["Current URI", r.newURI]);
+  if (r.oldOwner !== undefined) rows.push(["Previous owner", r.oldOwner]);
+  if (r.requestedOwner !== undefined) rows.push(["Requested owner", r.requestedOwner]);
+  if (r.newOwner !== undefined) rows.push(["Current owner", r.newOwner]);
   if (r.spender !== undefined) rows.push(["Spender", String(r.spender)]);
   if (r.allowance !== undefined) rows.push(["Allowance", allowanceLabel(r)]);
   return rows;

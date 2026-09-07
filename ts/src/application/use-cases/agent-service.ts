@@ -1,16 +1,9 @@
-import { Interface } from "ethers";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
-import { identityRegistryFor, resolveAgentId } from "../../domain/erc8004/index.js";
+import type { AgentRegistryReader, AgentRegistrationLoader } from "../ports/agent-sdk.js";
+import { resolveAgentId } from "../../domain/erc8004/index.js";
 import { tronHexToBase58 } from "../../domain/address/index.js";
-
-const IDENTITY = new Interface([
-  "function ownerOf(uint256 agentId) view returns (address)",
-  "function tokenURI(uint256 agentId) view returns (string)",
-  "function getApproved(uint256 agentId) view returns (address)",
-  "function isApprovedForAll(address owner,address operator) view returns (bool)",
-]);
 
 interface TransactionOptions {
   dryRun?: boolean;
@@ -22,45 +15,85 @@ interface TransactionOptions {
 }
 
 export class AgentService {
-  constructor(private readonly contracts: AgentContractPorts) {}
+  constructor(
+    private readonly contracts: AgentContractPorts,
+    private readonly registry: AgentRegistryReader,
+    private readonly registration: AgentRegistrationLoader,
+  ) {}
 
   async show(network: NetworkDescriptor, id: string) {
     const agentId = resolveAgentId(id, network).toString();
-    const registry = identityRegistryFor(network);
+    const registry = this.registry.registry(network);
     const [owner, uri, approved] = await Promise.all([
       this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: agentId }]),
       this.read(network, registry, "tokenURI(uint256)", [{ type: "uint256", value: agentId }]),
       this.read(network, registry, "getApproved(uint256)", [{ type: "uint256", value: agentId }]),
     ]);
+    const loaded = await this.registration.load(String(uri));
     return {
       agentId,
       owner: this.address(network, String(owner)),
       uri: String(uri),
       approved: this.address(network, String(approved)),
       registry,
+      ...(loaded.metadata ? { metadata: loaded.metadata } : {}),
+      ...(loaded.warning ? { warnings: [loaded.warning] } : {}),
     };
   }
 
-  register(
+  async register(
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: TransactionOptions & { uri: string },
   ) {
-    return this.write(scope, network, input, "register(string)", [
-      { type: "string", value: input.uri },
-    ]);
+    const result: Record<string, unknown> = {
+      ...(await this.write(scope, network, input, "register(string)", [
+        { type: "string", value: input.uri },
+      ])),
+      uri: input.uri,
+    };
+    if (result.stage !== "confirmed") return result;
+    const txId = String(result.txId ?? result.hash ?? "");
+    try {
+      const agentId = txId ? await this.registry.registeredAgentId(network, txId) : undefined;
+      if (agentId !== undefined) return { ...result, agentId };
+    } catch {
+      /* Keep the confirmed transaction even when receipt enrichment fails. */
+    }
+    scope.warn(
+      "Registration confirmed, but the minted Agent ID could not be read; do not resubmit the transaction.",
+    );
+    return result;
   }
 
-  update(
+  async update(
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: TransactionOptions & { id: string; uri: string },
   ) {
     const id = resolveAgentId(input.id, network).toString();
-    return this.write(scope, network, input, "setAgentURI(uint256,string)", [
+    const oldURI = String(
+      await this.read(network, this.registry.registry(network), "tokenURI(uint256)", [
+        { type: "uint256", value: id },
+      ]),
+    );
+    const result = await this.write(scope, network, input, "setAgentURI(uint256,string)", [
       { type: "uint256", value: id },
       { type: "string", value: input.uri },
     ]);
+    const view = { ...result, agentId: id, oldURI, requestedURI: input.uri };
+    if (result.stage !== "confirmed") return view;
+    try {
+      const newURI = String(
+        await this.read(network, this.registry.registry(network), "tokenURI(uint256)", [
+          { type: "uint256", value: id },
+        ]),
+      );
+      return { ...view, newURI };
+    } catch {
+      scope.warn("URI update confirmed, but the current Agent URI could not be read.");
+      return view;
+    }
   }
 
   async transfer(
@@ -69,15 +102,37 @@ export class AgentService {
     input: TransactionOptions & { id: string; newOwner: string },
   ) {
     const id = resolveAgentId(input.id, network).toString();
-    const registry = identityRegistryFor(network);
+    const registry = this.registry.registry(network);
     const owner = String(
       await this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: id }]),
     );
-    return this.write(scope, network, input, "transferFrom(address,address,uint256)", [
-      { type: "address", value: this.address(network, owner) },
-      { type: "address", value: input.newOwner },
-      { type: "uint256", value: id },
-    ]);
+    const result = await this.write(
+      scope,
+      network,
+      input,
+      "transferFrom(address,address,uint256)",
+      [
+        { type: "address", value: this.address(network, owner) },
+        { type: "address", value: input.newOwner },
+        { type: "uint256", value: id },
+      ],
+    );
+    const view = {
+      ...result,
+      agentId: id,
+      oldOwner: this.address(network, owner),
+      requestedOwner: input.newOwner,
+    };
+    if (result.stage !== "confirmed") return view;
+    try {
+      const newOwner = String(
+        await this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: id }]),
+      );
+      return { ...view, newOwner: this.address(network, newOwner) };
+    } catch {
+      scope.warn("Transfer confirmed, but the current Agent owner could not be read.");
+      return view;
+    }
   }
 
   approve(
@@ -109,7 +164,7 @@ export class AgentService {
   }
 
   async operatorCheck(network: NetworkDescriptor, owner: string, operator: string) {
-    const registry = identityRegistryFor(network);
+    const registry = this.registry.registry(network);
     const approved = await this.read(network, registry, "isApprovedForAll(address,address)", [
       { type: "address", value: owner },
       { type: "address", value: operator },
@@ -131,18 +186,12 @@ export class AgentService {
 
   private async read(
     network: NetworkDescriptor,
-    registry: string,
+    _registry: string,
     method: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<unknown> {
-    const response = await this.contracts[network.family].call(network, registry, method, params);
-    const raw = network.family === "tron" ? response.result[0] : response.result;
-    const data = String(raw ?? "");
-    const [decoded] = IDENTITY.decodeFunctionResult(
-      method,
-      data.startsWith("0x") ? data : `0x${data}`,
-    );
-    return decoded;
+    // Registry selection and ABI decoding are supplied by the published SDK adapter.
+    return this.registry.read(network, method, params);
   }
 
   private write(
@@ -152,10 +201,11 @@ export class AgentService {
     method: string,
     params: Array<{ type: string; value: unknown }>,
   ) {
-    const contract = identityRegistryFor(network);
+    const contract = this.registry.registry(network);
     if (network.family === "evm") {
       return this.contracts.evm.send(scope, network, {
         ...input,
+        ...(method === "approve(address,uint256)" ? { approvalKind: "erc721" as const } : {}),
         contract,
         method,
         params,
@@ -163,6 +213,7 @@ export class AgentService {
     }
     return this.contracts.tron.send(scope, network, {
       ...input,
+      ...(method === "approve(address,uint256)" ? { approvalKind: "erc721" as const } : {}),
       contract,
       method,
       parameters: params,

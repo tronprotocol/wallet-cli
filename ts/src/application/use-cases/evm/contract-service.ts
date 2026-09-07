@@ -2,7 +2,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
-import { approveRows } from "../../services/approve-receipt.js";
+import { approveRows, type ApprovalKind } from "../../services/approve-receipt.js";
 import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type {
@@ -21,6 +21,8 @@ import {
 export interface EvmContractWriteInput extends TransactionModeInput {
   contract?: string;
   method?: string;
+  /** disambiguates standards that share a write signature. */
+  approvalKind?: ApprovalKind;
   /** `{type,value}` entries for a call; raw positional values for a deployment. */
   params?: unknown[];
   /** native coin sent along with the call, in whole coins (as `tx send --amount` is). */
@@ -108,6 +110,7 @@ export class EvmContractService {
     return approveRows({
       method: input.method,
       params: (input.params ?? []) as Array<{ value?: unknown }>,
+      approvalKind: input.approvalKind,
       metadata: () => gateway.getErc20Metadata(input.contract!),
       fromBaseUnits,
     });

@@ -133,6 +133,15 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     feeModel: "evm-gas",
     capabilities: [],
   },
+  "eip155:8453": {
+    id: "eip155:8453",
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "8453",
+    httpEndpoint: "https://mainnet.base.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
 };
 
 /** The short name a person types, plus — for TRON only — the id this CLI carried before its
@@ -158,6 +167,7 @@ export const BUILTIN_ALIASES: Record<string, string> = {
   sepolia: "eip155:11155111",
   bsc: "eip155:56",
   "bsc-testnet": "eip155:97",
+  base: "eip155:8453",
 };
 
 export const DEFAULT_CONFIG = {

@@ -23,9 +23,13 @@ function normalizeSignature(signature?: string): string {
   return (signature ?? "").replace(/\s+/g, "");
 }
 
+export type ApprovalKind = "erc721";
+
 export interface ApproveContext {
   method?: string;
   params?: Array<{ value?: unknown }>;
+  /** disambiguates standards that share approve(address,uint256). */
+  approvalKind?: ApprovalKind;
   /** the token's decimals and symbol; may fail — labelling is not worth failing the call over. */
   metadata: () => Promise<{ decimals?: number; symbol?: string }>;
   /** the spender address in the family's own display form (TRON hex → base58, EVM as-is). */
@@ -35,7 +39,7 @@ export interface ApproveContext {
 }
 
 /**
- * The `spender` / `allowance` fields for an approve call, or nothing at all for any other method.
+ * Human-readable fields for an approve call, or nothing at all for any other method.
  *
  * `unlimited` short-circuits before the metadata read: the 78-digit form tells the reader only
  * that the number is long, and no decimals can make it readable.
@@ -52,6 +56,9 @@ export async function approveRows(ctx: ApproveContext): Promise<Record<string, u
     return {};
   }
   const spender = (ctx.displayAddress ?? ((v: string) => v))(spenderRaw);
+  if (ctx.approvalKind === "erc721") {
+    return { operator: spender, agentId: amount.toString(10) };
+  }
   if (amount === MAX_UINT256) return { spender, allowance: "unlimited" };
 
   const meta = await ctx.metadata().catch(() => ({}) as { decimals?: number; symbol?: string });

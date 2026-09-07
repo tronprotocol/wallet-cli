@@ -200,6 +200,7 @@ function normalizeNetworkAlias(value: string): string {
     shasta: "tron:2494104990",
     bsc: "eip155:56",
     "bsc-testnet": "eip155:97",
+    base: "eip155:8453",
   };
   return aliases[value.toLowerCase()] ?? normalizeNetwork(value);
 }

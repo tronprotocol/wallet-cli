@@ -24,12 +24,10 @@ describe("ConfigLoader defaultNetwork", () => {
     expect(registry.resolveDefault().id).toBe("tron:3448148188");
   });
 
-  // Base is an L2, so it is in neither table (see the evm-gas fee-model note below); a name that
-  // reaches neither is rejected outright. There is no family-level gate — every builtin EVM
-  // network and alias resolves, as the alias-book cases assert.
+  // Unknown names are rejected; every builtin network and alias resolves.
   it("rejects a name that is in neither the builtin table nor the alias book", () => {
     const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
-    expect(() => registry.resolve("base")).toThrow(/unknown network/);
+    expect(() => registry.resolve("not-a-network")).toThrow(/unknown network/);
   });
 });
 
@@ -159,20 +157,21 @@ describe("ConfigLoader unreadable/malformed config", () => {
 describe("builtin EVM networks", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
-  // One L1 pair per chain. L2s are deliberately excluded — the evm-gas fee model computes
-  // gasLimit x gasPrice and would systematically under-report cost on rollups.
+  // Base is included for x402 USDC authorization. The existing evm-gas model describes
+  // execution gas only; it does not include rollup L1 data fees for ordinary transactions.
   it.each([
     ["eip155:1", "1"],
     ["eip155:11155111", "11155111"],
     ["eip155:56", "56"],
     ["eip155:97", "97"],
+    ["eip155:8453", "8453"],
   ])("resolves %s as an evm-gas network", (id, chainId) => {
     const net = registry().resolve(id);
     expect(net).toMatchObject({ id, family: "evm", chainId, feeModel: "evm-gas" });
   });
 
   it("ships every EVM network with a usable endpoint", () => {
-    for (const id of ["eip155:1", "eip155:11155111", "eip155:56", "eip155:97"]) {
+    for (const id of ["eip155:1", "eip155:11155111", "eip155:56", "eip155:97", "eip155:8453"]) {
       expect(registry().resolve(id).httpEndpoint).toMatch(/^https:\/\//);
     }
   });

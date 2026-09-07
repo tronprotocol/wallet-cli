@@ -9,7 +9,11 @@ import { CommandRegistry } from "../registry/index.js";
 import { TextFormatters } from "../render/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 
-export function registerConfigCommands(registry: CommandRegistry, service: ConfigService): void {
+export function registerConfigCommands(
+  registry: CommandRegistry,
+  service: ConfigService,
+  confirmBaiKey?: (key: string) => Promise<void>,
+): void {
   const fields = z.object({
     // Not an enum: `networks.<id>[.<field>]` is a nested path, and the id segment is
     // open-ended (any canonical id or alias). The service validates the key and names the
@@ -31,6 +35,8 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
     auth: "none",
     stdin: "apiKey",
     summary: "Show / get / set configuration values",
+    description:
+      "Read or update configuration. Setting baiApiKey verifies the selected account and mainnet with B.AI once before saving; select them with --account and --network. The wallet must already be bound.",
     positionals: [{ field: "key" }, { field: "value" }],
     fields,
     input: fields,
@@ -40,7 +46,9 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
       { cmd: "wallet-cli config defaultNetwork tron:3448148188" },
       { cmd: "wallet-cli config networks.tron:728126428" },
       { cmd: "wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY" },
-      { cmd: "printf '%s\\n' \"$BAI_KEY\" | wallet-cli config baiApiKey --api-key-stdin" },
+      {
+        cmd: "printf '%s\\n' \"$BAI_KEY\" | wallet-cli config baiApiKey --api-key-stdin --network tron",
+      },
     ],
     formatText: TextFormatters.config,
     run: async (ctx, _network, input) => {
@@ -60,6 +68,7 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
       const effectiveInput = hasApiKeyInput
         ? { key: "baiApiKey", value: ctx.secrets.require("apiKey") }
         : input;
+      if (hasApiKeyInput && confirmBaiKey) await confirmBaiKey(effectiveInput.value!);
       return service.execute(effectiveInput, ctx.config, ctx.networkRegistry);
     },
   } satisfies CommandDefinition);

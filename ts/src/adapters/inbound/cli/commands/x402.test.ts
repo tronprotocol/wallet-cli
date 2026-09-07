@@ -40,4 +40,50 @@ describe("x402 command surface", () => {
     expect(registry.resolveNeutral(["x402", "search"])).toBeNull();
     expect(registry.resolveNeutral(["x402", "gateway"])).toBeNull();
   });
+
+  it("exposes dry-run and mutually exclusive payment limits", () => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    expect(Object.keys(pay.fields.shape)).toContain("dryRun");
+    expect(
+      pay.input.safeParse({
+        url: "https://example.test",
+        method: "GET",
+        header: [],
+        maxAmount: "1",
+        maxRawAmount: "1",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects using inline and file request bodies together", () => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    expect(
+      pay.input.safeParse({
+        url: "https://example.test",
+        method: "POST",
+        header: [],
+        body: "{}",
+        bodyFile: "request.json",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects conflicting GasFree fee ceilings", () => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    expect(
+      pay.input.safeParse({
+        url: "https://example.test",
+        method: "GET",
+        header: [],
+        maxGasfreeFee: "1",
+        maxGasfreeFeeRaw: "1",
+      }).success,
+    ).toBe(false);
+  });
 });

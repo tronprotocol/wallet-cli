@@ -4,8 +4,6 @@ import type {
   BaiPageInput,
   BaiPageView,
   BaiStatusView,
-  BaiUsageInput,
-  BaiUsageStatsView,
 } from "../../../application/ports/bai-api.js";
 import type { Config } from "../../../domain/types/index.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
@@ -17,7 +15,7 @@ const BatchItemSchema = z.looseObject({
 
 const ObjectSchema = z.record(z.string(), z.unknown());
 
-export const DEFAULT_BAI_BASE_URL = "https://chat.ainft.com";
+export const DEFAULT_BAI_BASE_URL = "https://chat.bankofai.io";
 
 export class BaiClient implements BaiApi {
   constructor(
@@ -39,28 +37,12 @@ export class BaiClient implements BaiApi {
     };
   }
 
-  async usage(input: BaiUsageInput): Promise<BaiUsageStatsView> {
-    const value = ObjectSchema.parse(await this.call("usage.getUsageStats", input));
-    return {
-      totalMessages: scalar(value.totalMessages, "totalMessages"),
-      totalSessions: scalar(value.totalSessions, "totalSessions"),
-      totalTokens: scalar(value.totalTokens, "totalTokens"),
-      totalCost: scalar(value.totalCost, "totalCost"),
-      byModel: arrayOfObjects(value.byModel).map((row) => ({
-        model: scalar(row.model, "byModel.model"),
-        count: scalar(row.count, "byModel.count"),
-        tokens: scalar(row.tokens, "byModel.tokens"),
-        cost: scalar(row.cost, "byModel.cost"),
-      })),
-      byDate: arrayOfObjects(value.byDate).map((row) => ({
-        date: scalar(row.date, "byDate.date"),
-        count: scalar(row.count, "byDate.count"),
-      })),
-    };
-  }
-
   async usageList(input: BaiPageInput): Promise<BaiPageView> {
-    return page(await this.call("usage.records", input));
+    const raw = await this.call("usage.records", { ...input, mode: "all" });
+    const parsed = z.looseObject({ data: z.array(ObjectSchema) }).safeParse(raw);
+    if (!parsed.success)
+      throw new TransportError("provider_error", "B.AI returned invalid usage records");
+    return page(parsed.data);
   }
 
   async rechargeList(input: BaiPageInput): Promise<BaiPageView> {
@@ -68,7 +50,7 @@ export class BaiClient implements BaiApi {
       await this.call("order.listOrders", {
         page: input.page,
         pageSize: input.pageSize,
-        sortBy: input.sortBy,
+        sortBy: input.sortBy === "created_at" ? "createdAt" : input.sortBy,
         order: input.sortOrder,
       }),
     );
@@ -89,12 +71,25 @@ export class BaiClient implements BaiApi {
           : { 0: { json: input } },
       ),
     );
-    const url = `${this.baseUrl}/trpc/lambda/${procedure}?batch=1&input=${encoded}`;
+    const query = new URLSearchParams();
+    if (procedure === "usage.records" && input && typeof input === "object") {
+      for (const [name, value] of Object.entries(input)) {
+        if (value !== undefined) query.set(name, String(value));
+      }
+    }
+    const suffix =
+      procedure === "usage.records"
+        ? `?${query}`
+        : procedure === "usage.summary"
+          ? ""
+          : `?batch=1&input=${encoded}`;
+    const url = `${this.baseUrl}/trpc/lambda/${procedure}${suffix}`;
     let response: Response;
     try {
       response = await this.fetcher(url, {
         method: "GET",
         headers: { Accept: "application/json", Authorization: `Bearer ${key}` },
+        redirect: "error",
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (error) {
@@ -120,6 +115,17 @@ export class BaiClient implements BaiApi {
       throw new TransportError("provider_error", "B.AI API returned malformed JSON");
     }
     const first = Array.isArray(decoded) ? decoded[0] : decoded;
+    if (
+      first &&
+      typeof first === "object" &&
+      !Array.isArray(first) &&
+      !("error" in first) &&
+      !("result" in first)
+    ) {
+      if (procedure === "usage.records" && "data" in first && Array.isArray(first.data))
+        return first;
+      if (procedure === "usage.summary" && "points_balance" in first) return first;
+    }
     const item = BatchItemSchema.safeParse(first);
     if (!item.success || item.data.error !== undefined || item.data.result?.data === undefined) {
       throw new TransportError("provider_error", "B.AI API returned an invalid tRPC response");
@@ -158,6 +164,10 @@ function page(raw: unknown): BaiPageView {
     page: pageNumber,
     pageSize,
     ...(total === undefined ? {} : { total }),
+    ...(typeof value.has_more === "boolean" ? { hasMore: value.has_more } : {}),
+    ...(typeof value.next_cursor === "string" || value.next_cursor === null
+      ? { nextCursor: value.next_cursor }
+      : {}),
   };
 }
 

@@ -42,10 +42,16 @@ function declaredPayer(payload: TypedDataPayload, primaryType: string): unknown 
   return primaryType === PERMIT_TRANSFER ? payload.message.user : payload.message.from;
 }
 
-/** TRON addresses travel as base58 or as 41-prefixed hex; EVM addresses are case-insensitive. */
+/** The TRON SDK uses 20-byte 0x addresses inside typed data, without the chain prefix. */
+function canonicalTronPayer(address: string): string {
+  const full = /^0x[0-9a-f]{40}$/i.test(address) ? `41${address.slice(2)}` : address;
+  return tronHexToBase58(full);
+}
+
+/** Compare each chain's equivalent address representations. */
 function samePayer(family: ChainFamily, a: string, b: string): boolean {
   return family === "tron"
-    ? tronHexToBase58(a) === tronHexToBase58(b)
+    ? canonicalTronPayer(a) === canonicalTronPayer(b)
     : a.toLowerCase() === b.toLowerCase();
 }
 
@@ -72,7 +78,11 @@ function assertPayerMatches(
  * value in. Both the payload's fee and the policy's own ceiling are parsed inside this guarded
  * path: a ceiling that will not parse must never be treated as "no ceiling".
  */
-function assertFeeWithinCap(payload: TypedDataPayload, primaryType: string, maxGasfreeFeeRaw?: string): void {
+function assertFeeWithinCap(
+  payload: TypedDataPayload,
+  primaryType: string,
+  maxGasfreeFeeRaw?: string,
+): void {
   if (maxGasfreeFeeRaw === undefined || primaryType !== PERMIT_TRANSFER) return;
   const declared = payload.message.maxFee;
   let fee: bigint;

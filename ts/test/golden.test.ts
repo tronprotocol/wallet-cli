@@ -114,8 +114,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // Both families ship: 3 TRON + 4 EVM, each mainnet paired with a testnet. EVM was
-    // hidden while it was incomplete, and is deliberately exposed now.
+    // Both families ship: 3 TRON + 5 EVM, including Base mainnet.
     expect(ids).toEqual(
       expect.arrayContaining([
         "tron:728126428",
@@ -125,9 +124,10 @@ describe("golden CLI — meta & introspection", () => {
         "eip155:11155111",
         "eip155:56",
         "eip155:97",
+        "eip155:8453",
       ]),
     );
-    expect(ids).toHaveLength(7);
+    expect(ids).toHaveLength(8);
     // machine surfaces carry canonical ids only, never aliases — and a canonical id is
     // CAIP-2, so its namespace is `eip155` for the EVM family rather than the family's own name
     expect(ids.every((id: string) => /^(tron|eip155):/.test(id))).toBe(true);

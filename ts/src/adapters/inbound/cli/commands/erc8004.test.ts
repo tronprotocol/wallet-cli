@@ -33,3 +33,16 @@ describe("ERC-8004 command surface", () => {
     expect(Object.keys(spec.baseFields.shape)).toEqual(["uri", "dryRun", "signOnly", "buildOnly"]);
   });
 });
+
+it("accepts a data JSON registration URI and rejects local file schemes", () => {
+  const registry = new CommandRegistry();
+  registerAgentCommands(registry, {} as AgentService);
+  const schema = registry.resolveChain(["8004", "register"])!.spec.baseFields;
+  expect(schema.safeParse({ uri: "data:application/json;base64,eyJuYW1lIjoiQSJ9" }).success).toBe(
+    true,
+  );
+  expect(schema.safeParse({ uri: "file:///etc/passwd" }).success).toBe(false);
+  expect(schema.safeParse({ uri: "https://user:password@example.com/agent.json" }).success).toBe(
+    false,
+  );
+});

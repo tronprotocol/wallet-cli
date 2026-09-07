@@ -1,3 +1,8 @@
+import { FileBaiBindingStore } from "../adapters/outbound/bai/binding-store.js";
+import { BaiCredentialSetup, baiChain } from "../application/use-cases/bai-credential-setup.js";
+import { walletAddress } from "../domain/wallet/index.js";
+import { UsageError } from "../domain/errors/index.js";
+import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { isTronNetwork } from "../domain/types/network.js";
 import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
@@ -48,6 +53,8 @@ import { BaiService } from "../application/use-cases/bai-service.js";
 import { registerBaiCommands } from "../adapters/inbound/cli/commands/bai.js";
 import { EvmContractService } from "../application/use-cases/evm/contract-service.js";
 import { TronContractService } from "../application/use-cases/tron/contract-service.js";
+import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
+import { RegistrationLoader } from "../adapters/outbound/erc8004/registration-loader.js";
 import { AgentService } from "../application/use-cases/agent-service.js";
 import { registerAgentCommands } from "../adapters/inbound/cli/commands/erc8004.js";
 import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
@@ -117,7 +124,25 @@ export function composeCliRuntime(options: BootstrapOptions) {
     ledger,
     qr: new TerminalQrEncoder(),
   });
-  registerConfigCommands(registry, configService);
+  const baiBindings = new FileBaiBindingStore(root, store);
+  const baiSetup = new BaiCredentialSetup(baiBindings, (apiKey, input) =>
+    new BaiRechargeClient({ baiApiKey: apiKey }, timeoutMs).isBound(input),
+  );
+  registerConfigCommands(registry, configService, async (apiKey) => {
+    const net = networkRegistry.resolve(options.globals.network ?? config.defaultNetwork);
+    const chain = baiChain(net);
+    const account = options.globals.account ?? keystore.activeAccount();
+    if (!account)
+      throw new UsageError(
+        "invalid_value",
+        "Select a payer wallet before configuring the B.AI API key",
+      );
+    const selected = keystore.resolveAccount(account, net.family);
+    const address = walletAddress(selected.wallet, net.family, selected.index);
+    if (!address)
+      throw new UsageError("family_mismatch", "Selected wallet has no address for this network");
+    await baiSetup.confirm(apiKey, chain, address);
+  });
   registerNetworkCommands(registry);
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
@@ -125,14 +150,25 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const x402Payments = new X402PaymentClient(signerResolver);
   registerBaiCommands(
     registry,
-    new BaiService(new BaiClient(config, timeoutMs), () => new Date(), x402Payments),
+    new BaiService(
+      new BaiClient(config, timeoutMs),
+      () => new Date(),
+      x402Payments,
+      baiBindings,
+      new BaiRechargeClient(config, timeoutMs),
+    ),
   );
+  const agentContracts = {
+    evm: new EvmContractService(gatewayProvider, txPipeline),
+    tron: new TronContractService(gatewayProvider, txPipeline),
+  };
   registerAgentCommands(
     registry,
-    new AgentService({
-      evm: new EvmContractService(gatewayProvider, txPipeline),
-      tron: new TronContractService(gatewayProvider, txPipeline),
-    }),
+    new AgentService(
+      agentContracts,
+      new SdkAgentRegistry(agentContracts, gatewayProvider),
+      new RegistrationLoader(timeoutMs),
+    ),
   );
   registerX402Commands(
     registry,
@@ -181,6 +217,21 @@ export function composeCliRuntime(options: BootstrapOptions) {
         key,
         summary: CAP_SUMMARIES[key] ?? key,
       }));
+    // Neutral commands are absent from capabilityKeysByFamily; the payment adapter
+    // supports both wallet network families and validates the offered scheme itself.
+    commandCapabilities.push({
+      key: "x402.pay",
+      summary: "Inspect or pay an x402 endpoint using the selected wallet network",
+    });
+    if (
+      (network.family === "evm" && ["56", "8453"].includes(network.chainId)) ||
+      (network.family === "tron" && network.chainId === "728126428")
+    ) {
+      commandCapabilities.push({
+        key: "bai.recharge",
+        summary: "Recharge B.AI from a configured payer wallet",
+      });
+    }
     const traits = network.capabilities.map((key) => ({
       key,
       summary: TRAIT_SUMMARIES[key] ?? key,

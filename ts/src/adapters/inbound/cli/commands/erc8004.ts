@@ -17,7 +17,20 @@ const uri = z
   .trim()
   .min(1)
   .max(2048)
-  .regex(/^[A-Za-z][A-Za-z0-9+.-]*:\/\//, "must be an absolute URI such as https:// or ipfs://")
+  .refine((value) => {
+    if (/^data:application\/json;base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) return true;
+    try {
+      const url = new URL(value);
+      return (
+        ["https:", "http:", "ipfs:"].includes(url.protocol) &&
+        !!url.hostname &&
+        !url.username &&
+        !url.password
+      );
+    } catch {
+      return false;
+    }
+  }, "must be an HTTP(S), IPFS, or base64 JSON data URI without credentials")
   .describe("URI of an agent registration document built and hosted outside wallet-cli");
 const address = Schemas.address();
 
@@ -167,7 +180,11 @@ function addBoth(
 }
 
 export function registerAgentCommands(registry: CommandRegistry, service: AgentService): void {
-  addBoth(registry, showSpec, async (_ctx, net, input) => service.show(net, input.id));
+  addBoth(registry, showSpec, async (ctx, net, input) => {
+    const result = await service.show(net, input.id);
+    for (const warning of result.warnings ?? []) ctx.warn(warning);
+    return result;
+  });
   addBoth(
     registry,
     registerSpec,
