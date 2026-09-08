@@ -20,6 +20,11 @@ import type {
   WalletsFile,
 } from "../../../domain/types/index.js";
 import { CryptoEnvelope } from "../persistence/crypto/index.js";
+import {
+  derivationMismatchError,
+  legacyDerivationError,
+  resolveDerivation,
+} from "../../../domain/wallet/derivation-match.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { familyOf, canonicalAddress, CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { SOURCE_KINDS, sourceFamily } from "../../../domain/sources/index.js";
@@ -250,15 +255,73 @@ export class Keystore {
       const key = String(next);
       let created = false;
       if (!wallet.source.addresses[key]) {
+        // Guarding here, not above: `--index <existing>` is a documented no-op that re-activates
+        // the slot, so refusing it would answer a request that asked for no new key with a
+        // message saying none can be derived. Only an actual derivation can mix templates.
         const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
+        this.#assertDerivable(file, wallet, seed);
         wallet.source.addresses[key] = deriveSeedAddresses(seed, next);
         created = true;
+      } else {
+        // An existing slot is still a no-op for derivation, including a historical one, but its
+        // cached addresses must be verified before this method persists the selection change.
+        // Otherwise WalletService can report derivation_mismatch only after activeAccount changed.
+        const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
+        this.#assertAccountMatches(wallet, next, seed);
       }
       const ref = accountRefOf(wallet, next);
       file.activeAccount = ref;
       this.#write(file);
       return { accountId: ref, created };
     });
+  }
+
+  /**
+   * Refuse to derive a new key into a wallet whose existing accounts this build cannot account
+   * for. A wallet must never mix templates: once a legacy and a current account sit in one
+   * addresses map, nothing on disk tells them apart — both are `{ tron, evm }` under a numeric
+   * key — so every later reader is left guessing.
+   *
+   * The two failures are kept apart, as they are everywhere else: `legacy` means the account is
+   * stranded on the old path and has a rescue; no match at all means wallets.json and the vault
+   * disagree, which is a different problem with a different fix.
+   */
+  #assertDerivable(file: WalletsFile, wallet: Wallet, seed: Bytes): void {
+    if (wallet.source.type !== "seed") return;
+    for (const existing of accountIndices(wallet.source)) {
+      if (existing === 0) continue; // identical under both templates; never legacy
+      const cached = wallet.source.addresses[String(existing)]?.tron;
+      if (!cached) continue;
+      const resolved = resolveDerivation(seed, "tron", existing, cached);
+      const ref = `${wallet.id}.${existing}`;
+      if (!resolved) {
+        throw derivationMismatchError(
+          "tron",
+          ref,
+          `so no further accounts can be derived from ${wallet.id}`,
+        );
+      }
+      if (resolved.scheme === "legacy") {
+        throw legacyDerivationError(ref, resolved.path, "derive", {
+          account: file.labels[ref],
+          wallet: file.labels[accountRefOf(wallet, 0)],
+        });
+      }
+    }
+  }
+
+  /** Verify one existing slot without rejecting a known historical template. */
+  #assertAccountMatches(wallet: Wallet, index: number, seed: Bytes): void {
+    if (wallet.source.type !== "seed") return;
+    const ref = accountRefOf(wallet, index);
+    const addresses = wallet.source.addresses[String(index)];
+    if (!addresses) return;
+    for (const family of CHAIN_FAMILIES) {
+      const cached = addresses[family];
+      if (!resolveDerivation(seed, family, index, cached)) {
+        throw derivationMismatchError(family, ref);
+      }
+    }
   }
 
   // ── selection / lookup ─────────────────────────────────────────────────────
@@ -760,14 +823,22 @@ export class Keystore {
 
 /**
  * The BIP44 path behind each of an account's addresses.
- *   - seed: computed per family from the index — the templates differ, which is exactly
- *     what a caller cannot otherwise see.
+ *   - seed: computed per family from the index when every path is unambiguous. If any family has
+ *     a historical candidate (`Derivation.legacyPaths`, today TRON at index >= 1), the whole value
+ *     is null: a partial object would misleadingly make this generic, password-free descriptor
+ *     look like a derivation query. Commands that open the seed replace null with verified paths.
+ *     Asking `legacyPaths` keeps that rule in the one place that owns it, so a future historical
+ *     template cannot be added there and forgotten here.
  *   - ledger: the single path the user picked on the device, for its one family.
  *   - watch / privateKey: never derived, so `null` rather than an empty object.
  */
 function derivationPathsOf(source: Source, index: number | null): Record<string, string> | null {
   if (source.type === "seed" && index !== null) {
-    return Object.fromEntries(CHAIN_FAMILIES.map((f) => [f, Derivation.path(f, index)]));
+    if (CHAIN_FAMILIES.some((family) => Derivation.legacyPaths(family, index).length > 0))
+      return null;
+    return Object.fromEntries(
+      CHAIN_FAMILIES.map((family) => [family, Derivation.path(family, index)]),
+    );
   }
   if (source.type === "ledger") return { [source.family]: source.path };
   return null;

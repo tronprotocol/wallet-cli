@@ -35,16 +35,56 @@ describe("AddressCodec.validate", () => {
   });
 });
 
-// Each family follows its own ecosystem's template, so the account number hangs at a
-// DIFFERENT level per family. Swapping the coin type alone is not enough.
-describe("Derivation.path follows each family's own BIP44 template", () => {
-  it("puts the TRON account number at the account level", () => {
+// The software template follows the wallets a user can actually restore into: TronLink,
+// agent-wallet and the Java wallet-cli on TRON, MetaMask/Rabby/Trezor on EVM. Both increment
+// address_index, so both families share one shape.
+describe("Derivation.path is the software template for every family", () => {
+  it("increments address_index on TRON", () => {
     expect(Derivation.path("tron", 0)).toBe("m/44'/195'/0'/0/0");
-    expect(Derivation.path("tron", 2)).toBe("m/44'/195'/2'/0/0");
+    expect(Derivation.path("tron", 2)).toBe("m/44'/195'/0'/0/2");
   });
 
-  it("puts the EVM account number at the address_index level", () => {
+  it("increments address_index on EVM", () => {
     expect(Derivation.path("evm", 0)).toBe("m/44'/60'/0'/0/0");
     expect(Derivation.path("evm", 2)).toBe("m/44'/60'/0'/0/2");
+  });
+});
+
+// Ledger Live hangs the account number at the account level on BOTH chains, and that is what a
+// device user expects: an address this template does not produce is one Ledger Live will not
+// display, however real it is on the device.
+describe("Derivation.ledgerPath follows Ledger Live on every family", () => {
+  it("puts TRON at the account level", () => {
+    expect(Derivation.ledgerPath("tron", 0)).toBe("m/44'/195'/0'/0/0");
+    expect(Derivation.ledgerPath("tron", 3)).toBe("m/44'/195'/3'/0/0");
+  });
+
+  it("puts EVM at the account level", () => {
+    expect(Derivation.ledgerPath("evm", 0)).toBe("m/44'/60'/0'/0/0");
+    expect(Derivation.ledgerPath("evm", 3)).toBe("m/44'/60'/3'/0/0");
+  });
+
+  // The Ledger template and the software one now differ on BOTH families, so `--index 1` means a
+  // different path depending on where the account comes from. That is deliberate and the reason
+  // `import ledger --path` exists.
+  it("differs from the software template on both families", () => {
+    expect(Derivation.ledgerPath("tron", 1)).not.toBe(Derivation.path("tron", 1));
+    expect(Derivation.ledgerPath("evm", 1)).not.toBe(Derivation.path("evm", 1));
+  });
+});
+
+// The old TRON template is the only historical one: EVM never differed, and index 0 is the same
+// path under both, so neither yields a candidate.
+describe("Derivation.legacyPaths lists the templates this CLI used to produce", () => {
+  it("offers the old account-level TRON path for index >= 1", () => {
+    expect(Derivation.legacyPaths("tron", 1)).toEqual(["m/44'/195'/1'/0/0"]);
+  });
+
+  it("offers nothing at index 0, where the templates agree", () => {
+    expect(Derivation.legacyPaths("tron", 0)).toEqual([]);
+  });
+
+  it("offers nothing on EVM, which never changed", () => {
+    expect(Derivation.legacyPaths("evm", 2)).toEqual([]);
   });
 });

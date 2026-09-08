@@ -1,6 +1,12 @@
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Derivation } from "../../domain/derivation/index.js";
 import {
+  derivationMismatchError,
+  legacyAccounts,
+  resolveDerivation,
+} from "../../domain/wallet/derivation-match.js";
+import { walletAddress } from "../../domain/wallet/index.js";
+import {
   CHAIN_FAMILIES,
   canonicalAddress,
   familyOf,
@@ -13,7 +19,7 @@ import {
   evmAddressFromPublicKey,
   tronHexAddress,
 } from "../../domain/address/index.js";
-import type { Bytes } from "../../domain/types/index.js";
+import type { AccountDescriptor, Bytes } from "../../domain/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
@@ -22,6 +28,19 @@ import type { WalletRepository } from "../ports/wallet-repository.js";
 
 const mutationStatus = (created: boolean): "created" | "existing" =>
   created ? "created" : "existing";
+
+/**
+ * Password-free account commands deliberately do not make derivation claims. Their interface is
+ * account selection/identity, not key derivation, and an old TRON account cannot be distinguished
+ * from a corrected one without opening its seed. Keep that policy at the use-case seam so
+ * list/current/use/rename cannot drift apart.
+ */
+const withoutDerivationPath = <T extends AccountDescriptor>(
+  descriptor: T,
+): Omit<T, "derivationPath"> & { derivationPath: null } => ({
+  ...descriptor,
+  derivationPath: null,
+});
 
 const notExportable = (type: string) =>
   new WalletError("not_exportable", `${type} accounts hold no exportable secret`);
@@ -84,7 +103,7 @@ export class WalletService {
   }
 
   list() {
-    return this.wallets.list();
+    return this.wallets.list().map(withoutDerivationPath);
   }
 
   /** ids of wallets skipped by list() because this build does not know their source kind. */
@@ -94,19 +113,25 @@ export class WalletService {
 
   use(account: string) {
     const result = this.wallets.setActive(account);
-    return { previous: result.previous, ...this.wallets.describe(result.accountId) };
+    return withoutDerivationPath({
+      previous: result.previous,
+      ...this.wallets.describe(result.accountId),
+    });
   }
 
   current(requestedAccount?: string) {
     const account = requestedAccount ?? this.wallets.activeAccount();
     if (!account)
       throw new WalletError("missing_wallet_address", "no active account; import one first");
-    return this.wallets.describe(account);
+    return withoutDerivationPath(this.wallets.describe(account));
   }
 
   rename(account: string, label: string) {
     const result = this.wallets.rename(account, label);
-    return { previousLabel: result.previousLabel, ...this.wallets.describe(result.accountId) };
+    return withoutDerivationPath({
+      previousLabel: result.previousLabel,
+      ...this.wallets.describe(result.accountId),
+    });
   }
 
   changePassword(oldPassword: string, newPassword: string) {
@@ -142,7 +167,10 @@ export class WalletService {
       const newIndex = Number(result.accountId.split(".")[1]);
       this.wallets.rename(result.accountId, `${baseLabel ?? "hd"}-${newIndex}`);
     }
-    return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
+    return {
+      status: mutationStatus(result.created),
+      ...this.#describeWithVerifiedDerivation(result.accountId),
+    };
   }
 
   describe(account: string) {
@@ -167,10 +195,17 @@ export class WalletService {
     if (type !== "seed" && type !== "privateKey") throw notExportable(type);
   }
 
-  backup(account: string, requestedPath?: string) {
-    const descriptor = this.wallets.describe(account);
+  /**
+   * `warn` reports the accounts this backup does NOT cover. A mnemonic re-derives on the current
+   * template everywhere, so an account still on the old TRON path is missing from its own
+   * wallet's backup — and `delete` then `import mnemonic` is a documented recovery route, which
+   * is how a silent export turns into a lost account.
+   */
+  backup(account: string, requestedPath?: string, warn?: (message: string) => void) {
     const { wallet } = this.wallets.resolveAccount(account);
     const source = wallet.source;
+    const seed = source.type === "seed" ? this.wallets.decryptSeed(source.vaultId) : undefined;
+    const descriptor = this.#describeWithVerifiedDerivation(account, seed);
     const metadata = {
       accountId: descriptor.accountId,
       type: source.type,
@@ -185,6 +220,25 @@ export class WalletService {
       passphraseSet = revealed.passphraseSet;
       secretType = "mnemonic";
       payload = { ...metadata, secretType, passphraseSet, mnemonic: revealed.mnemonic };
+      // The whole wallet, not the account named on the command line: one mnemonic is every
+      // account of its seed, so the gap is the same whichever one was asked for.
+      const stranded = legacyAccounts(seed!, source.addresses);
+      if (stranded.length > 0 && warn) {
+        warn(
+          `this recovery phrase does NOT back up ${stranded
+            .map((a) => `${wallet.id}.${a.index} (${a.path})`)
+            .join(", ")} — ` +
+            `${stranded.length === 1 ? "that account was" : "those accounts were"} derived at a TRON path this version no longer produces, ` +
+            `and the phrase re-derives the current one in every wallet, this one included. ` +
+            `Export ${stranded.length === 1 ? "it" : "each"} separately before relying on this file:\n` +
+            stranded
+              .map(
+                (a) =>
+                  `  wallet-cli backup ${wallet.id}.${a.index} --keystore --network tron:728126428 --password-stdin`,
+              )
+              .join("\n"),
+        );
+      }
     } else if (source.type === "privateKey") {
       secretType = "privateKey";
       payload = {
@@ -220,8 +274,11 @@ export class WalletService {
     masterPassword: string,
     family: ChainFamily,
   ) {
-    const descriptor = this.wallets.describe(account);
-    const privateKey = this.#exportablePrivateKey(account, family);
+    const { wallet } = this.wallets.resolveAccount(account);
+    const seed =
+      wallet.source.type === "seed" ? this.wallets.decryptSeed(wallet.source.vaultId) : undefined;
+    const descriptor = this.#describeWithVerifiedDerivation(account, seed);
+    const privateKey = this.#exportablePrivateKey(account, family, seed);
     const file = this.backups.write(
       descriptor.accountId,
       requestedPath,
@@ -298,16 +355,50 @@ export class WalletService {
     return this.wallets.isInitialized();
   }
 
-  /** The account's own private key: an HD account's is derived at its index; a privateKey wallet's is
-   *  the stored key. Watch/Ledger accounts have none (assertExportable is the caller's early gate). */
-  #exportablePrivateKey(account: string, family: ChainFamily): Bytes {
+  /**
+   * A descriptor for a command that has opened the seed and can therefore state the path behind
+   * every cached address. This is intentionally separate from the password-free account views:
+   * a missing match is corruption/vault disagreement, never permission to print the current
+   * template as though it were an observed fact.
+   */
+  #describeWithVerifiedDerivation(account: string, knownSeed?: Bytes): AccountDescriptor {
+    const descriptor = this.wallets.describe(account);
+    const { wallet, index } = this.wallets.resolveAccount(account);
+    if (wallet.source.type !== "seed") return descriptor;
+
+    const seed = knownSeed ?? this.wallets.decryptSeed(wallet.source.vaultId);
+    const derivationPath: Record<string, string> = {};
+    for (const family of CHAIN_FAMILIES) {
+      const address = walletAddress(wallet, family, index);
+      if (!address) continue;
+      const resolved = resolveDerivation(seed, family, index, address);
+      if (!resolved) throw derivationMismatchError(family, descriptor.accountId);
+      derivationPath[family] = resolved.path;
+    }
+    return { ...descriptor, derivationPath };
+  }
+
+  /**
+   * The private key a backup may hand out.
+   *
+   * For a seed account the template is resolved against the stored address rather than assumed:
+   * an account derived before the TRON path correction still owns its old address, and exporting
+   * the current template's key would give the user an empty account — while the refusal message
+   * tells them to run exactly this command. This is deliberately the only place that will use a
+   * template the CLI no longer produces, and only so the key can leave.
+   */
+  #exportablePrivateKey(account: string, family: ChainFamily, knownSeed?: Bytes): Bytes {
     const { wallet, index } = this.wallets.resolveAccount(account);
     const source = wallet.source;
     // One key, shared by every family — nothing to choose.
     if (source.type === "privateKey") return this.wallets.decryptKey(source.keyId);
     if (source.type === "seed") {
-      const seed = this.wallets.decryptSeed(source.vaultId);
-      return Derivation.derive(seed, Derivation.path(family, index)).privateKey;
+      const address = walletAddress(wallet, family, index);
+      if (!address) throw new UsageError("family_mismatch", `account has no ${family} address`);
+      const seed = knownSeed ?? this.wallets.decryptSeed(source.vaultId);
+      const resolved = resolveDerivation(seed, family, index, address);
+      if (!resolved) throw derivationMismatchError(family, account);
+      return resolved.keyPair.privateKey;
     }
     throw notExportable(source.type);
   }

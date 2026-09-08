@@ -9,9 +9,13 @@
  *
  *   - seed / privateKey — hold a local secret, so both decrypt and re-derive. Needs the password.
  *   - ledger / watch — nothing to do. Single-family by construction; they carry no address map.
+ *
+ * The single exception to re-deriving is stated at its one call site below: a cached TRON address
+ * that a legacy template explains is evidence, not staleness, and is kept.
  */
-import type { Bytes, WalletsFile } from "../types/index.js";
+import type { Bytes, ChainAddresses, WalletsFile } from "../types/index.js";
 import { derivePrivAddresses, deriveSeedAddresses } from "../wallet/index.js";
+import { resolveDerivation } from "../wallet/derivation-match.js";
 import { SOURCE_KINDS } from "../sources/index.js";
 import type { Source } from "../types/wallet.js";
 
@@ -40,9 +44,21 @@ export function migrateWalletsToV2(doc: WalletsFileV1, secrets: MigrationSecrets
 
     if (source.type === "seed") {
       const seed = secrets.seedFor(source.vaultId as string); // once per wallet, not per index
-      const indices = Object.keys(source.addresses as Record<string, unknown>);
+      const cached = source.addresses as Record<string, Partial<ChainAddresses> | undefined>;
       const addresses = Object.fromEntries(
-        indices.map((index) => [index, deriveSeedAddresses(seed, Number(index))]),
+        Object.keys(cached).map((index) => {
+          const derived = deriveSeedAddresses(seed, Number(index));
+          // The one value re-derivation must not overwrite: a cached TRON address that a LEGACY
+          // template explains is not stale — it is the only record of which key owns the account.
+          // v1 shipped with the old TRON template, so a 4.12.0 user who ran `derive` reaches this
+          // migration holding exactly such a value; replacing it would hand the account to a
+          // different key and hide it from every legacy-derivation guard downstream.
+          const cachedTron = cached[index]?.tron;
+          const legacy =
+            cachedTron !== undefined &&
+            resolveDerivation(seed, "tron", Number(index), cachedTron)?.scheme === "legacy";
+          return [index, legacy ? { ...derived, tron: cachedTron } : derived];
+        }),
       );
       return { ...wallet, source: { ...source, addresses } };
     }

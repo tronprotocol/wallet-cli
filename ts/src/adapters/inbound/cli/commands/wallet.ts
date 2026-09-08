@@ -49,7 +49,7 @@ export const walletImportLedgerFields = z.object({
     // parsed default makes `index` always present, and the locator rule below counts PRESENCE —
     // `--path` alone would then read as two locators. The default stays in the description.
     .describe(
-      "account index under the app's default path; omit with no --path/--address to use index 0; mutually exclusive with --path and --address",
+      "Ledger Live account index (m/44'/<coin>'/<index>'/0/0); defaults to 0 when no locator is given; mutually exclusive with --path and --address",
     ),
   path: z
     .string()
@@ -546,7 +546,7 @@ export function registerWalletCommands(
       .int()
       .nonnegative()
       .optional()
-      .describe("explicit HD account index, in account index; omit to use the next free index"),
+      .describe("address index in m/44'/<coin>'/0'/0/<index>; omit to use the next free index"),
     label: Schemas.label()
       .optional()
       .describe(
@@ -562,9 +562,7 @@ export function registerWalletCommands(
     // Minus the `--path` sentence — that flag is not implemented: a hand-picked derivation path
     // would yield an account that exists on ONE family, and every seed account here is derived
     // for all of them at once.
-    description:
-      "Derive the next HD account from a seed wallet (by --seed-id). Each family uses\n" +
-      "its own BIP44 template, so one derive yields an address per family.",
+    description: "Derive one address per family using m/44'/<coin>'/0'/0/<index>.",
     fields: addAccountFields,
     input: addAccountFields,
     examples: [{ cmd: "wallet-cli derive --seed-id wlt_ab12cd34" }],
@@ -761,7 +759,7 @@ export function registerWalletCommands(
             ctx.secrets.read("password"),
             (network ?? ctx.networkRegistry.resolveDefault()).family,
           )
-        : wallets.backup(account, input.out);
+        : wallets.backup(account, input.out, (m) => ctx.warn(m));
     },
   } satisfies CommandDefinition);
 

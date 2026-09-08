@@ -10,6 +10,9 @@ import type { TokenEntry } from "../src/domain/types/index.js";
 import { DETACHED } from "./detached.js";
 
 const ENTRY = join(process.cwd(), "src", "index.ts");
+const PACKAGE_VERSION = (
+  JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string }
+).version;
 const MNEMONIC = "test test test test test test test test test test test junk";
 const TRON1 = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const DEFAULT_PW = "testpw123A";
@@ -68,10 +71,13 @@ function seedToken(networkId: string, ref: string, entry: TokenEntry) {
 }
 
 describe("golden CLI — meta & introspection", () => {
-  it("--version prints the version, exit 0", () => {
+  // Read from package.json rather than pinned: this asserts that --version reports the version
+  // this build IS, which is the actual contract. A literal here makes every release bump a test
+  // failure, and the fix for that failure is to retype the same number in a second place.
+  it("--version prints the package version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe("4.13.0");
+    expect(r.stdout.trim()).toBe(PACKAGE_VERSION);
   });
 
   it("root --help shows the TRON first-release command surface", () => {

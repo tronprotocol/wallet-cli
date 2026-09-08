@@ -52,10 +52,11 @@ export interface AccountDescriptor {
    *  --seed` takes. Combined with `index`, tells which seed an account belongs to and its slot. */
   seedId?: string;
   /**
-   * Which BIP44 template each of this account's addresses came from — one entry per family it
-   * has. `null` for an account that was never derived (watch, private-key), which is a different
-   * statement from an omitted field: it says "there is no path", not "we did not look".
-   * The two families use different templates, so without this a user cannot tell which.
+   * The verified BIP32 path behind each of this account's addresses, one entry per family.
+   * `null` means the command does not provide derivation information: list/current/use/rename
+   * deliberately return null because they do not unlock the seed; watch and private-key accounts
+   * also return null because they were never derived. Commands that hold a seed (derive/backup)
+   * resolve each cached address against its actual current or historical template before reporting.
    */
   derivationPath?: Record<string, string> | null;
 }

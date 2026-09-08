@@ -38,12 +38,33 @@ export class Derivation {
     return entropyToMnemonic(entropy, wordlist);
   }
 
-  /** the family's own BIP44 template with `account` slotted into the level it uses. */
-  static path(family: ChainFamily, account: number): string {
-    const { coinType, indexAt } = FAMILIES[family];
-    return indexAt === "account"
-      ? `m/44'/${coinType}'/${account}'/0/0`
-      : `m/44'/${coinType}'/0'/0/${account}`;
+  /**
+   * The software derivation template: `m/44'/<coin>'/0'/0/<index>` for every family.
+   *
+   * Both ecosystems increment address_index — TronLink, agent-wallet and the Java wallet-cli on
+   * TRON, MetaMask/Rabby/Trezor on EVM — so an account derived here is one the user can restore
+   * anywhere. Before this was corrected, TRON hung the number at the account level, at a path no
+   * other wallet reaches; `legacyPaths` still names it so those accounts can be identified.
+   */
+  static path(family: ChainFamily, index: number): string {
+    return `m/44'/${FAMILIES[family].coinType}'/0'/0/${index}`;
+  }
+
+  /** Ledger Live's account-level template. `--path` reaches any other device scheme explicitly. */
+  static ledgerPath(family: ChainFamily, index: number): string {
+    return `m/44'/${FAMILIES[family].coinType}'/${index}'/0/0`;
+  }
+
+  /**
+   * Software templates this CLI produced in the past but no longer does, newest first.
+   *
+   * Only TRON has one, and only from index 1: index 0 is the same path under both templates, and
+   * EVM's template never changed. An empty list means every account of this family and index can
+   * only have come from the current template.
+   */
+  static legacyPaths(family: ChainFamily, index: number): string[] {
+    if (family !== "tron" || index === 0) return [];
+    return [`m/44'/195'/${index}'/0/0`];
   }
 
   /** Derive a keypair from a 64-byte seed at the given BIP44 path. publicKey is uncompressed (65B). */

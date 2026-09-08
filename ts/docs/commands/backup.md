@@ -18,6 +18,8 @@ Two formats:
 - **Native** (default) — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
 - **`--keystore`** — a standard Web3 keystore JSON, importable by TronLink and others, encrypted with **your master password**. A keystore holds a **single private key**: an HD account exports only its current derived key, and that key arrives elsewhere as a standalone account with nothing derivable from it. Use the native format to move a seed.
 
+The native export warns when the wallet contains an affected account whose TRON address uses the historical path `m/44'/195'/<n>'/0/0`. A normal mnemonic import in this version follows the current template and does not recreate that address automatically, so export each account named by the warning with `--keystore` before deleting it. See [Accounts & HD](../concepts/accounts-and-hd.md).
+
 **A keystore also holds one key per *family*.** A seed account derives a different key for TRON (coin type 195) and for EVM (coin type 60), and a keystore can carry only one of them, so `--network` selects which — falling back to `config.defaultNetwork` when omitted. The receipt names the family that was written, and the export log records it. A private-key account has a single key and ignores the selection; the native backup covers every family at once, so it needs no choice and reports none.
 
 **Files land in the current working directory** by default — `./<accountId>-<timestamp>.json`, or `./<accountId>-<timestamp>.keystore.json` with `--keystore`. `--out` overrides the path.
@@ -140,7 +142,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 | `index` | number \| null | HD derivation index; `null` for private-key accounts |
 | `active` | boolean | Whether it is the active account |
 | `addresses` | object | One entry per family the account can produce: `tron` and/or `evm` |
-| `derivationPath` | object \| null | Per-family BIP44 path for `seed` accounts; `null` for `privateKey` |
+| `derivationPath` | object \| null | The verified BIP44 path behind each address. A seed backup unlocks the seed and reports every family's actual path, including the pre-4.13.1 TRON path for a stranded account; a private-key account reports `null` |
 | `family` | string | With `--keystore`, which family's key was written; absent for a native backup, which covers every family |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `secretType` | string | Kind of exported secret — `mnemonic`, or `privateKey` with `--keystore` |

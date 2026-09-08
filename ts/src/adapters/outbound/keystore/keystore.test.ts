@@ -849,18 +849,27 @@ describe("wallets.json schema version", () => {
 });
 
 describe("descriptor carries each family's derivation path", () => {
-  // Json had no path at all, so a user could not tell WHICH template an account used —
-  // and the two families deliberately use different ones.
-  it("gives a seed account one path per family", () => {
+  // A generic descriptor does not present a partial path object: if one family's actual template
+  // cannot be determined without the seed, derivation information is unavailable as a whole.
+  it("reports no derivation information when one family's path is ambiguous", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
     const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     ks.addAccount(ks.list()[0]!.seedId!, 2);
 
     const account2 = ks.list().find((a) => a.index === 2)!;
-    expect(account2.derivationPath).toEqual({
-      tron: "m/44'/195'/2'/0/0",
-      evm: "m/44'/60'/0'/0/2",
+    expect(account2.derivationPath).toBeNull();
+  });
+
+  // Index 0 is the same path under both templates, so it is knowable and must still be reported.
+  it("still reports both paths for index 0, where the templates agree", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    expect(ks.list()[0]!.derivationPath).toEqual({
+      tron: "m/44'/195'/0'/0/0",
+      evm: "m/44'/60'/0'/0/0",
     });
   });
 
@@ -885,5 +894,140 @@ describe("descriptor carries each family's derivation path", () => {
     });
 
     expect(ks.list()[0]!.derivationPath).toEqual({ tron: "m/44'/195'/5'/0/0" });
+  });
+});
+
+describe("derive on a wallet holding a pre-correction account", () => {
+  const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
+
+  function keystoreWithLegacyAccount() {
+    const root = mkdtempSync(join(tmpdir(), "ks-legacy-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const path = join(root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    source.addresses["1"] = {
+      tron: TRON_LEGACY_1,
+      evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    };
+    store.writeJsonAll([{ path, value: file }]);
+    return new Keystore(root, store, () => "masterpw123A");
+  }
+
+  // A wallet must never hold both templates: nothing on disk distinguishes them afterwards, so
+  // a mixed wallet is permanently ambiguous to every later reader.
+  it("refuses, rather than adding a second template to the same wallet", () => {
+    const ks = keystoreWithLegacyAccount();
+    expect(() => ks.addAccount(ks.list()[0]!.seedId!)).toThrowError(
+      expect.objectContaining({ code: "legacy_derivation" }),
+    );
+  });
+
+  it("identifies the wallet and stranded account by label", () => {
+    const ks = keystoreWithLegacyAccount();
+    const seedId = ks.list()[0]!.seedId!;
+    ks.rename(`${seedId}.1`, "legacy account");
+
+    let message = "";
+    try {
+      ks.addAccount(seedId);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain('wallet "main" holds account "legacy account"');
+    expect(message).toContain("backup 'legacy account' --keystore");
+    expect(message).not.toContain(`${seedId}.1`);
+  });
+
+  // `--index <existing>` is documented as a no-op that just re-activates the slot, and a refusal
+  // there is wrong twice over: nothing new is being derived, and the message would tell the user
+  // "no further accounts can be derived" about a request that asked for none. The guard belongs
+  // to the branch that actually creates a key.
+  it("still re-activates an existing index rather than refusing", () => {
+    const ks = keystoreWithLegacyAccount();
+    const seedId = ks.list()[0]!.seedId!;
+
+    const result = ks.addAccount(seedId, 0);
+
+    expect(result).toEqual({ accountId: `${seedId}.0`, created: false });
+  });
+
+  // Including the stranded slot itself: activating an account is not signing it, and the signer
+  // is where the refusal belongs. `use wlt.1` already reaches it by another route.
+  it("re-activates the stranded slot itself without refusing", () => {
+    const ks = keystoreWithLegacyAccount();
+    const seedId = ks.list()[0]!.seedId!;
+
+    expect(ks.addAccount(seedId, 1)).toEqual({ accountId: `${seedId}.1`, created: false });
+  });
+
+  // A cached address no template explains means wallets.json and the vault disagree. The signer
+  // and `backup --keystore` both refuse that state; deriving a new key into the same file while
+  // saying nothing would leave the caller to meet it later, on a signature.
+  it("refuses with derivation_mismatch when a slot matches no template at all", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-mismatch-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const path = join(root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    // The index-0 address parked at index 1: a real TRON address, but one no template produces
+    // for index 1 from this seed.
+    source.addresses["1"] = {
+      tron: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6",
+      evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", // real for index 1; only tron is checked
+    };
+    store.writeJsonAll([{ path, value: file }]);
+    const fresh = new Keystore(root, store, () => "masterpw123A");
+
+    expect(() => fresh.addAccount(fresh.list()[0]!.seedId!)).toThrowError(
+      expect.objectContaining({ code: "derivation_mismatch" }),
+    );
+  });
+
+  it("does not change the active account when an existing slot fails verification", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-mismatch-existing-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "masterpw123A");
+    const rootRef = ks.import({ secret: MNEMONIC, type: "seed", label: "main" }).accountId;
+    const path = join(root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    source.addresses["1"] = {
+      tron: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6",
+      evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    };
+    store.writeJsonAll([{ path, value: file }]);
+    const fresh = new Keystore(root, store, () => "masterpw123A");
+
+    expect(() => fresh.addAccount(rootRef.split(".")[0]!, 1)).toThrowError(
+      expect.objectContaining({ code: "derivation_mismatch" }),
+    );
+    expect(fresh.activeAccount()).toBe(rootRef);
+  });
+
+  // Most 4.13.0 users never ran derive. Index 0 is the same path under both templates, so their
+  // wallets are unaffected and must stay usable — blocking them would be a regression for a
+  // problem they do not have.
+  it("allows a wallet that only ever held index 0", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-clean-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    const result = ks.addAccount(ks.list()[0]!.seedId!);
+    expect(result.created).toBe(true);
   });
 });
