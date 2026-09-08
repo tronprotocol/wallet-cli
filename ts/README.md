@@ -202,7 +202,7 @@ A command errored or behaved unexpectedly? Common issues and how to diagnose the
 
 ## ERC-8004 beta integration
 
-The `8004` command group uses `@bankofai/8004-sdk@1.2.0-beta.0`.
+The `8004` command group uses `@bankofai/8004-sdk@1.2.0-beta.1`.
 
 ```sh
 wallet-cli 8004 show eip155:97:42 --network bsc-testnet --output json
@@ -219,8 +219,8 @@ Write commands retain the normal wallet transaction modes. `--wait` reports the
 registered ID or re-reads URI/owner after successful confirmation; an unconfirmed
 transaction is returned as submitted and must not be blindly retried.
 
-Development details and the reserved external signer bridge are documented in
-[the signer handoff](docs/development/8004-signer-handoff.md).
+Registry configuration stays in the SDK; signing and broadcasting stay in the wallet
+transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-integration.md).
 
 ## B.AI usage and x402 providers
 

@@ -12,6 +12,7 @@ it.each([
   ["base", "eip155:8453", "USDC", "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"],
   ["bsc", "eip155:56", "USDT", "0x55d398326f99059fF775485246999027B3197955"],
   ["tron", "tron:0x2b6653dc", "USDT", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"],
+  ["nile", "tron:0xcd8690dc", "USDT", "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"],
 ])(
   "inspects an online-provider-shaped challenge on %s with a watch-only wallet",
   (alias, network, token, asset) => {
@@ -20,9 +21,9 @@ it.each([
       new Keystore(home, new AtomicFileStore(), () => {
         throw new Error("dry-run must not request a password");
       }).registerWatch({
-        family: alias === "tron" ? "tron" : "evm",
+        family: alias === "tron" || alias === "nile" ? "tron" : "evm",
         address:
-          alias === "tron"
+          alias === "tron" || alias === "nile"
             ? "TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE"
             : "0x1111111111111111111111111111111111111111",
         label: "inspection-only",
@@ -38,7 +39,7 @@ it.each([
             asset,
             amount: "1",
             payTo:
-              alias === "tron"
+              alias === "tron" || alias === "nile"
                 ? "TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE"
                 : "0x1111111111111111111111111111111111111111",
             maxTimeoutSeconds: 300,

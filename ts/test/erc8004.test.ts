@@ -30,7 +30,28 @@ async function fixture(family: "evm" | "tron") {
   const server = createServer(async (req, res) => {
     let body = "";
     for await (const chunk of req) body += chunk;
-    const rpc = JSON.parse(body);
+    const rpc = JSON.parse(body || "{}");
+    if (family === "tron" && !rpc.function_selector) {
+      calls.push({ path: req.url!, header: req.headers["x-test-api-key"], method: req.url! });
+      const data =
+        req.url === "/wallet/getblock"
+          ? {
+              blockID: "00".repeat(32),
+              block_header: { raw_data: { number: 12345, timestamp: Date.now() } },
+            }
+          : {};
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify(data));
+      return;
+    }
+    if (family === "tron" && rpc.function_selector === "register(string)") {
+      calls.push({ path: req.url!, header: req.headers["x-test-api-key"], method: "register" });
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({ result: { result: true }, energy_used: 20000, constant_result: [] }),
+      );
+      return;
+    }
     if (family === "evm" && rpc.method !== "eth_call") {
       calls.push({ path: req.url!, header: req.headers["x-test-api-key"], method: rpc.method });
       const results: Record<string, unknown> = {
@@ -122,7 +143,11 @@ async function fixture(family: "evm" | "tron") {
   const watch = () =>
     new Keystore(home, new AtomicFileStore(), () => {
       throw new Error("watch needs no key");
-    }).registerWatch({ family, address: owner, label: "observer" });
+    }).registerWatch({
+      family,
+      address: family === "tron" ? "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" : owner,
+      label: "observer",
+    });
   return { run, calls, network, watch };
 }
 
@@ -190,3 +215,18 @@ it("EVM approve dry-run renders the Agent ID without any fungible-token read", a
     f.calls.some((c) => ["decimals", "symbol", "eth_sendRawTransaction"].includes(c.method)),
   ).toBe(false);
 });
+
+for (const mode of ["dry-run", "build-only"] as const) {
+  it(`Nile register ${mode} uses the existing TRON transaction pipeline without broadcasting`, async () => {
+    const f = await fixture("tron");
+    f.watch();
+    const r = await f.run(["register", "ipfs://example", "--account", "observer", `--${mode}`]);
+    expect(r.code, r.stderr || r.stdout).toBe(0);
+    const data = JSON.parse(r.stdout).data;
+    expect(data.mode).toBe(mode);
+    const value = data.tx.raw_data.contract[0].parameter.value;
+    expect(abi.parseTransaction({ data: `0x${value.data}` })?.args[0]).toBe("ipfs://example");
+    expect(f.calls.some((c) => c.path.includes("broadcast"))).toBe(false);
+    expect(f.calls.every((c) => c.header === "test-only-key")).toBe(true);
+  });
+}
