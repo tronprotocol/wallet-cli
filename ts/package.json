@@ -55,10 +55,10 @@
   "license": "LGPL-3.0-or-later",
   "dependencies": {
     "@bankofai/8004-sdk": "1.2.0-beta.1",
-    "@bankofai/x402-core": "^1.1.0",
+    "@bankofai/x402-core": "1.1.1-beta.1",
     "@bankofai/x402-evm": "^1.1.0",
     "@bankofai/x402-fetch": "^1.1.0",
-    "@bankofai/x402-tron": "^1.2.0",
+    "@bankofai/x402-tron": "2.0.0-beta.1",
     "@ledgerhq/hw-app-eth": "^7.8.15",
     "@ledgerhq/hw-app-trx": "^6.36.3",
     "@ledgerhq/hw-transport-node-hid-noevents": "^6.35.4",
@@ -82,7 +82,8 @@
   "overrides": {
     "axios": "^1.18.1",
     "ws": "8.21.1",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "@bankofai/x402-core": "$@bankofai/x402-core"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
