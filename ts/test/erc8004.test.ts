@@ -11,6 +11,9 @@ import { DETACHED } from "./detached.js";
 
 const abi = new Interface([
   "function register(string)",
+  "function setAgentURI(uint256,string)",
+  "function transferFrom(address,address,uint256)",
+  "function setApprovalForAll(address,bool)",
   "function approve(address,uint256)",
   "function ownerOf(uint256) view returns(address)",
   "function tokenURI(uint256) view returns(string)",
@@ -44,7 +47,16 @@ async function fixture(family: "evm" | "tron") {
       res.end(JSON.stringify(data));
       return;
     }
-    if (family === "tron" && rpc.function_selector === "register(string)") {
+    if (
+      family === "tron" &&
+      [
+        "register(string)",
+        "setAgentURI(uint256,string)",
+        "transferFrom(address,address,uint256)",
+        "setApprovalForAll(address,bool)",
+        "approve(address,uint256)",
+      ].includes(rpc.function_selector)
+    ) {
       calls.push({ path: req.url!, header: req.headers["x-test-api-key"], method: "register" });
       res.setHeader("content-type", "application/json");
       res.end(
@@ -229,4 +241,32 @@ for (const mode of ["dry-run", "build-only"] as const) {
     expect(f.calls.some((c) => c.path.includes("broadcast"))).toBe(false);
     expect(f.calls.every((c) => c.header === "test-only-key")).toBe(true);
   });
+}
+
+for (const family of ["evm", "tron"] as const) {
+  const recipient = family === "evm" ? owner : "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
+  for (const [verb, args, method] of [
+    ["update", ["42", "ipfs://updated"], "setAgentURI"],
+    ["transfer", ["42", recipient], "transferFrom"],
+    ["approve", ["42", recipient], "approve"],
+    ["operator-add", [recipient], "setApprovalForAll"],
+    ["operator-remove", [recipient], "setApprovalForAll"],
+  ] as const) {
+    it(`${family} ${verb} builds the expected identity transaction without broadcasting`, async () => {
+      const f = await fixture(family);
+      f.watch();
+      const r = await f.run([verb, ...args, "--account", "observer", "--build-only"]);
+      expect(r.code, r.stderr || r.stdout).toBe(0);
+      const data = JSON.parse(r.stdout).data;
+      const calldata =
+        family === "evm" ? data.tx.data : `0x${data.tx.raw_data.contract[0].parameter.value.data}`;
+      const parsed = abi.parseTransaction({ data: calldata });
+      expect(parsed?.name).toBe(method);
+      if (verb === "operator-add" || verb === "operator-remove")
+        expect(parsed?.args[1]).toBe(verb === "operator-add");
+      expect(
+        f.calls.some((c) => c.method === "eth_sendRawTransaction" || c.path.includes("broadcast")),
+      ).toBe(false);
+    });
+  }
 }

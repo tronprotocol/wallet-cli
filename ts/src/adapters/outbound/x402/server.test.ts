@@ -7,3 +7,71 @@ describe("x402 server amount conversion", () => {
     expect(() => toSmallestUnit("0.0000001", 6)).toThrow(/at most 6/);
   });
 });
+
+import { X402HttpServer } from "./server.js";
+import { createServer } from "node:net";
+import { request } from "node:http";
+import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+async function withServer(settlement: object, run: (port: number) => Promise<void>) {
+  const socket = createServer();
+  await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
+  const port = (socket.address() as { port: number }).port;
+  await new Promise<void>((resolve) => socket.close(() => resolve()));
+  const server = new X402HttpServer(async (url) =>
+    Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement),
+  );
+  const handle = await server.start(
+    { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
+    {
+      host: "127.0.0.1",
+      port,
+      payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+      amount: "0.01",
+      token: "USDT",
+      scheme: "exact",
+      facilitatorUrl: "https://fake.invalid",
+    },
+  );
+  try {
+    await run(port);
+  } finally {
+    await handle.close();
+  }
+}
+
+it("rejects malformed request URLs and keeps serving health requests", async () => {
+  await withServer({}, async (port) => {
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request({ hostname: "127.0.0.1", port, path: "//[" }, (response) => {
+        response.resume();
+        response.on("end", () => resolve(response.statusCode));
+      });
+      req.on("error", reject);
+      req.end();
+    });
+    expect(status).toBe(400);
+    expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
+  });
+});
+
+it.each([
+  [{ success: true, transaction: "", network: "tron:0xcd8690dc" }, 502],
+  [{ success: true, transaction: "a".repeat(64), network: "eip155:1" }, 502],
+  [{ success: true, transaction: "garbage", network: "tron:0xcd8690dc" }, 502],
+  [{ success: false, transaction: "a".repeat(64), network: "tron:0xcd8690dc" }, 502],
+  [{ success: true, transaction: "a".repeat(64), network: "tron:0xcd8690dc" }, 200],
+])("validates facilitator settlement %j", async (settlement, status) => {
+  await withServer(settlement, async (port) => {
+    const response = await fetch(`http://127.0.0.1:${port}/pay`, {
+      headers: {
+        "payment-signature": Buffer.from(JSON.stringify({ x402Version: 2, payload: {} })).toString(
+          "base64",
+        ),
+      },
+    });
+    expect(response.status).toBe(status);
+    expect(response.headers.has("payment-response")).toBe(status === 200);
+    await response.arrayBuffer();
+  });
+});

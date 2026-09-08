@@ -173,3 +173,57 @@ describe("X402PaymentClient", () => {
     ).rejects.toMatchObject({ code: "output_exists" });
   });
 });
+
+it.each([
+  [
+    { success: false, errorReason: "transaction_failed", transaction: "", network: "eip155:56" },
+    false,
+  ],
+  [{ success: true, transaction: "0x" + "a".repeat(64), network: "eip155:56" }, true],
+  [{ success: true, transaction: "", network: "eip155:56" }, false],
+  [{ success: true, transaction: "0x" + "a".repeat(64), network: "eip155:8453" }, false],
+  [{ transaction: "0x" + "a".repeat(64), network: "eip155:56" }, false],
+])("only marks a successful matching settlement as settled (%j)", async (header, settled) => {
+  const client = new X402PaymentClient(
+    resolver,
+    async () =>
+      new Response("{}", {
+        status: 502,
+        headers: {
+          "content-type": "application/json",
+          "payment-response": Buffer.from(JSON.stringify(header)).toString("base64"),
+        },
+      }),
+  );
+  await expect(
+    client.pay(scope, net, { url: "https://example.test", method: "GET", headers: [] }),
+  ).resolves.toMatchObject({ settled, delivered: false });
+});
+it("bounds oversized 402 bodies before the SDK or signer handles them", async () => {
+  let pulled = 0;
+  const cancel = vi.fn();
+  const local = { assertCanSign: vi.fn(), resolve: vi.fn() } as unknown as SignerResolver;
+  const client = new X402PaymentClient(
+    local,
+    async () =>
+      new Response(
+        new ReadableStream(
+          {
+            pull(c) {
+              pulled++;
+              c.enqueue(new Uint8Array(1024 * 1024));
+            },
+            cancel,
+          },
+          { highWaterMark: 0 },
+        ),
+        { status: 402 },
+      ),
+  );
+  await expect(
+    client.pay(scope, net, { url: "https://example.test", method: "GET", headers: [] }),
+  ).rejects.toMatchObject({ code: "response_too_large" });
+  expect(pulled).toBe(11);
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(local.resolve).not.toHaveBeenCalled();
+});

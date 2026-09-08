@@ -1,3 +1,4 @@
+import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
 import type {
   BaiApi,
@@ -84,16 +85,24 @@ export class BaiClient implements BaiApi {
           ? ""
           : `?batch=1&input=${encoded}`;
     const url = `${this.baseUrl}/trpc/lambda/${procedure}${suffix}`;
+    const signal = AbortSignal.timeout(this.timeoutMs);
     let response: Response;
     try {
       response = await this.fetcher(url, {
         method: "GET",
         headers: { Accept: "application/json", Authorization: `Bearer ${key}` },
         redirect: "error",
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal,
       });
+      // Preserve status errors without reading an untrusted error body.
+      if (response.ok) response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
+      else await response.body?.cancel();
     } catch (error) {
-      if (error instanceof Error && error.name === "TimeoutError") {
+      if (error instanceof TransportError) throw error;
+      if (
+        signal.aborted ||
+        (error instanceof Error && /TimeoutError|AbortError/.test(error.name))
+      ) {
         throw new TransportError("timeout", "B.AI API request timed out");
       }
       throw new TransportError("provider_error", "B.AI API request failed");

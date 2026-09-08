@@ -1,3 +1,4 @@
+import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
 import type { Config } from "../../../domain/types/index.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
@@ -116,6 +117,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
       );
     const payload = JSON.stringify({ json: input });
     if (method === "GET") url.searchParams.set("input", payload);
+    const signal = AbortSignal.timeout(this.timeoutMs);
     let response: Response;
     let decoded: unknown;
     try {
@@ -127,9 +129,10 @@ export class BaiRechargeClient implements BaiRechargeApi {
           Accept: "application/json",
         },
         redirect: "error",
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal,
         ...(method === "POST" ? { body: payload } : {}),
       });
+      if (!response.ok) await response.body?.cancel();
       if (response.status === 401 || response.status === 403)
         throw new TransportError("bai_auth_failed", "B.AI API rejected the configured credential");
       if (response.status === 429)
@@ -139,6 +142,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
           "provider_error",
           `B.AI recharge API returned HTTP ${response.status}`,
         );
+      response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
       decoded = await response.json();
     } catch (error) {
       if (error instanceof TransportError) throw error;

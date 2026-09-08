@@ -1,3 +1,4 @@
+import { fetchBounded } from "../http/http-response.js";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -5,7 +6,7 @@ import type {
   ProviderCatalogPort,
   ProviderListInput,
 } from "../../../application/ports/provider-catalog.js";
-import { TransportError, UsageError } from "../../../domain/errors/index.js";
+import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 
 const CATALOG_URL = "https://x402-catalog.bankofai.io/api/catalog.json";
 
@@ -13,6 +14,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   constructor(
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly cacheFile = join(homedir(), ".cache", "wallet-cli", "x402", "catalog.json"),
+    private readonly timeoutMs = 60000,
   ) {}
 
   async list(input: ProviderListInput) {
@@ -80,8 +82,14 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   private async readJson(url: string): Promise<Record<string, unknown>> {
     let response: Response;
     try {
-      response = await this.fetcher(url, { headers: { accept: "application/json" } });
-    } catch {
+      response = await fetchBounded(
+        this.fetcher,
+        url,
+        { headers: { accept: "application/json" }, redirect: "error" },
+        this.timeoutMs,
+      );
+    } catch (error) {
+      if (error instanceof CliError) throw error;
       throw new TransportError("provider_error", "x402 catalog request failed");
     }
     if (!response.ok) {

@@ -48,3 +48,14 @@ describe("X402ProviderCatalog", () => {
     await expect(catalog.show("../secret")).rejects.toMatchObject({ code: "invalid_value" });
   });
 });
+
+it("applies the configured timeout to provider requests", async () => {
+  const fetcher = vi.fn(
+    (_request, init) =>
+      new Promise<Response>((_resolve, reject) =>
+        init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true }),
+      ),
+  );
+  const catalog = new X402ProviderCatalog(fetcher as typeof fetch, undefined, 10);
+  await expect(catalog.list({ limit: 1, offset: 0 })).rejects.toMatchObject({ code: "timeout" });
+});

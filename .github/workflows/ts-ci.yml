@@ -69,5 +69,5 @@ jobs:
       - name: Build npm bundle
         run: npm run build
 
-      - name: Validate npm package contents
-        run: npm pack --dry-run
+      - name: Verify independently installed npm package
+        run: npm run verify:package

@@ -1,3 +1,5 @@
+import { successfulSettlement } from "./settlement.js";
+import { fetchBounded } from "../http/http-response.js";
 import { createServer, type Server } from "node:http";
 import {
   decodePaymentSignatureHeader,
@@ -88,7 +90,10 @@ const TOKENS: Record<string, Record<string, Token>> = {
 };
 
 export class X402HttpServer implements X402ServerPort {
-  constructor(private readonly fetcher: typeof fetch = globalThis.fetch) {}
+  constructor(
+    private readonly fetcher: typeof fetch = globalThis.fetch,
+    private readonly timeoutMs = 60000,
+  ) {}
 
   async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
     if (input.scheme === "exact_gasfree" && network.family !== "tron") {
@@ -123,7 +128,12 @@ export class X402HttpServer implements X402ServerPort {
       accepts: [requirement],
     };
     const server = createServer(async (request, response) => {
-      const pathname = new URL(request.url ?? "/", resourceUrl).pathname;
+      let pathname: string;
+      try {
+        pathname = new URL(request.url ?? "/", resourceUrl).pathname;
+      } catch {
+        return json(response, 400, { error: "invalid request URL" });
+      }
       if (pathname === "/health") return json(response, 200, { ok: true });
       if (pathname !== "/pay") return json(response, 404, { error: "not found" });
       const signature = request.headers["payment-signature"];
@@ -143,7 +153,7 @@ export class X402HttpServer implements X402ServerPort {
           paymentPayload,
           paymentRequirements: requirement,
         });
-        if (settle.success !== true || typeof settle.transaction !== "string")
+        if (!successfulSettlement(settle, x402Network))
           return json(response, 502, { error: "settlement failed" });
         response.setHeader("payment-response", encodePaymentResponseHeader(settle as never));
         return json(response, 200, {
@@ -176,11 +186,18 @@ export class X402HttpServer implements X402ServerPort {
     path: string,
     body: unknown,
   ): Promise<Record<string, unknown>> {
-    const response = await this.fetcher(new URL(path, `${base.replace(/\/+$/, "")}/`), {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify(body),
-    });
+    const response = await fetchBounded(
+      this.fetcher,
+      new URL(path, `${base.replace(/\/+$/, "")}/`),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify(body),
+        redirect: "error",
+      },
+      this.timeoutMs,
+      1024 * 1024,
+    );
     if (!response.ok)
       throw new TransportError("provider_error", `facilitator returned HTTP ${response.status}`);
     return (await response.json()) as Record<string, unknown>;

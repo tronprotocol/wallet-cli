@@ -1,3 +1,4 @@
+import packageMetadata from "../package.json" with { type: "json" };
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -71,7 +72,7 @@ describe("golden CLI — meta & introspection", () => {
   it("--version prints the version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe("4.13.0");
+    expect(r.stdout.trim()).toBe(packageMetadata.version);
   });
 
   it("root --help shows the TRON first-release command surface", () => {

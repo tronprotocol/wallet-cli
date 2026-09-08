@@ -1,3 +1,5 @@
+import { successfulSettlement } from "./settlement.js";
+import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import {
   x402Client,
   wrapFetchWithPayment,
@@ -33,7 +35,7 @@ type PaidFetchFactory = (
   scope: TransactionScope,
 ) => Promise<typeof fetch>;
 
-const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+const MAX_RESPONSE_BYTES = MAX_HTTP_RESPONSE_BYTES;
 
 export class X402PaymentClient implements X402PaymentPort {
   constructor(
@@ -56,16 +58,17 @@ export class X402PaymentClient implements X402PaymentPort {
         const paidFetch = await this.paidFetchFactory(network, signer, scope);
         return this.readResponse(
           input.url,
-          await paidFetch(input.url, requestInit),
+          await boundedResponse(await paidFetch(input.url, requestInit), MAX_RESPONSE_BYTES),
           signer,
           input.out,
+          toX402Network(network),
         );
       }
 
       const boundedFetch = this.boundedFetch(scope);
       const initial = await boundedFetch(input.url, requestInit);
       if (initial.status !== 402)
-        return this.readResponse(input.url, initial, undefined, input.out);
+        return this.readResponse(input.url, initial, undefined, input.out, toX402Network(network));
       if (input.dryRun) return inspectChallenge(input.url, initial, network, input);
 
       if (input.expectedPayTo || input.exactAmount !== undefined) {
@@ -80,6 +83,7 @@ export class X402PaymentClient implements X402PaymentPort {
         await paidFetch(input.url, requestInit),
         signer,
         input.out,
+        toX402Network(network),
       );
     } catch (error) {
       if (error instanceof CliError) throw error;
@@ -95,6 +99,7 @@ export class X402PaymentClient implements X402PaymentPort {
     response: Response,
     signer?: Pick<Signer, "address">,
     out?: string,
+    expectedNetwork?: string,
   ) {
     const declaredLength = Number(response.headers.get("content-length"));
     if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
@@ -121,7 +126,7 @@ export class X402PaymentClient implements X402PaymentPort {
       url,
       status: response.status,
       delivered: response.ok,
-      settled: paymentResponse !== undefined,
+      settled: successfulSettlement(paymentResponse, expectedNetwork),
       ...(signer ? { payer: { address: signer.address } } : {}),
       ...(paymentResponse === undefined ? {} : { paymentResponse }),
     };
@@ -218,11 +223,7 @@ export class X402PaymentClient implements X402PaymentPort {
   }
 
   private boundedFetch(scope: TransactionScope): typeof fetch {
-    return (request, init) =>
-      this.fetcher(request, {
-        ...init,
-        signal: init?.signal ?? AbortSignal.timeout(scope.timeoutMs),
-      });
+    return (request, init) => fetchBounded(this.fetcher, request, init, scope.timeoutMs);
   }
 
   private resolveSigner(scope: TransactionScope, network: NetworkDescriptor): Signer {

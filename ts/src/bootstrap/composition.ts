@@ -1,3 +1,4 @@
+import { setLogger, noopLogger } from "@bankofai/x402-core";
 import { FileBaiBindingStore } from "../adapters/outbound/bai/binding-store.js";
 import { BaiCredentialSetup, baiChain } from "../application/use-cases/bai-credential-setup.js";
 import { walletAddress } from "../domain/wallet/index.js";
@@ -71,6 +72,8 @@ export interface BootstrapOptions {
 
 /** Fully wired process-scoped dependencies. No command side effect runs during construction. */
 export function composeCliRuntime(options: BootstrapOptions) {
+  // SDK console logs must not corrupt the CLI result envelope or expose request URLs.
+  setLogger(noopLogger);
   const config = ConfigLoader.load();
   // effective per-invocation RPC/device timeout: --timeout wins over the config default.
   const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
@@ -172,7 +175,11 @@ export function composeCliRuntime(options: BootstrapOptions) {
   );
   registerX402Commands(
     registry,
-    new X402Service(x402Payments, new X402ProviderCatalog(), new X402HttpServer()),
+    new X402Service(
+      x402Payments,
+      new X402ProviderCatalog(undefined, undefined, timeoutMs),
+      new X402HttpServer(undefined, timeoutMs),
+    ),
   );
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
@@ -222,6 +229,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
     commandCapabilities.push({
       key: "x402.pay",
       summary: "Inspect or pay an x402 endpoint using the selected wallet network",
+    });
+    commandCapabilities.push({
+      key: "x402.serve",
+      summary: "Serve a local x402 endpoint; the server validates network token support",
     });
     if (
       (network.family === "evm" && ["56", "8453"].includes(network.chainId)) ||

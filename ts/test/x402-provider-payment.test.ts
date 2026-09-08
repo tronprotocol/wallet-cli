@@ -53,11 +53,10 @@ it.each([
       const result = spawnSync(
         process.execPath,
         [
-          "--import",
-          "tsx",
+          ...(process.env.WALLET_CLI_TEST_ENTRY ? [] : ["--import", "tsx"]),
           "--import",
           pathToFileURL(preload).href,
-          "src/index.ts",
+          process.env.WALLET_CLI_TEST_ENTRY ?? "src/index.ts",
           "x402",
           "pay",
           "https://example.com/data",
