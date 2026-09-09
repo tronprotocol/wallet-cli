@@ -27,7 +27,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 
 ## Supported chains
 
-Seven built-in networks are supported. Networks use a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`.
+Nine built-in networks are supported. Networks use a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`.
 
 | Network id        | Family | Native coin | Environment                              |
 | ----------------- | ------ | ----------- | ---------------------------------------- |
@@ -38,6 +38,8 @@ Seven built-in networks are supported. Networks use a canonical [CAIP-2](https:/
 | `eip155:11155111` | EVM    | ETH         | Sepolia testnet                          |
 | `eip155:56`       | EVM    | BNB         | BNB Smart Chain mainnet — **real funds** |
 | `eip155:97`       | EVM    | BNB         | BNB Smart Chain testnet                  |
+| `eip155:8453` | EVM | ETH | Base mainnet — **real funds** |
+| `eip155:84532` | EVM | ETH | Base Sepolia testnet |
 
 One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 

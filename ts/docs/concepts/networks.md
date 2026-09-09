@@ -16,6 +16,8 @@ wallet-cli networks
 | eip155:11155111 | sepolia     | evm    | 11155111   | evm-gas       | ethereum-sepolia-rpc.publicnode.com |
 | eip155:56       | bsc         | evm    | 56         | evm-gas       | bsc-dataseed.bnbchain.org           |
 | eip155:97       | bsc-testnet | evm    | 97         | evm-gas       | bsc-testnet-dataseed.bnbchain.org   |
+| eip155:8453 | base | evm | 8453 | evm-gas | mainnet.base.org |
+| eip155:84532 | base-sepolia | evm | 84532 | evm-gas | sepolia.base.org |
 ```
 
 | Id | Alias | What it is | Native coin value |
@@ -27,6 +29,8 @@ wallet-cli networks
 | `eip155:11155111` | `sepolia` | Ethereum test network | none |
 | `eip155:56` | `bsc` | BNB Smart Chain | **Real money** |
 | `eip155:97` | `bsc-testnet` | BNB Smart Chain test network | none |
+| `eip155:8453` | `base` | Base mainnet | **Real money** |
+| `eip155:84532` | `base-sepolia` | Base test network | none |
 
 An **alias** is a short name you may type instead of the id. It resolves once, at selection, and nothing downstream ever sees it — `chain.network` in the JSON envelope always reports the canonical id. Aliases live in config and can be re-pointed, so scripts should pass canonical ids.
 

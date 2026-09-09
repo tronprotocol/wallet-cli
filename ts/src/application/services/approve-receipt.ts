@@ -1,3 +1,5 @@
+import type { ApprovalKind } from "../contracts/transaction-input.js";
+export type { ApprovalKind } from "../contracts/transaction-input.js";
 /**
  * `approve(address,uint256)` in the terms a person can check.
  *
@@ -22,8 +24,6 @@ const MAX_UINT256 = (1n << 256n) - 1n;
 function normalizeSignature(signature?: string): string {
   return (signature ?? "").replace(/\s+/g, "");
 }
-
-export type ApprovalKind = "erc721";
 
 export interface ApproveContext {
   method?: string;

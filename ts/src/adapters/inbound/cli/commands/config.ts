@@ -1,3 +1,4 @@
+import type { BaiCredentialSetup } from "../../../../application/use-cases/bai-credential-setup.js";
 import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import {
@@ -12,7 +13,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 export function registerConfigCommands(
   registry: CommandRegistry,
   service: ConfigService,
-  confirmBaiKey?: (key: string) => Promise<void>,
+  baiSetup: Pick<BaiCredentialSetup, "execute">,
 ): void {
   const fields = z.object({
     // Not an enum: `networks.<id>[.<field>]` is a nested path, and the id segment is
@@ -68,7 +69,7 @@ export function registerConfigCommands(
       const effectiveInput = hasApiKeyInput
         ? { key: "baiApiKey", value: ctx.secrets.require("apiKey") }
         : input;
-      if (hasApiKeyInput && confirmBaiKey) await confirmBaiKey(effectiveInput.value!);
+      if (hasApiKeyInput) await baiSetup.execute(effectiveInput.value!);
       return service.execute(effectiveInput, ctx.config, ctx.networkRegistry);
     },
   } satisfies CommandDefinition);

@@ -1,40 +1,19 @@
+import type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
+export type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
-import { approveRows, type ApprovalKind } from "../../services/approve-receipt.js";
+import { approveRows } from "../../services/approve-receipt.js";
 import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
-import type {
-  ChainGatewayProvider,
-  DeployConstructorArgs,
-  EvmGateway,
-} from "../../ports/chain/gateway-provider.js";
+import type { ChainGatewayProvider, EvmGateway } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
   transactionMode,
   transactionRequiresSigner,
-  type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-
-export interface EvmContractWriteInput extends TransactionModeInput {
-  contract?: string;
-  method?: string;
-  /** disambiguates standards that share a write signature. */
-  approvalKind?: ApprovalKind;
-  /** `{type,value}` entries for a call; raw positional values for a deployment. */
-  params?: unknown[];
-  /** native coin sent along with the call, in whole coins (as `tx send --amount` is). */
-  callValue?: string;
-  bytecode?: string;
-  /** how the constructor's arguments are typed and what they are; see DeployConstructorArgs. */
-  constructorArgs?: DeployConstructorArgs;
-  gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
-  nonce?: number;
-}
 
 /**
  * Contract reads and writes.

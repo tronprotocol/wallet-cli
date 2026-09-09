@@ -1,3 +1,22 @@
+import type { AgentService } from "../../application/use-cases/agent-service.js";
+import {
+  showSpec,
+  showTronBinding,
+  registerSpec,
+  registerTronBinding,
+  updateSpec,
+  updateTronBinding,
+  transferSpec,
+  transferTronBinding,
+  approveSpec,
+  approveTronBinding,
+  operatorAddSpec,
+  operatorAddTronBinding,
+  operatorRemoveSpec,
+  operatorRemoveTronBinding,
+  operatorCheckSpec,
+  operatorCheckTronBinding,
+} from "../../adapters/inbound/cli/commands/erc8004.js";
 import { FAMILIES } from "../../domain/family/index.js";
 import { tronSignStrategy } from "../../adapters/outbound/chain/tron/signing-strategy.js";
 import { TronRpcClient } from "../../adapters/outbound/chain/tron/tron.js";
@@ -168,6 +187,7 @@ export const tronFamily: FamilyPlugin<"tron"> = {
 };
 
 export interface TronChainCommandDependencies {
+  agents: AgentService;
   gateways: ChainGatewayProvider;
   tokens: TokenRepository;
   prices: PriceProvider;
@@ -186,6 +206,15 @@ export function registerTronChainCommands(
   reg: CommandRegistry,
   deps: TronChainCommandDependencies,
 ): void {
+  reg.addChain(showSpec, "tron", showTronBinding(deps.agents));
+  reg.addChain(registerSpec, "tron", registerTronBinding(deps.agents));
+  reg.addChain(updateSpec, "tron", updateTronBinding(deps.agents));
+  reg.addChain(transferSpec, "tron", transferTronBinding(deps.agents));
+  reg.addChain(approveSpec, "tron", approveTronBinding(deps.agents));
+  reg.addChain(operatorAddSpec, "tron", operatorAddTronBinding(deps.agents));
+  reg.addChain(operatorRemoveSpec, "tron", operatorRemoveTronBinding(deps.agents));
+  reg.addChain(operatorCheckSpec, "tron", operatorCheckTronBinding(deps.agents));
+
   const account = new TronAccountService(
     deps.gateways,
     new TronGridHistoryReader(deps.timeoutMs),

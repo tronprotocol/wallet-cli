@@ -1,8 +1,6 @@
 import { setLogger, noopLogger } from "@bankofai/x402-core";
 import { FileBaiBindingStore } from "../adapters/outbound/bai/binding-store.js";
 import { BaiCredentialSetup, baiChain } from "../application/use-cases/bai-credential-setup.js";
-import { walletAddress } from "../domain/wallet/index.js";
-import { UsageError } from "../domain/errors/index.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { isTronNetwork } from "../domain/types/network.js";
 import type { OutputMode } from "../domain/types/index.js";
@@ -57,7 +55,6 @@ import { TronContractService } from "../application/use-cases/tron/contract-serv
 import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
 import { RegistrationLoader } from "../adapters/outbound/erc8004/registration-loader.js";
 import { AgentService } from "../application/use-cases/agent-service.js";
-import { registerAgentCommands } from "../adapters/inbound/cli/commands/erc8004.js";
 import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
 import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
 import { X402Service } from "../application/use-cases/x402-service.js";
@@ -128,24 +125,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
     qr: new TerminalQrEncoder(),
   });
   const baiBindings = new FileBaiBindingStore(root, store);
-  const baiSetup = new BaiCredentialSetup(baiBindings, (apiKey, input) =>
-    new BaiRechargeClient({ baiApiKey: apiKey }, timeoutMs).isBound(input),
+  const baiSetup = new BaiCredentialSetup(
+    baiBindings,
+    (apiKey, input) => new BaiRechargeClient({ baiApiKey: apiKey }, timeoutMs).isBound(input),
+    networkRegistry,
+    keystore,
+    { network: options.globals.network, account: options.globals.account },
   );
-  registerConfigCommands(registry, configService, async (apiKey) => {
-    const net = networkRegistry.resolve(options.globals.network ?? config.defaultNetwork);
-    const chain = baiChain(net);
-    const account = options.globals.account ?? keystore.activeAccount();
-    if (!account)
-      throw new UsageError(
-        "invalid_value",
-        "Select a payer wallet before configuring the B.AI API key",
-      );
-    const selected = keystore.resolveAccount(account, net.family);
-    const address = walletAddress(selected.wallet, net.family, selected.index);
-    if (!address)
-      throw new UsageError("family_mismatch", "Selected wallet has no address for this network");
-    await baiSetup.confirm(apiKey, chain, address);
-  });
+  registerConfigCommands(registry, configService, baiSetup);
   registerNetworkCommands(registry);
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
@@ -165,13 +152,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
     evm: new EvmContractService(gatewayProvider, txPipeline),
     tron: new TronContractService(gatewayProvider, txPipeline),
   };
-  registerAgentCommands(
-    registry,
-    new AgentService(
-      agentContracts,
-      new SdkAgentRegistry(agentContracts, gatewayProvider),
-      new RegistrationLoader(timeoutMs),
-    ),
+  const agents = new AgentService(
+    agentContracts,
+    new SdkAgentRegistry(agentContracts, gatewayProvider),
+    new RegistrationLoader(timeoutMs),
   );
   registerX402Commands(
     registry,
@@ -184,6 +168,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
   registerTronChainCommands(registry, {
+    agents,
     gateways: gatewayProvider,
     tokens: tokenBook,
     prices: priceProvider,
@@ -198,6 +183,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     tokenBook: tokenBookService,
   });
   registerEvmChainCommands(registry, {
+    agents,
     signers: signerResolver,
     gateways: gatewayProvider,
     balances: accountBalances,
@@ -234,10 +220,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       key: "x402.serve",
       summary: "Serve a local x402 endpoint; the server validates network token support",
     });
-    if (
-      (network.family === "evm" && ["56", "8453"].includes(network.chainId)) ||
-      (network.family === "tron" && network.chainId === "728126428")
-    ) {
+    if (baiChain(network)) {
       commandCapabilities.push({
         key: "bai.recharge",
         summary: "Recharge B.AI from a configured payer wallet",

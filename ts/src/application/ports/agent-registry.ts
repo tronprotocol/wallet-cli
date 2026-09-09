@@ -1,8 +1,10 @@
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
-import type { EvmContractWriteInput } from "../use-cases/evm/contract-service.js";
-import type { ApprovalKind } from "../services/approve-receipt.js";
-import type { GovernanceTransactionInput } from "../use-cases/tron/governance-transaction.js";
+import type {
+  EvmContractWriteInput,
+  ApprovalKind,
+  GovernanceTransactionInput,
+} from "../contracts/transaction-input.js";
 import type { TronContractParameter } from "./chain/tron-gateway.js";
 
 export interface EvmContractPort {

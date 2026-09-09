@@ -5,7 +5,7 @@ import type { ConfigService } from "../../../../application/use-cases/config-ser
 function fixture(check = vi.fn(async (_key: string) => {})) {
   const execute = vi.fn(() => ({ value: "********" }));
   const registry = new CommandRegistry();
-  registerConfigCommands(registry, { execute } as unknown as ConfigService, check);
+  registerConfigCommands(registry, { execute } as unknown as ConfigService, { execute: check });
   const ctx = {
     secrets: { has: () => true, require: () => "new-secret" },
     config: {},

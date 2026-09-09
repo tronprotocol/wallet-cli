@@ -165,15 +165,34 @@ describe("builtin EVM networks", () => {
     ["eip155:56", "56"],
     ["eip155:97", "97"],
     ["eip155:8453", "8453"],
+    ["eip155:84532", "84532"],
   ])("resolves %s as an evm-gas network", (id, chainId) => {
     const net = registry().resolve(id);
     expect(net).toMatchObject({ id, family: "evm", chainId, feeModel: "evm-gas" });
   });
 
   it("ships every EVM network with a usable endpoint", () => {
-    for (const id of ["eip155:1", "eip155:11155111", "eip155:56", "eip155:97", "eip155:8453"]) {
+    for (const id of [
+      "eip155:1",
+      "eip155:11155111",
+      "eip155:56",
+      "eip155:97",
+      "eip155:8453",
+      "eip155:84532",
+    ]) {
       expect(registry().resolve(id).httpEndpoint).toMatch(/^https:\/\//);
     }
+  });
+
+  it("pairs Base mainnet with its builtin testnet and alias", () => {
+    const testnet = registry().resolve("base-sepolia");
+    expect(testnet).toMatchObject({
+      id: "eip155:84532",
+      chainId: "84532",
+      testnet: true,
+      httpEndpoint: "https://sepolia.base.org",
+    });
+    expect(registry().resolve("base").testnet).not.toBe(true);
   });
 
   it("keeps the TRON networks unchanged", () => {

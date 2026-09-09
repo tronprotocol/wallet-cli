@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
-import { registerAgentCommands } from "./erc8004.js";
+import {
+  registerEvmChainCommands,
+  type EvmChainCommandDependencies,
+} from "../../../../bootstrap/families/evm.js";
+import {
+  registerTronChainCommands,
+  type TronChainCommandDependencies,
+} from "../../../../bootstrap/families/tron.js";
+function registerAgentCommands(registry: CommandRegistry, agents: AgentService) {
+  registerEvmChainCommands(registry, { agents } as EvmChainCommandDependencies);
+  registerTronChainCommands(registry, { agents } as TronChainCommandDependencies);
+}
 import type { AgentService } from "../../../../application/use-cases/agent-service.js";
 
 describe("ERC-8004 command surface", () => {
@@ -22,7 +33,9 @@ describe("ERC-8004 command surface", () => {
       expect(command?.spec.path).toEqual(["8004", verb]);
       expect(Object.keys(command?.families ?? {}).sort()).toEqual(["evm", "tron"]);
     }
-    expect(registry.all()).toHaveLength(8);
+    expect(
+      registry.all().filter((command) => "spec" in command && command.spec.path[0] === "8004"),
+    ).toHaveLength(8);
   });
 
   it("register takes only the externally-built URI plus transaction controls", () => {

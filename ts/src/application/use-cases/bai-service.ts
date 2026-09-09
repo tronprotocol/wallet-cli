@@ -1,7 +1,7 @@
 import type { BaiRechargeApi, BaiRechargeTarget } from "../ports/bai-recharge.js";
 import { BaiRechargeFlow } from "./bai-recharge-flow.js";
 import { baiPaymentResult } from "../services/bai-payment-result.js";
-import { baiChain } from "./bai-credential-setup.js";
+import { requireBaiChain } from "./bai-credential-setup.js";
 import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
 import { UsageError } from "../../domain/errors/index.js";
@@ -42,7 +42,7 @@ export class BaiService {
     }
     if (!this.bindings)
       throw new UsageError("invalid_option", "B.AI recharge binding verification is unavailable");
-    const chain = baiChain(network);
+    const chain = requireBaiChain(network);
     const payer = scope.resolveAddress(network.family);
     if (!this.bindings.isConfirmed(input.apiKey, chain, payer)) {
       throw new UsageError(
