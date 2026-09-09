@@ -32,10 +32,14 @@ describe("B.AI recharge API", () => {
   it("binds the payer with a supplied signed message", async () => {
     const { client, fetcher } = fixture({
       success: true,
-      binding: { userId: "payer-id", address: "payer", chain: "bnb" },
+      binding: {
+        userId: "payer-id",
+        address: "0x1234567890abcdef1234567890abcdef12345678",
+        chain: "bnb",
+      },
     });
     const input = {
-      address: "payer",
+      address: "0x1234567890abcdef1234567890abcdef12345678",
       chain: "bnb",
       message: "documented message",
       signature: "signature",
@@ -43,13 +47,67 @@ describe("B.AI recharge API", () => {
     };
     await expect(client.bind(input)).resolves.toEqual({
       userId: "payer-id",
-      address: "payer",
+      address: "0x1234567890abcdef1234567890abcdef12345678",
       chain: "bnb",
     });
     const [url, init] = fetcher.mock.calls[0]!;
     expect(url).toContain("/wallet.bindRechargeWallet");
     expect(init.headers).toMatchObject({ Authorization: "Bearer secret" });
     expect(JSON.parse(init.body as string)).toEqual({ json: input });
+  });
+  it.each(["bnb", "base"])(
+    "accepts canonical eth binding for %s and preserves signed bytes",
+    async (chain) => {
+      const address = "0xABCDEF1234567890abcdef1234567890abcdef12";
+      const returned = { userId: "payer-id", address: address.toLowerCase(), chain: "eth" };
+      const { client, fetcher } = fixture({
+        result: { data: { json: { success: true, binding: returned } } },
+      });
+      const message =
+        " Welcome to BAI !\nhttps://chat.bankofai.io wants you to confirm wallet binding for recharge:\n" +
+        address +
+        "\n";
+      await expect(
+        client.bind({ address, chain, message, signature: "signature" }),
+      ).resolves.toEqual(returned);
+      expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.message).toBe(message);
+    },
+  );
+  it.each([
+    [
+      "base",
+      "bnb",
+      "0xABCDEF1234567890abcdef1234567890abcdef12",
+      "0xabcdef1234567890abcdef1234567890abcdef12",
+    ],
+    [
+      "base",
+      "eth",
+      "0xABCDEF1234567890abcdef1234567890abcdef12",
+      "0xabcdef1234567890abcdef1234567890abcdef13",
+    ],
+    ["tron", "eth", "TPayer", "TPayer"],
+    ["tron", "tron", "TPayer", "Tpayer"],
+  ])("rejects mismatched binding %s/%s", async (chain, returnedChain, address, returnedAddress) => {
+    const { client } = fixture({
+      success: true,
+      binding: { userId: "id", chain: returnedChain, address: returnedAddress },
+    });
+    await expect(
+      client.bind({ chain, address, message: "message", signature: "signature" }),
+    ).rejects.toMatchObject({ code: "provider_error" });
+  });
+  it("accepts an exact TRON binding", async () => {
+    const returned = { userId: "id", chain: "tron", address: "TPayer" };
+    await expect(
+      fixture({ success: true, binding: returned }).client.bind({
+        chain: "tron",
+        address: "TPayer",
+        message: "message",
+        signature: "signature",
+        version: 2,
+      }),
+    ).resolves.toEqual(returned);
   });
   it("creates a preorder carrying the exact payer and confirmed recipient", async () => {
     const { client, fetcher } = fixture({ result: { data: { json: { orderId: 123 } } } });

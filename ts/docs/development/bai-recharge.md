@@ -28,6 +28,74 @@ That removes a second credit-reporting path and a second set of recharge-server
 configuration. The existing x402 SDK, facilitator and `roundtrip` remain in use.
 Retiring the deployed recharge server is a separate operation.
 
+## Wallet binding and signed message
+
+Binding uses the personal API key to identify the B.AI user. Before signing,
+construct the message using the recharge binding template from the updated API
+specification. Arbitrary test text is rejected with `WalletInvalidSignature`,
+even when the signature recovers the correct wallet address locally.
+
+```javascript
+const message = [
+  "Welcome to BAI !",
+  `${origin} wants you to confirm wallet binding for recharge:`,
+  address,
+  "",
+  `Chain ID: ${chainId}`,
+  `Expiration Time: ${expirationTime}`,
+  `Nonce: ${nonce}`,
+].join("\n");
+```
+
+For production, `origin` is `https://chat.bankofai.io`; the specification's
+`https://chat-dev.b.ai` is the development example. Use the origin of the target
+B.AI deployment. Mainnet chain IDs are `728126428` (TRON), `8453` (Base), and
+`56` (BNB Chain). The live test used an ISO 8601 UTC expiration five minutes ahead
+and a fresh 16-byte random nonce encoded as 32 hexadecimal characters; these are
+verified client choices, not documented server limits or a server-issued challenge.
+
+Select the wallet explicitly when signing:
+
+```bash
+wallet-cli message sign --account <wallet> --network <tron|base|bsc> \
+  --message "$message" --password-stdin -o json
+```
+
+Pass the master password through stdin. Send the returned `address`, unchanged
+`message`, and `signature` to `POST /trpc/lambda/wallet.bindRechargeWallet`, inside
+`{"json":{...}}`, with the personal API key as Bearer authentication. Set `chain`
+to `tron`, `base`, or `bnb`; `version: 2` selects TRON V2 signing and was also
+accepted on both EVM chains. Never trim, reformat, or rebuild the message after
+signing. Binding signatures authorize account association; this step sends no
+payment transaction.
+
+The backend canonicalizes EVM binding responses: `chain` becomes `eth`, and the
+address is lowercase. The adapter accepts that family alias for `bnb`/`base`/`eth`
+and compares EVM addresses without case sensitivity, while still rejecting another
+address or unrelated chain. TRON addresses remain case-sensitive. The adapter
+returns the server's canonical binding; subsequent network-specific checks still
+use the original `base` or `bnb` request chain.
+
+On 2026-09-09, three different wallets were signed with Wallet CLI and bound using
+one personal API key. Every successful binding returned the same user ID. After
+each binding, all three original chain/address pairs were queried through
+`wallet.isRechargeBound` using that same key:
+
+| After binding | TRON wallet | Base wallet | BNB Chain wallet |
+| --- | --- | --- | --- |
+| TRON | true | false | false |
+| Base | true | true | false |
+| BNB Chain | true | true | true |
+
+This verifies those three bindings coexist on the server; it does not establish an
+unlimited wallet count or prove recharge settlement. No funds were transferred.
+The local `bai-binding.json` still stores only the last confirmed API-key/chain/address
+fingerprint. Switching wallet or network requires configuring the same key again
+for that selection to refresh local confirmation; this does not remove server
+bindings. CLI credential setup checks existing bindings, rather than creating one.
+`BaiRechargeClient.bind()` accepts an already signed message; there is no automatic
+binding or new binding command in this change.
+
 ## Networks and payment requirements
 
 | Network | Token | B.AI payment scheme |

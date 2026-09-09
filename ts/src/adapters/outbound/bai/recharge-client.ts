@@ -20,7 +20,8 @@ const target = z.object({
 });
 const amount = z.number().positive().finite().max(Number.MAX_SAFE_INTEGER);
 const bindInput = wallet.extend({
-  message: text,
+  // Preserve the exact bytes signed by the wallet, including surrounding whitespace.
+  message: z.string().refine((value) => value.trim().length > 0),
   signature: text,
   version: z.number().int().positive().optional(),
 });
@@ -76,7 +77,13 @@ export class BaiRechargeClient implements BaiRechargeApi {
       binding,
       await this.call("wallet.bindRechargeWallet", checked),
     ).binding;
-    if (result.address !== checked.address || result.chain !== checked.chain) throw this.invalid();
+    const evm = ["bnb", "base", "eth"].includes(checked.chain);
+    const matchingAddress = evm
+      ? /^0x[0-9a-fA-F]{40}$/.test(checked.address) &&
+        result.address.toLowerCase() === checked.address.toLowerCase()
+      : result.address === checked.address;
+    const matchingChain = result.chain === checked.chain || (evm && result.chain === "eth");
+    if (!matchingAddress || !matchingChain) throw this.invalid();
     return result;
   }
   async createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>> {
