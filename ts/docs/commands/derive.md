@@ -28,7 +28,7 @@ Private-key, Ledger, and watch-only accounts have no seed and cannot derive. Sel
 
 When creating a new index, `derive` refuses a wallet containing an unsupported stored TRON derivation with `legacy_derivation`. A stored address that does not match the seed fails with `derivation_mismatch`.
 
-If `--index` selects an existing slot, no new key is derived. A verified account is made active and returns `status: "existing"`; an address that does not match the seed fails with `derivation_mismatch` before the active account changes. Follow [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+If `--index` selects an existing slot, no new key is derived. A verified account is made active and returns `status: "existing"`; an address that does not match the seed fails with `derivation_mismatch` before the active account changes. Reselecting a legacy slot succeeds but warns that default mnemonic recovery will not recreate its TRON address. The phrase can still derive the key at the reported path; follow [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 ## Examples
 
@@ -53,7 +53,7 @@ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_vy5n6qhh --password-stdin
   TRON address  TKpmAZmDcGhJBugwAhbJ1ubWeTM4VZgRbK
   EVM address   0x7Fee0863cB70a3C7c937A292220dD0C52E2526e0
   Active        yes
-  Note          shares master mnemonic; no separate backup needed
+  Note          shares the wallet's recovery phrase
 ```
 
 ```bash

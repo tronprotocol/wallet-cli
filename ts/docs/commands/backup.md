@@ -24,6 +24,9 @@ The native export may warn that some stored accounts need a separate `--keystore
 that warning before deleting anything; see [Recover addresses after
 `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
+The warning means this version's default mnemonic import and derive flow will not recreate those
+TRON addresses. The recovery phrase can still derive their keys at the listed legacy paths.
+
 **A keystore also holds one key per *family*.** A seed account derives a different key for TRON (coin type 195) and for EVM (coin type 60), and a keystore can carry only one of them, so `--network` selects which — falling back to `config.defaultNetwork` when omitted. The receipt names the family that was written, and the export log records it. A private-key account has a single key and ignores the selection; the native backup covers every family at once, so it needs no choice and reports none.
 
 **Files land in the current working directory** by default — `./<accountId>-<timestamp>.json`, or `./<accountId>-<timestamp>.keystore.json` with `--keystore`. `--out` overrides the path.

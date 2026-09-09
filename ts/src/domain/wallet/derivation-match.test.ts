@@ -99,18 +99,16 @@ describe("legacyAccounts", () => {
   });
 });
 
-// Signing and `derive` refuse for different reasons but offer the same supported migration. These
-// assertions live on the factory so a bumped tag or renamed flag cannot leave the callers out of
-// sync.
+// Signing and `derive` refuse for different reasons but point to the same complete procedure.
 describe("legacyDerivationError", () => {
   const REF = "wlt_abc123.1";
   const PATH = "m/44'/195'/1'/0/0";
 
-  it("carries the whole rescue: export, re-import, drop the slot", () => {
+  it("points to the complete procedure instead of inlining a partial deletion flow", () => {
     const m = legacyDerivationError(REF, PATH, "sign").message;
-    expect(m).toContain(`backup ${REF} --keystore --network tron:728126428 --password-stdin`);
-    expect(m).toContain("import keystore <file>");
-    expect(m).toContain(`delete ${REF} --yes`);
+    expect(m).toContain("complete recovery procedure before deleting anything");
+    expect(m).toContain("docs/troubleshooting/legacy-derivation-recovery.md");
+    expect(m).not.toMatch(/wallet-cli (backup|import|delete)/);
   });
 
   it("avoids absolute recovery and wallet-compatibility claims", () => {
@@ -119,10 +117,10 @@ describe("legacyDerivationError", () => {
     );
   });
 
-  it("names the real path and links the release notes", () => {
+  it("names the real path and links the versioned recovery guide", () => {
     const m = legacyDerivationError(REF, PATH, "derive").message;
     expect(m).toContain(PATH);
-    expect(m).toContain("releases/tag/wallet-cli-4.13.1");
+    expect(m).toContain("blob/wallet-cli-4.13.1/ts/docs/troubleshooting");
   });
 
   it("uses the code the contract documents", () => {
@@ -139,14 +137,12 @@ describe("legacyDerivationError", () => {
     expect(derive).toMatch(/no further accounts can be derived/);
   });
 
-  it("uses labels in prose and shell-quotes them in recovery commands", () => {
+  it("uses labels in prose without leaking the internal account ref", () => {
     const m = legacyDerivationError(REF, PATH, "derive", {
       account: "main's second",
       wallet: "main wallet",
     }).message;
     expect(m).toContain('wallet "main wallet" holds account "main\'s second"');
-    expect(m).toContain("backup 'main'\\''s second' --keystore");
-    expect(m).toContain("delete 'main'\\''s second' --yes");
     expect(m).not.toContain(REF);
   });
 });

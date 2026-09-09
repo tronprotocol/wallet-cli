@@ -15,7 +15,7 @@ import { WalletError } from "../errors/index.js";
 
 export interface ResolvedDerivation {
   path: string;
-  /** `legacy` = a template this CLI no longer produces; the account cannot be re-derived. */
+  /** `legacy` = a template this CLI no longer produces through its default derive flow. */
   scheme: "current" | "legacy";
   keyPair: KeyPair;
 }
@@ -53,12 +53,12 @@ export function resolveDerivation(
 }
 
 /**
- * Every account in an address map that a legacy template explains — the accounts a recovery
- * phrase does not actually back up.
+ * Every account in an address map that a legacy template explains — accounts this version's
+ * default mnemonic recovery will not recreate automatically.
  *
- * The native `backup` writes the mnemonic, and the mnemonic re-derives on the CURRENT template
- * in every wallet, this one included. So an account still on the old TRON path is absent from
- * its own wallet's backup, and the only honest export tells the user which ones.
+ * The native `backup` writes the mnemonic, which can still derive these keys when given their old
+ * paths. This version's import/derive flow uses the current template by default, though, so the
+ * warning names every account that needs an explicit migration.
  *
  * Index 0 is skipped without deriving: both templates agree there, so it can never be stranded,
  * and naming it would push an untouched user through a rescue they do not need. An address no
@@ -81,15 +81,17 @@ export function legacyAccounts(
   return out.sort((a, b) => a.index - b.index);
 }
 
-/** Where the 4.13.1 notes explain the path correction. One constant: five strings link it. */
-const RELEASE_NOTES = "https://github.com/tronprotocol/wallet-cli/releases/tag/wallet-cli-4.13.1";
+/** Complete, ordered recovery procedure shipped with the affected release. */
+export const LEGACY_DERIVATION_RECOVERY_GUIDE =
+  "https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md";
 
 /**
  * The refusal a stranded account raises, wherever it is raised.
  *
  * Signing and `derive` refuse for different reasons — one key cannot be produced, one wallet must
- * not mix templates — but both direct the user through the same supported migration. Keeping that
- * guidance here prevents the two call sites from drifting.
+ * not mix templates — but both direct the user to the same ordered recovery procedure. The error
+ * must not inline only the TRON half of that procedure: deleting the slot also removes its EVM
+ * address from the local account list.
  */
 export function legacyDerivationError(
   ref: string,
@@ -100,24 +102,15 @@ export function legacyDerivationError(
   const walletId = ref.split(".")[0]!;
   const account = labels.account ? JSON.stringify(labels.account) : ref;
   const wallet = labels.wallet ? JSON.stringify(labels.wallet) : walletId;
-  const selector = labels.account ? shellQuote(labels.account) : ref;
   const lead =
     refused === "sign"
       ? `account ${account} was derived at ${path}, a TRON path this version no longer produces, so it cannot be signed here.`
       : `wallet ${wallet} holds account ${account} at ${path}, a TRON path this version no longer produces, so no further accounts can be derived from it.`;
   return new WalletError(
     "legacy_derivation",
-    `${lead} Export that account, re-import it as a standalone account, then drop the old slot:\n` +
-      `  $ wallet-cli backup ${selector} --keystore --network tron:728126428 --password-stdin\n` +
-      `  $ wallet-cli import keystore <file>\n` +
-      `  $ wallet-cli delete ${selector} --yes\n` +
-      `See ${RELEASE_NOTES}`,
+    `${lead} Follow the complete recovery procedure before deleting anything:\n` +
+      `  ${LEGACY_DERIVATION_RECOVERY_GUIDE}`,
   );
-}
-
-/** A label used as a POSIX-shell command argument, including labels containing a single quote. */
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 /**

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Keystore } from "../src/adapters/outbound/keystore/index.js";
 import { TokenBook } from "../src/adapters/outbound/tokenbook/index.js";
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js";
-import type { TokenEntry } from "../src/domain/types/index.js";
+import type { TokenEntry, WalletsFile } from "../src/domain/types/index.js";
 import { DETACHED } from "./detached.js";
 
 const ENTRY = join(process.cwd(), "src", "index.ts");
@@ -62,6 +62,23 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
 function seedWallet(label = "main") {
   const ks = new Keystore(HOME, new AtomicFileStore(), () => DEFAULT_PW);
   return ks.import({ secret: MNEMONIC, type: "seed", label }).accountId;
+}
+
+function seedLegacyWallet() {
+  const accountId = seedWallet();
+  const store = new AtomicFileStore();
+  const path = join(HOME, "wallets.json");
+  const file = store.readJson<WalletsFile>(path)!;
+  const source = file.wallets[0]!.source as Extract<
+    WalletsFile["wallets"][0]["source"],
+    { type: "seed" }
+  >;
+  source.addresses["1"] = {
+    tron: "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ",
+    evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  };
+  store.writeJsonAll([{ path, value: file }]);
+  return accountId.split(".")[0]!;
 }
 
 // Write a user-layer token directly (bypassing the live-RPC `token add` path) so list/remove
@@ -367,6 +384,20 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
 
     expect(r.status).toBe(0);
     expect(r.json.data.accountId).toBe(`${seedId}.1`);
+  });
+
+  it("derive warns when it reselects an existing legacy slot", () => {
+    const seedId = seedLegacyWallet();
+    const r = run(["--output", "json", "derive", "--account", "main", "--index", "1"]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data).toMatchObject({
+      status: "existing",
+      accountId: `${seedId}.1`,
+      derivationPath: { tron: "m/44'/195'/1'/0/0" },
+    });
+    expect(r.json.meta.warnings).toHaveLength(1);
+    expect(r.json.meta.warnings[0]).toContain("default mnemonic recovery will not recreate");
   });
 });
 

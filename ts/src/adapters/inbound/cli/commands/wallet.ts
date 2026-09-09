@@ -573,8 +573,8 @@ export function registerWalletCommands(
       { cmd: "wallet-cli derive --seed-id wlt_ab12cd34" },
     ],
     formatText: TextFormatters.walletDerive,
-    run: async (_ctx, _net, input) => {
-      return wallets.derive(input);
+    run: async (ctx, _net, input) => {
+      return wallets.derive(input, (message) => ctx.warn(message));
     },
   } satisfies CommandDefinition);
 

@@ -48,8 +48,8 @@ export interface AccountDescriptor {
   addresses: Partial<ChainAddresses>;
   family?: ChainFamily;
   path?: string;
-  /** HD only: the seed id (wallet id, `wlt_…`) this account was derived from — the value `derive
-   *  --seed` takes. Combined with `index`, tells which seed an account belongs to and its slot. */
+  /** HD only: the seed id (wallet id, `wlt_…`) this account was derived from — accepted by
+   *  `derive --seed-id`. Combined with `index`, it identifies the owning seed and slot. */
   seedId?: string;
   /**
    * The verified BIP32 path behind each of this account's addresses, one entry per family.

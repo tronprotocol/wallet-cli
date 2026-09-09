@@ -225,6 +225,33 @@ describe("WalletService derive selection", () => {
       /wallet is not HD; --seed-id must name an HD seed wallet/,
     );
   });
+
+  it("warns only when reselecting an existing legacy slot", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+    const warnings: string[] = [];
+
+    h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
+    h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
+    expect(warnings).toEqual([]); // created-current and existing-current both need no warning
+
+    const store = new AtomicFileStore();
+    const path = join(h.root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    source.addresses["1"]!.tron = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ";
+    store.writeJsonAll([{ path, value: file }]);
+
+    h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("legacy TRON path m/44'/195'/1'/0/0");
+    expect(warnings[0]).toContain("recovery phrase can still derive this key");
+    expect(warnings[0]).toContain("default mnemonic recovery will not recreate");
+  });
 });
 
 describe("WalletService export audit log", () => {
@@ -648,7 +675,7 @@ describe("backup --keystore rescues an account on the old TRON path", () => {
   });
 });
 
-describe("native backup warns about the accounts the phrase does not back up", () => {
+describe("native backup warns about accounts the default recovery flow will not recreate", () => {
   const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
 
   function legacyHarness() {
@@ -669,10 +696,7 @@ describe("native backup warns about the accounts the phrase does not back up", (
     return { ...h, seedId: h.keystore.list()[0]!.seedId! };
   }
 
-  // The file this command just wrote does NOT restore that account — anywhere, including here.
-  // `delete` then `import mnemonic` is a documented recovery route, so a silent export is how a
-  // user destroys a funded account while believing they backed it up.
-  it("names the stranded account, its path, and the export that does back it up", () => {
+  it("names the account and path without claiming the phrase cannot derive its key", () => {
     const h = legacyHarness();
     const warnings: string[] = [];
 
@@ -681,6 +705,9 @@ describe("native backup warns about the accounts the phrase does not back up", (
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain(`${h.seedId}.1`);
     expect(warnings[0]).toContain("m/44'/195'/1'/0/0");
+    expect(warnings[0]).toContain("default mnemonic recovery will NOT recreate");
+    expect(warnings[0]).toContain("recovery phrase can still derive that key");
+    expect(warnings[0]).not.toContain("recovery phrase does NOT back up");
     expect(warnings[0]).toMatch(/--keystore/);
   });
 

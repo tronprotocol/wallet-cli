@@ -42,9 +42,9 @@ export class Derivation {
    * The software derivation template: `m/44'/<coin>'/0'/0/<index>` for every family.
    *
    * Both ecosystems increment address_index — TronLink, agent-wallet and the Java wallet-cli on
-   * TRON, MetaMask/Rabby/Trezor on EVM — so an account derived here is one the user can restore
-   * anywhere. Before this was corrected, TRON hung the number at the account level, at a path no
-   * other wallet reaches; `legacyPaths` still names it so those accounts can be identified.
+   * TRON, MetaMask/Rabby/Trezor on EVM — so an account derived here follows their default restore
+   * flow. Before this was corrected, TRON hung the number at the account level, outside those
+   * default scans; `legacyPaths` still names it so the key remains identifiable by its exact path.
    */
   static path(family: ChainFamily, index: number): string {
     return `m/44'/${FAMILIES[family].coinType}'/0'/0/${index}`;

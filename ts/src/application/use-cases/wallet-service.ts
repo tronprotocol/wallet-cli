@@ -2,6 +2,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import { Derivation } from "../../domain/derivation/index.js";
 import {
   derivationMismatchError,
+  LEGACY_DERIVATION_RECOVERY_GUIDE,
   legacyAccounts,
   resolveDerivation,
 } from "../../domain/wallet/derivation-match.js";
@@ -147,7 +148,7 @@ export class WalletService {
     return this.wallets.changePassword(oldPassword, newPassword);
   }
 
-  derive(request: DeriveRequest) {
+  derive(request: DeriveRequest, warn?: (message: string) => void) {
     const wallet = (() => {
       // Do not resolve --account when --seed-id is present: precedence means even a stale account
       // override must not prevent an explicitly named seed wallet from being used.
@@ -189,9 +190,23 @@ export class WalletService {
       const newIndex = Number(result.accountId.split(".")[1]);
       this.wallets.rename(result.accountId, `${baseLabel ?? "hd"}-${newIndex}`);
     }
+    const descriptor = this.#describeWithVerifiedDerivation(result.accountId);
+    const tronPath = descriptor.derivationPath?.tron;
+    if (
+      !result.created &&
+      descriptor.index !== null &&
+      tronPath !== undefined &&
+      Derivation.legacyPaths("tron", descriptor.index).includes(tronPath)
+    ) {
+      warn?.(
+        `existing account ${JSON.stringify(descriptor.label ?? descriptor.accountId)} uses legacy TRON path ${tronPath}. ` +
+          `The wallet's recovery phrase can still derive this key at that path, but this version's default mnemonic recovery will not recreate its TRON address. ` +
+          `Follow ${LEGACY_DERIVATION_RECOVERY_GUIDE}`,
+      );
+    }
     return {
       status: mutationStatus(result.created),
-      ...this.#describeWithVerifiedDerivation(result.accountId),
+      ...descriptor,
     };
   }
 
@@ -217,12 +232,7 @@ export class WalletService {
     if (type !== "seed" && type !== "privateKey") throw notExportable(type);
   }
 
-  /**
-   * `warn` reports the accounts this backup does NOT cover. A mnemonic re-derives on the current
-   * template everywhere, so an account still on the old TRON path is missing from its own
-   * wallet's backup — and `delete` then `import mnemonic` is a documented recovery route, which
-   * is how a silent export turns into a lost account.
-   */
+  /** `warn` names accounts that this version's default mnemonic recovery will not rediscover. */
   backup(account: string, requestedPath?: string, warn?: (message: string) => void) {
     const { wallet } = this.wallets.resolveAccount(account);
     const source = wallet.source;
@@ -247,18 +257,19 @@ export class WalletService {
       const stranded = legacyAccounts(seed!, source.addresses);
       if (stranded.length > 0 && warn) {
         warn(
-          `this recovery phrase does NOT back up ${stranded
+          `this version's default mnemonic recovery will NOT recreate ${stranded
             .map((a) => `${wallet.id}.${a.index} (${a.path})`)
             .join(", ")} — ` +
             `${stranded.length === 1 ? "that account was" : "those accounts were"} derived at a TRON path this version no longer produces, ` +
-            `and the phrase re-derives the current one in every wallet, this one included. ` +
-            `Export ${stranded.length === 1 ? "it" : "each"} separately before relying on this file:\n` +
+            `but the recovery phrase can still derive ${stranded.length === 1 ? "that key" : "those keys"} at the listed ${stranded.length === 1 ? "path" : "paths"}. ` +
+            `Export ${stranded.length === 1 ? "it" : "each"} separately before deleting anything:\n` +
             stranded
               .map(
                 (a) =>
                   `  wallet-cli backup ${wallet.id}.${a.index} --keystore --network tron:728126428 --password-stdin`,
               )
-              .join("\n"),
+              .join("\n") +
+            `\nFollow ${LEGACY_DERIVATION_RECOVERY_GUIDE}`,
         );
       }
     } else if (source.type === "privateKey") {

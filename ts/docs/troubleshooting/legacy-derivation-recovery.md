@@ -3,11 +3,8 @@
 You may see an error like this:
 
 ```text
-account "main-1" was derived at m/44'/195'/1'/0/0, a TRON path this version no longer produces, so it cannot be signed here. Export that account, re-import it as a standalone account, then drop the old slot:
-  $ wallet-cli backup 'main-1' --keystore --network tron:728126428 --password-stdin
-  $ wallet-cli import keystore <file>
-  $ wallet-cli delete 'main-1' --yes
-See https://github.com/tronprotocol/wallet-cli/releases/tag/wallet-cli-4.13.1
+account "main-1" was derived at m/44'/195'/1'/0/0, a TRON path this version no longer produces, so it cannot be signed here. Follow the complete recovery procedure before deleting anything:
+  https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md
 ```
 
 ## What happened
@@ -15,6 +12,10 @@ See https://github.com/tronprotocol/wallet-cli/releases/tag/wallet-cli-4.13.1
 Before v4.13.1, mnemonic wallets derived TRON sub-accounts with a legacy path. v4.13.1
 corrected that path. TRON accounts previously derived at index `1` or later must be re-imported as
 standalone private-key accounts to keep using their existing addresses. Index `0` is unchanged.
+
+The recovery phrase still derives every legacy key when used with its original path. The problem
+is that v4.13.1's default import and derive flow uses the corrected path and therefore does not
+automatically recreate those TRON addresses.
 
 Ethereum derivation did not change. After preserving any legacy TRON accounts, remove and
 re-import the mnemonic wallet, then derive the same indexes again. This restores every original

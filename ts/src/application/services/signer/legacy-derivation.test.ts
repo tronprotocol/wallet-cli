@@ -99,16 +99,16 @@ describe("signing an account left on the old TRON template", () => {
     });
   });
 
-  // The message identifies the real path and supported migration without making absolute claims
-  // about what other wallet software can derive from the recovery phrase.
-  it("names the legacy path and the --keystore migration", async () => {
+  // The message identifies the real path and sends the user to the complete, ordered recovery.
+  it("names the legacy path and the recovery guide", async () => {
     const ks = keystoreWithLegacyAccount();
     const signer = resolverFor(ks).resolve(`${seedId(ks)}.1`, "tron");
 
     const err = (await signer.signMessage("hello", {} as never).catch((e) => e)) as Error;
     expect(err.message).toContain("m/44'/195'/1'/0/0");
-    expect(err.message).toMatch(/backup .*--keystore .*--network tron:728126428/);
-    expect(err.message).toContain("releases/tag/wallet-cli-4.13.1");
+    expect(err.message).toContain("complete recovery procedure before deleting anything");
+    expect(err.message).toContain("docs/troubleshooting/legacy-derivation-recovery.md");
+    expect(err.message).not.toMatch(/wallet-cli (backup|import|delete)/);
     expect(err.message).not.toMatch(/recovery phrase|unique to wallet-cli|no other wallet/i);
   });
 
@@ -120,7 +120,6 @@ describe("signing an account left on the old TRON template", () => {
 
     const err = (await signer.signMessage("hello", {} as never).catch((e) => e)) as Error;
     expect(err.message).toContain('account "legacy account"');
-    expect(err.message).toContain("backup 'legacy account' --keystore");
     expect(err.message).not.toContain(TRON_LEGACY_1);
   });
 

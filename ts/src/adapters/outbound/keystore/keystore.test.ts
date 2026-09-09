@@ -941,7 +941,8 @@ describe("derive on a wallet holding a pre-correction account", () => {
     }
 
     expect(message).toContain('wallet "main" holds account "legacy account"');
-    expect(message).toContain("backup 'legacy account' --keystore");
+    expect(message).toContain("complete recovery procedure before deleting anything");
+    expect(message).toContain("docs/troubleshooting/legacy-derivation-recovery.md");
     expect(message).not.toContain(`${seedId}.1`);
   });
 
