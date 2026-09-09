@@ -25,7 +25,7 @@ Private-key and Ledger accounts have no seed and cannot derive. See [Accounts & 
 
 When creating a new index, `derive` refuses a wallet containing an unsupported stored TRON derivation with `legacy_derivation`. A stored address that does not match the seed fails with `derivation_mismatch`.
 
-If `--index` selects an existing slot, no new key is derived. A verified account is made active and returns `status: "existing"`; an address that does not match the seed fails with `derivation_mismatch` before the active account changes. See the [4.13.1 release notes](https://github.com/tronprotocol/wallet-cli/releases/tag/wallet-cli-4.13.1) for `legacy_derivation` migration steps.
+If `--index` selects an existing slot, no new key is derived. A verified account is made active and returns `status: "existing"`; an address that does not match the seed fails with `derivation_mismatch` before the active account changes. Follow [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 ## Examples
 
