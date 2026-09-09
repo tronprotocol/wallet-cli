@@ -138,6 +138,37 @@ describe("backup --keystore", () => {
       fileMode: "0600",
     });
     expect(KeystoreV3.decrypt(f.writes[0]!.payload, VALID_PASSWORD)).toHaveLength(32);
+    expect(f.spySelect).not.toHaveBeenCalled();
+  });
+
+  it("asks a fully interactive user which backup format to write", async () => {
+    const f = fixture({ tty: true });
+    const accountId = await seedWallet(f);
+
+    await buildCli(f.shellOpts).parseAsync(["backup", accountId]);
+
+    expect(f.spySelect).toHaveBeenCalledWith({
+      label: "Backup format",
+      choices: [
+        {
+          value: false,
+          label: "Native wallet backup (recovery phrase for the whole HD wallet)",
+        },
+        { value: true, label: "Web3 keystore (single TRON private key)" },
+      ],
+    });
+    expect(f.envelope().data).toMatchObject({ format: "native", secretType: "mnemonic" });
+  });
+
+  it("writes a keystore when the interactive format selector chooses it", async () => {
+    const f = fixture({ tty: true });
+    const accountId = await seedWallet(f);
+    f.spySelect.mockResolvedValueOnce(true as never);
+
+    await buildCli(f.shellOpts).parseAsync(["backup", accountId]);
+
+    expect(f.envelope().data).toMatchObject({ format: "keystore", family: "tron" });
+    expect(KeystoreV3.decrypt(f.writes[0]!.payload, VALID_PASSWORD)).toHaveLength(32);
   });
 
   it("still verifies the master password", async () => {

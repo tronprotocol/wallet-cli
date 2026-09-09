@@ -73,6 +73,23 @@ describe("text formatters", () => {
 
     expect(missing.sort()).toEqual([]);
   });
+
+  it.each(["created", "existing"])(
+    "derive %s receipt does not promise that no separate recovery action is needed",
+    (status) => {
+      const out = TextFormatters.walletDerive({
+        status,
+        accountId: "wlt_seed.1",
+        label: "main-1",
+        index: 1,
+        active: true,
+        addresses: { tron: "TLegacy", evm: "0x1234" },
+      }) as string;
+
+      expect(out).toContain("shares the wallet's recovery phrase");
+      expect(out).not.toContain("no separate backup needed");
+    },
+  );
 });
 
 describe("permissionShow formatter", () => {

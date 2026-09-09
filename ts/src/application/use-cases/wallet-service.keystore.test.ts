@@ -15,6 +15,7 @@ import { AtomicFileStore } from "../../adapters/outbound/persistence/fs/index.js
 import type { BackupRecord } from "../ports/backup-records.js";
 import type { BackupFormat } from "../ports/backup-writer.js";
 import { Derivation } from "../../domain/derivation/index.js";
+import type { WalletsFile } from "../../domain/types/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { tronHexAddress } from "../../domain/address/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
@@ -65,15 +66,12 @@ function fakeRecords(seed: BackupRecord[] = []) {
 }
 
 function harness() {
-  const keystore = new Keystore(
-    mkdtempSync(join(tmpdir(), "wsk-")),
-    new AtomicFileStore(),
-    () => PW,
-  );
+  const root = mkdtempSync(join(tmpdir(), "wsk-"));
+  const keystore = new Keystore(root, new AtomicFileStore(), () => PW);
   const writer = fakeWriter();
   const store = fakeRecords();
   const service = new WalletService(keystore, {} as any, writer, store, () => NOW);
-  return { keystore, writer, store, service };
+  return { root, keystore, writer, store, service };
 }
 
 describe("WalletService.backupKeystore", () => {
@@ -150,6 +148,109 @@ describe("WalletService.backupKeystore", () => {
     expect(() => h.service.backupKeystore(accountId, undefined, PW, "tron")).toThrowError(
       /hold no exportable secret/,
     );
+  });
+});
+
+describe("WalletService derivation-path disclosure", () => {
+  it("withholds derivationPath from list/current/use/rename as a command-level policy", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+    h.keystore.addAccount(seedId, 1);
+
+    expect(h.service.list().every((account) => account.derivationPath === null)).toBe(true);
+    expect(h.service.current(accountId).derivationPath).toBeNull();
+    expect(h.service.use(`${seedId}.1`).derivationPath).toBeNull();
+    expect(h.service.rename(`${seedId}.1`, "renamed").derivationPath).toBeNull();
+  });
+
+  it("reports both verified paths from derive", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const result = h.service.derive({ seedId: accountId.split(".")[0]!, index: 1 });
+
+    expect(result.derivationPath).toEqual({
+      tron: "m/44'/195'/0'/0/1",
+      evm: "m/44'/60'/0'/0/1",
+    });
+  });
+});
+
+describe("WalletService derive selection", () => {
+  it("uses the active HD account and keeps working after a derived child becomes active", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    expect(h.service.derive({}).accountId).toBe(`${accountId.split(".")[0]}.1`);
+    expect(h.service.derive({}).accountId).toBe(`${accountId.split(".")[0]}.2`);
+  });
+
+  it("accepts any HD child through --account", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+    h.keystore.addAccount(seedId, 1);
+
+    expect(h.service.derive({ account: `${seedId}.1`, index: 2 }).accountId).toBe(`${seedId}.2`);
+  });
+
+  it("gives --seed-id precedence without resolving --account", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+
+    expect(
+      h.service.derive({ seedId, account: "account-that-does-not-exist", index: 1 }).accountId,
+    ).toBe(`${seedId}.1`);
+  });
+
+  it("rejects a selected non-HD account with actionable guidance", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({
+      secret: RAW_KEY,
+      type: "privateKey",
+      label: "hot",
+    });
+
+    expect(() => h.service.derive({ account: accountId })).toThrowError(
+      /account is not HD; select an account belonging to an HD wallet or pass --seed-id/,
+    );
+  });
+
+  it("does not tell an invalid --seed-id caller to pass the same flag again", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
+
+    expect(() => h.service.derive({ seedId: accountId })).toThrowError(
+      /wallet is not HD; --seed-id must name an HD seed wallet/,
+    );
+  });
+
+  it("warns only when reselecting an existing legacy slot", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+    const warnings: string[] = [];
+
+    h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
+    h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
+    expect(warnings).toEqual([]); // created-current and existing-current both need no warning
+
+    const store = new AtomicFileStore();
+    const path = join(h.root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    source.addresses["1"]!.tron = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ";
+    store.writeJsonAll([{ path, value: file }]);
+
+    h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("legacy TRON path m/44'/195'/1'/0/0");
+    expect(warnings[0]).toContain("recovery phrase can still derive this key");
+    expect(warnings[0]).toContain("default mnemonic recovery will not recreate");
   });
 });
 
@@ -521,5 +622,124 @@ describe("WalletService.backupKeystore — what the audit log records", () => {
     const { records } = h.service.backupRecords({ account: accountId });
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ family: "evm" });
+  });
+});
+
+describe("backup --keystore rescues an account on the old TRON path", () => {
+  const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
+  const TRON_INDEX_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
+
+  /** harness() plus a hand-written pre-correction account 1 — the shape no API can produce any
+   *  more, because addAccount derives the corrected path and (Task 5) refuses this wallet. */
+  function legacyHarness() {
+    const h = harness();
+    h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const store = new AtomicFileStore();
+    const path = join(h.root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    source.addresses["1"] = {
+      tron: TRON_LEGACY_1,
+      evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    };
+    store.writeJsonAll([{ path, value: file }]);
+    return { ...h, seedId: h.keystore.list()[0]!.seedId! };
+  }
+
+  // This is the ONE place the binary may use a template it no longer produces, and its only
+  // purpose is to let the key leave. Exporting the current template's key would hand the user an
+  // empty address — while the refusal message told them to run exactly this command.
+  it("exports the key that owns the stored address, not the current template's", () => {
+    const h = legacyHarness();
+
+    const result = h.service.backupKeystore(`${h.seedId}.1`, undefined, PW, "tron");
+
+    const file = h.writer.writes[0]!.payload as { address: string };
+    expect(file.address).toBe(tronHexAddress(TRON_LEGACY_1));
+    expect(result.derivationPath).toEqual({
+      tron: "m/44'/195'/1'/0/0",
+      evm: "m/44'/60'/0'/0/1",
+    });
+  });
+
+  it("still exports the current template's key for an unaffected account", () => {
+    const h = legacyHarness();
+
+    h.service.backupKeystore(`${h.seedId}.0`, undefined, PW, "tron");
+
+    const file = h.writer.writes[0]!.payload as { address: string };
+    expect(file.address).toBe(tronHexAddress(TRON_INDEX_0));
+  });
+});
+
+describe("native backup warns about accounts the default recovery flow will not recreate", () => {
+  const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
+
+  function legacyHarness() {
+    const h = harness();
+    h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const store = new AtomicFileStore();
+    const path = join(h.root, "wallets.json");
+    const file = store.readJson<WalletsFile>(path)!;
+    const source = file.wallets[0]!.source as Extract<
+      WalletsFile["wallets"][0]["source"],
+      { type: "seed" }
+    >;
+    source.addresses["1"] = {
+      tron: TRON_LEGACY_1,
+      evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    };
+    store.writeJsonAll([{ path, value: file }]);
+    return { ...h, seedId: h.keystore.list()[0]!.seedId! };
+  }
+
+  it("names the account and path without claiming the phrase cannot derive its key", () => {
+    const h = legacyHarness();
+    const warnings: string[] = [];
+
+    h.service.backup(`${h.seedId}.0`, undefined, (m) => warnings.push(m));
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(`${h.seedId}.1`);
+    expect(warnings[0]).toContain("m/44'/195'/1'/0/0");
+    expect(warnings[0]).toContain("default mnemonic recovery will NOT recreate");
+    expect(warnings[0]).toContain("recovery phrase can still derive that key");
+    expect(warnings[0]).not.toContain("recovery phrase does NOT back up");
+    expect(warnings[0]).toMatch(/--keystore/);
+  });
+
+  // The warning is about the WALLET, not the account named on the command line: one mnemonic
+  // backs up every account of its seed, so backing up index 1 leaves the same gap.
+  it("warns no matter which account of the wallet was named", () => {
+    const h = legacyHarness();
+    const warnings: string[] = [];
+
+    h.service.backup(`${h.seedId}.1`, undefined, (m) => warnings.push(m));
+
+    expect(warnings).toHaveLength(1);
+  });
+
+  it("stays quiet for a wallet whose accounts are all on the current template", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    h.keystore.addAccount(accountId.split(".")[0]!, 1);
+    const warnings: string[] = [];
+
+    h.service.backup(accountId, undefined, (m) => warnings.push(m));
+
+    expect(warnings).toEqual([]);
+  });
+
+  it("stays quiet for a private-key account, which has no derivation at all", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
+    const warnings: string[] = [];
+
+    h.service.backup(accountId, undefined, (m) => warnings.push(m));
+
+    expect(warnings).toEqual([]);
   });
 });

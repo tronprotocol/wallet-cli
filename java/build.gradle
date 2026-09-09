@@ -19,7 +19,7 @@ plugins {
 }
 
 group 'Tron'
-version '4.13.0'
+version '4.13.1'
 
 apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
