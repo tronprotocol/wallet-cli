@@ -149,3 +149,27 @@ it("preserves classified errors and settlement evidence without reporting or pay
   expect(pay).toHaveBeenCalledOnce();
   expect(api.reportTxHash).not.toHaveBeenCalled();
 });
+
+it("retains a classified reporting failure and the paid transaction for recovery", async () => {
+  const { flow, api, pay } = fixture();
+  api.reportTxHash.mockRejectedValue(
+    new TransportError("bai_rejected", "B.AI could not verify the transaction", {
+      reason: "TX_NOT_FOUND_OR_INVALID",
+      procedure: "order.reportTxHash",
+      httpStatus: 400,
+      retryPayment: false,
+    }),
+  );
+  await expect(flow.execute(input)).resolves.toMatchObject({
+    creditStatus: "unconfirmed",
+    retryPayment: false,
+    txHash: "hash",
+    error: {
+      code: "bai_rejected",
+      message: "B.AI could not verify the transaction",
+      details: { reason: "TX_NOT_FOUND_OR_INVALID" },
+    },
+  });
+  expect(pay).toHaveBeenCalledOnce();
+  expect(api.reportTxHash).toHaveBeenCalledOnce();
+});

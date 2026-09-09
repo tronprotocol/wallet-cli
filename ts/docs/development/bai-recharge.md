@@ -150,3 +150,29 @@ settlement validation, endpoint cleanup, self/recipient CLI orchestration and
 reporting failure. The facilitator and B.AI backend are mocked. Real settlement,
 credit attribution, repeated reporting and Ledger operation still need live
 integration verification.
+
+## API failure diagnostics
+
+Both B.AI API adapters decode bounded HTTP error bodies and tRPC error envelopes.
+Recognized business failures return `bai_rejected` with a fixed explanatory message
+and `details.reason`, `procedure`, `httpStatus`, and `retryPayment: false`.
+The recognized reasons are `WalletInvalidSignature`, `UNSUPPORTED_CHAIN`,
+`TX_NOT_FOUND_OR_INVALID`, `UNSUPPORTED_TOKEN`, `PAYER_MISMATCH`, `WALLET_NOT_BOUND`,
+`RECHARGE_TX_TOO_OLD`, `TX_TIMESTAMP_UNAVAILABLE`, `PRICE_UNAVAILABLE`,
+`RECHARGE_AMOUNT_TOO_SMALL`, and `SELF_RECHARGE_TARGET` (the documented Chinese
+self-recipient error). Signature rejection explains the required message fields
+and wallet selection rather than blaming the signer.
+
+HTTP 401/403 retain `bai_auth_failed`; 429 retains `provider_rate_limited` without
+waiting for an error body. Timeouts, oversized responses, malformed JSON and
+connection failures remain distinguishable. Unknown server messages are never
+copied into output; callers receive the operation, HTTP status and a safe message.
+Invalid local recharge request fields return `invalid_value` before HTTP.
+
+A report result with `success: false` retains its existing business `code` and adds
+a locally defined explanation. The recharge/recharge-report result keeps the hash,
+original target, `creditStatus: unconfirmed` and `retryPayment: false`. Thrown API
+errors also retain their structured error envelope inside that result. These are
+credit failures after payment, not permission to repeat the payment. A failure to
+retrieve a price or timestamp suggests retrying reporting only. Unknown report
+codes retain the bounded code and a generic reconciliation instruction.

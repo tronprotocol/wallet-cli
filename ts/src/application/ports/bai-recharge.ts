@@ -35,7 +35,8 @@ export interface BaiReportTransactionInput {
   amount?: number;
 }
 export type BaiReportResult =
-  { success: true; order: Record<string, unknown> } | { success: false; code: string };
+  | { success: true; order: Record<string, unknown> }
+  | { success: false; code: string; message?: string };
 export interface BaiRechargeApi {
   resolveTarget(
     identifier: string,

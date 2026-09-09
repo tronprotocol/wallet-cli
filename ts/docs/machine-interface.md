@@ -462,3 +462,15 @@ command does not resolve a new recipient. Omit both only for self recharge.
 Reporting failures retain recovery data and `creditStatus: unconfirmed`; successful
 backend confirmation returns `creditStatus: credited`. Neither path repeats payment.
 A candidate hash from failed settlement validation must be reconciled before reporting.
+
+### B.AI business failure details
+
+`bai_rejected` (exit 1) identifies a recognized B.AI rejection. Inspect
+`error.details.reason` for the documented business identifier and `procedure` /
+`httpStatus` for the failed API operation. Messages are fixed local explanations;
+raw server prose and credentials are not returned. `retryPayment: false` means
+that retry guidance applies to the API operation, not to sending funds again.
+Report-only failures retain the transaction hash and `creditStatus: unconfirmed`;
+the result contains a business `code` and explanatory `warning`, or an `error`
+envelope for a thrown classified API failure. See `development/bai-recharge.md`
+for supported reasons and recovery behavior.

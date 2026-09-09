@@ -1,3 +1,4 @@
+import { baiApiError } from "./api-error.js";
 import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
 import type {
@@ -27,7 +28,7 @@ export class BaiClient implements BaiApi {
   ) {}
 
   async status(): Promise<BaiStatusView> {
-    const value = ObjectSchema.parse(await this.call("usage.summary", null));
+    const value = responseObject(await this.call("usage.summary", null));
     return {
       pointsBalance: scalar(value.points_balance, "points_balance"),
       monthlySpent: scalar(value.monthly_spent, "monthly_spent"),
@@ -94,9 +95,11 @@ export class BaiClient implements BaiApi {
         redirect: "error",
         signal,
       });
-      // Preserve status errors without reading an untrusted error body.
-      if (response.ok) response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
-      else await response.body?.cancel();
+      if ([401, 403, 429].includes(response.status)) {
+        await response.body?.cancel();
+        throw baiApiError(undefined, procedure, response.status)!;
+      }
+      response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
     } catch (error) {
       if (error instanceof TransportError) throw error;
       if (
@@ -105,24 +108,25 @@ export class BaiClient implements BaiApi {
       ) {
         throw new TransportError("timeout", "B.AI API request timed out");
       }
-      throw new TransportError("provider_error", "B.AI API request failed");
+      throw new TransportError(
+        "provider_error",
+        "B.AI API connection failed; check connectivity and the service endpoint",
+        { procedure, reason: "connection_failed" },
+      );
     }
-    if (response.status === 401 || response.status === 403) {
-      throw new TransportError("bai_auth_failed", "B.AI API rejected the configured API key");
-    }
-    if (response.status === 429) {
-      throw new TransportError("provider_rate_limited", "B.AI API rate limit exceeded");
-    }
-    if (!response.ok) {
-      throw new TransportError("provider_error", `B.AI API returned HTTP ${response.status}`);
-    }
-
     let decoded: unknown;
     try {
       decoded = JSON.parse(await response.text());
     } catch {
-      throw new TransportError("provider_error", "B.AI API returned malformed JSON");
+      const statusError = baiApiError(undefined, procedure, response.status);
+      if (statusError) throw statusError;
+      throw new TransportError("provider_error", "B.AI API returned malformed JSON", {
+        procedure,
+        reason: "malformed_json",
+      });
     }
+    const apiError = baiApiError(decoded, procedure, response.status);
+    if (apiError) throw apiError;
     const first = Array.isArray(decoded) ? decoded[0] : decoded;
     if (
       first &&
@@ -163,7 +167,7 @@ function arrayOfObjects(value: unknown): Record<string, unknown>[] {
 }
 
 function page(raw: unknown): BaiPageView {
-  const value = ObjectSchema.parse(raw);
+  const value = responseObject(raw);
   const items = arrayOfObjects(Array.isArray(value.data) ? value.data : value.orders);
   const pageNumber = finiteInteger(value.page, 1) ?? 1;
   const pageSize = finiteInteger(value.pageSize, items.length) ?? items.length;
@@ -183,4 +187,13 @@ function page(raw: unknown): BaiPageView {
 function finiteInteger(value: unknown, fallback: number | undefined): number | undefined {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function responseObject(value: unknown): Record<string, unknown> {
+  const result = ObjectSchema.safeParse(value);
+  if (!result.success)
+    throw new TransportError("provider_error", "B.AI returned an invalid response object", {
+      reason: "invalid_response",
+    });
+  return result.data;
 }

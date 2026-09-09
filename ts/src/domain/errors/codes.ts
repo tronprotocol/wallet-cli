@@ -143,6 +143,7 @@ export const ERROR_CODES = {
   gasfree_credentials_missing: { exit: 2, retry: "never", meaning: "no GasFree credentials are configured" },
   gasfree_integrity: { exit: 1, retry: "never", meaning: "the GasFree service's answer failed its integrity check" },
   gasfree_rejected: { exit: 1, retry: "never", meaning: "the GasFree service refused the transfer" },
+  bai_rejected: { exit: 1, retry: "changed", meaning: "the B.AI service rejected an operation with a recognized business reason" },
   bai_auth_failed: { exit: 1, retry: "never", meaning: "the B.AI service rejected the configured API key" },
   bai_credentials_missing: { exit: 2, retry: "never", meaning: "no B.AI API key is configured" },
   tronlink_credentials_missing: { exit: 2, retry: "never", meaning: "no TronLink multi-sig service credentials are configured" },

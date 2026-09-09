@@ -1,3 +1,4 @@
+import { baiApiError, baiBusinessMessage } from "./api-error.js";
 import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
 import type { Config } from "../../../domain/types/index.js";
@@ -61,18 +62,18 @@ export class BaiRechargeClient implements BaiRechargeApi {
       z.object({ type: z.literal("personal"), targetId: text, displayLabel: text }),
       await this.call("order.resolveRechargeTarget", {
         type: "personal",
-        identifier: text.parse(identifier),
+        identifier: this.input(text, identifier),
       }),
     );
   }
   async isBound(input: BaiWalletBindingInput): Promise<boolean> {
     return this.decode(
       z.boolean(),
-      await this.call("wallet.isRechargeBound", wallet.parse(input), "GET"),
+      await this.call("wallet.isRechargeBound", this.input(wallet, input), "GET"),
     );
   }
   async bind(input: BaiBindWalletInput) {
-    const checked = bindInput.parse(input);
+    const checked = this.input(bindInput, input);
     const result = this.decode(
       binding,
       await this.call("wallet.bindRechargeWallet", checked),
@@ -83,19 +84,53 @@ export class BaiRechargeClient implements BaiRechargeApi {
         result.address.toLowerCase() === checked.address.toLowerCase()
       : result.address === checked.address;
     const matchingChain = result.chain === checked.chain || (evm && result.chain === "eth");
-    if (!matchingAddress || !matchingChain) throw this.invalid();
+    if (!matchingAddress)
+      throw new TransportError(
+        "provider_error",
+        "B.AI returned a binding for a different or invalid wallet address",
+        {
+          procedure: "wallet.bindRechargeWallet",
+          reason: "binding_address_mismatch",
+          retryPayment: false,
+        },
+      );
+    if (!matchingChain)
+      throw new TransportError("provider_error", "B.AI returned a binding for a different chain", {
+        procedure: "wallet.bindRechargeWallet",
+        reason: "binding_chain_mismatch",
+        retryPayment: false,
+      });
     return result;
   }
   async createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>> {
     const result = this.decode(
       object,
-      await this.call("order.createOrder", orderInput.parse(input)),
+      await this.call("order.createOrder", this.input(orderInput, input)),
     );
     if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
     return result;
   }
   async reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult> {
-    return this.decode(report, await this.call("order.reportTxHash", reportInput.parse(input)));
+    const result = this.decode(
+      report,
+      await this.call("order.reportTxHash", this.input(reportInput, input)),
+    );
+    return result.success
+      ? result
+      : {
+          ...result,
+          message:
+            baiBusinessMessage(result.code) ??
+            "B.AI has not confirmed credit; retain the hash and reconcile before retrying reporting. Do not pay again",
+        };
+  }
+  private input<T>(schema: z.ZodType<T>, value: unknown): T {
+    const result = schema.safeParse(value);
+    if (!result.success)
+      throw new UsageError("invalid_value", "Invalid B.AI request parameters", {
+        fields: [...new Set(result.error.issues.map((issue) => issue.path.join(".")))],
+      });
+    return result.data;
   }
   private invalid() {
     return new TransportError("provider_error", "B.AI recharge API returned an invalid response");
@@ -139,18 +174,38 @@ export class BaiRechargeClient implements BaiRechargeApi {
         signal,
         ...(method === "POST" ? { body: payload } : {}),
       });
-      if (!response.ok) await response.body?.cancel();
-      if (response.status === 401 || response.status === 403)
-        throw new TransportError("bai_auth_failed", "B.AI API rejected the configured credential");
-      if (response.status === 429)
-        throw new TransportError("provider_rate_limited", "B.AI API rate limit exceeded");
-      if (!response.ok)
-        throw new TransportError(
-          "provider_error",
-          `B.AI recharge API returned HTTP ${response.status}`,
-        );
+      if ([401, 403, 429].includes(response.status)) {
+        await response.body?.cancel();
+        throw baiApiError(undefined, procedure, response.status)!;
+      }
       response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
-      decoded = await response.json();
+      try {
+        decoded = await response.json();
+      } catch {
+        const statusError = baiApiError(undefined, procedure, response.status);
+        if (statusError) throw statusError;
+        throw new TransportError("provider_error", "B.AI returned malformed JSON", {
+          procedure,
+          reason: "malformed_json",
+          retryPayment: false,
+        });
+      }
+      const apiError = baiApiError(decoded, procedure, response.status);
+      // A report rejection is a credit result, not a reason to pay again.
+      const envelope = object.safeParse(decoded);
+      const data = envelope.success ? envelope.data : undefined;
+      const wrapped = data?.result as { data?: { json?: unknown } } | undefined;
+      const reported = report.safeParse(wrapped?.data?.json ?? data);
+      if (
+        apiError &&
+        !(
+          response.ok &&
+          procedure === "order.reportTxHash" &&
+          reported.success &&
+          !reported.data.success
+        )
+      )
+        throw apiError;
     } catch (error) {
       if (error instanceof TransportError) throw error;
       if (error instanceof Error && /TimeoutError|AbortError/.test(error.name))
@@ -160,7 +215,8 @@ export class BaiRechargeClient implements BaiRechargeApi {
         );
       throw new TransportError(
         "provider_error",
-        "B.AI recharge API request failed; mutation outcome may be unknown",
+        "B.AI recharge API connection failed; check connectivity and reconcile any pending mutation before retrying",
+        { procedure, reason: "connection_failed", retryPayment: false },
       );
     }
     const envelope = this.decode(object, decoded);

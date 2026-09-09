@@ -137,7 +137,7 @@ describe("B.AI recharge API", () => {
       const { client, fetcher } = fixture({ success: false, code, message: "secret" });
       await expect(
         client.reportTxHash({ chain: "bnb", txHash: "hash", rechargeTarget: target }),
-      ).resolves.toEqual({ success: false, code });
+      ).resolves.toEqual({ success: false, code, message: expect.not.stringContaining("secret") });
       expect(fetcher).toHaveBeenCalledTimes(1);
     },
   );

@@ -85,14 +85,19 @@ export async function reportBaiTransaction(
   try {
     const result = await api.reportTxHash(structuredClone(request));
     if (!result.success)
-      return { ...base, creditStatus: "unconfirmed" as const, code: result.code };
+      return {
+        ...base,
+        creditStatus: "unconfirmed" as const,
+        code: result.code,
+        ...(result.message ? { warning: result.message } : {}),
+      };
     return { ...base, creditStatus: "credited" as const, order: result.order };
   } catch (error) {
     if (error instanceof UsageError) throw error;
     return {
       ...base,
       creditStatus: "unconfirmed" as const,
-      ...(error instanceof CliError ? { code: error.code } : {}),
+      ...(error instanceof CliError ? { code: error.code, error: error.toEnvelope() } : {}),
       warning:
         "Recharge reporting failed; retain the transaction hash and reconcile before retrying reporting. Do not pay again",
     };
