@@ -1,12 +1,21 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Interface, Wallet } from "ethers";
-import { TronWeb, utils as tronUtils } from "tronweb";
+import { TronWeb, providers, utils as tronUtils } from "tronweb";
 import { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";
 import type { FacilitatorTronSigner } from "@bankofai/x402-tron";
 import type { PaymentPayload, PaymentRequirements } from "@bankofai/x402-core/types";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+
+beforeEach(() => {
+  vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
+    if (path === "wallet/triggerconstantcontract")
+      return { result: { result: true }, constant_result: ["f".repeat(64)] };
+    throw new Error(`Unexpected payer RPC ${path}`);
+  });
+});
+afterEach(() => vi.restoreAllMocks());
 
 it.each([true, false])(
   "Nile SDK settlement with sufficient Permit2 allowance=%s",
@@ -160,7 +169,7 @@ it.each([true, false])(
       expect(broadcast).toHaveBeenCalledOnce();
       expect(waitForTransactionReceipt).toHaveBeenCalledWith({ hash: settlement?.transaction });
     } else {
-      await expect(payment).rejects.toMatchObject({ code: "provider_error" });
+      await expect(payment).rejects.toMatchObject({ code: "permit2_allowance_required" });
       expect(settlement).toMatchObject({ success: false });
       expect(broadcast).not.toHaveBeenCalled();
       expect(writeContract).not.toHaveBeenCalled();

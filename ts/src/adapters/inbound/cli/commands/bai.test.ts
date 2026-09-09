@@ -74,3 +74,22 @@ describe("B.AI command surface", () => {
     });
   });
 });
+
+it("exposes report-only recovery without wallet authentication or chain broadcast", () => {
+  const registry = new CommandRegistry();
+  registerBaiCommands(registry, service());
+  const command = registry.resolveNeutral(["bai", "recharge-report"])!;
+  expect(command).toMatchObject({
+    network: "none",
+    wallet: "none",
+    auth: "none",
+    broadcasts: false,
+  });
+  const input = { chain: "base", txHash: "0x" + "a".repeat(64) };
+  expect(command.input.safeParse(input).success).toBe(true);
+  expect(command.input.safeParse({ ...input, to: "recipient" }).success).toBe(false);
+  expect(command.input.safeParse({ ...input, chain: "tron" }).success).toBe(false);
+  expect(
+    command.input.safeParse({ ...input, to: "recipient", targetId: "original-id" }).success,
+  ).toBe(true);
+});

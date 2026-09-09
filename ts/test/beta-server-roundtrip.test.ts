@@ -1,3 +1,4 @@
+import { tronAllowancePreload } from "./tron-allowance-preload.js";
 import { it, expect } from "vitest";
 import { Wallet } from "ethers";
 import { createServer } from "node:net";
@@ -80,7 +81,8 @@ it.skipIf(!entry)(
       const preload = join(home, "fetch.mjs");
       writeFileSync(
         preload,
-        `import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalThis.fetch=async(input,init)=>{
+        `${tronAllowancePreload}
+import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalThis.fetch=async(input,init)=>{
    const url=new URL(input instanceof Request?input.url:input);
    if(url.hostname==='127.0.0.1')return realFetch(input,init);
    if(url.origin!=='https://facilitator.bankofai.io')throw new Error('unexpected network');

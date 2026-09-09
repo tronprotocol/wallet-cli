@@ -46,17 +46,17 @@ export class AgentService {
     network: NetworkDescriptor,
     input: TransactionOptions & { uri: string },
   ) {
-    const result: Record<string, unknown> = {
+    const result: Record<string, unknown> & { identity: { uri: string } } = {
       ...(await this.write(scope, network, input, "register(string)", [
         { type: "string", value: input.uri },
       ])),
-      uri: input.uri,
+      identity: { uri: input.uri },
     };
     if (result.stage !== "confirmed") return result;
     const txId = String(result.txId ?? result.hash ?? "");
     try {
       const agentId = txId ? await this.registry.registeredAgentId(network, txId) : undefined;
-      if (agentId !== undefined) return { ...result, agentId };
+      if (agentId !== undefined) return { ...result, identity: { ...result.identity, agentId } };
     } catch {
       /* Keep the confirmed transaction even when receipt enrichment fails. */
     }
@@ -81,7 +81,7 @@ export class AgentService {
       { type: "uint256", value: id },
       { type: "string", value: input.uri },
     ]);
-    const view = { ...result, agentId: id, oldURI, requestedURI: input.uri };
+    const view = { ...result, identity: { agentId: id, oldURI, requestedURI: input.uri } };
     if (result.stage !== "confirmed") return view;
     try {
       const newURI = String(
@@ -89,7 +89,7 @@ export class AgentService {
           { type: "uint256", value: id },
         ]),
       );
-      return { ...view, newURI };
+      return { ...view, identity: { ...view.identity, newURI } };
     } catch {
       scope.warn("URI update confirmed, but the current Agent URI could not be read.");
       return view;
@@ -119,16 +119,18 @@ export class AgentService {
     );
     const view = {
       ...result,
-      agentId: id,
-      oldOwner: this.address(network, owner),
-      requestedOwner: input.newOwner,
+      identity: {
+        agentId: id,
+        oldOwner: this.address(network, owner),
+        requestedOwner: input.newOwner,
+      },
     };
     if (result.stage !== "confirmed") return view;
     try {
       const newOwner = String(
         await this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: id }]),
       );
-      return { ...view, newOwner: this.address(network, newOwner) };
+      return { ...view, identity: { ...view.identity, newOwner: this.address(network, newOwner) } };
     } catch {
       scope.warn("Transfer confirmed, but the current Agent owner could not be read.");
       return view;

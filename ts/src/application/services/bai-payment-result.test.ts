@@ -1,41 +1,102 @@
 import { expect, it } from "vitest";
 import { baiPaymentResult } from "./bai-payment-result.js";
-const hash = "0x" + "a".repeat(64);
-const envelope = {
-  jsonrpc: "2.0",
-  id: 1,
-  result: { transaction_hash: hash, network: "eip155:56" },
-};
-it("extracts JSON and SSE MCP payment results", () => {
-  for (const response of [
-    envelope,
-    JSON.stringify(envelope),
-    `event: message\ndata: ${JSON.stringify(envelope)}\n\n`,
-  ]) {
-    expect(baiPaymentResult({ response, payer: { address: "payer" } }, "eip155:56")).toEqual({
-      txHash: hash,
-      payer: "payer",
-    });
-  }
+
+const payer = "0x1111111111111111111111111111111111111111";
+const transaction = "0x" + "a".repeat(64);
+const payment = () => ({
+  settled: true,
+  payer: { address: payer },
+  paymentResponse: { success: true, transaction, network: "eip155:56", payer },
+});
+
+it("extracts a confirmed x402 settlement without an MCP response body", () => {
+  expect(baiPaymentResult(payment(), "eip155:56")).toEqual({ txHash: transaction, payer });
 });
 it.each([
-  { ...envelope, error: {} },
-  { result: { transaction_hash: hash, network: "eip155:97" } },
-  { result: { transaction_hash: "bad", network: "eip155:56" } },
-  { result: { isError: true } },
-  {},
-])("rejects wrong-chain, invalid or error responses", (response) => {
-  expect(() => baiPaymentResult({ response, payer: { address: "payer" } }, "eip155:56")).toThrow();
+  { success: false },
+  { transaction: "" },
+  { transaction: "garbage" },
+  { network: "eip155:8453" },
+  { payer: "0x2222222222222222222222222222222222222222" },
+])("rejects inconsistent settlement evidence %j", (override) => {
+  const value = payment();
+  Object.assign(value.paymentResponse, override);
+  expect(() => baiPaymentResult(value, "eip155:56")).toThrow(/unconfirmed/);
 });
-it("matches the recharge server's hexadecimal TRON network to the CLI decimal network", () => {
-  const txHash = "b".repeat(64);
+it("does not accept HTTP delivery or a legacy MCP hash as proof of settlement", () => {
+  expect(() =>
+    baiPaymentResult(
+      {
+        delivered: true,
+        payer: { address: payer },
+        response: { result: { transaction_hash: transaction, network: "eip155:56" } },
+      },
+      "eip155:56",
+    ),
+  ).toThrow();
+  expect(() => baiPaymentResult({ ...payment(), settled: false }, "eip155:56")).toThrow();
+});
+it("accepts TRON settlement network notation", () => {
   expect(
     baiPaymentResult(
       {
-        payer: { address: "T-payer" },
-        response: { id: 1, result: { transaction_hash: txHash, network: "tron:0x2b6653dc" } },
+        settled: true,
+        payer: { address: "tron-payer" },
+        paymentResponse: { success: true, network: "tron:0x2b6653dc", transaction: "a".repeat(64) },
       },
       "tron:728126428",
     ),
-  ).toEqual({ txHash, payer: "T-payer" });
+  ).toEqual({ txHash: "a".repeat(64), payer: "tron-payer" });
+});
+
+it.each([
+  [{ payer: "0x2222222222222222222222222222222222222222" }, "payer_mismatch"],
+  [{ network: "eip155:8453" }, "network_mismatch"],
+  [{ success: false }, "settlement_unconfirmed"],
+])("retains a candidate hash without claiming confirmation: %j", (override, reason) => {
+  const value = payment();
+  Object.assign(value.paymentResponse, override);
+  let caught;
+  try {
+    baiPaymentResult(value, "eip155:56");
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toMatchObject({
+    code: "invalid_x402_response",
+    details: {
+      candidateTxHash: transaction,
+      reason,
+      settled: false,
+      paymentStatus: "unknown",
+      retryPayment: false,
+    },
+  });
+  expect(caught).not.toHaveProperty("details.txHash");
+});
+
+it("does not expose malformed evidence or discard a hash when payer metadata is missing", () => {
+  for (const value of [
+    { ...payment(), payer: undefined },
+    {
+      ...payment(),
+      paymentResponse: {
+        ...payment().paymentResponse,
+        transaction: "SECRET",
+        network: "SECRET",
+        payer: "SECRET",
+      },
+    },
+  ]) {
+    try {
+      baiPaymentResult(value, "eip155:56");
+      throw new Error("unexpected success");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "invalid_x402_response" });
+      expect(JSON.stringify(error)).not.toContain("SECRET");
+      if (value.payer === undefined)
+        expect(error).toHaveProperty("details.candidateTxHash", transaction);
+      else expect(error).not.toHaveProperty("details.candidateTxHash");
+    }
+  }
 });

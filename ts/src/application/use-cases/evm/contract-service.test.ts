@@ -288,8 +288,7 @@ describe("EvmContractService.send — approve", () => {
     const { service, gateway } = approveHarness(6);
 
     await expect(send(service, "42", "erc721")).resolves.toMatchObject({
-      operator: SPENDER,
-      agentId: "42",
+      identity: { operator: SPENDER, agentId: "42" },
     });
     expect(gateway.getErc20Metadata).not.toHaveBeenCalled();
   });

@@ -75,3 +75,25 @@ it.each([
     await response.arrayBuffer();
   });
 });
+
+it.each([
+  ["permit2_allowance_required", "permit2_allowance_required"],
+  ["insufficient_funds", "insufficient_balance"],
+  ["SECRET", "provider_error"],
+])("keeps known settlement reasons and redacts unknown text: %s", async (reason, code) => {
+  await withServer(
+    { success: false, errorReason: reason, errorMessage: "SECRET" },
+    async (port) => {
+      const response = await fetch(`http://127.0.0.1:${port}/pay`, {
+        headers: {
+          "payment-signature": Buffer.from(
+            JSON.stringify({ x402Version: 2, payload: {} }),
+          ).toString("base64"),
+        },
+      });
+      const body = await response.json();
+      expect(body).toMatchObject({ code, phase: "settle" });
+      expect(JSON.stringify(body)).not.toContain("SECRET");
+    },
+  );
+});

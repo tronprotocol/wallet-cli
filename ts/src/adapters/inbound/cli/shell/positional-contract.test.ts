@@ -103,6 +103,7 @@ describe("every registered positional command rejects its --<field> spelling", (
       "asset participate",
       "backup",
       "bai recharge",
+      "bai recharge-report",
       "block",
       "config",
       "contact add",

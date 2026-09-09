@@ -57,7 +57,7 @@ export async function approveRows(ctx: ApproveContext): Promise<Record<string, u
   }
   const spender = (ctx.displayAddress ?? ((v: string) => v))(spenderRaw);
   if (ctx.approvalKind === "erc721") {
-    return { operator: spender, agentId: amount.toString(10) };
+    return { identity: { operator: spender, agentId: amount.toString(10) } };
   }
   if (amount === MAX_UINT256) return { spender, allowance: "unlimited" };
 

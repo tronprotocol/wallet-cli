@@ -16,7 +16,10 @@ const commands = [
     "provider-endpoints",
     "provider-update",
   ].map((v) => ["x402", v]),
-  ...["recharge", "status", "usage", "usage-list", "recharge-list"].map((v) => ["bai", v]),
+  ...["recharge", "recharge-report", "status", "usage", "usage-list", "recharge-list"].map((v) => [
+    "bai",
+    v,
+  ]),
   ...[
     "show",
     "register",

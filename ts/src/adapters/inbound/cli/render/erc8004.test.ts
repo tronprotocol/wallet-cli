@@ -8,8 +8,10 @@ it("renders Agent approval as an operator and ID without an allowance", () => {
       kind: "contract-send",
       stage: "submitted",
       txId: "0xabc",
-      agentId: "9007199254740993",
-      operator: "0x2222222222222222222222222222222222222222",
+      identity: {
+        agentId: "9007199254740993",
+        operator: "0x2222222222222222222222222222222222222222",
+      },
     },
     ctx,
   );
@@ -23,11 +25,13 @@ it("shows URI and owner results only when supplied by the confirmed service resu
       kind: "contract-send",
       stage: "confirmed",
       txId: "0xabc",
-      oldURI: "ipfs://old",
-      newURI: "ipfs://actual",
-      requestedURI: "ipfs://requested",
-      oldOwner: "0x1111",
-      newOwner: "0x2222",
+      identity: {
+        oldURI: "ipfs://old",
+        newURI: "ipfs://actual",
+        requestedURI: "ipfs://requested",
+        oldOwner: "0x1111",
+        newOwner: "0x2222",
+      },
     },
     ctx,
   );

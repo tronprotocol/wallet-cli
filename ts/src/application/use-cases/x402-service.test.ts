@@ -26,3 +26,42 @@ describe("X402Service", () => {
     expect(catalog.list).toHaveBeenCalledWith({ limit: 20, offset: 0 });
   });
 });
+
+it.each([false, true])(
+  "closes the roundtrip server after payment (failure=%s)",
+  async (failure) => {
+    const close = vi.fn(async () => {});
+    const pay = vi.fn(async () => {
+      if (failure) throw new Error("settlement failed");
+      return { settled: true };
+    });
+    const service = new X402Service({ pay }, {} as ProviderCatalogPort, {
+      validate: vi.fn(),
+      start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
+    });
+    const result = service.roundtrip({} as never, {} as never, {
+      payTo: "trusted",
+      amount: "10",
+      token: "USDT",
+      scheme: "exact",
+      host: "127.0.0.1",
+      port: 0,
+      facilitatorUrl: "https://facilitator.example",
+    });
+    if (failure) await expect(result).rejects.toThrow("settlement failed");
+    else await expect(result).resolves.toMatchObject({ pay: { settled: true } });
+    expect(pay).toHaveBeenCalledWith(
+      {},
+      {},
+      expect.objectContaining({
+        url: "http://127.0.0.1:45678/pay",
+        token: "USDT",
+        scheme: "exact",
+        expectedPayTo: "trusted",
+        exactAmount: "10",
+        maxAmount: "10",
+      }),
+    );
+    expect(close).toHaveBeenCalledOnce();
+  },
+);

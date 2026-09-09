@@ -39,7 +39,7 @@ describe("BaiService", () => {
 it("stops an unconfirmed local recharge before requesting or signing payment", async () => {
   const pay = vi.fn();
   const isConfirmed = vi.fn(() => false);
-  const service = new BaiService(api(), () => new Date(), { pay }, {
+  const service = new BaiService(api(), () => new Date(), { validate: vi.fn(), roundtrip: pay }, {
     isConfirmed,
   } as unknown as BaiBindingStore);
   await expect(
@@ -57,7 +57,7 @@ it("does not proceed when local confirmation cannot be read", async () => {
   const isConfirmed = vi.fn(() => {
     throw new Error("API unavailable");
   });
-  const service = new BaiService(api(), () => new Date(), { pay }, {
+  const service = new BaiService(api(), () => new Date(), { validate: vi.fn(), roundtrip: pay }, {
     isConfirmed,
   } as unknown as BaiBindingStore);
   await expect(

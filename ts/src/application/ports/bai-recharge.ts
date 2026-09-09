@@ -1,3 +1,9 @@
+/** Trusted deployment settings injected by the composition root, not user configuration. */
+export interface BaiRechargeConfig {
+  readonly facilitatorUrl: string;
+  readonly payTo: Readonly<Partial<Record<string, string>>>;
+}
+
 /** Confirmed credit recipient; distinct from the authenticated payer's wallet binding. */
 export interface BaiRechargeTarget {
   input: { type: "personal"; identifier: string };

@@ -1,3 +1,4 @@
+import { tronAllowancePreload } from "./tron-allowance-preload.js";
 import { it, expect } from "vitest";
 import { Wallet } from "ethers";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
@@ -37,7 +38,8 @@ it.skipIf(!process.env.WALLET_CLI_TEST_ENTRY)(
       const log = join(home, "signature.json");
       writeFileSync(
         preload,
-        `import {writeFileSync} from 'node:fs';
+        `${tronAllowancePreload}
+import {writeFileSync} from 'node:fs';
       globalThis.fetch=async(input,init)=>{
         const request=input instanceof Request?input:new Request(input,init);
         if(request.url!=='https://example.test/nile') throw new Error('unexpected network request');

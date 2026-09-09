@@ -77,7 +77,7 @@ describe("approveRows", () => {
       metadata,
     });
 
-    expect(rows).toEqual({ operator: SPENDER, agentId: "42" });
+    expect(rows).toEqual({ identity: { operator: SPENDER, agentId: "42" } });
     expect(metadata).not.toHaveBeenCalled();
   });
 

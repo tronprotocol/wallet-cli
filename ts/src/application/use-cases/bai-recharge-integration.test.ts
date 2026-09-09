@@ -1,3 +1,4 @@
+import { X402HttpServer } from "../../adapters/outbound/x402/server.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
@@ -5,7 +6,9 @@ import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 const payer = "0x1111111111111111111111111111111111111111";
 const txHash = "0x" + "a".repeat(64);
 const network = { id: "eip155:56", chainId: "56", family: "evm" } as const;
-function fixture() {
+function fixture(
+  payTo: Record<string, string> = { bnb: "0x060f7fd9c9622bdcf9f2887c8171d6e6b4b4ba17" },
+) {
   const calls: string[] = [];
   const api = {
     resolveTarget: vi.fn(async () => {
@@ -24,14 +27,15 @@ function fixture() {
     }),
   };
   const payments = {
-    pay: vi.fn(async () => {
+    validate: vi.fn(),
+    roundtrip: vi.fn(async () => {
       calls.push("pay");
       return {
-        payer: { address: payer },
-        response: {
-          jsonrpc: "2.0",
-          id: 1,
-          result: { transaction_hash: txHash, network: "eip155:56", payment_status: "settled" },
+        serve: {},
+        pay: {
+          settled: true,
+          payer: { address: payer },
+          paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
         },
       };
     }),
@@ -42,6 +46,7 @@ function fixture() {
     payments,
     { isConfirmed: () => true } as unknown as BaiBindingStore,
     api,
+    { facilitatorUrl: "https://facilitator.example", payTo },
   );
   const run = (to?: string, amount = "10", token = "USDT") =>
     service.recharge({ resolveAddress: () => payer } as never, network as never, {
@@ -104,12 +109,16 @@ it.each([
   async (token, amount) => {
     const { run, payments } = fixture();
     await run(undefined, amount, token);
-    expect(payments.pay).toHaveBeenCalledWith(
+    expect(payments.roundtrip).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       expect.objectContaining({
-        expectedPayTo: "0x060f7fd9c9622bdcf9f2887c8171d6e6b4b4ba17",
-        exactAmount: amount,
+        facilitatorUrl: "https://facilitator.example",
+        host: "127.0.0.1",
+        port: 0,
+        scheme: "exact",
+        payTo: "0x060f7fd9c9622bdcf9f2887c8171d6e6b4b4ba17",
+        amount,
       }),
     );
   },
@@ -131,7 +140,7 @@ it("does not create an order or pay when target validation fails", async () => {
   api.resolveTarget.mockRejectedValue(new Error("invalid target"));
   await expect(run("recipient")).rejects.toThrow("invalid target");
   expect(api.createOrder).not.toHaveBeenCalled();
-  expect(payments.pay).not.toHaveBeenCalled();
+  expect(payments.roundtrip).not.toHaveBeenCalled();
 });
 it("retains paid hash and target when reporting fails", async () => {
   const { api, payments, run } = fixture();
@@ -141,5 +150,31 @@ it("retains paid hash and target when reporting fails", async () => {
     txHash,
     retryPayment: false,
   });
-  expect(payments.pay).toHaveBeenCalledTimes(1);
+  expect(payments.roundtrip).toHaveBeenCalledTimes(1);
 });
+
+it("rejects missing trusted destinations before resolving, ordering or paying", async () => {
+  const { run, calls } = fixture({});
+  await expect(run("recipient@example.com")).rejects.toMatchObject({
+    code: "unsupported_network_capability",
+  });
+  expect(calls).toEqual([]);
+});
+
+it.each([
+  ["USDC", "1"],
+  ["USDT", "1.0000000000000000001"],
+])(
+  "validates BSC token and precision before target resolution and preorder: %s %s",
+  async (token, amount) => {
+    const { payments, api, run } = fixture();
+    const server = new X402HttpServer();
+    payments.validate.mockImplementation((...args: unknown[]) =>
+      server.validate(args[0] as never, args[1] as never),
+    );
+    await expect(run("recipient", amount, token)).rejects.toMatchObject({ code: "invalid_value" });
+    expect(api.resolveTarget).not.toHaveBeenCalled();
+    expect(api.createOrder).not.toHaveBeenCalled();
+    expect(payments.roundtrip).not.toHaveBeenCalled();
+  },
+);

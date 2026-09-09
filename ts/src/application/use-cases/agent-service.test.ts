@@ -73,7 +73,7 @@ describe("AgentService beta integration", () => {
     expect(await f.service.register(f.scope, evmNet, { uri: "ipfs://new" })).toMatchObject({
       stage: "submitted",
       txId: "0xabc",
-      uri: "ipfs://new",
+      identity: { uri: "ipfs://new" },
     });
     expect(f.reader.registeredAgentId).not.toHaveBeenCalled();
     expect(f.send).toHaveBeenCalledOnce();
@@ -82,7 +82,7 @@ describe("AgentService beta integration", () => {
     const f = fixture("confirmed");
     expect(await f.service.register(f.scope, evmNet, { uri: "ipfs://new" })).toMatchObject({
       stage: "confirmed",
-      agentId: "9007199254740993",
+      identity: { agentId: "9007199254740993", uri: "ipfs://new" },
     });
   });
   it("retains confirmed tx evidence if the registration event is unavailable", async () => {
@@ -106,10 +106,12 @@ describe("AgentService beta integration", () => {
     const f = fixture("confirmed");
     f.reader.read.mockResolvedValueOnce("ipfs://old").mockResolvedValueOnce("ipfs://actual");
     expect(await f.service.update(f.scope, evmNet, { id: "42", uri: "ipfs://new" })).toMatchObject({
-      oldURI: "ipfs://old",
-      newURI: "ipfs://actual",
-      requestedURI: "ipfs://new",
-      agentId: "42",
+      identity: {
+        oldURI: "ipfs://old",
+        newURI: "ipfs://actual",
+        requestedURI: "ipfs://new",
+        agentId: "42",
+      },
     });
     expect(f.send).toHaveBeenCalledOnce();
   });
@@ -124,7 +126,7 @@ describe("AgentService beta integration", () => {
     f.reader.read.mockResolvedValueOnce(owner).mockResolvedValueOnce(operator);
     expect(
       await f.service.transfer(f.scope, evmNet, { id: "42", newOwner: operator }),
-    ).toMatchObject({ oldOwner: owner, newOwner: operator, agentId: "42" });
+    ).toMatchObject({ identity: { oldOwner: owner, newOwner: operator, agentId: "42" } });
     expect(f.send).toHaveBeenCalledWith(
       f.scope,
       evmNet,

@@ -78,7 +78,7 @@ describe("x402 SDK payer integration", () => {
   it("does not send a payment when the signer returns a different primary type", async () => {
     const { fetcher, client } = fixture(true);
     await expect(client.pay(scope, network, input)).rejects.toMatchObject({
-      code: "provider_error",
+      code: "signed_payload_mismatch",
     });
     expect(fetcher).toHaveBeenCalledOnce();
   });

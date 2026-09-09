@@ -1,9 +1,18 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Wallet } from "ethers";
-import { TronWeb, utils as tronUtils } from "tronweb";
+import { TronWeb, providers, utils as tronUtils } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+
+beforeEach(() => {
+  vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
+    if (path === "wallet/triggerconstantcontract")
+      return { result: { result: true }, constant_result: ["f".repeat(64)] };
+    throw new Error(`Unexpected payer RPC ${path}`);
+  });
+});
+afterEach(() => vi.restoreAllMocks());
 
 it("signs a Nile Permit2 payment through the existing TRON signing strategy and x402 SDK", async () => {
   const key = Wallet.createRandom().privateKey;

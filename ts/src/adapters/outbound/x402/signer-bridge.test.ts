@@ -8,6 +8,33 @@ const TRON_ADDRESS = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
 // The same TRON address in the 41-prefixed hex form a counterparty may send instead.
 const TRON_HEX = "4119e7e376e7c213b7e7e7e46cc70a5dd086daff2a";
 
+it.each([
+  [{ gas: 65000n }, 65000n],
+  [{ gasLimit: 70000n }, 70000n],
+  [{ gas: 65000n, gasLimit: 70000n }, 70000n],
+])(
+  "normalizes EVM gas without mutating the SDK transaction (case %#)",
+  async (fields, expected) => {
+    const tx = Object.freeze({ to: EVM_ADDRESS, ...fields });
+    const signTransaction = vi.fn(async () => ({ raw: "0xraw" }));
+    const payer = { ...payerOf(EVM_ADDRESS), signTransaction };
+    await toX402Wallet(payer, { family: "evm" }).signTransaction(tx);
+    expect(signTransaction).toHaveBeenCalledWith({ to: EVM_ADDRESS, gasLimit: expected });
+    expect(tx).toEqual({ to: EVM_ADDRESS, ...fields });
+  },
+);
+
+it.each([null, "0x1234", []])(
+  "rejects invalid EVM transaction input before signing %j",
+  async (tx) => {
+    const payer = payerOf(EVM_ADDRESS);
+    await expect(toX402Wallet(payer, { family: "evm" }).signTransaction(tx)).rejects.toThrow(
+      "must be an object",
+    );
+    expect(payer.signTransaction).not.toHaveBeenCalled();
+  },
+);
+
 const payerOf = (address: string, signature = "sig", primaryType = "Transfer"): PayerSigner => ({
   address,
   signTypedData: vi.fn(async () => ({ signature, digest: "0xdig", primaryType })),

@@ -1,7 +1,9 @@
+import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
 import { setLogger, noopLogger } from "@bankofai/x402-core";
 import { FileBaiBindingStore } from "../adapters/outbound/bai/binding-store.js";
 import { BaiCredentialSetup, baiChain } from "../application/use-cases/bai-credential-setup.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
+import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
 import { isTronNetwork } from "../domain/types/network.js";
 import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
@@ -138,14 +140,20 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
   const x402Payments = new X402PaymentClient(signerResolver);
+  const x402Service = new X402Service(
+    x402Payments,
+    new X402ProviderCatalog(undefined, undefined, timeoutMs),
+    new X402HttpServer(undefined, timeoutMs),
+  );
   registerBaiCommands(
     registry,
     new BaiService(
       new BaiClient(config, timeoutMs),
       () => new Date(),
-      x402Payments,
+      x402Service,
       baiBindings,
       new BaiRechargeClient(config, timeoutMs),
+      { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
     ),
   );
   const agentContracts = {
@@ -157,14 +165,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     new SdkAgentRegistry(agentContracts, gatewayProvider),
     new RegistrationLoader(timeoutMs),
   );
-  registerX402Commands(
-    registry,
-    new X402Service(
-      x402Payments,
-      new X402ProviderCatalog(undefined, undefined, timeoutMs),
-      new X402HttpServer(undefined, timeoutMs),
-    ),
-  );
+  registerX402Commands(registry, x402Service);
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
   registerTronChainCommands(registry, {

@@ -1,15 +1,16 @@
-import type { BaiRechargeApi, BaiRechargeTarget } from "../ports/bai-recharge.js";
-import { BaiRechargeFlow } from "./bai-recharge-flow.js";
-import { baiPaymentResult } from "../services/bai-payment-result.js";
+import type {
+  BaiRechargeApi,
+  BaiRechargeConfig,
+  BaiRechargeTarget,
+} from "../ports/bai-recharge.js";
+import { BaiRechargeFlow, reportBaiTransaction } from "./bai-recharge-flow.js";
 import { requireBaiChain } from "./bai-credential-setup.js";
 import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
 import { UsageError } from "../../domain/errors/index.js";
-import {
-  assertBaiRechargeMinimum,
-  BAI_RECHARGE_ADDRESSES,
-} from "../../domain/bai/recharge-policy.js";
-import type { X402PaymentPort } from "../ports/x402-payment.js";
+import { assertBaiRechargeMinimum } from "../../domain/bai/recharge-policy.js";
+import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js";
+import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 
@@ -24,9 +25,10 @@ export class BaiService {
   constructor(
     private readonly api: BaiApi,
     private readonly now: () => Date = () => new Date(),
-    private readonly payments?: X402PaymentPort,
+    private readonly payments?: X402RoundtripPort,
     private readonly bindings?: BaiBindingStore,
     private readonly rechargeApi?: BaiRechargeApi,
+    private readonly rechargeConfig?: BaiRechargeConfig,
   ) {}
 
   async recharge(
@@ -50,23 +52,28 @@ export class BaiService {
         "Confirm this API key and payer wallet first by configuring baiApiKey with --api-key-stdin for the selected account/network. No payment was sent",
       );
     }
-    if (!this.payments || !this.rechargeApi) {
+    if (!this.payments || !this.rechargeApi || !this.rechargeConfig) {
       throw new UsageError("invalid_option", "B.AI recharge is not available in this runtime");
     }
-    const normalizedAmount = input.amount.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
-    const amount = Number(normalizedAmount);
-    if (
-      !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(input.amount) ||
-      !Number.isFinite(amount) ||
-      amount <= 0 ||
-      String(amount) !== normalizedAmount
-    ) {
+    const expectedPayTo = this.rechargeConfig.payTo[chain];
+    if (!expectedPayTo?.trim()) {
       throw new UsageError(
-        "invalid_value",
-        "Recharge amount must be positive and exactly representable by the B.AI numeric API",
+        "unsupported_network_capability",
+        "No trusted B.AI recharge destination for this network",
       );
     }
+    const amount = baiNumericAmount(input.amount);
     assertBaiRechargeMinimum(input.token, input.amount);
+    const paymentInput: X402ServeInput = {
+      payTo: expectedPayTo,
+      amount: input.amount,
+      token: input.token,
+      scheme: "exact",
+      host: "127.0.0.1",
+      port: 0,
+      facilitatorUrl: this.rechargeConfig.facilitatorUrl,
+    };
+    this.payments.validate(network, paymentInput);
     const identifier = input.to?.trim();
     const self =
       !identifier ||
@@ -83,25 +90,8 @@ export class BaiService {
     }
     const flow = new BaiRechargeFlow(this.rechargeApi, {
       pay: async () => {
-        const payment = await this.payments!.pay(scope, network, {
-          url: "https://recharge.bankofai.io/mcp",
-          method: "POST",
-          headers: [
-            "Content-Type: application/json",
-            "Accept: application/json, text/event-stream",
-          ],
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "tools/call",
-            params: { name: "recharge", arguments: { amount: input.amount, token: input.token } },
-          }),
-          token: input.token,
-          maxAmount: input.amount,
-          exactAmount: input.amount,
-          expectedPayTo: BAI_RECHARGE_ADDRESSES[chain],
-        });
-        return { ...baiPaymentResult(payment, network.id), chain };
+        const result = await this.payments!.roundtrip(scope, network, paymentInput);
+        return { ...baiPaymentResult(result.pay, network.id), chain };
       },
     });
     const result = await flow.execute({
@@ -114,6 +104,50 @@ export class BaiService {
       ...(rechargeTarget ? { rechargeTarget } : {}),
     });
     return { ...result, network: network.id, token: input.token, amount: input.amount, payer };
+  }
+
+  async rechargeReport(input: {
+    chain: "tron" | "bnb" | "base";
+    txHash: string;
+    amount?: string;
+    to?: string;
+    targetId?: string;
+  }) {
+    if (!this.rechargeApi)
+      throw new UsageError("invalid_option", "B.AI recharge reporting is unavailable");
+    if (!["tron", "bnb", "base"].includes(input.chain))
+      throw new UsageError(
+        "invalid_value",
+        "Recharge report requires the original tron, bnb or base chain",
+      );
+    const hashPattern = input.chain === "tron" ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/;
+    if (!hashPattern.test(input.txHash))
+      throw new UsageError("invalid_value", "Invalid transaction hash for the recharge chain");
+    const to = input.to?.trim();
+    const targetId = input.targetId?.trim();
+    if (
+      (input.to !== undefined || input.targetId !== undefined) &&
+      (!to || !targetId || to.length > 320 || targetId.length > 320)
+    ) {
+      throw new UsageError(
+        "invalid_value",
+        "Recipient recovery requires both the original --to and --target-id",
+      );
+    }
+    const amount = input.amount === undefined ? undefined : baiNumericAmount(input.amount);
+    return reportBaiTransaction(this.rechargeApi, {
+      chain: input.chain,
+      txHash: input.txHash,
+      ...(amount === undefined ? {} : { amount }),
+      ...(to && targetId
+        ? {
+            rechargeTarget: {
+              input: { type: "personal", identifier: to },
+              confirmedTarget: { type: "personal", targetId },
+            },
+          }
+        : {}),
+    });
   }
 
   async status() {
@@ -199,4 +233,22 @@ function optionalScalar(value: unknown): string | undefined {
 function secondsToMilliseconds(value: unknown): number | undefined {
   const seconds = typeof value === "number" ? value : Number(value);
   return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : undefined;
+}
+
+function baiNumericAmount(value: string): number {
+  const normalizedAmount = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  const amount = Number(normalizedAmount);
+  if (
+    !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value) ||
+    !Number.isFinite(amount) ||
+    amount > Number.MAX_SAFE_INTEGER ||
+    amount <= 0 ||
+    String(amount) !== normalizedAmount
+  ) {
+    throw new UsageError(
+      "invalid_value",
+      "Recharge amount must be positive and exactly representable by the B.AI numeric API",
+    );
+  }
+  return amount;
 }

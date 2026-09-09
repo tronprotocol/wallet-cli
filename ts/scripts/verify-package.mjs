@@ -37,6 +37,7 @@ try {
       "test/erc8004.test.ts",
       "test/x402-provider-payment.test.ts",
       "test/bai-nile-compatibility.test.ts",
+      "test/bai-recharge-report.test.ts",
       "test/beta-artifact-signing.test.ts",
       "--maxWorkers=4",
     ],

@@ -50,7 +50,7 @@ it.each([
       };
       X402PaymentClient.prototype.pay = async () => {
         log({method:'pay'});
-        return {payer:{address:${JSON.stringify(payer)}}, response:{id:1, result:{transaction_hash:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}}};
+        return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
       };`,
       );
       for (const to of [undefined, "recipient@example.com"]) {

@@ -1,3 +1,4 @@
+import { sdkPaymentError, providerPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import {
@@ -17,12 +18,7 @@ import type { X402PayInput, X402PaymentPort } from "../../../application/ports/x
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
-import {
-  CliError,
-  ExecutionError,
-  TransportError,
-  UsageError,
-} from "../../../domain/errors/index.js";
+import { ExecutionError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { toX402Wallet } from "./signer-bridge.js";
 import { createPayerSigner } from "../../../application/services/x402/payer-signer.js";
@@ -56,19 +52,32 @@ export class X402PaymentClient implements X402PaymentPort {
       if (this.paidFetchFactory && !input.expectedPayTo && input.exactAmount === undefined) {
         const signer = this.resolveSigner(scope, network);
         const paidFetch = await this.paidFetchFactory(network, signer, scope);
-        return this.readResponse(
+        const response = await paidFetch(input.url, requestInit);
+        let bounded: Response;
+        try {
+          bounded = await boundedResponse(response, MAX_RESPONSE_BYTES);
+        } catch (error) {
+          throw settlementError(error, response, toX402Network(network), signer);
+        }
+        return await this.readResponse(
           input.url,
-          await boundedResponse(await paidFetch(input.url, requestInit), MAX_RESPONSE_BYTES),
+          bounded,
           signer,
           input.out,
           toX402Network(network),
         );
       }
 
-      const boundedFetch = this.boundedFetch(scope);
+      const boundedFetch = this.boundedFetch(scope, network);
       const initial = await boundedFetch(input.url, requestInit);
       if (initial.status !== 402)
-        return this.readResponse(input.url, initial, undefined, input.out, toX402Network(network));
+        return await this.readResponse(
+          input.url,
+          initial,
+          undefined,
+          input.out,
+          toX402Network(network),
+        );
       if (input.dryRun) return inspectChallenge(input.url, initial, network, input);
 
       if (input.expectedPayTo || input.exactAmount !== undefined) {
@@ -78,7 +87,7 @@ export class X402PaymentClient implements X402PaymentPort {
 
       const signer = createPayerSigner(this.signers, scope, network.family);
       const paidFetch = await this.createPaidFetch(network, signer, scope, input, initial);
-      return this.readResponse(
+      return await this.readResponse(
         input.url,
         await paidFetch(input.url, requestInit),
         signer,
@@ -86,11 +95,7 @@ export class X402PaymentClient implements X402PaymentPort {
         toX402Network(network),
       );
     } catch (error) {
-      if (error instanceof CliError) throw error;
-      if (error instanceof Error && /timeout|aborted/i.test(`${error.name} ${error.message}`)) {
-        throw new TransportError("timeout", "x402 request timed out");
-      }
-      throw new TransportError("provider_error", "x402 request or payment failed");
+      throw sdkPaymentError(error);
     }
   }
 
@@ -130,21 +135,34 @@ export class X402PaymentClient implements X402PaymentPort {
       ...(signer ? { payer: { address: signer.address } } : {}),
       ...(paymentResponse === undefined ? {} : { paymentResponse }),
     };
-    if (out) {
-      await writeOutput(out, bytes);
-      return { ...base, output: { path: out, bytes: bytes.byteLength } };
-    }
-    const text = new TextDecoder().decode(bytes);
-    const contentType = response.headers.get("content-type") ?? "";
-    let body: unknown = text;
-    if (/json/i.test(contentType) && text !== "") {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        throw new TransportError("invalid_x402_response", "paid endpoint returned malformed JSON");
+    try {
+      if (out) {
+        await writeOutput(out, bytes);
+        return { ...base, output: { path: out, bytes: bytes.byteLength } };
       }
+      const text = new TextDecoder().decode(bytes);
+      const contentType = response.headers.get("content-type") ?? "";
+      let body: unknown = text;
+      if (/json/i.test(contentType) && text !== "") {
+        try {
+          body = JSON.parse(text);
+        } catch {
+          throw new TransportError(
+            "invalid_x402_response",
+            "paid endpoint returned malformed JSON",
+          );
+        }
+      }
+      if (!response.ok && signer && body && typeof body === "object" && !base.settled) {
+        const failure = body as Record<string, unknown>;
+        if (failure.phase === "verify" || failure.phase === "settle") {
+          throw providerPaymentError(failure.reason ?? failure.code, failure.phase);
+        }
+      }
+      return { ...base, response: body };
+    } catch (error) {
+      throw settlementError(error, response, expectedNetwork, signer);
     }
-    return { ...base, response: body };
   }
 
   private async createPaidFetch(
@@ -198,7 +216,7 @@ export class X402PaymentClient implements X402PaymentPort {
         network: x402Network,
         ...(network.httpEndpoint ? { rpcUrl: network.httpEndpoint } : {}),
         ...(network.apiKey ? { apiKey: network.apiKey } : {}),
-        allowanceMode: "skip",
+        allowanceMode: "auto",
       });
       registerExactTronScheme(client, {
         signer: tronSigner as ClientTronSigner,
@@ -209,7 +227,12 @@ export class X402PaymentClient implements X402PaymentPort {
         networks: [x402Network as Network],
       });
     }
-    const boundedFetch = this.boundedFetch(scope);
+    // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
+    let creationError: unknown;
+    client.onPaymentCreationFailure(async ({ error }) => {
+      creationError = sdkPaymentError(error);
+    });
+    const boundedFetch = this.boundedFetch(scope, network, signer);
     let first: Response | undefined = initial;
     const fetchWithInitial: typeof fetch = (request, init) => {
       if (first) {
@@ -219,11 +242,33 @@ export class X402PaymentClient implements X402PaymentPort {
       }
       return boundedFetch(request, init);
     };
-    return wrapFetchWithPayment(fetchWithInitial, client);
+    const paidFetch = wrapFetchWithPayment(fetchWithInitial, client);
+    return async (request, init) => {
+      try {
+        return await paidFetch(request, init);
+      } catch (error) {
+        throw creationError ?? error;
+      }
+    };
   }
 
-  private boundedFetch(scope: TransactionScope): typeof fetch {
-    return (request, init) => fetchBounded(this.fetcher, request, init, scope.timeoutMs);
+  private boundedFetch(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    signer?: Pick<Signer, "address">,
+  ): typeof fetch {
+    return async (request, init) => {
+      let response: Response | undefined;
+      const fetcher: typeof fetch = async (url, options) => {
+        response = await this.fetcher(url, options);
+        return response;
+      };
+      try {
+        return await fetchBounded(fetcher, request, init, scope.timeoutMs);
+      } catch (error) {
+        throw settlementError(error, response, toX402Network(network), signer);
+      }
+    };
   }
 
   private resolveSigner(scope: TransactionScope, network: NetworkDescriptor): Signer {
@@ -423,4 +468,39 @@ function parseHeaders(values: string[]): Headers {
     }
   }
   return headers;
+}
+
+/** A response/body failure must not discard settlement already received in headers. */
+function settlementError(
+  error: unknown,
+  response?: Response,
+  expectedNetwork?: string,
+  signer?: Pick<Signer, "address">,
+) {
+  const classified = sdkPaymentError(error);
+  const header =
+    response?.headers.get("payment-response") ?? response?.headers.get("x-payment-response");
+  let receipt: unknown;
+  try {
+    if (header) receipt = decodePaymentResponseHeader(header);
+  } catch {
+    return classified;
+  }
+  if (!successfulSettlement(receipt, expectedNetwork)) return classified;
+  const settlement = receipt as Record<string, unknown>;
+  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(classified.code, classified.message, {
+    ...classified.details,
+    phase: "response",
+    paymentStatus: "settled",
+    retryPayment: false,
+    settled: true,
+    txHash: settlement.transaction,
+    paymentResponse: {
+      success: true,
+      network: settlement.network,
+      transaction: settlement.transaction,
+    },
+    ...(signer ? { payer: { address: signer.address } } : {}),
+  });
 }

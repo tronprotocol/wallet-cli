@@ -45,7 +45,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     positionals: [{ field: "amount" }],
     summary: "Recharge your own or another B.AI account",
     description:
-      "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Mainnet TRON supports exact and exact_gasfree; BSC and Base support exact. Minimums: TRX 15, USDT/USDC 1, ETH 0.0001, SOL 0.01; other tokens have no additional minimum. Token availability depends on the network and payment service.",
+      "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 exact on mainnet: TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
     fields: rechargeFields,
     input: rechargeFields,
     examples: [
@@ -66,6 +66,63 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
         apiKey: ctx.config.baiApiKey,
       });
     },
+  } satisfies CommandDefinition);
+
+  const reportFields = z.object({
+    txHash: z.string().max(66).describe("existing transaction hash from the original recharge"),
+    chain: z.enum(["tron", "bnb", "base"]).describe("original recharge chain; BSC is bnb"),
+    amount: z
+      .string()
+      .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
+      .optional()
+      .describe("original recharge amount, when available"),
+    to: z
+      .string()
+      .trim()
+      .min(1)
+      .max(320)
+      .optional()
+      .describe("original recipient identifier; pair with --target-id"),
+    targetId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(320)
+      .optional()
+      .describe("original rechargeTarget.confirmedTarget.targetId; do not resolve a new target"),
+  });
+  registry.add({
+    path: ["bai", "recharge-report"],
+    network: "none",
+    wallet: "none",
+    auth: "none",
+    broadcasts: false,
+    requires,
+    positionals: [{ field: "txHash" }],
+    summary: "Report an existing recharge transaction without paying again",
+    description:
+      "Recover a failed B.AI report using the original API key, chain, hash, amount and recipient. For recipient recharge, supply both original --to and --target-id; omit both only for self recharge. Reconcile any unconfirmed candidate hash before reporting. This command does not create an order, sign, pay, or resolve a new recipient. B.AI verifies whether the reported transaction can be credited.",
+    fields: reportFields,
+    input: reportFields.superRefine((value, ctx) => {
+      if (
+        !(value.chain === "tron" ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/).test(value.txHash)
+      )
+        ctx.addIssue({
+          code: "custom",
+          path: ["txHash"],
+          message: "invalid transaction hash for chain",
+        });
+      if (Boolean(value.to) !== Boolean(value.targetId))
+        ctx.addIssue({
+          code: "custom",
+          path: ["targetId"],
+          message: "--to and --target-id must be supplied together",
+        });
+    }),
+    examples: [
+      { cmd: "wallet-cli bai recharge-report 0x" + "a".repeat(64) + " --chain base --amount 1" },
+    ],
+    run: async (_ctx, _network, input) => service.rechargeReport(input),
   } satisfies CommandDefinition);
 
   const empty = z.object({});

@@ -1,3 +1,4 @@
+import { providerPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
 import { createServer, type Server } from "node:http";
@@ -71,6 +72,14 @@ const TOKENS: Record<string, Record<string, Token>> = {
       permit2: true,
     },
   },
+  "eip155:8453": {
+    USDC: {
+      address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      decimals: 6,
+      name: "USD Coin",
+      version: "2",
+    },
+  },
   "eip155:97": {
     USDT: {
       address: "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
@@ -95,7 +104,11 @@ export class X402HttpServer implements X402ServerPort {
     private readonly timeoutMs = 60000,
   ) {}
 
-  async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
+  validate(network: NetworkDescriptor, input: X402ServeInput): void {
+    this.requirement(network, input);
+  }
+
+  private requirement(network: NetworkDescriptor, input: X402ServeInput) {
     if (input.scheme === "exact_gasfree" && network.family !== "tron") {
       throw new UsageError("invalid_value", "exact_gasfree is supported only on TRON");
     }
@@ -104,9 +117,15 @@ export class X402HttpServer implements X402ServerPort {
       throw new UsageError("invalid_value", `${input.token} is not registered on ${network.id}`);
     validatePayTo(network, input.payTo);
     const rawAmount = toSmallestUnit(input.amount, token.decimals);
+    return { token, rawAmount };
+  }
+
+  async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
+    const { token, rawAmount } = this.requirement(network, input);
     const x402Network =
       network.family === "tron" ? `tron:0x${BigInt(network.chainId).toString(16)}` : network.id;
-    const resourceUrl = `http://${input.host}:${input.port}/pay`;
+    const host = input.host.includes(":") ? `[${input.host}]` : input.host;
+    let resourceUrl = `http://${host}:${input.port}/pay`;
     const requirement = {
       scheme: input.scheme,
       network: x402Network,
@@ -141,6 +160,7 @@ export class X402HttpServer implements X402ServerPort {
         response.setHeader("payment-required", encodePaymentRequiredHeader(challenge as never));
         return json(response, 402, challenge);
       }
+      let phase: "verify" | "settle" = "verify";
       try {
         const paymentPayload = decodePaymentSignatureHeader(signature);
         const verify = await this.facilitator(input.facilitatorUrl, "/verify", {
@@ -148,13 +168,14 @@ export class X402HttpServer implements X402ServerPort {
           paymentRequirements: requirement,
         });
         if (!(verify.valid === true || verify.isValid === true))
-          return json(response, 400, { error: "payment verification failed" });
+          return paymentFailure(response, 400, verify.invalidReason ?? verify.errorReason, phase);
+        phase = "settle";
         const settle = await this.facilitator(input.facilitatorUrl, "/settle", {
           paymentPayload,
           paymentRequirements: requirement,
         });
         if (!successfulSettlement(settle, x402Network))
-          return json(response, 502, { error: "settlement failed" });
+          return paymentFailure(response, 502, settle.errorReason, phase);
         response.setHeader("payment-response", encodePaymentResponseHeader(settle as never));
         return json(response, 200, {
           success: true,
@@ -163,10 +184,15 @@ export class X402HttpServer implements X402ServerPort {
           transaction: settle.transaction,
         });
       } catch {
-        return json(response, 502, { error: "facilitator request failed" });
+        return paymentFailure(response, 502, undefined, phase);
       }
     });
     await listen(server, input.host, input.port);
+    const address = server.address();
+    if (address && typeof address === "object") {
+      resourceUrl = `http://${host}:${address.port}/pay`;
+      challenge.resource.url = resourceUrl;
+    }
     return {
       details: {
         payUrl: resourceUrl,
@@ -247,4 +273,14 @@ function close(server: Server): Promise<void> {
   return new Promise((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
+}
+
+function paymentFailure(
+  response: import("node:http").ServerResponse,
+  status: number,
+  reason: unknown,
+  phase: "verify" | "settle",
+): void {
+  const error = providerPaymentError(reason, phase);
+  json(response, status, { code: error.code, error: error.message, phase });
 }

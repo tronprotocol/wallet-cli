@@ -59,7 +59,7 @@ describe("TronContractService.send — approve", () => {
         dryRun: true,
         approvalKind: "erc721",
       }),
-    ).resolves.toMatchObject({ operator: OPERATOR, agentId: "42" });
+    ).resolves.toMatchObject({ identity: { operator: OPERATOR, agentId: "42" } });
     expect(getTokenInfo).not.toHaveBeenCalled();
   });
 });

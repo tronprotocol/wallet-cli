@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { X402PaymentClient } from "./payment-client.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -227,3 +227,142 @@ it("bounds oversized 402 bodies before the SDK or signer handles them", async ()
   expect(cancel).toHaveBeenCalledOnce();
   expect(local.resolve).not.toHaveBeenCalled();
 });
+
+it.each(["json", "exists", "io"])(
+  "retains settlement when response processing fails: %s",
+  async (mode) => {
+    const directory = await mkdtemp(join(tmpdir(), "wallet-cli-settled-"));
+    const out = join(directory, mode === "io" ? "missing/out" : "out");
+    const transaction = "0x" + "a".repeat(64);
+    const paidFetch = vi.fn(
+      async () =>
+        new Response(mode === "json" ? "{" : "ok", {
+          headers: {
+            "content-type": mode === "json" ? "application/json" : "text/plain",
+            "payment-response": Buffer.from(
+              JSON.stringify({
+                success: true,
+                network: net.id,
+                transaction,
+                secret: "do-not-copy",
+              }),
+            ).toString("base64"),
+          },
+        }),
+    );
+    const client = new X402PaymentClient(resolver, globalThis.fetch, async () => paidFetch);
+    try {
+      if (mode === "exists") await writeFile(out, "original");
+      const error = await client
+        .pay(scope, net, {
+          url: "https://api.example/paid",
+          method: "GET",
+          headers: [],
+          ...(mode === "json" ? {} : { out }),
+        })
+        .catch((error) => error);
+      expect(error).toMatchObject({
+        code:
+          mode === "json"
+            ? "invalid_x402_response"
+            : mode === "exists"
+              ? "output_exists"
+              : "io_error",
+        details: {
+          paymentStatus: "settled",
+          retryPayment: false,
+          txHash: transaction,
+          settled: true,
+          paymentResponse: { success: true, network: net.id, transaction },
+          payer: { address: signer.address },
+        },
+      });
+      expect(JSON.stringify(error)).not.toContain("do-not-copy");
+      expect(paidFetch).toHaveBeenCalledOnce();
+      if (mode === "exists") expect(await readFile(out, "utf8")).toBe("original");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+it.each([
+  [
+    "Failed to create payment payload: Insufficient balance in GasFree wallet SECRET.",
+    "gasfree_insufficient_balance",
+    "not_sent",
+  ],
+  [
+    "Failed to create payment payload: GasFree account for SECRET is not activated.",
+    "gasfree_not_activated",
+    "not_sent",
+  ],
+  [
+    "Failed to create payment payload: approval_reset_required",
+    "approval_reset_required",
+    "unknown",
+  ],
+  [
+    "Failed to create payment payload: permit2_allowance_required: SECRET",
+    "permit2_allowance_required",
+    "unknown",
+  ],
+  ["Failed to create payment payload: SECRET", "provider_error", "unknown"],
+])("classifies SDK failures without echoing secrets: %s", async (message, code, paymentStatus) => {
+  const paidFetch = vi.fn(async () => {
+    throw new Error(message);
+  });
+  const client = new X402PaymentClient(resolver, globalThis.fetch, async () => paidFetch);
+  const error = await client
+    .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
+    .catch((error) => error);
+  expect(error).toMatchObject({ code, details: { paymentStatus, retryPayment: false } });
+  expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  expect(paidFetch).toHaveBeenCalledOnce();
+});
+
+it("retains settlement when reading the paid body exceeds its limit", async () => {
+  const transaction = "0x" + "b".repeat(64);
+  const response = new Response("x", {
+    headers: {
+      "content-length": String(11 * 1024 * 1024),
+      "payment-response": Buffer.from(
+        JSON.stringify({ success: true, network: net.id, transaction }),
+      ).toString("base64"),
+    },
+  });
+  const client = new X402PaymentClient(
+    resolver,
+    globalThis.fetch,
+    async () => async () => response,
+  );
+  await expect(
+    client.pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] }),
+  ).rejects.toMatchObject({
+    code: "response_too_large",
+    details: { txHash: transaction, paymentStatus: "settled", retryPayment: false },
+  });
+});
+
+it.each(["verify", "settle"])(
+  "exposes a sanitized facilitator failure in phase %s",
+  async (phase) => {
+    const client = new X402PaymentClient(
+      resolver,
+      globalThis.fetch,
+      async () => async () =>
+        Response.json(
+          { phase, code: "permit2_allowance_required", error: "SECRET" },
+          { status: 502 },
+        ),
+    );
+    const error = await client
+      .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
+      .catch((error) => error);
+    expect(error).toMatchObject({
+      code: "permit2_allowance_required",
+      details: { phase, paymentStatus: "unknown", retryPayment: false },
+    });
+    expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  },
+);

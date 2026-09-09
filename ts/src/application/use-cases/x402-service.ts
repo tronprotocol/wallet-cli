@@ -31,6 +31,11 @@ export class X402Service {
     return this.catalog.update();
   }
 
+  validate(network: NetworkDescriptor, input: X402ServeInput): void {
+    if (!this.server) throw new Error("x402 server is not available in this runtime");
+    this.server.validate(network, input);
+  }
+
   async serve(network: NetworkDescriptor, input: X402ServeInput) {
     if (!this.server) throw new Error("x402 server is not available in this runtime");
     const handle = await this.server.start(network, input);
@@ -45,6 +50,11 @@ export class X402Service {
         url: String(handle.details.payUrl),
         method: "GET",
         headers: [],
+        token: input.token,
+        scheme: input.scheme,
+        expectedPayTo: input.payTo,
+        exactAmount: input.amount,
+        maxAmount: input.amount,
       });
       return { serve: handle.details, pay };
     } finally {

@@ -1,51 +1,62 @@
 import { TransportError } from "../../domain/errors/index.js";
-/** Extract the recharge MCP result without confusing HTTP success with payment or credit success. */
+
+/** Only a successful x402 settlement can be reported to B.AI as a payment. */
 export function baiPaymentResult(payment: Record<string, unknown>, network: string) {
-  let body: unknown = payment.response;
-  if (typeof body === "string") {
-    try {
-      if (body.trim().startsWith("{")) body = JSON.parse(body);
-      else {
-        const messages = body
-          .split(/\r?\n\r?\n/)
-          .map((block) =>
-            block
-              .split(/\r?\n/)
-              .filter((line) => line.startsWith("data:"))
-              .map((line) => line.slice(5).trimStart())
-              .join("\n"),
-          )
-          .filter(Boolean);
-        body = messages.map((message) => JSON.parse(message)).find((message) => message.id === 1);
-      }
-    } catch {
-      throw invalid();
-    }
-  }
-  const envelope = record(body);
-  if (envelope.error) throw invalid();
-  let result = record(envelope.result);
-  if (result.isError === true) throw invalid();
-  if (result.structuredContent) result = record(result.structuredContent);
-  const txHash = result.transaction_hash;
+  const settlement = record(payment.paymentResponse);
+  const payer = record(payment.payer)?.address;
+  const txHash = settlement?.transaction;
+  const expectedNetwork = network === "tron:728126428" ? "tron:0x2b6653dc" : network;
   const validHash = network.startsWith("tron:") ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/;
+  const invalid = (reason: string) =>
+    invalidSettlement(reason, txHash, settlement?.network, expectedNetwork);
+  if (!settlement) throw invalid("missing_settlement");
+  if (payment.settled !== true || settlement.success !== true)
+    throw invalid("settlement_unconfirmed");
+  if (settlement.network !== expectedNetwork) throw invalid("network_mismatch");
+  if (typeof txHash !== "string" || !validHash.test(txHash))
+    throw invalid("invalid_transaction_hash");
+  if (typeof payer !== "string" || !payer) throw invalid("missing_payer");
   if (
-    typeof txHash !== "string" ||
-    !validHash.test(txHash) ||
-    (result.network === "tron:0x2b6653dc" ? "tron:728126428" : result.network) !== network
-  )
-    throw invalid();
-  const payer = record(payment.payer).address;
-  if (typeof payer !== "string" || !payer) throw invalid();
+    settlement.payer !== undefined &&
+    (typeof settlement.payer !== "string" ||
+      (network.startsWith("eip155:")
+        ? settlement.payer.toLowerCase() !== payer.toLowerCase()
+        : settlement.payer !== payer))
+  ) {
+    throw invalid("payer_mismatch");
+  }
   return { txHash, payer };
 }
-function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw invalid();
-  return value as Record<string, unknown>;
-}
-function invalid() {
+
+function invalidSettlement(
+  reason: string,
+  txHash: unknown,
+  candidateNetwork: unknown,
+  expectedNetwork: string,
+) {
+  // Retain only bounded, syntactically valid evidence; it is NOT a confirmed payment.
+  const candidateTxHash =
+    typeof txHash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(txHash) ? txHash : undefined;
   return new TransportError(
     "invalid_x402_response",
-    "Recharge response does not identify a verifiable payment; reconcile before paying again",
+    "Recharge settlement is unconfirmed; reconcile before paying again",
+    {
+      reason,
+      paymentStatus: "unknown",
+      settled: false,
+      retryPayment: false,
+      expectedNetwork,
+      ...(candidateTxHash ? { candidateTxHash } : {}),
+      ...(typeof candidateNetwork === "string" &&
+      /^(?:eip155:\d{1,20}|tron:(?:0x[0-9a-fA-F]{1,16}|\d{1,20}))$/.test(candidateNetwork)
+        ? { candidateNetwork }
+        : {}),
+    },
   );
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }

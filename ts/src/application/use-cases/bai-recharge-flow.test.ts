@@ -1,3 +1,4 @@
+import { TransportError } from "../../domain/errors/index.js";
 import { expect, it, vi } from "vitest";
 import { BaiRechargeFlow } from "./bai-recharge-flow.js";
 const input = {
@@ -126,4 +127,25 @@ it("keeps the confirmed recipient stable if the payment adapter mutates its inpu
   expect(api.reportTxHash).toHaveBeenCalledWith(
     expect.objectContaining({ rechargeTarget: input.rechargeTarget }),
   );
+});
+
+it("preserves classified errors and settlement evidence without reporting or paying again", async () => {
+  const { flow, api, pay } = fixture();
+  const failure = new TransportError("invalid_x402_response", "Response processing failed", {
+    paymentStatus: "settled",
+    txHash: "confirmed-hash",
+    retryPayment: false,
+  });
+  pay.mockRejectedValue(failure);
+  await expect(flow.execute(input)).rejects.toMatchObject({
+    code: failure.code,
+    details: {
+      ...failure.details,
+      chain: input.chain,
+      amount: input.amount,
+      rechargeTarget: input.rechargeTarget,
+    },
+  });
+  expect(pay).toHaveBeenCalledOnce();
+  expect(api.reportTxHash).not.toHaveBeenCalled();
 });

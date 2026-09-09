@@ -200,6 +200,8 @@ for (const mode of ["dry-run", "build-only"] as const) {
     expect(r.code, r.stderr || r.stdout).toBe(0);
     const result = JSON.parse(r.stdout).data;
     expect(result.mode).toBe(mode);
+    expect(result.identity).toEqual({ uri: "ipfs://example" });
+    expect(result).not.toHaveProperty("uri");
     expect(abi.parseTransaction({ data: result.tx.data })?.args[0]).toBe("ipfs://example");
     expect(result.tx.chainId).toBe(97);
     expect(f.calls.some((c) => c.method === "eth_sendRawTransaction")).toBe(false);
@@ -219,10 +221,11 @@ it("EVM approve dry-run renders the Agent ID without any fungible-token read", a
   expect(r.code, r.stderr || r.stdout).toBe(0);
   expect(JSON.parse(r.stdout).data).toMatchObject({
     mode: "dry-run",
-    agentId: "9007199254740993",
-    operator: owner,
+    identity: { agentId: "9007199254740993", operator: owner },
   });
   expect(JSON.parse(r.stdout).data).not.toHaveProperty("allowance");
+  expect(JSON.parse(r.stdout).data).not.toHaveProperty("agentId");
+  expect(JSON.parse(r.stdout).data).not.toHaveProperty("operator");
   expect(
     f.calls.some((c) => ["decimals", "symbol", "eth_sendRawTransaction"].includes(c.method)),
   ).toBe(false);

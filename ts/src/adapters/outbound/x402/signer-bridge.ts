@@ -152,8 +152,20 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
       return prefixedHex(signed.signature);
     },
     async signTransaction(tx) {
-      const signed = await payer.signTransaction(tx);
+      const signed = await payer.signTransaction(
+        policy.family === "evm" ? evmTransactionInput(tx) : tx,
+      );
       return policy.family === "evm" ? evmRawTransaction(signed) : signed;
     },
   };
+}
+
+/** x402 uses viem's `gas`; wallet signers use ethers' `gasLimit`. */
+function evmTransactionInput(tx: unknown): Record<string, unknown> {
+  if (!tx || typeof tx !== "object" || Array.isArray(tx)) {
+    throw new ChainError("signed_payload_mismatch", "EVM transaction must be an object");
+  }
+  const { gas, ...transaction } = tx as Record<string, unknown>;
+  if (gas !== undefined && transaction.gasLimit == null) transaction.gasLimit = gas;
+  return transaction;
 }
