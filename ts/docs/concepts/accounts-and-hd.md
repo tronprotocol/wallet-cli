@@ -12,7 +12,7 @@ wlt_z259a1hq.0      ← accountId = seedId.index (one account, one address per f
 wlt_z259a1hq.1
 ```
 
-`create` makes a new seed plus account #0; `derive --seed-id wlt_…` adds the next account (or an explicit `--index`) from the same mnemonic. Restoring the mnemonic elsewhere re-derives the same addresses — which is why the mnemonic is the real backup and the master password is only local protection. Note that `create` does not print the mnemonic; run [`backup`](../commands/backup.md) to export it to an offline file.
+`create` makes a new seed plus account #0; `derive` adds the next account (or an explicit `--index`) from the active HD wallet. Use `--account` to select it through any of its accounts, or `--seed-id` to name the seed directly. Restoring the mnemonic elsewhere re-derives the same addresses — which is why the mnemonic is the real backup and the master password is only local protection. Note that `create` does not print the mnemonic; run [`backup`](../commands/backup.md) to export it to an offline file.
 
 ## One account, one address per chain family
 

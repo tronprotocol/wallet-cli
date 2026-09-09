@@ -61,6 +61,15 @@ export interface BackupRecordQuery {
   account?: string;
 }
 
+export interface DeriveRequest {
+  /** Explicit seed selection takes precedence over account and active-account selection. */
+  seedId?: string;
+  /** Any account belonging to an HD wallet identifies that wallet. */
+  account?: string;
+  index?: number;
+  label?: string;
+}
+
 export class WalletService {
   constructor(
     private readonly wallets: WalletRepository,
@@ -138,30 +147,43 @@ export class WalletService {
     return this.wallets.changePassword(oldPassword, newPassword);
   }
 
-  derive(seedId: string, index?: number, label?: string) {
-    // --seed-id is strictly the seed id (wlt_…) — the HD group header in `list`. No labels, no
-    // sub-account refs: labels/refs point at an account, and the seed (not an account) is the root.
-    const id = seedId.trim();
-    if (!/^wlt_[^.]+$/.test(id)) {
-      throw new UsageError(
-        "invalid_value",
-        `--seed-id takes a seed id (wlt_…), not '${seedId}'; copy it from the HD group header in \`list\``,
-      );
-    }
-    const wallet = this.wallets.resolveWallet(id);
+  derive(request: DeriveRequest) {
+    const wallet = (() => {
+      // Do not resolve --account when --seed-id is present: precedence means even a stale account
+      // override must not prevent an explicitly named seed wallet from being used.
+      if (request.seedId !== undefined) {
+        const id = request.seedId.trim();
+        if (!/^wlt_[^.]+$/.test(id)) {
+          throw new UsageError(
+            "invalid_value",
+            `--seed-id takes a seed id (wlt_…), not '${request.seedId}'; copy it from the HD group header in \`list\``,
+          );
+        }
+        return this.wallets.resolveWallet(id);
+      }
+
+      const account = request.account ?? this.wallets.activeAccount();
+      if (!account) {
+        throw new WalletError(
+          "missing_wallet_address",
+          "no active account; select an HD account with --account or pass --seed-id",
+        );
+      }
+      return this.wallets.resolveAccount(account).wallet;
+    })();
+
     if (wallet.source.type !== "seed") {
-      // Its own code, for the same reason `account_not_found` has one: "that reference is not a
-      // seed wallet" has an obvious next step (`list`, and read the HD group headers), and an
-      // agent can only take it if the code says so rather than the English.
       throw new UsageError(
         "seed_not_found",
-        `${wallet.source.type} wallet is not HD; derive needs a seed wallet`,
+        request.seedId !== undefined
+          ? `${wallet.source.type} wallet is not HD; --seed-id must name an HD seed wallet`
+          : `${wallet.source.type} account is not HD; select an account belonging to an HD wallet or pass --seed-id <wlt_…>`,
       );
     }
     const baseLabel = this.wallets.describe(`${wallet.id}.0`).label; // the wallet's name (index-0 label)
-    const result = this.wallets.addAccount(wallet.id, index);
-    if (label) {
-      this.wallets.rename(result.accountId, label);
+    const result = this.wallets.addAccount(wallet.id, request.index);
+    if (request.label) {
+      this.wallets.rename(result.accountId, request.label);
     } else if (result.created) {
       // auto-name new accounts <wallet-name>-<index> so they read as siblings under the same seed.
       const newIndex = Number(result.accountId.split(".")[1]);

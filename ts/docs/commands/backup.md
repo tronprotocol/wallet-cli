@@ -15,8 +15,10 @@ With an account, `backup` writes that account's secret material and metadata to 
 
 Two formats:
 
-- **Native** (default) — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
+- **Native** — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
 - **`--keystore`** — a standard Web3 keystore JSON, importable by TronLink and others, encrypted with **your master password**. A keystore holds a **single private key**: an HD account exports only its current derived key, and that key arrives elsewhere as a standalone account with nothing derivable from it. Use the native format to move a seed.
+
+In a fully interactive terminal, omitting `--keystore` opens a format selector before the password prompt. Commands using `--password-stdin`, and other non-interactive invocations, keep native as the default so scripts never stop for this choice.
 
 The native export may warn that some stored accounts need a separate `--keystore` export. Follow
 that warning before deleting anything; see [Recover addresses after
@@ -44,7 +46,7 @@ The positional account is the exception: it means different things in the two fo
 | Option | Description |
 |---|---|
 | `<account>` | Account to export, by accountId, label, or address. Required unless `--records`; **with** `--records` it filters the log instead, like `--account` |
-| `--keystore` | Export as a standard Web3 keystore instead of the native format |
+| `--keystore` | Export as a standard Web3 keystore instead of the native format. Omit in a fully interactive terminal to choose |
 | `--out <path>` | Output file path; mode 0600, never overwritten (default: the current directory, see above) |
 | `--password-stdin` | Master password from stdin (fd 0) |
 | `--network <id>` | With `--keystore`, which family's key to export (`tron:3448148188` → the TRON key, `eip155:1` → the EVM key). No node is contacted |

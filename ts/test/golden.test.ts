@@ -146,6 +146,23 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.required).toContain("address");
   });
 
+  it("derive help and schema expose optional seed/account selection", () => {
+    const help = run(["derive", "--help"], { password: null });
+    expect(help.status).toBe(0);
+    expect(help.stdout).toMatch(/^ +--seed-id <string>.*\[optional\]$/m);
+    expect(help.stdout).toMatch(
+      /^ +--account <string>.*defaults to the active account.*\[optional\]$/m,
+    );
+    expect(help.stdout).toContain("takes precedence over --account");
+
+    const schema = run(["derive", "--json-schema"], { password: null });
+    expect(schema.status).toBe(0);
+    expect(schema.json.properties.seedId).toBeDefined();
+    expect(schema.json.properties.account).toBeDefined();
+    expect(schema.json.required ?? []).not.toContain("seedId");
+    expect(schema.json.required ?? []).not.toContain("account");
+  });
+
   it("root --json-schema emits a full command catalog with global flags", () => {
     const r = run(["--json-schema"], { password: null });
     expect(r.status).toBe(0);
@@ -320,9 +337,9 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     expect(backup.json.data.out).toBe(out);
   });
 
-  it("derive makes the newly derived HD account the active one", () => {
+  it("derive defaults to the active HD account, including an active child", () => {
     const seedId = seedWallet().split(".")[0]!; // "main" at index 0, active; seed id = wlt_x
-    const r = run(["--output", "json", "derive", "--seed-id", seedId, "--label", "child"]);
+    const r = run(["--output", "json", "derive", "--label", "child"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("derive");
     expect(r.json.data.index).toBe(1);
@@ -330,6 +347,26 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     // and `current` now resolves to the derived child, confirming the switch persisted
     const current = run(["--output", "json", "current"], { password: null });
     expect(current.json.data.label).toBe("child");
+
+    const next = run(["--output", "json", "derive"]);
+    expect(next.status).toBe(0);
+    expect(next.json.data.accountId).toBe(`${seedId}.2`);
+  });
+
+  it("derive gives --seed-id precedence over --account", () => {
+    const seedId = seedWallet().split(".")[0]!;
+    const r = run([
+      "--output",
+      "json",
+      "derive",
+      "--seed-id",
+      seedId,
+      "--account",
+      "missing-account",
+    ]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data.accountId).toBe(`${seedId}.1`);
   });
 });
 

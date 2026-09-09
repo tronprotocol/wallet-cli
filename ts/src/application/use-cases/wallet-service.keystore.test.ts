@@ -167,12 +167,63 @@ describe("WalletService derivation-path disclosure", () => {
   it("reports both verified paths from derive", () => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
-    const result = h.service.derive(accountId.split(".")[0]!, 1);
+    const result = h.service.derive({ seedId: accountId.split(".")[0]!, index: 1 });
 
     expect(result.derivationPath).toEqual({
       tron: "m/44'/195'/0'/0/1",
       evm: "m/44'/60'/0'/0/1",
     });
+  });
+});
+
+describe("WalletService derive selection", () => {
+  it("uses the active HD account and keeps working after a derived child becomes active", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    expect(h.service.derive({}).accountId).toBe(`${accountId.split(".")[0]}.1`);
+    expect(h.service.derive({}).accountId).toBe(`${accountId.split(".")[0]}.2`);
+  });
+
+  it("accepts any HD child through --account", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+    h.keystore.addAccount(seedId, 1);
+
+    expect(h.service.derive({ account: `${seedId}.1`, index: 2 }).accountId).toBe(`${seedId}.2`);
+  });
+
+  it("gives --seed-id precedence without resolving --account", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+
+    expect(
+      h.service.derive({ seedId, account: "account-that-does-not-exist", index: 1 }).accountId,
+    ).toBe(`${seedId}.1`);
+  });
+
+  it("rejects a selected non-HD account with actionable guidance", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({
+      secret: RAW_KEY,
+      type: "privateKey",
+      label: "hot",
+    });
+
+    expect(() => h.service.derive({ account: accountId })).toThrowError(
+      /account is not HD; select an account belonging to an HD wallet or pass --seed-id/,
+    );
+  });
+
+  it("does not tell an invalid --seed-id caller to pass the same flag again", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
+
+    expect(() => h.service.derive({ seedId: accountId })).toThrowError(
+      /wallet is not HD; --seed-id must name an HD seed wallet/,
+    );
   });
 });
 

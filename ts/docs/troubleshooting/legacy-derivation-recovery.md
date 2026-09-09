@@ -41,20 +41,20 @@ Save the account list and recovery phrase before changing anything:
 
 ```bash
 wallet-cli list -o json > ./accounts-before.json
-wallet-cli backup wlt_abc123.0 --out ./main-mnemonic.json
+wallet-cli backup main --out ./main-mnemonic.json
 ```
 
-Keep both files private and out of source control. The mnemonic backup warning identifies every
-TRON account that needs the next step.
+Choose **Native wallet backup** when prompted. Keep both files private and out of source control.
+The mnemonic backup warning identifies every TRON account that needs the next step.
 
 ### 1. Preserve the legacy TRON addresses
 
 Export every affected TRON account as a keystore:
 
 ```bash
-wallet-cli backup wlt_abc123.1 --keystore --network tron:728126428 \
+wallet-cli backup main-1 --keystore --network tron:728126428 \
   --out ./main-1-tron.keystore.json
-wallet-cli backup wlt_abc123.2 --keystore --network tron:728126428 \
+wallet-cli backup main-2 --keystore --network tron:728126428 \
   --out ./main-2-tron.keystore.json
 ```
 
@@ -93,7 +93,7 @@ Delete the original mnemonic wallet. This removes its entire HD group but leaves
 TRON accounts imported above:
 
 ```bash
-wallet-cli delete wlt_abc123 --yes
+wallet-cli delete main --yes
 ```
 
 Re-import the recovery phrase from `main-mnemonic.json`:
@@ -102,15 +102,15 @@ Re-import the recovery phrase from `main-mnemonic.json`:
 wallet-cli import mnemonic --label main
 ```
 
-The import creates index `0` and prints a new seed ID. This example uses `wlt_new456`.
+The import recreates the root account at index `0` with the label `main`.
 
 ### 3. Restore every Ethereum index
 
-Recreate each previous index using the new seed ID:
+Recreate each previous index from the new root account:
 
 ```bash
-wallet-cli derive --seed-id wlt_new456 --index 1 --label main-1
-wallet-cli derive --seed-id wlt_new456 --index 2 --label main-2
+wallet-cli derive --account main --index 1 --label main-1
+wallet-cli derive --account main --index 2 --label main-2
 ```
 
 `import mnemonic` restores only index `0`; every previous index must be derived explicitly.

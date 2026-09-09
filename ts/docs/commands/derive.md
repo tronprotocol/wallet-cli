@@ -1,18 +1,19 @@
 # wallet-cli derive
 
-Derive the next HD account from a seed wallet (by --seed-id).
+Derive the next HD account from a seed wallet.
 
 ## Synopsis
 
 ```
-wallet-cli derive --seed-id <wlt_…> [--index <n>] [--label <l>] [options]
+wallet-cli derive [--seed-id <wlt_…>] [--account <account>] [--index <n>] [--label <l>] [options]
 ```
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--seed-id <string>` | seed id of the HD wallet to derive from — the HD group header in `list`  [required] |
+| `--seed-id <string>` | seed id of the HD wallet to derive from. Takes precedence over `--account` |
+| `--account <string>` | account ID, label, or address belonging to the HD wallet. Defaults to the active account |
 | `--index <number>` | explicit HD account index; omit to use the next free index. An index that already exists is not re-derived — the existing account is made active and `status` comes back `"existing"` |
 | `--label <string>` | label for the new account, 1-64 chars; omit to auto-generate |
 | `--password-stdin` | read the master password from stdin (fd 0) |
@@ -21,7 +22,9 @@ Plus [global options](index.md).
 
 ## Notes
 
-Private-key and Ledger accounts have no seed and cannot derive. See [Accounts & HD](../concepts/accounts-and-hd.md).
+You can select the wallet through any of its HD accounts; it does not have to be index 0. When both selectors are present, `--seed-id` takes precedence. Without either selector, `derive` uses the active account.
+
+Private-key, Ledger, and watch-only accounts have no seed and cannot derive. Select an HD account or pass `--seed-id`. See [Accounts & HD](../concepts/accounts-and-hd.md).
 
 When creating a new index, `derive` refuses a wallet containing an unsupported stored TRON derivation with `legacy_derivation`. A stored address that does not match the seed fails with `derivation_mismatch`.
 
@@ -30,6 +33,14 @@ If `--index` selects an existing slot, no new key is derived. A verified account
 ## Examples
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
+
+```bash
+printf '%s' "$PW" | wallet-cli derive --password-stdin
+```
+
+```bash
+printf '%s' "$PW" | wallet-cli derive --account main-1 --password-stdin
+```
 
 ```bash
 printf '%s' "$PW" | wallet-cli derive --seed-id wlt_vy5n6qhh --password-stdin
