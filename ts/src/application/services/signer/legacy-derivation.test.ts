@@ -99,17 +99,17 @@ describe("signing an account left on the old TRON template", () => {
     });
   });
 
-  // The message is the user's only route out. It must name the flag they need, quote the real
-  // path, and say the recovery phrase will not help — that last assumption is the one that
-  // would cost them the account.
-  it("names the legacy path, the --keystore command, and the phrase caveat", async () => {
+  // The message identifies the real path and supported migration without making absolute claims
+  // about what other wallet software can derive from the recovery phrase.
+  it("names the legacy path and the --keystore migration", async () => {
     const ks = keystoreWithLegacyAccount();
     const signer = resolverFor(ks).resolve(`${seedId(ks)}.1`, "tron");
 
     const err = (await signer.signMessage("hello", {} as never).catch((e) => e)) as Error;
     expect(err.message).toContain("m/44'/195'/1'/0/0");
     expect(err.message).toMatch(/backup .*--keystore .*--network tron:728126428/);
-    expect(err.message).toMatch(/recovery phrase will NOT recover/i);
+    expect(err.message).toContain("releases/tag/wallet-cli-4.13.1");
+    expect(err.message).not.toMatch(/recovery phrase|unique to wallet-cli|no other wallet/i);
   });
 
   it("uses the account label even when signing was requested by address", async () => {

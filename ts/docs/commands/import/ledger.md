@@ -32,8 +32,6 @@ When all three locators are omitted, an attached TTY opens a paged account selec
 
 Software accounts instead use `m/44'/<coin>'/0'/0/<n>`. The two templates agree only at index 0. Use `--path` to register any other device derivation scheme; `--address` and `--scan-limit` search only the Ledger Live template.
 
-> **Changed in 4.13.1.** Ethereum `--index <n>` previously meant `m/44'/60'/0'/0/<n>`, so the picker offered addresses Ledger Live does not display. Accounts already registered keep the exact path they were found at and are unaffected; only a new import or `--address` scan sees the new template.
-
 `--app` is what makes a Ledger account **single-family**: the TRON app registers a `tron` account and the Ethereum app an `evm` one, and the resulting account has only that one address. Import the same device twice, once per app, to hold both. See [Ledger guide](../../guide/ledger.md).
 
 ## Examples

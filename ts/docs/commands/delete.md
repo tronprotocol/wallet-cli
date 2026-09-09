@@ -22,9 +22,7 @@ Plus [global options](index.md).
 
 ## Notes
 
-Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched; re-import the mnemonic to regain access. Back up first. Metadata-only — no master password needed.
-
-> An affected account created with the historical TRON template is not recreated automatically by this version's normal mnemonic-import flow. [`backup`](backup.md) warns and names each such account; export it with `--keystore` before deleting it. See [Accounts & HD](../concepts/accounts-and-hd.md).
+Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched. Run [`backup`](backup.md) first and follow any warning it reports. Metadata-only — no master password needed.
 
 ## Examples
 

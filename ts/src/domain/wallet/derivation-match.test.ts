@@ -64,9 +64,8 @@ describe("resolveDerivation", () => {
   });
 });
 
-// The native `backup` exports the recovery phrase, and the phrase cannot reach the old TRON path
-// in any wallet, this one included. So the export has to be able to say WHICH accounts the file
-// it just wrote does not actually back up.
+// A normal mnemonic import follows the current template and does not recreate the old stored TRON
+// address automatically. `legacyAccounts` identifies the accounts a native backup must warn about.
 describe("legacyAccounts", () => {
   const addressesWith = (tronAt1: string) => ({
     "0": { tron: TRON_INDEX_0, evm: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" },
@@ -100,10 +99,9 @@ describe("legacyAccounts", () => {
   });
 });
 
-// Signing and `derive` refuse for different reasons but offer the identical way out, and it is
-// the only route the user gets. These assertions live on the factory rather than on either
-// caller, because a second hand-maintained copy is how a bumped tag or a renamed flag ends up
-// sending half of them a command that no longer works.
+// Signing and `derive` refuse for different reasons but offer the same supported migration. These
+// assertions live on the factory so a bumped tag or renamed flag cannot leave the callers out of
+// sync.
 describe("legacyDerivationError", () => {
   const REF = "wlt_abc123.1";
   const PATH = "m/44'/195'/1'/0/0";
@@ -115,10 +113,9 @@ describe("legacyDerivationError", () => {
     expect(m).toContain(`delete ${REF} --yes`);
   });
 
-  // The instinct this message exists to correct: "I have my phrase, I am fine."
-  it("says the recovery phrase will not recover the account", () => {
-    expect(legacyDerivationError(REF, PATH, "sign").message).toMatch(
-      /recovery phrase will NOT recover it/,
+  it("avoids absolute recovery and wallet-compatibility claims", () => {
+    expect(legacyDerivationError(REF, PATH, "sign").message).not.toMatch(
+      /recovery phrase|unique to wallet-cli|no other wallet/i,
     );
   });
 

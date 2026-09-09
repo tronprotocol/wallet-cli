@@ -88,13 +88,8 @@ const RELEASE_NOTES = "https://github.com/tronprotocol/wallet-cli/releases/tag/w
  * The refusal a stranded account raises, wherever it is raised.
  *
  * Signing and `derive` refuse for different reasons — one key cannot be produced, one wallet must
- * not mix templates — but the way out is identical, and it is the only route the user gets. Two
- * hand-maintained copies is how a renamed flag or a bumped tag ends up sending half of them a
- * command that no longer works.
- *
- * `--keystore` is named explicitly because the native `backup` writes the recovery phrase, and
- * the phrase is exactly what does NOT recover this account: the old path is unique to this CLI,
- * so no other wallet reaches it.
+ * not mix templates — but both direct the user through the same supported migration. Keeping that
+ * guidance here prevents the two call sites from drifting.
  */
 export function legacyDerivationError(
   ref: string,
@@ -113,10 +108,9 @@ export function legacyDerivationError(
   return new WalletError(
     "legacy_derivation",
     `${lead} Export that account, re-import it as a standalone account, then drop the old slot:\n` +
-      `  wallet-cli backup ${selector} --keystore --network tron:728126428 --password-stdin\n` +
-      `  wallet-cli import keystore <file>   (needs a terminal)\n` +
-      `  wallet-cli delete ${selector} --yes   (drops the stranded slot, keeping the seed and its other accounts, and unblocks 'derive'; without --yes it prompts for the label, so it needs a terminal)\n` +
-      `Your recovery phrase will NOT recover it in another wallet — the old path is unique to wallet-cli. ` +
+      `  $ wallet-cli backup ${selector} --keystore --network tron:728126428 --password-stdin\n` +
+      `  $ wallet-cli import keystore <file>\n` +
+      `  $ wallet-cli delete ${selector} --yes\n` +
       `See ${RELEASE_NOTES}`,
   );
 }

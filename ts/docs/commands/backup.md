@@ -18,7 +18,7 @@ Two formats:
 - **Native** (default) — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
 - **`--keystore`** — a standard Web3 keystore JSON, importable by TronLink and others, encrypted with **your master password**. A keystore holds a **single private key**: an HD account exports only its current derived key, and that key arrives elsewhere as a standalone account with nothing derivable from it. Use the native format to move a seed.
 
-The native export warns when the wallet contains an affected account whose TRON address uses the historical path `m/44'/195'/<n>'/0/0`. A normal mnemonic import in this version follows the current template and does not recreate that address automatically, so export each account named by the warning with `--keystore` before deleting it. See [Accounts & HD](../concepts/accounts-and-hd.md).
+The native export may warn that some stored accounts need a separate `--keystore` export. Follow that warning before deleting anything; see the [4.13.1 release notes](https://github.com/tronprotocol/wallet-cli/releases/tag/wallet-cli-4.13.1) for migration details.
 
 **A keystore also holds one key per *family*.** A seed account derives a different key for TRON (coin type 195) and for EVM (coin type 60), and a keystore can carry only one of them, so `--network` selects which — falling back to `config.defaultNetwork` when omitted. The receipt names the family that was written, and the export log records it. A private-key account has a single key and ignores the selection; the native backup covers every family at once, so it needs no choice and reports none.
 

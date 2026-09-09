@@ -40,33 +40,6 @@ Which one a command acts as follows the **selected network**, not a setting on t
 
 Not every account has both. A `watch` or `ledger` account holds exactly one address — the one you pasted, or the one the device app derives — so it carries a `family` field and only works on networks of that family. Selecting it on another is `family_mismatch`.
 
-### Accounts derived before 4.13.1
-
-Before 4.13.1 this CLI derived TRON at `m/44'/195'/<index>'/0/0`, hanging the number at the account
-level. **Index 0 is unaffected** — `m/44'/195'/0'/0/0` is the same path under both templates, so a
-wallet that never ran `derive` has nothing to do here. An account at index 1 or above is a different
-matter: a normal mnemonic import in this version follows the current template and does not recreate
-that historical TRON address automatically.
-
-This version refuses to sign that account's historical TRON address and refuses to derive further
-accounts from the wallet holding it. The supported migration is to export the key, re-import it as
-a standalone account, and then drop the old slot:
-
-```bash
-printf '%s' "$PW" | wallet-cli backup <account> --keystore --network tron:728126428 --password-stdin
-wallet-cli import keystore <file>          # needs a terminal
-wallet-cli delete <seedId>.<n> --yes       # drops the stranded slot and unblocks `derive`
-```
-
-The third step is not optional housekeeping: deleting a non-root HD sub-account forgets just that
-index — the seed, its vault and the wallet's other accounts are untouched — and it is what clears
-the duplicate address and lets the wallet derive again.
-
-Use [`backup --keystore`](../commands/backup.md) for this migration. A native backup writes the
-recovery phrase, but wallet-cli's normal import flow derives the current template rather than
-recreating the historical slot. See the
-[4.13.1 release notes](https://github.com/tronprotocol/wallet-cli/releases/tag/wallet-cli-4.13.1).
-
 ## Account types
 
 | Type | Created by | Secret stored locally? | Can sign? | Families |
@@ -88,7 +61,7 @@ Labels are unique, 1–64 chars, renameable (`rename`) — the stable handle is 
 ## Lifecycle
 
 - `backup <account>` exports secret + metadata to a file created with mode **0600** and never overwritten (in the current working directory by default). Treat the file as the secret it contains — and mind where you run it, since the CLI does not check whether that directory is shared or version-controlled. The native format carries the seed or key itself, so it covers every family at once; `backup --keystore` carries a **single private key**, so `--network` selects which family's key it holds.
-- `delete` removes accounts; **deleting an HD wallet cascades from the seed root** — all derived accounts of that seed go with it. The on-chain assets are untouched, but a normal mnemonic import does not recreate a historical TRON slot automatically (see above). `backup` warns and names affected accounts; export them with `--keystore` first.
+- `delete` removes accounts; **deleting an HD wallet cascades from the seed root** — all derived accounts of that seed go with it. Back up first and follow any warning it reports.
 - Losing the master password is unrecoverable locally; the escape hatch is always the mnemonic → `import mnemonic`.
 
 ## See also
