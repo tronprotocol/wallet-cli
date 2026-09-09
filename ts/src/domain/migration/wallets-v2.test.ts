@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { migrateWalletsToV2, walletsNeedPassword } from "./wallets-v2.js";
 import { Derivation } from "../derivation/index.js";
 import { evmAddressFromPublicKey } from "../address/index.js";
+import { addressCodec } from "../family/index.js";
 import type { ChainAddresses } from "../types/index.js";
 
 const seedWallet = { id: "wlt_s", source: { type: "seed", vaultId: "v1", addresses: {} } };
@@ -134,7 +135,17 @@ describe("migrateWalletsToV2 — the seed path", () => {
         source: {
           type: "seed",
           vaultId: "v1",
-          addresses: Object.fromEntries(indices.map((i) => [i, { tron: `T-stale-${i}` }])),
+          addresses: Object.fromEntries(
+            indices.map((i) => {
+              const index = Number(i);
+              const path =
+                Derivation.legacyPaths("tron", index)[0] ?? Derivation.path("tron", index);
+              const tron = addressCodec("tron").fromPublicKey(
+                Derivation.derive(seed, path).publicKey,
+              );
+              return [i, { tron }];
+            }),
+          ),
         },
       },
     ],
@@ -159,14 +170,26 @@ describe("migrateWalletsToV2 — the seed path", () => {
     }
   });
 
-  // Previously this asserted the cached TRON address was PRESERVED. Re-running the creation
-  // path's derivation recomputes every family, so a cached value that NO template explains —
-  // genuine corruption — is corrected: there is one derivation rule, and the file is brought
-  // into line with it. The one exception is a value a legacy template explains (below).
-  it("re-derives the TRON address too, correcting a value no template explains", () => {
-    const addresses = addressesOf(migrateWalletsToV2(docWithIndices(["0"]), secrets));
+  // An unexplained cached address may be corruption, a wallet paired with the wrong vault, or a
+  // historical template this build does not know. Migration cannot safely choose among those
+  // cases, so it leaves the v1 document for recovery instead of silently changing its identity.
+  it("refuses a cached TRON address that no known template explains", () => {
+    const mismatched = {
+      version: 1,
+      wallets: [
+        {
+          id: "wlt_s",
+          source: { type: "seed", vaultId: "v1", addresses: { "0": { tron: "T-stale-0" } } },
+        },
+      ],
+    };
 
-    expect(addresses["0"]!.tron).toBe(CURRENT_TRON_0);
+    expect(() => migrateWalletsToV2(mismatched, secrets)).toThrowError(
+      expect.objectContaining({
+        code: "derivation_mismatch",
+        message: expect.stringContaining("wlt_s.0"),
+      }),
+    );
   });
 
   // The v1→v2 migration is the first code a 4.12.0 user meets, and 4.12.0 shipped `derive` on

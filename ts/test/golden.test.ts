@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Keystore } from "../src/adapters/outbound/keystore/index.js";
@@ -1009,6 +1009,23 @@ describe("golden CLI — startup migration", () => {
     expect(r.status).not.toBe(0);
     expect(r.json.error.code).toBe("auth_failed");
     expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+
+  it("refuses an unexplained cached address without changing the v1 file", () => {
+    const path = windBackToV1();
+    const before = JSON.parse(readFileSync(path, "utf8"));
+    before.wallets[0].source.addresses["0"].tron = "T-stale-address";
+    writeFileSync(path, JSON.stringify(before));
+
+    const r = run(["--output", "json", "list"], { password: DEFAULT_PW });
+
+    expect(r.status).toBe(1);
+    expect(r.json.error).toMatchObject({
+      code: "derivation_mismatch",
+      message: expect.stringContaining(`${before.wallets[0].id}.0`),
+    });
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(before);
+    expect(existsSync(`${path}.v1.bak`)).toBe(false);
   });
 
   it("checks migration before --help", () => {

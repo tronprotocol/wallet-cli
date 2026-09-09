@@ -10,12 +10,12 @@
  *   - seed / privateKey — hold a local secret, so both decrypt and re-derive. Needs the password.
  *   - ledger / watch — nothing to do. Single-family by construction; they carry no address map.
  *
- * The single exception to re-deriving is stated at its one call site below: a cached TRON address
- * that a legacy template explains is evidence, not staleness, and is kept.
+ * A cached TRON address is evidence, not staleness: a legacy match is kept, while a value no
+ * known template explains stops the migration instead of silently replacing the account.
  */
 import type { Bytes, ChainAddresses, WalletsFile } from "../types/index.js";
 import { derivePrivAddresses, deriveSeedAddresses } from "../wallet/index.js";
-import { resolveDerivation } from "../wallet/derivation-match.js";
+import { derivationMismatchError, resolveDerivation } from "../wallet/derivation-match.js";
 import { SOURCE_KINDS } from "../sources/index.js";
 import type { Source } from "../types/wallet.js";
 
@@ -54,10 +54,17 @@ export function migrateWalletsToV2(doc: WalletsFileV1, secrets: MigrationSecrets
           // migration holding exactly such a value; replacing it would hand the account to a
           // different key and hide it from every legacy-derivation guard downstream.
           const cachedTron = cached[index]?.tron;
-          const legacy =
-            cachedTron !== undefined &&
-            resolveDerivation(seed, "tron", Number(index), cachedTron)?.scheme === "legacy";
-          return [index, legacy ? { ...derived, tron: cachedTron } : derived];
+          const resolved =
+            cachedTron === undefined
+              ? undefined
+              : resolveDerivation(seed, "tron", Number(index), cachedTron);
+          if (cachedTron !== undefined && resolved === undefined) {
+            throw derivationMismatchError("tron", `${wallet.id}.${index}`);
+          }
+          return [
+            index,
+            resolved?.scheme === "legacy" ? { ...derived, tron: cachedTron } : derived,
+          ];
         }),
       );
       return { ...wallet, source: { ...source, addresses } };
