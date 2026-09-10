@@ -64,7 +64,7 @@ wallet-cli current -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 With no active account yet, it fails with `missing_wallet_address` (exit 1):
@@ -89,7 +89,7 @@ error [missing_wallet_address]: no active account; import one first
 | `index` | number \| null | HD derivation index; `null` for non-HD accounts |
 | `active` | boolean | `true` for the active account; `false` when `--account` selected a different one |
 | `addresses` | object | One entry per family the account can produce: `tron` (base58) and/or `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object \| null | The BIP32 path behind each address: every family for a `seed` account, the single chosen path for a `ledger` account; `null` for `privateKey` and `watch`, which were never derived |
+| `derivationPath` | null | Always `null`; `current` does not unlock the seed or provide derivation information |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
 | `receiveAddress` | string | Present in JSON only when `--qr` was requested; address selected by `--network` |

@@ -1,18 +1,19 @@
 # wallet-cli derive
 
-Derive the next HD account from a seed wallet (by --seed-id).
+Derive the next HD account from a seed wallet.
 
 ## Synopsis
 
 ```
-wallet-cli derive --seed-id <wlt_…> [--index <n>] [--label <l>] [options]
+wallet-cli derive [--seed-id <wlt_…>] [--account <account>] [--index <n>] [--label <l>] [options]
 ```
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--seed-id <string>` | seed id of the HD wallet to derive from — the HD group header in `list`  [required] |
+| `--seed-id <string>` | seed id of the HD wallet to derive from. Takes precedence over `--account` |
+| `--account <string>` | account ID, label, or address belonging to the HD wallet. Defaults to the active account |
 | `--index <number>` | explicit HD account index; omit to use the next free index. An index that already exists is not re-derived — the existing account is made active and `status` comes back `"existing"` |
 | `--label <string>` | label for the new account, 1-64 chars; omit to auto-generate |
 | `--password-stdin` | read the master password from stdin (fd 0) |
@@ -21,32 +22,46 @@ Plus [global options](index.md).
 
 ## Notes
 
-Private-key and Ledger accounts have no seed and cannot derive. See [Accounts & HD](../concepts/accounts-and-hd.md).
+You can select the wallet through any of its HD accounts; it does not have to be index 0. When both selectors are present, `--seed-id` takes precedence. Without either selector, `derive` uses the active account.
+
+Private-key, Ledger, and watch-only accounts have no seed and cannot derive. Select an HD account or pass `--seed-id`. See [Accounts & HD](../concepts/accounts-and-hd.md).
+
+When creating a new index, `derive` refuses a wallet containing an unsupported stored TRON derivation with `legacy_derivation`. A stored address that does not match the seed fails with `derivation_mismatch`.
+
+If `--index` selects an existing slot, no new key is derived. A verified account is made active and returns `status: "existing"`; an address that does not match the seed fails with `derivation_mismatch` before the active account changes. Reselecting a legacy slot succeeds but warns that default mnemonic recovery will not recreate its TRON address. The phrase can still derive the key at the reported path; follow [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 ## Examples
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin
+printf '%s' "$PW" | wallet-cli derive --password-stdin
+```
+
+```bash
+printf '%s' "$PW" | wallet-cli derive --account main-1 --password-stdin
+```
+
+```bash
+printf '%s' "$PW" | wallet-cli derive --seed-id wlt_vy5n6qhh --password-stdin
 ```
 
 ```console
 ✅ Derived sub-account "main-1"
-  Account ID    wlt_y8cz6xda.1
+  Account ID    wlt_vy5n6qhh.1
   Index         1
-  TRON address  TWCa1W6BkcXZnRGxeZZw9jh8eNgULDVGzj
-  EVM address   0x2395227A93465175c6D6EAF2B9d37c2cC0BaB60c
+  TRON address  TKpmAZmDcGhJBugwAhbJ1ubWeTM4VZgRbK
+  EVM address   0x7Fee0863cB70a3C7c937A292220dD0C52E2526e0
   Active        yes
-  Note          shares master mnemonic; no separate backup needed
+  Note          shares the wallet's recovery phrase
 ```
 
 ```bash
-printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o json
+printf '%s' "$PW" | wallet-cli derive --seed-id wlt_vy5n6qhh --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"derive","data":{"status":"created","accountId":"wlt_y8cz6xda.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TWCa1W6BkcXZnRGxeZZw9jh8eNgULDVGzj","evm":"0x2395227A93465175c6D6EAF2B9d37c2cC0BaB60c"},"seedId":"wlt_y8cz6xda","derivationPath":{"tron":"m/44'/195'/1'/0/0","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":1013,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"derive","data":{"status":"created","accountId":"wlt_vy5n6qhh.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TKpmAZmDcGhJBugwAhbJ1ubWeTM4VZgRbK","evm":"0x7Fee0863cB70a3C7c937A292220dD0C52E2526e0"},"seedId":"wlt_vy5n6qhh","derivationPath":{"tron":"m/44'/195'/0'/0/1","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":980,"warnings":[]}}
 ```
 
 ## Output
@@ -62,12 +77,12 @@ printf '%s' "$PW" | wallet-cli derive --seed-id wlt_y8cz6xda --password-stdin -o
 | `index` | number | HD derivation index |
 | `active` | boolean | Always `true` (the new account is made active) |
 | `addresses` | object | One address per family the account can produce: `tron` (base58) and `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object | The BIP44 path each address came from: `{"tron":"m/44'/195'/<index>'/0/0","evm":"m/44'/60'/0'/0/<index>"}` |
+| `derivationPath` | object | The verified BIP44 path each address came from. A newly created account reports `m/44'/<coin>'/0'/0/<index>` for both families; `--index` naming an existing account reports that account's actual current or legacy path |
 | `seedId` | string | Owning seed wallet id |
 
 ## Exit status
 
-`0` success · `1` execution failure · `2` usage error. See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure, including `legacy_derivation` and `derivation_mismatch` (see Notes) · `2` usage error. See [machine-interface](../machine-interface.md).
 
 ## See also
 

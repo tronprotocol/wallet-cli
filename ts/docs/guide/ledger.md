@@ -18,13 +18,13 @@ Locally this creates a **watch-only** entry — no secret is stored; signing hap
 
 | Flag | Use when |
 |---|---|
-| `--index <n>` | You know the account index under wallet-cli's family path template |
+| `--index <n>` | You know the account index under Ledger Live's template |
 | `--path <bip32>` | You need an explicit derivation path, e.g. `m/44'/195'/0'/0/0` (TRON) or `m/44'/60'/0'/0/0` (Ethereum) |
 | `--address <addr>` | You know the address; wallet-cli scans indexes to find it (`--scan-limit`, default 20) |
 
 **`--app` fixes the account to one chain family.** Unlike a software account — which holds a TRON *and* an EVM address from the same seed — a Ledger account has exactly the one address its app derives, and only works on networks of that family. Selecting it elsewhere fails with `family_mismatch`. Import the same device twice, once per app, to cover both.
 
-With no locator, a TTY presents a paged account selector; a non-interactive invocation falls back to index 0. For Ethereum, wallet-cli's `--index <n>` template is `m/44'/60'/0'/0/<n>` (MetaMask style), while Ledger Live commonly uses `m/44'/60'/<n>'/0/0`. Use `--path` to register the exact Ledger Live account instead of assuming the indexes are interchangeable.
+With no locator, a TTY presents a paged account selector; a non-interactive invocation falls back to index 0. `--index <n>`, the selector, and `--address` scanning use **Ledger Live's** template: `m/44'/195'/<n>'/0/0` for TRON and `m/44'/60'/<n>'/0/0` for Ethereum. Software accounts use `m/44'/<coin>'/0'/0/<n>` instead. Register any other device derivation scheme with `--path`.
 
 Confirm with `wallet-cli list` — the account appears alongside your software accounts and works with `use`, `--account`, and every query command. `list` shows one family at a time, so a TRON-app account is invisible under `--network sepolia` and vice versa; `-o json` shows every account regardless.
 

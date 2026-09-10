@@ -28,7 +28,7 @@ export async function resolveLedgerPath(
   family: ChainFamily,
   locator: LedgerLocator,
 ): Promise<string> {
-  if (locator.index !== undefined) return Derivation.path(family, locator.index);
+  if (locator.index !== undefined) return Derivation.ledgerPath(family, locator.index);
   if (locator.path !== undefined) {
     // Two different failures, told apart. A malformed path is a bad VALUE — reporting it as
     // "coin_type ? does not match --app tron" describes a mismatch the user never had, and sends
@@ -55,17 +55,18 @@ export async function resolveLedgerPath(
   if (locator.address !== undefined) {
     const limit = locator.scanLimit ?? DEFAULT_SCAN_LIMIT;
     for (let index = 0; index < limit; index++) {
-      const path = Derivation.path(family, index);
+      const path = Derivation.ledgerPath(family, index);
       if ((await ledger.getAddress(family, path, { display: false })) === locator.address)
         return path;
     }
     throw new WalletError(
       "ledger_address_not_found",
-      `address not found in the first ${limit} accounts; widen with --scan-limit <n>, ` +
-        `or specify it directly with --index <i> / --path <m/44'/...>`,
+      `address not found among the first ${limit} Ledger Live accounts; increase ` +
+        `--scan-limit, select a known account with --index, or register its exact derivation ` +
+        `path with --path`,
     );
   }
-  return Derivation.path(family, 0);
+  return Derivation.ledgerPath(family, 0);
 }
 
 /** Derive Ledger accounts lazily in pages and let the inbound prompt port select one. */
@@ -80,15 +81,18 @@ export async function selectLedgerPath(
   const loadPage = async () => {
     const end = nextIndex + pageSize;
     for (; nextIndex < end; nextIndex++) {
-      const path = Derivation.path(family, nextIndex);
+      const path = Derivation.ledgerPath(family, nextIndex);
       const address = await ledger.getAddress(family, path, { display: false });
-      choices.push({ value: path, label: `[${nextIndex}] ${address}` });
+      // The path, not just the index: the list is Ledger Live's template, and a user whose
+      // account lives on another scheme has no way to tell from an address alone that the
+      // account they are looking for is not in this list at all.
+      choices.push({ value: path, label: `[${nextIndex}] ${address}  ${path}` });
     }
     return choices;
   };
   await loadPage();
   return prompt.select({
-    label: `Select ${family} account`,
+    label: `Select ${family} account (Ledger Live template; use --path for another scheme)`,
     choices: [...choices],
     loadMore: loadPage,
   });

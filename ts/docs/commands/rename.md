@@ -41,7 +41,7 @@ wallet-cli rename main-1 --label hot-hd -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"rename","data":{"previousLabel":"main-1","accountId":"wlt_0y2z0gvr.1","label":"hot-hd","type":"seed","index":1,"active":true,"addresses":{"tron":"TRzaAZWRvPCcmqNETTWvmMLDi6cKwM3gbR","evm":"0x94f2e5cbb4BcA39A3F6c252217a0F30A0D23660b"},"seedId":"wlt_0y2z0gvr","derivationPath":{"tron":"m/44'/195'/1'/0/0","evm":"m/44'/60'/0'/0/1"}},"meta":{"durationMs":14,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"rename","data":{"previousLabel":"main-1","accountId":"wlt_vy5n6qhh.1","label":"hot-hd","type":"seed","index":1,"active":true,"addresses":{"tron":"TKpmAZmDcGhJBugwAhbJ1ubWeTM4VZgRbK","evm":"0x7Fee0863cB70a3C7c937A292220dD0C52E2526e0"},"seedId":"wlt_vy5n6qhh","derivationPath":null},"meta":{"durationMs":31,"warnings":[]}}
 ```
 
 ## Output
@@ -57,7 +57,7 @@ wallet-cli rename main-1 --label hot-hd -o json
 | `index` | number \| null | HD derivation index; `null` for non-HD accounts |
 | `active` | boolean | Whether it is the active account |
 | `addresses` | object | One entry per family the account can produce: `tron` (base58) and/or `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object \| null | Per-family BIP44 path for derived accounts; `null` for `watch` / `privateKey`, which were never derived |
+| `derivationPath` | null | Always `null`; `rename` changes only the label and does not unlock the seed or provide derivation information |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
 

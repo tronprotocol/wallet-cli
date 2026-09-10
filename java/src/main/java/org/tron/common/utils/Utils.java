@@ -136,7 +136,7 @@ public class Utils {
 
   public static final int MIN_LENGTH = 2;
   public static final int MAX_LENGTH = 14;
-  public static final String VERSION = " v4.13.0";
+  public static final String VERSION = " v4.13.1";
   public static final String TRANSFER_METHOD_ID = "a9059cbb";
 
   private static SecureRandom random = new SecureRandom();
