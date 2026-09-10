@@ -1,5 +1,6 @@
 import type {
   BaiRechargeApi,
+  BaiReportRetry,
   BaiRechargeConfig,
   BaiRechargeTarget,
 } from "../ports/bai-recharge.js";
@@ -29,6 +30,7 @@ export class BaiService {
     private readonly bindings?: BaiBindingStore,
     private readonly rechargeApi?: BaiRechargeApi,
     private readonly rechargeConfig?: BaiRechargeConfig,
+    private readonly reportRetry?: BaiReportRetry,
   ) {}
 
   async recharge(
@@ -88,12 +90,16 @@ export class BaiService {
         confirmedTarget: { type: "personal", targetId: resolved.targetId },
       };
     }
-    const flow = new BaiRechargeFlow(this.rechargeApi, {
-      pay: async () => {
-        const result = await this.payments!.roundtrip(scope, network, paymentInput);
-        return { ...baiPaymentResult(result.pay, network.id), chain };
+    const flow = new BaiRechargeFlow(
+      this.rechargeApi,
+      {
+        pay: async () => {
+          const result = await this.payments!.roundtrip(scope, network, paymentInput);
+          return { ...baiPaymentResult(result.pay, network.id), chain };
+        },
       },
-    });
+      this.reportRetry,
+    );
     const result = await flow.execute({
       channel: "crypto",
       chain,
@@ -135,19 +141,23 @@ export class BaiService {
       );
     }
     const amount = input.amount === undefined ? undefined : baiRechargeAmount(input.amount);
-    return reportBaiTransaction(this.rechargeApi, {
-      chain: input.chain,
-      txHash: input.txHash,
-      ...(amount === undefined ? {} : { amount }),
-      ...(to && targetId
-        ? {
-            rechargeTarget: {
-              input: { type: "personal", identifier: to },
-              confirmedTarget: { type: "personal", targetId },
-            },
-          }
-        : {}),
-    });
+    return reportBaiTransaction(
+      this.rechargeApi,
+      {
+        chain: input.chain,
+        txHash: input.txHash,
+        ...(amount === undefined ? {} : { amount }),
+        ...(to && targetId
+          ? {
+              rechargeTarget: {
+                input: { type: "personal", identifier: to },
+                confirmedTarget: { type: "personal", targetId },
+              },
+            }
+          : {}),
+      },
+      this.reportRetry,
+    );
   }
 
   async status() {

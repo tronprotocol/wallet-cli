@@ -1,3 +1,4 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
 import { setLogger, noopLogger } from "@bankofai/x402-core";
 import { FileBaiBindingStore } from "../adapters/outbound/bai/binding-store.js";
@@ -154,6 +155,12 @@ export function composeCliRuntime(options: BootstrapOptions) {
       baiBindings,
       new BaiRechargeClient(config, timeoutMs),
       { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
+      {
+        timeoutMs: 90_000,
+        delaysMs: [15_000, 20_000, 25_000],
+        now: () => performance.now(),
+        wait: delay,
+      },
     ),
   );
   const agentContracts = {

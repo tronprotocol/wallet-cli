@@ -94,6 +94,7 @@ export class TronContractService {
           input.contract,
           input.method,
           input.parameters,
+          input.callValueSun,
         );
         warnIfFeeLimitLikelyInsufficient(scope, input.feeLimit, estimate);
         return estimate;

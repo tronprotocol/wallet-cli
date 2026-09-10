@@ -47,11 +47,18 @@ describe("TronContractService.send fee-limit guidance", () => {
       contract: "Tcontract",
       method: "transfer(address,uint256)",
       parameters: [],
-      callValueSun: "0",
+      callValueSun: "8847971",
       feeLimit: "1",
       dryRun: true,
     });
 
+    expect(gateway.estimateResources).toHaveBeenCalledWith(
+      "Towner",
+      "Tcontract",
+      "transfer(address,uint256)",
+      [],
+      "8847971",
+    );
     expect((result as { mode?: string }).mode).toBe("dry-run");
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("fee limit 1 SUN is likely insufficient"),

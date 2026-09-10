@@ -1036,12 +1036,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     contract: string,
     fn: string,
     params: TronContractParameter[],
+    callValueSun = "0",
   ): Promise<number> {
+    const callValue = this.#safeNumber(callValueSun, "call value");
     return this.#wrap("estimateEnergy", async () => {
       const res = await this.#tw.transactionBuilder.triggerConstantContract(
         contract,
         fn,
-        {},
+        { callValue },
         params as Types.ContractFunctionParameter[],
         from,
       );
@@ -1053,9 +1055,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     contract: string,
     fn: string,
     params: TronContractParameter[],
+    callValueSun = "0",
   ): Promise<FeeEstimate> {
     const [energy, prices, resources] = await Promise.all([
-      this.estimateEnergy(from, contract, fn, params),
+      this.estimateEnergy(from, contract, fn, params, callValueSun),
       this.getEnergyPrices().catch(() => undefined),
       this.getAccountResources(from).catch(() => undefined),
     ]);

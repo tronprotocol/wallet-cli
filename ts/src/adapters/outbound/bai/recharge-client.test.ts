@@ -271,3 +271,22 @@ it("converts a decimal only in the outgoing report JSON", async () => {
   expect(input.amount).toBe("1.2300");
   expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.amount).toBe(1.23);
 });
+
+it("aborts a report at the recovery deadline rather than the longer HTTP timeout", async () => {
+  const fetcher = vi.fn(
+    async (_url: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        const abort = () => reject(new DOMException("aborted", "AbortError"));
+        if (init?.signal?.aborted) abort();
+        else init?.signal?.addEventListener("abort", abort, { once: true });
+      }),
+  );
+  const client = new BaiRechargeClient({ baiApiKey: "test-key" }, 10000, fetcher);
+  await expect(
+    client.reportTxHash(
+      { chain: "tron", txHash: "hash", amount: "1" },
+      { signal: AbortSignal.timeout(10) },
+    ),
+  ).rejects.toMatchObject({ code: "timeout" });
+  expect(fetcher).toHaveBeenCalledOnce();
+});

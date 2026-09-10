@@ -97,3 +97,32 @@ it.each([
     },
   );
 });
+
+it("retains a failed settlement candidate hash through the local paywall", async () => {
+  await withServer(
+    {
+      success: false,
+      errorReason: "invalid_transaction_state",
+      transaction: "a".repeat(64),
+      network: "tron:0xcd8690dc",
+    },
+    async (port) => {
+      const response = await fetch(`http://127.0.0.1:${port}/pay`, {
+        headers: {
+          "payment-signature": Buffer.from(
+            JSON.stringify({ x402Version: 2, payload: {} }),
+          ).toString("base64"),
+        },
+      });
+      expect(response.status).toBe(502);
+      expect(await response.json()).toMatchObject({
+        phase: "settle",
+        reason: "invalid_transaction_state",
+        candidateTxHash: "a".repeat(64),
+        candidateNetwork: "tron:0xcd8690dc",
+        retryPayment: false,
+      });
+      expect(response.headers.has("payment-response")).toBe(false);
+    },
+  );
+});

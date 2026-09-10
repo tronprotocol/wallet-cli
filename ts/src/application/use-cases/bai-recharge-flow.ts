@@ -1,5 +1,6 @@
 import type {
   BaiCreateOrderInput,
+  BaiReportRetry,
   BaiRechargeApi,
   BaiRechargePayment,
   BaiReportTransactionInput,
@@ -11,6 +12,7 @@ export class BaiRechargeFlow {
   constructor(
     private readonly api: Pick<BaiRechargeApi, "createOrder" | "reportTxHash">,
     private readonly payment: BaiRechargePayment,
+    private readonly retry?: BaiReportRetry,
   ) {}
 
   async execute(input: BaiCreateOrderInput) {
@@ -71,7 +73,7 @@ export class BaiRechargeFlow {
 
   /** Recovery entry point: only reports an existing hash; never creates an order or pays. */
   async report(input: BaiReportTransactionInput) {
-    return reportBaiTransaction(this.api, input);
+    return reportBaiTransaction(this.api, input, this.retry);
   }
 }
 
@@ -79,11 +81,40 @@ export class BaiRechargeFlow {
 export async function reportBaiTransaction(
   api: Pick<BaiRechargeApi, "reportTxHash">,
   input: BaiReportTransactionInput,
+  retry?: BaiReportRetry,
+) {
+  const request = structuredClone(input);
+  if (!retry) return reportOnce(api, request);
+  const deadline = retry.now() + retry.timeoutMs;
+  let result = await reportOnce(api, request, retry.timeoutMs);
+  for (const delay of retry.delaysMs) {
+    if (
+      result.creditStatus === "credited" ||
+      !["TX_NOT_FOUND_OR_INVALID", "TX_TIMESTAMP_UNAVAILABLE"].includes(result.code ?? "")
+    )
+      break;
+    if (retry.now() + delay >= deadline) break;
+    await retry.wait(delay);
+    const remaining = deadline - retry.now();
+    if (remaining <= 0) break;
+    result = await reportOnce(api, request, remaining);
+  }
+  return result;
+}
+
+async function reportOnce(
+  api: Pick<BaiRechargeApi, "reportTxHash">,
+  input: BaiReportTransactionInput,
+  timeoutMs?: number,
 ) {
   const request = structuredClone(input);
   const base = { ...request, retryPayment: false as const };
   try {
-    const result = await api.reportTxHash(structuredClone(request));
+    const result = await (timeoutMs === undefined
+      ? api.reportTxHash(structuredClone(request))
+      : api.reportTxHash(structuredClone(request), {
+          signal: AbortSignal.timeout(Math.ceil(timeoutMs)),
+        }));
     if (!result.success)
       return {
         ...base,

@@ -487,3 +487,20 @@ v4.14 interface, whose earlier development build returned numbers in report/reco
 Raw BAI order fields retain their server-provided types. The outbound BAI API request still
 uses a JSON number after decimal round-trip validation; clients must not infer the CLI result
 type from that HTTP request format.
+
+
+### BAI bounded report recovery and x402 diagnostics
+
+After payment, BAI reporting retries only `TX_NOT_FOUND_OR_INVALID` and
+`TX_TIMESTAMP_UNAVAILABLE`, with delays of 15, 20 and 25 seconds, at most four requests
+within a 90-second reporting budget. `--timeout` still limits each HTTP request.
+`bai recharge-report` uses the same policy. No payment, preorder or recipient resolution
+is repeated. Exhaustion returns `creditStatus: "unconfirmed"` with the original recovery
+fields and `retryPayment: false`; authentication, transport and other rejection codes stop
+without automatic retry.
+
+x402 error details may include `phase` (`request`, `challenge`, `create_payment`, `sign`,
+`payment_request`, `verify`, `settle`), `httpStatus`, safe `reason` / `transportCode`, and
+`candidateTxHash` / `candidateNetwork`. A candidate hash is evidence for reconciliation,
+not proof of a successful payment. Raw upstream error strings and request credentials
+are not part of this contract.

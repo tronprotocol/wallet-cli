@@ -1,4 +1,4 @@
-import { sdkPaymentError, providerPaymentError } from "./payment-error.js";
+import { sdkPaymentError, providerPaymentError, type PaymentPhase } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import {
@@ -48,6 +48,7 @@ export class X402PaymentClient implements X402PaymentPort {
       redirect: "error",
       ...(input.body === undefined ? {} : { body: input.body }),
     };
+    let phase: PaymentPhase = "request";
     try {
       if (this.paidFetchFactory && !input.expectedPayTo && input.exactAmount === undefined) {
         const signer = this.resolveSigner(scope, network);
@@ -78,6 +79,7 @@ export class X402PaymentClient implements X402PaymentPort {
           input.out,
           toX402Network(network),
         );
+      phase = "challenge";
       if (input.dryRun) return inspectChallenge(input.url, initial, network, input);
 
       if (input.expectedPayTo || input.exactAmount !== undefined) {
@@ -85,8 +87,10 @@ export class X402PaymentClient implements X402PaymentPort {
         selectMatching(challenge.accepts, network, input);
       }
 
+      phase = "create_payment";
       const signer = createPayerSigner(this.signers, scope, network.family);
       const paidFetch = await this.createPaidFetch(network, signer, scope, input, initial);
+      phase = "payment_request";
       return await this.readResponse(
         input.url,
         await paidFetch(input.url, requestInit),
@@ -95,7 +99,7 @@ export class X402PaymentClient implements X402PaymentPort {
         toX402Network(network),
       );
     } catch (error) {
-      throw sdkPaymentError(error);
+      throw sdkPaymentError(error, phase);
     }
   }
 
@@ -156,7 +160,7 @@ export class X402PaymentClient implements X402PaymentPort {
       if (!response.ok && signer && body && typeof body === "object" && !base.settled) {
         const failure = body as Record<string, unknown>;
         if (failure.phase === "verify" || failure.phase === "settle") {
-          throw providerPaymentError(failure.reason ?? failure.code, failure.phase);
+          throw providerPaymentError(failure.reason ?? failure.code, failure.phase, failure);
         }
       }
       return { ...base, response: body };
@@ -184,9 +188,17 @@ export class X402PaymentClient implements X402PaymentPort {
     const wallet = toX402Wallet(signer, { family: network.family, maxGasfreeFeeRaw });
     const bridge = {
       ...wallet,
-      signTypedData: (payload: unknown) => wallet.signTypedData(normalizeTypedData(payload)),
+      async signTypedData(payload: unknown) {
+        try {
+          return await wallet.signTypedData(normalizeTypedData(payload));
+        } catch (error) {
+          throw sdkPaymentError(error, "sign");
+        }
+      },
       async signTransaction(tx: unknown): Promise<string | Record<string, unknown>> {
-        const signed = await wallet.signTransaction(tx);
+        const signed = await wallet.signTransaction(tx).catch((error: unknown) => {
+          throw sdkPaymentError(error, "sign");
+        });
         if (typeof signed === "string") return signed;
         if (typeof signed === "object" && signed !== null && !Array.isArray(signed)) {
           return signed as Record<string, unknown>;
@@ -230,7 +242,7 @@ export class X402PaymentClient implements X402PaymentPort {
     // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
     let creationError: unknown;
     client.onPaymentCreationFailure(async ({ error }) => {
-      creationError = sdkPaymentError(error);
+      creationError = sdkPaymentError(error, "create_payment");
     });
     const boundedFetch = this.boundedFetch(scope, network, signer);
     let first: Response | undefined = initial;

@@ -130,10 +130,18 @@ export class BaiRechargeClient implements BaiRechargeApi {
     if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
     return result;
   }
-  async reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult> {
+  async reportTxHash(
+    input: BaiReportTransactionInput,
+    options?: { signal: AbortSignal },
+  ): Promise<BaiReportResult> {
     const result = this.decode(
       report,
-      await this.call("order.reportTxHash", this.input(reportInput, input)),
+      await this.call(
+        "order.reportTxHash",
+        this.input(reportInput, input),
+        "POST",
+        options?.signal,
+      ),
     );
     return result.success
       ? result
@@ -164,6 +172,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
     procedure: string,
     input: unknown,
     method: "GET" | "POST" = "POST",
+    parentSignal?: AbortSignal,
   ): Promise<unknown> {
     const key = this.config.baiApiKey;
     if (!key)
@@ -179,7 +188,8 @@ export class BaiRechargeClient implements BaiRechargeApi {
       );
     const payload = JSON.stringify({ json: input });
     if (method === "GET") url.searchParams.set("input", payload);
-    const signal = AbortSignal.timeout(this.timeoutMs);
+    const timeout = AbortSignal.timeout(this.timeoutMs);
+    const signal = parentSignal ? AbortSignal.any([parentSignal, timeout]) : timeout;
     let response: Response;
     let decoded: unknown;
     try {

@@ -366,3 +366,37 @@ it.each(["verify", "settle"])(
     expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
   },
 );
+
+it("retains safe failed-settlement evidence from the local paywall without marking it paid", async () => {
+  const client = new X402PaymentClient(
+    resolver,
+    globalThis.fetch,
+    async () => async () =>
+      Response.json(
+        {
+          phase: "settle",
+          reason: "invalid_transaction_state",
+          candidateTxHash: "a".repeat(64),
+          candidateNetwork: "tron:0x2b6653dc",
+          httpStatus: 503,
+          error: "SECRET",
+        },
+        { status: 502 },
+      ),
+  );
+  const error = await client
+    .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
+    .catch((error) => error);
+  expect(error).toMatchObject({
+    code: "provider_error",
+    details: {
+      phase: "settle",
+      reason: "invalid_transaction_state",
+      candidateTxHash: "a".repeat(64),
+      paymentStatus: "unknown",
+      httpStatus: 503,
+      retryPayment: false,
+    },
+  });
+  expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+});

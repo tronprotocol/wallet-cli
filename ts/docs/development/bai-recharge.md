@@ -185,3 +185,12 @@ codes retain the bounded code and a generic reconciliation instruction.
 接口调整：`bai recharge-report` 的 `data.amount` 以及充值失败恢复信息中的 `amount` 统一为字符串；`bai recharge` 的顶层付款金额原本就是字符串。BAI 服务端请求仍为 number，服务端返回的原始订单字段不做类型改写。
 
 x402 支付保留协议专用流程，通过共用 signer 服务签名；适用范围与不支持的交易模式见 [架构指南](architecture.md#x402-協議支付的邊界)。
+
+
+## 确认延迟与上报恢复
+
+CLI 在支付成功后立即上报；如果 BAI 返回 `TX_NOT_FOUND_OR_INVALID` 或 `TX_TIMESTAMP_UNAVAILABLE`，等待 15、20、25 秒后分别尝试上报同一笔交易，最多 4 次请求，总上报预算 90 秒。每个 HTTP 请求仍受 `--timeout` 限制，并受剩余上报预算的取消信号约束。手动 `bai recharge-report` 使用相同恢复策略。
+
+该流程只等待并重试 BAI 对原交易的核验，不轮询链上 RPC，也不会重新创建订单、解析目标或付款。认证失败、付款人不匹配、其他拒绝及网络异常不自动重试。耗尽预算后返回 `creditStatus=unconfirmed`，保留原交易、链、金额、目标用户和 `retryPayment=false`，供后续补报。
+
+x402 错误新增阶段信息：`request`、`challenge`、`create_payment`、`sign`、`payment_request`、`verify`、`settle`。能够识别的 HTTP 错误保留状态码，连接错误保留白名单中的错误码；结算失败保留合法的候选交易哈希和网络，不直接回显 SDK 消息、请求内容或凭证。

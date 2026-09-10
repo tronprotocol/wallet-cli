@@ -175,7 +175,7 @@ export class X402HttpServer implements X402ServerPort {
           paymentRequirements: requirement,
         });
         if (!successfulSettlement(settle, x402Network))
-          return paymentFailure(response, 502, settle.errorReason, phase);
+          return paymentFailure(response, 502, settle.errorReason, phase, settle);
         response.setHeader("payment-response", encodePaymentResponseHeader(settle as never));
         return json(response, 200, {
           success: true,
@@ -183,8 +183,16 @@ export class X402HttpServer implements X402ServerPort {
           scheme: input.scheme,
           transaction: settle.transaction,
         });
-      } catch {
-        return paymentFailure(response, 502, undefined, phase);
+      } catch (error) {
+        return paymentFailure(
+          response,
+          502,
+          error instanceof TransportError ? error.code : undefined,
+          phase,
+          error instanceof TransportError
+            ? (error.details as Record<string, unknown> | undefined)
+            : undefined,
+        );
       }
     });
     await listen(server, input.host, input.port);
@@ -225,7 +233,9 @@ export class X402HttpServer implements X402ServerPort {
       1024 * 1024,
     );
     if (!response.ok)
-      throw new TransportError("provider_error", `facilitator returned HTTP ${response.status}`);
+      throw new TransportError("provider_error", `facilitator returned HTTP ${response.status}`, {
+        httpStatus: response.status,
+      });
     return (await response.json()) as Record<string, unknown>;
   }
 }
@@ -280,7 +290,8 @@ function paymentFailure(
   status: number,
   reason: unknown,
   phase: "verify" | "settle",
+  evidence?: Record<string, unknown>,
 ): void {
-  const error = providerPaymentError(reason, phase);
-  json(response, status, { code: error.code, error: error.message, phase });
+  const error = providerPaymentError(reason, phase, evidence);
+  json(response, status, { code: error.code, error: error.message, ...error.details });
 }
