@@ -1,3 +1,4 @@
+import { tronAddressBytes, tronHexToBase58 } from "../../domain/address/index.js";
 import { TransportError } from "../../domain/errors/index.js";
 
 /** Only a successful x402 settlement can be reported to B.AI as a payment. */
@@ -21,7 +22,7 @@ export function baiPaymentResult(payment: Record<string, unknown>, network: stri
     (typeof settlement.payer !== "string" ||
       (network.startsWith("eip155:")
         ? settlement.payer.toLowerCase() !== payer.toLowerCase()
-        : settlement.payer !== payer))
+        : !sameTronPayer(settlement.payer, payer)))
   ) {
     throw invalid("payer_mismatch");
   }
@@ -59,4 +60,20 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+/** TRON typed data uses 20-byte hex; wallet identities use Base58Check. */
+function sameTronPayer(left: string, right: string): boolean {
+  const normalize = (value: string): string => {
+    const full = /^0x[0-9a-f]{40}$/i.test(value) ? `41${value.slice(2)}` : value;
+    const address = tronHexToBase58(full);
+    // Do not accept equal malformed strings as evidence of the same account.
+    tronAddressBytes(address);
+    return address;
+  };
+  try {
+    return normalize(left) === normalize(right);
+  } catch {
+    return false;
+  }
 }
