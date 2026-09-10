@@ -27,7 +27,7 @@ it("reports the original recipient without a wallet, preorder, target resolution
   expect(api.reportTxHash).toHaveBeenCalledExactlyOnceWith({
     chain: "base",
     txHash: request.txHash,
-    amount: 1,
+    amount: "1",
     rechargeTarget: {
       input: { type: "personal", identifier: request.to },
       confirmedTarget: { type: "personal", targetId: request.targetId },
@@ -58,7 +58,7 @@ it("retains the original recovery data and error code when reporting fails", asy
   await expect(service.rechargeReport(request)).resolves.toMatchObject({
     txHash: request.txHash,
     chain: "base",
-    amount: 1,
+    amount: "1",
     code: "bai_auth_failed",
     creditStatus: "unconfirmed",
     retryPayment: false,

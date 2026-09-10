@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CommandDefinition } from "../contracts/index.js";
+import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
 
@@ -17,46 +17,49 @@ const listFields = z.object({
   sort: z.enum(["asc", "desc"]).default("desc").describe("creation-time sort direction"),
 });
 
-export function registerBaiCommands(registry: CommandRegistry, service: BaiService): void {
-  const rechargeFields = z.object({
-    amount: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/, "must be a decimal amount"),
-    token: z
-      .string()
-      .trim()
-      .min(1)
-      .optional()
-      .describe("recharge token symbol; defaults to USDC on Base and USDT otherwise"),
-    to: z
-      .string()
-      .trim()
-      .min(1)
-      .max(320)
-      .optional()
-      .describe("B.AI recipient email or EVM, TRON, or Solana address; omit to recharge yourself"),
-  });
-  registry.add({
-    path: ["bai", "recharge"],
-    network: "optional",
-    wallet: "optional",
-    auth: "conditional",
-    broadcasts: true,
-    capability: "bai.recharge",
-    requires,
-    positionals: [{ field: "amount" }],
-    summary: "Recharge your own or another B.AI account",
-    description:
-      "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 exact on mainnet: TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
-    fields: rechargeFields,
-    input: rechargeFields,
-    examples: [
-      { cmd: "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin" },
-      {
-        cmd: "wallet-cli bai recharge 10 --token USDT --network tron --to recipient@example.com --password-stdin",
-        note: "recharge another B.AI account",
-      },
-      { cmd: "wallet-cli bai recharge 10 --token USDT --network bsc --password-stdin" },
-      { cmd: "wallet-cli bai recharge 1 --token USDC --network base --password-stdin" },
-    ],
+const rechargeFields = z.object({
+  amount: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/, "must be a decimal amount"),
+  token: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("recharge token symbol; defaults to USDC on Base and USDT otherwise"),
+  to: z
+    .string()
+    .trim()
+    .min(1)
+    .max(320)
+    .optional()
+    .describe("B.AI recipient email or EVM, TRON, or Solana address; omit to recharge yourself"),
+});
+
+export const baiRechargeSpec: ChainSpec = {
+  path: ["bai", "recharge"],
+  network: "optional",
+  wallet: "optional",
+  auth: "conditional",
+  broadcasts: true,
+  capability: "bai.recharge",
+  requires,
+  positionals: [{ field: "amount" }],
+  summary: "Recharge your own or another B.AI account",
+  description:
+    "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 exact on mainnet: TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
+  baseFields: rechargeFields,
+  examples: [
+    { cmd: "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin" },
+    {
+      cmd: "wallet-cli bai recharge 10 --token USDT --network tron --to recipient@example.com --password-stdin",
+      note: "recharge another B.AI account",
+    },
+    { cmd: "wallet-cli bai recharge 10 --token USDT --network bsc --password-stdin" },
+    { cmd: "wallet-cli bai recharge 1 --token USDC --network base --password-stdin" },
+  ],
+};
+
+export function baiRechargeBinding(service: BaiService): FamilyBinding {
+  return {
     run: async (ctx, network, input) => {
       if (!network) throw new Error("B.AI recharge requires a resolved network");
       return service.recharge(ctx, network, {
@@ -66,7 +69,12 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
         apiKey: ctx.config.baiApiKey,
       });
     },
-  } satisfies CommandDefinition);
+  };
+}
+
+export function registerBaiCommands(registry: CommandRegistry, service: BaiService): void {
+  registry.addChain(baiRechargeSpec, "tron", baiRechargeBinding(service));
+  registry.addChain(baiRechargeSpec, "evm", baiRechargeBinding(service));
 
   const reportFields = z.object({
     txHash: z.string().max(66).describe("existing transaction hash from the original recharge"),

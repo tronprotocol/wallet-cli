@@ -474,3 +474,14 @@ Report-only failures retain the transaction hash and `creditStatus: unconfirmed`
 the result contains a business `code` and explanatory `warning`, or an `error`
 envelope for a thrown classified API failure. See `development/bai-recharge.md`
 for supported reasons and recovery behavior.
+
+
+### BAI amount representation
+
+BAI application amounts use decimal strings. `bai recharge-report` returns `data.amount`
+as a string when supplied; recharge recovery/error context also carries a string amount.
+`bai recharge` already returns its payment amount as a string. This standardizes the new
+v4.14 interface, whose earlier development build returned numbers in report/recovery fields.
+Raw BAI order fields retain their server-provided types. The outbound BAI API request still
+uses a JSON number after decimal round-trip validation; clients must not infer the CLI result
+type from that HTTP request format.

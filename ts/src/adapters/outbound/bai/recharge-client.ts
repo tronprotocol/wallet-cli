@@ -19,7 +19,27 @@ const target = z.object({
   input: z.object({ type: z.literal("personal"), identifier: text }),
   confirmedTarget: z.object({ type: z.literal("personal"), targetId: text }),
 });
-const amount = z.number().positive().finite().max(Number.MAX_SAFE_INTEGER);
+// Only the external JSON API uses numbers; application ports carry decimal strings.
+const amount = z
+  .string()
+  .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
+  .transform((value, ctx) => {
+    const normalized = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    const numeric = Number(normalized);
+    if (
+      !Number.isFinite(numeric) ||
+      numeric <= 0 ||
+      numeric > Number.MAX_SAFE_INTEGER ||
+      String(numeric) !== normalized
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Amount cannot round-trip through the B.AI numeric API",
+      });
+      return z.NEVER;
+    }
+    return numeric;
+  });
 const bindInput = wallet.extend({
   // Preserve the exact bytes signed by the wallet, including surrounding whitespace.
   message: z.string().refine((value) => value.trim().length > 0),

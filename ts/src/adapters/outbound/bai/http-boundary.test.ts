@@ -11,7 +11,7 @@ for (const kind of ["query", "recharge"] as const) {
           walletAddress: "payer",
           chain: "tron",
           tokenName: "USDT",
-          amount: 1,
+          amount: "1",
           deviceType: "web",
         });
   it(`${kind} cancels oversized chunked responses before reading to the end`, async () => {

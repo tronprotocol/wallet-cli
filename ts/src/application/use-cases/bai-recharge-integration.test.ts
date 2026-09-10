@@ -70,13 +70,13 @@ it("resolves another recipient, then reuses exactly that target for preorder and
       walletAddress: payer,
       chain: "bnb",
       tokenName: "USDT",
-      amount: 10,
+      amount: "10",
       rechargeTarget: target,
     }),
   );
   expect(api.reportTxHash).toHaveBeenCalledWith({
     chain: "bnb",
-    amount: 10,
+    amount: "10",
     txHash,
     rechargeTarget: target,
   });

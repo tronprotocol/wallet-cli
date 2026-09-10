@@ -25,3 +25,18 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
     );
   }
 }
+
+/** Validate decimal quantities without converting payment amounts to floating point. */
+export function baiRechargeAmount(value: string): string {
+  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
+    throw new UsageError("invalid_value", "Recharge amount must be a positive decimal string");
+  const normalized = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  const [whole = "0", fraction = ""] = normalized.split(".");
+  if (
+    normalized === "0" ||
+    BigInt(whole) > 9007199254740991n ||
+    (whole === "9007199254740991" && fraction !== "")
+  )
+    throw new UsageError("invalid_value", "Recharge amount exceeds the supported positive range");
+  return normalized;
+}

@@ -22,7 +22,7 @@ describe("B.AI command surface", () => {
         registry.resolveNeutral(["bai", verb])?.path.join("."),
       ),
     ).toEqual(["bai.status", "bai.usage", "bai.usage-list", "bai.recharge-list"]);
-    expect(registry.resolveNeutral(["bai", "recharge"])?.network).toBe("optional");
+    expect(registry.resolveChain(["bai", "recharge"])?.spec.network).toBe("optional");
   });
 
   it("exposes summary without dates and keeps bounded list pagination", () => {
@@ -45,7 +45,8 @@ describe("B.AI command surface", () => {
     const recharge = vi.fn(async (_ctx, _network, input) => input);
     const registry = new CommandRegistry();
     registerBaiCommands(registry, { ...service(), recharge } as unknown as BaiService);
-    const command = registry.resolveNeutral(["bai", "recharge"])!;
+    const entry = registry.resolveChain(["bai", "recharge"])!;
+    const command = { input: entry.spec.baseFields, run: entry.families.tron!.run };
 
     const selfInput = command.input.parse({ amount: "10", token: "USDT" });
     await expect(
@@ -92,4 +93,22 @@ it("exposes report-only recovery without wallet authentication or chain broadcas
   expect(
     command.input.safeParse({ ...input, to: "recipient", targetId: "original-id" }).success,
   ).toBe(true);
+});
+
+it("shares recharge schema across families and selects the Base token in its binding", async () => {
+  const registry = new CommandRegistry();
+  const recharge = vi.fn(async (_ctx, _network, input) => input);
+  registerBaiCommands(registry, { ...service(), recharge } as unknown as BaiService);
+  expect(registry.resolveNeutral(["bai", "recharge"])).toBeNull();
+  const command = registry.resolveChain(["bai", "recharge"])!;
+  expect(Object.keys(command.families).sort()).toEqual(["evm", "tron"]);
+  await expect(
+    command.families.evm!.run(
+      { config: { baiApiKey: "test-key" } } as never,
+      { id: "eip155:8453", family: "evm" } as never,
+      command.spec.baseFields.parse({ amount: "1" }),
+    ),
+  ).resolves.toMatchObject({ amount: "1", token: "USDC" });
+  for (const field of ["dryRun", "signOnly", "buildOnly"])
+    expect(command.spec.baseFields.shape).not.toHaveProperty(field);
 });

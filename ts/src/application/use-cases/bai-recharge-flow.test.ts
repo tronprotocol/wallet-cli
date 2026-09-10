@@ -5,7 +5,7 @@ const input = {
   channel: "crypto" as const,
   chain: "bnb",
   tokenName: "USDT",
-  amount: 10,
+  amount: "10",
   walletAddress: "payer",
   deviceType: "web" as const,
   rechargeTarget: {
@@ -48,7 +48,7 @@ it("creates the target preorder, pays once and reports without repeating setup b
   expect(api.reportTxHash).toHaveBeenCalledWith({
     chain: "bnb",
     txHash: "hash",
-    amount: 10,
+    amount: "10",
     rechargeTarget: input.rechargeTarget,
   });
   expect(pay).toHaveBeenCalledTimes(1);

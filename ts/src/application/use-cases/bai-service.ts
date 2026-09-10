@@ -8,7 +8,7 @@ import { requireBaiChain } from "./bai-credential-setup.js";
 import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
 import { UsageError } from "../../domain/errors/index.js";
-import { assertBaiRechargeMinimum } from "../../domain/bai/recharge-policy.js";
+import { assertBaiRechargeMinimum, baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
 import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js";
 import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
@@ -62,7 +62,7 @@ export class BaiService {
         "No trusted B.AI recharge destination for this network",
       );
     }
-    const amount = baiNumericAmount(input.amount);
+    const amount = baiRechargeAmount(input.amount);
     assertBaiRechargeMinimum(input.token, input.amount);
     const paymentInput: X402ServeInput = {
       payTo: expectedPayTo,
@@ -134,7 +134,7 @@ export class BaiService {
         "Recipient recovery requires both the original --to and --target-id",
       );
     }
-    const amount = input.amount === undefined ? undefined : baiNumericAmount(input.amount);
+    const amount = input.amount === undefined ? undefined : baiRechargeAmount(input.amount);
     return reportBaiTransaction(this.rechargeApi, {
       chain: input.chain,
       txHash: input.txHash,
@@ -233,22 +233,4 @@ function optionalScalar(value: unknown): string | undefined {
 function secondsToMilliseconds(value: unknown): number | undefined {
   const seconds = typeof value === "number" ? value : Number(value);
   return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : undefined;
-}
-
-function baiNumericAmount(value: string): number {
-  const normalizedAmount = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
-  const amount = Number(normalizedAmount);
-  if (
-    !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value) ||
-    !Number.isFinite(amount) ||
-    amount > Number.MAX_SAFE_INTEGER ||
-    amount <= 0 ||
-    String(amount) !== normalizedAmount
-  ) {
-    throw new UsageError(
-      "invalid_value",
-      "Recharge amount must be positive and exactly representable by the B.AI numeric API",
-    );
-  }
-  return amount;
 }

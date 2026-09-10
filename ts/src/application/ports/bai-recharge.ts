@@ -22,7 +22,7 @@ export interface BaiCreateOrderInput {
   channel: "crypto";
   chain: string;
   tokenName: string;
-  amount: number;
+  amount: string;
   walletAddress: string;
   deviceType: "web";
   rechargeTarget?: BaiRechargeTarget;
@@ -32,7 +32,7 @@ export interface BaiReportTransactionInput {
   txHash: string;
   rechargeTarget?: BaiRechargeTarget;
   /** Listed in the parameter table but omitted in the documentation's request example. */
-  amount?: number;
+  amount?: string;
 }
 export type BaiReportResult =
   | { success: true; order: Record<string, unknown> }

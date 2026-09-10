@@ -176,3 +176,12 @@ errors also retain their structured error envelope inside that result. These are
 credit failures after payment, not permission to repeat the payment. A failure to
 retrieve a price or timestamp suggests retrying reporting only. Unknown report
 codes retain the bounded code and a generic reconciliation instruction.
+
+
+## 架构边界（2026-09-10）
+
+`bai recharge` 使用一份 ChainSpec，并注册 TRON / EVM FamilyBinding；查询和原交易补报仍是无需链上签名的 CommandDefinition。内部订单、补报 port 和恢复信息中的 amount 使用 decimal string，只有 BAI HTTP adapter 在发送 JSON 时转换为服务端要求的 number，并拒绝不能往返保留的金额。
+
+接口调整：`bai recharge-report` 的 `data.amount` 以及充值失败恢复信息中的 `amount` 统一为字符串；`bai recharge` 的顶层付款金额原本就是字符串。BAI 服务端请求仍为 number，服务端返回的原始订单字段不做类型改写。
+
+x402 支付保留协议专用流程，通过共用 signer 服务签名；适用范围与不支持的交易模式见 [架构指南](architecture.md#x402-協議支付的邊界)。

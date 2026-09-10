@@ -115,13 +115,15 @@ describe("B.AI recharge API", () => {
       channel: "crypto" as const,
       chain: "bnb",
       tokenName: "USDT",
-      amount: 10,
+      amount: "10",
       walletAddress: "payer",
       deviceType: "web" as const,
       rechargeTarget: target,
     };
     await expect(client.createOrder(input)).resolves.toEqual({ orderId: 123 });
-    expect(JSON.parse(fetcher.mock.calls[0]![1].body as string)).toEqual({ json: input });
+    expect(JSON.parse(fetcher.mock.calls[0]![1].body as string)).toEqual({
+      json: { ...input, amount: 10 },
+    });
   });
   it("reports the paid transaction and preserves credited order data", async () => {
     const order = { id: 12345, status: "success", points: 100000 };
@@ -244,10 +246,28 @@ it("rejects an empty preorder response before the caller can pay", async () => {
       channel: "crypto",
       chain: "bnb",
       tokenName: "USDT",
-      amount: 10,
+      amount: "10",
       walletAddress: "payer",
       deviceType: "web",
       rechargeTarget: target,
     }),
   ).rejects.toMatchObject({ code: "provider_error" });
+});
+
+it.each(["9007199254740992", "1.00000000000000001", "0", "NaN"])(
+  "rejects an unrepresentable API amount before sending HTTP: %s",
+  async (amount) => {
+    const { client, fetcher } = fixture({ success: true, order: {} });
+    await expect(
+      client.reportTxHash({ chain: "base", txHash: "hash", amount }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    expect(fetcher).not.toHaveBeenCalled();
+  },
+);
+it("converts a decimal only in the outgoing report JSON", async () => {
+  const { client, fetcher } = fixture({ success: true, order: { id: 1 } });
+  const input = { chain: "base", txHash: "hash", amount: "1.2300" };
+  await client.reportTxHash(input);
+  expect(input.amount).toBe("1.2300");
+  expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.amount).toBe(1.23);
 });
