@@ -1,16 +1,18 @@
-import packageMetadata from "../package.json" with { type: "json" };
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Keystore } from "../src/adapters/outbound/keystore/index.js";
 import { TokenBook } from "../src/adapters/outbound/tokenbook/index.js";
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js";
-import type { TokenEntry } from "../src/domain/types/index.js";
+import type { TokenEntry, WalletsFile } from "../src/domain/types/index.js";
 import { DETACHED } from "./detached.js";
 
 const ENTRY = join(process.cwd(), "src", "index.ts");
+const PACKAGE_VERSION = (
+  JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string }
+).version;
 const MNEMONIC = "test test test test test test test test test test test junk";
 const TRON1 = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const DEFAULT_PW = "testpw123A";
@@ -62,6 +64,23 @@ function seedWallet(label = "main") {
   return ks.import({ secret: MNEMONIC, type: "seed", label }).accountId;
 }
 
+function seedLegacyWallet() {
+  const accountId = seedWallet();
+  const store = new AtomicFileStore();
+  const path = join(HOME, "wallets.json");
+  const file = store.readJson<WalletsFile>(path)!;
+  const source = file.wallets[0]!.source as Extract<
+    WalletsFile["wallets"][0]["source"],
+    { type: "seed" }
+  >;
+  source.addresses["1"] = {
+    tron: "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ",
+    evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  };
+  store.writeJsonAll([{ path, value: file }]);
+  return accountId.split(".")[0]!;
+}
+
 // Write a user-layer token directly (bypassing the live-RPC `token add` path) so list/remove
 // can be exercised deterministically — mirrors seedWallet()'s in-process keystore approach.
 function seedToken(networkId: string, ref: string, entry: TokenEntry) {
@@ -69,10 +88,13 @@ function seedToken(networkId: string, ref: string, entry: TokenEntry) {
 }
 
 describe("golden CLI — meta & introspection", () => {
-  it("--version prints the version, exit 0", () => {
+  // Read from package.json rather than pinned: this asserts that --version reports the version
+  // this build IS, which is the actual contract. A literal here makes every release bump a test
+  // failure, and the fix for that failure is to retype the same number in a second place.
+  it("--version prints the package version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe(packageMetadata.version);
+    expect(r.stdout.trim()).toBe(PACKAGE_VERSION);
   });
 
   it("root --help shows the TRON first-release command surface", () => {
@@ -140,6 +162,23 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.status).toBe(0);
     expect(r.json.properties.address).toBeDefined();
     expect(r.json.required).toContain("address");
+  });
+
+  it("derive help and schema expose optional seed/account selection", () => {
+    const help = run(["derive", "--help"], { password: null });
+    expect(help.status).toBe(0);
+    expect(help.stdout).toMatch(/^ +--seed-id <string>.*\[optional\]$/m);
+    expect(help.stdout).toMatch(
+      /^ +--account <string>.*defaults to the active account.*\[optional\]$/m,
+    );
+    expect(help.stdout).toContain("takes precedence over --account");
+
+    const schema = run(["derive", "--json-schema"], { password: null });
+    expect(schema.status).toBe(0);
+    expect(schema.json.properties.seedId).toBeDefined();
+    expect(schema.json.properties.account).toBeDefined();
+    expect(schema.json.required ?? []).not.toContain("seedId");
+    expect(schema.json.required ?? []).not.toContain("account");
   });
 
   it("root --json-schema emits a full command catalog with global flags", () => {
@@ -316,9 +355,9 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     expect(backup.json.data.out).toBe(out);
   });
 
-  it("derive makes the newly derived HD account the active one", () => {
+  it("derive defaults to the active HD account, including an active child", () => {
     const seedId = seedWallet().split(".")[0]!; // "main" at index 0, active; seed id = wlt_x
-    const r = run(["--output", "json", "derive", "--seed-id", seedId, "--label", "child"]);
+    const r = run(["--output", "json", "derive", "--label", "child"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("derive");
     expect(r.json.data.index).toBe(1);
@@ -326,6 +365,40 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     // and `current` now resolves to the derived child, confirming the switch persisted
     const current = run(["--output", "json", "current"], { password: null });
     expect(current.json.data.label).toBe("child");
+
+    const next = run(["--output", "json", "derive"]);
+    expect(next.status).toBe(0);
+    expect(next.json.data.accountId).toBe(`${seedId}.2`);
+  });
+
+  it("derive gives --seed-id precedence over --account", () => {
+    const seedId = seedWallet().split(".")[0]!;
+    const r = run([
+      "--output",
+      "json",
+      "derive",
+      "--seed-id",
+      seedId,
+      "--account",
+      "missing-account",
+    ]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data.accountId).toBe(`${seedId}.1`);
+  });
+
+  it("derive warns when it reselects an existing legacy slot", () => {
+    const seedId = seedLegacyWallet();
+    const r = run(["--output", "json", "derive", "--account", "main", "--index", "1"]);
+
+    expect(r.status).toBe(0);
+    expect(r.json.data).toMatchObject({
+      status: "existing",
+      accountId: `${seedId}.1`,
+      derivationPath: { tron: "m/44'/195'/1'/0/0" },
+    });
+    expect(r.json.meta.warnings).toHaveLength(1);
+    expect(r.json.meta.warnings[0]).toContain("default mnemonic recovery will not recreate");
   });
 });
 
@@ -1005,6 +1078,23 @@ describe("golden CLI — startup migration", () => {
     expect(r.status).not.toBe(0);
     expect(r.json.error.code).toBe("auth_failed");
     expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
+  });
+
+  it("refuses an unexplained cached address without changing the v1 file", () => {
+    const path = windBackToV1();
+    const before = JSON.parse(readFileSync(path, "utf8"));
+    before.wallets[0].source.addresses["0"].tron = "T-stale-address";
+    writeFileSync(path, JSON.stringify(before));
+
+    const r = run(["--output", "json", "list"], { password: DEFAULT_PW });
+
+    expect(r.status).toBe(1);
+    expect(r.json.error).toMatchObject({
+      code: "derivation_mismatch",
+      message: expect.stringContaining(`${before.wallets[0].id}.0`),
+    });
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(before);
+    expect(existsSync(`${path}.v1.bak`)).toBe(false);
   });
 
   it("checks migration before --help", () => {

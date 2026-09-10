@@ -247,6 +247,8 @@ Common codes at exit **1** (execution — runtime failure):
 | `payer_mismatch` | An x402 payment payload names a payer other than the selected account. The payment is refused before any signature is requested |
 | `fee_cap_exceeded` | An x402 GasFree authorization's `maxFee` exceeds the ceiling the caller set |
 | `signed_payload_mismatch` | The signature returned is for a different struct than the one that was requested |
+| `legacy_derivation` | A seed account uses a TRON derivation path this version no longer produces. Raised when signing that TRON address or deriving a new account in the same wallet. Follow [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) |
+| `derivation_mismatch` | The account's stored address matches no derivation path of its seed — `wallets.json` and the encrypted vault disagree, which an edited wallet file or a wallet pointing at the wrong vault would cause |
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; interactive import normally catches it at the prompt and asks again |
 | `token_metadata_unavailable` | Required token metadata could not be read from the selected network. This one crosses exit codes: most sites raise it at exit `1`, but `tx send` on TRON raises it at exit **2** when a contract answers no `decimals()` and the address book has no entry either — there, the call itself has to change |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |

@@ -22,7 +22,7 @@ Plus [global options](index.md).
 
 ## Notes
 
-Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched; re-import the mnemonic to regain access. Back up first. Metadata-only — no master password needed.
+Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched. Run [`backup`](backup.md) first and follow any warning it reports. Metadata-only — no master password needed.
 
 ## Examples
 

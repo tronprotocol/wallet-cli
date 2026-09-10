@@ -15,8 +15,17 @@ With an account, `backup` writes that account's secret material and metadata to 
 
 Two formats:
 
-- **Native** (default) — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
+- **Native** — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
 - **`--keystore`** — a standard Web3 keystore JSON, importable by TronLink and others, encrypted with **your master password**. A keystore holds a **single private key**: an HD account exports only its current derived key, and that key arrives elsewhere as a standalone account with nothing derivable from it. Use the native format to move a seed.
+
+In a fully interactive terminal, omitting `--keystore` opens a format selector before the password prompt. Commands using `--password-stdin`, and other non-interactive invocations, keep native as the default so scripts never stop for this choice.
+
+The native export may warn that some stored accounts need a separate `--keystore` export. Follow
+that warning before deleting anything; see [Recover addresses after
+`legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+
+The warning means this version's default mnemonic import and derive flow will not recreate those
+TRON addresses. The recovery phrase can still derive their keys at the listed legacy paths.
 
 **A keystore also holds one key per *family*.** A seed account derives a different key for TRON (coin type 195) and for EVM (coin type 60), and a keystore can carry only one of them, so `--network` selects which — falling back to `config.defaultNetwork` when omitted. The receipt names the family that was written, and the export log records it. A private-key account has a single key and ignores the selection; the native backup covers every family at once, so it needs no choice and reports none.
 
@@ -40,7 +49,7 @@ The positional account is the exception: it means different things in the two fo
 | Option | Description |
 |---|---|
 | `<account>` | Account to export, by accountId, label, or address. Required unless `--records`; **with** `--records` it filters the log instead, like `--account` |
-| `--keystore` | Export as a standard Web3 keystore instead of the native format |
+| `--keystore` | Export as a standard Web3 keystore instead of the native format. Omit in a fully interactive terminal to choose |
 | `--out <path>` | Output file path; mode 0600, never overwritten (default: the current directory, see above) |
 | `--password-stdin` | Master password from stdin (fd 0) |
 | `--network <id>` | With `--keystore`, which family's key to export (`tron:3448148188` → the TRON key, `eip155:1` → the EVM key). No node is contacted |
@@ -140,7 +149,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 | `index` | number \| null | HD derivation index; `null` for private-key accounts |
 | `active` | boolean | Whether it is the active account |
 | `addresses` | object | One entry per family the account can produce: `tron` and/or `evm` |
-| `derivationPath` | object \| null | Per-family BIP44 path for `seed` accounts; `null` for `privateKey` |
+| `derivationPath` | object \| null | The verified BIP44 path behind each address. A seed backup unlocks the seed and reports every family's actual path, including the pre-4.13.1 TRON path for a stranded account; a private-key account reports `null` |
 | `family` | string | With `--keystore`, which family's key was written; absent for a native backup, which covers every family |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
 | `secretType` | string | Kind of exported secret — `mnemonic`, or `privateKey` with `--keystore` |

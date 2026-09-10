@@ -91,7 +91,7 @@ describe("address derivation covers every family", () => {
     const addresses = deriveSeedAddresses(seed, 2);
 
     expect(addresses.tron).toBe(
-      new TronAddress().fromPublicKey(Derivation.derive(seed, "m/44'/195'/2'/0/0").publicKey),
+      new TronAddress().fromPublicKey(Derivation.derive(seed, "m/44'/195'/0'/0/2").publicKey),
     );
     expect(addresses.evm).toBe(
       evmAddressFromPublicKey(Derivation.derive(seed, "m/44'/60'/0'/0/2").publicKey),

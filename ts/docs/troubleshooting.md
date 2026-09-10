@@ -38,6 +38,11 @@ A nonce that is *ahead* of the account's next one is only a `meta.warnings` entr
 
 `create` (and other password-setting commands) rejected the master password. It must be **at least 8 characters** and include an **uppercase letter, a lowercase letter, a digit, and a special character** (`!@#$%^&*()-_=+[]{};:,.?`). The error message names the specific rule you missed.
 
+## `legacy_derivation` (exit 1)
+
+A seed account uses an older TRON derivation path. Follow [Recover addresses after
+`legacy_derivation`](troubleshooting/legacy-derivation-recovery.md).
+
 ## `tty_required` / `auth_required` (exit 2 / exit 1)
 
 A credential, secret, or signing-device approval was needed but none was available.

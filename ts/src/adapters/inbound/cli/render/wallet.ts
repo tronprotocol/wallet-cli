@@ -55,7 +55,7 @@ export const WalletFormatters = {
       ["Index", d.index === null || d.index === undefined ? "" : formatInt(d.index)],
       ...addressPairs(d),
       ["Active", d.active === true ? "yes" : ""],
-      ["Note", "shares master mnemonic; no separate backup needed"],
+      ["Note", "shares the wallet's recovery phrase"],
     ]);
   }) satisfies TextFormatter,
   walletDelete: ((data) => {
