@@ -108,9 +108,6 @@ cd java
 ./qa-repl/cli-boundary.sh build/libs/wallet-cli.jar    # entry point takes only --version/--help
 ```
 
-See `java/qa-repl/README.md`. The older `qa/` harness only ever drove the standard
-CLI, which was removed in v4.13.0.
-
 ## Architecture
 
 This is a **TRON blockchain CLI wallet** built on the [Trident SDK](https://github.com/tronprotocol/trident). It communicates with TRON nodes via gRPC.

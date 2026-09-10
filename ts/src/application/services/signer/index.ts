@@ -9,13 +9,20 @@ import type { LedgerDevice } from "../../ports/ledger-device.js";
 import { walletAddress } from "../../../domain/wallet/index.js";
 import { LedgerSigner } from "./ledger.js";
 import { SoftwareSigner } from "./software.js";
-import { Derivation } from "../../../domain/derivation/index.js";
+import {
+  derivationMismatchError,
+  legacyDerivationError,
+  resolveDerivation,
+} from "../../../domain/wallet/derivation-match.js";
 import { UsageError, WalletError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 
 export class SignerResolver {
   constructor(
-    private readonly keystore: Pick<AccountStore, "resolveAccount" | "decryptSeed" | "decryptKey">,
+    private readonly keystore: Pick<
+      AccountStore,
+      "resolveAccount" | "describe" | "decryptSeed" | "decryptKey"
+    >,
     private readonly ledger: LedgerDevice,
     private readonly signStrategies: Record<ChainFamily, SignStrategy>,
   ) {}
@@ -78,9 +85,19 @@ export class SignerResolver {
       }
       case "seed": {
         const { vaultId } = wallet.source;
-        const loadKey = () =>
-          Derivation.derive(this.keystore.decryptSeed(vaultId), Derivation.path(family, index))
-            .privateKey;
+        const ref = `${wallet.id}.${index}`;
+        const label = this.keystore.describe(ref).label;
+        const loadKey = () => {
+          // Inside the loader, not in assertCanSign: this needs the seed, and --dry-run and
+          // --build-only reach assertCanSign without a master password. Neither produces a
+          // signature, and both read the cached (correct) address, so both must keep working.
+          const seed = this.keystore.decryptSeed(vaultId);
+          const resolved = resolveDerivation(seed, family, index, address);
+          if (!resolved) throw derivationMismatchError(family, ref);
+          if (resolved.scheme === "legacy")
+            throw legacyDerivationError(ref, resolved.path, "sign", { account: label });
+          return resolved.keyPair.privateKey;
+        };
         return new SoftwareSigner(loadKey, address, this.signStrategies[family]);
       }
       case "ledger":

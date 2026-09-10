@@ -62,4 +62,16 @@ describe("resolveLedgerPath", () => {
     expect(err.message).toContain("--index");
     expect(err.message).toContain("--path");
   });
+
+  it("offers the concise recovery choices without wallet-specific guidance", async () => {
+    const err = await resolveLedgerPath(fakeLedger(), "evm", {
+      address: "0xnope",
+      scanLimit: 3,
+    }).catch((e) => e);
+    expect(err.message).toContain("Ledger Live");
+    expect(err.message).toContain("--scan-limit");
+    expect(err.message).toContain("--index");
+    expect(err.message).toContain("--path");
+    expect(err.message).not.toMatch(/MetaMask|MEW|MyCrypto/);
+  });
 });

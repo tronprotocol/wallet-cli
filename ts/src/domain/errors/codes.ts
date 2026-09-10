@@ -48,6 +48,16 @@ export const ERROR_CODES = {
   not_exportable: { exit: 1, retry: "never", meaning: "the account holds no exportable secret (watch-only or Ledger)" },
   no_software_wallet: { exit: 1, retry: "never", meaning: "the operation needs a locally stored key and none exists" },
   watch_only_no_signer: { exit: 1, retry: "never", meaning: "the selected account can be watched but cannot sign" },
+  legacy_derivation: {
+    exit: 1,
+    retry: "never",
+    meaning: "the account was derived at a TRON path this version no longer produces",
+  },
+  derivation_mismatch: {
+    exit: 1,
+    retry: "never",
+    meaning: "the account's stored address matches no derivation path of its seed",
+  },
 
   // ── secrets, keystore, local files ────────────────────────────────────────
   auth_required: { exit: 1, retry: "never", meaning: "the master password is needed and was not available" },
