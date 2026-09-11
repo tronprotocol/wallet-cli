@@ -64,10 +64,6 @@ export class HelpService {
       );
       return 0;
     }
-    if (!family && path.length === 1 && this.#isNeutralGroup(path[0]!)) {
-      this.streams.result(this.#renderNeutralGroup(path[0]!));
-      return 0;
-    }
     this.#assertResolvable(family, path);
     this.streams.result(this.#renderTree(path[0]));
     return 0;
@@ -248,15 +244,20 @@ export class HelpService {
   /** logical resource group (`account --help`): default surface, implementations chosen by --network/defaultNetwork. */
   #renderLogicalNs(group: string): string {
     const commands = this.#chainGroupCommands(group);
+    const neutral = this.#neutralGroupCommands(group);
     const tags = commands.map((c) => groupRowTag(c.families));
     // A group whose every command belongs to the same single family is already tagged as a whole
     // at the root (`stake … (TRON only)`). Repeating it on all six rows adds a column that never
     // varies — the group's own help stops repeating it. Tag rows only where they DISCRIMINATE.
-    const uniform = tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
+    const uniform =
+      neutral.length === 0 && tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
     const rows = commands.map(
       (c, i) => [c.path[1] ?? "", c.summary ?? "", uniform ? "" : tags[i]!] as const,
     );
-    return this.#renderGroup(group, rows);
+    return this.#renderGroup(group, [
+      ...rows,
+      ...neutral.map((c) => [c.path[1] ?? "", c.summary ?? "", ""] as const),
+    ]);
   }
 
   /** shared group skeleton: inline Usage → description → verb list → footer. */
