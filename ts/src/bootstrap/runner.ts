@@ -1,3 +1,4 @@
+import packageMetadata from "../../package.json" with { type: "json" };
 import { runMigrationGate, type PendingUpgrade } from "./migration-gate.js";
 import { migrationSteps } from "./migration-steps.js";
 import { MigrationRunner } from "../adapters/outbound/persistence/migration.js";
@@ -13,7 +14,7 @@ import { hasCommand, parseGlobals } from "./argv.js";
 import { composeCliRuntime } from "./composition.js";
 import { basename } from "node:path";
 
-export const VERSION = "4.13.1";
+export const VERSION = packageMetadata.version;
 
 /**
  * Report a failure raised while the composition root was still being built — an unreadable,

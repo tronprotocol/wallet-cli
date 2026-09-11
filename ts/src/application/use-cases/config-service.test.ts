@@ -118,6 +118,22 @@ describe("ConfigService GasFree credentials", () => {
   });
 });
 
+describe("ConfigService B.AI configuration", () => {
+  it("masks the API key in write and read receipts", () => {
+    const { svc } = service();
+    expect(
+      svc.execute({ key: "baiApiKey", value: "bai_test_secret" }, effective, networks),
+    ).toMatchObject({ key: "baiApiKey", value: "********", input: "********" });
+
+    const configured = { ...effective, baiApiKey: "bai_test_secret" };
+    expect(svc.execute({}, configured, networks)).toMatchObject({ baiApiKey: "********" });
+    expect(svc.execute({ key: "baiApiKey" }, configured, networks)).toEqual({
+      key: "baiApiKey",
+      value: "********",
+    });
+  });
+});
+
 const twoNetworks = {
   timeoutMs: 60_000,
   waitTimeoutMs: 60_000,

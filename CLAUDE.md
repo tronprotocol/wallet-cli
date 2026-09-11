@@ -48,13 +48,14 @@ stdout/stderr discipline).
 
 Key points:
 - **Ports live in `application/ports/`** (e.g. `wallet-repository`, `tron-gateway`, `ledger-device`,
-  `price-provider`); outbound adapters implement them (dependency inversion).
+  `price-provider`); outbound adapters implement them (dependency inversion). Shared transaction input types live in
+  `application/contracts/`; ports must not import use cases or services (`ports-are-innermost`).
 - **Chain-family differences** are isolated per family — `application/use-cases/<family>/`,
   `adapters/outbound/chain/<family>/`, and the family plugin under `bootstrap/families/`. Both
   `tron` and `evm` are registered unconditionally (`bootstrap/composition.ts`) and reachable: the
-  builtin networks and aliases cover ETH, Sepolia, BSC and BSC testnet alongside the TRON three.
-  There is no family-level feature gate. EVM simply binds a narrower command set (~22 bindings:
-  account, block, tx, token, contract, message/typed-data signing) against TRON's ~53, which adds
+  builtin networks and aliases cover ETH, Sepolia, BSC, BSC testnet, Base and Base Sepolia alongside the TRON three.
+  There is no family-level feature gate. EVM simply binds a narrower command set (29 bindings:
+  account, block, chain, tx, token, contract, message/typed-data signing and eight ERC-8004 identity commands) against TRON's 78, which adds
   stake, permission, proposal, asset, GasFree and TronLink multisig.
 - **A single Zod schema per command** drives validation, yargs arity, help text, and JSON Schema.
 - **Secrets** (private keys, mnemonics, BIP39 passphrases) are encrypted at rest and never accepted

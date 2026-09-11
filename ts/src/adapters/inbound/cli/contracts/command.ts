@@ -37,7 +37,7 @@ export type AuthRequirement = "none" | "conditional" | "required";
 /** secret/payload channel a command reads from stdin; documents the matching --*-stdin flag.
  *  (Wallet-secret entry — mnemonic/private-key/master-password — is TTY-only, so those never
  *  appear here; see `secretsTtyOnly`.) */
-export type StdinChannel = "tx" | "message";
+export type StdinChannel = "tx" | "message" | "apiKey";
 
 export interface TextRenderContext {
   command: string;

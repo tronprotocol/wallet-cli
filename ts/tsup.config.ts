@@ -10,7 +10,9 @@ export default defineConfig({
   // imports (`./utils` instead of `./utils.js`) that Node's native ESM loader
   // cannot resolve — they're meant to be bundled. So bundle the whole family
   // through esbuild, which rewrites those specifiers.
-  noExternal: [/@ledgerhq\//],
+  // Bundle the tested x402 dependency graph; npm consumers do not inherit overrides.
+  // Include schema and crypto libraries so each SDK resolves its compatible version.
+  noExternal: [/@ledgerhq\//, /^@bankofai\/x402-/, /^zod(?:\/|$)/, /^@noble\//, /^@scure\//],
   // Kept external, resolved from node_modules at runtime:
   //  - node-hid: native .node addon esbuild cannot bundle.
   //  - axios: a CJS dep dragged in by @ledgerhq's Speculos transport. Bundling it

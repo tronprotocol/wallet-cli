@@ -84,7 +84,10 @@ export function buildCli(opts: ShellOptions): Argv {
     neutralByHead.set(head, bucket);
   }
 
+  const assembledChainCommands = all.filter(isChainCommand);
   for (const [head, cmds] of neutralByHead) {
+    // Mixed groups are registered once below, with both neutral and chain fields.
+    if (assembledChainCommands.some((c) => c.spec.path[0] === head)) continue;
     const hasVerbs = cmds.some((c) => c.path.length > 1);
     if (hasVerbs) {
       // group with sub-verbs (e.g. import mnemonic|private-key|ledger|watch)
@@ -117,11 +120,11 @@ export function buildCli(opts: ShellOptions): Argv {
     }
   }
 
-  const assembledChainCommands = all.filter(isChainCommand);
   const chainGroups = [
     ...new Set(assembledChainCommands.map((c) => c.spec.path[0]).filter(Boolean) as string[]),
   ];
   const fieldsOfLogicalGroup = (group: string) => [
+    ...(neutralByHead.get(group) ?? []).map((c) => c.fields),
     ...assembledChainCommands
       .filter((c) => c.spec.path[0] === group)
       .flatMap((c) => [
@@ -196,7 +199,7 @@ async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): P
     bindGroupedPositionals(chain.spec, argv);
     return executeChainCommand(opts, chain, argv);
   }
-  throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`);
+  return dispatchNeutral(opts, path, argv);
 }
 
 /**

@@ -119,6 +119,13 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     commandScoped: true,
     description: "read the message bytes/text from stdin (fd 0)",
   },
+  {
+    name: "api-key-stdin",
+    kind: "secret-stdin",
+    secretKey: "apiKey",
+    commandScoped: true,
+    description: "read the B.AI API key from stdin (fd 0); accepted only by config baiApiKey",
+  },
 ];
 
 /** kebab → camel default; the `field` override wins when the runtime Globals key differs from the flag. */

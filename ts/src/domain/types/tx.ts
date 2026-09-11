@@ -144,11 +144,24 @@ export type TxReceiptKind =
 
 /**
  * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
- * Flat (JSON stays additive); the text formatter narrows on `kind` (+ `ctx.net.family` for the
+ * Shared transaction fields remain flat; feature-specific results are nested.
+ * The text formatter narrows on `kind` (+ `ctx.net.family` for the
  * per-family fee/amount hooks) and reads fixed keys instead of probing aliases. Commands populate
  * the subset relevant to their action.
  */
 export interface TxReceiptView {
+  /** ERC-8004 write results; absent from unrelated transaction receipts. */
+  identity?: {
+    agentId?: string;
+    operator?: string;
+    uri?: string;
+    oldURI?: string;
+    requestedURI?: string;
+    newURI?: string;
+    oldOwner?: string;
+    requestedOwner?: string;
+    newOwner?: string;
+  };
   kind: TxReceiptKind;
   mode?: "dry-run" | "build-only" | "sign-only";
   stage?: BroadcastStage;

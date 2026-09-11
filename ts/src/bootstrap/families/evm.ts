@@ -1,3 +1,22 @@
+import type { AgentService } from "../../application/use-cases/agent-service.js";
+import {
+  showSpec,
+  showEvmBinding,
+  registerSpec,
+  registerEvmBinding,
+  updateSpec,
+  updateEvmBinding,
+  transferSpec,
+  transferEvmBinding,
+  approveSpec,
+  approveEvmBinding,
+  operatorAddSpec,
+  operatorAddEvmBinding,
+  operatorRemoveSpec,
+  operatorRemoveEvmBinding,
+  operatorCheckSpec,
+  operatorCheckEvmBinding,
+} from "../../adapters/inbound/cli/commands/erc8004.js";
 /**
  * The EVM family plugin — the composition root's entry for `evm`.
  *
@@ -5,7 +24,7 @@
  * `registerEvmChainCommands` binds the commands EVM can serve. Paths with no binding here still
  * refuse cleanly at dispatch (`family_mismatch`).
  *
- * Twenty-one commands are bound: the two signing commands (which need nothing from the chain —
+ * Twenty-nine commands are bound: eight ERC-8004 identity commands, the two signing commands (which need nothing from the chain —
  * the family difference lives entirely inside `evmSignStrategy` — and so reuse the very binding
  * objects the TRON family registers), plus the account, block, chain, tx, token and contract
  * commands that sit on the JSON-RPC gateway.
@@ -92,6 +111,7 @@ export const evmFamily: FamilyPlugin<"evm"> = {
 };
 
 export interface EvmChainCommandDependencies {
+  agents: AgentService;
   signers: SignerResolver;
   gateways: ChainGatewayProvider;
   /** the family-neutral native-balance service, shared with every other family. */
@@ -108,6 +128,15 @@ export function registerEvmChainCommands(
   reg: CommandRegistry,
   deps: EvmChainCommandDependencies,
 ): void {
+  reg.addChain(showSpec, "evm", showEvmBinding(deps.agents));
+  reg.addChain(registerSpec, "evm", registerEvmBinding(deps.agents));
+  reg.addChain(updateSpec, "evm", updateEvmBinding(deps.agents));
+  reg.addChain(transferSpec, "evm", transferEvmBinding(deps.agents));
+  reg.addChain(approveSpec, "evm", approveEvmBinding(deps.agents));
+  reg.addChain(operatorAddSpec, "evm", operatorAddEvmBinding(deps.agents));
+  reg.addChain(operatorRemoveSpec, "evm", operatorRemoveEvmBinding(deps.agents));
+  reg.addChain(operatorCheckSpec, "evm", operatorCheckEvmBinding(deps.agents));
+
   reg.addChain(messageSignSpec, "evm", messageSignBinding(new MessageService(deps.signers)));
   reg.addChain(typedDataSignSpec, "evm", typedDataSignBinding(new TypedDataService(deps.signers)));
 

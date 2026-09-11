@@ -15,6 +15,8 @@ export const TRAIT_SUMMARIES: Record<string, string> = {};
 /** human-readable labels for command-backed capability keys (the keys commands declare via
  *  `capability`). Sibling of TRAIT_SUMMARIES; the runner resolves both the same way. */
 export const CAP_SUMMARIES: Record<string, string> = {
+  "erc8004.identity.read": "Read ERC-8004 identities and operator approvals",
+  "erc8004.identity.write": "Register and manage ERC-8004 identities",
   "account.balance.native": "native balance",
   "account.balance.token": "token balance",
   "account.portfolio": "holdings with USD valuation",
@@ -133,6 +135,25 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     feeModel: "evm-gas",
     capabilities: [],
   },
+  "eip155:8453": {
+    id: "eip155:8453",
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "8453",
+    httpEndpoint: "https://mainnet.base.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+  },
+  "eip155:84532": {
+    id: "eip155:84532",
+    nativeSymbol: "ETH",
+    family: "evm",
+    chainId: "84532",
+    httpEndpoint: "https://sepolia.base.org",
+    feeModel: "evm-gas",
+    capabilities: [],
+    testnet: true,
+  },
 };
 
 /** The short name a person types, plus — for TRON only — the id this CLI carried before its
@@ -158,6 +179,8 @@ export const BUILTIN_ALIASES: Record<string, string> = {
   sepolia: "eip155:11155111",
   bsc: "eip155:56",
   "bsc-testnet": "eip155:97",
+  base: "eip155:8453",
+  "base-sepolia": "eip155:84532",
 };
 
 export const DEFAULT_CONFIG = {

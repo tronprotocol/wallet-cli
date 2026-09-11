@@ -244,7 +244,7 @@ describe("EvmContractService.send — approve", () => {
     return { service, gateway };
   }
 
-  const send = (service: EvmContractService, rawAllowance: string) =>
+  const send = (service: EvmContractService, rawAllowance: string, approvalKind?: "erc721") =>
     service.send(scope(), SEPOLIA, {
       contract: CONTRACT,
       method: "approve(address,uint256)",
@@ -253,6 +253,7 @@ describe("EvmContractService.send — approve", () => {
         { type: "uint256", value: rawAllowance },
       ],
       dryRun: true,
+      approvalKind,
     } as never) as Promise<Record<string, unknown>>;
 
   it("reports the spender and the allowance in the token's own units", async () => {
@@ -281,6 +282,15 @@ describe("EvmContractService.send — approve", () => {
     const { service } = approveHarness(new Error("no decimals()"));
 
     await expect(send(service, "1000000")).resolves.toMatchObject({ allowance: "1000000" });
+  });
+
+  it("reports ERC-721 approval semantics without querying ERC-20 metadata", async () => {
+    const { service, gateway } = approveHarness(6);
+
+    await expect(send(service, "42", "erc721")).resolves.toMatchObject({
+      identity: { operator: SPENDER, agentId: "42" },
+    });
+    expect(gateway.getErc20Metadata).not.toHaveBeenCalled();
   });
 
   it("adds nothing for any other method", async () => {

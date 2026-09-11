@@ -115,6 +115,8 @@ export interface Config {
   /** GasFree Open Platform credentials. The secret is never rendered in clear text. */
   gasfreeApiKey?: string;
   gasfreeApiSecret?: string;
+  /** B.AI account API. The bearer key is never rendered in clear text. */
+  baiApiKey?: string;
 }
 
 export interface GasFreeNetworkConfig {

@@ -244,6 +244,9 @@ Common codes at exit **1** (execution — runtime failure):
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
+| `payer_mismatch` | An x402 payment payload names a payer other than the selected account. The payment is refused before any signature is requested |
+| `fee_cap_exceeded` | An x402 GasFree authorization's `maxFee` exceeds the ceiling the caller set |
+| `signed_payload_mismatch` | The signature returned is for a different struct than the one that was requested |
 | `legacy_derivation` | A seed account uses a TRON derivation path this version no longer produces. Raised when signing that TRON address or deriving a new account in the same wallet. Follow [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) |
 | `derivation_mismatch` | The account's stored address matches no derivation path of its seed — `wallets.json` and the encrypted vault disagree, which an edited wallet file or a wallet pointing at the wrong vault would cause |
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; interactive import normally catches it at the prompt and asks again |
@@ -322,6 +325,10 @@ This is a wallet; a wrong success check loses money. The rules:
    ```
 
    **Ids the chain assigns arrive only with confirmation.** A new proposal's `proposalId`, a TRC10's `assetId`, an exchange pair's `exchangeId` do not exist at submission — they are absent from the submitted receipt and appear once `--wait` (or a later query) sees the transaction on chain. Scripts that create one of these must wait for it.
+
+   **ERC-8004 write receipts group their business results under `data.identity`.** Shared fields such as `kind`, `stage`, `txId`, `tx` and `fee` remain at `data` level. The optional identity fields are `agentId`, `operator`, `uri`, `oldURI`, `requestedURI`, `newURI`, `oldOwner`, `requestedOwner` and `newOwner`. Agent IDs remain decimal strings. A registration includes `identity.uri` immediately; `identity.agentId` is added only when the confirmed registration event can be read. Update/transfer receipts include the requested state, and add the observed `newURI`/`newOwner` after confirmation. ERC721 approval receipts use `identity.operator` and `identity.agentId`, without fungible allowance fields.
+
+   This replaces the earlier flat identity fields on write receipts: scripts must read `data.identity.agentId`, for example, instead of `data.agentId`. The read-only `8004 show` and `8004 operator-check` results retain their existing shapes. Unrelated transaction receipts omit `identity`.
 
 2. To block until the outcome is known, pass `--wait` (polls until confirmed/failed, capped by `--wait-timeout`, default 60000 ms; on cap it returns the submitted receipt).
 
@@ -404,3 +411,96 @@ Not covered: text-mode output, `error.message` wording, field ordering, `meta.du
 - [Scripting guide](guide/scripting.md) — a gentler introduction
 - [Command reference](commands/index.md) — per-command `data` payloads
 - [Troubleshooting](troubleshooting.md) — human-facing remedies, keyed by the error codes above
+
+
+### x402 payment failures
+
+Known SDK errors retain stable codes: `gasfree_insufficient_balance`,
+`gasfree_not_activated`, `permit2_allowance_required` and `approval_reset_required`.
+GasFree balance includes the payment amount and maximum service fee. A GasFree
+shortfall does not fall back to payment from the ordinary TRON wallet. Unknown SDK
+and facilitator messages are redacted; recognized facilitator failures retain
+`details.phase` (`verify` or `settle`).
+
+For payment errors that provide `details.paymentStatus`:
+
+| Value | Meaning |
+| --- | --- |
+| `not_sent` | The known GasFree preflight failure occurred before payment was sent |
+| `unknown` | The CLI cannot establish the payment outcome; reconcile before another payment |
+| `settled` | A successful settlement receipt was received, but resource processing failed |
+
+If JSON parsing, response buffering or writing `--out` fails after a valid
+settlement header was received, the command still exits with an error. Its details
+retain `txHash`, `paymentResponse` (success, network, transaction), `settled: true`
+and the selected payer when available. `retryPayment: false` means do not repeat
+the payment to recover the resource. This is evidence from the settlement response,
+not an independent chain-finality check. The error's generic retry metadata does
+not override this payment-specific guidance.
+
+B.AI validates the local payment token and decimal precision before creating an
+order. Classified payment errors and settlement evidence survive B.AI orchestration.
+EVM self-funded approval remains an explicit agent decision; no automatic fallback
+is performed.
+
+
+### B.AI recharge recovery
+
+When B.AI rejects settlement evidence (for example, `payer_mismatch` or
+`network_mismatch`), the error retains a syntactically valid `candidateTxHash`,
+`candidateNetwork` when valid, `expectedNetwork`, and a fixed `reason` in details.
+It remains `paymentStatus: unknown`, `settled: false`, `retryPayment: false`.
+Malformed remote values are omitted. The recharge flow also retains the original
+`chain`, `amount` and `rechargeTarget` in classified payment errors.
+
+Use `wallet-cli bai recharge-report <txHash> --chain base --amount 1` to report a
+verified existing transaction after a report failure. Chain accepts `tron`, `bnb`
+or `base` and must match the original recharge. Use the original personal API key.
+No local wallet, signature, new order or payment is required.
+
+For recipient recharge, additionally pass `--to <original identifier>` and
+`--target-id <original rechargeTarget.confirmedTarget.targetId>` together. The
+command does not resolve a new recipient. Omit both only for self recharge.
+Reporting failures retain recovery data and `creditStatus: unconfirmed`; successful
+backend confirmation returns `creditStatus: credited`. Neither path repeats payment.
+A candidate hash from failed settlement validation must be reconciled before reporting.
+
+### B.AI business failure details
+
+`bai_rejected` (exit 1) identifies a recognized B.AI rejection. Inspect
+`error.details.reason` for the documented business identifier and `procedure` /
+`httpStatus` for the failed API operation. Messages are fixed local explanations;
+raw server prose and credentials are not returned. `retryPayment: false` means
+that retry guidance applies to the API operation, not to sending funds again.
+Report-only failures retain the transaction hash and `creditStatus: unconfirmed`;
+the result contains a business `code` and explanatory `warning`, or an `error`
+envelope for a thrown classified API failure. See `development/bai-recharge.md`
+for supported reasons and recovery behavior.
+
+
+### BAI amount representation
+
+BAI application amounts use decimal strings. `bai recharge-report` returns `data.amount`
+as a string when supplied; recharge recovery/error context also carries a string amount.
+`bai recharge` already returns its payment amount as a string. This standardizes the new
+v4.14 interface, whose earlier development build returned numbers in report/recovery fields.
+Raw BAI order fields retain their server-provided types. The outbound BAI API request still
+uses a JSON number after decimal round-trip validation; clients must not infer the CLI result
+type from that HTTP request format.
+
+
+### BAI bounded report recovery and x402 diagnostics
+
+After payment, BAI reporting retries only `TX_NOT_FOUND_OR_INVALID` and
+`TX_TIMESTAMP_UNAVAILABLE`, with delays of 15, 20 and 25 seconds, at most four requests
+within a 90-second reporting budget. `--timeout` still limits each HTTP request.
+`bai recharge-report` uses the same policy. No payment, preorder or recipient resolution
+is repeated. Exhaustion returns `creditStatus: "unconfirmed"` with the original recovery
+fields and `retryPayment: false`; authentication, transport and other rejection codes stop
+without automatic retry.
+
+x402 error details may include `phase` (`request`, `challenge`, `create_payment`, `sign`,
+`payment_request`, `verify`, `settle`), `httpStatus`, safe `reason` / `transportCode`, and
+`candidateTxHash` / `candidateNetwork`. A candidate hash is evidence for reconciliation,
+not proof of a successful payment. Raw upstream error strings and request credentials
+are not part of this contract.

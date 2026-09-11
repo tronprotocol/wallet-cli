@@ -27,17 +27,19 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 
 ## Supported chains
 
-Seven built-in networks are supported. Networks use a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`.
+Nine built-in networks are supported. Networks use a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`.
 
-| Network id | Family | Native coin | Environment |
-|---|---|---|---|
-| `tron:728126428` | TRON | TRX | Mainnet — **real funds** |
-| `tron:3448148188` | TRON | TRX | Testnet |
-| `tron:2494104990` | TRON | TRX | Testnet |
-| `eip155:1` | EVM | ETH | Ethereum mainnet — **real funds** |
-| `eip155:11155111` | EVM | ETH | Sepolia testnet |
-| `eip155:56` | EVM | BNB | BNB Smart Chain mainnet — **real funds** |
-| `eip155:97` | EVM | BNB | BNB Smart Chain testnet |
+| Network id        | Family | Native coin | Environment                              |
+| ----------------- | ------ | ----------- | ---------------------------------------- |
+| `tron:728126428`  | TRON   | TRX         | Mainnet — **real funds**                 |
+| `tron:3448148188` | TRON   | TRX         | Testnet                                  |
+| `tron:2494104990` | TRON   | TRX         | Testnet                                  |
+| `eip155:1`        | EVM    | ETH         | Ethereum mainnet — **real funds**        |
+| `eip155:11155111` | EVM    | ETH         | Sepolia testnet                          |
+| `eip155:56`       | EVM    | BNB         | BNB Smart Chain mainnet — **real funds** |
+| `eip155:97`       | EVM    | BNB         | BNB Smart Chain testnet                  |
+| `eip155:8453` | EVM | ETH | Base mainnet — **real funds** |
+| `eip155:84532` | EVM | ETH | Base Sepolia testnet |
 
 One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
@@ -111,75 +113,75 @@ Every command — including every subcommand — has its own reference page; the
 
 Create, import, and manage local wallets and accounts.
 
-| Command | Description |
-|---|---|
-| [`create`](docs/commands/create.md) | Create a new HD wallet (BIP39 seed) |
-| `import` | Import a wallet — [mnemonic](docs/commands/import/mnemonic.md) · [private-key](docs/commands/import/private-key.md) · [keystore](docs/commands/import/keystore.md) · [ledger](docs/commands/import/ledger.md) · [watch](docs/commands/import/watch.md)-only |
-| [`list`](docs/commands/list.md) | List wallets and accounts |
-| [`use`](docs/commands/use.md) · [`current`](docs/commands/current.md) | Set / show the active account (`current --qr` for a receive QR) |
-| [`derive`](docs/commands/derive.md) | Derive the next HD account from a seed wallet |
-| [`rename`](docs/commands/rename.md) · [`backup`](docs/commands/backup.md) · [`delete`](docs/commands/delete.md) | Rename, back up, or delete an account (backup writes secret + metadata, mode 0600; `--keystore` for Web3 keystore format, `--records` for the export audit log) |
-| [`change-password`](docs/commands/change-password.md) | Change the master password (re-encrypt all software keystores) |
+| Command                                                                                                         | Description                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`create`](docs/commands/create.md)                                                                             | Create a new HD wallet (BIP39 seed)                                                                                                                                                                                                                         |
+| `import`                                                                                                        | Import a wallet — [mnemonic](docs/commands/import/mnemonic.md) · [private-key](docs/commands/import/private-key.md) · [keystore](docs/commands/import/keystore.md) · [ledger](docs/commands/import/ledger.md) · [watch](docs/commands/import/watch.md)-only |
+| [`list`](docs/commands/list.md)                                                                                 | List wallets and accounts                                                                                                                                                                                                                                   |
+| [`use`](docs/commands/use.md) · [`current`](docs/commands/current.md)                                           | Set / show the active account (`current --qr` for a receive QR)                                                                                                                                                                                             |
+| [`derive`](docs/commands/derive.md)                                                                             | Derive the next HD account from a seed wallet                                                                                                                                                                                                               |
+| [`rename`](docs/commands/rename.md) · [`backup`](docs/commands/backup.md) · [`delete`](docs/commands/delete.md) | Rename, back up, or delete an account (backup writes secret + metadata, mode 0600; `--keystore` for Web3 keystore format, `--records` for the export audit log)                                                                                             |
+| [`change-password`](docs/commands/change-password.md)                                                           | Change the master password (re-encrypt all software keystores)                                                                                                                                                                                              |
 
 ### Transactions
 
 Send, broadcast, inspect, and co-sign transactions.
 
-| Command | Description |
-|---|---|
-| [`tx send`](docs/commands/tx/send.md) | Send native TRX or TRC20/TRC10 tokens |
-| [`tx broadcast`](docs/commands/tx/broadcast.md) | Broadcast a presigned transaction |
-| [`tx status`](docs/commands/tx/status.md) · [`tx info`](docs/commands/tx/info.md) | Confirmation status, or full detail + receipt |
+| Command                                                                                                                                 | Description                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [`tx send`](docs/commands/tx/send.md)                                                                                                   | Send native TRX or TRC20/TRC10 tokens                |
+| [`tx broadcast`](docs/commands/tx/broadcast.md)                                                                                         | Broadcast a presigned transaction                    |
+| [`tx status`](docs/commands/tx/status.md) · [`tx info`](docs/commands/tx/info.md)                                                       | Confirmation status, or full detail + receipt        |
 | [`tx sign`](docs/commands/tx/sign.md) · [`tx approvals`](docs/commands/tx/approvals.md) · [`tx multisig`](docs/commands/tx/multisig.md) | Co-sign multi-sig transactions and inspect approvals |
 
 ### On-chain queries
 
 Read account, block, and chain state.
 
-| Command | Description |
-|---|---|
+| Command                                                                                                                                             | Description                                              |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | [`account balance`](docs/commands/account/balance.md) · [`info`](docs/commands/account/info.md) · [`portfolio`](docs/commands/account/portfolio.md) | Balance, raw account data, or balances with USD estimate |
-| [`account history`](docs/commands/account/history.md) | Transaction history (requires TronGrid) |
-| [`account activate`](docs/commands/account/activate.md) · [`set`](docs/commands/account/set.md) | Activate an account, or set its on-chain name / ID |
-| [`block`](docs/commands/block.md) | Get a block (latest if omitted) |
-| [`chain params`](docs/commands/chain/params.md) · [`prices`](docs/commands/chain/prices.md) · [`node`](docs/commands/chain/node.md) | Governance params, resource prices, or node status |
+| [`account history`](docs/commands/account/history.md)                                                                                               | Transaction history (requires TronGrid)                  |
+| [`account activate`](docs/commands/account/activate.md) · [`set`](docs/commands/account/set.md)                                                     | Activate an account, or set its on-chain name / ID       |
+| [`block`](docs/commands/block.md)                                                                                                                   | Get a block (latest if omitted)                          |
+| [`chain params`](docs/commands/chain/params.md) · [`prices`](docs/commands/chain/prices.md) · [`node`](docs/commands/chain/node.md)                 | Governance params, resource prices, or node status       |
 
 ### Tokens, contracts, staking, signing
 
 Token and contract operations, resource staking, voting rewards, message signing, and permissions.
 
-| Command                                                                                         | Description                                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`token`](docs/commands/token/index.md)                                                         | Token address book and queries ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md)) |
-| [`contact`](docs/commands/contact/index.md)                                                     | Recipient contact book ([add](docs/commands/contact/add.md) · [list](docs/commands/contact/list.md) · [remove](docs/commands/contact/remove.md))                                                                                     |
+| Command                                                                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`token`](docs/commands/token/index.md)                                                         | Token address book and queries ([balance](docs/commands/token/balance.md) · [info](docs/commands/token/info.md) · [add](docs/commands/token/add.md) · [list](docs/commands/token/list.md) · [remove](docs/commands/token/remove.md))                                                                                                                                                                                                                                                          |
+| [`contact`](docs/commands/contact/index.md)                                                     | Recipient contact book ([add](docs/commands/contact/add.md) · [list](docs/commands/contact/list.md) · [remove](docs/commands/contact/remove.md))                                                                                                                                                                                                                                                                                                                                              |
 | [`contract`](docs/commands/contract/index.md)                                                   | Call, send, deploy, inspect, and govern contracts ([call](docs/commands/contract/call.md) · [send](docs/commands/contract/send.md) · [deploy](docs/commands/contract/deploy.md) · [info](docs/commands/contract/info.md) · [clear-abi](docs/commands/contract/clear-abi.md) · [set-origin-energy-limit](docs/commands/contract/set-origin-energy-limit.md) · [set-user-resource-percent](docs/commands/contract/set-user-resource-percent.md) · [create2](docs/commands/contract/create2.md)) |
-| [`stake`](docs/commands/stake/index.md)                                                         | Stake / delegate resources ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [info](docs/commands/stake/info.md), …)                            |
-| [`vote`](docs/commands/vote/index.md) · [`reward`](docs/commands/reward/index.md)               | Vote for super representatives and claim voting rewards                                                                                                                                                                              |
-| [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data                                                                                                                                                                          |
-| [`permission`](docs/commands/permission/index.md)                                               | View / update account permissions for multi-sig                                                                                                                                                                                      |
-| [`gasfree`](docs/commands/gasfree/index.md)                                                     | Gas-free token transfers via the GasFree service                                                                                                                                                                                     |
+| [`stake`](docs/commands/stake/index.md)                                                         | Stake / delegate resources ([freeze](docs/commands/stake/freeze.md) · [unfreeze](docs/commands/stake/unfreeze.md) · [delegate](docs/commands/stake/delegate.md) · [info](docs/commands/stake/info.md), …)                                                                                                                                                                                                                                                                                     |
+| [`vote`](docs/commands/vote/index.md) · [`reward`](docs/commands/reward/index.md)               | Vote for super representatives and claim voting rewards                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| [`permission`](docs/commands/permission/index.md)                                               | View / update account permissions for multi-sig                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| [`gasfree`](docs/commands/gasfree/index.md)                                                     | Gas-free token transfers via the GasFree service                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ### Governance, TRC10, and the on-chain exchange
 
 Chain governance, super-representative operation, and TRON's protocol-level TRC10 and Bancor exchange mechanics.
 
-| Command | Description |
-|---|---|
-| [`proposal`](docs/commands/proposal/index.md) | Chain-parameter proposals ([list](docs/commands/proposal/list.md) · [show](docs/commands/proposal/show.md) · [create](docs/commands/proposal/create.md) · [approve](docs/commands/proposal/approve.md) · [delete](docs/commands/proposal/delete.md)) — `list` / `show` are open to anyone, the write commands require a registered witness |
-| [`witness`](docs/commands/witness/index.md) | Register and operate a super representative ([create](docs/commands/witness/create.md) · [update](docs/commands/witness/update.md) · [set-brokerage](docs/commands/witness/set-brokerage.md)) |
-| [`asset`](docs/commands/asset/index.md) | Issue and manage TRC10 tokens ([issue](docs/commands/asset/issue.md) · [update](docs/commands/asset/update.md) · [participate](docs/commands/asset/participate.md) · [unfreeze](docs/commands/asset/unfreeze.md) · [info](docs/commands/asset/info.md) · [list](docs/commands/asset/list.md)); TRC10 transfers go through [`tx send`](docs/commands/tx/send.md) |
-| [`exchange`](docs/commands/exchange/index.md) | The protocol-level Bancor exchange between TRX and TRC10 ([create](docs/commands/exchange/create.md) · [inject](docs/commands/exchange/inject.md) · [withdraw](docs/commands/exchange/withdraw.md) · [trade](docs/commands/exchange/trade.md) · [show](docs/commands/exchange/show.md) · [list](docs/commands/exchange/list.md)) |
+| Command                                       | Description                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`proposal`](docs/commands/proposal/index.md) | Chain-parameter proposals ([list](docs/commands/proposal/list.md) · [show](docs/commands/proposal/show.md) · [create](docs/commands/proposal/create.md) · [approve](docs/commands/proposal/approve.md) · [delete](docs/commands/proposal/delete.md)) — `list` / `show` are open to anyone, the write commands require a registered witness                      |
+| [`witness`](docs/commands/witness/index.md)   | Register and operate a super representative ([create](docs/commands/witness/create.md) · [update](docs/commands/witness/update.md) · [set-brokerage](docs/commands/witness/set-brokerage.md))                                                                                                                                                                   |
+| [`asset`](docs/commands/asset/index.md)       | Issue and manage TRC10 tokens ([issue](docs/commands/asset/issue.md) · [update](docs/commands/asset/update.md) · [participate](docs/commands/asset/participate.md) · [unfreeze](docs/commands/asset/unfreeze.md) · [info](docs/commands/asset/info.md) · [list](docs/commands/asset/list.md)); TRC10 transfers go through [`tx send`](docs/commands/tx/send.md) |
+| [`exchange`](docs/commands/exchange/index.md) | The protocol-level Bancor exchange between TRX and TRC10 ([create](docs/commands/exchange/create.md) · [inject](docs/commands/exchange/inject.md) · [withdraw](docs/commands/exchange/withdraw.md) · [trade](docs/commands/exchange/trade.md) · [show](docs/commands/exchange/show.md) · [list](docs/commands/exchange/list.md))                                |
 
 ### Local tools and configuration
 
 Offline local commands and configuration.
 
-| Command | Description |
-|---|---|
-| [`encoding convert`](docs/commands/encoding/convert.md) | Convert / validate addresses and encodings |
+| Command                                                 | Description                                   |
+| ------------------------------------------------------- | --------------------------------------------- |
+| [`encoding convert`](docs/commands/encoding/convert.md) | Convert / validate addresses and encodings    |
 | [`address generate`](docs/commands/address/generate.md) | Generate a random keypair (local, not stored) |
-| [`config`](docs/commands/config.md) | Show / get / set configuration values |
-| [`networks`](docs/commands/networks.md) | List known networks |
+| [`config`](docs/commands/config.md)                     | Show / get / set configuration values         |
+| [`networks`](docs/commands/networks.md)                 | List known networks                           |
 
 ## The contract, in one paragraph
 
@@ -199,3 +201,44 @@ TRON differs a lot from EVM chains in fees, accounts, and key permissions — th
 A command errored or behaved unexpectedly? Common issues and how to diagnose them are in [troubleshooting.md](docs/troubleshooting.md).
 
 > Copy-pasteable examples that spend anything target a testnet — **Nile** (`--network tron:3448148188`) on TRON, **Sepolia** (`--network eip155:11155111`) on EVM. Mainnet ids (`tron:728126428`, `eip155:1`) also appear: in read-only examples such as token-book listings and config paths, and in a few illustrations of mainnet token contracts. Those last ones carry placeholder recipients (`T...` / `0x...`) and are not runnable as written.
+
+## ERC-8004 beta integration
+
+The `8004` command group uses `@bankofai/8004-sdk@1.2.0-beta.1`.
+
+```sh
+wallet-cli 8004 show eip155:97:42 --network bsc-testnet --output json
+wallet-cli 8004 register 'data:application/json;base64,eyJuYW1lIjoiRXhhbXBsZSJ9' --network nile --dry-run
+wallet-cli 8004 approve 42 --revoke --network nile
+wallet-cli 8004 operator-check <owner> <operator> --network nile
+```
+
+Agent IDs are decimal uint256 strings; scoped IDs must match the selected network.
+HTTP(S), IPFS and base64 JSON data registration URIs are supported (maximum 2048
+characters on register/update). Metadata loading is bounded and failures preserve
+chain fields with a warning. `show` and `operator-check` do not require a wallet.
+Write commands retain the normal wallet transaction modes. `--wait` reports the
+registered ID or re-reads URI/owner after successful confirmation; an unconfirmed
+transaction is returned as submitted and must not be blindly retried.
+
+Registry configuration stays in the SDK; signing and broadcasting stay in the wallet
+transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-integration.md).
+
+## B.AI usage and x402 providers
+
+```sh
+wallet-cli bai usage --output json
+wallet-cli bai usage-list --limit 20 --output json
+wallet-cli x402 provider-list --output json
+```
+
+`bai usage` reads the service's `usage.summary`: current credit balance,
+current-month spend, and monthly trend. It accepts no date filters and does not
+aggregate usage records locally. `bai usage-list` exposes `hasMore` and
+`nextCursor`; pass `--cursor` to continue listing records. B.AI account reads
+require the configured API key but no wallet signature.
+
+x402 payments use the selected wallet account through the payer signer bridge,
+including the existing device precheck and signing ceremony. Payment guards
+validate the declared payer and configured GasFree fee ceiling. Base USDC,
+BSC, and TRON routes are supported according to the provider's challenge.

@@ -1,13 +1,7 @@
+import type { TransactionModeInput } from "../contracts/transaction-input.js";
+export type { TransactionModeInput } from "../contracts/transaction-input.js";
 import type { TxOutcome } from "../../domain/types/index.js";
 import { UsageError } from "../../domain/errors/index.js";
-
-export interface TransactionModeInput {
-  dryRun?: boolean;
-  signOnly?: boolean;
-  buildOnly?: boolean;
-  permissionId?: number;
-  expiration?: number;
-}
 
 export type TransactionExecutionMode = "dry-run" | "build-only" | "sign-only" | "broadcast";
 

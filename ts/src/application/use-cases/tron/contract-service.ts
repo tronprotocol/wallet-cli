@@ -19,7 +19,7 @@ import {
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import { fromBaseUnits } from "../../../domain/amounts/index.js";
-import { approveRows } from "../../services/approve-receipt.js";
+import { approveRows, type ApprovalKind } from "../../services/approve-receipt.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronContractService {
@@ -49,6 +49,8 @@ export class TronContractService {
     input: GovernanceTransactionInput & {
       contract: string;
       method: string;
+      /** disambiguates standards that share a write signature. */
+      approvalKind?: ApprovalKind;
       parameters: TronContractParameter[];
       callValueSun: string;
       feeLimit: string;
@@ -62,6 +64,7 @@ export class TronContractService {
     const approval = await approveRows({
       method: input.method,
       params: input.parameters,
+      approvalKind: input.approvalKind,
       metadata: () =>
         gateway.getTokenInfo(input.contract).then((info) => ({
           decimals: info.decimals ?? info.precision,
@@ -91,6 +94,7 @@ export class TronContractService {
           input.contract,
           input.method,
           input.parameters,
+          input.callValueSun,
         );
         warnIfFeeLimitLikelyInsufficient(scope, input.feeLimit, estimate);
         return estimate;
