@@ -13,13 +13,19 @@ import { createServer } from "node:net";
 import { request } from "node:http";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-async function withServer(settlement: object, run: (port: number) => Promise<void>) {
+async function withServer(
+  settlement: object,
+  run: (port: number) => Promise<void>,
+  fetcher?: typeof fetch,
+) {
   const socket = createServer();
   await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
   const port = (socket.address() as { port: number }).port;
   await new Promise<void>((resolve) => socket.close(() => resolve()));
-  const server = new X402HttpServer(async (url) =>
-    Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement),
+  const server = new X402HttpServer(
+    fetcher ??
+      (async (url) =>
+        Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement)),
   );
   const handle = await server.start(
     { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
@@ -125,4 +131,39 @@ it("retains a failed settlement candidate hash through the local paywall", async
       expect(response.headers.has("payment-response")).toBe(false);
     },
   );
+});
+
+it.each(["verify", "settle"])("preserves connection diagnostics during %s", async (phase) => {
+  for (const code of ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "SECRET"]) {
+    await withServer(
+      {},
+      async (port) => {
+        const response = await fetch(`http://127.0.0.1:${port}/pay`, {
+          headers: {
+            "payment-signature": Buffer.from(
+              JSON.stringify({ x402Version: 2, payload: {} }),
+            ).toString("base64"),
+          },
+        });
+        const body = await response.json();
+        expect(response.status).toBe(502);
+        expect(body).toMatchObject({
+          code: "provider_error",
+          phase,
+          paymentStatus: "unknown",
+          retryPayment: false,
+        });
+        if (code === "SECRET") expect(body).not.toHaveProperty("transportCode");
+        else expect(body).toMatchObject({ reason: "connection_failed", transportCode: code });
+        expect(JSON.stringify(body)).not.toContain("SECRET");
+        expect(response.headers.has("payment-response")).toBe(false);
+      },
+      async (url) => {
+        if (String(url).endsWith(`/${phase}`)) {
+          throw new TypeError("SECRET URL and credentials", { cause: { code } });
+        }
+        return Response.json({ isValid: true });
+      },
+    );
+  }
 });

@@ -1,4 +1,4 @@
-import { providerPaymentError } from "./payment-error.js";
+import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
 import { createServer, type Server } from "node:http";
@@ -184,15 +184,9 @@ export class X402HttpServer implements X402ServerPort {
           transaction: settle.transaction,
         });
       } catch (error) {
-        return paymentFailure(
-          response,
-          502,
-          error instanceof TransportError ? error.code : undefined,
-          phase,
-          error instanceof TransportError
-            ? (error.details as Record<string, unknown> | undefined)
-            : undefined,
-        );
+        const classified = sdkPaymentError(error, phase);
+        const details = classified.details as Record<string, unknown> | undefined;
+        return paymentFailure(response, 502, details?.reason ?? classified.code, phase, details);
       }
     });
     await listen(server, input.host, input.port);

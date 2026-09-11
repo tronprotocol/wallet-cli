@@ -400,3 +400,33 @@ it("retains safe failed-settlement evidence from the local paywall without marki
   });
   expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
 });
+
+it.each(["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "SECRET"])(
+  "preserves only safe paywall transport codes: %s",
+  async (transportCode) => {
+    const client = new X402PaymentClient(
+      resolver,
+      globalThis.fetch,
+      async () => async () =>
+        Response.json(
+          { phase: "settle", reason: "connection_failed", transportCode, error: "SECRET" },
+          { status: 502 },
+        ),
+    );
+    const error = await client
+      .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
+      .catch((error) => error);
+    expect(error).toMatchObject({
+      code: "provider_error",
+      details: {
+        phase: "settle",
+        reason: "connection_failed",
+        paymentStatus: "unknown",
+        retryPayment: false,
+      },
+    });
+    if (transportCode === "SECRET") expect(error.details).not.toHaveProperty("transportCode");
+    else expect(error.details.transportCode).toBe(transportCode);
+    expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  },
+);

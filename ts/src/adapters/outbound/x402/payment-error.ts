@@ -1,6 +1,8 @@
 import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
+const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
+
 const reasons: Record<string, () => TransportError> = {
   timeout: () =>
     new TransportError("timeout", "x402 upstream request timed out; reconcile before paying again"),
@@ -42,7 +44,13 @@ export function providerPaymentError(
       retryPayment: false,
       ...(typeof key === "string" &&
       (Object.hasOwn(reasons, key) ||
-        ["invalid_transaction_state", "OUT_OF_ENERGY", "transaction_reverted"].includes(key))
+        [
+          "invalid_transaction_state",
+          "OUT_OF_ENERGY",
+          "transaction_reverted",
+          "connection_failed",
+          "http_error",
+        ].includes(key))
         ? { reason: key }
         : {}),
       ...candidateEvidence(evidence),
@@ -100,7 +108,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
   const transportCode = record?.code ?? record?.cause?.code;
   if (
     typeof transportCode === "string" &&
-    ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"].includes(transportCode)
+    (transportCodes as readonly string[]).includes(transportCode)
   )
     return new TransportError(
       "provider_error",
@@ -152,7 +160,12 @@ function candidateEvidence(value?: Record<string, unknown>) {
   const hash = value?.transaction ?? value?.candidateTxHash;
   const network = value?.network ?? value?.candidateNetwork;
   const status = value?.httpStatus;
+  const transportCode = value?.transportCode;
   return {
+    ...(typeof transportCode === "string" &&
+    (transportCodes as readonly string[]).includes(transportCode)
+      ? { transportCode }
+      : {}),
     ...(typeof hash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(hash)
       ? { candidateTxHash: hash }
       : {}),
