@@ -3,7 +3,7 @@ import { Interface, type InterfaceAbi } from "ethers";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
 import type { AgentRegistryReader } from "../../../application/ports/agent-sdk.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { UsageError, ExecutionError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 interface SupportedNetwork {
@@ -59,18 +59,52 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     params: Array<{ type: string; value: unknown }>,
   ): Promise<unknown> {
     const configured = this.#for(network);
-    const response = await this.contracts[network.family].call(
-      network,
-      configured.sdk.identityRegistry,
-      method,
-      params,
-    );
-    const raw = network.family === "tron" ? response.result[0] : response.result;
-    const data = String(raw ?? "");
-    const decoded = configured.identity.decodeFunctionResult(
-      method,
-      data.startsWith("0x") ? data : `0x${data}`,
-    );
+    let decoded;
+    try {
+      const response = await this.contracts[network.family].call(
+        network,
+        configured.sdk.identityRegistry,
+        method,
+        params,
+      );
+      const raw = network.family === "tron" ? response.result[0] : response.result;
+      const data = String(raw ?? "");
+      decoded = configured.identity.decodeFunctionResult(
+        method,
+        data.startsWith("0x") ? data : `0x${data}`,
+      );
+    } catch (error) {
+      const data = error as {
+        message?: string;
+        details?: { nodeMessage?: string; revertData?: string };
+        value?: string;
+        data?: string;
+      };
+      const reason = `${data?.message ?? ""} ${data?.details?.nodeMessage ?? ""}`;
+      let nonexistent = false;
+      const revert = data?.details?.revertData ?? data?.data ?? data?.value;
+      if (typeof revert === "string") {
+        try {
+          nonexistent =
+            new Interface([
+              "error ERC721NonexistentToken(uint256 tokenId)",
+              "error Error(string)",
+            ]).parseError(revert)?.name === "ERC721NonexistentToken";
+        } catch {
+          /* preserve unknown failures */
+        }
+      }
+      if (
+        ["ownerOf(uint256)", "tokenURI(uint256)", "getApproved(uint256)"].includes(method) &&
+        (nonexistent ||
+          /ERC721NonexistentToken|ERC721: (?:invalid token ID|owner query for nonexistent token|URI query for nonexistent token|approved query for nonexistent token)/i.test(
+            reason,
+          ))
+      ) {
+        throw new ExecutionError("agent_not_found", "the requested agent does not exist");
+      }
+      throw error;
+    }
     const value = decoded[0];
     const output = configured.identity.getFunction(method)?.outputs[0];
     return output?.baseType === "address"

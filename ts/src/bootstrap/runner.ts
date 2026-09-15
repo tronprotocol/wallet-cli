@@ -75,9 +75,13 @@ export async function main(argv: string[]): Promise<ExitCode> {
   }
 
   try {
-    // Every invocation runs the migration preflight before help, version, schema output, argument
-    // validation, or command dispatch. A current/absent wallet is a no-op; stale state is handled
-    // consistently regardless of which surface caused wallet-cli to start.
+    if (hasMeta(tokens) || !hasCommand(tokens)) {
+      const help = new HelpService(runtime.registry, runtime.streams, VERSION);
+      return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]);
+    }
+
+    // Commands that can use wallet state must pass migration before dispatch.
+    // Public help, version and schema discovery above never read or migrate wallet data.
     const migration = await runMigrationGate(
       new MigrationRunner(runtime.store),
       migrationSteps(runtime.root, runtime.store),
@@ -145,11 +149,6 @@ export async function main(argv: string[]): Promise<ExitCode> {
         ),
       );
       return 0;
-    }
-
-    if (hasMeta(tokens) || !hasCommand(tokens)) {
-      const help = new HelpService(runtime.registry, runtime.streams, VERSION);
-      return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]);
     }
 
     // A supplied global flag with an out-of-range/invalid value is a usage error — never a silent

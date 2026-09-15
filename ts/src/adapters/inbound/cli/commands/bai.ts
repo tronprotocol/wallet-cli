@@ -1,3 +1,4 @@
+import { integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
 import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
@@ -6,14 +7,10 @@ import type { BaiService } from "../../../../application/use-cases/bai-service.j
 const requires = ["config baiApiKey"];
 
 const listFields = z.object({
-  limit: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(1000)
-    .default(20)
-    .describe("maximum rows to return"),
-  offset: z.coerce.number().int().min(0).default(0).describe("zero-based pagination offset"),
+  limit: integerLiteral(1, 200).default(20).describe("maximum rows to return"),
+  offset: integerLiteral(0, Number.MAX_SAFE_INTEGER)
+    .default(0)
+    .describe("zero-based pagination offset"),
   sort: z.enum(["asc", "desc"]).default("desc").describe("creation-time sort direction"),
 });
 

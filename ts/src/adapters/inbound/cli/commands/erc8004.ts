@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { AgentService } from "../../../../application/use-cases/agent-service.js";
-import { Schemas, addressFieldsFor } from "../schemas/index.js";
+import { Schemas, addressFamilyFieldsFor } from "../schemas/index.js";
 import { governanceTxRefine, tronTxModeFields, txModeFields } from "./shared.js";
 import { TextFormatters, renderGenericText } from "../render/index.js";
 
@@ -21,7 +21,7 @@ const uri = z
     try {
       const url = new URL(value);
       return (
-        ["https:", "http:", "ipfs:"].includes(url.protocol) &&
+        ["https:", "ipfs:"].includes(url.protocol) &&
         !!url.hostname &&
         !url.username &&
         !url.password
@@ -29,7 +29,7 @@ const uri = z
     } catch {
       return false;
     }
-  }, "must be an HTTP(S), IPFS, or base64 JSON data URI without credentials")
+  }, "must be an HTTPS, IPFS, or base64 JSON data URI without credentials")
   .describe("URI of an agent registration document built and hosted outside wallet-cli");
 const address = Schemas.address();
 
@@ -173,7 +173,7 @@ function binding(
   return {
     run,
     ...(write && family === "tron" ? { fields: tronWriteFields } : {}),
-    ...(addressFields.length ? { refine: addressFieldsFor(family, ...addressFields) } : {}),
+    ...(addressFields.length ? { refine: addressFamilyFieldsFor(family, ...addressFields) } : {}),
   };
 }
 export function showEvmBinding(service: AgentService): FamilyBinding {

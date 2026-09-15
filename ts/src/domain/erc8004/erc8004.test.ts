@@ -14,7 +14,7 @@ describe("ERC-8004 deployment selection", () => {
     expect(resolveAgentId("97:123", net("eip155:97"))).toBe(123n);
     expect(resolveAgentId("tron:3448148188:123", net("tron:3448148188"))).toBe(123n);
     expect(() => resolveAgentId("eip155:56:123", net("eip155:97"))).toThrowError(
-      expect.objectContaining({ code: "invalid_value" }),
+      expect.objectContaining({ code: "chain_id_mismatch" }),
     );
   });
 });

@@ -1,3 +1,5 @@
+import { addressCodec } from "../../../domain/family/index.js";
+import { X402_TOKENS } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
@@ -13,90 +15,7 @@ import type {
   X402ServerHandle,
   X402ServerPort,
 } from "../../../application/ports/x402-server.js";
-import { TransportError, UsageError } from "../../../domain/errors/index.js";
-
-interface Token {
-  address: string;
-  decimals: number;
-  name: string;
-  version: string;
-  permit2?: boolean;
-}
-const TOKENS: Record<string, Record<string, Token>> = {
-  "tron:728126428": {
-    USDT: {
-      address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-      decimals: 6,
-      name: "Tether USD",
-      version: "1",
-      permit2: true,
-    },
-    USDD: {
-      address: "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz",
-      decimals: 18,
-      name: "Decentralized USD",
-      version: "1",
-      permit2: true,
-    },
-  },
-  "tron:3448148188": {
-    USDT: {
-      address: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
-      decimals: 6,
-      name: "Tether USD",
-      version: "1",
-      permit2: true,
-    },
-    USDD: {
-      address: "TGjgvdTWWrybVLaVeFqSyVqJQWjxqRYbaK",
-      decimals: 18,
-      name: "Decentralized USD",
-      version: "1",
-      permit2: true,
-    },
-  },
-  "tron:2494104990": {
-    USDT: {
-      address: "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs",
-      decimals: 6,
-      name: "Tether USD",
-      version: "1",
-    },
-  },
-  "eip155:56": {
-    USDT: {
-      address: "0x55d398326f99059fF775485246999027B3197955",
-      decimals: 18,
-      name: "Tether USD",
-      version: "1",
-      permit2: true,
-    },
-  },
-  "eip155:8453": {
-    USDC: {
-      address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      decimals: 6,
-      name: "USD Coin",
-      version: "2",
-    },
-  },
-  "eip155:97": {
-    USDT: {
-      address: "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
-      decimals: 18,
-      name: "Tether USD",
-      version: "1",
-      permit2: true,
-    },
-    USDC: {
-      address: "0x64544969ed7EBf5f083679233325356EbE738930",
-      decimals: 18,
-      name: "USD Coin",
-      version: "1",
-      permit2: true,
-    },
-  },
-};
+import { TransportError, UsageError, ExecutionError } from "../../../domain/errors/index.js";
 
 export class X402HttpServer implements X402ServerPort {
   constructor(
@@ -112,7 +31,7 @@ export class X402HttpServer implements X402ServerPort {
     if (input.scheme === "exact_gasfree" && network.family !== "tron") {
       throw new UsageError("invalid_value", "exact_gasfree is supported only on TRON");
     }
-    const token = TOKENS[network.id]?.[input.token.toUpperCase()];
+    const token = X402_TOKENS[network.id]?.[input.token.toUpperCase()];
     if (!token)
       throw new UsageError("invalid_value", `${input.token} is not registered on ${network.id}`);
     validatePayTo(network, input.payTo);
@@ -154,6 +73,13 @@ export class X402HttpServer implements X402ServerPort {
         return json(response, 400, { error: "invalid request URL" });
       }
       if (pathname === "/health") return json(response, 200, { ok: true });
+      if (pathname === "/.well-known/x402" && request.method === "GET") {
+        return json(response, 200, {
+          x402Version: 2,
+          resource: challenge.resource,
+          accepts: challenge.accepts,
+        });
+      }
       if (pathname !== "/pay") return json(response, 404, { error: "not found" });
       const signature = request.headers["payment-signature"];
       if (!signature || Array.isArray(signature)) {
@@ -235,10 +161,10 @@ export class X402HttpServer implements X402ServerPort {
 }
 
 function validatePayTo(network: NetworkDescriptor, value: string): void {
-  const valid =
-    network.family === "evm"
-      ? /^0x[0-9a-fA-F]{40}$/.test(value)
-      : /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+  const valid = addressCodec(network.family).validate(value);
+  if (!valid && addressCodec(network.family === "evm" ? "tron" : "evm").validate(value)) {
+    throw new UsageError("family_mismatch", "--pay-to belongs to a different chain family");
+  }
   if (!valid)
     throw new UsageError(
       "invalid_address",
@@ -248,14 +174,15 @@ function validatePayTo(network: NetworkDescriptor, value: string): void {
 
 export function toSmallestUnit(value: string, decimals: number): string {
   if (!/^\d+(?:\.\d+)?$/.test(value))
-    throw new UsageError("invalid_value", "amount must be a decimal string");
+    throw new UsageError("invalid_amount", "amount must be a decimal string");
   const [whole, fraction = ""] = value.split(".");
   if (fraction.length > decimals)
-    throw new UsageError("invalid_value", `amount supports at most ${decimals} decimal places`);
-  return (
-    BigInt(whole!) * 10n ** BigInt(decimals) +
-    BigInt(fraction.padEnd(decimals, "0") || "0")
-  ).toString();
+    throw new UsageError("invalid_amount", `amount supports at most ${decimals} decimal places`);
+  const raw =
+    BigInt(whole!) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, "0") || "0");
+  if (raw <= 0n || raw >= 1n << 256n)
+    throw new UsageError("invalid_amount", "amount must be a positive uint256");
+  return raw.toString();
 }
 
 function json(response: import("node:http").ServerResponse, status: number, body: unknown): void {
@@ -265,9 +192,15 @@ function json(response: import("node:http").ServerResponse, status: number, body
 
 function listen(server: Server, host: string, port: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    server.once("error", reject);
+    const onError = (error: NodeJS.ErrnoException) =>
+      reject(
+        error.code === "EADDRINUSE"
+          ? new ExecutionError("port_in_use", "x402 server port is already in use")
+          : error,
+      );
+    server.once("error", onError);
     server.listen(port, host, () => {
-      server.off("error", reject);
+      server.off("error", onError);
       resolve();
     });
   });

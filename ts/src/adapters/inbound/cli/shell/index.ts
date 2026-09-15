@@ -540,6 +540,17 @@ function assertKnownFlags(
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
+  if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
+    if (
+      argv.account !== undefined ||
+      (cmd.path[1] !== "provider-list" && argv.network !== undefined)
+    ) {
+      throw new UsageError(
+        "invalid_option",
+        "provider commands do not accept --account; --network is only a provider-list filter",
+      );
+    }
+  }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {
     allowed.add(name);

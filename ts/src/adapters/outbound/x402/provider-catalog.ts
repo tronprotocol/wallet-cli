@@ -1,5 +1,6 @@
 import { fetchBounded } from "../http/http-response.js";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile, readFile, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type {
@@ -36,7 +37,8 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     const total = providers.length;
     return {
       catalog: CATALOG_URL,
-      generatedAt: payload.generated_at,
+      ...(payload.generated_at === undefined ? {} : { generatedAt: payload.generated_at }),
+      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings }),
       count: Math.min(input.limit, Math.max(0, total - input.offset)),
       filters: Object.fromEntries(
         Object.entries({
@@ -53,30 +55,81 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
 
   async show(fqn: string) {
     safeFqn(fqn);
-    return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
+    try {
+      return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
+    } catch (error) {
+      if (!offlineEligible(error)) throw error;
+      const cached = await this.cached();
+      const details = cached?.cached_details as Record<string, Record<string, unknown>> | undefined;
+      if (!details || !Object.hasOwn(details, fqn)) throw error;
+      return {
+        ...normalizeObject(details[fqn]!),
+        warnings: ["Using cached provider details while the catalog is unavailable."],
+      };
+    }
   }
 
   async endpoints(fqn: string) {
     const provider = await this.show(fqn);
-    return { fqn, endpoints: Array.isArray(provider.endpoints) ? provider.endpoints : [] };
+    return {
+      fqn,
+      endpoints: Array.isArray(provider.endpoints) ? provider.endpoints : [],
+      ...(provider.warnings === undefined ? {} : { warnings: provider.warnings }),
+    };
   }
 
   async update() {
-    const payload = await this.readJson(CATALOG_URL);
-    const body = `${JSON.stringify(payload, null, 2)}\n`;
-    const temporary = `${this.cacheFile}.${process.pid}.tmp`;
-    await mkdir(dirname(this.cacheFile), { recursive: true, mode: 0o700 });
-    await writeFile(temporary, body, { encoding: "utf8", mode: 0o600 });
-    await rename(temporary, this.cacheFile);
+    const payload = validateCatalog(await this.readJson(CATALOG_URL));
+    const details: Record<string, Record<string, unknown>> = {};
+    // Refresh a complete snapshot so show/endpoints can work offline too.
+    for (const provider of arrayOfObjects(payload.providers)) {
+      const fqn = String(provider.fqn);
+      safeFqn(fqn);
+      details[fqn] = await this.readJson(detailUrl("providers", fqn));
+    }
+    const body = `${JSON.stringify({ ...payload, cached_details: details }, null, 2)}\n`;
+    const temporary = `${this.cacheFile}.${randomUUID()}.tmp`;
+    try {
+      await mkdir(dirname(this.cacheFile), { recursive: true, mode: 0o700 });
+      await writeFile(temporary, body, { encoding: "utf8", mode: 0o600, flag: "wx" });
+      await rename(temporary, this.cacheFile);
+    } catch {
+      throw new TransportError("cache_error", "could not write the x402 provider cache");
+    } finally {
+      await rm(temporary, { force: true }).catch(() => {});
+    }
     return {
       updated: true,
       cache: this.cacheFile,
       providers: arrayOfObjects(payload.providers).length,
+      ...(payload.generated_at === undefined ? {} : { generatedAt: payload.generated_at }),
+      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings }),
     };
   }
 
-  private catalog() {
-    return this.readJson(CATALOG_URL);
+  private async catalog() {
+    try {
+      return validateCatalog(await this.readJson(CATALOG_URL));
+    } catch (error) {
+      if (!offlineEligible(error)) throw error;
+      const cached = await this.cached();
+      if (!cached) throw error;
+      return {
+        ...cached,
+        warnings: [
+          ...((cached.warnings as string[]) ?? []),
+          "Using cached catalog while the provider is unavailable.",
+        ],
+      };
+    }
+  }
+
+  private async cached(): Promise<Record<string, unknown> | undefined> {
+    try {
+      return validateCatalog(JSON.parse(await readFile(this.cacheFile, "utf8")));
+    } catch {
+      return undefined;
+    }
   }
 
   private async readJson(url: string): Promise<Record<string, unknown>> {
@@ -92,6 +145,8 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
       if (error instanceof CliError) throw error;
       throw new TransportError("provider_error", "x402 catalog request failed");
     }
+    if (response.status === 404)
+      throw new TransportError("provider_not_found", "x402 provider was not found");
     if (!response.ok) {
       throw new TransportError("provider_error", `x402 catalog returned HTTP ${response.status}`);
     }
@@ -211,4 +266,28 @@ function normalizeNetworkAlias(value: string): string {
     base: "eip155:8453",
   };
   return aliases[value.toLowerCase()] ?? normalizeNetwork(value);
+}
+
+function offlineEligible(error: unknown): boolean {
+  return error instanceof CliError && ["provider_error", "timeout"].includes(error.code);
+}
+function validateCatalog(value: Record<string, unknown>): Record<string, unknown> {
+  if (
+    value.version !== 1 ||
+    !Array.isArray(value.providers) ||
+    value.providers.some(
+      (item) =>
+        !item || typeof item !== "object" || Array.isArray(item) || typeof item.fqn !== "string",
+    ) ||
+    (value.generated_at !== undefined && typeof value.generated_at !== "string") ||
+    (value.warnings !== undefined &&
+      (!Array.isArray(value.warnings) || value.warnings.some((v) => typeof v !== "string")))
+  ) {
+    throw new TransportError(
+      "invalid_x402_response",
+      "x402 catalog must have version 1 and valid providers, timestamp and warnings",
+    );
+  }
+  for (const provider of arrayOfObjects(value.providers)) safeFqn(String(provider.fqn));
+  return value;
 }

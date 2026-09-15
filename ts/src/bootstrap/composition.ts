@@ -1,3 +1,4 @@
+import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
 import { setLogger, noopLogger } from "@bankofai/x402-core";
@@ -144,7 +145,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const x402Service = new X402Service(
     x402Payments,
     new X402ProviderCatalog(undefined, undefined, timeoutMs),
-    new X402HttpServer(undefined, timeoutMs),
+    new ManagedX402Server(new X402HttpServer(undefined, timeoutMs)),
   );
   registerBaiCommands(
     registry,

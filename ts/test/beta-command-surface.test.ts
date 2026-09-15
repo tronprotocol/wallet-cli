@@ -82,6 +82,9 @@ it.skipIf(!entry).each(commands)("%s %s help and unknown-flag rejection", (group
   expect(JSON.parse(bad.stdout).success).toBe(false);
 });
 const catalog = {
+  version: 1,
+  generated_at: "2026-09-14T00:00:00Z",
+  warnings: ["catalog fixture warning"],
   providers: [
     {
       fqn: "bai/recharge",
@@ -115,7 +118,14 @@ it.skipIf(!entry).each(["provider-list", "provider-show", "provider-endpoints", 
     if (verb === "provider-list") expect(data.count).toBe(1);
     if (verb === "provider-show") expect(data.fqn).toBe("bai/recharge");
     if (verb === "provider-endpoints") expect(data.endpoints).toHaveLength(1);
-    if (verb === "provider-update") expect(data.updated).toBe(true);
+    if (verb === "provider-update") {
+      expect(data.updated).toBe(true);
+      expect(data.generatedAt).toBe(catalog.generated_at);
+      expect(data).not.toHaveProperty("warnings");
+      expect(JSON.stringify(JSON.parse(r.stdout).meta.warnings)).toContain(
+        "catalog fixture warning",
+      );
+    }
   },
 );
 it.skipIf(!entry).each(["status", "usage", "usage-list", "recharge-list"])(
@@ -135,3 +145,34 @@ it.skipIf(!entry).each(["status", "usage", "usage-list", "recharge-list"])(
     else expect(JSON.stringify(data)).toContain(verb === "usage-list" ? "r1" : "o1");
   },
 );
+
+it.skipIf(!entry).each([
+  [["x402", "pay", "https://example.test", "--max-amount", "0"], "invalid_amount", 2],
+  [
+    ["x402", "pay", "https://example.test", "--max-raw-amount", (1n << 256n).toString()],
+    "invalid_amount",
+    2,
+  ],
+  [
+    ["x402", "pay", "https://example.test", "--max-amount", "1", "--max-raw-amount", "1"],
+    "invalid_option",
+    2,
+  ],
+  [["x402", "serve", "--pay-to", "x", "--port", "1e3"], "invalid_value", 2],
+  [["x402", "roundtrip", "--pay-to", "x", "--amount", "0"], "invalid_amount", 2],
+  [["x402", "provider-list", "--limit", "201"], "invalid_value", 2],
+  [["x402", "provider-list", "--limit", "1e2"], "invalid_value", 2],
+  [["x402", "provider-list", "--account", "ignored"], "invalid_option", 2],
+  [["x402", "provider-show", "demo/provider", "--network", "nile"], "invalid_option", 2],
+  [["bai", "usage-list", "--limit", "201"], "invalid_value", 2],
+  [["8004", "show", "eip155:97:123", "--network", "nile"], "chain_id_mismatch", 1],
+  [
+    ["8004", "register", "http://example.test/agent.json", "--network", "nile", "--dry-run"],
+    "invalid_value",
+    2,
+  ],
+])("installed CLI rejects R4 input %j as %s", (args, code, status) => {
+  const result = run([...(args as string[]), "-o", "json"]);
+  expect(result.status, result.stderr).toBe(status);
+  expect(JSON.parse(result.stdout).error.code).toBe(code);
+});
