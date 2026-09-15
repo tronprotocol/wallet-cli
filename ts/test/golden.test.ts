@@ -1097,12 +1097,12 @@ describe("golden CLI — startup migration", () => {
     expect(existsSync(`${path}.v1.bak`)).toBe(false);
   });
 
-  it("checks migration before --help", () => {
+  it("renders --help without migrating the wallet", () => {
     const path = windBackToV1();
     const r = run(["--output", "json", "--help"], { password: null });
 
-    expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("migration_required");
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Usage:");
     expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
   });
 });

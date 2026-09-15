@@ -167,3 +167,42 @@ it.each(["verify", "settle"])("preserves connection diagnostics during %s", asyn
     );
   }
 });
+
+it("publishes discovery from the same payment requirement", async () => {
+  await withServer({}, async (port) => {
+    const challenge = (await (await fetch(`http://127.0.0.1:${port}/pay`)).json()) as {
+      resource: unknown;
+      accepts: unknown;
+    };
+    const discovery = await (await fetch(`http://127.0.0.1:${port}/.well-known/x402`)).json();
+    expect(discovery).toEqual({
+      x402Version: 2,
+      resource: challenge.resource,
+      accepts: challenge.accepts,
+    });
+  });
+});
+it.each(["0", "1e3", (1n << 256n).toString()])("refuses invalid server amount %s", (amount) => {
+  expect(() => toSmallestUnit(amount, 6)).toThrow(
+    expect.objectContaining({ code: "invalid_amount" }),
+  );
+});
+it("reports a port collision without stopping the first server", async () => {
+  await withServer({}, async (port) => {
+    await expect(
+      new X402HttpServer().start(
+        { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor,
+        {
+          host: "127.0.0.1",
+          port,
+          amount: "1",
+          token: "USDC",
+          scheme: "exact",
+          payTo: "0x1111111111111111111111111111111111111111",
+          facilitatorUrl: "https://example.test",
+        },
+      ),
+    ).rejects.toMatchObject({ code: "port_in_use" });
+    expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
+  });
+});

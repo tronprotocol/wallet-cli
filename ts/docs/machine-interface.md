@@ -36,9 +36,9 @@ Command-family and flag-family checks are static and can be decided from the cat
 
 ### Startup wallet-data upgrades
 
-Every invocation—including no arguments, `--help`, `--version`, and `--json-schema`—checks the
-persisted wallet schema before handling any other surface. If it is stale, the startup gate
-upgrades it first. Progress goes to stderr. A successful upgrade returns exit `0` with a single
+Public discovery (no arguments, `--help`, `--version`, and `--json-schema`) does not read or
+migrate wallet data. Other commands check the persisted wallet schema before dispatch; if it is
+stale, the startup gate upgrades it first. Progress goes to stderr. A successful upgrade returns exit `0` with a single
 success envelope whose `command` is `migration` and whose data includes
 `originalCommandExecuted: false`; the command that triggered the upgrade is deliberately not run.
 Run the original command again after inspecting the completion result. This keeps scripted and

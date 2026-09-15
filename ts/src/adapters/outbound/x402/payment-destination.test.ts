@@ -84,3 +84,20 @@ it("accepts an EVM address with different casing at the exact amount", async () 
     paymentRequired: true,
   });
 });
+
+it("rejects a registered token precision override before HTTP or signing", async () => {
+  const fetcher = vi.fn();
+  const resolve = vi.fn();
+  const client = new X402PaymentClient({ resolve } as never, fetcher);
+  await expect(
+    client.pay({} as never, network as never, {
+      url: "https://example.test",
+      method: "GET",
+      headers: [],
+      asset: "0x55d398326f99059ff775485246999027b3197955",
+      decimals: 7,
+    }),
+  ).rejects.toMatchObject({ code: "invalid_amount" });
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(resolve).not.toHaveBeenCalled();
+});

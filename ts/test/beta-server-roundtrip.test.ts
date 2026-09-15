@@ -17,9 +17,9 @@ async function port() {
   await new Promise<void>((r) => s.close(() => r()));
   return p;
 }
-it.skipIf(!entry)(
+it.skipIf(!entry).each(["SIGINT", "SIGTERM"] as const)(
   "installed x402 serve exposes health and a Nile 402 challenge",
-  async () => {
+  async (signal) => {
     const home = mkdtempSync(join(tmpdir(), "beta-serve-"));
     const p = await port();
     const child = spawn(
@@ -59,8 +59,11 @@ it.skipIf(!entry)(
         "tron:0xcd8690dc",
       );
     } finally {
-      child.kill("SIGTERM");
-      await new Promise<void>((r) => child.once("close", () => r()));
+      const stopped = new Promise<{ code: number | null; signal: string | null }>((resolve) =>
+        child.once("close", (code, signal) => resolve({ code, signal })),
+      );
+      child.kill(signal);
+      expect(await stopped).toEqual({ code: 0, signal: null });
       rmSync(home, { recursive: true, force: true });
     }
   },

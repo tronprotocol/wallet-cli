@@ -7,8 +7,12 @@ import assert from "node:assert/strict";
 const root = resolve(import.meta.dirname, "..");
 const temp = mkdtempSync(join(tmpdir(), "wallet-cli-package-"));
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const call = (cmd, args, cwd = root, env = process.env) =>
-  execFileSync(cmd, args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+const call = (
+  cmd,
+  args,
+  cwd = root,
+  env = { ...process.env, WALLET_CLI_HOME: join(temp, "wallet") },
+) => execFileSync(cmd, args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
 try {
   const [packed] = JSON.parse(call(npm, ["pack", "--json", "--pack-destination", temp]));
   const forbidden = packed.files.filter(
@@ -26,7 +30,11 @@ try {
   const entry = join(temp, "node_modules/@tron-walletcli/wallet-cli/dist/index.js");
   const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
   assert.equal(call(process.execPath, [entry, "--version"], temp).trim(), version);
-  const env = { ...process.env, WALLET_CLI_TEST_ENTRY: entry };
+  const env = {
+    ...process.env,
+    WALLET_CLI_HOME: join(temp, "wallet"),
+    WALLET_CLI_TEST_ENTRY: entry,
+  };
   const output = call(
     process.execPath,
     [

@@ -218,3 +218,31 @@ describe("SdkAgentRegistry", () => {
     },
   );
 });
+
+it.each(["evm", "tron"] as const)(
+  "classifies only explicit nonexistent-token reverts on %s",
+  async (family) => {
+    const nonexistent = new Interface([
+      "error ERC721NonexistentToken(uint256 tokenId)",
+    ]).encodeErrorResult("ERC721NonexistentToken", [999]);
+    const network = family === "tron" ? tronNetwork("tron:3448148188") : evmNetwork("eip155:84532");
+    const call = vi.fn();
+    const registry = new SdkAgentRegistry(
+      { [family]: { call } } as unknown as AgentContractPorts,
+      {} as ChainGatewayProvider,
+    );
+    call.mockRejectedValueOnce({ details: { revertData: nonexistent } });
+    await expect(
+      registry.read(network, "ownerOf(uint256)", [{ type: "uint256", value: "999" }]),
+    ).rejects.toMatchObject({ code: "agent_not_found" });
+    for (const error of [
+      { code: "timeout", message: "timeout" },
+      { code: "execution_reverted", message: "execution reverted" },
+    ]) {
+      call.mockRejectedValueOnce(error);
+      await expect(
+        registry.read(network, "ownerOf(uint256)", [{ type: "uint256", value: "999" }]),
+      ).rejects.toBe(error);
+    }
+  },
+);

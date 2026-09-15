@@ -65,7 +65,9 @@ describe("AgentService beta integration", () => {
   });
   it("rejects cross-network IDs before any RPC", async () => {
     const f = fixture();
-    await expect(f.service.show(evmNet, "97:42")).rejects.toMatchObject({ code: "invalid_value" });
+    await expect(f.service.show(evmNet, "97:42")).rejects.toMatchObject({
+      code: "chain_id_mismatch",
+    });
     expect(f.reader.read).not.toHaveBeenCalled();
   });
   it("returns submitted register without fetching a receipt", async () => {

@@ -1,3 +1,4 @@
+import { X402_TOKENS } from "./tokens.js";
 import { sdkPaymentError, providerPaymentError, type PaymentPhase } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
@@ -41,6 +42,14 @@ export class X402PaymentClient implements X402PaymentPort {
   ) {}
 
   async pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
+    if (input.asset && input.decimals !== undefined)
+      paymentDecimals(network.id, input.asset, input.decimals);
+    if (input.maxRawAmount !== undefined) requireRawAmount(input.maxRawAmount);
+    if (
+      input.maxAmount !== undefined &&
+      (!/^\d+(?:\.\d+)?$/.test(input.maxAmount) || !/[1-9]/.test(input.maxAmount))
+    )
+      throw new UsageError("invalid_amount", "payment limit must be positive");
     const headers = parseHeaders(input.headers);
     const requestInit: RequestInit = {
       method: input.method,
@@ -182,7 +191,7 @@ export class X402PaymentClient implements X402PaymentPort {
       const selected = selectMatching(challenge.accepts, network, input)[0]!;
       maxGasfreeFeeRaw = decimalToRaw(
         input.maxGasfreeFee,
-        input.decimals ?? tokenDecimals(network.id, selected.asset),
+        paymentDecimals(network.id, selected.asset, input.decimals),
       );
     }
     const wallet = toX402Wallet(signer, { family: network.family, maxGasfreeFeeRaw });
@@ -300,37 +309,35 @@ async function writeOutput(path: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
-const TOKEN_METADATA: Record<string, Record<string, { symbol: string; decimals: number }>> = {
-  "tron:728126428": {
-    TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t: { symbol: "USDT", decimals: 6 },
-    TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz: { symbol: "USDD", decimals: 18 },
-  },
-  "tron:3448148188": {
-    TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf: { symbol: "USDT", decimals: 6 },
-    TGjgvdTWWrybVLaVeFqSyVqJQWjxqRYbaK: { symbol: "USDD", decimals: 18 },
-  },
-  "tron:2494104990": {
-    TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs: { symbol: "USDT", decimals: 6 },
-  },
-  "eip155:56": {
-    "0x55d398326f99059ff775485246999027b3197955": { symbol: "USDT", decimals: 18 },
-  },
-  "eip155:8453": {
-    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": { symbol: "USDC", decimals: 6 },
-  },
-  "eip155:97": {
-    "0x337610d27c682e347c9cd60bd4b3b107c9d34ddd": { symbol: "USDT", decimals: 18 },
-    "0x64544969ed7ebf5f083679233325356ebe738930": { symbol: "USDC", decimals: 18 },
-  },
-};
-
 function metadata(network: string, asset: string) {
-  const tokens = TOKEN_METADATA[network] ?? {};
-  return tokens[asset] ?? tokens[asset.toLowerCase()];
+  const tokens = X402_TOKENS[network] ?? {};
+  const entry = Object.entries(tokens).find(([, token]) =>
+    network.startsWith("eip155:")
+      ? token.address.toLowerCase() === asset.toLowerCase()
+      : token.address === asset,
+  );
+  return entry ? { ...entry[1], symbol: entry[0] } : undefined;
 }
 
 function tokenSymbol(network: string, asset: string): string | undefined {
   return metadata(network, asset)?.symbol;
+}
+
+function paymentDecimals(network: string, asset: string, explicit?: number): number {
+  const known = metadata(network, asset)?.decimals;
+  if (
+    explicit !== undefined &&
+    (!Number.isInteger(explicit) ||
+      explicit < 0 ||
+      explicit > 18 ||
+      (known !== undefined && known !== explicit))
+  ) {
+    throw new UsageError(
+      "invalid_amount",
+      "explicit decimals must match the registered token precision",
+    );
+  }
+  return known ?? explicit ?? tokenDecimals(network, asset);
 }
 
 function tokenDecimals(network: string, asset: string): number {
@@ -345,13 +352,26 @@ function tokenDecimals(network: string, asset: string): number {
 }
 
 function decimalToRaw(value: string, decimals: number): string {
+  if (!/^\d+(?:\.\d+)?$/.test(value) || value.length > 100)
+    throw new UsageError("invalid_amount", "amount must be a decimal string");
   const [whole, fraction = ""] = value.split(".");
   if (fraction.length > decimals)
-    throw new UsageError("invalid_value", `amount supports at most ${decimals} decimal places`);
-  return (
+    throw new UsageError("invalid_amount", `amount supports at most ${decimals} decimal places`);
+  const raw = (
     BigInt(whole!) * 10n ** BigInt(decimals) +
     BigInt(fraction.padEnd(decimals, "0") || "0")
   ).toString();
+  requireRawAmount(raw, true);
+  return raw;
+}
+function requireRawAmount(value: string, allowZero = false): void {
+  if (
+    !/^\d+$/.test(value) ||
+    value.length > 78 ||
+    BigInt(value) < (allowZero ? 0n : 1n) ||
+    BigInt(value) >= 1n << 256n
+  )
+    throw new UsageError("invalid_amount", "amount must fit uint256 and be positive");
 }
 
 interface OfferedRequirement {
@@ -386,7 +406,7 @@ function selectMatching<T extends OfferedRequirement>(
     if (input.exactAmount !== undefined) {
       const expected = decimalToRaw(
         input.exactAmount,
-        input.decimals ?? tokenDecimals(network.id, requirement.asset),
+        paymentDecimals(network.id, requirement.asset, input.decimals),
       );
       if (!/^\d+$/.test(requirement.amount) || BigInt(requirement.amount) !== BigInt(expected))
         return false;
@@ -400,11 +420,13 @@ function selectMatching<T extends OfferedRequirement>(
     );
   }
   const selected = matching[0]!;
+  requireRawAmount(selected.amount);
+  if (input.decimals !== undefined) paymentDecimals(network.id, selected.asset, input.decimals);
   const limit =
     input.maxRawAmount ??
     (input.maxAmount === undefined
       ? undefined
-      : decimalToRaw(input.maxAmount, input.decimals ?? tokenDecimals(network.id, selected.asset)));
+      : decimalToRaw(input.maxAmount, paymentDecimals(network.id, selected.asset, input.decimals)));
   if (limit !== undefined && BigInt(selected.amount) > BigInt(limit)) {
     throw new TransportError(
       "amount_exceeds_limit",

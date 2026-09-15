@@ -172,7 +172,9 @@ it.each([
     payments.validate.mockImplementation((...args: unknown[]) =>
       server.validate(args[0] as never, args[1] as never),
     );
-    await expect(run("recipient", amount, token)).rejects.toMatchObject({ code: "invalid_value" });
+    await expect(run("recipient", amount, token)).rejects.toMatchObject({
+      code: token === "USDT" ? "invalid_amount" : "invalid_value",
+    });
     expect(api.resolveTarget).not.toHaveBeenCalled();
     expect(api.createOrder).not.toHaveBeenCalled();
     expect(payments.roundtrip).not.toHaveBeenCalled();

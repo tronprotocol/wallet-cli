@@ -8,6 +8,7 @@ import { baiPaymentResult } from "../../../application/services/bai-payment-resu
 
 it.each([
   ["eip155:56", "56", "USDT", "10000000000000000000"],
+  ["eip155:84532", "84532", "USDC", "10000000"],
   ["eip155:8453", "8453", "USDC", "10000000"],
 ])(
   "settles %s through the local roundtrip with the installed SDK",

@@ -1,5 +1,5 @@
 import type { NetworkDescriptor } from "../types/index.js";
-import { UsageError } from "../errors/index.js";
+import { UsageError, ExecutionError } from "../errors/index.js";
 
 export function parseAgentId(value: string): bigint {
   if (!/^\d+$/.test(value)) {
@@ -28,8 +28,8 @@ export function resolveAgentId(value: string, network: NetworkDescriptor): bigin
     throw new UsageError("invalid_value", "agent id has too many components");
   }
   if (`${namespace}:${chainId}` !== network.id) {
-    throw new UsageError(
-      "invalid_value",
+    throw new ExecutionError(
+      "chain_id_mismatch",
       `agent id belongs to ${namespace}:${chainId}, but selected network is ${network.id}`,
     );
   }

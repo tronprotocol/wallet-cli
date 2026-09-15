@@ -181,7 +181,22 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       this.#pacedProviders.add(provider);
       const request = provider.request.bind(provider);
       provider.request = ((...args: Parameters<typeof request>) =>
-        this.#pacer.run(() => request(...args))) as typeof request;
+        this.#pacer.run(async () => {
+          const response = await request(...args);
+          // TronWeb discards constant-call revert data when it throws result.message.
+          // Preserve it at the transport boundary for callers decoding custom ABI errors.
+          const constant = response as
+            { result?: { message?: unknown }; constant_result?: unknown[] } | undefined;
+          if (String(args[0]).endsWith("/triggerconstantcontract") && constant?.result?.message) {
+            const raw = constant.constant_result?.[0];
+            if (typeof raw === "string" && /^[0-9a-f]+$/i.test(raw)) {
+              throw new ChainError("execution_reverted", "TRON constant call reverted", {
+                revertData: `0x${raw}`,
+              });
+            }
+          }
+          return response;
+        })) as typeof request;
     }
   }
 

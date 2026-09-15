@@ -1,3 +1,4 @@
+import { paymentAmount, rawPaymentAmount, integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
@@ -20,20 +21,10 @@ const payFields = z.object({
   out: z.string().trim().min(1).optional().describe("write response bytes to a new file"),
   token: z.string().trim().min(1).optional().describe("only accept this token symbol"),
   asset: z.string().trim().min(1).optional().describe("only accept this asset address"),
-  decimals: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .max(255)
-    .optional()
-    .describe("decimals for an explicit asset"),
+  decimals: integerLiteral(0, 18).optional().describe("decimals for an explicit asset"),
   scheme: z.enum(["exact", "exact_gasfree"]).optional(),
-  maxAmount: z
-    .string()
-    .regex(/^\d+(?:\.\d+)?$/)
-    .optional()
-    .describe("maximum payment in whole tokens; strongly recommended"),
-  maxRawAmount: z.string().regex(/^\d+$/).optional().describe("maximum payment in smallest units"),
+  maxAmount: paymentAmount.optional().describe("maximum payment in whole tokens"),
+  maxRawAmount: rawPaymentAmount.optional().describe("maximum payment in smallest units"),
   dryRun: z.boolean().default(false).describe("inspect the payment challenge without signing"),
   maxGasfreeFee: z
     .string()
@@ -50,13 +41,15 @@ const payInput = payFields.superRefine((value, context) => {
   if (value.maxAmount && value.maxRawAmount) {
     context.addIssue({
       code: "custom",
+      params: { errorCode: "invalid_option" },
       path: ["maxAmount"],
       message: "cannot be combined with --max-raw-amount",
     });
   }
-  if (value.body && value.bodyFile) {
+  if (value.body !== undefined && value.bodyFile !== undefined) {
     context.addIssue({
       code: "custom",
+      params: { errorCode: "invalid_option" },
       path: ["body"],
       message: "cannot be combined with --body-file",
     });
@@ -64,12 +57,18 @@ const payInput = payFields.superRefine((value, context) => {
   if (value.maxGasfreeFee && value.maxGasfreeFeeRaw) {
     context.addIssue({
       code: "custom",
+      params: { errorCode: "invalid_option" },
       path: ["maxGasfreeFee"],
       message: "cannot be combined with --max-gasfree-fee-raw",
     });
   }
   if (value.decimals !== undefined && !value.asset) {
-    context.addIssue({ code: "custom", path: ["decimals"], message: "requires --asset" });
+    context.addIssue({
+      code: "custom",
+      params: { errorCode: "invalid_option" },
+      path: ["decimals"],
+      message: "requires --asset",
+    });
   }
 });
 
@@ -87,6 +86,7 @@ const payCommand: CommandDefinition = {
   fields: payFields,
   input: payInput,
   exclusive: [
+    { label: "request body", flags: ["body", "body-file"], select: "at-most-one" },
     { label: "payment limit", flags: ["max-amount", "max-raw-amount"], select: "at-most-one" },
     {
       label: "GasFree fee limit",
@@ -104,8 +104,8 @@ const payCommand: CommandDefinition = {
 };
 
 const listFields = z.object({
-  limit: z.coerce.number().int().positive().max(1000).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
+  limit: integerLiteral(1, 200).default(20),
+  offset: integerLiteral(0, Number.MAX_SAFE_INTEGER).default(0),
   type: z.string().trim().min(1).optional(),
   category: z.string().trim().min(1).optional(),
   capability: z.string().trim().min(1).optional(),
@@ -115,15 +115,11 @@ const listFields = z.object({
 
 const serveFields = z.object({
   payTo: z.string().trim().min(1).describe("recipient address on the selected network"),
-  amount: z
-    .string()
-    .regex(/^\d+(?:\.\d+)?$/)
-    .default("0.0001")
-    .describe("human-readable token amount"),
+  amount: paymentAmount.default("0.0001").describe("human-readable token amount"),
   token: z.string().trim().min(1).default("USDT").describe("payment token symbol"),
   scheme: z.enum(["exact", "exact_gasfree"]).default("exact"),
   host: z.enum(["127.0.0.1", "::1"]).default("127.0.0.1").describe("loopback bind address"),
-  port: z.coerce.number().int().min(1).max(65535).default(4020),
+  port: integerLiteral(1, 65535).default(4020),
   facilitatorUrl: z
     .string()
     .url()
@@ -206,7 +202,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       { cmd: "wallet-cli x402 provider-list" },
       { cmd: "wallet-cli x402 provider-list --network tron:728126428 --capability recharge" },
     ],
-    run: async (_ctx, _network, input) => service.providerList(input),
+    run: async (_ctx, _network, input) => providerResult(_ctx, service.providerList(input)),
   } satisfies CommandDefinition);
 
   for (const [verb, summary, run] of [
@@ -228,7 +224,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       fields,
       input: fields,
       examples: [{ cmd: `wallet-cli x402 ${verb} bai/recharge` }],
-      run: async (_ctx, _network, input) => run(input.provider),
+      run: async (_ctx, _network, input) => providerResult(_ctx, run(input.provider)),
     } satisfies CommandDefinition);
   }
 
@@ -242,7 +238,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli x402 provider-update" }],
-    run: async () => service.providerUpdate(),
+    run: async (ctx) => providerResult(ctx, service.providerUpdate()),
   } satisfies CommandDefinition);
 }
 
@@ -277,4 +273,14 @@ function checkedBody(body: string, source: string): string {
     throw new UsageError("invalid_value", `request body from ${source} exceeds 1 MiB`);
   }
   return body;
+}
+
+async function providerResult(
+  ctx: Parameters<CommandDefinition["run"]>[0],
+  pending: Promise<Record<string, unknown>>,
+) {
+  const { warnings, ...data } = await pending;
+  if (Array.isArray(warnings))
+    for (const warning of warnings) if (typeof warning === "string") ctx.warn(warning);
+  return data;
 }

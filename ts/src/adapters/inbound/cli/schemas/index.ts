@@ -42,6 +42,19 @@ export function addressFieldsFor(
   family: ChainFamily,
   ...names: string[]
 ): (value: Record<string, unknown>, ctx: z.RefinementCtx) => void {
+  return validateAddressFields(family, false, names);
+}
+
+/** ERC-8004 distinguishes valid addresses belonging to another family. */
+export function addressFamilyFieldsFor(family: ChainFamily, ...names: string[]) {
+  return validateAddressFields(family, true, names);
+}
+
+function validateAddressFields(
+  family: ChainFamily,
+  detectFamily: boolean,
+  names: string[],
+): (value: Record<string, unknown>, ctx: z.RefinementCtx) => void {
   return (value, ctx) => {
     for (const name of names) {
       const candidate = value[name];
@@ -50,7 +63,12 @@ export function addressFieldsFor(
           code: "custom",
           path: [name],
           message: `invalid ${family} address`,
-          params: { errorCode: "invalid_address" },
+          params: {
+            errorCode:
+              detectFamily && addressCodec(family === "evm" ? "tron" : "evm").validate(candidate)
+                ? "family_mismatch"
+                : "invalid_address",
+          },
         });
       }
     }

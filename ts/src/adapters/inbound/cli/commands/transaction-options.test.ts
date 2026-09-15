@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -102,7 +103,7 @@ describe("shared --permission-id / --expiration document their semantics", () =>
 // --expiration ended up documented on only 3 of the 14. A page that documents the transaction modes
 // at all must document all of them.
 describe("reference pages keep up with the shared transaction options", () => {
-  const DOCS = new URL("../../../../../docs/commands/", import.meta.url).pathname;
+  const DOCS = fileURLToPath(new URL("../../../../../docs/commands/", import.meta.url));
   const REQUIRED = ["--build-only", "--permission-id", "--expiration"];
 
   function pages(directory: string): string[] {
