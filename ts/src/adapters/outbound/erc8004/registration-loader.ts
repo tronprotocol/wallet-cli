@@ -1,3 +1,6 @@
+import { createGunzip } from "node:zlib";
+import { Transform, Writable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { lookup } from "node:dns/promises";
 import type { LookupAddress } from "node:dns";
 import { request as httpRequest, type IncomingMessage } from "node:http";
@@ -15,6 +18,8 @@ export interface RegistrationLoadResult {
 }
 
 type FailureKind =
+  | "invalid_content_type"
+  | "invalid_encoding"
   | "invalid_uri"
   | "restricted_address"
   | "redirect_limit"
@@ -153,6 +158,11 @@ async function fetchMetadata(
         throw new LoaderFailure("http_status", status);
       }
 
+      const contentType = headerValue(response, "content-type") ?? "";
+      if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?\s*$/i.test(contentType)) {
+        response.destroy();
+        throw new LoaderFailure("invalid_content_type");
+      }
       return parseMetadata(await readBoundedText(response));
     } finally {
       signal.removeEventListener("abort", destroyOnAbort);
@@ -188,7 +198,7 @@ function requestOnce(target: ValidatedTarget, signal: AbortSignal): Promise<Inco
       target.url,
       {
         method: "GET",
-        headers: { accept: "application/json" },
+        headers: { accept: "application/json", "accept-encoding": "gzip" },
         lookup: pinnedLookup,
         signal,
       },
@@ -314,30 +324,39 @@ async function readBoundedText(response: IncomingMessage): Promise<string> {
     throw new LoaderFailure("too_large");
   }
 
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for await (const rawChunk of response) {
-      const value = typeof rawChunk === "string" ? Buffer.from(rawChunk) : new Uint8Array(rawChunk);
-      total += value.byteLength;
-      if (total > MAX_RESPONSE_BYTES) {
-        response.destroy();
-        throw new LoaderFailure("too_large");
+  const encoding = (headerValue(response, "content-encoding") ?? "identity").trim().toLowerCase();
+  if (encoding !== "identity" && encoding !== "gzip") {
+    response.destroy();
+    throw new LoaderFailure("invalid_encoding");
+  }
+  let compressed = 0;
+  let expanded = 0;
+  const chunks: Buffer[] = [];
+  const boundInput = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      compressed += chunk.length;
+      callback(compressed > MAX_RESPONSE_BYTES ? new LoaderFailure("too_large") : null, chunk);
+    },
+  });
+  const sink = new Writable({
+    write(chunk: Buffer, _encoding, callback) {
+      expanded += chunk.length;
+      if (expanded > MAX_RESPONSE_BYTES) {
+        callback(new LoaderFailure("too_large"));
+        return;
       }
-      chunks.push(value);
-    }
+      chunks.push(chunk);
+      callback();
+    },
+  });
+  try {
+    if (encoding === "gzip") await pipeline(response, boundInput, createGunzip(), sink);
+    else await pipeline(response, boundInput, sink);
   } catch (error) {
     if (error instanceof LoaderFailure) throw error;
-    throw new LoaderFailure("request_failed");
+    throw new LoaderFailure(encoding === "gzip" ? "invalid_encoding" : "request_failed");
   }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return decodeUtf8(bytes);
+  return decodeUtf8(Buffer.concat(chunks, expanded));
 }
 
 function headerValue(response: IncomingMessage, name: string): string | undefined {
@@ -369,6 +388,10 @@ function parseMetadata(text: string): RegistrationLoadResult {
 function warningFor(error: unknown): string {
   if (!(error instanceof LoaderFailure)) return "Registration metadata request failed";
   switch (error.kind) {
+    case "invalid_content_type":
+      return "Registration metadata requires application/json with UTF-8 encoding";
+    case "invalid_encoding":
+      return "Registration metadata has an invalid or unsupported content encoding";
     case "invalid_uri":
       return "Registration metadata URI is invalid or unsupported";
     case "restricted_address":

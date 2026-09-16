@@ -132,7 +132,7 @@ payment errors retain their codes and any settlement evidence through the rechar
 flow. Preorder failure stops payment. An uncertain payment is never retried automatically.
 Only a successful settlement with a valid hash and matching network can be reported.
 Reporting failure preserves the hash, original target and `retryPayment: false`.
-`bai recharge-report <txHash> --chain tron|bnb|base [--amount <original amount>]`
+`bai report-recharge <txHash> --chain tron|bnb|base [--amount <original amount>]`
 retries reporting without creating an order, resolving a recipient, signing or
 paying. It requires the original personal API key but no local wallet. For another
 recipient, supply both `--to <original identifier>` and `--target-id <original ID>`
@@ -170,7 +170,7 @@ copied into output; callers receive the operation, HTTP status and a safe messag
 Invalid local recharge request fields return `invalid_value` before HTTP.
 
 A report result with `success: false` retains its existing business `code` and adds
-a locally defined explanation. The recharge/recharge-report result keeps the hash,
+a locally defined explanation. The recharge/report-recharge result keeps the hash,
 original target, `creditStatus: unconfirmed` and `retryPayment: false`. Thrown API
 errors also retain their structured error envelope inside that result. These are
 credit failures after payment, not permission to repeat the payment. A failure to
@@ -182,14 +182,14 @@ codes retain the bounded code and a generic reconciliation instruction.
 
 `bai recharge` 使用一份 ChainSpec，并注册 TRON / EVM FamilyBinding；查询和原交易补报仍是无需链上签名的 CommandDefinition。内部订单、补报 port 和恢复信息中的 amount 使用 decimal string，只有 BAI HTTP adapter 在发送 JSON 时转换为服务端要求的 number，并拒绝不能往返保留的金额。
 
-接口调整：`bai recharge-report` 的 `data.amount` 以及充值失败恢复信息中的 `amount` 统一为字符串；`bai recharge` 的顶层付款金额原本就是字符串。BAI 服务端请求仍为 number，服务端返回的原始订单字段不做类型改写。
+接口调整：`bai report-recharge` 的 `data.amount` 以及充值失败恢复信息中的 `amount` 统一为字符串；`bai recharge` 的顶层付款金额原本就是字符串。BAI 服务端请求仍为 number，服务端返回的原始订单字段不做类型改写。
 
 x402 支付保留协议专用流程，通过共用 signer 服务签名；适用范围与不支持的交易模式见 [架构指南](architecture.md#x402-協議支付的邊界)。
 
 
 ## 确认延迟与上报恢复
 
-CLI 在支付成功后立即上报；如果 BAI 返回 `TX_NOT_FOUND_OR_INVALID` 或 `TX_TIMESTAMP_UNAVAILABLE`，等待 15、20、25 秒后分别尝试上报同一笔交易，最多 4 次请求，总上报预算 90 秒。每个 HTTP 请求仍受 `--timeout` 限制，并受剩余上报预算的取消信号约束。手动 `bai recharge-report` 使用相同恢复策略。
+CLI 在支付成功后立即上报；如果 BAI 返回 `TX_NOT_FOUND_OR_INVALID` 或 `TX_TIMESTAMP_UNAVAILABLE`，等待 15、20、25 秒后分别尝试上报同一笔交易，最多 4 次请求，总上报预算 90 秒。每个 HTTP 请求仍受 `--timeout` 限制，并受剩余上报预算的取消信号约束。手动 `bai report-recharge` 使用相同恢复策略。
 
 该流程只等待并重试 BAI 对原交易的核验，不轮询链上 RPC，也不会重新创建订单、解析目标或付款。认证失败、付款人不匹配、其他拒绝及网络异常不自动重试。耗尽预算后返回 `creditStatus=unconfirmed`，保留原交易、链、金额、目标用户和 `retryPayment=false`，供后续补报。
 

@@ -1,3 +1,5 @@
+import { gasfreeRelayClient } from "./gasfree-relay.js";
+import type { Config } from "../../../domain/types/index.js";
 import { X402_TOKENS } from "./tokens.js";
 import { sdkPaymentError, providerPaymentError, type PaymentPhase } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
@@ -24,7 +26,7 @@ import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { toX402Wallet } from "./signer-bridge.js";
 import { createPayerSigner } from "../../../application/services/x402/payer-signer.js";
 import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
-import { toX402Network } from "../../../domain/x402/network-id.js";
+import { toX402Network, sameX402Network } from "../../../domain/x402/network-id.js";
 
 type PaidFetchFactory = (
   network: NetworkDescriptor,
@@ -39,6 +41,7 @@ export class X402PaymentClient implements X402PaymentPort {
     private readonly signers: SignerResolver,
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly paidFetchFactory?: PaidFetchFactory,
+    private readonly config: Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret"> = {},
   ) {}
 
   async pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
@@ -50,6 +53,13 @@ export class X402PaymentClient implements X402PaymentPort {
       (!/^\d+(?:\.\d+)?$/.test(input.maxAmount) || !/[1-9]/.test(input.maxAmount))
     )
       throw new UsageError("invalid_amount", "payment limit must be positive");
+    const relay = gasfreeRelayClient(
+      network,
+      input.gasfreeRelay,
+      this.config,
+      scope.timeoutMs,
+      this.fetcher,
+    );
     const headers = parseHeaders(input.headers);
     const requestInit: RequestInit = {
       method: input.method,
@@ -98,7 +108,7 @@ export class X402PaymentClient implements X402PaymentPort {
 
       phase = "create_payment";
       const signer = createPayerSigner(this.signers, scope, network.family);
-      const paidFetch = await this.createPaidFetch(network, signer, scope, input, initial);
+      const paidFetch = await this.createPaidFetch(network, signer, scope, input, initial, relay);
       phase = "payment_request";
       return await this.readResponse(
         input.url,
@@ -140,6 +150,25 @@ export class X402PaymentClient implements X402PaymentPort {
         );
       }
     }
+    if (paymentHeader && !successfulSettlement(paymentResponse, expectedNetwork)) {
+      throw new TransportError(
+        "invalid_settlement",
+        "paid endpoint returned an invalid settlement receipt",
+        {
+          httpStatus: response.status,
+          settled: false,
+          delivered: response.ok,
+          retryPayment: false,
+          ...providerPaymentError(
+            undefined,
+            "settle",
+            paymentResponse && typeof paymentResponse === "object"
+              ? (paymentResponse as Record<string, unknown>)
+              : undefined,
+          ).details,
+        },
+      );
+    }
     const base = {
       url,
       status: response.status,
@@ -149,6 +178,31 @@ export class X402PaymentClient implements X402PaymentPort {
       ...(paymentResponse === undefined ? {} : { paymentResponse }),
     };
     try {
+      if (!response.ok && !base.settled) {
+        let failure: Record<string, unknown> = {};
+        try {
+          failure = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {
+          /* Not a structured failure. */
+        }
+        if (signer && failure && (failure.phase === "verify" || failure.phase === "settle"))
+          throw providerPaymentError(failure.reason ?? failure.code, failure.phase, failure);
+        const limited =
+          response.status === 429 ||
+          (failure && failure.error === "facilitator /settle failed with HTTP 429");
+        throw new TransportError(
+          limited ? "provider_rate_limited" : "provider_error",
+          limited
+            ? "x402 provider is rate limited; wait before retrying and reconcile payment status"
+            : `x402 endpoint returned HTTP ${response.status}`,
+          {
+            httpStatus: response.status,
+            settled: false,
+            delivered: false,
+            retryPayment: false,
+          },
+        );
+      }
       if (out) {
         await writeOutput(out, bytes);
         return { ...base, output: { path: out, bytes: bytes.byteLength } };
@@ -184,6 +238,7 @@ export class X402PaymentClient implements X402PaymentPort {
     scope: TransactionScope,
     input: X402PayInput,
     initial: Response,
+    relay: ReturnType<typeof gasfreeRelayClient>,
   ): Promise<typeof fetch> {
     let maxGasfreeFeeRaw = input.maxGasfreeFeeRaw;
     if (maxGasfreeFeeRaw === undefined && input.maxGasfreeFee !== undefined) {
@@ -194,7 +249,11 @@ export class X402PaymentClient implements X402PaymentPort {
         paymentDecimals(network.id, selected.asset, input.decimals),
       );
     }
-    const wallet = toX402Wallet(signer, { family: network.family, maxGasfreeFeeRaw });
+    const wallet = toX402Wallet(signer, {
+      family: network.family,
+      maxGasfreeFeeRaw,
+      warn: (message) => scope.warn(message),
+    });
     const bridge = {
       ...wallet,
       async signTypedData(payload: unknown) {
@@ -229,7 +288,7 @@ export class X402PaymentClient implements X402PaymentPort {
     if (network.family === "evm") {
       registerExactEvmScheme(client, {
         signer: bridge as ClientEvmSigner,
-        networks: [x402Network as Network],
+        networks: [network.id as Network],
         schemeOptions: network.httpEndpoint ? { rpcUrl: network.httpEndpoint } : undefined,
       });
     } else {
@@ -241,11 +300,12 @@ export class X402PaymentClient implements X402PaymentPort {
       });
       registerExactTronScheme(client, {
         signer: tronSigner as ClientTronSigner,
-        networks: [x402Network as Network],
+        networks: [network.id as Network],
       });
       registerExactGasFreeTronScheme(client, {
+        schemeOptions: relay ? { apiClients: { [network.id]: relay } } : undefined,
         signer: tronSigner as ClientTronSigner,
-        networks: [x402Network as Network],
+        networks: [network.id as Network],
       });
     }
     // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
@@ -325,18 +385,13 @@ function tokenSymbol(network: string, asset: string): string | undefined {
 
 function paymentDecimals(network: string, asset: string, explicit?: number): number {
   const known = metadata(network, asset)?.decimals;
-  if (
-    explicit !== undefined &&
-    (!Number.isInteger(explicit) ||
-      explicit < 0 ||
-      explicit > 18 ||
-      (known !== undefined && known !== explicit))
-  ) {
+  if (explicit !== undefined && (!Number.isInteger(explicit) || explicit < 0 || explicit > 18))
+    throw new UsageError("invalid_value", "explicit decimals must be an integer from 0 to 18");
+  if (explicit !== undefined && known !== undefined && known !== explicit)
     throw new UsageError(
-      "invalid_amount",
+      "invalid_option",
       "explicit decimals must match the registered token precision",
     );
-  }
   return known ?? explicit ?? tokenDecimals(network, asset);
 }
 
@@ -390,7 +445,7 @@ function selectMatching<T extends OfferedRequirement>(
   const expectedNetwork =
     network.family === "tron" ? `tron:0x${BigInt(network.chainId).toString(16)}` : network.id;
   const matching = requirements.filter((requirement) => {
-    if (requirement.network !== expectedNetwork) return false;
+    if (!sameX402Network(requirement.network, expectedNetwork)) return false;
     if (requirement.scheme !== "exact" && requirement.scheme !== "exact_gasfree") return false;
     if (requirement.scheme === "exact_gasfree" && network.family !== "tron") return false;
     if (input.scheme && requirement.scheme !== input.scheme) return false;

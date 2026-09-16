@@ -61,7 +61,7 @@ it("keeps BAI summary available but rejects recharge on Nile before any account 
       "unsupported_network_capability",
     );
     expect(readFileSync(log, "utf8")).toBe("");
-    const usage = run(["usage"]);
+    const usage = run(["usage-summary"]);
     expect(usage.status, usage.stderr || usage.stdout).toBe(0);
     expect(JSON.parse(usage.stdout).data).toMatchObject({
       credits: "100",

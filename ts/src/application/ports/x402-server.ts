@@ -18,6 +18,9 @@ export interface X402ServeInput {
   host: string;
   port: number;
   facilitatorUrl: string;
+  gasfreeRelay?: string;
+  maxGasfreeFee?: string;
+  maxGasfreeFeeRaw?: string;
 }
 
 export interface X402ServerHandle {

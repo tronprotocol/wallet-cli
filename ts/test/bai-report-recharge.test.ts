@@ -34,7 +34,7 @@ it.each([false, true])(
           pathToFileURL(preload).href,
           entry ?? "src/index.ts",
           "bai",
-          "recharge-report",
+          "report-recharge",
           hash,
           "--chain",
           "base",
@@ -52,6 +52,7 @@ it.each([false, true])(
         },
       );
       expect(result.status, result.stderr || result.stdout).toBe(0);
+      expect(JSON.parse(result.stdout).command).toBe("bai.report-recharge");
       expect(JSON.parse(result.stdout).data).toMatchObject({
         txHash: hash,
         creditStatus: "credited",

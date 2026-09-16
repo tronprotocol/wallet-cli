@@ -38,8 +38,8 @@ Nine built-in networks are supported. Networks use a canonical [CAIP-2](https://
 | `eip155:11155111` | EVM    | ETH         | Sepolia testnet                          |
 | `eip155:56`       | EVM    | BNB         | BNB Smart Chain mainnet — **real funds** |
 | `eip155:97`       | EVM    | BNB         | BNB Smart Chain testnet                  |
-| `eip155:8453` | EVM | ETH | Base mainnet — **real funds** |
-| `eip155:84532` | EVM | ETH | Base Sepolia testnet |
+| `eip155:8453`     | EVM    | ETH         | Base mainnet — **real funds**            |
+| `eip155:84532`    | EVM    | ETH         | Base Sepolia testnet                     |
 
 One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
@@ -214,7 +214,7 @@ wallet-cli 8004 operator-check <owner> <operator> --network nile
 ```
 
 Agent IDs are decimal uint256 strings; scoped IDs must match the selected network.
-HTTP(S), IPFS and base64 JSON data registration URIs are supported (maximum 2048
+HTTPS, IPFS and base64 JSON data registration URIs are supported (maximum 2048
 characters on register/update). Metadata loading is bounded and failures preserve
 chain fields with a warning. `show` and `operator-check` do not require a wallet.
 Write commands retain the normal wallet transaction modes. `--wait` reports the
@@ -226,15 +226,26 @@ transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-int
 
 ## B.AI usage and x402 providers
 
+The v4.14 command names are:
+
+| Group | Commands |
+| --- | --- |
+| `x402` | `pay`, `serve`, `roundtrip`, `provider-list`, `provider-show`, `endpoint-list`, `update-catalog` |
+| `bai` | `usage-summary`, `usage-records`, `recharge`, `report-recharge`, `recharge-orders` |
+| `8004` | `show`, `register`, `update`, `transfer`, `approve`, `add-operator`, `remove-operator`, `operator-check` |
+
+JSON command identifiers use these names, for example `bai.usage-summary`.
+Scripts using earlier beta command names must switch to the names above.
+
 ```sh
-wallet-cli bai usage --output json
-wallet-cli bai usage-list --limit 20 --output json
+wallet-cli bai usage-summary --output json
+wallet-cli bai usage-records --limit 20 --output json
 wallet-cli x402 provider-list --output json
 ```
 
-`bai usage` reads the service's `usage.summary`: current credit balance,
+`bai usage-summary` is the single account summary command (the former `bai status` entry was removed). It reads the service's `usage.summary`: current credit balance,
 current-month spend, and monthly trend. It accepts no date filters and does not
-aggregate usage records locally. `bai usage-list` exposes `hasMore` and
+aggregate usage records locally. `bai usage-records` exposes `hasMore` and
 `nextCursor`; pass `--cursor` to continue listing records. B.AI account reads
 require the configured API key but no wallet signature.
 
@@ -242,3 +253,19 @@ x402 payments use the selected wallet account through the payer signer bridge,
 including the existing device precheck and signing ceremony. Payment guards
 validate the declared payer and configured GasFree fee ceiling. Base USDC,
 BSC, and TRON routes are supported according to the provider's challenge.
+
+For `x402 pay` and `x402 roundtrip`, `--gasfree-relay official` (the default)
+uses the SDK's credential-free proxy. `--gasfree-relay gasfree` reads the
+configured GasFree Open API using `gasfreeApiKey` and `gasfreeApiSecret`;
+missing credentials fail before payment. An HTTPS URL selects a custom relay
+without forwarding those credentials. Selection controls the provider/account
+information used to construct the authorization; the protected endpoint's
+facilitator remains responsible for submitting it. Failed relay requests never
+fall back to another relay or payment scheme.
+
+Use `--max-gasfree-fee` or `--max-gasfree-fee-raw` to cap the fee authorized before
+signing. Without a cap, the CLI warns about the maximum fee/payment ratio. A
+maximum authorized fee is not evidence of the actual fee charged.
+
+Provider queries prefer the local snapshot. Run `x402 update-catalog` to refresh
+it; see [catalog caching](docs/concepts/provider-catalog.md).

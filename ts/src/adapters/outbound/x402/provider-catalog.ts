@@ -55,18 +55,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
 
   async show(fqn: string) {
     safeFqn(fqn);
-    try {
-      return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
-    } catch (error) {
-      if (!offlineEligible(error)) throw error;
-      const cached = await this.cached();
-      const details = cached?.cached_details as Record<string, Record<string, unknown>> | undefined;
-      if (!details || !Object.hasOwn(details, fqn)) throw error;
-      return {
-        ...normalizeObject(details[fqn]!),
-        warnings: ["Using cached provider details while the catalog is unavailable."],
-      };
-    }
+    const cached = await this.cached();
+    const details = cached?.cached_details as Record<string, Record<string, unknown>> | undefined;
+    if (details && Object.hasOwn(details, fqn)) return normalizeObject(details[fqn]!);
+    return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
   }
 
   async endpoints(fqn: string) {
@@ -94,7 +86,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
       await writeFile(temporary, body, { encoding: "utf8", mode: 0o600, flag: "wx" });
       await rename(temporary, this.cacheFile);
     } catch {
-      throw new TransportError("cache_error", "could not write the x402 provider cache");
+      throw new TransportError("provider_error", "could not write the x402 provider cache");
     } finally {
       await rm(temporary, { force: true }).catch(() => {});
     }
@@ -108,20 +100,9 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   }
 
   private async catalog() {
-    try {
-      return validateCatalog(await this.readJson(CATALOG_URL));
-    } catch (error) {
-      if (!offlineEligible(error)) throw error;
-      const cached = await this.cached();
-      if (!cached) throw error;
-      return {
-        ...cached,
-        warnings: [
-          ...((cached.warnings as string[]) ?? []),
-          "Using cached catalog while the provider is unavailable.",
-        ],
-      };
-    }
+    const cached = await this.cached();
+    if (cached) return cached;
+    return validateCatalog(await this.readJson(CATALOG_URL));
   }
 
   private async cached(): Promise<Record<string, unknown> | undefined> {
@@ -268,12 +249,10 @@ function normalizeNetworkAlias(value: string): string {
   return aliases[value.toLowerCase()] ?? normalizeNetwork(value);
 }
 
-function offlineEligible(error: unknown): boolean {
-  return error instanceof CliError && ["provider_error", "timeout"].includes(error.code);
-}
 function validateCatalog(value: Record<string, unknown>): Record<string, unknown> {
+  if (value.version !== 1)
+    throw new TransportError("catalog_schema_unsupported", "x402 catalog version is unsupported");
   if (
-    value.version !== 1 ||
     !Array.isArray(value.providers) ||
     value.providers.some(
       (item) =>
@@ -287,6 +266,17 @@ function validateCatalog(value: Record<string, unknown>): Record<string, unknown
       "invalid_x402_response",
       "x402 catalog must have version 1 and valid providers, timestamp and warnings",
     );
+  }
+  if (
+    value.cached_details !== undefined &&
+    (!value.cached_details ||
+      typeof value.cached_details !== "object" ||
+      Array.isArray(value.cached_details) ||
+      Object.values(value.cached_details).some(
+        (item) => !item || typeof item !== "object" || Array.isArray(item),
+      ))
+  ) {
+    throw new TransportError("invalid_x402_response", "x402 cached provider details are invalid");
   }
   for (const provider of arrayOfObjects(value.providers)) safeFqn(String(provider.fqn));
   return value;

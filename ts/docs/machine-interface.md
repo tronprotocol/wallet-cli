@@ -453,7 +453,7 @@ It remains `paymentStatus: unknown`, `settled: false`, `retryPayment: false`.
 Malformed remote values are omitted. The recharge flow also retains the original
 `chain`, `amount` and `rechargeTarget` in classified payment errors.
 
-Use `wallet-cli bai recharge-report <txHash> --chain base --amount 1` to report a
+Use `wallet-cli bai report-recharge <txHash> --chain base --amount 1` to report a
 verified existing transaction after a report failure. Chain accepts `tron`, `bnb`
 or `base` and must match the original recharge. Use the original personal API key.
 No local wallet, signature, new order or payment is required.
@@ -480,7 +480,7 @@ for supported reasons and recovery behavior.
 
 ### BAI amount representation
 
-BAI application amounts use decimal strings. `bai recharge-report` returns `data.amount`
+BAI application amounts use decimal strings. `bai report-recharge` returns `data.amount`
 as a string when supplied; recharge recovery/error context also carries a string amount.
 `bai recharge` already returns its payment amount as a string. This standardizes the new
 v4.14 interface, whose earlier development build returned numbers in report/recovery fields.
@@ -494,7 +494,7 @@ type from that HTTP request format.
 After payment, BAI reporting retries only `TX_NOT_FOUND_OR_INVALID` and
 `TX_TIMESTAMP_UNAVAILABLE`, with delays of 15, 20 and 25 seconds, at most four requests
 within a 90-second reporting budget. `--timeout` still limits each HTTP request.
-`bai recharge-report` uses the same policy. No payment, preorder or recipient resolution
+`bai report-recharge` uses the same policy. No payment, preorder or recipient resolution
 is repeated. Exhaustion returns `creditStatus: "unconfirmed"` with the original recovery
 fields and `retryPayment: false`; authentication, transport and other rejection codes stop
 without automatic retry.
@@ -504,3 +504,22 @@ x402 error details may include `phase` (`request`, `challenge`, `create_payment`
 `candidateTxHash` / `candidateNetwork`. A candidate hash is evidence for reconciliation,
 not proof of a successful payment. Raw upstream error strings and request credentials
 are not part of this contract.
+
+### x402 R5 response handling
+
+An initial HTTP failure exits with an error, including `httpStatus`, `settled: false`,
+`delivered: false` and `retryPayment: false`. HTTP 429 and the recognized facilitator
+429 wrapper produce `provider_rate_limited`; other failures produce `provider_error`.
+A decoded but invalid settlement receipt produces `invalid_settlement`, preserving
+safe candidate transaction evidence when available. `DEADLINE_OR_CLOCK_SKEW` produces
+`tx_expired`. None of these failures triggers an automatic repeat payment.
+
+TRON challenges accept decimal and hexadecimal references for the same chain;
+local servers emit canonical decimal IDs. A different chain still fails matching.
+GasFree challenges use an empty `extra`; the SDK derives its signing domain.
+
+ERC-8004 remote metadata requires `application/json` and UTF-8. Identity and gzip
+content encodings are supported, with both compressed and expanded data limited
+to 1 MiB under the request deadline. Unsupported or malformed metadata produces a
+warning while preserving the on-chain result. Text output selects known metadata
+fields; JSON retains the loaded metadata.

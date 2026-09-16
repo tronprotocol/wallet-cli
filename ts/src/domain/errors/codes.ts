@@ -208,7 +208,7 @@ export const ERROR_CODES = {
   port_in_use: { exit: 1, retry: "never", meaning: "the requested server port is already in use" },
   agent_not_found: { exit: 1, retry: "never", meaning: "the agent token does not exist" },
   provider_not_found: { exit: 1, retry: "never", meaning: "the requested provider does not exist" },
-  cache_error: { exit: 1, retry: "never", meaning: "the provider cache could not be written" },
+  catalog_schema_unsupported: { exit: 1, retry: "never", meaning: "the provider catalog schema version is unsupported" },
   internal_error: { exit: 1, retry: "never", meaning: "an unexpected internal failure; the message is redacted on purpose" },
 } as const satisfies Record<string, ErrorCodeEntry>;
 

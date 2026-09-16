@@ -97,7 +97,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
       .describe("original rechargeTarget.confirmedTarget.targetId; do not resolve a new target"),
   });
   registry.add({
-    path: ["bai", "recharge-report"],
+    path: ["bai", "report-recharge"],
     network: "none",
     wallet: "none",
     auth: "none",
@@ -125,29 +125,14 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
         });
     }),
     examples: [
-      { cmd: "wallet-cli bai recharge-report 0x" + "a".repeat(64) + " --chain base --amount 1" },
+      { cmd: "wallet-cli bai report-recharge 0x" + "a".repeat(64) + " --chain base --amount 1" },
     ],
     run: async (_ctx, _network, input) => service.rechargeReport(input),
   } satisfies CommandDefinition);
 
   const empty = z.object({});
   registry.add({
-    path: ["bai", "status"],
-    network: "none",
-    wallet: "none",
-    auth: "none",
-    requires,
-    summary: "Show B.AI credit balance and monthly usage",
-    description:
-      "Show the authenticated B.AI account's credit balance, current-month spend, and monthly trend.",
-    fields: empty,
-    input: empty,
-    examples: [{ cmd: "wallet-cli bai status" }],
-    run: async () => service.status(),
-  } satisfies CommandDefinition);
-
-  registry.add({
-    path: ["bai", "usage"],
+    path: ["bai", "usage-summary"],
     network: "none",
     wallet: "none",
     auth: "none",
@@ -157,7 +142,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
       "Show the API-provided credit balance, current-month spend, and monthly usage trend.",
     fields: empty,
     input: empty,
-    examples: [{ cmd: "wallet-cli bai usage" }],
+    examples: [{ cmd: "wallet-cli bai usage-summary" }],
     run: async () => service.usage(),
   } satisfies CommandDefinition);
 
@@ -167,10 +152,10 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
       .min(1)
       .max(8192)
       .optional()
-      .describe("nextCursor returned by the preceding usage-list page"),
+      .describe("nextCursor returned by the preceding usage-records page"),
   });
   registry.add({
-    path: ["bai", "usage-list"],
+    path: ["bai", "usage-records"],
     network: "none",
     wallet: "none",
     auth: "none",
@@ -178,12 +163,12 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     summary: "List individual B.AI usage records",
     fields: usageListFields,
     input: usageListFields,
-    examples: [{ cmd: "wallet-cli bai usage-list --limit 20" }],
+    examples: [{ cmd: "wallet-cli bai usage-records --limit 20" }],
     run: async (_context, _network, input) => service.usageList(input),
   } satisfies CommandDefinition);
 
   registry.add({
-    path: ["bai", "recharge-list"],
+    path: ["bai", "recharge-orders"],
     network: "none",
     wallet: "none",
     auth: "none",
@@ -191,7 +176,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     summary: "List B.AI recharge orders",
     fields: listFields,
     input: listFields,
-    examples: [{ cmd: "wallet-cli bai recharge-list --limit 20" }],
+    examples: [{ cmd: "wallet-cli bai recharge-orders --limit 20" }],
     run: async (_context, _network, input) => service.rechargeList(input),
   } satisfies CommandDefinition);
 }

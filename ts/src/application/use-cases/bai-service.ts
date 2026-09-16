@@ -160,7 +160,7 @@ export class BaiService {
     );
   }
 
-  async status() {
+  async usage() {
     const summary = await this.api.status();
     const current = summary.monthlyChart.at(-1);
     return {
@@ -171,10 +171,6 @@ export class BaiService {
       },
       trend: summary.monthlyChart.map((item) => ({ month: item.month, credits: item.points })),
     };
-  }
-
-  async usage() {
-    return this.status();
   }
 
   async usageList(input: BaiListCommandInput) {

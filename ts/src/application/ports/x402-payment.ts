@@ -17,6 +17,7 @@ export interface X402PayInput {
   exactAmount?: string;
   dryRun?: boolean;
   out?: string;
+  gasfreeRelay?: string;
   maxGasfreeFee?: string;
   maxGasfreeFeeRaw?: string;
 }

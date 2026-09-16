@@ -252,21 +252,22 @@ for (const family of ["evm", "tron"] as const) {
     ["update", ["42", "ipfs://updated"], "setAgentURI"],
     ["transfer", ["42", recipient], "transferFrom"],
     ["approve", ["42", recipient], "approve"],
-    ["operator-add", [recipient], "setApprovalForAll"],
-    ["operator-remove", [recipient], "setApprovalForAll"],
+    ["add-operator", [recipient], "setApprovalForAll"],
+    ["remove-operator", [recipient], "setApprovalForAll"],
   ] as const) {
     it(`${family} ${verb} builds the expected identity transaction without broadcasting`, async () => {
       const f = await fixture(family);
       f.watch();
       const r = await f.run([verb, ...args, "--account", "observer", "--build-only"]);
       expect(r.code, r.stderr || r.stdout).toBe(0);
+      expect(JSON.parse(r.stdout).command).toBe(`8004.${verb}`);
       const data = JSON.parse(r.stdout).data;
       const calldata =
         family === "evm" ? data.tx.data : `0x${data.tx.raw_data.contract[0].parameter.value.data}`;
       const parsed = abi.parseTransaction({ data: calldata });
       expect(parsed?.name).toBe(method);
-      if (verb === "operator-add" || verb === "operator-remove")
-        expect(parsed?.args[1]).toBe(verb === "operator-add");
+      if (verb === "add-operator" || verb === "remove-operator")
+        expect(parsed?.args[1]).toBe(verb === "add-operator");
       expect(
         f.calls.some((c) => c.method === "eth_sendRawTransaction" || c.path.includes("broadcast")),
       ).toBe(false);

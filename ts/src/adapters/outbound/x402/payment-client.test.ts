@@ -195,9 +195,17 @@ it.each([
         },
       }),
   );
-  await expect(
-    client.pay(scope, net, { url: "https://example.test", method: "GET", headers: [] }),
-  ).resolves.toMatchObject({ settled, delivered: false });
+  const pending = client.pay(scope, net, {
+    url: "https://example.test",
+    method: "GET",
+    headers: [],
+  });
+  if (settled) await expect(pending).resolves.toMatchObject({ settled: true, delivered: false });
+  else
+    await expect(pending).rejects.toMatchObject({
+      code: "invalid_settlement",
+      details: { retryPayment: false, settled: false, delivered: false },
+    });
 });
 it("bounds oversized 402 bodies before the SDK or signer handles them", async () => {
   let pulled = 0;
@@ -428,5 +436,48 @@ it.each(["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "SECRET"])(
     if (transportCode === "SECRET") expect(error.details).not.toHaveProperty("transportCode");
     else expect(error.details.transportCode).toBe(transportCode);
     expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  },
+);
+
+it.each([
+  [500, { error: "unknown failure" }, "provider_error"],
+  [500, { error: "facilitator /settle failed with HTTP 429" }, "provider_rate_limited"],
+  [429, {}, "provider_rate_limited"],
+] as const)("fails initial HTTP %s without signing or retrying", async (status, body, code) => {
+  const fetcher = vi.fn(async () => Response.json(body, { status }));
+  const resolve = vi.fn();
+  const client = new X402PaymentClient({ resolve } as unknown as SignerResolver, fetcher);
+  await expect(
+    client.pay(scope, net, { url: "https://example.test/a", method: "GET", headers: [] }),
+  ).rejects.toMatchObject({
+    code,
+    details: { httpStatus: status, retryPayment: false, settled: false, delivered: false },
+  });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(resolve).not.toHaveBeenCalled();
+});
+it.each(["tron:3448148188", "tron:0xcd8690dc"])(
+  "matches incoming %s without changing chain identity",
+  async (network) => {
+    const client = new X402PaymentClient(resolver, async () =>
+      Response.json(
+        { accepts: [{ network, scheme: "exact", amount: "1", asset: "unknown" }] },
+        { status: 402 },
+      ),
+    );
+    await expect(
+      client.pay(
+        scope,
+        { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
+        { url: "https://example.test", method: "GET", headers: [], dryRun: true },
+      ),
+    ).resolves.toMatchObject({ selected: { network: "tron:3448148188" } });
+    await expect(
+      client.pay(
+        scope,
+        { id: "tron:728126428", family: "tron", chainId: "728126428" } as NetworkDescriptor,
+        { url: "https://example.test", method: "GET", headers: [], dryRun: true },
+      ),
+    ).rejects.toMatchObject({ code: "no_matching_requirement" });
   },
 );

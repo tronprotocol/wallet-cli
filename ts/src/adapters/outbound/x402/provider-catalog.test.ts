@@ -1,6 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { X402ProviderCatalog } from "./provider-catalog.js";
+import { X402ProviderCatalog as Catalog } from "./provider-catalog.js";
 
+// Never read the developer's persistent provider snapshot.
+class X402ProviderCatalog extends Catalog {
+  constructor(
+    fetcher: typeof fetch,
+    cache = "/nonexistent-wallet-r5/catalog.json",
+    timeout?: number,
+  ) {
+    super(fetcher, cache, timeout);
+  }
+}
 describe("X402ProviderCatalog", () => {
   it("accepts the Base alias when filtering the online catalog's canonical chain ids", async () => {
     const catalog = new X402ProviderCatalog(
@@ -99,11 +109,13 @@ it("refreshes a complete snapshot, preserves it on invalid updates, and serves o
     });
     const original = await readFile(file, "utf8");
     mode = "invalid";
-    await expect(catalog.update()).rejects.toMatchObject({ code: "invalid_x402_response" });
+    await expect(catalog.update()).rejects.toMatchObject({ code: "catalog_schema_unsupported" });
     expect(await readFile(file, "utf8")).toBe(original);
     mode = "offline";
+    fetcher.mockClear();
     expect(await catalog.list({ limit: 20, offset: 0 })).toMatchObject({ count: 1 });
     expect(await catalog.show("demo/base")).toMatchObject({ endpoints: [{ path: "/pay" }] });
+    expect(fetcher).not.toHaveBeenCalled();
     await expect(catalog.show("demo/missing")).rejects.toMatchObject({ code: "provider_error" });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -115,7 +127,7 @@ it.each([undefined, 0, 2, "1"])(
   async (version) => {
     const catalog = new X402ProviderCatalog(async () => Response.json({ version, providers: [] }));
     await expect(catalog.list({ limit: 1, offset: 0 })).rejects.toMatchObject({
-      code: "invalid_x402_response",
+      code: "catalog_schema_unsupported",
     });
   },
 );
@@ -130,7 +142,7 @@ it("classifies missing providers and filesystem failures without leaking paths",
       join(root, "not-directory", "catalog.json"),
     );
     await expect(catalog.update()).rejects.toMatchObject({
-      code: "cache_error",
+      code: "provider_error",
       message: "could not write the x402 provider cache",
     });
   } finally {

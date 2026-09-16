@@ -17,6 +17,7 @@ async function withServer(
   settlement: object,
   run: (port: number) => Promise<void>,
   fetcher?: typeof fetch,
+  scheme: "exact" | "exact_gasfree" = "exact",
 ) {
   const socket = createServer();
   await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
@@ -35,7 +36,7 @@ async function withServer(
       payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
       amount: "0.01",
       token: "USDT",
-      scheme: "exact",
+      scheme,
       facilitatorUrl: "https://fake.invalid",
     },
   );
@@ -97,7 +98,7 @@ it.each([
           ).toString("base64"),
         },
       });
-      const body = await response.json();
+      const body = (await response.json()) as { accepts: Array<Record<string, unknown>> };
       expect(body).toMatchObject({ code, phase: "settle" });
       expect(JSON.stringify(body)).not.toContain("SECRET");
     },
@@ -145,7 +146,7 @@ it.each(["verify", "settle"])("preserves connection diagnostics during %s", asyn
             ).toString("base64"),
           },
         });
-        const body = await response.json();
+        const body = (await response.json()) as { accepts: Array<Record<string, unknown>> };
         expect(response.status).toBe(502);
         expect(body).toMatchObject({
           code: "provider_error",
@@ -205,4 +206,22 @@ it("reports a port collision without stopping the first server", async () => {
     ).rejects.toMatchObject({ code: "port_in_use" });
     expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
   });
+});
+
+it("advertises canonical TRON IDs and an empty GasFree extra", async () => {
+  await withServer(
+    {},
+    async (port) => {
+      const response = await fetch(`http://127.0.0.1:${port}/.well-known/x402`);
+      const body = (await response.json()) as { accepts: Array<Record<string, unknown>> };
+      expect(body.accepts[0]).toMatchObject({
+        network: "tron:3448148188",
+        scheme: "exact_gasfree",
+        extra: {},
+      });
+      expect(body.accepts[0]!.extra).toEqual({});
+    },
+    undefined,
+    "exact_gasfree",
+  );
 });

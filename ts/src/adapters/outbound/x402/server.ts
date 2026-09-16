@@ -41,8 +41,7 @@ export class X402HttpServer implements X402ServerPort {
 
   async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
     const { token, rawAmount } = this.requirement(network, input);
-    const x402Network =
-      network.family === "tron" ? `tron:0x${BigInt(network.chainId).toString(16)}` : network.id;
+    const x402Network = network.id;
     const host = input.host.includes(":") ? `[${input.host}]` : input.host;
     let resourceUrl = `http://${host}:${input.port}/pay`;
     const requirement = {
@@ -54,7 +53,7 @@ export class X402HttpServer implements X402ServerPort {
       maxTimeoutSeconds: 300,
       extra:
         input.scheme === "exact_gasfree"
-          ? { name: token.name, version: token.version }
+          ? {}
           : token.permit2
             ? { assetTransferMethod: "permit2" }
             : { name: token.name, version: token.version },

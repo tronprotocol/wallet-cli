@@ -59,3 +59,14 @@ it("retains failed settlement hash and safe reason without calling it successful
     }).toEnvelope(),
   ).not.toHaveProperty("details.candidateTxHash");
 });
+
+it.each([
+  Object.assign(new Error("redacted"), { code: "DEADLINE_OR_CLOCK_SKEW" }),
+  new Error("Failed to create payment payload: DEADLINE_OR_CLOCK_SKEW"),
+  new Error("redacted", { cause: new Error("DEADLINE_OR_CLOCK_SKEW") }),
+])("classifies expired authorization without making it retryable", (error) => {
+  expect(sdkPaymentError(error, "sign")).toMatchObject({
+    code: "tx_expired",
+    details: { phase: "sign", retryPayment: false },
+  });
+});

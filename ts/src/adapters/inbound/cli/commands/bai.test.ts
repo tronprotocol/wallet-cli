@@ -5,7 +5,6 @@ import type { BaiService } from "../../../../application/use-cases/bai-service.j
 
 function service(): BaiService {
   return {
-    status: vi.fn(async () => ({ credits: "10", thisMonth: {}, trend: [] })),
     usage: vi.fn(async () => ({})),
     usageList: vi.fn(async () => ({ records: [], pagination: {} })),
     rechargeList: vi.fn(async () => ({ orders: [], pagination: {} })),
@@ -14,30 +13,33 @@ function service(): BaiService {
 }
 
 describe("B.AI command surface", () => {
-  it("registers recharge plus four API-backed read commands under bai", () => {
+  it("registers recharge plus three API-backed read commands under bai", () => {
     const registry = new CommandRegistry();
     registerBaiCommands(registry, service());
     expect(
-      ["status", "usage", "usage-list", "recharge-list"].map((verb) =>
+      ["usage-summary", "usage-records", "recharge-orders"].map((verb) =>
         registry.resolveNeutral(["bai", verb])?.path.join("."),
       ),
-    ).toEqual(["bai.status", "bai.usage", "bai.usage-list", "bai.recharge-list"]);
+    ).toEqual(["bai.usage-summary", "bai.usage-records", "bai.recharge-orders"]);
+    expect(registry.resolveNeutral(["bai", "status"])).toBeNull();
     expect(registry.resolveChain(["bai", "recharge"])?.spec.network).toBe("optional");
   });
 
   it("exposes summary without dates and keeps bounded list pagination", () => {
     const registry = new CommandRegistry();
     registerBaiCommands(registry, service());
-    expect(Object.keys(registry.resolveNeutral(["bai", "usage"])!.fields.shape)).toEqual([]);
+    expect(Object.keys(registry.resolveNeutral(["bai", "usage-summary"])!.fields.shape)).toEqual(
+      [],
+    );
     expect(
-      registry.resolveNeutral(["bai", "usage-list"])!.input.safeParse({
+      registry.resolveNeutral(["bai", "usage-records"])!.input.safeParse({
         limit: 20,
         offset: 0,
         sort: "desc",
       }).success,
     ).toBe(true);
     expect(
-      registry.resolveNeutral(["bai", "usage-list"])!.input.safeParse({ limit: 1001 }).success,
+      registry.resolveNeutral(["bai", "usage-records"])!.input.safeParse({ limit: 1001 }).success,
     ).toBe(false);
   });
 
@@ -79,7 +81,7 @@ describe("B.AI command surface", () => {
 it("exposes report-only recovery without wallet authentication or chain broadcast", () => {
   const registry = new CommandRegistry();
   registerBaiCommands(registry, service());
-  const command = registry.resolveNeutral(["bai", "recharge-report"])!;
+  const command = registry.resolveNeutral(["bai", "report-recharge"])!;
   expect(command).toMatchObject({
     network: "none",
     wallet: "none",
