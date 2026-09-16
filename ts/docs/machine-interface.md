@@ -504,3 +504,22 @@ x402 error details may include `phase` (`request`, `challenge`, `create_payment`
 `candidateTxHash` / `candidateNetwork`. A candidate hash is evidence for reconciliation,
 not proof of a successful payment. Raw upstream error strings and request credentials
 are not part of this contract.
+
+### x402 R5 response handling
+
+An initial HTTP failure exits with an error, including `httpStatus`, `settled: false`,
+`delivered: false` and `retryPayment: false`. HTTP 429 and the recognized facilitator
+429 wrapper produce `provider_rate_limited`; other failures produce `provider_error`.
+A decoded but invalid settlement receipt produces `invalid_settlement`, preserving
+safe candidate transaction evidence when available. `DEADLINE_OR_CLOCK_SKEW` produces
+`tx_expired`. None of these failures triggers an automatic repeat payment.
+
+TRON challenges accept decimal and hexadecimal references for the same chain;
+local servers emit canonical decimal IDs. A different chain still fails matching.
+GasFree challenges use an empty `extra`; the SDK derives its signing domain.
+
+ERC-8004 remote metadata requires `application/json` and UTF-8. Identity and gzip
+content encodings are supported, with both compressed and expanded data limited
+to 1 MiB under the request deadline. Unsupported or malformed metadata produces a
+warning while preserving the on-chain result. Text output selects known metadata
+fields; JSON retains the loaded metadata.

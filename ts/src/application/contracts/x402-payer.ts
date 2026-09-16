@@ -20,6 +20,7 @@ export interface PayerSigner {
 /** Per-payment limits the bridge enforces on every payload it passes on. */
 export interface PayerPolicy {
   readonly family: ChainFamily;
+  readonly warn?: (message: string) => void;
   /** GasFree `PermitTransfer.maxFee` ceiling in base units; absent means no ceiling. */
   readonly maxGasfreeFeeRaw?: string;
 }

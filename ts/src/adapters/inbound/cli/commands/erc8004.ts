@@ -1,3 +1,4 @@
+import { agentShowText } from "../render/x402.js";
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { AgentService } from "../../../../application/use-cases/agent-service.js";
@@ -68,7 +69,7 @@ export const showSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "erc8004.identity.read",
-  formatText: (data, ctx) => renderGenericText(ctx.command, ctx.net, data),
+  formatText: agentShowText,
   positionals: [{ field: "id" }],
   summary: "Load one ERC-8004 Agent directly from the Identity Registry",
   baseFields: z.object({ id: agentId }),

@@ -97,7 +97,7 @@ it("rejects a registered token precision override before HTTP or signing", async
       asset: "0x55d398326f99059ff775485246999027b3197955",
       decimals: 7,
     }),
-  ).rejects.toMatchObject({ code: "invalid_amount" });
+  ).rejects.toMatchObject({ code: "invalid_option" });
   expect(fetcher).not.toHaveBeenCalled();
   expect(resolve).not.toHaveBeenCalled();
 });

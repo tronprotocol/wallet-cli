@@ -141,7 +141,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
-  const x402Payments = new X402PaymentClient(signerResolver);
+  const x402Payments = new X402PaymentClient(signerResolver, undefined, undefined, config);
   const x402Service = new X402Service(
     x402Payments,
     new X402ProviderCatalog(undefined, undefined, timeoutMs),

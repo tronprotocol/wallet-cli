@@ -264,3 +264,16 @@ it.each(["Transfer", "PermitTransfer"])(
     ).resolves.toBe("0xsig");
   },
 );
+
+it("warns about an uncapped high GasFree fee before requesting the signature", async () => {
+  const warn = vi.fn();
+  const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
+  const wallet = toX402Wallet(payer, { family: "tron", warn });
+  const payload = permitPayload(TRON_HEX, "1300000");
+  payload.message.value = "10000";
+  await wallet.signTypedData(payload);
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining("13000.00%"));
+  expect(warn.mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(payer.signTypedData).mock.invocationCallOrder[0]!,
+  );
+});

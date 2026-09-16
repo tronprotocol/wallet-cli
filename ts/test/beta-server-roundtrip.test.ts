@@ -56,7 +56,7 @@ it.skipIf(!entry).each(["SIGINT", "SIGTERM"] as const)(
       expect(r.status).toBe(402);
       expect(r.headers.has("payment-required")).toBe(true);
       expect(((await r.json()) as { accepts: { network: string }[] }).accepts[0]!.network).toBe(
-        "tron:0xcd8690dc",
+        "tron:3448148188",
       );
     } finally {
       const stopped = new Promise<{ code: number | null; signal: string | null }>((resolve) =>

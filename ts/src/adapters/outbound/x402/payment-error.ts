@@ -82,6 +82,24 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
           code?: unknown;
         })
       : undefined;
+  if (
+    [
+      record?.code,
+      record?.cause?.code,
+      cause,
+      (error as { cause?: { message?: string } })?.cause?.message,
+    ].some((value) => typeof value === "string" && /\bDEADLINE_OR_CLOCK_SKEW\b/.test(value))
+  ) {
+    return new TransportError(
+      "tx_expired",
+      "Payment authorization expired or the clock is out of sync; reconcile before paying again",
+      {
+        ...(phase ? { phase } : {}),
+        retryPayment: false,
+        paymentStatus: "unknown",
+      },
+    );
+  }
   const status =
     record?.response?.status ??
     record?.status ??

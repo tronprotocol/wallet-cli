@@ -55,6 +55,9 @@ export class X402Service {
         expectedPayTo: input.payTo,
         exactAmount: input.amount,
         maxAmount: input.amount,
+        gasfreeRelay: input.gasfreeRelay,
+        maxGasfreeFee: input.maxGasfreeFee,
+        maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
       });
       return { serve: handle.details, pay };
     } finally {

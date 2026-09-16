@@ -214,7 +214,7 @@ wallet-cli 8004 operator-check <owner> <operator> --network nile
 ```
 
 Agent IDs are decimal uint256 strings; scoped IDs must match the selected network.
-HTTP(S), IPFS and base64 JSON data registration URIs are supported (maximum 2048
+HTTPS, IPFS and base64 JSON data registration URIs are supported (maximum 2048
 characters on register/update). Metadata loading is bounded and failures preserve
 chain fields with a warning. `show` and `operator-check` do not require a wallet.
 Write commands retain the normal wallet transaction modes. `--wait` reports the
@@ -242,3 +242,19 @@ x402 payments use the selected wallet account through the payer signer bridge,
 including the existing device precheck and signing ceremony. Payment guards
 validate the declared payer and configured GasFree fee ceiling. Base USDC,
 BSC, and TRON routes are supported according to the provider's challenge.
+
+For `x402 pay` and `x402 roundtrip`, `--gasfree-relay official` (the default)
+uses the SDK's credential-free proxy. `--gasfree-relay gasfree` reads the
+configured GasFree Open API using `gasfreeApiKey` and `gasfreeApiSecret`;
+missing credentials fail before payment. An HTTPS URL selects a custom relay
+without forwarding those credentials. Selection controls the provider/account
+information used to construct the authorization; the protected endpoint's
+facilitator remains responsible for submitting it. Failed relay requests never
+fall back to another relay or payment scheme.
+
+Use `--max-gasfree-fee` or `--max-gasfree-fee-raw` to cap the fee authorized before
+signing. Without a cap, the CLI warns about the maximum fee/payment ratio. A
+maximum authorized fee is not evidence of the actual fee charged.
+
+Provider queries prefer the local snapshot. Run `x402 provider-update` to refresh
+it; see [catalog caching](docs/concepts/provider-catalog.md).

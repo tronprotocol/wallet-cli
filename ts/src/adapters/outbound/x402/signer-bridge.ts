@@ -147,6 +147,16 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
       }
       assertPayerMatches(payload, primaryType, payer.address, policy.family);
       assertFeeWithinCap(payload, primaryType, policy.maxGasfreeFeeRaw);
+      if (primaryType === PERMIT_TRANSFER && policy.maxGasfreeFeeRaw === undefined) {
+        const fee = String(payload.message.maxFee);
+        const value = String(payload.message.value);
+        if (/^\d+$/.test(fee) && /^\d+$/.test(value) && BigInt(value) > 0n) {
+          const percent = (BigInt(fee) * 10000n) / BigInt(value);
+          policy.warn?.(
+            `GasFree maximum authorized fee ${fee} for payment ${value} (${percent / 100n}.${String(percent % 100n).padStart(2, "0")}% in base units). This is a ceiling, not the actual charge. Set --max-gasfree-fee or --max-gasfree-fee-raw to limit it.`,
+          );
+        }
+      }
       const signed = await payer.signTypedData(payload);
       assertSignedTheRequest(signed, primaryType);
       return prefixedHex(signed.signature);

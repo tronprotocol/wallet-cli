@@ -1,3 +1,9 @@
+import {
+  paymentText,
+  providerListText,
+  providerShowText,
+  providerEndpointsText,
+} from "../render/x402.js";
 import { paymentAmount, rawPaymentAmount, integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
@@ -26,6 +32,10 @@ const payFields = z.object({
   maxAmount: paymentAmount.optional().describe("maximum payment in whole tokens"),
   maxRawAmount: rawPaymentAmount.optional().describe("maximum payment in smallest units"),
   dryRun: z.boolean().default(false).describe("inspect the payment challenge without signing"),
+  gasfreeRelay: z
+    .string()
+    .optional()
+    .describe("GasFree relay: official (default), gasfree, or HTTPS URL"),
   maxGasfreeFee: z
     .string()
     .regex(/^\d+(?:\.\d+)?$/)
@@ -74,6 +84,7 @@ const payInput = payFields.superRefine((value, context) => {
 
 const payCommand: CommandDefinition = {
   path: ["x402", "pay"],
+  formatText: paymentText,
   network: "optional",
   wallet: "optional",
   auth: "conditional",
@@ -127,6 +138,19 @@ const serveFields = z.object({
     .default("https://facilitator.bankofai.io"),
 });
 
+const roundtripFields = serveFields.extend({
+  gasfreeRelay: payFields.shape.gasfreeRelay,
+  maxGasfreeFee: payFields.shape.maxGasfreeFee,
+  maxGasfreeFeeRaw: payFields.shape.maxGasfreeFeeRaw,
+});
+const roundtripInput = roundtripFields.refine(
+  (value) => !(value.maxGasfreeFee !== undefined && value.maxGasfreeFeeRaw !== undefined),
+  {
+    message: "GasFree fee limits are mutually exclusive",
+    params: { errorCode: "invalid_option" },
+  },
+);
+
 export function registerX402Commands(registry: CommandRegistry, service: X402Service): void {
   registry.add({
     ...payCommand,
@@ -145,6 +169,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
         ...(input.maxAmount === undefined ? {} : { maxAmount: input.maxAmount }),
         ...(input.maxRawAmount === undefined ? {} : { maxRawAmount: input.maxRawAmount }),
         dryRun: input.dryRun,
+        gasfreeRelay: input.gasfreeRelay,
         ...(input.out === undefined ? {} : { out: input.out }),
         ...(input.maxGasfreeFee === undefined ? {} : { maxGasfreeFee: input.maxGasfreeFee }),
         ...(input.maxGasfreeFeeRaw === undefined
@@ -181,8 +206,8 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     broadcasts: true,
     capability: "x402.pay",
     summary: "Start a local paywall, pay it, and exit",
-    fields: serveFields,
-    input: serveFields,
+    fields: roundtripFields,
+    input: roundtripInput,
     examples: [{ cmd: "wallet-cli x402 roundtrip --pay-to T... --network tron --password-stdin" }],
     run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 roundtrip requires a resolved network");
@@ -192,6 +217,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
 
   registry.add({
     path: ["x402", "provider-list"],
+    formatText: providerListText,
     network: "none",
     wallet: "none",
     auth: "none",
@@ -216,6 +242,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     const fields = z.object({ provider: fqn });
     registry.add({
       path: ["x402", verb],
+      formatText: verb === "provider-show" ? providerShowText : providerEndpointsText,
       network: "none",
       wallet: "none",
       auth: "none",

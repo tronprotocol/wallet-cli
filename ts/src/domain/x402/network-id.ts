@@ -20,7 +20,7 @@ export interface X402NetworkIdentity {
 
 /** `tron:<hex>` or `eip155:<decimal>`; a hex reference is also accepted for eip155 so a
  *  round-trip never depends on which base a counterparty chose. */
-const X402_ID = /^(tron|eip155):(0x[0-9a-f]+|[0-9]+)$/;
+const X402_ID = /^(tron|eip155):(0x[0-9a-f]{1,64}|[0-9]{1,78})$/;
 
 export function toX402Network(network: X402NetworkIdentity): string {
   const value = BigInt(network.chainId);
@@ -38,4 +38,15 @@ export function fromX402Network(id: string): X402NetworkIdentity {
     family: match[1] === "tron" ? "tron" : "evm",
     chainId: BigInt(match[2]!).toString(10),
   };
+}
+
+/** Compare identifiers by chain identity without changing the signed wire representation. */
+export function sameX402Network(left: string, right: string): boolean {
+  try {
+    const a = fromX402Network(left);
+    const b = fromX402Network(right);
+    return a.family === b.family && a.chainId === b.chainId;
+  } catch {
+    return false;
+  }
 }

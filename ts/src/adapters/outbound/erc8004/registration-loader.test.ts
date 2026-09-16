@@ -21,13 +21,13 @@ function allowPublicDns(): void {
 }
 
 function incomingResponse(
-  body: string,
+  body: string | Buffer,
   statusCode = 200,
   headers: IncomingMessage["headers"] = {},
 ): IncomingMessage {
   const response = Readable.from([Buffer.from(body)]) as IncomingMessage;
   response.statusCode = statusCode;
-  response.headers = headers;
+  response.headers = { "content-type": "application/json", ...headers };
   return response;
 }
 
@@ -38,7 +38,7 @@ function clientRequest(): ClientRequest {
 }
 
 function replyHttps(
-  body: string,
+  body: string | Buffer,
   statusCode = 200,
   headers: IncomingMessage["headers"] = {},
 ): void {
@@ -52,7 +52,7 @@ function replyHttps(
   }) as typeof httpsRequest);
 }
 
-function replyHttp(body: string, statusCode = 200): void {
+function replyHttp(body: string | Buffer, statusCode = 200): void {
   httpRequestMock.mockImplementationOnce(((
     _url: URL,
     _options: RequestOptions,
@@ -141,7 +141,7 @@ describe("RegistrationLoader", () => {
       requestOptions = options;
       const response = Readable.from(['{"name":"pinned"}']) as IncomingMessage;
       response.statusCode = 200;
-      response.headers = {};
+      response.headers = { "content-type": "application/json" };
       callback(response);
       const request = new EventEmitter() as ClientRequest;
       request.end = vi.fn();
@@ -323,7 +323,7 @@ describe("RegistrationLoader", () => {
     allowPublicDns();
     const response = new Readable({ read() {} }) as IncomingMessage;
     response.statusCode = 200;
-    response.headers = {};
+    response.headers = { "content-type": "application/json" };
     httpsRequestMock.mockImplementation(((
       _url: URL,
       _options: RequestOptions,
@@ -364,5 +364,33 @@ describe("RegistrationLoader", () => {
     await expect(
       new RegistrationLoader(1_000).load("https://metadata.example/agent?token=query-secret"),
     ).resolves.toEqual({ warning: "Registration metadata request failed" });
+  });
+});
+
+import { gzipSync } from "node:zlib";
+it.each(["text/plain", "application/json; charset=utf-16le", ""])(
+  "rejects metadata content type %s",
+  async (contentType) => {
+    allowPublicDns();
+    replyHttps('{"name":"ignored"}', 200, { "content-type": contentType });
+    await expect(new RegistrationLoader(1000).load("https://example.test/a")).resolves.toEqual({
+      warning: "Registration metadata requires application/json with UTF-8 encoding",
+    });
+  },
+);
+it.each([1024 * 1024, 1024 * 1024 + 1])("bounds decompressed gzip at %s bytes", async (size) => {
+  allowPublicDns();
+  const body = JSON.stringify({ name: "a".repeat(size - 11) });
+  expect(Buffer.byteLength(body)).toBe(size);
+  replyHttps(gzipSync(body), 200, { "content-encoding": "gzip" });
+  const result = await new RegistrationLoader(1000).load("https://example.test/a");
+  if (size === 1024 * 1024) expect(result.metadata?.name).toHaveLength(size - 11);
+  else expect(result.warning).toContain("1 MiB");
+});
+it("rejects corrupt gzip without returning metadata", async () => {
+  allowPublicDns();
+  replyHttps("not gzip", 200, { "content-encoding": "gzip" });
+  await expect(new RegistrationLoader(1000).load("https://example.test/a")).resolves.toMatchObject({
+    warning: expect.stringContaining("content encoding"),
   });
 });
