@@ -226,7 +226,7 @@ transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-int
 
 ## B.AI usage and x402 providers
 
-The v4.14 command names are:
+The v4.14.0 command names are:
 
 | Group  | Commands                                                                                                 |
 | ------ | -------------------------------------------------------------------------------------------------------- |
