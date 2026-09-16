@@ -38,8 +38,8 @@ Nine built-in networks are supported. Networks use a canonical [CAIP-2](https://
 | `eip155:11155111` | EVM    | ETH         | Sepolia testnet                          |
 | `eip155:56`       | EVM    | BNB         | BNB Smart Chain mainnet — **real funds** |
 | `eip155:97`       | EVM    | BNB         | BNB Smart Chain testnet                  |
-| `eip155:8453` | EVM | ETH | Base mainnet — **real funds** |
-| `eip155:84532` | EVM | ETH | Base Sepolia testnet |
+| `eip155:8453`     | EVM    | ETH         | Base mainnet — **real funds**            |
+| `eip155:84532`    | EVM    | ETH         | Base Sepolia testnet                     |
 
 One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
@@ -232,7 +232,7 @@ wallet-cli bai usage-list --limit 20 --output json
 wallet-cli x402 provider-list --output json
 ```
 
-`bai usage` reads the service's `usage.summary`: current credit balance,
+`bai usage` is the single account summary command (the former `bai status` entry was removed). It reads the service's `usage.summary`: current credit balance,
 current-month spend, and monthly trend. It accepts no date filters and does not
 aggregate usage records locally. `bai usage-list` exposes `hasMore` and
 `nextCursor`; pass `--cursor` to continue listing records. B.AI account reads

@@ -5,7 +5,6 @@ import type { BaiService } from "../../../../application/use-cases/bai-service.j
 
 function service(): BaiService {
   return {
-    status: vi.fn(async () => ({ credits: "10", thisMonth: {}, trend: [] })),
     usage: vi.fn(async () => ({})),
     usageList: vi.fn(async () => ({ records: [], pagination: {} })),
     rechargeList: vi.fn(async () => ({ orders: [], pagination: {} })),
@@ -14,14 +13,15 @@ function service(): BaiService {
 }
 
 describe("B.AI command surface", () => {
-  it("registers recharge plus four API-backed read commands under bai", () => {
+  it("registers recharge plus three API-backed read commands under bai", () => {
     const registry = new CommandRegistry();
     registerBaiCommands(registry, service());
     expect(
-      ["status", "usage", "usage-list", "recharge-list"].map((verb) =>
+      ["usage", "usage-list", "recharge-list"].map((verb) =>
         registry.resolveNeutral(["bai", verb])?.path.join("."),
       ),
-    ).toEqual(["bai.status", "bai.usage", "bai.usage-list", "bai.recharge-list"]);
+    ).toEqual(["bai.usage", "bai.usage-list", "bai.recharge-list"]);
+    expect(registry.resolveNeutral(["bai", "status"])).toBeNull();
     expect(registry.resolveChain(["bai", "recharge"])?.spec.network).toBe("optional");
   });
 

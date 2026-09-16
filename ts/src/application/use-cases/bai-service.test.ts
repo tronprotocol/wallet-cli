@@ -17,7 +17,7 @@ function api(): BaiApi {
 
 describe("BaiService", () => {
   it("maps the account summary to stable credit names", async () => {
-    await expect(new BaiService(api()).status()).resolves.toEqual({
+    await expect(new BaiService(api()).usage()).resolves.toEqual({
       credits: "1200000",
       thisMonth: { month: "2026-09", credits: "300000" },
       trend: [{ month: "2026-09", credits: "300000" }],

@@ -132,21 +132,6 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
 
   const empty = z.object({});
   registry.add({
-    path: ["bai", "status"],
-    network: "none",
-    wallet: "none",
-    auth: "none",
-    requires,
-    summary: "Show B.AI credit balance and monthly usage",
-    description:
-      "Show the authenticated B.AI account's credit balance, current-month spend, and monthly trend.",
-    fields: empty,
-    input: empty,
-    examples: [{ cmd: "wallet-cli bai status" }],
-    run: async () => service.status(),
-  } satisfies CommandDefinition);
-
-  registry.add({
     path: ["bai", "usage"],
     network: "none",
     wallet: "none",

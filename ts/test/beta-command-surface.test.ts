@@ -16,10 +16,7 @@ const commands = [
     "provider-endpoints",
     "provider-update",
   ].map((v) => ["x402", v]),
-  ...["recharge", "recharge-report", "status", "usage", "usage-list", "recharge-list"].map((v) => [
-    "bai",
-    v,
-  ]),
+  ...["recharge", "recharge-report", "usage", "usage-list", "recharge-list"].map((v) => ["bai", v]),
   ...[
     "show",
     "register",
@@ -128,7 +125,7 @@ it.skipIf(!entry).each(["provider-list", "provider-show", "provider-endpoints", 
     }
   },
 );
-it.skipIf(!entry).each(["status", "usage", "usage-list", "recharge-list"])(
+it.skipIf(!entry).each(["usage", "usage-list", "recharge-list"])(
   "bai %s against authenticated fixture",
   (verb) => {
     const mock = `globalThis.fetch=async(url,init)=>{
@@ -141,7 +138,7 @@ it.skipIf(!entry).each(["status", "usage", "usage-list", "recharge-list"])(
     const r = run(["bai", verb, "--output", "json"], mock);
     expect(r.status, r.stderr + r.stdout).toBe(0);
     const data = JSON.parse(r.stdout).data;
-    if (verb === "status" || verb === "usage") expect(data.credits).toBe("100");
+    if (verb === "usage") expect(data.credits).toBe("100");
     else expect(JSON.stringify(data)).toContain(verb === "usage-list" ? "r1" : "o1");
   },
 );
