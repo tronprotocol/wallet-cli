@@ -194,20 +194,3 @@ CLI 在支付成功后立即上报；如果 BAI 返回 `TX_NOT_FOUND_OR_INVALID`
 该流程只等待并重试 BAI 对原交易的核验，不轮询链上 RPC，也不会重新创建订单、解析目标或付款。认证失败、付款人不匹配、其他拒绝及网络异常不自动重试。耗尽预算后返回 `creditStatus=unconfirmed`，保留原交易、链、金额、目标用户和 `retryPayment=false`，供后续补报。
 
 x402 错误新增阶段信息：`request`、`challenge`、`create_payment`、`sign`、`payment_request`、`verify`、`settle`。能够识别的 HTTP 错误保留状态码，连接错误保留白名单中的错误码；结算失败保留合法的候选交易哈希和网络，不直接回显 SDK 消息、请求内容或凭证。
-
-## Preview and fee controls
-
-`bai recharge 1 --network base --token USDC --dry-run` validates binding, amount,
-destination and the x402 challenge without creating an order, unlocking, signing,
-paying or reporting a transaction. Recipient recharge still resolves `--to`.
-The preview includes payer wallet balances when RPC is available. It does not
-claim a final fee quote or a GasFree account balance; unavailable estimates are
-explicitly null. Base and recipient recharge remain supported.
-
-TRON supports `--scheme exact_gasfree`, `--gasfree-relay`, and mutually exclusive
-`--max-gasfree-fee` / `--max-gasfree-fee-raw`. The same signer bridge enforces fee
-limits before signing. An unknown settlement outcome never triggers repayment.
-
-`bai recharge-orders` accepts limits through 200, but caps the effective limit at
-100 for the order API, with a warning and accurate pagination metadata. Offsets
-are preserved across backend page boundaries; usage records retain their own limit.

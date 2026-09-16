@@ -7,7 +7,3 @@
 Text output shows selected fields, a first-sentence summary and network aliases. Endpoint tables show exact prices or ranges; missing routes are shown as `——`, not a zero price. JSON retains complete provider data.
 
 Catalog requests honor the CLI `--timeout` value and limit response bodies to 10 MiB, including responses without a Content-Length header. Facilitator requests use the same configured per-request timeout and a 1 MiB response limit. The timeout does not stop the lifetime of a running `x402 serve` process.
-
-Provider lists omit search-only `query`, `score`, `matchedFields` and inline
-`endpoints`; use `endpoint-list` to inspect endpoints. Lists retain `endpointCount`
-and normalize extension metadata keys to camelCase.
