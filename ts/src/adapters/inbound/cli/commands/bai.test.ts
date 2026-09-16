@@ -111,6 +111,6 @@ it("shares recharge schema across families and selects the Base token in its bin
       command.spec.baseFields.parse({ amount: "1" }),
     ),
   ).resolves.toMatchObject({ amount: "1", token: "USDC" });
-  for (const field of ["dryRun", "signOnly", "buildOnly"])
+  for (const field of ["signOnly", "buildOnly"])
     expect(command.spec.baseFields.shape).not.toHaveProperty(field);
 });

@@ -180,3 +180,122 @@ it.each([
     expect(payments.roundtrip).not.toHaveBeenCalled();
   },
 );
+
+it("previews a recipient recharge without creating an order or obtaining any signature", async () => {
+  const { X402Service } = await import("./x402-service.js");
+  const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
+  const signing = {
+    assertCanSign: vi.fn(),
+    resolve: vi.fn(() => {
+      throw new Error("must not unlock");
+    }),
+  };
+  const payments = new X402Service(
+    new X402PaymentClient(signing as never),
+    {} as never,
+    new X402HttpServer(undefined, 1000, () => {}),
+  );
+  const api = {
+    resolveTarget: vi.fn(async () => ({ targetId: "recipient-id" })),
+    createOrder: vi.fn(),
+    reportTxHash: vi.fn(),
+  };
+  const service = new BaiService(
+    {} as never,
+    () => new Date(),
+    payments,
+    { isConfirmed: () => true } as never,
+    api as never,
+    { facilitatorUrl: "https://fake.invalid", payTo: { bnb: payer } },
+  );
+  const result = await service.recharge(
+    { resolveAddress: () => payer, timeoutMs: 1000 } as never,
+    network as never,
+    { amount: "1", token: "USDT", apiKey: "test-key", dryRun: true, to: "recipient@example.com" },
+  );
+  expect(result).toMatchObject({
+    dryRun: true,
+    rawAmount: "1000000000000000000",
+    payer,
+    payTo: payer,
+    payment: { dryRun: true, settled: false },
+    rechargeTarget: { confirmedTarget: { targetId: "recipient-id" } },
+  });
+  expect(api.createOrder).not.toHaveBeenCalled();
+  expect(api.reportTxHash).not.toHaveBeenCalled();
+  expect(signing.resolve).not.toHaveBeenCalled();
+  expect(signing.assertCanSign).not.toHaveBeenCalled();
+});
+
+it("reports account ambiguity before checking binding or contacting B.AI", async () => {
+  const { UsageError } = await import("../../domain/errors/index.js");
+  const isConfirmed = vi.fn();
+  const remote = { createOrder: vi.fn(), resolveTarget: vi.fn() };
+  const service = new BaiService(
+    {} as never,
+    undefined,
+    undefined,
+    { isConfirmed } as never,
+    remote as never,
+    undefined,
+    undefined,
+    undefined,
+    {
+      resolveAccount: () => {
+        throw new UsageError("ambiguous_account", "Select an account", {
+          accountIds: ["software", "watch"],
+        });
+      },
+    },
+  );
+  await expect(
+    service.recharge({ activeAccount: payer } as never, network as never, {
+      amount: "1",
+      token: "USDT",
+      apiKey: "test-key",
+    }),
+  ).rejects.toMatchObject({
+    code: "ambiguous_account",
+    details: { accountIds: ["software", "watch"] },
+  });
+  expect(isConfirmed).not.toHaveBeenCalled();
+  expect(remote.createOrder).not.toHaveBeenCalled();
+  expect(remote.resolveTarget).not.toHaveBeenCalled();
+});
+
+it("checks relay configuration before creating any preorder", async () => {
+  const { X402Service } = await import("./x402-service.js");
+  const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
+  const { X402HttpServer } = await import("../../adapters/outbound/x402/server.js");
+  const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
+  const payments = new X402Service(
+    new X402PaymentClient({} as never),
+    {} as never,
+    new X402HttpServer(),
+  );
+  const service = new BaiService(
+    {} as never,
+    undefined,
+    payments,
+    { isConfirmed: () => true } as never,
+    api as never,
+    {
+      facilitatorUrl: "https://fake.invalid",
+      payTo: { tron: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" },
+    },
+  );
+  await expect(
+    service.recharge(
+      { resolveAddress: () => "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" } as never,
+      { id: "tron:728126428", family: "tron", chainId: "728126428" } as never,
+      {
+        amount: "1",
+        token: "USDT",
+        apiKey: "test-key",
+        gasfreeRelay: "gasfree",
+        scheme: "exact_gasfree",
+      },
+    ),
+  ).rejects.toMatchObject({ code: "gasfree_credentials_missing" });
+  expect(api.createOrder).not.toHaveBeenCalled();
+});

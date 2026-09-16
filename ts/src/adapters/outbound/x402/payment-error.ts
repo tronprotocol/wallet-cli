@@ -36,7 +36,7 @@ export function providerPaymentError(
   const known =
     typeof key === "string" && Object.hasOwn(reasons, key) ? reasons[key]!() : undefined;
   return new TransportError(
-    known?.code ?? "provider_error",
+    evidence?.httpStatus === 429 ? "provider_rate_limited" : (known?.code ?? "provider_error"),
     known?.message ?? `x402 payment ${phase === "verify" ? "verification" : "settlement"} failed`,
     {
       phase,
@@ -62,7 +62,14 @@ export type PaymentPhase =
   "request" | "challenge" | "create_payment" | "sign" | "payment_request" | "verify" | "settle";
 export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError {
   if (error instanceof CliError) {
-    if (!phase || (error.details as Record<string, unknown> | undefined)?.phase) return error;
+    const details = error.details as Record<string, unknown> | undefined;
+    if (error.code === "provider_error" && details?.httpStatus === 429)
+      return new TransportError(
+        "provider_rate_limited",
+        "x402 upstream rate limited the request; reconcile before paying again",
+        { ...details, ...(phase ? { phase } : {}), retryPayment: false },
+      );
+    if (!phase || details?.phase) return error;
     const ErrorType = error.kind === "usage" ? UsageError : TransportError;
     return new ErrorType(error.code, error.message, {
       ...error.details,
@@ -76,7 +83,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
   const record =
     error && typeof error === "object"
       ? (error as {
-          response?: { status?: unknown };
+          response?: { status?: unknown; headers?: Record<string, unknown> };
           status?: unknown;
           cause?: { code?: unknown };
           code?: unknown;
@@ -113,11 +120,12 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     httpStatus <= 599
   )
     return new TransportError(
-      "provider_error",
+      httpStatus === 429 ? "provider_rate_limited" : "provider_error",
       `x402 upstream request returned HTTP ${httpStatus}; reconcile before paying again`,
       {
         ...(phase ? { phase } : {}),
         httpStatus,
+        ...safeRetryAfter(record?.response?.headers?.["retry-after"]),
         reason: "http_error",
         paymentStatus: "unknown",
         retryPayment: false,
@@ -195,4 +203,13 @@ function candidateEvidence(value?: Record<string, unknown>) {
       ? { httpStatus: status }
       : {}),
   };
+}
+
+function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
+  if (
+    (typeof value === "string" && /^\d{1,9}$/.test(value)) ||
+    (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 999999999)
+  )
+    return { retryAfterSeconds: Number(value) };
+  return {};
 }

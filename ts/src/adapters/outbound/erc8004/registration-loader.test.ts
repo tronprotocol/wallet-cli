@@ -72,12 +72,12 @@ describe("RegistrationLoader", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
-  it("decodes a strict base64 JSON data URI", async () => {
+  it("rejects a data URI without resolving or requesting it", async () => {
     const encoded = Buffer.from(JSON.stringify({ name: "Ada", active: true })).toString("base64");
 
     await expect(
       new RegistrationLoader(1_000).load(`data:application/json;base64,${encoded}`),
-    ).resolves.toEqual({ metadata: { name: "Ada", active: true } });
+    ).resolves.toEqual({ warning: "Registration metadata URI is invalid or unsupported" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(httpRequestMock).not.toHaveBeenCalled();
     expect(httpsRequestMock).not.toHaveBeenCalled();
@@ -103,11 +103,11 @@ describe("RegistrationLoader", () => {
     ["an array", ["not", "an", "object"]],
     ["null", null],
     ["a scalar", "metadata"],
-  ])("requires data metadata to be a JSON object: %s", async (_label, value) => {
-    const encoded = Buffer.from(JSON.stringify(value)).toString("base64");
-
+  ])("requires HTTP metadata to be a JSON object: %s", async (_label, value) => {
+    allowPublicDns();
+    replyHttps(JSON.stringify(value));
     await expect(
-      new RegistrationLoader(1_000).load(`data:application/json;base64,${encoded}`),
+      new RegistrationLoader(1_000).load("https://metadata.example/agent.json"),
     ).resolves.toEqual({ warning: "Registration metadata is not a JSON object" });
   });
 
@@ -221,53 +221,63 @@ describe("RegistrationLoader", () => {
     expect(httpsRequestMock).not.toHaveBeenCalled();
   });
 
-  it("maps an IPFS URI through the fixed HTTPS gateway", async () => {
-    allowPublicDns();
-    replyHttps('{"name":"ipfs"}');
-
+  it("rejects IPFS without using a gateway or DNS", async () => {
     await expect(
-      new RegistrationLoader(1_000).load("ipfs://QmAgentCID/metadata/agent%201.json"),
-    ).resolves.toEqual({ metadata: { name: "ipfs" } });
-    expect(String(httpsRequestMock.mock.calls[0]![0])).toBe(
-      "https://ipfs.io/ipfs/QmAgentCID/metadata/agent%201.json",
-    );
+      new RegistrationLoader(1_000).load("ipfs://QmAgentCID/agent.json"),
+    ).resolves.toEqual({ warning: "Registration metadata URI is invalid or unsupported" });
+    expect(dnsLookup).not.toHaveBeenCalled();
+    expect(httpsRequestMock).not.toHaveBeenCalled();
   });
 
-  it("validates every redirect target and does not expose its URL", async () => {
-    dnsLookup
-      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }] as never)
-      .mockResolvedValueOnce([{ address: "10.2.3.4", family: 4 }] as never);
-    replyHttps("", 302, { location: "http://internal.example/admin?token=redirect-secret" });
+  it.each([301, 302, 303, 307, 308])(
+    "stops HTTP %s before resolving any Location",
+    async (status) => {
+      allowPublicDns();
+      replyHttps("", status, { location: "http://internal.example/admin?token=secret" });
+      await expect(
+        new RegistrationLoader(1_000).load("https://metadata.example/agent.json"),
+      ).resolves.toEqual({ warning: "Registration metadata redirects are not allowed" });
+      expect(dnsLookup).toHaveBeenCalledTimes(1);
+      expect(httpsRequestMock).toHaveBeenCalledTimes(1);
+      expect(httpRequestMock).not.toHaveBeenCalled();
+    },
+  );
 
-    const result = await new RegistrationLoader(1_000).load("https://public.example/agent");
-
-    expect(result).toEqual({
-      warning: "Registration metadata URI targets a restricted network address",
-    });
-    expect(result.warning).not.toContain("redirect-secret");
-    expect(httpsRequestMock).toHaveBeenCalledTimes(1);
+  it.each([20, 21, 10000])("limits object/array depth at %s", async (depth) => {
+    allowPublicDns();
+    replyHttps('{"child":'.repeat(depth - 1) + "{}" + "}".repeat(depth - 1));
+    const result = await new RegistrationLoader(1000).load("https://metadata.example/agent.json");
+    if (depth <= 20) expect(result.metadata).toBeDefined();
+    else
+      expect(result).toEqual({
+        warning: "Registration metadata exceeds the maximum JSON depth of 20",
+      });
   });
 
-  it("bounds redirect chains", async () => {
-    allowPublicDns();
-    httpsRequestMock.mockImplementation(((
-      input: URL,
-      _options: RequestOptions,
-      callback: (response: IncomingMessage) => void,
-    ) => {
-      const step = Number(input.searchParams.get("step") ?? "0");
-      callback(
-        incomingResponse("", 302, {
-          location: `https://metadata.example/agent?step=${step + 1}`,
-        }),
-      );
-      return clientRequest();
-    }) as typeof httpsRequest);
-
-    await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent?step=0"),
-    ).resolves.toEqual({ warning: "Registration metadata redirect limit exceeded" });
-    expect(httpsRequestMock).toHaveBeenCalledTimes(4);
+  it.each([
+    [5000, 5000],
+    [10000, 10000],
+    [30000, 10000],
+  ])("caps timeout %s at %s", async (configured, effective) => {
+    vi.useFakeTimers();
+    try {
+      allowPublicDns();
+      httpsRequestMock.mockImplementation(() => clientRequest());
+      let settled = false;
+      const pending = new RegistrationLoader(configured)
+        .load("https://metadata.example/agent.json")
+        .then((result) => {
+          settled = true;
+          return result;
+        });
+      await vi.advanceTimersByTimeAsync(effective - 1);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await pending).toEqual({ warning: "Registration metadata request timed out" });
+      expect((httpsRequestMock.mock.calls[0]![1] as RequestOptions).signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rejects a declared response larger than 1 MiB without reading it", async () => {

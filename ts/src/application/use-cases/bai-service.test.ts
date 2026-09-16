@@ -90,3 +90,24 @@ it("passes the usage cursor through and exposes continuation metadata", async ()
     cursor: "previous",
   });
 });
+
+it.each([100, 101, 200])(
+  "caps recharge list %s without losing an unaligned offset",
+  async (limit) => {
+    const remote = api();
+    const rows = Array.from({ length: 400 }, (_, id) => ({ id }));
+    vi.mocked(remote.rechargeList).mockImplementation(async ({ page, pageSize }) => ({
+      items: rows.slice((page - 1) * pageSize, page * pageSize),
+      page,
+      pageSize,
+      total: rows.length,
+    }));
+    const result = await new BaiService(remote).rechargeList({ limit, offset: 101, sort: "asc" });
+    expect(result.orders).toEqual(rows.slice(101, 201));
+    expect(result.pagination).toEqual({ offset: 101, limit: 100, total: 400 });
+    expect(result.warnings.length).toBe(limit > 100 ? 1 : 0);
+    expect(
+      vi.mocked(remote.rechargeList).mock.calls.every(([input]) => input.pageSize <= 100),
+    ).toBe(true);
+  },
+);

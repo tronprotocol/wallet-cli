@@ -14,6 +14,8 @@ const call = (
   env = { ...process.env, WALLET_CLI_HOME: join(temp, "wallet") },
 ) => execFileSync(cmd, args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
 try {
+  // Never validate a stale dist left by an earlier build.
+  call(npm, ["run", "build"]);
   const [packed] = JSON.parse(call(npm, ["pack", "--json", "--pack-destination", temp]));
   const forbidden = packed.files.filter(
     ({ path }) =>
@@ -42,6 +44,7 @@ try {
       "run",
       "test/beta-command-surface.test.ts",
       "test/beta-server-roundtrip.test.ts",
+      "test/x402-daemon.test.ts",
       "test/erc8004.test.ts",
       "test/x402-provider-payment.test.ts",
       "test/bai-nile-compatibility.test.ts",

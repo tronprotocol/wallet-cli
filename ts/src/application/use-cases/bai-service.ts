@@ -1,3 +1,5 @@
+import type { AccountStore } from "../ports/account-store.js";
+import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type {
   BaiRechargeApi,
   BaiReportRetry,
@@ -31,12 +33,24 @@ export class BaiService {
     private readonly rechargeApi?: BaiRechargeApi,
     private readonly rechargeConfig?: BaiRechargeConfig,
     private readonly reportRetry?: BaiReportRetry,
+    private readonly gateways?: ChainGatewayProvider,
+    private readonly accounts?: Pick<AccountStore, "resolveAccount">,
   ) {}
 
   async recharge(
     scope: TransactionScope,
     network: NetworkDescriptor,
-    input: { amount: string; token: string; to?: string; apiKey?: string },
+    input: {
+      amount: string;
+      token: string;
+      to?: string;
+      apiKey?: string;
+      dryRun?: boolean;
+      scheme?: "exact" | "exact_gasfree";
+      gasfreeRelay?: string;
+      maxGasfreeFee?: string;
+      maxGasfreeFeeRaw?: string;
+    },
   ) {
     if (!input.apiKey) {
       throw new UsageError(
@@ -47,6 +61,8 @@ export class BaiService {
     if (!this.bindings)
       throw new UsageError("invalid_option", "B.AI recharge binding verification is unavailable");
     const chain = requireBaiChain(network);
+    // Resolve the signing account before binding checks, including ambiguous address selectors.
+    this.accounts?.resolveAccount(scope.activeAccount, network.family);
     const payer = scope.resolveAddress(network.family);
     if (!this.bindings.isConfirmed(input.apiKey, chain, payer)) {
       throw new UsageError(
@@ -70,7 +86,11 @@ export class BaiService {
       payTo: expectedPayTo,
       amount: input.amount,
       token: input.token,
-      scheme: "exact",
+      scheme: input.scheme ?? "exact",
+      dryRun: input.dryRun,
+      gasfreeRelay: input.gasfreeRelay,
+      maxGasfreeFee: input.maxGasfreeFee,
+      maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
       host: "127.0.0.1",
       port: 0,
       facilitatorUrl: this.rechargeConfig.facilitatorUrl,
@@ -88,6 +108,42 @@ export class BaiService {
       rechargeTarget = {
         input: { type: "personal", identifier: identifier! },
         confirmedTarget: { type: "personal", targetId: resolved.targetId },
+      };
+    }
+    if (input.dryRun) {
+      const inspection = await this.payments.roundtrip(scope, network, paymentInput);
+      let balance: { tokenRaw: string; nativeRaw: string } | null = null;
+      const asset = inspection.serve.asset;
+      if (this.gateways && typeof asset === "string") {
+        try {
+          const tokenRaw =
+            network.family === "evm"
+              ? await this.gateways.get(network, "evm").getErc20Balance(asset, payer)
+              : await this.gateways.get(network, "tron").getTrc20Balance(asset, payer);
+          balance = {
+            tokenRaw,
+            nativeRaw: await this.gateways.client(network).getNativeBalance(payer),
+          };
+        } catch {
+          scope.warn("Wallet balance is unavailable; preview does not establish sufficient funds.");
+        }
+      }
+      return {
+        dryRun: true,
+        network: network.id,
+        token: input.token,
+        amount: input.amount,
+        payer,
+        payTo: expectedPayTo,
+        scheme: paymentInput.scheme,
+        rawAmount: inspection.serve.rawAmount,
+        rechargeTarget: rechargeTarget ?? { type: "self", walletAddress: payer },
+        payment: inspection.pay,
+        balance,
+        estimatedFee: null,
+        feeLimit: { amount: input.maxGasfreeFee, rawAmount: input.maxGasfreeFeeRaw },
+        warning:
+          "Preview only; final network/relay fee is unavailable until payment authorization. Balance refers to the payer wallet, not its GasFree account. No order or payment was created.",
       };
     }
     const flow = new BaiRechargeFlow(
@@ -201,10 +257,29 @@ export class BaiService {
   }
 
   async rechargeList(input: BaiListCommandInput) {
-    const result = await this.api.rechargeList(pageInput(input));
+    const limit = Math.min(input.limit, 100);
+    const page = Math.floor(input.offset / limit) + 1;
+    const skip = input.offset % limit;
+    const request = { page, pageSize: limit, sortBy: "created_at" as const, sortOrder: input.sort };
+    const result = await this.api.rechargeList(request);
+    let orders = result.items.slice(skip);
+    if (
+      skip > 0 &&
+      result.items.length === limit &&
+      (result.total === undefined || input.offset + orders.length < result.total)
+    ) {
+      const next = await this.api.rechargeList({ ...request, page: page + 1 });
+      orders = orders.concat(next.items).slice(0, limit);
+    }
     return {
-      orders: result.items,
-      pagination: { offset: input.offset, limit: input.limit, total: result.total },
+      orders,
+      pagination: { offset: input.offset, limit, total: result.total },
+      warnings:
+        input.limit > limit
+          ? [
+              `Recharge order limit reduced from ${input.limit} to ${limit} to match the B.AI server limit.`,
+            ]
+          : [],
     };
   }
 }

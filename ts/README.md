@@ -254,7 +254,7 @@ including the existing device precheck and signing ceremony. Payment guards
 validate the declared payer and configured GasFree fee ceiling. Base USDC,
 BSC, and TRON routes are supported according to the provider's challenge.
 
-For `x402 pay` and `x402 roundtrip`, `--gasfree-relay official` (the default)
+For `x402 pay`, `x402 roundtrip` and `bai recharge`, `--gasfree-relay official` (the default)
 uses the SDK's credential-free proxy. `--gasfree-relay gasfree` reads the
 configured GasFree Open API using `gasfreeApiKey` and `gasfreeApiSecret`;
 missing credentials fail before payment. An HTTPS URL selects a custom relay
@@ -269,3 +269,18 @@ maximum authorized fee is not evidence of the actual fee charged.
 
 Provider queries prefer the local snapshot. Run `x402 update-catalog` to refresh
 it; see [catalog caching](docs/concepts/provider-catalog.md).
+
+### Local x402 payment server
+
+`x402 serve` and `x402 roundtrip` accept either `--amount` or `--raw-amount`, and
+either `--token` or `--asset` (with `--decimals` for an unregistered asset).
+Registered token precision cannot be overridden. `--valid-for-seconds` sets the
+payment authorization lifetime (default 300 seconds).
+
+`x402 serve --network base-sepolia --token USDC --raw-amount 1000000 --pay-to <address> --daemon`
+starts a loopback server and returns its PID, payment URL and private access-log
+path after the listener is ready. Stop it with `kill -TERM <pid>`; remove the log
+after use if no longer needed. Foreground requests log to stderr, while stdout
+retains the command result. Logs exclude query strings, headers and payment bodies.
+`--resource-url` overrides the advertised resource URL only; `--host` controls the
+loopback listener. Roundtrip always uses loopback and closes its server on completion.

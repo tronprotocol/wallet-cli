@@ -225,3 +225,41 @@ it("advertises canonical TRON IDs and an empty GasFree extra", async () => {
     "exact_gasfree",
   );
 });
+
+it("serves raw amounts, explicit registered assets and validity, with sanitized access logs", async () => {
+  const logs: string[] = [];
+  const server = new X402HttpServer(undefined, 1000, (line) => logs.push(line));
+  const net = { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor;
+  const input = {
+    host: "127.0.0.1",
+    port: 0,
+    payTo: "0x1111111111111111111111111111111111111111",
+    asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    decimals: 6,
+    rawAmount: "1000001",
+    validForSeconds: 60,
+    scheme: "exact" as const,
+    resourceUrl: "https://resource.example/pay",
+    facilitatorUrl: "https://fake.invalid",
+  };
+  expect(() => server.validate(net, { ...input, decimals: 18 })).toThrow(/precision/);
+  const handle = await server.start(net, input);
+  try {
+    const base = String(handle.details.payUrl).replace(/\/pay$/, "");
+    for (const path of ["/health", "/.well-known/x402", "/pay", "/secret-path"]) {
+      const response = await fetch(`${base}${path}?secret=never-log`, {
+        headers: { Authorization: "never-log" },
+      });
+      const body = await response.json();
+      if (path === "/pay")
+        expect(body).toMatchObject({
+          resource: { url: input.resourceUrl },
+          accepts: [{ amount: "1000001", maxTimeoutSeconds: 60, asset: input.asset }],
+        });
+    }
+    expect(logs.map((line) => JSON.parse(line).status)).toEqual([200, 200, 402, 404]);
+    expect(logs.join("")).not.toMatch(/never-log|secret-path|Authorization/);
+  } finally {
+    await handle.close();
+  }
+});

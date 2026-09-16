@@ -197,3 +197,18 @@ describe("AgentService beta integration", () => {
     expect(f.reader.read).not.toHaveBeenCalled();
   });
 });
+
+it.each([
+  [evmNet, "0x0000000000000000000000000000000000000000"],
+  [
+    { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
+    "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
+  ],
+])("rejects zero owner on %s before RPC", async (network, newOwner) => {
+  const f = fixture();
+  await expect(f.service.transfer(f.scope, network, { id: "1", newOwner })).rejects.toMatchObject({
+    code: "invalid_address",
+  });
+  expect(f.reader.read).not.toHaveBeenCalled();
+  expect(f.send).not.toHaveBeenCalled();
+});

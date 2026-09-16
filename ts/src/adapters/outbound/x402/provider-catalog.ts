@@ -48,7 +48,16 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
           network: wantedNetwork,
         }).filter((entry) => entry[1] !== undefined),
       ),
-      results: providers.slice(input.offset, input.offset + input.limit),
+      results: providers.slice(input.offset, input.offset + input.limit).map((provider) =>
+        Object.fromEntries(
+          Object.entries({
+            ...provider,
+            endpointCount:
+              provider.endpointCount ??
+              (Array.isArray(provider.endpoints) ? provider.endpoints.length : 0),
+          }).filter(([key]) => !["query", "score", "matchedFields", "endpoints"].includes(key)),
+        ),
+      ),
       pagination: { offset: input.offset, limit: input.limit, total },
     };
   }

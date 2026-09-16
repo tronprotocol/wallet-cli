@@ -30,3 +30,12 @@ The eight identity commands continue through ContractService and TxPipeline.
 They do not call SDK submission methods and do not supply private keys to the SDK.
 The SDK's custom external-signer extension was removed in `1.2.0-beta.1`;
 this does not remove wallet-cli's independent x402 signer bridge.
+
+## Registration metadata limits
+
+Writing a registration URI still accepts HTTPS, IPFS and JSON data URIs. Reading
+metadata accepts only HTTP/HTTPS and never follows redirects or resolves IPFS
+through a third-party gateway. Unsupported URIs produce a warning; authoritative
+on-chain fields remain available. Remote JSON is limited to 1 MiB (both compressed
+and expanded), 20 object/array levels with the root at level 1, and the shorter of
+the global timeout and 10 seconds. DNS addresses remain validated and pinned.

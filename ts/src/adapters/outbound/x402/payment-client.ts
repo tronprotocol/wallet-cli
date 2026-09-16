@@ -44,6 +44,13 @@ export class X402PaymentClient implements X402PaymentPort {
     private readonly config: Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret"> = {},
   ) {}
 
+  validateConfiguration(
+    network: NetworkDescriptor,
+    input: Pick<X402PayInput, "gasfreeRelay">,
+  ): void {
+    gasfreeRelayClient(network, input.gasfreeRelay, this.config, 60000, this.fetcher);
+  }
+
   async pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
     if (input.asset && input.decimals !== undefined)
       paymentDecimals(network.id, input.asset, input.decimals);
