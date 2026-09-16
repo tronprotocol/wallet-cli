@@ -1,3 +1,4 @@
+import { facilitatorNetwork } from "./facilitator-network.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import { X402_TOKENS } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
@@ -123,7 +124,13 @@ export class X402HttpServer implements X402ServerPort {
 
   async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
     const { token, rawAmount } = this.requirement(network, input);
-    const x402Network = network.id;
+    const x402Network = await facilitatorNetwork(
+      network,
+      input.scheme,
+      input.facilitatorUrl,
+      this.fetcher,
+      this.timeoutMs,
+    );
     const host = input.host.includes(":") ? `[${input.host}]` : input.host;
     let resourceUrl = `http://${host}:${input.port}/pay`;
     const requirement = {
@@ -201,7 +208,7 @@ export class X402HttpServer implements X402ServerPort {
         response.setHeader("payment-response", encodePaymentResponseHeader(settle as never));
         return json(response, 200, {
           success: true,
-          network: x402Network,
+          network: network.id,
           scheme: input.scheme,
           transaction: settle.transaction,
         });

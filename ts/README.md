@@ -228,10 +228,10 @@ transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-int
 
 The v4.14 command names are:
 
-| Group | Commands |
-| --- | --- |
-| `x402` | `pay`, `serve`, `roundtrip`, `provider-list`, `provider-show`, `endpoint-list`, `update-catalog` |
-| `bai` | `usage-summary`, `usage-records`, `recharge`, `report-recharge`, `recharge-orders` |
+| Group  | Commands                                                                                                 |
+| ------ | -------------------------------------------------------------------------------------------------------- |
+| `x402` | `pay`, `serve`, `roundtrip`, `provider-list`, `provider-show`, `endpoint-list`, `update-catalog`         |
+| `bai`  | `usage-summary`, `usage-records`, `recharge`, `report-recharge`, `recharge-orders`                       |
 | `8004` | `show`, `register`, `update`, `transfer`, `approve`, `add-operator`, `remove-operator`, `operator-check` |
 
 JSON command identifiers use these names, for example `bai.usage-summary`.
@@ -254,7 +254,7 @@ including the existing device precheck and signing ceremony. Payment guards
 validate the declared payer and configured GasFree fee ceiling. Base USDC,
 BSC, and TRON routes are supported according to the provider's challenge.
 
-For `x402 pay` and `x402 roundtrip`, `--gasfree-relay official` (the default)
+For `x402 pay`, `x402 roundtrip` and `bai recharge`, `--gasfree-relay official` (the default)
 uses the SDK's credential-free proxy. `--gasfree-relay gasfree` reads the
 configured GasFree Open API using `gasfreeApiKey` and `gasfreeApiSecret`;
 missing credentials fail before payment. An HTTPS URL selects a custom relay
@@ -269,3 +269,78 @@ maximum authorized fee is not evidence of the actual fee charged.
 
 Provider queries prefer the local snapshot. Run `x402 update-catalog` to refresh
 it; see [catalog caching](docs/concepts/provider-catalog.md).
+
+### Facilitator compatibility
+
+For TRON, local `x402 serve`, `x402 roundtrip` and `bai recharge` query the
+configured facilitator's `/supported` endpoint before advertising the payment
+requirement. The CLI matches the network, scheme and x402 version 2, then uses the
+network spelling that the facilitator supports:
+
+- Decimal only: use the decimal ID, such as `tron:3448148188`.
+- Hexadecimal only: use the advertised hexadecimal ID, such as `tron:0xcd8690dc`.
+- Both: prefer the canonical decimal ID.
+
+Capability lookup failures, malformed responses and missing matching capabilities
+stop the flow before signing. The selected representation stays consistent through
+the challenge, payment payload, verify and settle requests. The CLI does not rewrite
+signed payloads or retry settlement with another format after an error. CLI network
+selection and server result fields retain canonical decimal IDs; settlement receipts
+accept either representation of the same chain. EVM network IDs remain unchanged.
+External providers remain responsible for their own facilitator compatibility.
+
+### Local x402 server
+
+`serve` and `roundtrip` accept either `--amount` or `--raw-amount`, and either
+`--token` or `--asset`. An unregistered asset requires `--decimals`; registered
+precision cannot be overridden. `--valid-for-seconds` sets authorization validity
+(default 300 seconds).
+
+```sh
+wallet-cli x402 serve --network nile --token USDT --raw-amount 100 \
+  --pay-to <recipient-address> --valid-for-seconds 300 --daemon --output json
+```
+
+The daemon returns its PID, payment URL and access-log path after the listener is
+ready. Stop it with `kill -TERM <pid>`. Foreground access logs go to stderr; daemon
+logs are written to a private file. Logs exclude query strings, headers and payment
+bodies. `serve --resource-url` changes the advertised resource URL and `--host`
+selects a loopback bind address. `roundtrip` always binds to loopback and closes its
+server on completion; it does not accept `--host`, `--resource-url` or `--daemon`.
+
+### B.AI setup, recharge and recovery
+
+Before the first recharge, the selected wallet must already be bound to the B.AI
+account. Configure the personal API key through stdin; setup verifies the binding
+for the selected account and network before saving the key:
+
+```sh
+wallet-cli config baiApiKey --network tron --account payer --api-key-stdin
+wallet-cli bai recharge 1 --network base --token USDC --dry-run --output json
+wallet-cli bai recharge 1 --network tron --token USDT --to recipient@example.com --dry-run
+```
+
+Base, BSC and TRON recharge routes remain supported. Omit `--to` to recharge your
+own account; recipient recharge resolves the target before using the same preorder,
+payment and transaction-report flow. The on-chain destination remains the platform
+address, not the recipient's wallet.
+
+Dry-run checks binding, amount, recipient and the payment challenge without creating
+an order, unlocking, signing, paying or reporting a transaction. It reads payer wallet
+balances when RPC is available; these are not GasFree account balances. Final network
+or relay fees may be unavailable and are explicitly reported as unestimated. For TRON,
+`--scheme exact_gasfree` supports the relay and fee-limit options described above.
+
+If payment succeeded but reporting failed, retain the original transaction hash and
+use `bai report-recharge` with the original chain and recipient information. Reconcile
+an unknown payment outcome before proceeding; do not pay again to retry reporting.
+`bai recharge-orders` caps requests above 100 at the backend's 100-row limit and returns
+an effective limit plus a warning. `usage-records` retains its independent limit.
+
+### ERC-8004 registration metadata
+
+Register/update URI validation is separate from metadata loading: HTTPS, IPFS and
+JSON data URIs remain supported for writing. Metadata reads accept only HTTP/HTTPS,
+never follow redirects, and enforce a 1 MiB limit on compressed and expanded content,
+a maximum JSON depth of 20, and the shorter of the global timeout and 10 seconds.
+Unsupported or unavailable metadata produces a warning while preserving chain data.

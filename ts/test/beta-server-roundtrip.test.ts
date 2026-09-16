@@ -22,9 +22,16 @@ it.skipIf(!entry).each(["SIGINT", "SIGTERM"] as const)(
   async (signal) => {
     const home = mkdtempSync(join(tmpdir(), "beta-serve-"));
     const p = await port();
+    const preload = join(home, "supported.mjs");
+    writeFileSync(
+      preload,
+      `globalThis.fetch = async () => Response.json({kinds:[{x402Version:2,scheme:'exact',network:'tron:0xcd8690dc'}]});`,
+    );
     const child = spawn(
       process.execPath,
       [
+        "--import",
+        pathToFileURL(preload).href,
         entry!,
         "x402",
         "serve",
@@ -56,7 +63,7 @@ it.skipIf(!entry).each(["SIGINT", "SIGTERM"] as const)(
       expect(r.status).toBe(402);
       expect(r.headers.has("payment-required")).toBe(true);
       expect(((await r.json()) as { accepts: { network: string }[] }).accepts[0]!.network).toBe(
-        "tron:3448148188",
+        "tron:0xcd8690dc",
       );
     } finally {
       const stopped = new Promise<{ code: number | null; signal: string | null }>((resolve) =>
@@ -89,6 +96,7 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
    const url=new URL(input instanceof Request?input.url:input);
    if(url.hostname==='127.0.0.1')return realFetch(input,init);
    if(url.origin!=='https://facilitator.bankofai.io')throw new Error('unexpected network');
+   if(url.pathname==='/supported')return Response.json({kinds:[{x402Version:2,scheme:'exact',network:'tron:0xcd8690dc'}]});
    const data=JSON.parse(init.body);if(!data.paymentPayload.payload.signature)throw new Error('missing signature');
    appendFileSync(${JSON.stringify(log)},url.pathname+'\\n');
    if(url.pathname==='/verify')return new Response(JSON.stringify({isValid:true}));

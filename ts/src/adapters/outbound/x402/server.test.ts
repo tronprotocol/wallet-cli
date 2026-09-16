@@ -23,11 +23,13 @@ async function withServer(
   await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
   const port = (socket.address() as { port: number }).port;
   await new Promise<void>((resolve) => socket.close(() => resolve()));
-  const server = new X402HttpServer(
-    fetcher ??
-      (async (url) =>
-        Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement)),
-  );
+  const server = new X402HttpServer(async (url, init) => {
+    if (String(url).endsWith("/supported"))
+      return Response.json({ kinds: [{ x402Version: 2, scheme, network: "tron:0xcd8690dc" }] });
+    return fetcher
+      ? fetcher(url, init)
+      : Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement);
+  });
   const handle = await server.start(
     { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
     {
@@ -208,14 +210,14 @@ it("reports a port collision without stopping the first server", async () => {
   });
 });
 
-it("advertises canonical TRON IDs and an empty GasFree extra", async () => {
+it("advertises legacy-compatible TRON wire IDs and an empty GasFree extra", async () => {
   await withServer(
     {},
     async (port) => {
       const response = await fetch(`http://127.0.0.1:${port}/.well-known/x402`);
       const body = (await response.json()) as { accepts: Array<Record<string, unknown>> };
       expect(body.accepts[0]).toMatchObject({
-        network: "tron:3448148188",
+        network: "tron:0xcd8690dc",
         scheme: "exact_gasfree",
         extra: {},
       });
