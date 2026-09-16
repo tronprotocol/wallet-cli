@@ -27,8 +27,8 @@ describe("x402 command surface", () => {
       "roundtrip",
       "provider-list",
       "provider-show",
-      "provider-endpoints",
-      "provider-update",
+      "endpoint-list",
+      "update-catalog",
     ]) {
       expect(registry.resolveNeutral(["x402", verb])?.path).toEqual(["x402", verb]);
     }

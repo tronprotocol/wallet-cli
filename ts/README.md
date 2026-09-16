@@ -226,15 +226,26 @@ transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-int
 
 ## B.AI usage and x402 providers
 
+The v4.14 command names are:
+
+| Group | Commands |
+| --- | --- |
+| `x402` | `pay`, `serve`, `roundtrip`, `provider-list`, `provider-show`, `endpoint-list`, `update-catalog` |
+| `bai` | `usage-summary`, `usage-records`, `recharge`, `report-recharge`, `recharge-orders` |
+| `8004` | `show`, `register`, `update`, `transfer`, `approve`, `add-operator`, `remove-operator`, `operator-check` |
+
+JSON command identifiers use these names, for example `bai.usage-summary`.
+Scripts using earlier beta command names must switch to the names above.
+
 ```sh
-wallet-cli bai usage --output json
-wallet-cli bai usage-list --limit 20 --output json
+wallet-cli bai usage-summary --output json
+wallet-cli bai usage-records --limit 20 --output json
 wallet-cli x402 provider-list --output json
 ```
 
-`bai usage` is the single account summary command (the former `bai status` entry was removed). It reads the service's `usage.summary`: current credit balance,
+`bai usage-summary` is the single account summary command (the former `bai status` entry was removed). It reads the service's `usage.summary`: current credit balance,
 current-month spend, and monthly trend. It accepts no date filters and does not
-aggregate usage records locally. `bai usage-list` exposes `hasMore` and
+aggregate usage records locally. `bai usage-records` exposes `hasMore` and
 `nextCursor`; pass `--cursor` to continue listing records. B.AI account reads
 require the configured API key but no wallet signature.
 
@@ -256,5 +267,5 @@ Use `--max-gasfree-fee` or `--max-gasfree-fee-raw` to cap the fee authorized bef
 signing. Without a cap, the CLI warns about the maximum fee/payment ratio. A
 maximum authorized fee is not evidence of the actual fee charged.
 
-Provider queries prefer the local snapshot. Run `x402 provider-update` to refresh
+Provider queries prefer the local snapshot. Run `x402 update-catalog` to refresh
 it; see [catalog caching](docs/concepts/provider-catalog.md).

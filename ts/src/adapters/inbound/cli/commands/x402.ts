@@ -234,7 +234,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
   for (const [verb, summary, run] of [
     ["provider-show", "Show one x402 provider", (name: string) => service.providerShow(name)],
     [
-      "provider-endpoints",
+      "endpoint-list",
       "List one x402 provider's endpoints",
       (name: string) => service.providerEndpoints(name),
     ],
@@ -257,14 +257,14 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
 
   const empty = z.object({});
   registry.add({
-    path: ["x402", "provider-update"],
+    path: ["x402", "update-catalog"],
     network: "none",
     wallet: "none",
     auth: "none",
     summary: "Refresh the local x402 provider catalog cache",
     fields: empty,
     input: empty,
-    examples: [{ cmd: "wallet-cli x402 provider-update" }],
+    examples: [{ cmd: "wallet-cli x402 update-catalog" }],
     run: async (ctx) => providerResult(ctx, service.providerUpdate()),
   } satisfies CommandDefinition);
 }

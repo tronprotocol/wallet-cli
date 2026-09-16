@@ -453,7 +453,7 @@ It remains `paymentStatus: unknown`, `settled: false`, `retryPayment: false`.
 Malformed remote values are omitted. The recharge flow also retains the original
 `chain`, `amount` and `rechargeTarget` in classified payment errors.
 
-Use `wallet-cli bai recharge-report <txHash> --chain base --amount 1` to report a
+Use `wallet-cli bai report-recharge <txHash> --chain base --amount 1` to report a
 verified existing transaction after a report failure. Chain accepts `tron`, `bnb`
 or `base` and must match the original recharge. Use the original personal API key.
 No local wallet, signature, new order or payment is required.
@@ -480,7 +480,7 @@ for supported reasons and recovery behavior.
 
 ### BAI amount representation
 
-BAI application amounts use decimal strings. `bai recharge-report` returns `data.amount`
+BAI application amounts use decimal strings. `bai report-recharge` returns `data.amount`
 as a string when supplied; recharge recovery/error context also carries a string amount.
 `bai recharge` already returns its payment amount as a string. This standardizes the new
 v4.14 interface, whose earlier development build returned numbers in report/recovery fields.
@@ -494,7 +494,7 @@ type from that HTTP request format.
 After payment, BAI reporting retries only `TX_NOT_FOUND_OR_INVALID` and
 `TX_TIMESTAMP_UNAVAILABLE`, with delays of 15, 20 and 25 seconds, at most four requests
 within a 90-second reporting budget. `--timeout` still limits each HTTP request.
-`bai recharge-report` uses the same policy. No payment, preorder or recipient resolution
+`bai report-recharge` uses the same policy. No payment, preorder or recipient resolution
 is repeated. Exhaustion returns `creditStatus: "unconfirmed"` with the original recovery
 fields and `retryPayment: false`; authentication, transport and other rejection codes stop
 without automatic retry.

@@ -24,8 +24,8 @@ describe("ERC-8004 command surface", () => {
       "update",
       "transfer",
       "approve",
-      "operator-add",
-      "operator-remove",
+      "add-operator",
+      "remove-operator",
       "operator-check",
     ];
     for (const verb of verbs) {

@@ -78,11 +78,10 @@ describe("wallet-cli --help lists every registered top-level command", () => {
     const { text } = rootHelp(["bai", "--help"]);
     for (const verb of [
       "recharge",
-      "recharge-report",
-      "status",
-      "usage",
-      "usage-list",
-      "recharge-list",
+      "report-recharge",
+      "usage-summary",
+      "usage-records",
+      "recharge-orders",
     ]) {
       expect(text.match(new RegExp(`^ {2}${verb}\\s+`, "gm")), verb).toHaveLength(1);
     }

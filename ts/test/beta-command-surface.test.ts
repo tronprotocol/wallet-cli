@@ -13,18 +13,20 @@ const commands = [
     "roundtrip",
     "provider-list",
     "provider-show",
-    "provider-endpoints",
-    "provider-update",
+    "endpoint-list",
+    "update-catalog",
   ].map((v) => ["x402", v]),
-  ...["recharge", "recharge-report", "usage", "usage-list", "recharge-list"].map((v) => ["bai", v]),
+  ...["recharge", "report-recharge", "usage-summary", "usage-records", "recharge-orders"].map(
+    (v) => ["bai", v],
+  ),
   ...[
     "show",
     "register",
     "update",
     "transfer",
     "approve",
-    "operator-add",
-    "operator-remove",
+    "add-operator",
+    "remove-operator",
     "operator-check",
   ].map((v) => ["8004", v]),
 ];
@@ -96,7 +98,7 @@ const provider = {
   fqn: "bai/recharge",
   endpoints: [{ path: "/m/credit/recharge", method: "POST" }],
 };
-it.skipIf(!entry).each(["provider-list", "provider-show", "provider-endpoints", "provider-update"])(
+it.skipIf(!entry).each(["provider-list", "provider-show", "endpoint-list", "update-catalog"])(
   "x402 %s against catalog fixture",
   (verb) => {
     const mock = `globalThis.fetch=async(url)=>new Response(JSON.stringify(String(url).endsWith('catalog.json')?${JSON.stringify(catalog)}:${JSON.stringify(provider)}));`;
@@ -104,18 +106,19 @@ it.skipIf(!entry).each(["provider-list", "provider-show", "provider-endpoints", 
       [
         "x402",
         verb,
-        ...(["provider-show", "provider-endpoints"].includes(verb) ? ["bai/recharge"] : []),
+        ...(["provider-show", "endpoint-list"].includes(verb) ? ["bai/recharge"] : []),
         "--output",
         "json",
       ],
       mock,
     );
     expect(r.status, r.stderr + r.stdout).toBe(0);
+    expect(JSON.parse(r.stdout).command).toBe(`x402.${verb}`);
     const data = JSON.parse(r.stdout).data;
     if (verb === "provider-list") expect(data.count).toBe(1);
     if (verb === "provider-show") expect(data.fqn).toBe("bai/recharge");
-    if (verb === "provider-endpoints") expect(data.endpoints).toHaveLength(1);
-    if (verb === "provider-update") {
+    if (verb === "endpoint-list") expect(data.endpoints).toHaveLength(1);
+    if (verb === "update-catalog") {
       expect(data.updated).toBe(true);
       expect(data.generatedAt).toBe(catalog.generated_at);
       expect(data).not.toHaveProperty("warnings");
@@ -125,7 +128,7 @@ it.skipIf(!entry).each(["provider-list", "provider-show", "provider-endpoints", 
     }
   },
 );
-it.skipIf(!entry).each(["usage", "usage-list", "recharge-list"])(
+it.skipIf(!entry).each(["usage-summary", "usage-records", "recharge-orders"])(
   "bai %s against authenticated fixture",
   (verb) => {
     const mock = `globalThis.fetch=async(url,init)=>{
@@ -137,9 +140,10 @@ it.skipIf(!entry).each(["usage", "usage-list", "recharge-list"])(
  throw new Error('unexpected API');};`;
     const r = run(["bai", verb, "--output", "json"], mock);
     expect(r.status, r.stderr + r.stdout).toBe(0);
+    expect(JSON.parse(r.stdout).command).toBe(`bai.${verb}`);
     const data = JSON.parse(r.stdout).data;
-    if (verb === "usage") expect(data.credits).toBe("100");
-    else expect(JSON.stringify(data)).toContain(verb === "usage-list" ? "r1" : "o1");
+    if (verb === "usage-summary") expect(data.credits).toBe("100");
+    else expect(JSON.stringify(data)).toContain(verb === "usage-records" ? "r1" : "o1");
   },
 );
 
@@ -161,7 +165,7 @@ it.skipIf(!entry).each([
   [["x402", "provider-list", "--limit", "1e2"], "invalid_value", 2],
   [["x402", "provider-list", "--account", "ignored"], "invalid_option", 2],
   [["x402", "provider-show", "demo/provider", "--network", "nile"], "invalid_option", 2],
-  [["bai", "usage-list", "--limit", "201"], "invalid_value", 2],
+  [["bai", "usage-records", "--limit", "201"], "invalid_value", 2],
   [["8004", "show", "eip155:97:123", "--network", "nile"], "chain_id_mismatch", 1],
   [
     ["8004", "register", "http://example.test/agent.json", "--network", "nile", "--dry-run"],
