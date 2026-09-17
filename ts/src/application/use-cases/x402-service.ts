@@ -4,19 +4,36 @@ import type { ProviderCatalogPort, ProviderListInput } from "../ports/provider-c
 import type { X402PayInput, X402PaymentPort } from "../ports/x402-payment.js";
 import type { X402ServeInput, X402ServerPort } from "../ports/x402-server.js";
 
+import type { NetworkRegistry } from "../ports/network-registry.js";
+
 export class X402Service {
   constructor(
     private readonly payments: X402PaymentPort,
     private readonly catalog: ProviderCatalogPort,
+    private readonly networks: Pick<NetworkRegistry, "resolve">,
     private readonly server?: X402ServerPort,
   ) {}
+
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void {
+    this.payments.prepare(scope, network);
+  }
 
   pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
     return this.payments.pay(scope, network, input);
   }
 
   providerList(input: ProviderListInput) {
-    return this.catalog.list(input);
+    const network = input.network;
+    // Catalog filters need no RPC configuration for an explicit chain ID.
+    // Resolve names through the same registry used by global --network.
+    const canonical =
+      network && !/^(?:tron|eip155):(?:[0-9]+|0x[0-9a-f]+)$/i.test(network)
+        ? this.networks.resolve(network).id
+        : network;
+    return this.catalog.list({
+      ...input,
+      ...(canonical === undefined ? {} : { network: canonical }),
+    });
   }
 
   providerShow(fqn: string) {
@@ -45,7 +62,7 @@ export class X402Service {
 
   async roundtrip(scope: TransactionScope, network: NetworkDescriptor, input: X402ServeInput) {
     if (!this.server) throw new Error("x402 server is not available in this runtime");
-    const handle = await this.server.start(network, input);
+    const handle = await this.server.start(network, { ...input, accessLog: "debug" });
     try {
       const pay = await this.payments.pay(scope, network, {
         url: String(handle.details.payUrl),

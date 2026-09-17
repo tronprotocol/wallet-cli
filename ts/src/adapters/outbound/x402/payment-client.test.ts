@@ -558,3 +558,45 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
     ).rejects.toMatchObject({ code: "no_matching_requirement" });
   },
 );
+
+it.each([
+  [{ maxRawAmount: "99" }, "amount_exceeds_limit"],
+  [{ maxAmount: "0.000000000000000099" }, "amount_exceeds_limit"],
+  [{ token: "USDD" }, "no_matching_requirement"],
+  [{ scheme: "exact_gasfree" as const }, "no_matching_requirement"],
+])("rejects unsatisfied payment requirements before signing: %j", async (input, code) => {
+  const resolve = vi.fn();
+  const fetcher = vi.fn(async () =>
+    Response.json(
+      {
+        x402Version: 2,
+        resource: { url: "https://api.example/pay" },
+        accepts: [
+          {
+            scheme: "exact",
+            network: "eip155:56",
+            asset: "0x55d398326f99059fF775485246999027B3197955",
+            amount: "100",
+            payTo: signer.address,
+            maxTimeoutSeconds: 300,
+          },
+        ],
+      },
+      { status: 402 },
+    ),
+  );
+  const client = new X402PaymentClient(
+    { resolve, assertCanSign: vi.fn() } as unknown as SignerResolver,
+    fetcher,
+  );
+  await expect(
+    client.pay(scope, net, {
+      url: "https://api.example/pay",
+      method: "GET",
+      headers: [],
+      ...input,
+    }),
+  ).rejects.toMatchObject({ code, details: { paymentStatus: "not_sent", retryPayment: false } });
+  expect(resolve).not.toHaveBeenCalled();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

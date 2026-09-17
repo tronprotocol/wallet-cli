@@ -1,5 +1,6 @@
 /** Intermediate application events emitted by long-running signing and transaction flows. */
 export type ProgressEvent =
+  | { type: "activity"; message: string }
   | { type: "awaiting_device"; reason: "sign" | "open_app" | "unlock" }
   | { type: "deriving-address" }
   | { type: "pre-verify-address"; address: string }

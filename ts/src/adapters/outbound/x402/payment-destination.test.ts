@@ -36,7 +36,7 @@ function fixture(
   );
   const client = new X402PaymentClient({ resolve, assertCanSign: vi.fn() } as never, fetcher);
   const pay = (dryRun = false) =>
-    client.pay({ timeoutMs: 1000 } as never, selectedNetwork as never, {
+    client.pay({ timeoutMs: 1000, emit: vi.fn() } as never, selectedNetwork as never, {
       url: "https://example.com",
       method: "POST",
       headers: [],
@@ -90,7 +90,7 @@ it("rejects a registered token precision override before HTTP or signing", async
   const resolve = vi.fn();
   const client = new X402PaymentClient({ resolve } as never, fetcher);
   await expect(
-    client.pay({} as never, network as never, {
+    client.pay({ emit: vi.fn() } as never, network as never, {
       url: "https://example.test",
       method: "GET",
       headers: [],

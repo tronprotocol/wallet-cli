@@ -54,6 +54,7 @@ export class BaiService {
   ) {
     const amount = baiRechargeAmount(input.amount);
     assertBaiRechargeMinimum(input.token, amount);
+    const chain = requireBaiChain(network);
     if (!input.apiKey) {
       throw new UsageError(
         "bai_credentials_missing",
@@ -62,7 +63,6 @@ export class BaiService {
     }
     if (!this.bindings)
       throw new UsageError("invalid_option", "B.AI recharge binding verification is unavailable");
-    const chain = requireBaiChain(network);
     if (!this.payments || !this.rechargeApi || !this.rechargeConfig) {
       throw new UsageError("invalid_option", "B.AI recharge is not available in this runtime");
     }
@@ -104,6 +104,7 @@ export class BaiService {
         : identifier === payer);
     let rechargeTarget: BaiRechargeTarget | undefined;
     if (!self) {
+      scope.emit({ type: "activity", message: "Checking the recharge recipient…" });
       const resolved = await this.rechargeApi.resolveTarget(identifier!);
       rechargeTarget = {
         input: { type: "personal", identifier: identifier! },
@@ -146,6 +147,7 @@ export class BaiService {
           "Preview only; final network/relay fee is unavailable until payment authorization. Balance refers to the payer wallet, not its GasFree account. No order or payment was created.",
       };
     }
+    this.payments.prepare(scope, network);
     const flow = new BaiRechargeFlow(
       this.rechargeApi,
       {
@@ -155,6 +157,7 @@ export class BaiService {
         },
       },
       this.reportRetry,
+      (message) => scope.emit({ type: "activity", message }),
     );
     const result = await flow.execute({
       channel: "crypto",

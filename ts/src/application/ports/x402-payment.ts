@@ -23,6 +23,7 @@ export interface X402PayInput {
 }
 
 export interface X402PaymentPort {
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void;
   /** Local configuration checks only; no signing or I/O. */
   validateConfiguration?(
     network: NetworkDescriptor,

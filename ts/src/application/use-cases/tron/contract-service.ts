@@ -1,3 +1,4 @@
+import { currentTronEnergyPrice } from "../../../domain/amounts/tron-energy-price.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -319,7 +320,6 @@ function positiveInteger(value: unknown): bigint | undefined {
 }
 
 function currentEnergyPrice(value: unknown): bigint | undefined {
-  if (typeof value !== "string") return undefined;
-  const latest = value.split(",").at(-1)?.split(":");
-  return latest?.length === 2 ? positiveInteger(latest[1]) : undefined;
+  const price = currentTronEnergyPrice(value);
+  return price === undefined ? undefined : BigInt(price);
 }

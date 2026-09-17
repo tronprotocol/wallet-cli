@@ -1,3 +1,4 @@
+import { Wallet } from "ethers";
 import { expect, it } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,13 +17,15 @@ it.each([
   "runs %s self and recipient recharge through the real CLI with mocked backend and payment",
   (alias, chain, networkId, token) => {
     const home = mkdtempSync(join(tmpdir(), "bai-recharge-cli-"));
-    const payer = "0x1111111111111111111111111111111111111111";
+    const payer = new Wallet("0x" + "11".repeat(32)).address;
     const hash = "0x" + "a".repeat(64);
     try {
       const store = new AtomicFileStore();
-      new Keystore(home, store, () => {
-        throw new Error("no signing in this test");
-      }).registerWatch({ family: "evm", address: payer, label: "payer" });
+      new Keystore(home, store, () => "testPassword123").import({
+        type: "privateKey",
+        secret: "11".repeat(32),
+        label: "payer",
+      });
       new FileBaiBindingStore(home, store).confirm("test-key", chain, payer);
       writeFileSync(join(home, "config.yaml"), "baiApiKey: test-key\n", { mode: 0o600 });
       const log = join(home, "calls.jsonl");
@@ -53,7 +56,11 @@ it.each([
         return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
       };`,
       );
-      for (const to of [undefined, "recipient@example.com"]) {
+      for (const [to, withPassword] of [
+        [undefined, false],
+        [undefined, true],
+        ["recipient@example.com", true],
+      ] as const) {
         writeFileSync(log, "");
         const result = spawnSync(
           process.execPath,
@@ -70,6 +77,7 @@ it.each([
             alias,
             "--account",
             "payer",
+            ...(withPassword ? ["--password-stdin"] : []),
             "--output",
             "json",
             ...(to ? ["--to", to] : []),
@@ -78,9 +86,18 @@ it.each([
             ...DETACHED,
             env: { ...process.env, WALLET_CLI_HOME: home },
             encoding: "utf8",
+            input: withPassword ? "testPassword123\n" : undefined,
             timeout: 20000,
           },
         );
+        if (!withPassword) {
+          expect(JSON.parse(result.stdout).error).toMatchObject({
+            code: "auth_required",
+            details: { paymentStatus: "not_sent" },
+          });
+          expect(readFileSync(log, "utf8")).toBe("");
+          continue;
+        }
         expect(result.status, result.stderr || result.stdout).toBe(0);
         expect(JSON.parse(result.stdout).data).toMatchObject({
           txHash: hash,

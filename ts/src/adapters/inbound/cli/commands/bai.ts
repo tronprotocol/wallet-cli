@@ -1,3 +1,4 @@
+import { baiRechargeText, baiUsageText, baiRecordsText, baiOrdersText } from "../render/bai.js";
 import {
   assertBaiRechargeMinimum,
   baiRechargeAmount,
@@ -57,10 +58,12 @@ const rechargeFields = z.object({
 
 export const baiRechargeSpec: ChainSpec = {
   path: ["bai", "recharge"],
+  formatText: baiRechargeText,
   network: "optional",
   wallet: "optional",
   auth: "conditional",
   broadcasts: true,
+  supportsWait: false,
   capability: "bai.recharge",
   requires,
   positionals: [{ field: "amount" }],
@@ -141,6 +144,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
   });
   registry.add({
     path: ["bai", "report-recharge"],
+    formatText: baiRechargeText,
     network: "none",
     wallet: "none",
     auth: "none",
@@ -170,12 +174,19 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [
       { cmd: "wallet-cli bai report-recharge 0x" + "a".repeat(64) + " --chain base --amount 1" },
     ],
-    run: async (_ctx, _network, input) => service.rechargeReport(input),
+    run: async (ctx, _network, input) => {
+      ctx.emit({
+        type: "activity",
+        message: "Submitting the existing transaction hash to B.AI; no new payment will be sent…",
+      });
+      return service.rechargeReport(input);
+    },
   } satisfies CommandDefinition);
 
   const empty = z.object({});
   registry.add({
     path: ["bai", "usage-summary"],
+    formatText: baiUsageText,
     network: "none",
     wallet: "none",
     auth: "none",
@@ -186,7 +197,10 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli bai usage-summary" }],
-    run: async () => service.usage(),
+    run: async (ctx) => {
+      ctx.emit({ type: "activity", message: "Fetching B.AI credit balance and usage summary…" });
+      return service.usage();
+    },
   } satisfies CommandDefinition);
 
   const usageListFields = listFields.extend({
@@ -199,6 +213,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
   });
   registry.add({
     path: ["bai", "usage-records"],
+    formatText: baiRecordsText,
     network: "none",
     wallet: "none",
     auth: "none",
@@ -207,11 +222,15 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     fields: usageListFields,
     input: usageListFields,
     examples: [{ cmd: "wallet-cli bai usage-records --limit 20" }],
-    run: async (_context, _network, input) => service.usageList(input),
+    run: async (ctx, _network, input) => {
+      ctx.emit({ type: "activity", message: "Fetching B.AI usage records…" });
+      return service.usageList(input);
+    },
   } satisfies CommandDefinition);
 
   registry.add({
     path: ["bai", "recharge-orders"],
+    formatText: baiOrdersText,
     network: "none",
     wallet: "none",
     auth: "none",
@@ -221,6 +240,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     input: listFields,
     examples: [{ cmd: "wallet-cli bai recharge-orders --limit 20" }],
     run: async (context, _network, input) => {
+      context.emit({ type: "activity", message: "Fetching B.AI recharge orders…" });
       const { warnings, ...result } = await service.rechargeList(input);
       for (const warning of warnings ?? []) context.warn(warning);
       return result;

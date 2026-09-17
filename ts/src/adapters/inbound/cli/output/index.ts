@@ -92,6 +92,10 @@ function extractPagination(data: unknown): { data: unknown; pagination?: Paginat
     offset: Number(pagination.offset),
     limit: pagination.limit === null ? null : Number(pagination.limit),
     total: Number.isInteger(pagination.total) ? Number(pagination.total) : null,
+    ...(typeof pagination.hasMore === "boolean" ? { hasMore: pagination.hasMore } : {}),
+    ...(typeof pagination.nextCursor === "string" || pagination.nextCursor === null
+      ? { nextCursor: pagination.nextCursor }
+      : {}),
   };
   const clean = { ...source };
   delete clean.pagination;
@@ -139,6 +143,8 @@ export function createOutputFormatter(
 // plain human progress line (no spinner / no TTY detection — Standard CLI / agent-first).
 function renderEvent(e: ProgressEvent): string {
   switch (e.type) {
+    case "activity":
+      return `⏳ ${e.message}`;
     case "awaiting_device":
       switch (e.reason) {
         case "sign":

@@ -22,6 +22,8 @@ export interface Pagination {
   offset: number;
   limit: number | null;
   total: number | null;
+  hasMore?: boolean;
+  nextCursor?: string | null;
 }
 export interface Meta {
   durationMs: number;

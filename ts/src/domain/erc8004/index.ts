@@ -27,6 +27,12 @@ export function resolveAgentId(value: string, network: NetworkDescriptor): bigin
   } else {
     throw new UsageError("invalid_value", "agent id has too many components");
   }
+  if (!/^\d+$/.test(chainId)) {
+    throw new UsageError(
+      "invalid_value",
+      "Agent ID prefixes require a numeric chain ID (for example tron:3448148188:170); use --network for aliases",
+    );
+  }
   if (`${namespace}:${chainId}` !== network.id) {
     throw new ExecutionError(
       "chain_id_mismatch",

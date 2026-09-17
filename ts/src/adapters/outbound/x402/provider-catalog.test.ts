@@ -12,7 +12,7 @@ class X402ProviderCatalog extends Catalog {
   }
 }
 describe("X402ProviderCatalog", () => {
-  it("accepts the Base alias when filtering the online catalog's canonical chain ids", async () => {
+  it("accepts the Base canonical ID when filtering the online catalog's canonical chain ids", async () => {
     const catalog = new X402ProviderCatalog(
       vi.fn(
         async () =>
@@ -24,7 +24,9 @@ describe("X402ProviderCatalog", () => {
           ),
       ),
     );
-    await expect(catalog.list({ limit: 20, offset: 0, network: "base" })).resolves.toMatchObject({
+    await expect(
+      catalog.list({ limit: 20, offset: 0, network: "eip155:8453" }),
+    ).resolves.toMatchObject({
       count: 1,
       filters: { network: "eip155:8453" },
     });
@@ -171,5 +173,70 @@ it("omits search internals and endpoint bodies from lists while preserving exten
     fqn: "demo/provider",
     endpointCount: 1,
     extraMetadata: { billingMode: "usage" },
+  });
+});
+
+it("returns an empty page for a valid chain absent from the provider catalog", async () => {
+  const catalog = new X402ProviderCatalog(async () =>
+    Response.json({ version: 1, providers: [{ fqn: "demo", chains: ["tron:728126428"] }] }),
+  );
+  await expect(
+    catalog.list({ limit: 20, offset: 0, network: "tron:3448148188" }),
+  ).resolves.toMatchObject({
+    count: 0,
+    results: [],
+    pagination: { total: 0 },
+  });
+  await expect(catalog.list({ limit: 20, offset: 0, network: "typo" })).rejects.toMatchObject({
+    code: "invalid_value",
+  });
+});
+
+// Exercise the production alias registry together with catalog filtering.
+describe("provider network resolution", () => {
+  it("accepts every global alias, including configured aliases, without changing unfiltered lists", async () => {
+    const { ConfigLoader, NetworkRegistry } = await import("../config/index.js");
+    const { X402Service } = await import("../../../application/use-cases/x402-service.js");
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const root = mkdtempSync(join(tmpdir(), "provider-alias-"));
+    try {
+      const config = ConfigLoader.load({ WALLET_CLI_HOME: root });
+      config.aliases["my-testnet"] = "eip155:11155111";
+      const registry = new NetworkRegistry(config);
+      const providers = registry
+        .all()
+        .map(({ id }) => ({ fqn: `demo/${id.replace(":", "-")}`, chains: [id] }));
+      const catalog = new X402ProviderCatalog(async () => Response.json({ version: 1, providers }));
+      const service = new X402Service({} as never, catalog, registry);
+      for (const alias of Object.keys(config.aliases)) {
+        const id = registry.resolve(alias).id;
+        for (const input of [alias, alias.toUpperCase()]) {
+          await expect(
+            service.providerList({ limit: 100, offset: 0, network: input }),
+          ).resolves.toMatchObject({
+            count: 1,
+            filters: { network: id },
+            results: [{ chains: [id] }],
+          });
+        }
+      }
+      await expect(service.providerList({ limit: 100, offset: 0 })).resolves.toMatchObject({
+        count: providers.length,
+        filters: {},
+      });
+      await expect(
+        service.providerList({ limit: 100, offset: 0, network: "eip155:999999" }),
+      ).resolves.toMatchObject({ count: 0, results: [] });
+      await expect(
+        service.providerList({ limit: 100, offset: 0, network: "tron:0xcd8690dc" }),
+      ).resolves.toMatchObject({ count: 1, filters: { network: "tron:3448148188" } });
+      expect(() => service.providerList({ limit: 100, offset: 0, network: "typo" })).toThrow(
+        "unknown network: typo",
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

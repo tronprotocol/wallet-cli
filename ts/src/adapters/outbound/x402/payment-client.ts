@@ -1,7 +1,12 @@
 import { gasfreeRelayClient } from "./gasfree-relay.js";
 import type { Config } from "../../../domain/types/index.js";
 import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
-import { sdkPaymentError, providerPaymentError, type PaymentPhase } from "./payment-error.js";
+import {
+  unsentPaymentError,
+  sdkPaymentError,
+  providerPaymentError,
+  type PaymentPhase,
+} from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import {
@@ -44,6 +49,14 @@ export class X402PaymentClient implements X402PaymentPort {
     private readonly config: Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret"> = {},
   ) {}
 
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void {
+    try {
+      this.signers.prepare(scope.activeAccount, network.family);
+    } catch (error) {
+      throw unsentPaymentError(error, "sign");
+    }
+  }
+
   validateConfiguration(
     network: NetworkDescriptor,
     input: Pick<X402PayInput, "gasfreeRelay">,
@@ -74,9 +87,15 @@ export class X402PaymentClient implements X402PaymentPort {
       redirect: "error",
       ...(input.body === undefined ? {} : { body: input.body }),
     };
+    scope.emit({
+      type: "activity",
+      message: "Requesting the resource and checking payment requirements…",
+    });
+    const authorization = { signed: false };
     let phase: PaymentPhase = "request";
     try {
       if (this.paidFetchFactory && !input.expectedPayTo && input.exactAmount === undefined) {
+        authorization.signed = true; // External fetch factories own their signing lifecycle.
         const signer = this.resolveSigner(scope, network);
         const paidFetch = await this.paidFetchFactory(network, signer, scope);
         const response = await paidFetch(input.url, requestInit);
@@ -106,17 +125,28 @@ export class X402PaymentClient implements X402PaymentPort {
           toX402Network(network),
         );
       phase = "challenge";
+      scope.emit({
+        type: "activity",
+        message: "Payment required (HTTP 402); checking network, asset and payment limits…",
+      });
       if (input.dryRun) return inspectChallenge(input.url, initial, network, input);
 
-      if (input.expectedPayTo || input.exactAmount !== undefined) {
-        const challenge = await decodeChallenge(initial.clone());
-        selectMatching(challenge.accepts, network, input);
-      }
+      const challenge = await decodeChallenge(initial.clone());
+      selectMatching(challenge.accepts, network, input);
 
       phase = "create_payment";
       const signer = createPayerSigner(this.signers, scope, network.family);
-      const paidFetch = await this.createPaidFetch(network, signer, scope, input, initial, relay);
+      const paidFetch = await this.createPaidFetch(
+        network,
+        signer,
+        scope,
+        input,
+        initial,
+        relay,
+        authorization,
+      );
       phase = "payment_request";
+      scope.emit({ type: "activity", message: "Preparing payment for the service…" });
       return await this.readResponse(
         input.url,
         await paidFetch(input.url, requestInit),
@@ -125,7 +155,7 @@ export class X402PaymentClient implements X402PaymentPort {
         toX402Network(network),
       );
     } catch (error) {
-      throw sdkPaymentError(error, phase);
+      throw authorization.signed ? sdkPaymentError(error, phase) : unsentPaymentError(error, phase);
     }
   }
 
@@ -256,6 +286,7 @@ export class X402PaymentClient implements X402PaymentPort {
     input: X402PayInput,
     initial: Response,
     relay: ReturnType<typeof gasfreeRelayClient>,
+    authorization: { signed: boolean },
   ): Promise<typeof fetch> {
     let maxGasfreeFeeRaw = input.maxGasfreeFeeRaw;
     if (maxGasfreeFeeRaw === undefined && input.maxGasfreeFee !== undefined) {
@@ -274,15 +305,29 @@ export class X402PaymentClient implements X402PaymentPort {
     const bridge = {
       ...wallet,
       async signTypedData(payload: unknown) {
+        scope.emit({ type: "activity", message: "Signing payment authorization…" });
         try {
-          return await wallet.signTypedData(normalizeTypedData(payload));
+          const signed = await wallet.signTypedData(normalizeTypedData(payload));
+          authorization.signed = true;
+          scope.emit({
+            type: "activity",
+            message:
+              "Payment authorization signed; continuing payment verification and settlement…",
+          });
+          return signed;
         } catch (error) {
           throw sdkPaymentError(error, "sign");
         }
       },
       async signTransaction(tx: unknown): Promise<string | Record<string, unknown>> {
+        scope.emit({ type: "activity", message: "Signing the payment transaction…" });
         const signed = await wallet.signTransaction(tx).catch((error: unknown) => {
           throw sdkPaymentError(error, "sign");
+        });
+        authorization.signed = true;
+        scope.emit({
+          type: "activity",
+          message: "Payment transaction signed; continuing payment verification and settlement…",
         });
         if (typeof signed === "string") return signed;
         if (typeof signed === "object" && signed !== null && !Array.isArray(signed)) {

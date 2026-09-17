@@ -1215,3 +1215,49 @@ describe("golden CLI — yargs tail keys are not user-facing flags", () => {
     expect(r.json.data.key).toBe("defaultNetwork");
   });
 });
+
+it.each([
+  ["x402", "pay", "http://127.0.0.1:1/pay"],
+  ["x402", "roundtrip", "--pay-to", TRON1],
+  ["bai", "recharge", "1"],
+])("rejects unused wait flags before payment: %j", (...args) => {
+  for (const flag of [["--wait"], ["--wait-timeout", "100"]]) {
+    const result = run([...args, "--network", "tron", ...flag, "-o", "json"], { password: null });
+    expect(result.json?.error.code).toBe("invalid_option");
+    expect(result.json?.error.message).toContain("does not support --wait");
+  }
+});
+
+it("reads --body-file - from stdin instead of treating the dash as a positional", () => {
+  seedWallet();
+  const result = run(
+    [
+      "x402",
+      "pay",
+      "http://127.0.0.1:1/pay",
+      "--network",
+      "nile",
+      "--body-file",
+      "-",
+      "--method",
+      "POST",
+      "-o",
+      "json",
+    ],
+    { password: null, input: "{}" },
+  );
+  expect(result.json?.error.code).toBe("provider_error");
+  expect(result.json?.error.details.paymentStatus).toBe("not_sent");
+  expect(result.json?.error.message).not.toContain("body-file");
+});
+
+it.each([
+  ["0.5", "tron", "invalid_amount"],
+  ["1", "nile", "unsupported_network_capability"],
+])("validates B.AI recharge input before credentials: %s on %s", (amount, network, code) => {
+  seedWallet();
+  const result = run(["bai", "recharge", amount, "--network", network, "-o", "json"], {
+    password: null,
+  });
+  expect(result.json?.error.code).toBe(code);
+});

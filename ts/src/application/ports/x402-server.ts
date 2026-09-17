@@ -2,6 +2,7 @@ import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 
 export interface X402RoundtripPort {
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void;
   validate(network: NetworkDescriptor, input: X402ServeInput): void;
   roundtrip(
     scope: TransactionScope,
@@ -11,6 +12,8 @@ export interface X402RoundtripPort {
 }
 
 export interface X402ServeInput {
+  /** Temporary roundtrip access logs are diagnostic; standalone servers retain access logs. */
+  accessLog?: "debug" | "text";
   payTo: string;
   amount?: string;
   rawAmount?: string;

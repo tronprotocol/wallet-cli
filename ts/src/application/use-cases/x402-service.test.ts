@@ -5,14 +5,17 @@ import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
 
 describe("X402Service", () => {
   it("delegates payments and catalog operations through ports", async () => {
-    const payment = { pay: vi.fn(async () => ({ delivered: true })) } as X402PaymentPort;
+    const payment = {
+      prepare: vi.fn(),
+      pay: vi.fn(async () => ({ delivered: true })),
+    } as X402PaymentPort;
     const catalog = {
       list: vi.fn(async () => ({ results: [], pagination: {} })),
       show: vi.fn(async () => ({ fqn: "a/b" })),
       endpoints: vi.fn(async () => ({ endpoints: [] })),
       update: vi.fn(async () => ({ updated: true })),
     } as unknown as ProviderCatalogPort;
-    const service = new X402Service(payment, catalog);
+    const service = new X402Service(payment, catalog, { resolve: vi.fn() });
     const scope = {} as never;
     const network = { id: "eip155:56" } as never;
 
@@ -35,10 +38,15 @@ it.each([false, true])(
       if (failure) throw new Error("settlement failed");
       return { settled: true };
     });
-    const service = new X402Service({ pay }, {} as ProviderCatalogPort, {
-      validate: vi.fn(),
-      start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
-    });
+    const service = new X402Service(
+      { prepare: vi.fn(), pay },
+      {} as ProviderCatalogPort,
+      { resolve: vi.fn() },
+      {
+        validate: vi.fn(),
+        start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
+      },
+    );
     const result = service.roundtrip({} as never, {} as never, {
       payTo: "trusted",
       amount: "10",

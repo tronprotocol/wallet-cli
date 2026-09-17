@@ -64,6 +64,13 @@ export class SignerResolver {
     }
   }
 
+  /** Preflight credentials before creating an external payment order. */
+  prepare(refOrLabel: string, family: ChainFamily): void {
+    this.assertCanSign(refOrLabel, family);
+    const signer = this.resolve(refOrLabel, family);
+    if (signer instanceof SoftwareSigner) signer.prepare();
+  }
+
   resolve(refOrLabel: string, family: ChainFamily): Signer {
     const { wallet, index } = this.keystore.resolveAccount(refOrLabel, family);
     const address = walletAddress(wallet, family, index);

@@ -1,5 +1,12 @@
 import { expect, it } from "vitest";
-import { agentShowText, paymentText, providerEndpointsText, providerShowText } from "./x402.js";
+import {
+  agentShowText,
+  paymentText,
+  providerEndpointsText,
+  providerShowText,
+  roundtripText,
+  serveText,
+} from "./x402.js";
 it("renders known metadata fields without terminal controls or unknown fields", () => {
   const rendered = agentShowText({
     agentId: "1",
@@ -78,4 +85,58 @@ it("wraps a wide-character summary with aligned continuation lines", () => {
     if (original) Object.defineProperty(process.stdout, "columns", original);
     else Reflect.deleteProperty(process.stdout, "columns");
   }
+});
+
+const roundtripResult = {
+  serve: {
+    network: "tron:3448148188",
+    scheme: "exact_gasfree",
+    token: "USDD",
+    rawAmount: "10000000000000000",
+    decimals: 18,
+    payTo: "receiver",
+  },
+  pay: {
+    settled: true,
+    delivered: true,
+    payer: { address: "sender" },
+    paymentResponse: { transaction: "a".repeat(64) },
+    response: { secret: "DO_NOT_DUMP" },
+  },
+};
+it("renders a compact, exact payment summary without nested receipt JSON", () => {
+  const before = structuredClone(roundtripResult);
+  const rendered = roundtripText(roundtripResult);
+  expect(rendered).toContain("Payment settled");
+  for (const value of ["nile", "0.01 USDD", "sender", "receiver", "a".repeat(64)])
+    expect(rendered).toContain(value);
+  expect(rendered).not.toMatch(/DO_NOT_DUMP|paymentResponse|rawAmount|Fee/);
+  expect(roundtripResult).toEqual(before);
+});
+it("keeps settled-but-undelivered payments distinct from failed payments", () => {
+  const result = { ...roundtripResult, pay: { ...roundtripResult.pay, delivered: false } };
+  expect(roundtripText(result)).toContain("Payment settled; response not delivered");
+  expect(roundtripText({ ...result, pay: { settled: false } })).toContain("Payment not settled");
+});
+it("retains custom asset identity and minimal units without floats", () => {
+  const rendered = roundtripText({
+    ...roundtripResult,
+    serve: { ...roundtripResult.serve, token: undefined, asset: "contract", rawAmount: "1" },
+  });
+  expect(rendered).toContain("0.000000000000000001 tokens");
+  expect(rendered).toContain("contract");
+});
+it("sanitizes payment fields and shows daemon management details", () => {
+  const rendered = serveText({
+    ...roundtripResult.serve,
+    daemon: true,
+    pid: 123,
+    logFile: "/tmp/access.log",
+    payUrl: "http://localhost/pay\x1b[2J\nforged",
+  });
+  expect(rendered).toContain("running in background");
+  expect(rendered).toContain("123");
+  expect(rendered).toContain("/tmp/access.log");
+  expect(rendered).not.toContain("\x1b");
+  expect(rendered).not.toContain("\nforged");
 });

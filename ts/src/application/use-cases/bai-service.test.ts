@@ -42,7 +42,7 @@ it("stops an unconfirmed local recharge before requesting or signing payment", a
   const service = new BaiService(
     api(),
     () => new Date(),
-    { validate: vi.fn(), roundtrip: pay },
+    { prepare: vi.fn(), validate: vi.fn(), roundtrip: pay },
     {
       isConfirmed,
     } as unknown as BaiBindingStore,
@@ -70,7 +70,7 @@ it("does not proceed when local confirmation cannot be read", async () => {
   const service = new BaiService(
     api(),
     () => new Date(),
-    { validate: vi.fn(), roundtrip: pay },
+    { prepare: vi.fn(), validate: vi.fn(), roundtrip: pay },
     {
       isConfirmed,
     } as unknown as BaiBindingStore,

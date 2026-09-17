@@ -1,6 +1,8 @@
+import { fromBaseUnits } from "../../../../domain/amounts/index.js";
+import { structuredText } from "./structured.js";
 import wrapAnsi from "wrap-ansi";
 import { sanitizeText } from "./scalars.js";
-import { asObj, query, table } from "./layout.js";
+import { asObj, query, table, receipt, ok, warn, type Pair } from "./layout.js";
 import { fromX402Network } from "../../../../domain/x402/network-id.js";
 
 // Keep untrusted text on its own line/cell and never emit terminal controls.
@@ -11,7 +13,11 @@ function text(value: unknown): string {
     .replace(/\|/g, "\\|");
 }
 function summary(value: unknown): string {
-  return text(value).match(/^.*?(?:[.!?](?=\s|$)|[。！？])|^.+$/u)?.[0] ?? "";
+  return (
+    text(value)
+      .replace(/(^|\s)#{1,6}\s+/g, "$1")
+      .match(/^.*?(?:[.!?](?=\s|$)|[。！？])|^.+$/u)?.[0] ?? ""
+  );
 }
 function rows(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.map(asObj) : [];
@@ -102,12 +108,16 @@ export function paymentText(value: unknown): string {
   const details = query([
     ["URL", text(p.url)],
     ["Status", text(p.status)],
-    ["Settled", text(p.settled)],
-    ["Delivered", text(p.delivered)],
+    ["Settled", p.settled === true ? "Yes" : "No"],
+    ["Delivered", p.delivered === true ? "Yes" : "No"],
+    ["From", text(asObj(p.payer).address)],
+    ["Transaction", text(asObj(p.paymentResponse).transaction)],
     ["Output", text(asObj(p.output).path)],
   ]);
+  if (p.dryRun === true)
+    return `Payment preview — no payment sent\n${details}\nPayment requirements:\n${structuredText(p.selected, "  ")}`;
   if (p.response === undefined) return details;
-  const body = typeof p.response === "string" ? p.response : JSON.stringify(p.response, null, 2);
+  const body = typeof p.response === "string" ? p.response : structuredText(p.response);
   return `${details}\n--- response ---\n${sanitizeText(body)}`;
 }
 export function agentShowText(value: unknown): string {
@@ -117,7 +127,14 @@ export function agentShowText(value: unknown): string {
     ["Agent ID", text(p.agentId)],
     ["Owner", text(p.owner)],
     ["URI", text(p.uri)],
-    ["Approved", text(p.approved)],
+    [
+      "Approved",
+      ["T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", "0x0000000000000000000000000000000000000000"].includes(
+        String(p.approved),
+      )
+        ? "None"
+        : text(p.approved),
+    ],
     ["Registry", text(p.registry)],
     ["Name", text(m.name)],
     ["Description", summary(m.description)],
@@ -139,4 +156,92 @@ export function agentShowText(value: unknown): string {
         : "",
     ],
   ]);
+}
+
+function paymentAmountText(value: Record<string, unknown>): string {
+  const symbol = text(value.token);
+  const raw = value.rawAmount;
+  const decimals = value.decimals;
+  if (
+    typeof raw === "string" &&
+    /^\d{1,78}$/.test(raw) &&
+    typeof decimals === "number" &&
+    Number.isInteger(decimals) &&
+    decimals >= 0 &&
+    decimals <= 18
+  ) {
+    return `${fromBaseUnits(raw, decimals)} ${symbol || "tokens"}`;
+  }
+  if (typeof value.amount === "string") return `${text(value.amount)} ${symbol || "tokens"}`;
+  return raw === undefined ? "" : `${text(raw)} base units`;
+}
+
+export function roundtripText(value: unknown): string {
+  const result = asObj(value),
+    serve = asObj(result.serve),
+    pay = asObj(result.pay);
+  const settled = pay.settled === true,
+    delivered = pay.delivered === true;
+  const title =
+    pay.dryRun === true
+      ? "Payment preview — no payment sent"
+      : settled
+        ? delivered
+          ? "Payment settled"
+          : "Payment settled; response not delivered"
+        : "Payment not settled";
+  return receipt(pay.dryRun === true || (settled && delivered) ? ok() : warn(), title, [
+    ["Network", network(serve.network)],
+    ["Scheme", text(serve.scheme)],
+    ["Amount", paymentAmountText(serve)],
+    ["Asset", serve.token ? "" : text(serve.asset)],
+    ["From", text(asObj(pay.payer).address)],
+    ["To", text(serve.payTo)],
+    ["Transaction", text(asObj(pay.paymentResponse).transaction)],
+    ["Delivery", delivered ? "Delivered" : "Not delivered"],
+  ]);
+}
+
+export function serveText(value: unknown): string {
+  const serve = asObj(value);
+  const fields: Pair[] = [
+    ["URL", text(serve.payUrl)],
+    ["Network", network(serve.network)],
+    ["Scheme", text(serve.scheme)],
+    ["Amount", paymentAmountText(serve)],
+    ["Asset", serve.token ? "" : text(serve.asset)],
+    ["Pay to", text(serve.payTo)],
+    ["PID", text(serve.pid)],
+    ["Log", text(serve.logFile)],
+  ];
+  return receipt(
+    ok(),
+    serve.daemon
+      ? "Payment endpoint running in background"
+      : "Payment endpoint ready (Ctrl+C to stop)",
+    fields,
+  );
+}
+
+export function operatorCheckText(value: unknown): string {
+  const data = asObj(value);
+  return query([
+    ["Owner", text(data.owner)],
+    ["Operator", text(data.operator)],
+    ["Approved for all Agents", data.approved === true ? "Yes" : "No"],
+    ["Registry", text(data.registry)],
+  ]);
+}
+
+export function catalogUpdateText(value: unknown): string {
+  const data = asObj(value);
+  return receipt(
+    data.updated === true ? ok() : warn(),
+    data.updated === true ? "Provider catalog updated" : "Provider catalog update not confirmed",
+    [
+      ["Providers", text(data.providers)],
+      ["Cache", text(data.cache)],
+      ["Generated at", text(data.generatedAt)],
+    ],
+  );
 }

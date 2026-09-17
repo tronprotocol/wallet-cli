@@ -7,7 +7,7 @@ function fixture() {
     createOrder: vi.fn(),
     resolveTarget: vi.fn(),
   };
-  const payments = { validate: vi.fn(), roundtrip: vi.fn() };
+  const payments = { prepare: vi.fn(), validate: vi.fn(), roundtrip: vi.fn() };
   const service = new BaiService({} as never, () => new Date(), payments, undefined, api as never);
   return { api, payments, service };
 }

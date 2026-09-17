@@ -26,6 +26,7 @@ export class X402HttpServer implements X402ServerPort {
     private readonly log: (line: string) => void = (line) => {
       process.stderr.write(`${line}\n`);
     },
+    private readonly debugLog: (line: string) => void = () => {},
   ) {}
 
   validate(network: NetworkDescriptor, input: X402ServeInput): void {
@@ -160,15 +161,27 @@ export class X402HttpServer implements X402ServerPort {
         // Do not log URLs, queries, headers, bodies or payment signatures.
         const path = (request.url ?? "").split("?")[0];
         const route = ["/health", "/.well-known/x402", "/pay"].includes(path!) ? path : "other";
-        this.log(
-          JSON.stringify({
-            event: "x402.request",
-            method: request.method,
-            route,
-            status: response.statusCode,
-            durationMs: Math.round(performance.now() - started),
-          }),
-        );
+        const durationMs = Math.round(performance.now() - started);
+        const status = response.statusCode;
+        const description =
+          status === 402
+            ? "Payment required"
+            : status === 200
+              ? "Request completed"
+              : "Request finished";
+        const message = `${description}: HTTP ${status} (${durationMs} ms)`;
+        if (input.accessLog === "debug") this.debugLog(message);
+        else if (input.accessLog === "text") this.log(message);
+        else
+          this.log(
+            JSON.stringify({
+              event: "x402.request",
+              method: request.method,
+              route,
+              status,
+              durationMs,
+            }),
+          );
       });
       let pathname: string;
       try {

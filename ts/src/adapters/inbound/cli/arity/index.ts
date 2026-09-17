@@ -134,6 +134,7 @@ function applyArity(y: Argv, fields: ZodObject<ZodRawShape>): Argv {
   for (const f of introspectFields(fields)) {
     y.option(f.kebab, {
       type: f.baseType === "boolean" ? "boolean" : "string",
+      ...(f.kebab === "body-file" ? { nargs: 1 } : {}),
       ...(f.isArray ? { array: true } : {}), // repeatable flag → yargs collects into an array
       describe: f.description,
       demandOption: false, // requiredness is enforced by zod, not yargs
