@@ -37,13 +37,9 @@ export class LedgerSigner implements Signer {
     }
   }
   async sign(tx: UnsignedTx, opts: SignerSignOpts): Promise<SignedTx> {
-    return this.ledger.signTransaction(
-      this.family,
-      this.path,
-      tx,
-      opts.signal,
-      { onWarning: opts.onWarning },
-    );
+    return this.ledger.signTransaction(this.family, this.path, tx, opts.signal, {
+      onWarning: opts.onWarning,
+    });
   }
   async signMessage(message: string, opts: SignerSignOpts): Promise<string> {
     return this.ledger.signMessage(this.family, this.path, message, opts.signal);
