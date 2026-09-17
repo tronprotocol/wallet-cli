@@ -120,7 +120,7 @@ const listFields = z.object({
   type: z.string().trim().min(1).optional(),
   category: z.string().trim().min(1).optional(),
   capability: z.string().trim().min(1).optional(),
-  network: z.string().trim().min(1).optional().describe("CAIP-2 network id"),
+  network: z.string().trim().min(1).optional().describe("network alias or CAIP-2 network id"),
   includeBlocked: z.boolean().default(false).describe("include providers marked as blocked"),
 });
 

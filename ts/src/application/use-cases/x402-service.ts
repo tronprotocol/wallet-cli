@@ -4,10 +4,13 @@ import type { ProviderCatalogPort, ProviderListInput } from "../ports/provider-c
 import type { X402PayInput, X402PaymentPort } from "../ports/x402-payment.js";
 import type { X402ServeInput, X402ServerPort } from "../ports/x402-server.js";
 
+import type { NetworkRegistry } from "../ports/network-registry.js";
+
 export class X402Service {
   constructor(
     private readonly payments: X402PaymentPort,
     private readonly catalog: ProviderCatalogPort,
+    private readonly networks: Pick<NetworkRegistry, "resolve">,
     private readonly server?: X402ServerPort,
   ) {}
 
@@ -16,7 +19,17 @@ export class X402Service {
   }
 
   providerList(input: ProviderListInput) {
-    return this.catalog.list(input);
+    const network = input.network;
+    // Catalog filters need no RPC configuration for an explicit chain ID.
+    // Resolve names through the same registry used by global --network.
+    const canonical =
+      network && !/^(?:tron|eip155):(?:[0-9]+|0x[0-9a-f]+)$/i.test(network)
+        ? this.networks.resolve(network).id
+        : network;
+    return this.catalog.list({
+      ...input,
+      ...(canonical === undefined ? {} : { network: canonical }),
+    });
   }
 
   providerShow(fqn: string) {

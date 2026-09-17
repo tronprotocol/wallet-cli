@@ -12,7 +12,7 @@ describe("X402Service", () => {
       endpoints: vi.fn(async () => ({ endpoints: [] })),
       update: vi.fn(async () => ({ updated: true })),
     } as unknown as ProviderCatalogPort;
-    const service = new X402Service(payment, catalog);
+    const service = new X402Service(payment, catalog, { resolve: vi.fn() });
     const scope = {} as never;
     const network = { id: "eip155:56" } as never;
 
@@ -35,10 +35,15 @@ it.each([false, true])(
       if (failure) throw new Error("settlement failed");
       return { settled: true };
     });
-    const service = new X402Service({ pay }, {} as ProviderCatalogPort, {
-      validate: vi.fn(),
-      start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
-    });
+    const service = new X402Service(
+      { pay },
+      {} as ProviderCatalogPort,
+      { resolve: vi.fn() },
+      {
+        validate: vi.fn(),
+        start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
+      },
+    );
     const result = service.roundtrip({} as never, {} as never, {
       payTo: "trusted",
       amount: "10",

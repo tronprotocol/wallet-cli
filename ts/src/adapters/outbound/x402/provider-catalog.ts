@@ -24,8 +24,12 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     validateFilter(providers, "type", input.type, "type is not exposed by the catalog yet");
     validateFilter(providers, "category", input.category);
     validateArrayFilter(providers, "featuredTags", input.capability);
-    const wantedNetwork = input.network ? normalizeNetworkAlias(input.network) : undefined;
-    validateArrayFilter(providers, "chains", wantedNetwork);
+    const wantedNetwork = input.network ? normalizeNetwork(input.network) : undefined;
+    if (wantedNetwork && !/^(?:tron|eip155):[0-9]+$/.test(wantedNetwork))
+      throw new UsageError(
+        "invalid_value",
+        "provider network filter requires a canonical CAIP-2 network ID",
+      );
     providers = providers.filter(
       (provider) =>
         matches(provider, "type", input.type) &&
@@ -244,18 +248,6 @@ function validateArrayFilter(
   if (!matches.some((value) => value.toLowerCase() === expected.toLowerCase())) {
     throw new UsageError("invalid_value", `unknown provider ${field}: ${expected}`, { matches });
   }
-}
-
-function normalizeNetworkAlias(value: string): string {
-  const aliases: Record<string, string> = {
-    tron: "tron:728126428",
-    nile: "tron:3448148188",
-    shasta: "tron:2494104990",
-    bsc: "eip155:56",
-    "bsc-testnet": "eip155:97",
-    base: "eip155:8453",
-  };
-  return aliases[value.toLowerCase()] ?? normalizeNetwork(value);
 }
 
 function validateCatalog(value: Record<string, unknown>): Record<string, unknown> {
