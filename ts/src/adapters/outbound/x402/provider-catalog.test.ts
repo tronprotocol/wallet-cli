@@ -173,3 +173,17 @@ it("omits search internals and endpoint bodies from lists while preserving exten
     extraMetadata: { billingMode: "usage" },
   });
 });
+
+it("returns an empty page for a valid chain absent from the provider catalog", async () => {
+  const catalog = new X402ProviderCatalog(async () =>
+    Response.json({ version: 1, providers: [{ fqn: "demo", chains: ["tron:728126428"] }] }),
+  );
+  await expect(catalog.list({ limit: 20, offset: 0, network: "nile" })).resolves.toMatchObject({
+    count: 0,
+    results: [],
+    pagination: { total: 0 },
+  });
+  await expect(catalog.list({ limit: 20, offset: 0, network: "typo" })).rejects.toMatchObject({
+    code: "invalid_value",
+  });
+});

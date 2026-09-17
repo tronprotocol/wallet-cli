@@ -536,7 +536,7 @@ export function assertNoTailFlags(tokens: string[]): void {
 }
 
 function assertKnownFlags(
-  cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals">,
+  cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals" | "supportsWait">,
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
@@ -550,6 +550,18 @@ function assertKnownFlags(
         "provider commands do not accept --account; --network is only a provider-list filter",
       );
     }
+  }
+  if (
+    cmd.supportsWait === false &&
+    (argv.wait !== undefined ||
+      argv.waitTimeout !== undefined ||
+      argv.waitTimeoutMs !== undefined ||
+      argv["wait-timeout"] !== undefined)
+  ) {
+    throw new UsageError(
+      "invalid_option",
+      "This command uses facilitator settlement and does not support --wait or --wait-timeout",
+    );
   }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {

@@ -1,3 +1,4 @@
+import { currentTronEnergyPrice } from "../../../../domain/amounts/tron-energy-price.js";
 /**
  * TronRpcClient — thin TRON node wrapper via tronweb HTTP fullHost. Implements the
  * Broadcaster port plus TRON-specific reads, TRC10/TRC20, Stake 2.0, and contract operations.
@@ -1080,7 +1081,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return {
       feeModel: "tron-resource",
       energy,
-      energyPriceSun: prices,
+      energyPriceSun: currentTronEnergyPrice(prices),
       availableEnergy: resources
         ? Number(resources.EnergyLimit ?? 0) - Number(resources.EnergyUsed ?? 0)
         : undefined,

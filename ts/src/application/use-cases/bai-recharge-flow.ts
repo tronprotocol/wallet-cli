@@ -13,6 +13,7 @@ export class BaiRechargeFlow {
     private readonly api: Pick<BaiRechargeApi, "createOrder" | "reportTxHash">,
     private readonly payment: BaiRechargePayment,
     private readonly retry?: BaiReportRetry,
+    private readonly progress: (message: string) => void = () => {},
   ) {}
 
   async execute(input: BaiCreateOrderInput) {
@@ -25,6 +26,7 @@ export class BaiRechargeFlow {
     ) {
       throw new UsageError("invalid_value", "B.AI recharge requires a resolved recipient");
     }
+    this.progress("Creating the B.AI recharge preorder…");
     const order = await this.api.createOrder(structuredClone(request));
     let paid: Awaited<ReturnType<BaiRechargePayment["pay"]>>;
     try {
@@ -68,6 +70,7 @@ export class BaiRechargeFlow {
         warning: "Payment identity does not match the preorder; transaction was not reported",
       };
     }
+    this.progress("Submitting the transaction hash to B.AI and checking credit confirmation…");
     return this.report(reportInput);
   }
 

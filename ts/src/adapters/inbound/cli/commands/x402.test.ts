@@ -87,3 +87,13 @@ describe("x402 command surface", () => {
     ).toBe(false);
   });
 });
+
+it("does not advertise unsupported provider type or facilitator waiting", () => {
+  const registry = new CommandRegistry();
+  registerX402Commands(registry, service());
+  expect(registry.resolveNeutral(["x402", "provider-list"])!.fields.shape).not.toHaveProperty(
+    "type",
+  );
+  for (const command of ["pay", "roundtrip"])
+    expect(registry.resolveNeutral(["x402", command])!.supportsWait).toBe(false);
+});

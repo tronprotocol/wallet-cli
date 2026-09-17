@@ -332,3 +332,30 @@ describe("invisible formatting in untrusted display fields", () => {
     expect(frame).toContain("<U+202E>");
   });
 });
+
+it("renders activity as human progress in text and structured events in JSON", () => {
+  const event = { type: "activity" as const, message: "Checking payment requirements…" };
+  const human = createOutputFormatter("text", capture("text").sm, 0).event(event);
+  expect(human).toBe("⏳ Checking payment requirements…");
+  expect(JSON.parse(createOutputFormatter("json", capture("json").sm, 0).event(event)!)).toEqual(
+    event,
+  );
+});
+
+it.each(["next-page", "", null])("preserves B.AI cursor pagination (%s)", (nextCursor) => {
+  const formatter = createOutputFormatter("json", capture("json").sm, 0);
+  const result = JSON.parse(
+    formatter.success("bai.usage-records", undefined, {
+      records: [],
+      pagination: { offset: 0, limit: 3, hasMore: false, nextCursor },
+    }),
+  );
+  expect(result.meta.pagination).toEqual({
+    offset: 0,
+    limit: 3,
+    total: null,
+    hasMore: false,
+    nextCursor,
+  });
+  expect(result.data).toEqual({ records: [] });
+});

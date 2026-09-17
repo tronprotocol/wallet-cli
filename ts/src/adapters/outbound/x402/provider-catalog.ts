@@ -25,7 +25,11 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     validateFilter(providers, "category", input.category);
     validateArrayFilter(providers, "featuredTags", input.capability);
     const wantedNetwork = input.network ? normalizeNetworkAlias(input.network) : undefined;
-    validateArrayFilter(providers, "chains", wantedNetwork);
+    if (wantedNetwork && !/^(?:tron|eip155):[0-9]+$/.test(wantedNetwork))
+      throw new UsageError(
+        "invalid_value",
+        "provider network filter requires a canonical CAIP-2 network ID",
+      );
     providers = providers.filter(
       (provider) =>
         matches(provider, "type", input.type) &&

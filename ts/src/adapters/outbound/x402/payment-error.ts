@@ -225,3 +225,17 @@ function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
     return { retryAfterSeconds: Number(value) };
   return {};
 }
+
+/** Caller has observed that no signature was returned and no payment could be submitted. */
+export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliError {
+  const classified = sdkPaymentError(error, phase);
+  const details = classified.details as Record<string, unknown> | undefined;
+  // Never discard settlement evidence, including failures while reading a paid response.
+  if (details?.candidateTxHash || details?.settled === true) return classified;
+  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(
+    classified.code,
+    classified.message.replace(/; reconcile before paying again/g, "; no payment was sent"),
+    { ...details, paymentStatus: "not_sent", retryPayment: false },
+  );
+}

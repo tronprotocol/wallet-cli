@@ -6,12 +6,13 @@ it.each([undefined, "0", "8847971"])(
     const client = new TronRpcClient("http://localhost:1", 1000);
     const trigger = vi.fn(async () => ({ energy_used: 123 }));
     client.tronweb.transactionBuilder.triggerConstantContract = trigger as never;
-    vi.spyOn(client, "getEnergyPrices").mockResolvedValue("0:100");
+    vi.spyOn(client, "getEnergyPrices").mockResolvedValue("0:100,1754644200000:420");
     vi.spyOn(client, "getAccountResources").mockResolvedValue(
       {} as Awaited<ReturnType<TronRpcClient["getAccountResources"]>>,
     );
     expect(await client.estimateResources("owner", "contract", "swap()", [], value)).toMatchObject({
       energy: 123,
+      energyPriceSun: "420",
     });
     expect(trigger).toHaveBeenCalledWith(
       "contract",

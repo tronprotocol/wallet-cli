@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { sdkPaymentError, providerPaymentError } from "./payment-error.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { UsageError, TransportError } from "../../../domain/errors/index.js";
 it.each([403, 429, 502])(
   "reports HTTP %s and stage without leaking SDK request contents",
   (status) => {
@@ -106,4 +106,19 @@ it("classifies a missing GasFree asset before payment creation without exposing 
     details: { paymentStatus: "not_sent", retryPayment: false },
   });
   expect(error.message).not.toContain("TGjgvd");
+});
+
+it("uses not_sent only when the caller has no authorization or transaction evidence", async () => {
+  const { unsentPaymentError } = await import("./payment-error.js");
+  expect(unsentPaymentError(new Error("insufficient_funds"), "create_payment")).toMatchObject({
+    code: "insufficient_balance",
+    details: { paymentStatus: "not_sent" },
+  });
+  const failure = new TransportError("provider_error", "settlement uncertain", {
+    candidateTxHash: "a".repeat(64),
+    paymentStatus: "unknown",
+  });
+  expect(unsentPaymentError(failure, "payment_request")).toMatchObject({
+    details: { paymentStatus: "unknown" },
+  });
 });

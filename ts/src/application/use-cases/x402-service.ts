@@ -11,6 +11,10 @@ export class X402Service {
     private readonly server?: X402ServerPort,
   ) {}
 
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void {
+    this.payments.prepare(scope, network);
+  }
+
   pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
     return this.payments.pay(scope, network, input);
   }
@@ -45,7 +49,7 @@ export class X402Service {
 
   async roundtrip(scope: TransactionScope, network: NetworkDescriptor, input: X402ServeInput) {
     if (!this.server) throw new Error("x402 server is not available in this runtime");
-    const handle = await this.server.start(network, input);
+    const handle = await this.server.start(network, { ...input, accessLog: "debug" });
     try {
       const pay = await this.payments.pay(scope, network, {
         url: String(handle.details.payUrl),

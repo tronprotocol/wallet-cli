@@ -76,9 +76,15 @@ it.skipIf(!entry).each(["SIGINT", "SIGTERM"] as const)(
   },
   20000,
 );
-it.skipIf(!entry).each(["USDT", "USDD"])(
-  "installed x402 exact roundtrip signs %s and uses mocked facilitator settlement",
-  async (token) => {
+it
+  .skipIf(!entry)
+  .each(
+    ["USDT", "USDD"].flatMap((token) =>
+      ["json", "text", "verbose"].map((mode) => [token, mode] as const),
+    ),
+  )(
+  "installed x402 exact roundtrip signs %s with %s output",
+  async (token, mode) => {
     const home = mkdtempSync(join(tmpdir(), "beta-roundtrip-"));
     const p = await port();
     try {
@@ -125,7 +131,8 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
           "payer",
           "--password-stdin",
           "--output",
-          "json",
+          mode === "json" ? "json" : "text",
+          ...(mode === "verbose" ? ["--verbose"] : []),
         ],
         {
           env: { ...process.env, WALLET_CLI_HOME: home },
@@ -135,7 +142,18 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
         },
       );
       expect(r.status, r.stderr + r.stdout).toBe(0);
-      expect(JSON.parse(r.stdout).data.pay.settled).toBe(true);
+      if (mode === "json") {
+        const result = JSON.parse(r.stdout).data;
+        expect(result.pay.settled).toBe(true);
+        expect(result.serve).toHaveProperty("rawAmount");
+      } else {
+        expect(r.stdout).toContain("Payment settled");
+        expect(r.stdout).toContain("Transaction");
+        expect(r.stdout).toContain("0.0001 " + token);
+        expect(r.stdout).not.toMatch(/serve:|pay:|paymentResponse|rawAmount|\{"/);
+      }
+      if (mode === "verbose") expect(r.stderr).toContain("Request completed: HTTP 200");
+      else expect(r.stderr).not.toContain('"event":"x402.request"');
       expect(readFileSync(log, "utf8")).toBe("/verify\n/settle\n");
     } finally {
       rmSync(home, { recursive: true, force: true });

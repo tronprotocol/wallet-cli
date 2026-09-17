@@ -1,3 +1,4 @@
+import { agentWriteError } from "../../domain/erc8004/revert.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
@@ -178,16 +179,31 @@ export class AgentService {
     return { owner, operator, approved: Boolean(approved), registry };
   }
 
-  private setOperator(
+  private async setOperator(
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: TransactionOptions & { operator: string },
     approved: boolean,
   ) {
-    return this.write(scope, network, input, "setApprovalForAll(address,bool)", [
+    const result = await this.write(scope, network, input, "setApprovalForAll(address,bool)", [
       { type: "address", value: input.operator },
       { type: "bool", value: approved },
     ]);
+    const view = { ...result, identity: { operator: input.operator, requestedApproval: approved } };
+    if (result.stage !== "confirmed") return view;
+    try {
+      const current = await this.operatorCheck(
+        network,
+        scope.resolveAddress(network.family),
+        input.operator,
+      );
+      return { ...view, identity: { ...view.identity, approved: current.approved } };
+    } catch {
+      scope.warn(
+        "Operator update confirmed, but its current approval could not be read; do not resubmit the transaction.",
+      );
+      return view;
+    }
   }
 
   private async read(
@@ -200,7 +216,21 @@ export class AgentService {
     return this.registry.read(network, method, params);
   }
 
-  private write(
+  private async write(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: TransactionOptions,
+    method: string,
+    params: Array<{ type: string; value: unknown }>,
+  ) {
+    try {
+      return await this.send(scope, network, input, method, params);
+    } catch (error) {
+      throw agentWriteError(error);
+    }
+  }
+
+  private send(
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: TransactionOptions,

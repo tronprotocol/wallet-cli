@@ -212,3 +212,13 @@ it.each([
   expect(f.reader.read).not.toHaveBeenCalled();
   expect(f.send).not.toHaveBeenCalled();
 });
+
+it("includes operator identity and re-reads approval only after confirmation", async () => {
+  const { service, scope, reader } = fixture("confirmed");
+  const result = await service.operatorAdd(scope, evmNet, { operator });
+  expect(result.identity).toEqual({ operator, requestedApproval: true, approved: true });
+  expect(reader.read).toHaveBeenCalledWith(evmNet, "isApprovedForAll(address,address)", [
+    { type: "address", value: owner },
+    { type: "address", value: operator },
+  ]);
+});

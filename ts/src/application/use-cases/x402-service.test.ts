@@ -5,7 +5,10 @@ import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
 
 describe("X402Service", () => {
   it("delegates payments and catalog operations through ports", async () => {
-    const payment = { pay: vi.fn(async () => ({ delivered: true })) } as X402PaymentPort;
+    const payment = {
+      prepare: vi.fn(),
+      pay: vi.fn(async () => ({ delivered: true })),
+    } as X402PaymentPort;
     const catalog = {
       list: vi.fn(async () => ({ results: [], pagination: {} })),
       show: vi.fn(async () => ({ fqn: "a/b" })),
@@ -35,7 +38,7 @@ it.each([false, true])(
       if (failure) throw new Error("settlement failed");
       return { settled: true };
     });
-    const service = new X402Service({ pay }, {} as ProviderCatalogPort, {
+    const service = new X402Service({ prepare: vi.fn(), pay }, {} as ProviderCatalogPort, {
       validate: vi.fn(),
       start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
     });

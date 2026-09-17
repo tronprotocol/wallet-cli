@@ -145,7 +145,11 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const x402Service = new X402Service(
     x402Payments,
     new X402ProviderCatalog(undefined, undefined, timeoutMs),
-    new ManagedX402Server(new X402HttpServer(undefined, timeoutMs)),
+    new ManagedX402Server(
+      new X402HttpServer(undefined, timeoutMs, undefined, (line) =>
+        streams.diagnostic("debug", line),
+      ),
+    ),
   );
   registerBaiCommands(
     registry,

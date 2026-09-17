@@ -27,6 +27,7 @@ function fixture(
     }),
   };
   const payments = {
+    prepare: vi.fn(),
     validate: vi.fn(),
     roundtrip: vi.fn(async () => {
       calls.push("pay");
@@ -49,7 +50,7 @@ function fixture(
     { facilitatorUrl: "https://facilitator.example", payTo },
   );
   const run = (to?: string, amount = "10", token = "USDT") =>
-    service.recharge({ resolveAddress: () => payer } as never, network as never, {
+    service.recharge({ resolveAddress: () => payer, emit: vi.fn() } as never, network as never, {
       amount,
       token,
       apiKey: "secret",
@@ -208,8 +209,9 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     api as never,
     { facilitatorUrl: "https://fake.invalid", payTo: { bnb: payer } },
   );
+  const emit = vi.fn();
   const result = await service.recharge(
-    { resolveAddress: () => payer, timeoutMs: 1000 } as never,
+    { resolveAddress: () => payer, timeoutMs: 1000, emit } as never,
     network as never,
     { amount: "1", token: "USDT", apiKey: "test-key", dryRun: true, to: "recipient@example.com" },
   );
@@ -221,6 +223,12 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     payment: { dryRun: true, settled: false },
     rechargeTarget: { confirmedTarget: { targetId: "recipient-id" } },
   });
+  expect(
+    emit.mock.calls
+      .flat()
+      .map((event) => event.message)
+      .join(" "),
+  ).not.toMatch(/Signing|signed|Creating.*preorder|Submitting/);
   expect(api.createOrder).not.toHaveBeenCalled();
   expect(api.reportTxHash).not.toHaveBeenCalled();
   expect(signing.resolve).not.toHaveBeenCalled();
@@ -234,7 +242,7 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
   const service = new BaiService(
     {} as never,
     undefined,
-    { validate: vi.fn(), roundtrip: vi.fn() },
+    { prepare: vi.fn(), validate: vi.fn(), roundtrip: vi.fn() },
     { isConfirmed } as never,
     remote as never,
     { facilitatorUrl: "https://facilitator.example", payTo: { bnb: "destination" } },
@@ -310,7 +318,7 @@ it("rejects token precision before account and binding checks", async () => {
   const service = new BaiService(
     {} as never,
     undefined,
-    { validate: (net, input) => server.validate(net, input), roundtrip },
+    { prepare: vi.fn(), validate: (net, input) => server.validate(net, input), roundtrip },
     { isConfirmed } as never,
     { createOrder } as never,
     { facilitatorUrl: "https://facilitator.example", payTo: { bnb: payer } },
@@ -327,4 +335,15 @@ it("rejects token precision before account and binding checks", async () => {
   ).rejects.toMatchObject({ code: "invalid_amount" });
   for (const operation of [isConfirmed, resolveAddress, resolveAccount, createOrder, roundtrip])
     expect(operation).not.toHaveBeenCalled();
+});
+
+it("checks signing credentials before creating an external preorder", async () => {
+  const { payments, api, run } = fixture();
+  payments.prepare.mockImplementation(() => {
+    throw new Error("credentials unavailable");
+  });
+  await expect(run()).rejects.toThrow("credentials unavailable");
+  expect(api.createOrder).not.toHaveBeenCalled();
+  expect(payments.roundtrip).not.toHaveBeenCalled();
+  expect(api.reportTxHash).not.toHaveBeenCalled();
 });

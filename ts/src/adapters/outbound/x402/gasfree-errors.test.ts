@@ -55,7 +55,7 @@ it("reports the installed SDK's GasFree shortfall before signing, without a wall
   );
   await expect(
     client.pay(
-      { activeAccount: "payer" } as never,
+      { activeAccount: "payer", emit: vi.fn() } as never,
       { id: "tron:728126428", family: "tron", chainId: "728126428" } as never,
       { url: "https://example.test/pay", method: "GET", headers: [] },
     ),

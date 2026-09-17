@@ -1,5 +1,8 @@
 import {
   paymentText,
+  roundtripText,
+  catalogUpdateText,
+  serveText,
   providerListText,
   providerShowText,
   providerEndpointsText,
@@ -89,6 +92,7 @@ const payCommand: CommandDefinition = {
   wallet: "optional",
   auth: "conditional",
   broadcasts: true,
+  supportsWait: false,
   capability: "x402.pay",
   positionals: [{ field: "url" }],
   summary: "Request an endpoint and pay an x402 challenge",
@@ -115,11 +119,23 @@ const payCommand: CommandDefinition = {
 };
 
 const listFields = z.object({
-  limit: integerLiteral(1, 200).default(20),
-  offset: integerLiteral(0, Number.MAX_SAFE_INTEGER).default(0),
-  type: z.string().trim().min(1).optional(),
-  category: z.string().trim().min(1).optional(),
-  capability: z.string().trim().min(1).optional(),
+  limit: integerLiteral(1, 200).default(20).describe("maximum providers to return"),
+  offset: integerLiteral(0, Number.MAX_SAFE_INTEGER)
+    .default(0)
+    .describe("zero-based pagination offset"),
+
+  category: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("filter by a category exposed by the provider catalog"),
+  capability: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("filter by a featured tag exposed by the provider catalog"),
   network: z.string().trim().min(1).optional().describe("CAIP-2 network id"),
   includeBlocked: z.boolean().default(false).describe("include providers marked as blocked"),
 });
@@ -178,7 +194,8 @@ const roundtripFields = serveFields.omit({ host: true, resourceUrl: true, daemon
 const roundtripInput = roundtripFields
   .superRefine(serveRefinement)
   .refine((value) => !(value.maxGasfreeFee !== undefined && value.maxGasfreeFeeRaw !== undefined), {
-    message: "GasFree fee limits are mutually exclusive",
+    path: ["maxGasfreeFee"],
+    message: "cannot be combined with --max-gasfree-fee-raw",
     params: { errorCode: "invalid_option" },
   });
 
@@ -212,6 +229,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
 
   registry.add({
     path: ["x402", "serve"],
+    formatText: serveText,
     network: "optional",
     wallet: "none",
     auth: "none",
@@ -225,16 +243,21 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     ],
     run: async (_ctx, network, input) => {
       if (!network) throw new Error("x402 serve requires a resolved network");
-      return service.serve(network, input);
+      return service.serve(network, {
+        ...input,
+        ...(_ctx.output === "text" ? { accessLog: "text" as const } : {}),
+      });
     },
   } satisfies CommandDefinition);
 
   registry.add({
     path: ["x402", "roundtrip"],
+    formatText: roundtripText,
     network: "optional",
     wallet: "optional",
     auth: "conditional",
     broadcasts: true,
+    supportsWait: false,
     capability: "x402.pay",
     summary: "Start a local paywall, pay it, and exit",
     fields: roundtripFields,
@@ -257,7 +280,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     input: listFields,
     examples: [
       { cmd: "wallet-cli x402 provider-list" },
-      { cmd: "wallet-cli x402 provider-list --network tron:728126428 --capability recharge" },
+      { cmd: "wallet-cli x402 provider-list --network tron:728126428" },
     ],
     run: async (_ctx, _network, input) => providerResult(_ctx, service.providerList(input)),
   } satisfies CommandDefinition);
@@ -281,7 +304,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       summary,
       fields,
       input: fields,
-      examples: [{ cmd: `wallet-cli x402 ${verb} bai/recharge` }],
+      examples: [{ cmd: `wallet-cli x402 ${verb} defillama` }],
       run: async (_ctx, _network, input) => providerResult(_ctx, run(input.provider)),
     } satisfies CommandDefinition);
   }
@@ -289,6 +312,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
   const empty = z.object({});
   registry.add({
     path: ["x402", "update-catalog"],
+    formatText: catalogUpdateText,
     network: "none",
     wallet: "none",
     auth: "none",
@@ -337,6 +361,7 @@ async function providerResult(
   ctx: Parameters<CommandDefinition["run"]>[0],
   pending: Promise<Record<string, unknown>>,
 ) {
+  ctx.emit({ type: "activity", message: "Loading provider catalog data…" });
   const { warnings, ...data } = await pending;
   if (Array.isArray(warnings))
     for (const warning of warnings) if (typeof warning === "string") ctx.warn(warning);

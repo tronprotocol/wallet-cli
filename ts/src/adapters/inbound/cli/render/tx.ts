@@ -1,3 +1,4 @@
+import { structuredText } from "./structured.js";
 import type {
   TxInfoView,
   TxReceiptKind,
@@ -578,5 +579,6 @@ function signatureRows(signed: unknown): Pair[] {
 function summarizeTx(tx: unknown): string {
   if (!tx || typeof tx !== "object") return formatScalar(tx);
   const o = asObj(tx);
-  return shorten(String(o.txid ?? o.txID ?? o.txId ?? o.hash ?? JSON.stringify(o)));
+  const hash = o.txid ?? o.txID ?? o.txId ?? o.hash;
+  return hash === undefined ? structuredText(o) : shorten(String(hash));
 }

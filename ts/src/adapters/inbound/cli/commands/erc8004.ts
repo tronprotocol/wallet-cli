@@ -1,10 +1,10 @@
-import { agentShowText } from "../render/x402.js";
+import { agentShowText, operatorCheckText } from "../render/x402.js";
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { AgentService } from "../../../../application/use-cases/agent-service.js";
 import { Schemas, addressFamilyFieldsFor } from "../schemas/index.js";
 import { governanceTxRefine, tronTxModeFields, txModeFields } from "./shared.js";
-import { TextFormatters, renderGenericText } from "../render/index.js";
+import { TextFormatters } from "../render/index.js";
 
 const agentId = z
   .string()
@@ -152,7 +152,7 @@ export const operatorCheckSpec: ChainSpec = {
   wallet: "none",
   auth: "none",
   capability: "erc8004.identity.read",
-  formatText: (data, ctx) => renderGenericText(ctx.command, ctx.net, data),
+  formatText: operatorCheckText,
   positionals: [{ field: "owner" }, { field: "operator" }],
   summary: "Check an owner-wide Agent operator approval",
   baseFields: z.object({
@@ -181,8 +181,8 @@ export function showEvmBinding(service: AgentService): FamilyBinding {
   return binding(
     "evm",
     async (ctx, net, input) => {
-      const result = await service.show(net, input.id);
-      for (const warning of result.warnings ?? []) ctx.warn(warning);
+      const { warnings, ...result } = await service.show(net, input.id);
+      for (const warning of warnings ?? []) ctx.warn(warning);
       return result;
     },
     [],
@@ -193,8 +193,8 @@ export function showTronBinding(service: AgentService): FamilyBinding {
   return binding(
     "tron",
     async (ctx, net, input) => {
-      const result = await service.show(net, input.id);
-      for (const warning of result.warnings ?? []) ctx.warn(warning);
+      const { warnings, ...result } = await service.show(net, input.id);
+      for (const warning of warnings ?? []) ctx.warn(warning);
       return result;
     },
     [],

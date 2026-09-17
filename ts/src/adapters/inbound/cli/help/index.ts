@@ -294,6 +294,7 @@ export class HelpService {
       auth: cmd.auth,
       wallet: cmd.wallet,
       broadcasts: cmd.broadcasts,
+      supportsWait: cmd.supportsWait,
       fields: introspectFields(cmd.fields),
       inputFlags: inputFlagsFor(cmd),
       exclusive: cmd.exclusive,
@@ -316,6 +317,7 @@ export class HelpService {
       auth: spec.auth,
       wallet: spec.wallet,
       broadcasts: spec.broadcasts,
+      supportsWait: spec.supportsWait,
       fields: introspectFields(mergedFields(def)),
       fieldFamilies: fieldFamilies(def),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
@@ -337,6 +339,7 @@ export class HelpService {
     auth: CommandDefinition["auth"];
     wallet: CommandDefinition["wallet"];
     broadcasts?: boolean;
+    supportsWait?: boolean;
     fields: FieldInfo[];
     /** family-specific flags, so each can be marked with the family it belongs to. */
     fieldFamilies?: Map<string, ChainFamily>;
@@ -471,7 +474,7 @@ export class HelpService {
       c.network,
       c.auth,
       c.wallet,
-      c.broadcasts ?? false,
+      c.supportsWait ?? c.broadcasts ?? false,
       c.secretsTtyOnly ?? false,
     ))
       lines.push(globalFlagLine(g));
