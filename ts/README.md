@@ -222,7 +222,7 @@ registered ID or re-reads URI/owner after successful confirmation; an unconfirme
 transaction is returned as submitted and must not be blindly retried.
 
 Registry configuration stays in the SDK; signing and broadcasting stay in the wallet
-transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-integration.md).
+transaction pipeline.
 
 ## B.AI usage and x402 providers
 

@@ -17,11 +17,7 @@ try {
   // Never validate a stale dist left by an earlier build.
   call(npm, ["run", "build"]);
   const [packed] = JSON.parse(call(npm, ["pack", "--json", "--pack-destination", temp]));
-  const forbidden = packed.files.filter(
-    ({ path }) =>
-      path.startsWith("docs/development/") &&
-      path !== "docs/development/erc8004-sdk-integration.md",
-  );
+  const forbidden = packed.files.filter(({ path }) => path.startsWith("docs/development/"));
   assert.equal(forbidden.length, 0, "internal development reports must not be packaged");
   assert(
     packed.files.some(({ path }) => path === "dist/index.js"),

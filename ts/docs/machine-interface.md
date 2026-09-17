@@ -474,8 +474,8 @@ raw server prose and credentials are not returned. `retryPayment: false` means
 that retry guidance applies to the API operation, not to sending funds again.
 Report-only failures retain the transaction hash and `creditStatus: unconfirmed`;
 the result contains a business `code` and explanatory `warning`, or an `error`
-envelope for a thrown classified API failure. See `development/bai-recharge.md`
-for supported reasons and recovery behavior.
+envelope for a thrown classified API failure. Use `bai report-recharge` with the
+original transaction details to retry reporting without creating another payment.
 
 
 ### BAI amount representation
