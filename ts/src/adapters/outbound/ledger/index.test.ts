@@ -5,8 +5,13 @@ import { Ledger } from "./index.js";
 // The @ledgerhq transport/app modules are imported lazily inside the adapter, so hoisted vi.mock
 // applies. closeSpy stands in for the native HID handle: the real bug is that a timed-out device
 // call leaks this handle (it is never closed), pinning libuv so the process can't exit.
-const { closeSpy, tip712Calls, failures } = vi.hoisted(() => ({
+const { closeSpy, transactionSignSpy, hashSignSpy, tip712Calls, failures } = vi.hoisted(() => ({
   closeSpy: vi.fn(async () => {}),
+  transactionSignSpy: vi.fn(
+    async (_path: string, _raw: string, _tokens: string[]): Promise<string> =>
+      new Promise(() => {}),
+  ),
+  hashSignSpy: vi.fn(async (_path: string, _hash: string): Promise<string> => "bb".repeat(65)),
   tip712Calls: [] as Array<{ path: string; domainHash: string; messageHash: string }>,
   failures: {
     tip712: undefined as Error | undefined,
@@ -29,8 +34,11 @@ vi.mock("@ledgerhq/hw-app-trx", () => ({
     async signPersonalMessage(): Promise<string> {
       return new Promise(() => {});
     }
-    async signTransaction(): Promise<string> {
-      return new Promise(() => {});
+    signTransaction(path: string, raw: string, tokens: string[]): Promise<string> {
+      return transactionSignSpy(path, raw, tokens);
+    }
+    signTransactionHash(path: string, hash: string): Promise<string> {
+      return hashSignSpy(path, hash);
     }
     async getAddress(): Promise<{ publicKey: string; address: string }> {
       return new Promise(() => {});
@@ -126,6 +134,82 @@ describe("Ledger adapter timeout", () => {
 });
 
 describe("Ledger transaction signing", () => {
+  it("falls back only on the SDK packing limit, warns, and preserves earlier signatures", async () => {
+    transactionSignSpy.mockRejectedValueOnce(new Error("Too many bytes to encode."));
+    hashSignSpy.mockClear();
+    const warning = vi.fn();
+    const tx = { ...(RAW_TX as object), signature: ["earlier-signature"] };
+    const signed = await new Ledger(2000).signTransaction("tron", PATH, tx as never, undefined, {
+      onWarning: warning,
+    });
+    expect(transactionSignSpy).toHaveBeenLastCalledWith(
+      "44'/195'/0'/0/0",
+      (RAW_TX as { raw_data_hex: string }).raw_data_hex,
+      [],
+    );
+    expect(hashSignSpy).toHaveBeenCalledWith("44'/195'/0'/0/0", (RAW_TX as { txID: string }).txID);
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining("falling back to hash signing"));
+    expect(warning.mock.invocationCallOrder[0]).toBeLessThan(
+      hashSignSpy.mock.invocationCallOrder[0]!,
+    );
+    expect(signed).toMatchObject({ ...tx, signature: ["earlier-signature", "bb".repeat(65)] });
+  });
+
+  it("keeps full transaction signing for encodable transactions", async () => {
+    transactionSignSpy.mockResolvedValueOnce("cc".repeat(65));
+    hashSignSpy.mockClear();
+    const warning = vi.fn();
+    const signed = await new Ledger(2000).signTransaction("tron", PATH, RAW_TX, undefined, {
+      onWarning: warning,
+    });
+    expect(signed).toMatchObject({ signature: ["cc".repeat(65)] });
+    expect(hashSignSpy).not.toHaveBeenCalled();
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    Object.assign(new Error("declined"), { statusCode: 0x6985 }),
+    Object.assign(new Error("bad payload"), { statusCode: 0x6a80 }),
+    Object.assign(new Error("Too many bytes to encode."), { statusCode: 0x6985 }),
+    new Error("transport disconnected"),
+  ])("does not fall back on other signing errors: %s", async (error) => {
+    transactionSignSpy.mockRejectedValueOnce(error);
+    hashSignSpy.mockClear();
+    await expect(new Ledger(2000).signTransaction("tron", PATH, RAW_TX)).rejects.toBeDefined();
+    expect(hashSignSpy).not.toHaveBeenCalled();
+  });
+
+  it("checks transaction integrity before either signing path", async () => {
+    hashSignSpy.mockClear();
+    transactionSignSpy.mockClear();
+    await expect(
+      new Ledger(2000).signTransaction("tron", PATH, {
+        ...(RAW_TX as object),
+        txID: "00".repeat(32),
+      } as never),
+    ).rejects.toMatchObject({ code: "tx_integrity" });
+    expect(transactionSignSpy).not.toHaveBeenCalled();
+    expect(hashSignSpy).not.toHaveBeenCalled();
+  });
+
+  it("retains the hash-signing app setting error after fallback", async () => {
+    transactionSignSpy.mockRejectedValueOnce(new Error("Too many bytes to encode."));
+    hashSignSpy.mockRejectedValueOnce(Object.assign(new Error("disabled"), { statusCode: 0x6a8c }));
+    await expect(new Ledger(2000).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+      code: "ledger_setting_required",
+    });
+  });
+
+  it("bounds a hung hash signature after fallback", async () => {
+    transactionSignSpy.mockRejectedValueOnce(new Error("Too many bytes to encode."));
+    hashSignSpy.mockImplementationOnce(() => new Promise(() => {}));
+    closeSpy.mockClear();
+    await expect(new Ledger(20).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+      code: "timeout",
+    });
+    expect(closeSpy).toHaveBeenCalled();
+  });
+
   // A Ledger account must not be the weaker signer: the device signs raw_data_hex, so the same
   // integrity rules apply. Before this, `tx sign --account <ledger>` skipped the check entirely.
   it("refuses a transaction whose txID does not hash its raw_data_hex, before reaching the device", async () => {

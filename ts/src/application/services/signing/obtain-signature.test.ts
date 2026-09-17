@@ -13,6 +13,15 @@ const scope = () => ({
 const softwareSigner = { kind: "software", address: "T1" } as unknown as Signer;
 
 describe("obtainSignature", () => {
+  it("routes device fallback warnings to the command scope", async () => {
+    const device = { kind: "device", address: "T1" } as unknown as Signer;
+    const s = { ...scope(), warn: vi.fn() };
+    await obtainSignature(device, s, async (opts) => {
+      opts.onWarning?.("fallback");
+      return "sig";
+    });
+    expect(s.warn).toHaveBeenCalledWith("fallback");
+  });
   it("runs a software signer directly with no device event", async () => {
     const s = scope();
     const out = await obtainSignature(softwareSigner, s, async () => "sig");

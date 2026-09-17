@@ -309,6 +309,8 @@ export interface TxInfoView extends TxParties {
 // ════════════════════════════ signing ports ═══════════════════════════════
 export interface SignerSignOpts {
   signal?: AbortSignal;
+  /** Surface a signing-mode fallback before asking the device for approval. */
+  onWarning?: (message: string) => void;
 }
 export interface Signer {
   kind: "software" | "device";
