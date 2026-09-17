@@ -34,10 +34,12 @@ export function registerConfigCommands(
     network: "none",
     wallet: "none",
     auth: "none",
+    interactive: true,
+    promptHints: { key: "skip", value: "skip" },
     stdin: "apiKey",
     summary: "Show / get / set configuration values",
     description:
-      "Read or update configuration. Setting baiApiKey verifies the selected account and mainnet with B.AI once before saving; select them with --account and --network. The wallet must already be bound.",
+      "Read or update configuration. Setting baiApiKey verifies the selected account and mainnet with B.AI once before saving; select them with --account and --network. Unbound wallets are bound using a wallet signature before saving.",
     positionals: [{ field: "key" }, { field: "value" }],
     fields,
     input: fields,
@@ -69,7 +71,10 @@ export function registerConfigCommands(
       const effectiveInput = hasApiKeyInput
         ? { key: "baiApiKey", value: ctx.secrets.require("apiKey") }
         : input;
-      if (hasApiKeyInput) await baiSetup.execute(effectiveInput.value!);
+      if (hasApiKeyInput)
+        await baiSetup.execute(effectiveInput.value!, ctx, (verify) =>
+          ctx.secrets.primePassword({ mode: "verify", verify }),
+        );
       return service.execute(effectiveInput, ctx.config, ctx.networkRegistry);
     },
   } satisfies CommandDefinition);
