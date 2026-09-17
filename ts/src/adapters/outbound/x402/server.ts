@@ -1,5 +1,7 @@
+import { facilitatorUrl } from "./facilitator-url.js";
+import { facilitatorNetwork } from "./facilitator-network.js";
 import { addressCodec } from "../../../domain/family/index.js";
-import { X402_TOKENS } from "./tokens.js";
+import { tokensForScheme } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
@@ -21,6 +23,9 @@ export class X402HttpServer implements X402ServerPort {
   constructor(
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly timeoutMs = 60000,
+    private readonly log: (line: string) => void = (line) => {
+      process.stderr.write(`${line}\n`);
+    },
   ) {}
 
   validate(network: NetworkDescriptor, input: X402ServeInput): void {
@@ -31,17 +36,102 @@ export class X402HttpServer implements X402ServerPort {
     if (input.scheme === "exact_gasfree" && network.family !== "tron") {
       throw new UsageError("invalid_value", "exact_gasfree is supported only on TRON");
     }
-    const token = X402_TOKENS[network.id]?.[input.token.toUpperCase()];
-    if (!token)
-      throw new UsageError("invalid_value", `${input.token} is not registered on ${network.id}`);
+    if (input.maxGasfreeFee !== undefined && input.maxGasfreeFeeRaw !== undefined)
+      throw new UsageError("invalid_option", "GasFree fee limits are mutually exclusive");
+    if (
+      input.maxGasfreeFeeRaw !== undefined &&
+      (!/^\d{1,78}$/.test(input.maxGasfreeFeeRaw) ||
+        BigInt(input.maxGasfreeFeeRaw) <= 0n ||
+        BigInt(input.maxGasfreeFeeRaw) >= 1n << 256n)
+    )
+      throw new UsageError("invalid_amount", "GasFree fee limit must be a positive uint256");
+    if (input.gasfreeRelay && !["official", "gasfree"].includes(input.gasfreeRelay)) {
+      let relay: URL;
+      try {
+        relay = new URL(input.gasfreeRelay);
+      } catch {
+        throw new UsageError("invalid_option", "GasFree relay must be official, gasfree or HTTPS");
+      }
+      if (
+        relay.protocol !== "https:" ||
+        relay.username ||
+        relay.password ||
+        relay.search ||
+        relay.hash
+      )
+        throw new UsageError(
+          "invalid_option",
+          "GasFree relay must be HTTPS without credentials, query or fragment",
+        );
+    }
+    const registered = tokensForScheme(network.id, input.scheme);
+    if (input.amount !== undefined && input.rawAmount !== undefined)
+      throw new UsageError("invalid_option", "amount and raw amount are mutually exclusive");
+    if (input.token !== undefined && input.asset !== undefined)
+      throw new UsageError("invalid_option", "token and asset are mutually exclusive");
+    if (
+      input.decimals !== undefined &&
+      (!input.asset ||
+        !Number.isInteger(input.decimals) ||
+        input.decimals < 0 ||
+        input.decimals > 18)
+    )
+      throw new UsageError("invalid_option", "decimals requires an asset and must be from 0 to 18");
+    const known = input.asset
+      ? Object.values(registered).find((item) =>
+          network.family === "evm"
+            ? item.address.toLowerCase() === input.asset!.toLowerCase()
+            : item.address === input.asset,
+        )
+      : registered[(input.token ?? "USDT").toUpperCase()];
+    if (known && input.decimals !== undefined && input.decimals !== known.decimals)
+      throw new UsageError(
+        "invalid_option",
+        "explicit decimals must match the registered token precision",
+      );
+    if (input.asset && !addressCodec(network.family).validate(input.asset))
+      throw new UsageError("invalid_address", "invalid payment asset address");
+    if (!known && (!input.asset || input.decimals === undefined))
+      throw new UsageError(
+        "invalid_value",
+        "use a registered token or an explicit asset with decimals",
+      );
+    const token = known ?? {
+      address: input.asset!,
+      decimals: input.decimals!,
+      name: "",
+      version: "1",
+      permit2: true,
+    };
+    if (input.maxGasfreeFee !== undefined) toSmallestUnit(input.maxGasfreeFee, token.decimals);
     validatePayTo(network, input.payTo);
-    const rawAmount = toSmallestUnit(input.amount, token.decimals);
+    const validity = input.validForSeconds ?? 300;
+    if (!Number.isInteger(validity) || validity < 1 || validity > 86400)
+      throw new UsageError("invalid_value", "valid-for-seconds must be from 1 to 86400");
+    if (input.resourceUrl) {
+      const resource = new URL(input.resourceUrl);
+      if (
+        !["http:", "https:"].includes(resource.protocol) ||
+        resource.username ||
+        resource.password
+      )
+        throw new UsageError("invalid_value", "resource-url must be HTTP(S) without credentials");
+    }
+    const rawAmount = input.rawAmount ?? toSmallestUnit(input.amount ?? "0.0001", token.decimals);
+    if (!/^\d{1,78}$/.test(rawAmount) || BigInt(rawAmount) <= 0n || BigInt(rawAmount) >= 1n << 256n)
+      throw new UsageError("invalid_amount", "raw amount must be a positive uint256");
     return { token, rawAmount };
   }
 
   async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
     const { token, rawAmount } = this.requirement(network, input);
-    const x402Network = network.id;
+    const x402Network = await facilitatorNetwork(
+      network,
+      input.scheme,
+      input.facilitatorUrl,
+      this.fetcher,
+      this.timeoutMs,
+    );
     const host = input.host.includes(":") ? `[${input.host}]` : input.host;
     let resourceUrl = `http://${host}:${input.port}/pay`;
     const requirement = {
@@ -50,7 +140,7 @@ export class X402HttpServer implements X402ServerPort {
       amount: rawAmount,
       asset: token.address,
       payTo: input.payTo,
-      maxTimeoutSeconds: 300,
+      maxTimeoutSeconds: input.validForSeconds ?? 300,
       extra:
         input.scheme === "exact_gasfree"
           ? {}
@@ -61,10 +151,25 @@ export class X402HttpServer implements X402ServerPort {
     const challenge = {
       x402Version: 2,
       error: "Payment required",
-      resource: { url: resourceUrl },
+      resource: { url: input.resourceUrl ?? resourceUrl },
       accepts: [requirement],
     };
     const server = createServer(async (request, response) => {
+      const started = performance.now();
+      response.once("finish", () => {
+        // Do not log URLs, queries, headers, bodies or payment signatures.
+        const path = (request.url ?? "").split("?")[0];
+        const route = ["/health", "/.well-known/x402", "/pay"].includes(path!) ? path : "other";
+        this.log(
+          JSON.stringify({
+            event: "x402.request",
+            method: request.method,
+            route,
+            status: response.statusCode,
+            durationMs: Math.round(performance.now() - started),
+          }),
+        );
+      });
       let pathname: string;
       try {
         pathname = new URL(request.url ?? "/", resourceUrl).pathname;
@@ -104,7 +209,7 @@ export class X402HttpServer implements X402ServerPort {
         response.setHeader("payment-response", encodePaymentResponseHeader(settle as never));
         return json(response, 200, {
           success: true,
-          network: x402Network,
+          network: network.id,
           scheme: input.scheme,
           transaction: settle.transaction,
         });
@@ -118,14 +223,18 @@ export class X402HttpServer implements X402ServerPort {
     const address = server.address();
     if (address && typeof address === "object") {
       resourceUrl = `http://${host}:${address.port}/pay`;
-      challenge.resource.url = resourceUrl;
+      challenge.resource.url = input.resourceUrl ?? resourceUrl;
     }
     return {
       details: {
         payUrl: resourceUrl,
         network: network.id,
         scheme: input.scheme,
-        token: input.token.toUpperCase(),
+        token: input.token?.toUpperCase() ?? (input.asset ? undefined : "USDT"),
+        asset: token.address,
+        decimals: token.decimals,
+        validForSeconds: input.validForSeconds ?? 300,
+        resourceUrl: challenge.resource.url,
         amount: input.amount,
         rawAmount,
         payTo: input.payTo,
@@ -141,7 +250,7 @@ export class X402HttpServer implements X402ServerPort {
   ): Promise<Record<string, unknown>> {
     const response = await fetchBounded(
       this.fetcher,
-      new URL(path, `${base.replace(/\/+$/, "")}/`),
+      facilitatorUrl(base, path),
       {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
@@ -152,9 +261,13 @@ export class X402HttpServer implements X402ServerPort {
       1024 * 1024,
     );
     if (!response.ok)
-      throw new TransportError("provider_error", `facilitator returned HTTP ${response.status}`, {
-        httpStatus: response.status,
-      });
+      throw new TransportError(
+        response.status === 429 ? "provider_rate_limited" : "provider_error",
+        `facilitator returned HTTP ${response.status}`,
+        {
+          httpStatus: response.status,
+        },
+      );
     return (await response.json()) as Record<string, unknown>;
   }
 }

@@ -23,11 +23,13 @@ async function withServer(
   await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
   const port = (socket.address() as { port: number }).port;
   await new Promise<void>((resolve) => socket.close(() => resolve()));
-  const server = new X402HttpServer(
-    fetcher ??
-      (async (url) =>
-        Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement)),
-  );
+  const server = new X402HttpServer(async (url, init) => {
+    if (String(url).endsWith("/supported"))
+      return Response.json({ kinds: [{ x402Version: 2, scheme, network: "tron:0xcd8690dc" }] });
+    return fetcher
+      ? fetcher(url, init)
+      : Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement);
+  });
   const handle = await server.start(
     { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
     {
@@ -208,14 +210,14 @@ it("reports a port collision without stopping the first server", async () => {
   });
 });
 
-it("advertises canonical TRON IDs and an empty GasFree extra", async () => {
+it("advertises legacy-compatible TRON wire IDs and an empty GasFree extra", async () => {
   await withServer(
     {},
     async (port) => {
       const response = await fetch(`http://127.0.0.1:${port}/.well-known/x402`);
       const body = (await response.json()) as { accepts: Array<Record<string, unknown>> };
       expect(body.accepts[0]).toMatchObject({
-        network: "tron:3448148188",
+        network: "tron:0xcd8690dc",
         scheme: "exact_gasfree",
         extra: {},
       });
@@ -224,4 +226,42 @@ it("advertises canonical TRON IDs and an empty GasFree extra", async () => {
     undefined,
     "exact_gasfree",
   );
+});
+
+it("serves raw amounts, explicit registered assets and validity, with sanitized access logs", async () => {
+  const logs: string[] = [];
+  const server = new X402HttpServer(undefined, 1000, (line) => logs.push(line));
+  const net = { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor;
+  const input = {
+    host: "127.0.0.1",
+    port: 0,
+    payTo: "0x1111111111111111111111111111111111111111",
+    asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    decimals: 6,
+    rawAmount: "1000001",
+    validForSeconds: 60,
+    scheme: "exact" as const,
+    resourceUrl: "https://resource.example/pay",
+    facilitatorUrl: "https://fake.invalid",
+  };
+  expect(() => server.validate(net, { ...input, decimals: 18 })).toThrow(/precision/);
+  const handle = await server.start(net, input);
+  try {
+    const base = String(handle.details.payUrl).replace(/\/pay$/, "");
+    for (const path of ["/health", "/.well-known/x402", "/pay", "/secret-path"]) {
+      const response = await fetch(`${base}${path}?secret=never-log`, {
+        headers: { Authorization: "never-log" },
+      });
+      const body = await response.json();
+      if (path === "/pay")
+        expect(body).toMatchObject({
+          resource: { url: input.resourceUrl },
+          accepts: [{ amount: "1000001", maxTimeoutSeconds: 60, asset: input.asset }],
+        });
+    }
+    expect(logs.map((line) => JSON.parse(line).status)).toEqual([200, 200, 402, 404]);
+    expect(logs.join("")).not.toMatch(/never-log|secret-path|Authorization/);
+  } finally {
+    await handle.close();
+  }
 });

@@ -1,3 +1,4 @@
+import { startX402Daemon } from "./x402-daemon.js";
 import type {
   X402ServerPort,
   X402ServerHandle,
@@ -12,6 +13,8 @@ export class ManagedX402Server implements X402ServerPort {
     this.server.validate(network, input);
   }
   async start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle> {
+    this.server.validate(network, input);
+    if (input.daemon && process.env.WALLET_CLI_X402_DAEMON_CHILD !== "1") return startX402Daemon();
     const handle = await this.server.start(network, input);
     let closing: Promise<void> | undefined;
     const close = () => {
@@ -31,6 +34,7 @@ export class ManagedX402Server implements X402ServerPort {
     };
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
+    if (input.daemon && process.send) process.send({ x402Ready: handle.details });
     return { details: handle.details, close };
   }
 }

@@ -136,6 +136,7 @@ export const ERROR_CODES = {
   provider_error: { exit: 1, retry: "same", meaning: "an external service failed" },
   provider_rate_limited: { exit: 1, retry: "later", meaning: "an external service is rate-limiting this client" },
   gasfree_insufficient_balance: { exit: 1, retry: "changed", meaning: "the GasFree token balance cannot cover payment and maximum fee" },
+  gasfree_asset_unsupported: { exit: 1, retry: "changed", meaning: "the selected token contract is unavailable in the GasFree account; check the asset and relay" },
   gasfree_not_activated: { exit: 1, retry: "changed", meaning: "the GasFree account is not activated" },
   permit2_allowance_required: { exit: 1, retry: "changed", meaning: "the token allowance for Permit2 is insufficient" },
   approval_reset_required: { exit: 1, retry: "changed", meaning: "the token requires zero allowance before a new approval" },

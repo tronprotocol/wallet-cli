@@ -88,3 +88,22 @@ export const X402_TOKENS: Record<string, Record<string, Token>> = {
     },
   },
 };
+
+// Nile's GasFree relay uses a different USDD deployment from the Permit2 exact route.
+export const GASFREE_TOKENS: Record<string, Record<string, Token>> = {
+  "tron:3448148188": {
+    USDD: {
+      address: "TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt",
+      decimals: 18,
+      name: "Decentralized USD",
+      version: "1",
+    },
+  },
+};
+
+export function tokensForScheme(network: string, scheme: string): Record<string, Token> {
+  return {
+    ...X402_TOKENS[network],
+    ...(scheme === "exact_gasfree" ? GASFREE_TOKENS[network] : {}),
+  };
+}

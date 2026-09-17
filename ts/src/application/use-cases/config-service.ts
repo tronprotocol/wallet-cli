@@ -90,10 +90,10 @@ export class ConfigService {
       // Read-only, and the book's only visibility surface: there is no `config set aliases.*`,
       // so without this the only way to see what a short name resolves to is to open config.yaml.
       aliases: effective.aliases,
-      tronlinkSecretId: effective.tronlinkSecretId,
+      tronlinkSecretId: maskSecret(effective.tronlinkSecretId),
       tronlinkSecretKey: maskSecret(effective.tronlinkSecretKey),
       tronlinkChannel: effective.tronlinkChannel,
-      gasfreeApiKey: effective.gasfreeApiKey,
+      gasfreeApiKey: maskSecret(effective.gasfreeApiKey),
       gasfreeApiSecret: maskSecret(effective.gasfreeApiSecret),
       baiApiKey: maskSecret(effective.baiApiKey),
     };
@@ -116,7 +116,15 @@ export class ConfigService {
 
     const key = input.key as WritableConfigKey;
     const value = this.normalize(key, input.value, networks);
-    if (key === "tronlinkSecretKey" || key === "gasfreeApiSecret" || key === "baiApiKey") {
+    if (
+      [
+        "tronlinkSecretId",
+        "tronlinkSecretKey",
+        "gasfreeApiKey",
+        "gasfreeApiSecret",
+        "baiApiKey",
+      ].includes(key)
+    ) {
       return this.documents.update((current) => ({
         document: { ...current, [key]: value },
         result: { key, value: maskSecret(String(value)), input: "********" },

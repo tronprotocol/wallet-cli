@@ -48,7 +48,7 @@ it.each([
 ])("rejects invalid recovery before an API mutation: %j", async (override) => {
   const { service, api } = fixture();
   await expect(service.rechargeReport({ ...request, ...override } as never)).rejects.toMatchObject({
-    code: "invalid_value",
+    code: "amount" in override ? "invalid_amount" : "invalid_value",
   });
   expect(api.reportTxHash).not.toHaveBeenCalled();
 });

@@ -8,9 +8,7 @@ import { request as httpsRequest } from "node:https";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
-const MAX_BASE64_BYTES = Math.ceil(MAX_RESPONSE_BYTES / 3) * 4;
-const MAX_REDIRECTS = 3;
-const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
+const MAX_JSON_DEPTH = 20;
 
 export interface RegistrationLoadResult {
   metadata?: Record<string, unknown>;
@@ -22,7 +20,8 @@ type FailureKind =
   | "invalid_encoding"
   | "invalid_uri"
   | "restricted_address"
-  | "redirect_limit"
+  | "redirect_disallowed"
+  | "too_deep"
   | "too_large"
   | "malformed_json"
   | "not_object"
@@ -83,14 +82,12 @@ export class RegistrationLoader {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new RangeError("Registration metadata timeout must be positive");
     }
-    this.#timeoutMs = timeoutMs;
+    this.#timeoutMs = Math.min(timeoutMs, 10_000);
   }
 
   async load(uri: string): Promise<RegistrationLoadResult> {
     try {
-      if (/^data:/i.test(uri)) return decodeDataUri(uri);
-      const target = /^ipfs:/i.test(uri) ? ipfsGatewayUrl(uri) : uri;
-      return await this.#loadRemote(target);
+      return await this.#loadRemote(uri);
     } catch (error) {
       return { warning: warningFor(error) };
     }
@@ -122,51 +119,34 @@ async function fetchMetadata(
   initialTarget: string,
   signal: AbortSignal,
 ): Promise<RegistrationLoadResult> {
-  let target = initialTarget;
-  let redirectCount = 0;
-
-  while (true) {
-    const validated = await validatedRemoteUrl(target);
-    if (signal.aborted) throw new LoaderFailure("timeout");
-    let response: IncomingMessage;
-    try {
-      response = await requestOnce(validated, signal);
-    } catch {
-      throw new LoaderFailure("request_failed");
+  const validated = await validatedRemoteUrl(initialTarget);
+  if (signal.aborted) throw new LoaderFailure("timeout");
+  let response: IncomingMessage;
+  try {
+    response = await requestOnce(validated, signal);
+  } catch {
+    throw new LoaderFailure("request_failed");
+  }
+  const destroyOnAbort = () => response.destroy();
+  signal.addEventListener("abort", destroyOnAbort, { once: true });
+  try {
+    const status = response.statusCode ?? 0;
+    if (isRedirect(status)) {
+      response.destroy();
+      throw new LoaderFailure("redirect_disallowed");
     }
-
-    const destroyOnAbort = () => response.destroy();
-    signal.addEventListener("abort", destroyOnAbort, { once: true });
-    try {
-      const status = response.statusCode ?? 0;
-      if (isRedirect(status)) {
-        const location = headerValue(response, "location");
-        response.destroy();
-        if (redirectCount >= MAX_REDIRECTS) throw new LoaderFailure("redirect_limit");
-        if (!location) throw new LoaderFailure("invalid_uri");
-        try {
-          target = new URL(location, validated.url).toString();
-        } catch {
-          throw new LoaderFailure("invalid_uri");
-        }
-        redirectCount += 1;
-        continue;
-      }
-
-      if (status < 200 || status >= 300) {
-        response.destroy();
-        throw new LoaderFailure("http_status", status);
-      }
-
-      const contentType = headerValue(response, "content-type") ?? "";
-      if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?\s*$/i.test(contentType)) {
-        response.destroy();
-        throw new LoaderFailure("invalid_content_type");
-      }
-      return parseMetadata(await readBoundedText(response));
-    } finally {
-      signal.removeEventListener("abort", destroyOnAbort);
+    if (status < 200 || status >= 300) {
+      response.destroy();
+      throw new LoaderFailure("http_status", status);
     }
+    const contentType = headerValue(response, "content-type") ?? "";
+    if (!/^application\/json(?:\s*;\s*charset\s*=\s*(?:utf-8|"utf-8"))?\s*$/i.test(contentType)) {
+      response.destroy();
+      throw new LoaderFailure("invalid_content_type");
+    }
+    return parseMetadata(await readBoundedText(response));
+  } finally {
+    signal.removeEventListener("abort", destroyOnAbort);
   }
 }
 
@@ -265,58 +245,6 @@ function assertPublicAddress(address: string, family: number): void {
   }
 }
 
-function ipfsGatewayUrl(uri: string): string {
-  const match = /^ipfs:\/\/([^/?#]+)(\/[^?#]*)?(?:\?([^#]*))?(?:#.*)?$/i.exec(uri);
-  if (!match) throw new LoaderFailure("invalid_uri");
-
-  const cid = match[1]!;
-  if (
-    cid.length > 128 ||
-    !/^[A-Za-z0-9][A-Za-z0-9._~-]*$/.test(cid) ||
-    cid === "." ||
-    cid === ".."
-  ) {
-    throw new LoaderFailure("invalid_uri");
-  }
-
-  const path = normalizeIpfsPath(match[2] ?? "");
-  const query = match[3] === undefined ? "" : `?${match[3]}`;
-  return `${IPFS_GATEWAY}${encodeURIComponent(cid)}${path}${query}`;
-}
-
-function normalizeIpfsPath(path: string): string {
-  if (path === "") return "";
-  try {
-    return `/${path
-      .slice(1)
-      .split("/")
-      .map((segment) => {
-        const decoded = decodeURIComponent(segment);
-        if (decoded === "." || decoded === "..") throw new LoaderFailure("invalid_uri");
-        return encodeURIComponent(decoded);
-      })
-      .join("/")}`;
-  } catch (error) {
-    if (error instanceof LoaderFailure) throw error;
-    throw new LoaderFailure("invalid_uri");
-  }
-}
-
-function decodeDataUri(uri: string): RegistrationLoadResult {
-  const match = /^data:application\/json;base64,([A-Za-z0-9+/]*={0,2})$/i.exec(uri);
-  if (!match) throw new LoaderFailure("invalid_uri");
-  const encoded = match[1]!;
-  if (encoded.length === 0 || encoded.length % 4 !== 0) {
-    throw new LoaderFailure("invalid_uri");
-  }
-  if (encoded.length > MAX_BASE64_BYTES) throw new LoaderFailure("too_large");
-
-  const bytes = Buffer.from(encoded, "base64");
-  if (bytes.toString("base64") !== encoded) throw new LoaderFailure("invalid_uri");
-  if (bytes.byteLength > MAX_RESPONSE_BYTES) throw new LoaderFailure("too_large");
-  return parseMetadata(decodeUtf8(bytes));
-}
-
 async function readBoundedText(response: IncomingMessage): Promise<string> {
   const contentLength = headerValue(response, "content-length");
   if (contentLength && /^\d+$/.test(contentLength) && BigInt(contentLength) > MAX_RESPONSE_BYTES) {
@@ -382,6 +310,16 @@ function parseMetadata(text: string): RegistrationLoadResult {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new LoaderFailure("not_object");
   }
+  const pending: Array<{ value: object; depth: number }> = [{ value, depth: 1 }];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (current.depth > MAX_JSON_DEPTH) throw new LoaderFailure("too_deep");
+    for (const child of Object.values(current.value)) {
+      if (child !== null && typeof child === "object") {
+        pending.push({ value: child, depth: current.depth + 1 });
+      }
+    }
+  }
   return { metadata: value as Record<string, unknown> };
 }
 
@@ -396,8 +334,10 @@ function warningFor(error: unknown): string {
       return "Registration metadata URI is invalid or unsupported";
     case "restricted_address":
       return "Registration metadata URI targets a restricted network address";
-    case "redirect_limit":
-      return "Registration metadata redirect limit exceeded";
+    case "redirect_disallowed":
+      return "Registration metadata redirects are not allowed";
+    case "too_deep":
+      return "Registration metadata exceeds the maximum JSON depth of 20";
     case "too_large":
       return "Registration metadata response exceeds the 1 MiB limit";
     case "malformed_json":

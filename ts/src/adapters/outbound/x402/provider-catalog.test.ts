@@ -149,3 +149,27 @@ it("classifies missing providers and filesystem failures without leaking paths",
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("omits search internals and endpoint bodies from lists while preserving extension metadata", async () => {
+  const catalog = new X402ProviderCatalog(async () =>
+    Response.json({
+      version: 1,
+      providers: [
+        {
+          fqn: "demo/provider",
+          query: "internal",
+          score: 42,
+          matched_fields: ["title"],
+          endpoints: [{ path: "/pay" }],
+          extra_metadata: { billing_mode: "usage" },
+        },
+      ],
+    }),
+  );
+  const result = await catalog.list({ limit: 20, offset: 0 });
+  expect(result.results[0]).toEqual({
+    fqn: "demo/provider",
+    endpointCount: 1,
+    extraMetadata: { billingMode: "usage" },
+  });
+});

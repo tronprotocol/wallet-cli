@@ -34,6 +34,7 @@ export class X402Service {
   validate(network: NetworkDescriptor, input: X402ServeInput): void {
     if (!this.server) throw new Error("x402 server is not available in this runtime");
     this.server.validate(network, input);
+    this.payments.validateConfiguration?.(network, input);
   }
 
   async serve(network: NetworkDescriptor, input: X402ServeInput) {
@@ -53,8 +54,12 @@ export class X402Service {
         token: input.token,
         scheme: input.scheme,
         expectedPayTo: input.payTo,
-        exactAmount: input.amount,
-        maxAmount: input.amount,
+        asset: input.asset,
+        decimals: input.decimals,
+        exactAmount: input.rawAmount === undefined ? (input.amount ?? "0.0001") : undefined,
+        maxAmount: input.rawAmount === undefined ? (input.amount ?? "0.0001") : undefined,
+        maxRawAmount: input.rawAmount,
+        dryRun: input.dryRun,
         gasfreeRelay: input.gasfreeRelay,
         maxGasfreeFee: input.maxGasfreeFee,
         maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,

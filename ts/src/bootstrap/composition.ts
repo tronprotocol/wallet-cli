@@ -162,6 +162,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
         now: () => performance.now(),
         wait: delay,
       },
+      gatewayProvider,
+      keystore,
     ),
   );
   const agentContracts = {

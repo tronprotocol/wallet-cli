@@ -1,4 +1,8 @@
-import { integerLiteral } from "../schemas/payment-values.js";
+import {
+  assertBaiRechargeMinimum,
+  baiRechargeAmount,
+} from "../../../../domain/bai/recharge-policy.js";
+import { integerLiteral, rawPaymentAmount, paymentAmount } from "../schemas/payment-values.js";
 import { z } from "zod";
 import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
@@ -14,8 +18,28 @@ const listFields = z.object({
   sort: z.enum(["asc", "desc"]).default("desc").describe("creation-time sort direction"),
 });
 
+const rechargeAmount = z.string().superRefine((value, ctx) => {
+  try {
+    baiRechargeAmount(value);
+  } catch {
+    ctx.addIssue({
+      code: "custom",
+      message: "must be a positive recharge amount within the supported range",
+      params: { errorCode: "invalid_amount" },
+    });
+  }
+});
+
 const rechargeFields = z.object({
-  amount: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/, "must be a decimal amount"),
+  dryRun: z
+    .boolean()
+    .default(false)
+    .describe("preview without creating an order, unlocking, signing or paying"),
+  scheme: z.enum(["exact", "exact_gasfree"]).default("exact"),
+  gasfreeRelay: z.string().optional().describe("GasFree relay: official, gasfree, or HTTPS URL"),
+  maxGasfreeFee: paymentAmount.optional().describe("maximum GasFree fee in whole tokens"),
+  maxGasfreeFeeRaw: rawPaymentAmount.optional().describe("maximum GasFree fee in smallest units"),
+  amount: rechargeAmount,
   token: z
     .string()
     .trim()
@@ -42,7 +66,7 @@ export const baiRechargeSpec: ChainSpec = {
   positionals: [{ field: "amount" }],
   summary: "Recharge your own or another B.AI account",
   description:
-    "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 exact on mainnet: TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
+    "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 on mainnet (exact, or TRON exact_gasfree): TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
   baseFields: rechargeFields,
   examples: [
     { cmd: "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin" },
@@ -57,6 +81,24 @@ export const baiRechargeSpec: ChainSpec = {
 
 export function baiRechargeBinding(service: BaiService): FamilyBinding {
   return {
+    refine: (input, ctx) => {
+      try {
+        assertBaiRechargeMinimum(input.token ?? "USDT", baiRechargeAmount(input.amount));
+      } catch (error) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["amount"],
+          message: error instanceof Error ? error.message : "Invalid recharge amount",
+          params: { errorCode: "invalid_amount" },
+        });
+      }
+      if (input.maxGasfreeFee !== undefined && input.maxGasfreeFeeRaw !== undefined)
+        ctx.addIssue({
+          code: "custom",
+          message: "GasFree fee limits are mutually exclusive",
+          params: { errorCode: "invalid_option" },
+        });
+    },
     run: async (ctx, network, input) => {
       if (!network) throw new Error("B.AI recharge requires a resolved network");
       return service.recharge(ctx, network, {
@@ -64,6 +106,11 @@ export function baiRechargeBinding(service: BaiService): FamilyBinding {
         token: input.token ?? (network.id === "eip155:8453" ? "USDC" : "USDT"),
         to: input.to,
         apiKey: ctx.config.baiApiKey,
+        dryRun: input.dryRun,
+        scheme: input.scheme,
+        gasfreeRelay: input.gasfreeRelay,
+        maxGasfreeFee: input.maxGasfreeFee,
+        maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
       });
     },
   };
@@ -76,11 +123,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
   const reportFields = z.object({
     txHash: z.string().max(66).describe("existing transaction hash from the original recharge"),
     chain: z.enum(["tron", "bnb", "base"]).describe("original recharge chain; BSC is bnb"),
-    amount: z
-      .string()
-      .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
-      .optional()
-      .describe("original recharge amount, when available"),
+    amount: rechargeAmount.optional().describe("original recharge amount, when available"),
     to: z
       .string()
       .trim()
@@ -177,6 +220,10 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     fields: listFields,
     input: listFields,
     examples: [{ cmd: "wallet-cli bai recharge-orders --limit 20" }],
-    run: async (_context, _network, input) => service.rechargeList(input),
+    run: async (context, _network, input) => {
+      const { warnings, ...result } = await service.rechargeList(input);
+      for (const warning of warnings ?? []) context.warn(warning);
+      return result;
+    },
   } satisfies CommandDefinition);
 }

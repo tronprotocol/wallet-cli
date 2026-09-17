@@ -39,9 +39,19 @@ describe("BaiService", () => {
 it("stops an unconfirmed local recharge before requesting or signing payment", async () => {
   const pay = vi.fn();
   const isConfirmed = vi.fn(() => false);
-  const service = new BaiService(api(), () => new Date(), { validate: vi.fn(), roundtrip: pay }, {
-    isConfirmed,
-  } as unknown as BaiBindingStore);
+  const service = new BaiService(
+    api(),
+    () => new Date(),
+    { validate: vi.fn(), roundtrip: pay },
+    {
+      isConfirmed,
+    } as unknown as BaiBindingStore,
+    {} as never,
+    {
+      facilitatorUrl: "https://facilitator.example",
+      payTo: { bnb: "destination", tron: "destination" },
+    },
+  );
   await expect(
     service.recharge(
       { resolveAddress: () => "payer" } as never,
@@ -57,9 +67,19 @@ it("does not proceed when local confirmation cannot be read", async () => {
   const isConfirmed = vi.fn(() => {
     throw new Error("API unavailable");
   });
-  const service = new BaiService(api(), () => new Date(), { validate: vi.fn(), roundtrip: pay }, {
-    isConfirmed,
-  } as unknown as BaiBindingStore);
+  const service = new BaiService(
+    api(),
+    () => new Date(),
+    { validate: vi.fn(), roundtrip: pay },
+    {
+      isConfirmed,
+    } as unknown as BaiBindingStore,
+    {} as never,
+    {
+      facilitatorUrl: "https://facilitator.example",
+      payTo: { bnb: "destination", tron: "destination" },
+    },
+  );
   await expect(
     service.recharge(
       { resolveAddress: () => "payer" } as never,
@@ -90,3 +110,39 @@ it("passes the usage cursor through and exposes continuation metadata", async ()
     cursor: "previous",
   });
 });
+
+it.each([100, 101, 200])(
+  "caps recharge list %s without losing an unaligned offset",
+  async (limit) => {
+    const remote = api();
+    const rows = Array.from({ length: 400 }, (_, id) => ({ id }));
+    vi.mocked(remote.rechargeList).mockImplementation(async ({ page, pageSize }) => ({
+      items: rows.slice((page - 1) * pageSize, page * pageSize),
+      page,
+      pageSize,
+      total: rows.length,
+    }));
+    const result = await new BaiService(remote).rechargeList({ limit, offset: 101, sort: "asc" });
+    expect(result.orders).toEqual(rows.slice(101, 201));
+    expect(result.pagination).toEqual({ offset: 101, limit: 100, total: 400 });
+    expect(result.warnings.length).toBe(limit > 100 ? 1 : 0);
+    expect(
+      vi.mocked(remote.rechargeList).mock.calls.every(([input]) => input.pageSize <= 100),
+    ).toBe(true);
+  },
+);
+
+it.each(["0", "0.000", "-1", "1e3", "9007199254740992", "0.5"])(
+  "rejects invalid USDT amount %s before credentials or wallet resolution",
+  async (amount) => {
+    const resolveAddress = vi.fn();
+    await expect(
+      new BaiService(api()).recharge(
+        { resolveAddress } as never,
+        { id: "eip155:56", family: "evm", chainId: "56" } as never,
+        { amount, token: "USDT" },
+      ),
+    ).rejects.toMatchObject({ code: "invalid_amount" });
+    expect(resolveAddress).not.toHaveBeenCalled();
+  },
+);

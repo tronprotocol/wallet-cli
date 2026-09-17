@@ -10,7 +10,7 @@ it.each([403, 429, 502])(
     });
     const result = sdkPaymentError(error, "create_payment");
     expect(result).toMatchObject({
-      code: "provider_error",
+      code: status === 429 ? "provider_rate_limited" : "provider_error",
       details: {
         phase: "create_payment",
         reason: "http_error",
@@ -69,4 +69,41 @@ it.each([
     code: "tx_expired",
     details: { phase: "sign", retryPayment: false },
   });
+});
+
+it.each(["challenge", "create_payment", "payment_request", "verify", "settle"] as const)(
+  "maps %s rate limits without authorizing repayment",
+  (phase) => {
+    expect(sdkPaymentError({ response: { status: 429 } }, phase)).toMatchObject({
+      code: "provider_rate_limited",
+      details: { phase, retryPayment: false, httpStatus: 429 },
+    });
+  },
+);
+
+it("retains only numeric Retry-After hints", () => {
+  const result = sdkPaymentError(
+    { response: { status: 429, headers: { "retry-after": "30" } } },
+    "settle",
+  );
+  expect(result.details).toMatchObject({ retryAfterSeconds: 30, retryPayment: false });
+  const unsafe = sdkPaymentError(
+    { response: { status: 429, headers: { "retry-after": "https://secret.example/token" } } },
+    "settle",
+  );
+  expect(JSON.stringify(unsafe.toEnvelope())).not.toContain("secret");
+});
+
+it("classifies a missing GasFree asset before payment creation without exposing SDK text", () => {
+  const error = sdkPaymentError(
+    new Error(
+      "Asset TGjgvdTWWrybVLaVeFqSyVqJQWjxqRYbaK not found in GasFree account TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ.",
+    ),
+    "create_payment",
+  );
+  expect(error).toMatchObject({
+    code: "gasfree_asset_unsupported",
+    details: { paymentStatus: "not_sent", retryPayment: false },
+  });
+  expect(error.message).not.toContain("TGjgvd");
 });

@@ -126,8 +126,21 @@ const listFields = z.object({
 
 const serveFields = z.object({
   payTo: z.string().trim().min(1).describe("recipient address on the selected network"),
-  amount: paymentAmount.default("0.0001").describe("human-readable token amount"),
-  token: z.string().trim().min(1).default("USDT").describe("payment token symbol"),
+  amount: paymentAmount.optional().describe("human-readable token amount"),
+  token: z.string().trim().min(1).optional().describe("payment token symbol (default USDT)"),
+  rawAmount: rawPaymentAmount
+    .optional()
+    .describe("payment in smallest units; mutually exclusive with amount"),
+  asset: z.string().trim().min(1).optional().describe("explicit payment asset address"),
+  decimals: integerLiteral(0, 18).optional().describe("precision for an explicit asset"),
+  resourceUrl: url.optional().describe("advertised resource URL"),
+  validForSeconds: integerLiteral(1, 86400)
+    .default(300)
+    .describe("payment authorization validity in seconds"),
+  daemon: z
+    .boolean()
+    .default(false)
+    .describe("run in the background and return its PID and log path"),
   scheme: z.enum(["exact", "exact_gasfree"]).default("exact"),
   host: z.enum(["127.0.0.1", "::1"]).default("127.0.0.1").describe("loopback bind address"),
   port: integerLiteral(1, 65535).default(4020),
@@ -138,18 +151,36 @@ const serveFields = z.object({
     .default("https://facilitator.bankofai.io"),
 });
 
-const roundtripFields = serveFields.extend({
+function serveRefinement(
+  value: { amount?: string; rawAmount?: string; token?: string; asset?: string; decimals?: number },
+  ctx: z.RefinementCtx,
+) {
+  for (const [invalid, message] of [
+    [
+      value.amount !== undefined && value.rawAmount !== undefined,
+      "--amount and --raw-amount are mutually exclusive",
+    ],
+    [
+      value.token !== undefined && value.asset !== undefined,
+      "--token and --asset are mutually exclusive",
+    ],
+    [value.decimals !== undefined && value.asset === undefined, "--decimals requires --asset"],
+  ] as const) {
+    if (invalid) ctx.addIssue({ code: "custom", message, params: { errorCode: "invalid_option" } });
+  }
+}
+
+const roundtripFields = serveFields.omit({ host: true, resourceUrl: true, daemon: true }).extend({
   gasfreeRelay: payFields.shape.gasfreeRelay,
   maxGasfreeFee: payFields.shape.maxGasfreeFee,
   maxGasfreeFeeRaw: payFields.shape.maxGasfreeFeeRaw,
 });
-const roundtripInput = roundtripFields.refine(
-  (value) => !(value.maxGasfreeFee !== undefined && value.maxGasfreeFeeRaw !== undefined),
-  {
+const roundtripInput = roundtripFields
+  .superRefine(serveRefinement)
+  .refine((value) => !(value.maxGasfreeFee !== undefined && value.maxGasfreeFeeRaw !== undefined), {
     message: "GasFree fee limits are mutually exclusive",
     params: { errorCode: "invalid_option" },
-  },
-);
+  });
 
 export function registerX402Commands(registry: CommandRegistry, service: X402Service): void {
   registry.add({
@@ -188,7 +219,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     capability: "x402.serve",
     summary: "Run a local x402-protected endpoint",
     fields: serveFields,
-    input: serveFields,
+    input: serveFields.superRefine(serveRefinement),
     examples: [
       { cmd: "wallet-cli x402 serve --pay-to T... --amount 1 --token USDT --network tron" },
     ],
@@ -211,7 +242,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     examples: [{ cmd: "wallet-cli x402 roundtrip --pay-to T... --network tron --password-stdin" }],
     run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 roundtrip requires a resolved network");
-      return service.roundtrip(ctx, network, input);
+      return service.roundtrip(ctx, network, { ...input, host: "127.0.0.1" });
     },
   } satisfies CommandDefinition);
 

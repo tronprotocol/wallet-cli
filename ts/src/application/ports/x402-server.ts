@@ -12,8 +12,15 @@ export interface X402RoundtripPort {
 
 export interface X402ServeInput {
   payTo: string;
-  amount: string;
-  token: string;
+  amount?: string;
+  rawAmount?: string;
+  token?: string;
+  asset?: string;
+  decimals?: number;
+  resourceUrl?: string;
+  validForSeconds?: number;
+  daemon?: boolean;
+  dryRun?: boolean;
   scheme: "exact" | "exact_gasfree";
   host: string;
   port: number;

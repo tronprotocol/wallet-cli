@@ -1,3 +1,4 @@
+import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
@@ -101,6 +102,9 @@ export class AgentService {
     network: NetworkDescriptor,
     input: TransactionOptions & { id: string; newOwner: string },
   ) {
+    if (input.newOwner.toLowerCase() === zeroAddress(network).toLowerCase()) {
+      throw new UsageError("invalid_address", "Agent owner must not be the zero address");
+    }
     const id = resolveAgentId(input.id, network).toString();
     const registry = this.registry.registry(network);
     const owner = String(

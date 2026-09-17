@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
-import { registerBaiCommands } from "./bai.js";
+import { baiRechargeSpec, registerBaiCommands } from "./bai.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
 
 function service(): BaiService {
@@ -111,6 +111,18 @@ it("shares recharge schema across families and selects the Base token in its bin
       command.spec.baseFields.parse({ amount: "1" }),
     ),
   ).resolves.toMatchObject({ amount: "1", token: "USDC" });
-  for (const field of ["dryRun", "signOnly", "buildOnly"])
+  for (const field of ["signOnly", "buildOnly"])
     expect(command.spec.baseFields.shape).not.toHaveProperty(field);
 });
+
+it.each(["0", "0.000", "-1", "1e3", "9007199254740992", "1." + "0".repeat(100)])(
+  "rejects invalid recharge amount %s at the command boundary",
+  (amount) => {
+    const result = baiRechargeSpec.baseFields.safeParse({ amount });
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.issues[0]).toMatchObject({
+        params: { errorCode: "invalid_amount" },
+      });
+  },
+);

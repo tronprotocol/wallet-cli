@@ -23,6 +23,11 @@ export interface X402PayInput {
 }
 
 export interface X402PaymentPort {
+  /** Local configuration checks only; no signing or I/O. */
+  validateConfiguration?(
+    network: NetworkDescriptor,
+    input: Pick<X402PayInput, "gasfreeRelay">,
+  ): void;
   pay(
     scope: TransactionScope,
     network: NetworkDescriptor,

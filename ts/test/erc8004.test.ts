@@ -165,15 +165,16 @@ async function fixture(family: "evm" | "tron") {
 
 describe("8004 CLI with published SDK and wallet RPC transport", () => {
   for (const family of ["evm", "tron"] as const) {
-    it(`${family} show preserves scoped IDs, configured RPC credentials and data metadata`, async () => {
+    it(`${family} show preserves chain fields and RPC credentials while warning on data metadata`, async () => {
       const f = await fixture(family);
       const r = await f.run(["show", `${f.network}:9007199254740993`]);
       expect(r.code, r.stderr || r.stdout).toBe(0);
       const result = JSON.parse(r.stdout);
       expect(result.data).toMatchObject({
         agentId: "9007199254740993",
-        metadata: { name: "Example" },
       });
+      expect(result.data.metadata).toBeUndefined();
+      expect(JSON.stringify(result.meta.warnings)).toContain("URI is invalid or unsupported");
       expect(f.calls.map((c) => c.method).sort()).toEqual(["getApproved", "ownerOf", "tokenURI"]);
       expect(f.calls.every((c) => c.header === "test-only-key")).toBe(true);
     });
