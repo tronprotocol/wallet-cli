@@ -1,19 +1,20 @@
 import { tronAddressBytes, tronHexToBase58 } from "../../domain/address/index.js";
 import { TransportError } from "../../domain/errors/index.js";
+import { sameX402Network } from "../../domain/x402/network-id.js";
 
 /** Only a successful x402 settlement can be reported to B.AI as a payment. */
 export function baiPaymentResult(payment: Record<string, unknown>, network: string) {
   const settlement = record(payment.paymentResponse);
   const payer = record(payment.payer)?.address;
   const txHash = settlement?.transaction;
-  const expectedNetwork = network === "tron:728126428" ? "tron:0x2b6653dc" : network;
   const validHash = network.startsWith("tron:") ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/;
   const invalid = (reason: string) =>
-    invalidSettlement(reason, txHash, settlement?.network, expectedNetwork);
+    invalidSettlement(reason, txHash, settlement?.network, network);
   if (!settlement) throw invalid("missing_settlement");
   if (payment.settled !== true || settlement.success !== true)
     throw invalid("settlement_unconfirmed");
-  if (settlement.network !== expectedNetwork) throw invalid("network_mismatch");
+  if (typeof settlement.network !== "string" || !sameX402Network(settlement.network, network))
+    throw invalid("network_mismatch");
   if (typeof txHash !== "string" || !validHash.test(txHash))
     throw invalid("invalid_transaction_hash");
   if (typeof payer !== "string" || !payer) throw invalid("missing_payer");
