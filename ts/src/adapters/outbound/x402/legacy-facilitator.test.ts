@@ -63,6 +63,7 @@ it.each(
   const service = new X402Service(
     new X402PaymentClient(signers as never),
     {} as never,
+    {} as never,
     new X402HttpServer(facilitator, 2000, () => {}),
   );
   const pending = service.roundtrip(

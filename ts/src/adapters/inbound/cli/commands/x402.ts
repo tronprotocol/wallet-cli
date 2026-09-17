@@ -136,7 +136,7 @@ const listFields = z.object({
     .min(1)
     .optional()
     .describe("filter by a featured tag exposed by the provider catalog"),
-  network: z.string().trim().min(1).optional().describe("CAIP-2 network id"),
+  network: z.string().trim().min(1).optional().describe("network alias or CAIP-2 network id"),
   includeBlocked: z.boolean().default(false).describe("include providers marked as blocked"),
 });
 

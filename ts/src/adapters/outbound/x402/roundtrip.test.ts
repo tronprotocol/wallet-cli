@@ -48,6 +48,7 @@ it.each([
     const service = new X402Service(
       new X402PaymentClient(resolver),
       {} as ProviderCatalogPort,
+      {} as never,
       new X402HttpServer(facilitator as typeof fetch),
     );
     const result = await service.roundtrip(

@@ -194,6 +194,7 @@ it("previews a recipient recharge without creating an order or obtaining any sig
   const payments = new X402Service(
     new X402PaymentClient(signing as never),
     {} as never,
+    {} as never,
     new X402HttpServer(undefined, 1000, () => {}),
   );
   const api = {
@@ -278,6 +279,7 @@ it("checks relay configuration before creating any preorder", async () => {
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
   const payments = new X402Service(
     new X402PaymentClient({} as never),
+    {} as never,
     {} as never,
     new X402HttpServer(),
   );
