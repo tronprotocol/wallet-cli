@@ -104,6 +104,20 @@ function joinVrs(sig: { v: number | string; r: string; s: string }): string {
   return `0x${sig.r.replace(/^0x/, "")}${sig.s.replace(/^0x/, "")}${v.padStart(2, "0")}`;
 }
 
+/** TRON's TIP-712 APDU returns parity (0/1); contract ecrecover expects 27/28.
+ * Keep this separate from raw TRON transaction signatures, whose wire format is unchanged. */
+function normalizeTronTypedSignature(signature: string): string {
+  if (!/^[0-9a-fA-F]{128}(?:00|01|1[bBcC])$/.test(signature)) {
+    throw new ExecutionError(
+      "encoding_error",
+      "Ledger returned an invalid TIP-712 signature encoding",
+    );
+  }
+  const recovery = Number.parseInt(signature.slice(128), 16);
+  const v = recovery < 2 ? recovery + 27 : recovery;
+  return `0x${signature.slice(0, 128)}${v.toString(16)}`;
+}
+
 /** hw-app-trx wants a BIP32 path WITHOUT the leading "m/" (e.g. 44'/195'/0'/0/0). */
 function ledgerPath(path: string): string {
   return path.replace(/^m\//, "");
@@ -389,7 +403,7 @@ export class Ledger {
             domainHash,
             messageHash,
           );
-          return { signature: `0x${signature}`, digest, primaryType };
+          return { signature: normalizeTronTypedSignature(signature), digest, primaryType };
         },
         signal,
       );

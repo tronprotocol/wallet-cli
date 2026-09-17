@@ -11,6 +11,7 @@ const { closeSpy, tip712Calls, failures } = vi.hoisted(() => ({
   failures: {
     tip712: undefined as Error | undefined,
     tip712Hang: false,
+    tip712Signature: "aa".repeat(64) + "00",
     open: undefined as Error | undefined,
   },
 }));
@@ -47,7 +48,7 @@ vi.mock("@ledgerhq/hw-app-trx", () => ({
       if (failures.tip712) throw failures.tip712;
       if (failures.tip712Hang) return new Promise(() => {});
       tip712Calls.push({ path, domainHash, messageHash });
-      return "aa".repeat(65);
+      return failures.tip712Signature;
     }
   },
 }));
@@ -286,10 +287,44 @@ describe("Ledger TIP-712", () => {
     expect(tip712Calls[0]!.messageHash).toBe(
       encoder.hashStruct("Order", types, message).replace(/^0x/, ""),
     );
-    // the app returns bare 65-byte hex; the adapter 0x-prefixes it like signPersonalMessage does.
-    expect(out.signature).toBe(`0x${"aa".repeat(65)}`);
+    // TIP-712 consumers such as Permit2 require the contract-compatible recovery byte.
+    expect(out.signature).toBe(`0x${"aa".repeat(64)}1b`);
     expect(out.primaryType).toBe("Order");
     expect(out.digest).toBe(encoder.hash(domain, types, message));
+  });
+
+  it.each([
+    [0, 27],
+    [1, 28],
+    [27, 27],
+    [28, 28],
+  ])("normalizes recovery byte %i to %i without changing r/s", async (input, expected) => {
+    const rs = "12".repeat(32) + "34".repeat(32);
+    failures.tip712Signature = rs + input.toString(16).padStart(2, "0");
+    try {
+      const out = await new Ledger(2000).signTypedData("tron", PATH, { domain, types, message });
+      expect(out.signature).toBe(`0x${rs}${expected.toString(16)}`);
+    } finally {
+      failures.tip712Signature = "aa".repeat(64) + "00";
+    }
+  });
+
+  it.each([
+    "",
+    "aa".repeat(64),
+    "aa".repeat(66),
+    "gg".repeat(64) + "00",
+    "aa".repeat(64) + "02",
+    "aa".repeat(64) + "ff",
+  ])("rejects malformed TIP-712 signature %s", async (signature) => {
+    failures.tip712Signature = signature;
+    try {
+      await expect(
+        new Ledger(2000).signTypedData("tron", PATH, { domain, types, message }),
+      ).rejects.toMatchObject({ code: "encoding_error" });
+    } finally {
+      failures.tip712Signature = "aa".repeat(64) + "00";
+    }
   });
 
   it("rejects a payload that cannot be hashed before touching the device", async () => {
