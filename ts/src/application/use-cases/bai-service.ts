@@ -7,8 +7,7 @@ import type {
   BaiRechargeTarget,
 } from "../ports/bai-recharge.js";
 import { BaiRechargeFlow, reportBaiTransaction } from "./bai-recharge-flow.js";
-import { requireBaiChain } from "./bai-credential-setup.js";
-import type { BaiBindingStore } from "../ports/bai-binding-store.js";
+import { requireBaiChain, type BaiWalletBinding } from "./bai-wallet-binding.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
 import { UsageError } from "../../domain/errors/index.js";
 import { assertBaiRechargeMinimum, baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
@@ -29,7 +28,7 @@ export class BaiService {
     private readonly api: BaiApi,
     private readonly now: () => Date = () => new Date(),
     private readonly payments?: X402RoundtripPort,
-    private readonly bindings?: BaiBindingStore,
+    private readonly binding?: Pick<BaiWalletBinding, "bind">,
     private readonly rechargeApi?: BaiRechargeApi,
     private readonly rechargeConfig?: BaiRechargeConfig,
     private readonly reportRetry?: BaiReportRetry,
@@ -61,8 +60,6 @@ export class BaiService {
         "configure baiApiKey before using B.AI recharge",
       );
     }
-    if (!this.bindings)
-      throw new UsageError("invalid_option", "B.AI recharge binding verification is unavailable");
     if (!this.payments || !this.rechargeApi || !this.rechargeConfig) {
       throw new UsageError("invalid_option", "B.AI recharge is not available in this runtime");
     }
@@ -90,10 +87,18 @@ export class BaiService {
     // Resolve the signing account before binding checks, including ambiguous address selectors.
     this.accounts?.resolveAccount(scope.activeAccount, network.family);
     const payer = scope.resolveAddress(network.family);
-    if (!this.bindings.isConfirmed(input.apiKey, chain, payer)) {
-      throw new UsageError(
-        "invalid_value",
-        "Confirm this API key and payer wallet first by configuring baiApiKey with --api-key-stdin for the selected account/network. No payment was sent",
+    scope.emit({ type: "activity", message: "Checking B.AI wallet binding…" });
+    const bound = await this.rechargeApi.isBound({ chain, address: payer });
+    if (!input.dryRun) {
+      this.payments.prepare(scope, network);
+      if (!bound) {
+        if (!this.binding)
+          throw new UsageError("invalid_option", "B.AI wallet binding is unavailable");
+        await this.binding.bind(scope, network, payer, this.rechargeApi);
+      }
+    } else if (!bound) {
+      scope.warn(
+        "Wallet is not bound to B.AI; a real recharge will require a binding signature before payment.",
       );
     }
     const identifier = input.to?.trim();
@@ -131,6 +136,7 @@ export class BaiService {
       }
       return {
         dryRun: true,
+        bindingRequired: !bound,
         network: network.id,
         token: input.token,
         amount: input.amount,
@@ -147,7 +153,6 @@ export class BaiService {
           "Preview only; final network/relay fee is unavailable until payment authorization. Balance refers to the payer wallet, not its GasFree account. No order or payment was created.",
       };
     }
-    this.payments.prepare(scope, network);
     const flow = new BaiRechargeFlow(
       this.rechargeApi,
       {

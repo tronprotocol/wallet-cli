@@ -2,37 +2,35 @@ import { expect, it, vi } from "vitest";
 import { registerConfigCommands } from "./config.js";
 import { CommandRegistry } from "../registry/index.js";
 import type { ConfigService } from "../../../../application/use-cases/config-service.js";
-function fixture(check = vi.fn(async (_key: string) => {})) {
+function fixture(hasKey = true) {
   const execute = vi.fn(() => ({ value: "********" }));
   const registry = new CommandRegistry();
-  registerConfigCommands(registry, { execute } as unknown as ConfigService, { execute: check });
+  registerConfigCommands(registry, { execute } as unknown as ConfigService);
   const ctx = {
-    secrets: { has: () => true, require: () => "new-secret" },
+    secrets: { has: () => hasKey, require: () => "new-secret" },
     config: {},
     networkRegistry: {},
   };
-  return { command: registry.resolveNeutral(["config"])!, ctx, execute, check };
+  return { command: registry.resolveNeutral(["config"])!, ctx, execute };
 }
-it("confirms the candidate key before saving it", async () => {
-  const { command, ctx, execute, check } = fixture();
+it("saves the key without a wallet, network, unlock or binding dependency", async () => {
+  const { command, ctx, execute } = fixture();
   await command.run(ctx as never, undefined, { key: "baiApiKey" });
-  expect(check).toHaveBeenCalledWith("new-secret", ctx, expect.any(Function));
-  expect(check.mock.invocationCallOrder[0]).toBeLessThan(execute.mock.invocationCallOrder[0]!);
+  expect(execute).toHaveBeenCalledWith(
+    { key: "baiApiKey", value: "new-secret" },
+    ctx.config,
+    ctx.networkRegistry,
+  );
 });
-it("does not overwrite the saved key when confirmation fails", async () => {
-  const { command, ctx, execute } = fixture(
-    vi.fn(async () => {
-      throw new Error("not bound");
-    }),
-  );
-  await expect(command.run(ctx as never, undefined, { key: "baiApiKey" })).rejects.toThrow(
-    "not bound",
-  );
+it("reads the key without modifying it", async () => {
+  const { command, ctx, execute } = fixture(false);
+  await command.run(ctx as never, undefined, { key: "baiApiKey" });
+  expect(execute).toHaveBeenCalledWith({ key: "baiApiKey" }, ctx.config, ctx.networkRegistry);
+});
+it("still rejects API keys supplied as positional arguments", async () => {
+  const { command, ctx, execute } = fixture(false);
+  await expect(
+    command.run(ctx as never, undefined, { key: "baiApiKey", value: "secret" }),
+  ).rejects.toMatchObject({ code: "invalid_option" });
   expect(execute).not.toHaveBeenCalled();
-});
-it("does not check binding for config reads", async () => {
-  const { command, ctx, check } = fixture();
-  ctx.secrets.has = () => false;
-  await command.run(ctx as never, undefined, { key: "baiApiKey" });
-  expect(check).not.toHaveBeenCalled();
 });

@@ -222,7 +222,7 @@ registered ID or re-reads URI/owner after successful confirmation; an unconfirme
 transaction is returned as submitted and must not be blindly retried.
 
 Registry configuration stays in the SDK; signing and broadcasting stay in the wallet
-transaction pipeline. See [the SDK integration](docs/development/erc8004-sdk-integration.md).
+transaction pipeline.
 
 ## B.AI usage and x402 providers
 
@@ -310,25 +310,30 @@ server on completion; it does not accept `--host`, `--resource-url` or `--daemon
 
 ### B.AI setup, recharge and recovery
 
-Before the first recharge, the selected wallet must already be bound to the B.AI
-account. Configure the personal API key through stdin; setup verifies the binding
-for the selected account and network before saving the key:
+Configure the personal B.AI API key through stdin. Configuration saves the key
+locally and requires no network, wallet, password or remote API call:
 
 ```sh
-wallet-cli config baiApiKey --network tron --account payer --api-key-stdin
+wallet-cli config baiApiKey --api-key-stdin
 wallet-cli bai recharge 1 --network base --token USDC --dry-run --output json
 wallet-cli bai recharge 1 --network tron --token USDT --to recipient@example.com --dry-run
 ```
 
-Base, BSC and TRON recharge routes remain supported. Omit `--to` to recharge your
+Recharge supports Base, BSC and TRON mainnet. Omit `--to` to recharge your
 own account; recipient recharge resolves the target before using the same preorder,
 payment and transaction-report flow. The on-chain destination remains the platform
 address, not the recipient's wallet.
 
+Each recharge queries B.AI for the selected chain and payer address. If unbound, it
+signs a binding message and completes binding before creating an order or paying.
+A failed query, signature or binding stops the recharge.
+
 Dry-run checks binding, amount, recipient and the payment challenge without creating
-an order, unlocking, signing, paying or reporting a transaction. It reads payer wallet
-balances when RPC is available; these are not GasFree account balances. Final network
-or relay fees may be unavailable and are explicitly reported as unestimated. For TRON,
+an order, unlocking, signing, binding, paying or reporting a transaction. An unbound
+wallet returns `bindingRequired: true` and a warning that a real recharge needs a
+binding signature. It reads payer wallet balances when RPC is available; these are
+not GasFree account balances. Final network or relay fees may be unavailable and
+are explicitly reported as unestimated. For TRON,
 `--scheme exact_gasfree` supports the relay and fee-limit options described above.
 
 If payment succeeded but reporting failed, retain the original transaction hash and

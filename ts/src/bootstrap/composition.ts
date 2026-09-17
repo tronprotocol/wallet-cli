@@ -3,8 +3,7 @@ import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
 import { setLogger, noopLogger } from "@bankofai/x402-core";
-import { FileBaiBindingStore } from "../adapters/outbound/bai/binding-store.js";
-import { BaiCredentialSetup, baiChain } from "../application/use-cases/bai-credential-setup.js";
+import { BaiWalletBinding, baiChain } from "../application/use-cases/bai-wallet-binding.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
 import { isTronNetwork } from "../domain/types/network.js";
@@ -129,16 +128,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     ledger,
     qr: new TerminalQrEncoder(),
   });
-  const baiBindings = new FileBaiBindingStore(root, store);
-  const baiSetup = new BaiCredentialSetup(
-    baiBindings,
-    (apiKey) => new BaiRechargeClient({ baiApiKey: apiKey }, timeoutMs),
-    networkRegistry,
-    keystore,
-    new MessageService(signerResolver),
-    { network: options.globals.network, account: options.globals.account },
-  );
-  registerConfigCommands(registry, configService, baiSetup);
+  registerConfigCommands(registry, configService);
   registerNetworkCommands(registry);
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
@@ -160,7 +150,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       new BaiClient(config, timeoutMs),
       () => new Date(),
       x402Service,
-      baiBindings,
+      new BaiWalletBinding(new MessageService(signerResolver)),
       new BaiRechargeClient(config, timeoutMs),
       { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
       {

@@ -15,7 +15,8 @@ wallet-cli config [<key>] [<value>] [options]
 
 ## Options
 
-[Global options](index.md) only.
+`--api-key-stdin` reads a B.AI API key from stdin; accepted only with `config baiApiKey`.
+See also [global options](index.md).
 
 ## Notes
 
@@ -27,6 +28,7 @@ Known keys:
 | `defaultOutput` | `text` \| `json` | `text` | Output format when `-o` is omitted |
 | `timeoutMs` | ms, any finite number > 0 | `60000` | Default per node, service, or device call timeout (`--timeout` overrides). Unlike `waitTimeoutMs` it is not required to be an integer |
 | `waitTimeoutMs` | integer ms ≥ 0 | `60000` | Default `--wait` polling cap for broadcast commands |
+| `baiApiKey` | string via stdin | (unset) | B.AI API key; local configuration only |
 | `gasfreeApiKey` | string | (unset) | GasFree API key ([`gasfree`](gasfree/index.md)) |
 | `gasfreeApiSecret` | string | (unset) | GasFree API secret |
 | `tronlinkSecretId` | string | (unset) | TronLink multi-sig service secretId ([`tx multisig`](tx/multisig.md)) |
@@ -43,7 +45,7 @@ Known keys:
 
 Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 60000.
 
-**Secrets are never rendered in clear text.** `tronlinkSecretKey`, `gasfreeApiSecret` and `networks.<id>.apiKey` come back as `********` from every read, and a set of one echoes `input: "********"` too — the value goes to `config.yaml`, not to the terminal or to your shell history file's neighbours in a log.
+**Secrets are never rendered in clear text.** `baiApiKey`, `tronlinkSecretKey`, `gasfreeApiSecret` and `networks.<id>.apiKey` come back as `********` from every read, and a set of one echoes `input: "********"` too — the value goes to `config.yaml`, not to the terminal or to your shell history file's neighbours in a log.
 
 **Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:3448148188`) or its leaf (`config networks.tron:3448148188.httpEndpoint`) is the deliberate act that reveals the whole URL.
 
@@ -52,6 +54,14 @@ Because `config.yaml` can hold service credentials, it is subject to a permissio
 The external-service credentials are **per-environment**: the GasFree (`gasfreeApiKey` / `gasfreeApiSecret`) and TronLink (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`) credentials must match the service environment of the current `--network` (mainnet vs testnet); a mismatch fails with `provider_error`, so swap them when you switch environments. When a key is unset, the commands that need it fail with a clear error — `gasfree_credentials_missing` for [`gasfree`](gasfree/index.md), `tronlink_credentials_missing` for [`tx multisig`](tx/multisig.md).
 
 An invalid value returns `invalid_value` (exit 2).
+
+Setting `baiApiKey` does not contact B.AI or require a network, wallet or master password.
+It does not verify key validity or bind a wallet. Each `bai recharge` checks the
+selected payer’s live binding status and binds it if needed before ordering or paying.
+
+```bash
+printf '%s\n' "$BAI_KEY" | wallet-cli config baiApiKey --api-key-stdin
+```
 
 ## Examples
 

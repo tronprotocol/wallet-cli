@@ -30,7 +30,7 @@ describe("text formatters", () => {
   it("every registered command has a command-owned text formatter", () => {
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
-    registerConfigCommands(registry, {} as ConfigService, { execute: async () => {} });
+    registerConfigCommands(registry, {} as ConfigService);
     registerNetworkCommands(registry);
     registerContactCommands(registry, {} as never);
     registerAddressCommands(registry, {} as never);
@@ -54,7 +54,7 @@ describe("text formatters", () => {
   it("every registered command field carries a help description", () => {
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {} as Parameters<typeof registerWalletCommands>[1]);
-    registerConfigCommands(registry, {} as ConfigService, { execute: async () => {} });
+    registerConfigCommands(registry, {} as ConfigService);
     registerNetworkCommands(registry);
     registerContactCommands(registry, {} as never);
     registerAddressCommands(registry, {} as never);
