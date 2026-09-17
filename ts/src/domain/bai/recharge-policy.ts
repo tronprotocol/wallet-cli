@@ -20,7 +20,7 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
     BigInt(minimumWhole + minimumFraction.padEnd(scale, "0"))
   ) {
     throw new UsageError(
-      "invalid_value",
+      "invalid_amount",
       `${token.toUpperCase()} minimum recharge is ${minimum}; no preorder or payment was sent`,
     );
   }
@@ -28,8 +28,8 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
 
 /** Validate decimal quantities without converting payment amounts to floating point. */
 export function baiRechargeAmount(value: string): string {
-  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
-    throw new UsageError("invalid_value", "Recharge amount must be a positive decimal string");
+  if (value.length > 100 || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
+    throw new UsageError("invalid_amount", "Recharge amount must be a positive decimal string");
   const normalized = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
   const [whole = "0", fraction = ""] = normalized.split(".");
   if (
@@ -37,6 +37,6 @@ export function baiRechargeAmount(value: string): string {
     BigInt(whole) > 9007199254740991n ||
     (whole === "9007199254740991" && fraction !== "")
   )
-    throw new UsageError("invalid_value", "Recharge amount exceeds the supported positive range");
+    throw new UsageError("invalid_amount", "Recharge amount exceeds the supported positive range");
   return normalized;
 }

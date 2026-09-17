@@ -52,6 +52,8 @@ export class BaiService {
       maxGasfreeFeeRaw?: string;
     },
   ) {
+    const amount = baiRechargeAmount(input.amount);
+    assertBaiRechargeMinimum(input.token, amount);
     if (!input.apiKey) {
       throw new UsageError(
         "bai_credentials_missing",
@@ -61,15 +63,6 @@ export class BaiService {
     if (!this.bindings)
       throw new UsageError("invalid_option", "B.AI recharge binding verification is unavailable");
     const chain = requireBaiChain(network);
-    // Resolve the signing account before binding checks, including ambiguous address selectors.
-    this.accounts?.resolveAccount(scope.activeAccount, network.family);
-    const payer = scope.resolveAddress(network.family);
-    if (!this.bindings.isConfirmed(input.apiKey, chain, payer)) {
-      throw new UsageError(
-        "invalid_value",
-        "Confirm this API key and payer wallet first by configuring baiApiKey with --api-key-stdin for the selected account/network. No payment was sent",
-      );
-    }
     if (!this.payments || !this.rechargeApi || !this.rechargeConfig) {
       throw new UsageError("invalid_option", "B.AI recharge is not available in this runtime");
     }
@@ -80,8 +73,6 @@ export class BaiService {
         "No trusted B.AI recharge destination for this network",
       );
     }
-    const amount = baiRechargeAmount(input.amount);
-    assertBaiRechargeMinimum(input.token, input.amount);
     const paymentInput: X402ServeInput = {
       payTo: expectedPayTo,
       amount: input.amount,
@@ -96,6 +87,15 @@ export class BaiService {
       facilitatorUrl: this.rechargeConfig.facilitatorUrl,
     };
     this.payments.validate(network, paymentInput);
+    // Resolve the signing account before binding checks, including ambiguous address selectors.
+    this.accounts?.resolveAccount(scope.activeAccount, network.family);
+    const payer = scope.resolveAddress(network.family);
+    if (!this.bindings.isConfirmed(input.apiKey, chain, payer)) {
+      throw new UsageError(
+        "invalid_value",
+        "Confirm this API key and payer wallet first by configuring baiApiKey with --api-key-stdin for the selected account/network. No payment was sent",
+      );
+    }
     const identifier = input.to?.trim();
     const self =
       !identifier ||

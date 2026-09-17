@@ -234,10 +234,10 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
   const service = new BaiService(
     {} as never,
     undefined,
-    undefined,
+    { validate: vi.fn(), roundtrip: vi.fn() },
     { isConfirmed } as never,
     remote as never,
-    undefined,
+    { facilitatorUrl: "https://facilitator.example", payTo: { bnb: "destination" } },
     undefined,
     undefined,
     {
@@ -298,4 +298,33 @@ it("checks relay configuration before creating any preorder", async () => {
     ),
   ).rejects.toMatchObject({ code: "gasfree_credentials_missing" });
   expect(api.createOrder).not.toHaveBeenCalled();
+});
+
+it("rejects token precision before account and binding checks", async () => {
+  const isConfirmed = vi.fn();
+  const resolveAddress = vi.fn();
+  const resolveAccount = vi.fn();
+  const createOrder = vi.fn();
+  const roundtrip = vi.fn();
+  const server = new X402HttpServer();
+  const service = new BaiService(
+    {} as never,
+    undefined,
+    { validate: (net, input) => server.validate(net, input), roundtrip },
+    { isConfirmed } as never,
+    { createOrder } as never,
+    { facilitatorUrl: "https://facilitator.example", payTo: { bnb: payer } },
+    undefined,
+    undefined,
+    { resolveAccount },
+  );
+  await expect(
+    service.recharge({ resolveAddress } as never, network as never, {
+      amount: "1.0000000000000000001",
+      token: "USDT",
+      apiKey: "test-key",
+    }),
+  ).rejects.toMatchObject({ code: "invalid_amount" });
+  for (const operation of [isConfirmed, resolveAddress, resolveAccount, createOrder, roundtrip])
+    expect(operation).not.toHaveBeenCalled();
 });

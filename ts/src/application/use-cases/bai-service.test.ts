@@ -39,9 +39,19 @@ describe("BaiService", () => {
 it("stops an unconfirmed local recharge before requesting or signing payment", async () => {
   const pay = vi.fn();
   const isConfirmed = vi.fn(() => false);
-  const service = new BaiService(api(), () => new Date(), { validate: vi.fn(), roundtrip: pay }, {
-    isConfirmed,
-  } as unknown as BaiBindingStore);
+  const service = new BaiService(
+    api(),
+    () => new Date(),
+    { validate: vi.fn(), roundtrip: pay },
+    {
+      isConfirmed,
+    } as unknown as BaiBindingStore,
+    {} as never,
+    {
+      facilitatorUrl: "https://facilitator.example",
+      payTo: { bnb: "destination", tron: "destination" },
+    },
+  );
   await expect(
     service.recharge(
       { resolveAddress: () => "payer" } as never,
@@ -57,9 +67,19 @@ it("does not proceed when local confirmation cannot be read", async () => {
   const isConfirmed = vi.fn(() => {
     throw new Error("API unavailable");
   });
-  const service = new BaiService(api(), () => new Date(), { validate: vi.fn(), roundtrip: pay }, {
-    isConfirmed,
-  } as unknown as BaiBindingStore);
+  const service = new BaiService(
+    api(),
+    () => new Date(),
+    { validate: vi.fn(), roundtrip: pay },
+    {
+      isConfirmed,
+    } as unknown as BaiBindingStore,
+    {} as never,
+    {
+      facilitatorUrl: "https://facilitator.example",
+      payTo: { bnb: "destination", tron: "destination" },
+    },
+  );
   await expect(
     service.recharge(
       { resolveAddress: () => "payer" } as never,
@@ -109,5 +129,20 @@ it.each([100, 101, 200])(
     expect(
       vi.mocked(remote.rechargeList).mock.calls.every(([input]) => input.pageSize <= 100),
     ).toBe(true);
+  },
+);
+
+it.each(["0", "0.000", "-1", "1e3", "9007199254740992", "0.5"])(
+  "rejects invalid USDT amount %s before credentials or wallet resolution",
+  async (amount) => {
+    const resolveAddress = vi.fn();
+    await expect(
+      new BaiService(api()).recharge(
+        { resolveAddress } as never,
+        { id: "eip155:56", family: "evm", chainId: "56" } as never,
+        { amount, token: "USDT" },
+      ),
+    ).rejects.toMatchObject({ code: "invalid_amount" });
+    expect(resolveAddress).not.toHaveBeenCalled();
   },
 );

@@ -1,3 +1,7 @@
+import {
+  assertBaiRechargeMinimum,
+  baiRechargeAmount,
+} from "../../../../domain/bai/recharge-policy.js";
 import { integerLiteral, rawPaymentAmount, paymentAmount } from "../schemas/payment-values.js";
 import { z } from "zod";
 import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
@@ -14,6 +18,18 @@ const listFields = z.object({
   sort: z.enum(["asc", "desc"]).default("desc").describe("creation-time sort direction"),
 });
 
+const rechargeAmount = z.string().superRefine((value, ctx) => {
+  try {
+    baiRechargeAmount(value);
+  } catch {
+    ctx.addIssue({
+      code: "custom",
+      message: "must be a positive recharge amount within the supported range",
+      params: { errorCode: "invalid_amount" },
+    });
+  }
+});
+
 const rechargeFields = z.object({
   dryRun: z
     .boolean()
@@ -23,7 +39,7 @@ const rechargeFields = z.object({
   gasfreeRelay: z.string().optional().describe("GasFree relay: official, gasfree, or HTTPS URL"),
   maxGasfreeFee: paymentAmount.optional().describe("maximum GasFree fee in whole tokens"),
   maxGasfreeFeeRaw: rawPaymentAmount.optional().describe("maximum GasFree fee in smallest units"),
-  amount: z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/, "must be a decimal amount"),
+  amount: rechargeAmount,
   token: z
     .string()
     .trim()
@@ -66,6 +82,16 @@ export const baiRechargeSpec: ChainSpec = {
 export function baiRechargeBinding(service: BaiService): FamilyBinding {
   return {
     refine: (input, ctx) => {
+      try {
+        assertBaiRechargeMinimum(input.token ?? "USDT", baiRechargeAmount(input.amount));
+      } catch (error) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["amount"],
+          message: error instanceof Error ? error.message : "Invalid recharge amount",
+          params: { errorCode: "invalid_amount" },
+        });
+      }
       if (input.maxGasfreeFee !== undefined && input.maxGasfreeFeeRaw !== undefined)
         ctx.addIssue({
           code: "custom",
@@ -97,11 +123,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
   const reportFields = z.object({
     txHash: z.string().max(66).describe("existing transaction hash from the original recharge"),
     chain: z.enum(["tron", "bnb", "base"]).describe("original recharge chain; BSC is bnb"),
-    amount: z
-      .string()
-      .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
-      .optional()
-      .describe("original recharge amount, when available"),
+    amount: rechargeAmount.optional().describe("original recharge amount, when available"),
     to: z
       .string()
       .trim()
