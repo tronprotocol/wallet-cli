@@ -158,21 +158,31 @@ export class X402PaymentClient implements X402PaymentPort {
       }
     }
     if (paymentHeader && !successfulSettlement(paymentResponse, expectedNetwork)) {
+      const receipt =
+        paymentResponse && typeof paymentResponse === "object" && !Array.isArray(paymentResponse)
+          ? (paymentResponse as Record<string, unknown>)
+          : undefined;
+      // A well-formed negative receipt is a settlement failure, not invalid evidence.
+      const failed =
+        receipt?.success === false &&
+        typeof receipt.network === "string" &&
+        sameX402Network(receipt.network, expectedNetwork ?? receipt.network) &&
+        typeof receipt.transaction === "string" &&
+        (receipt.errorReason === undefined || typeof receipt.errorReason === "string");
+      const failure = providerPaymentError(
+        failed ? receipt.errorReason : undefined,
+        "settle",
+        receipt,
+      );
       throw new TransportError(
-        "invalid_settlement",
-        "paid endpoint returned an invalid settlement receipt",
+        failed ? failure.code : "invalid_settlement",
+        failed ? failure.message : "paid endpoint returned an invalid settlement receipt",
         {
           httpStatus: response.status,
           settled: false,
           delivered: response.ok,
           retryPayment: false,
-          ...providerPaymentError(
-            undefined,
-            "settle",
-            paymentResponse && typeof paymentResponse === "object"
-              ? (paymentResponse as Record<string, unknown>)
-              : undefined,
-          ).details,
+          ...failure.details,
         },
       );
     }

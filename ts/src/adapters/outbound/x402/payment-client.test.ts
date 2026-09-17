@@ -175,14 +175,15 @@ describe("X402PaymentClient", () => {
 });
 
 it.each([
-  [
-    { success: false, errorReason: "transaction_failed", transaction: "", network: "eip155:56" },
-    false,
-  ],
   [{ success: true, transaction: "0x" + "a".repeat(64), network: "eip155:56" }, true],
   [{ success: true, transaction: "", network: "eip155:56" }, false],
   [{ success: true, transaction: "0x" + "a".repeat(64), network: "eip155:8453" }, false],
   [{ transaction: "0x" + "a".repeat(64), network: "eip155:56" }, false],
+  [
+    { success: false, errorReason: "insufficient_funds", transaction: "", network: "eip155:8453" },
+    false,
+  ],
+  [{ success: "false", transaction: "", network: "eip155:56" }, false],
 ])("only marks a successful matching settlement as settled (%j)", async (header, settled) => {
   const client = new X402PaymentClient(
     resolver,
@@ -206,6 +207,82 @@ it.each([
       code: "invalid_settlement",
       details: { retryPayment: false, settled: false, delivered: false },
     });
+});
+it.each([
+  ["insufficient_funds", "insufficient_balance"],
+  ["transaction_failed", "provider_error"],
+  ["SECRET provider diagnostic", "provider_error"],
+])("classifies a failed settlement receipt with reason %s", async (reason, code) => {
+  const transaction = "0x" + "a".repeat(64);
+  for (const status of [200, 502]) {
+    for (const header of ["payment-response", "x-payment-response"]) {
+      const client = new X402PaymentClient(
+        resolver,
+        async () =>
+          new Response("not JSON", {
+            status,
+            headers: {
+              [header]: Buffer.from(
+                JSON.stringify({
+                  success: false,
+                  errorReason: reason,
+                  transaction,
+                  network: "eip155:56",
+                }),
+              ).toString("base64"),
+            },
+          }),
+      );
+      const error = await client
+        .pay(scope, net, {
+          url: "https://example.test",
+          method: "GET",
+          headers: [],
+        })
+        .catch((error: unknown) => error);
+      expect(error).toMatchObject({
+        code,
+        details: {
+          phase: "settle",
+          httpStatus: status,
+          settled: false,
+          delivered: status === 200,
+          retryPayment: false,
+          paymentStatus: "unknown",
+          candidateTxHash: transaction,
+          ...(reason === "insufficient_funds" ? { reason } : {}),
+        },
+      });
+      expect(JSON.stringify(error)).not.toContain("SECRET");
+    }
+  }
+});
+
+it("classifies a failed settlement without a transaction hash", async () => {
+  const client = new X402PaymentClient(
+    resolver,
+    async () =>
+      new Response("{}", {
+        status: 502,
+        headers: {
+          "payment-response": Buffer.from(
+            JSON.stringify({
+              success: false,
+              errorReason: "insufficient_funds",
+              transaction: "",
+              network: "eip155:56",
+            }),
+          ).toString("base64"),
+        },
+      }),
+  );
+  await expect(
+    client.pay(scope, net, {
+      url: "https://example.test",
+      method: "GET",
+      headers: [],
+    }),
+  ).rejects.toMatchObject({ code: "insufficient_balance" });
 });
 it("bounds oversized 402 bodies before the SDK or signer handles them", async () => {
   let pulled = 0;
