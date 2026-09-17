@@ -58,3 +58,16 @@ it("leaves EVM representation unchanged without a negotiation request", async ()
   ).toBe("eip155:8453");
   expect(fetcher).not.toHaveBeenCalled();
 });
+
+it.each([
+  "https://host.example",
+  "https://host.example/",
+  "https://host.example/x402",
+  "https://host.example/x402/",
+])("preserves supported endpoint prefix for %s", async (base) => {
+  const fetcher = vi.fn(async (_url: unknown, _init?: unknown) =>
+    Response.json({ kinds: [{ x402Version: 2, scheme: "exact", network: network.id }] }),
+  );
+  await facilitatorNetwork(network, "exact", base, fetcher, 1000);
+  expect(String(fetcher.mock.calls[0]![0])).toBe(base.replace(/\/+$/, "") + "/supported");
+});

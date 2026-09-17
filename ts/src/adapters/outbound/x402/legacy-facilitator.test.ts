@@ -40,7 +40,9 @@ it.each(
   const calls: string[] = [];
   const payloads: unknown[] = [];
   const facilitator: typeof fetch = async (url, init) => {
-    const path = new URL(String(url)).pathname;
+    const fullPath = new URL(String(url)).pathname;
+    expect(fullPath.startsWith("/x402/")).toBe(true);
+    const path = fullPath.slice("/x402".length);
     calls.push(path);
     if (path === "/supported")
       return Response.json({
@@ -78,7 +80,7 @@ it.each(
       amount: "1",
       token: "USDT",
       scheme: "exact",
-      facilitatorUrl: "https://legacy.example",
+      facilitatorUrl: "https://legacy.example/x402",
     },
   );
   if (outcome.endsWith("failure")) {

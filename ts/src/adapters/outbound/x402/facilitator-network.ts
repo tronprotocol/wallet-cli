@@ -1,3 +1,4 @@
+import { facilitatorUrl } from "./facilitator-url.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { sameX402Network } from "../../../domain/x402/network-id.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
@@ -17,7 +18,7 @@ export async function facilitatorNetwork(
   try {
     response = await fetchBounded(
       fetcher,
-      new URL("/supported", base),
+      facilitatorUrl(base, "supported"),
       {
         method: "GET",
         headers: { accept: "application/json" },

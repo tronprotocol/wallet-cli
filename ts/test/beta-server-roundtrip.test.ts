@@ -3,7 +3,7 @@ import { it, expect } from "vitest";
 import { Wallet } from "ethers";
 import { createServer } from "node:net";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -76,9 +76,9 @@ it.skipIf(!entry).each(["SIGINT", "SIGTERM"] as const)(
   },
   20000,
 );
-it.skipIf(!entry)(
-  "installed x402 roundtrip signs and uses mocked facilitator settlement",
-  async () => {
+it.skipIf(!entry).each(["USDT", "USDD"])(
+  "installed x402 exact roundtrip signs %s and uses mocked facilitator settlement",
+  async (token) => {
     const home = mkdtempSync(join(tmpdir(), "beta-roundtrip-"));
     const p = await port();
     try {
@@ -97,7 +97,9 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
    if(url.hostname==='127.0.0.1')return realFetch(input,init);
    if(url.origin!=='https://facilitator.bankofai.io')throw new Error('unexpected network');
    if(url.pathname==='/supported')return Response.json({kinds:[{x402Version:2,scheme:'exact',network:'tron:0xcd8690dc'}]});
-   const data=JSON.parse(init.body);if(!data.paymentPayload.payload.signature)throw new Error('missing signature');
+   const data=JSON.parse(init.body);
+   if(data.paymentRequirements.asset!==${JSON.stringify(token === "USDD" ? "TGjgvdTWWrybVLaVeFqSyVqJQWjxqRYbaK" : "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf")})throw new Error('wrong exact asset');
+   if(!data.paymentPayload.payload.signature)throw new Error('missing signature');
    appendFileSync(${JSON.stringify(log)},url.pathname+'\\n');
    if(url.pathname==='/verify')return new Response(JSON.stringify({isValid:true}));
    if(url.pathname==='/settle')return new Response(JSON.stringify({success:true,transaction:'a'.repeat(64),network:'tron:0xcd8690dc'}));
@@ -117,6 +119,8 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
           "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
           "--port",
           String(p),
+          "--token",
+          token,
           "--account",
           "payer",
           "--password-stdin",
@@ -140,9 +144,30 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
   30000,
 );
 
-it.skipIf(!entry).each(["pay", "roundtrip"])(
-  "installed x402 %s returns the real SDK GasFree fee warning",
-  async (command) => {
+it
+  .skipIf(!entry)
+  .each(
+    ["pay", "roundtrip"].flatMap((command) =>
+      ["USDT", "USDD", "USDD-fallback", "USDD-missing"].map(
+        (scenario) => [command, scenario] as const,
+      ),
+    ),
+  )(
+  "installed x402 %s handles GasFree %s using the real SDK",
+  async (command, scenario) => {
+    const token = scenario.startsWith("USDD") ? "USDD" : "USDT";
+    const asset =
+      token === "USDD"
+        ? "TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt"
+        : "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
+    const raw = token === "USDD" ? "10000000000000000" : "10000";
+    const fee =
+      scenario === "USDD-fallback"
+        ? "1000000000000000000"
+        : token === "USDD"
+          ? "1300000000000000000"
+          : "1300000";
+    const missing = scenario === "USDD-missing";
     const home = mkdtempSync(join(tmpdir(), "beta-gasfree-warning-"));
     try {
       new Keystore(home, new AtomicFileStore(), () => "test-password").import({
@@ -159,23 +184,23 @@ import {appendFileSync} from 'node:fs';
 const realFetch = globalThis.fetch;
 const network = 'tron:0xcd8690dc';
 const payTo = 'TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ';
-const requirement = {scheme:'exact_gasfree',network,amount:'10000',asset:'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf',payTo,maxTimeoutSeconds:300,extra:{}};
+const requirement = {scheme:'exact_gasfree',network,amount:${JSON.stringify(raw)},asset:${JSON.stringify(asset)},payTo,maxTimeoutSeconds:300,extra:{}};
 globalThis.fetch = async(input,init) => {
  const url=new URL(input instanceof Request?input.url:input);
  if(url.hostname==='127.0.0.1') return realFetch(input,init);
- if(url.pathname.includes('/api/v1/address/')) return Response.json({code:200,data:{gasFreeAddress:payTo,active:true,nonce:0,assets:[{tokenAddress:requirement.asset,transferFee:'1300000'}]}});
+ if(url.pathname.includes('/api/v1/address/')) return Response.json({code:200,data:{gasFreeAddress:payTo,active:true,nonce:0,assets:${missing ? "[]" : JSON.stringify([{ tokenAddress: asset, transferFee: scenario === "USDD-fallback" ? "0" : fee }])}}});
  if(url.pathname.endsWith('/api/v1/config/provider/all')) return Response.json({code:200,data:{providers:[{address:payTo}]}});
  if(url.hostname==='paywall.example') {
    if(!new Headers(input instanceof Request ? input.headers : init?.headers).get('PAYMENT-SIGNATURE')) return Response.json({x402Version:2,resource:{url:url.href},accepts:[requirement]}, {status:402,headers:{'PAYMENT-REQUIRED':Buffer.from(JSON.stringify({x402Version:2,resource:{url:url.href},accepts:[requirement]})).toString('base64')}});
    const payment=JSON.parse(Buffer.from(new Headers(input instanceof Request ? input.headers : init?.headers).get('PAYMENT-SIGNATURE'),'base64').toString());
-   if(!payment.payload.signature || payment.payload.gasfree.maxFee!=='1300000') throw new Error('missing SDK fee/signature');
+   if(!payment.payload.signature || payment.payload.gasfree.maxFee!==${JSON.stringify(fee)}) throw new Error('missing SDK fee/signature');
    appendFileSync(${JSON.stringify(log)},'paid\\n');
    return Response.json({ok:true},{headers:{'PAYMENT-RESPONSE':Buffer.from(JSON.stringify({success:true,transaction:'a'.repeat(64),network})).toString('base64')}});
  }
  if(url.origin==='https://facilitator.bankofai.io') {
    if(url.pathname==='/supported')return Response.json({kinds:[{x402Version:2,scheme:'exact_gasfree',network}]});
    const data=JSON.parse(init.body); const payload=data.paymentPayload.payload;
-   if(!payload.signature || payload.gasfree.maxFee!=='1300000' || payload.gasfree.value!=='10000')throw new Error('missing SDK fee/signature');
+   if(!payload.signature || payload.gasfree.maxFee!==${JSON.stringify(fee)} || payload.gasfree.value!==${JSON.stringify(raw)})throw new Error('missing SDK fee/signature');
    appendFileSync(${JSON.stringify(log)},url.pathname+'\\n');
    if(url.pathname==='/verify')return Response.json({isValid:true});
    if(url.pathname==='/settle')return Response.json({success:true,transaction:'a'.repeat(64),network});
@@ -206,7 +231,7 @@ globalThis.fetch = async(input,init) => {
           "--network",
           "nile",
           "--token",
-          "USDT",
+          token,
           "--scheme",
           "exact_gasfree",
           "--account",
@@ -222,11 +247,25 @@ globalThis.fetch = async(input,init) => {
           timeout: 20000,
         },
       );
+      if (missing) {
+        expect(result.status, result.stdout + result.stderr).toBe(1);
+        expect(JSON.parse(result.stdout)).toMatchObject({
+          success: false,
+          error: {
+            code: "gasfree_asset_unsupported",
+            details: { paymentStatus: "not_sent", retryPayment: false },
+          },
+        });
+        expect(existsSync(log)).toBe(false);
+        return;
+      }
       expect(result.status, result.stdout + result.stderr).toBe(0);
       const envelope = JSON.parse(result.stdout);
       expect(envelope.success).toBe(true);
       expect(envelope.meta.warnings).toEqual(
-        expect.arrayContaining([expect.stringContaining("13000.00%")]),
+        expect.arrayContaining([
+          expect.stringContaining(scenario === "USDD-fallback" ? "10000.00%" : "13000.00%"),
+        ]),
       );
       expect(command === "pay" ? envelope.data : envelope.data.pay).toMatchObject({
         settled: true,

@@ -11,6 +11,11 @@ const reasons: Record<string, () => TransportError> = {
       "gasfree_insufficient_balance",
       "GasFree wallet balance cannot cover the payment and maximum fee",
     ),
+  gasfree_asset_unsupported: () =>
+    new TransportError(
+      "gasfree_asset_unsupported",
+      "The selected asset is unavailable in the GasFree account; check the network, token contract and relay configuration",
+    ),
   gasfree_not_activated: () =>
     new TransportError("gasfree_not_activated", "GasFree account is not activated"),
   permit2_allowance_required: () =>
@@ -150,6 +155,13 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
   let reason: string | undefined;
   if (/^Insufficient balance in GasFree wallet /.test(cause)) {
     reason = "gasfree_insufficient_balance";
+  } else if (
+    phase === "create_payment" &&
+    /^Asset T[1-9A-HJ-NP-Za-km-z]{33} not found in GasFree account T[1-9A-HJ-NP-Za-km-z]{33}\.$/.test(
+      cause,
+    )
+  ) {
+    reason = "gasfree_asset_unsupported";
   } else if (/^GasFree account for .* is not activated\.$/.test(cause)) {
     reason = "gasfree_not_activated";
   } else {

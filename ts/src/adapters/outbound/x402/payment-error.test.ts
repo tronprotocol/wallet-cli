@@ -93,3 +93,17 @@ it("retains only numeric Retry-After hints", () => {
   );
   expect(JSON.stringify(unsafe.toEnvelope())).not.toContain("secret");
 });
+
+it("classifies a missing GasFree asset before payment creation without exposing SDK text", () => {
+  const error = sdkPaymentError(
+    new Error(
+      "Asset TGjgvdTWWrybVLaVeFqSyVqJQWjxqRYbaK not found in GasFree account TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ.",
+    ),
+    "create_payment",
+  );
+  expect(error).toMatchObject({
+    code: "gasfree_asset_unsupported",
+    details: { paymentStatus: "not_sent", retryPayment: false },
+  });
+  expect(error.message).not.toContain("TGjgvd");
+});

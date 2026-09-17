@@ -1,6 +1,7 @@
+import { facilitatorUrl } from "./facilitator-url.js";
 import { facilitatorNetwork } from "./facilitator-network.js";
 import { addressCodec } from "../../../domain/family/index.js";
-import { X402_TOKENS } from "./tokens.js";
+import { tokensForScheme } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
@@ -63,7 +64,7 @@ export class X402HttpServer implements X402ServerPort {
           "GasFree relay must be HTTPS without credentials, query or fragment",
         );
     }
-    const registered = X402_TOKENS[network.id] ?? {};
+    const registered = tokensForScheme(network.id, input.scheme);
     if (input.amount !== undefined && input.rawAmount !== undefined)
       throw new UsageError("invalid_option", "amount and raw amount are mutually exclusive");
     if (input.token !== undefined && input.asset !== undefined)
@@ -249,7 +250,7 @@ export class X402HttpServer implements X402ServerPort {
   ): Promise<Record<string, unknown>> {
     const response = await fetchBounded(
       this.fetcher,
-      new URL(path, `${base.replace(/\/+$/, "")}/`),
+      facilitatorUrl(base, path),
       {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },

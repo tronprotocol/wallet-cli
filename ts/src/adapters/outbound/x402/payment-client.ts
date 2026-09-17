@@ -1,6 +1,6 @@
 import { gasfreeRelayClient } from "./gasfree-relay.js";
 import type { Config } from "../../../domain/types/index.js";
-import { X402_TOKENS } from "./tokens.js";
+import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
 import { sdkPaymentError, providerPaymentError, type PaymentPhase } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
@@ -10,7 +10,7 @@ import {
   decodePaymentResponseHeader,
 } from "@bankofai/x402-fetch";
 import { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";
-import { createClientTronSigner, type ClientTronSigner } from "@bankofai/x402-tron";
+import { createClientTronSigner, registerToken, type ClientTronSigner } from "@bankofai/x402-tron";
 import { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";
 import { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
 import type { ClientEvmSigner } from "@bankofai/x402-evm";
@@ -299,6 +299,10 @@ export class X402PaymentClient implements X402PaymentPort {
         schemeOptions: network.httpEndpoint ? { rpcUrl: network.httpEndpoint } : undefined,
       });
     } else {
+      // SDK metadata is keyed by symbol: use an internal alias to retain exact's USDD entry.
+      for (const [symbol, token] of Object.entries(GASFREE_TOKENS[network.id] ?? {})) {
+        registerToken(network.id as Network, { ...token, symbol: `${symbol}_GASFREE` });
+      }
       const tronSigner = await createClientTronSigner(bridge, {
         network: x402Network,
         ...(network.httpEndpoint ? { rpcUrl: network.httpEndpoint } : {}),
@@ -378,16 +382,21 @@ async function writeOutput(path: string, bytes: Uint8Array): Promise<void> {
 
 function metadata(network: string, asset: string) {
   const tokens = X402_TOKENS[network] ?? {};
-  const entry = Object.entries(tokens).find(([, token]) =>
-    network.startsWith("eip155:")
-      ? token.address.toLowerCase() === asset.toLowerCase()
-      : token.address === asset,
+  const entry = [...Object.entries(tokens), ...Object.entries(GASFREE_TOKENS[network] ?? {})].find(
+    ([, token]) =>
+      network.startsWith("eip155:")
+        ? token.address.toLowerCase() === asset.toLowerCase()
+        : token.address === asset,
   );
   return entry ? { ...entry[1], symbol: entry[0] } : undefined;
 }
 
-function tokenSymbol(network: string, asset: string): string | undefined {
-  return metadata(network, asset)?.symbol;
+function tokenSymbol(network: string, asset: string, scheme: string): string | undefined {
+  return Object.entries(tokensForScheme(network, scheme)).find(([, token]) =>
+    network.startsWith("eip155:")
+      ? token.address.toLowerCase() === asset.toLowerCase()
+      : token.address === asset,
+  )?.[0];
 }
 
 function paymentDecimals(network: string, asset: string, explicit?: number): number {
@@ -457,7 +466,10 @@ function selectMatching<T extends OfferedRequirement>(
     if (requirement.scheme === "exact_gasfree" && network.family !== "tron") return false;
     if (input.scheme && requirement.scheme !== input.scheme) return false;
     if (input.asset && requirement.asset.toLowerCase() !== input.asset.toLowerCase()) return false;
-    if (input.token && tokenSymbol(network.id, requirement.asset) !== input.token.toUpperCase())
+    if (
+      input.token &&
+      tokenSymbol(network.id, requirement.asset, requirement.scheme) !== input.token.toUpperCase()
+    )
       return false;
     if (input.expectedPayTo) {
       if (typeof requirement.payTo !== "string") return false;
