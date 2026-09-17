@@ -71,3 +71,61 @@ it.each([
     await expect(fetch(String(result.serve.payUrl))).rejects.toThrow();
   },
 );
+
+it.each([
+  [200, { success: true }, undefined],
+  [429, {}, "provider_rate_limited"],
+  [500, {}, "provider_error"],
+  [
+    200,
+    { success: false, errorReason: "permit2_allowance_required" },
+    "permit2_allowance_required",
+  ],
+  [200, { success: false, errorReason: "provider_rate_limited" }, "provider_error"],
+  [200, { success: false, httpStatus: 429 }, "provider_rate_limited"],
+] as const)("reproduces settlement response %s %j", async (status, body, expectedError) => {
+  const payer = "0x1111111111111111111111111111111111111111";
+  const transaction = "0x" + "a".repeat(64);
+  const signTypedData = vi.fn(async (payload) => ({
+    primaryType: payload.primaryType,
+    signature: "0x" + "a".repeat(130),
+  }));
+  const resolver = {
+    assertCanSign: vi.fn(),
+    resolve: () => ({ address: payer, kind: "ledger", signTypedData }),
+  } as unknown as SignerResolver;
+  const calls: string[] = [];
+  const facilitator: typeof fetch = async (url) => {
+    const path = new URL(String(url)).pathname;
+    calls.push(path);
+    if (path === "/verify") return Response.json({ isValid: true, payer });
+    return Response.json({ transaction, network: "eip155:97", payer, ...body }, { status });
+  };
+  const service = new X402Service(
+    new X402PaymentClient(resolver),
+    {} as ProviderCatalogPort,
+    {} as never,
+    new X402HttpServer(facilitator),
+  );
+  const pending = service.roundtrip(
+    { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn(), warn: vi.fn() } as never,
+    { id: "eip155:97", chainId: "97", family: "evm" } as never,
+    {
+      host: "127.0.0.1",
+      port: 0,
+      payTo: "0x2222222222222222222222222222222222222222",
+      amount: "0.01",
+      token: "USDT",
+      scheme: "exact",
+      facilitatorUrl: "https://facilitator.example",
+    },
+  );
+  if (expectedError)
+    await expect(pending).rejects.toMatchObject({
+      code: expectedError,
+      details: { phase: "settle", retryPayment: false },
+    });
+  else await expect(pending).resolves.toMatchObject({ pay: { settled: true, delivered: true } });
+  expect(signTypedData).toHaveBeenCalledOnce();
+  expect(calls).toEqual(["/verify", "/settle"]);
+});
