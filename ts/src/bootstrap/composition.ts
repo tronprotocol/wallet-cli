@@ -1,3 +1,4 @@
+import { MessageService } from "../application/use-cases/message-service.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
@@ -131,9 +132,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const baiBindings = new FileBaiBindingStore(root, store);
   const baiSetup = new BaiCredentialSetup(
     baiBindings,
-    (apiKey, input) => new BaiRechargeClient({ baiApiKey: apiKey }, timeoutMs).isBound(input),
+    (apiKey) => new BaiRechargeClient({ baiApiKey: apiKey }, timeoutMs),
     networkRegistry,
     keystore,
+    new MessageService(signerResolver),
     { network: options.globals.network, account: options.globals.account },
   );
   registerConfigCommands(registry, configService, baiSetup);

@@ -16,7 +16,7 @@ function fixture(check = vi.fn(async (_key: string) => {})) {
 it("confirms the candidate key before saving it", async () => {
   const { command, ctx, execute, check } = fixture();
   await command.run(ctx as never, undefined, { key: "baiApiKey" });
-  expect(check).toHaveBeenCalledWith("new-secret");
+  expect(check).toHaveBeenCalledWith("new-secret", ctx, expect.any(Function));
   expect(check.mock.invocationCallOrder[0]).toBeLessThan(execute.mock.invocationCallOrder[0]!);
 });
 it("does not overwrite the saved key when confirmation fails", async () => {
