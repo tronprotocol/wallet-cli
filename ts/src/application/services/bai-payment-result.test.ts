@@ -36,17 +36,42 @@ it("does not accept HTTP delivery or a legacy MCP hash as proof of settlement", 
   ).toThrow();
   expect(() => baiPaymentResult({ ...payment(), settled: false }, "eip155:56")).toThrow();
 });
-it("accepts TRON settlement network notation", () => {
+it.each(["tron:728126428", "tron:0x2b6653dc"])("accepts TRON settlement network %s", (network) => {
   expect(
     baiPaymentResult(
       {
         settled: true,
         payer: { address: "tron-payer" },
-        paymentResponse: { success: true, network: "tron:0x2b6653dc", transaction: "a".repeat(64) },
+        paymentResponse: { success: true, network, transaction: "a".repeat(64) },
       },
       "tron:728126428",
     ),
   ).toEqual({ txHash: "a".repeat(64), payer: "tron-payer" });
+});
+
+it.each([
+  "tron:3448148188",
+  "tron:0xcd8690dc",
+  "eip155:728126428",
+  "invalid",
+  undefined,
+  728126428,
+])("rejects mismatched or malformed TRON settlement network %j", (network) => {
+  expect(() =>
+    baiPaymentResult(
+      {
+        settled: true,
+        payer: { address: "tron-payer" },
+        paymentResponse: { success: true, network, transaction: "a".repeat(64) },
+      },
+      "tron:728126428",
+    ),
+  ).toThrow(
+    expect.objectContaining({
+      code: "invalid_x402_response",
+      details: expect.objectContaining({ reason: "network_mismatch" }),
+    }),
+  );
 });
 
 it.each([
