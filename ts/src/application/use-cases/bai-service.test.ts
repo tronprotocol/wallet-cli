@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
-import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 
 function api(): BaiApi {
   return {
@@ -34,60 +33,6 @@ describe("BaiService", () => {
     expect(remote.status).toHaveBeenCalledOnce();
     expect(remote.usageList).not.toHaveBeenCalled();
   });
-});
-
-it("stops an unconfirmed local recharge before requesting or signing payment", async () => {
-  const pay = vi.fn();
-  const isConfirmed = vi.fn(() => false);
-  const service = new BaiService(
-    api(),
-    () => new Date(),
-    { prepare: vi.fn(), validate: vi.fn(), roundtrip: pay },
-    {
-      isConfirmed,
-    } as unknown as BaiBindingStore,
-    {} as never,
-    {
-      facilitatorUrl: "https://facilitator.example",
-      payTo: { bnb: "destination", tron: "destination" },
-    },
-  );
-  await expect(
-    service.recharge(
-      { resolveAddress: () => "payer" } as never,
-      { id: "eip155:56", family: "evm", chainId: "56" } as never,
-      { amount: "10", token: "USDT", apiKey: "secret" },
-    ),
-  ).rejects.toMatchObject({ code: "invalid_value" });
-  expect(isConfirmed).toHaveBeenCalledWith("secret", "bnb", "payer");
-  expect(pay).not.toHaveBeenCalled();
-});
-it("does not proceed when local confirmation cannot be read", async () => {
-  const pay = vi.fn();
-  const isConfirmed = vi.fn(() => {
-    throw new Error("API unavailable");
-  });
-  const service = new BaiService(
-    api(),
-    () => new Date(),
-    { prepare: vi.fn(), validate: vi.fn(), roundtrip: pay },
-    {
-      isConfirmed,
-    } as unknown as BaiBindingStore,
-    {} as never,
-    {
-      facilitatorUrl: "https://facilitator.example",
-      payTo: { bnb: "destination", tron: "destination" },
-    },
-  );
-  await expect(
-    service.recharge(
-      { resolveAddress: () => "payer" } as never,
-      { id: "tron:728126428", family: "tron", chainId: "728126428" } as never,
-      { amount: "10", token: "USDT", apiKey: "secret" },
-    ),
-  ).rejects.toThrow("API unavailable");
-  expect(pay).not.toHaveBeenCalled();
 });
 
 it("passes the usage cursor through and exposes continuation metadata", async () => {

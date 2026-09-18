@@ -1,4 +1,3 @@
-import type { BaiCredentialSetup } from "../../../../application/use-cases/bai-credential-setup.js";
 import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import {
@@ -10,11 +9,7 @@ import { CommandRegistry } from "../registry/index.js";
 import { TextFormatters } from "../render/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 
-export function registerConfigCommands(
-  registry: CommandRegistry,
-  service: ConfigService,
-  baiSetup: Pick<BaiCredentialSetup, "execute">,
-): void {
+export function registerConfigCommands(registry: CommandRegistry, service: ConfigService): void {
   const fields = z.object({
     // Not an enum: `networks.<id>[.<field>]` is a nested path, and the id segment is
     // open-ended (any canonical id or alias). The service validates the key and names the
@@ -39,7 +34,7 @@ export function registerConfigCommands(
     stdin: "apiKey",
     summary: "Show / get / set configuration values",
     description:
-      "Read or update configuration. Setting baiApiKey verifies the selected account and mainnet with B.AI once before saving; select them with --account and --network. Unbound wallets are bound using a wallet signature before saving.",
+      "Read or update configuration. Setting baiApiKey only saves the key locally; no network, account, password or wallet binding is required. Recharge checks binding when used.",
     positionals: [{ field: "key" }, { field: "value" }],
     fields,
     input: fields,
@@ -50,7 +45,7 @@ export function registerConfigCommands(
       { cmd: "wallet-cli config networks.tron:728126428" },
       { cmd: "wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY" },
       {
-        cmd: "printf '%s\\n' \"$BAI_KEY\" | wallet-cli config baiApiKey --api-key-stdin --network tron",
+        cmd: "printf '%s\\n' \"$BAI_KEY\" | wallet-cli config baiApiKey --api-key-stdin",
       },
     ],
     formatText: TextFormatters.config,
@@ -71,10 +66,6 @@ export function registerConfigCommands(
       const effectiveInput = hasApiKeyInput
         ? { key: "baiApiKey", value: ctx.secrets.require("apiKey") }
         : input;
-      if (hasApiKeyInput)
-        await baiSetup.execute(effectiveInput.value!, ctx, (verify) =>
-          ctx.secrets.primePassword({ mode: "verify", verify }),
-        );
       return service.execute(effectiveInput, ctx.config, ctx.networkRegistry);
     },
   } satisfies CommandDefinition);

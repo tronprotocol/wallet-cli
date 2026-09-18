@@ -69,7 +69,7 @@ export const baiRechargeSpec: ChainSpec = {
   positionals: [{ field: "amount" }],
   summary: "Recharge your own or another B.AI account",
   description:
-    "Recharge B.AI using the selected network and token. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 on mainnet (exact, or TRON exact_gasfree): TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
+    "Recharge B.AI using the selected network and token. Each recharge checks wallet binding with B.AI and signs a binding message if needed before creating an order or paying. Dry-run checks binding but never signs or binds. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 on mainnet (exact, or TRON exact_gasfree): TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
   baseFields: rechargeFields,
   examples: [
     { cmd: "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin" },

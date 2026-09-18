@@ -2,7 +2,6 @@ import { X402HttpServer } from "../../adapters/outbound/x402/server.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
-import type { BaiBindingStore } from "../ports/bai-binding-store.js";
 const payer = "0x1111111111111111111111111111111111111111";
 const txHash = "0x" + "a".repeat(64);
 const network = { id: "eip155:56", chainId: "56", family: "evm" } as const;
@@ -11,11 +10,11 @@ function fixture(
 ) {
   const calls: string[] = [];
   const api = {
+    isBound: vi.fn(async () => true),
     resolveTarget: vi.fn(async () => {
       calls.push("resolve");
       return { type: "personal" as const, targetId: "recipient-id", displayLabel: "Recipient" };
     }),
-    isBound: vi.fn(),
     bind: vi.fn(),
     createOrder: vi.fn(async () => {
       calls.push("order");
@@ -41,14 +40,10 @@ function fixture(
       };
     }),
   };
-  const service = new BaiService(
-    {} as BaiApi,
-    () => new Date(),
-    payments,
-    { isConfirmed: () => true } as unknown as BaiBindingStore,
-    api,
-    { facilitatorUrl: "https://facilitator.example", payTo },
-  );
+  const service = new BaiService({} as BaiApi, () => new Date(), payments, undefined, api, {
+    facilitatorUrl: "https://facilitator.example",
+    payTo,
+  });
   const run = (to?: string, amount = "10", token = "USDT") =>
     service.recharge({ resolveAddress: () => payer, emit: vi.fn() } as never, network as never, {
       amount,
@@ -82,7 +77,7 @@ it("resolves another recipient, then reuses exactly that target for preorder and
     rechargeTarget: target,
   });
   expect(result).toMatchObject({ creditStatus: "credited", txHash });
-  expect(api.isBound).not.toHaveBeenCalled();
+  expect(api.isBound).toHaveBeenCalledWith({ chain: "bnb", address: payer });
 });
 it.each([
   ["TRX", "14.999999", "15"],
@@ -198,18 +193,15 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     new X402HttpServer(undefined, 1000, () => {}),
   );
   const api = {
+    isBound: vi.fn(async () => true),
     resolveTarget: vi.fn(async () => ({ targetId: "recipient-id" })),
     createOrder: vi.fn(),
     reportTxHash: vi.fn(),
   };
-  const service = new BaiService(
-    {} as never,
-    () => new Date(),
-    payments,
-    { isConfirmed: () => true } as never,
-    api as never,
-    { facilitatorUrl: "https://fake.invalid", payTo: { bnb: payer } },
-  );
+  const service = new BaiService({} as never, () => new Date(), payments, undefined, api as never, {
+    facilitatorUrl: "https://fake.invalid",
+    payTo: { bnb: payer },
+  });
   const emit = vi.fn();
   const result = await service.recharge(
     { resolveAddress: () => payer, timeoutMs: 1000, emit } as never,
@@ -238,13 +230,13 @@ it("previews a recipient recharge without creating an order or obtaining any sig
 
 it("reports account ambiguity before checking binding or contacting B.AI", async () => {
   const { UsageError } = await import("../../domain/errors/index.js");
-  const isConfirmed = vi.fn();
-  const remote = { createOrder: vi.fn(), resolveTarget: vi.fn() };
+  const isBound = vi.fn();
+  const remote = { isBound, createOrder: vi.fn(), resolveTarget: vi.fn() };
   const service = new BaiService(
     {} as never,
     undefined,
     { prepare: vi.fn(), validate: vi.fn(), roundtrip: vi.fn() },
-    { isConfirmed } as never,
+    undefined,
     remote as never,
     { facilitatorUrl: "https://facilitator.example", payTo: { bnb: "destination" } },
     undefined,
@@ -267,7 +259,7 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
     code: "ambiguous_account",
     details: { accountIds: ["software", "watch"] },
   });
-  expect(isConfirmed).not.toHaveBeenCalled();
+  expect(isBound).not.toHaveBeenCalled();
   expect(remote.createOrder).not.toHaveBeenCalled();
   expect(remote.resolveTarget).not.toHaveBeenCalled();
 });
@@ -283,17 +275,10 @@ it("checks relay configuration before creating any preorder", async () => {
     {} as never,
     new X402HttpServer(),
   );
-  const service = new BaiService(
-    {} as never,
-    undefined,
-    payments,
-    { isConfirmed: () => true } as never,
-    api as never,
-    {
-      facilitatorUrl: "https://fake.invalid",
-      payTo: { tron: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" },
-    },
-  );
+  const service = new BaiService({} as never, undefined, payments, undefined, api as never, {
+    facilitatorUrl: "https://fake.invalid",
+    payTo: { tron: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" },
+  });
   await expect(
     service.recharge(
       { resolveAddress: () => "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" } as never,
@@ -311,7 +296,7 @@ it("checks relay configuration before creating any preorder", async () => {
 });
 
 it("rejects token precision before account and binding checks", async () => {
-  const isConfirmed = vi.fn();
+  const isBound = vi.fn();
   const resolveAddress = vi.fn();
   const resolveAccount = vi.fn();
   const createOrder = vi.fn();
@@ -321,8 +306,8 @@ it("rejects token precision before account and binding checks", async () => {
     {} as never,
     undefined,
     { prepare: vi.fn(), validate: (net, input) => server.validate(net, input), roundtrip },
-    { isConfirmed } as never,
-    { createOrder } as never,
+    undefined,
+    { isBound, createOrder } as never,
     { facilitatorUrl: "https://facilitator.example", payTo: { bnb: payer } },
     undefined,
     undefined,
@@ -335,7 +320,7 @@ it("rejects token precision before account and binding checks", async () => {
       apiKey: "test-key",
     }),
   ).rejects.toMatchObject({ code: "invalid_amount" });
-  for (const operation of [isConfirmed, resolveAddress, resolveAccount, createOrder, roundtrip])
+  for (const operation of [isBound, resolveAddress, resolveAccount, createOrder, roundtrip])
     expect(operation).not.toHaveBeenCalled();
 });
 
@@ -348,4 +333,97 @@ it("checks signing credentials before creating an external preorder", async () =
   expect(api.createOrder).not.toHaveBeenCalled();
   expect(payments.roundtrip).not.toHaveBeenCalled();
   expect(api.reportTxHash).not.toHaveBeenCalled();
+});
+
+function liveBindingFixture() {
+  const calls: string[] = [];
+  const api = {
+    isBound: vi.fn(async (_input: unknown) => {
+      calls.push("check");
+      return false;
+    }),
+    bind: vi.fn(),
+    createOrder: vi.fn(async () => {
+      calls.push("order");
+      return {};
+    }),
+    reportTxHash: vi.fn(async () => ({ success: true, order: {} })),
+  };
+  const binding = {
+    bind: vi.fn(async () => {
+      calls.push("bind");
+    }),
+  };
+  const payments = {
+    validate: vi.fn(),
+    prepare: vi.fn(),
+    roundtrip: vi.fn(async () => {
+      calls.push("pay");
+      return {
+        serve: {},
+        pay: {
+          settled: true,
+          payer: { address: payer },
+          paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
+        },
+      };
+    }),
+  };
+  const scope = {
+    activeAccount: "selected",
+    resolveAddress: () => payer,
+    emit: vi.fn(),
+    warn: vi.fn(),
+  } as never;
+  const service = new BaiService({} as never, undefined, payments, binding, api as never, {
+    facilitatorUrl: "https://example.com",
+    payTo: { bnb: payer, base: payer, tron: payer },
+  });
+  const run = (dryRun = false, net = network as { id: string; family: string; chainId: string }) =>
+    service.recharge(scope, net as never, { amount: "1", token: "USDT", apiKey: "key", dryRun });
+  return { calls, api, binding, payments, scope, run };
+}
+it("checks and binds before ordering or paying on every recharge", async () => {
+  const f = liveBindingFixture();
+  await f.run();
+  await f.run();
+  expect(f.calls).toEqual(["check", "bind", "order", "pay", "check", "bind", "order", "pay"]);
+  expect(f.api.isBound).toHaveBeenCalledTimes(2);
+});
+it("uses the current chain and address and skips binding when the server confirms it", async () => {
+  const f = liveBindingFixture();
+  f.api.isBound.mockResolvedValue(true);
+  await f.run(true);
+  await f.run(true, { id: "eip155:8453", family: "evm", chainId: "8453" });
+  (f.scope as { resolveAddress: () => string }).resolveAddress = () => "other-payer";
+  await f.run(true, { id: "tron:728126428", family: "tron", chainId: "728126428" });
+  expect(f.api.isBound.mock.calls.map(([input]) => input)).toEqual([
+    { chain: "bnb", address: payer },
+    { chain: "base", address: payer },
+    { chain: "tron", address: "other-payer" },
+  ]);
+  expect(f.binding.bind).not.toHaveBeenCalled();
+});
+it.each(["check", "bind"])(
+  "stops before creating an order or payment when %s fails",
+  async (step) => {
+    const f = liveBindingFixture();
+    if (step === "check") f.api.isBound.mockRejectedValue(new Error("failed"));
+    else f.binding.bind.mockRejectedValue(new Error("failed"));
+    await expect(f.run()).rejects.toThrow("failed");
+    expect(f.api.createOrder).not.toHaveBeenCalled();
+    expect(f.payments.roundtrip).not.toHaveBeenCalled();
+    if (step === "check") expect(f.binding.bind).not.toHaveBeenCalled();
+  },
+);
+it("previews an unbound wallet with a warning without unlocking, signing, binding or ordering", async () => {
+  const f = liveBindingFixture();
+  await expect(f.run(true)).resolves.toMatchObject({ dryRun: true, bindingRequired: true });
+  expect((f.scope as { warn: ReturnType<typeof vi.fn> }).warn).toHaveBeenCalledWith(
+    expect.stringContaining("binding signature"),
+  );
+  expect(f.binding.bind).not.toHaveBeenCalled();
+  expect(f.api.bind).not.toHaveBeenCalled();
+  expect(f.payments.prepare).not.toHaveBeenCalled();
+  expect(f.api.createOrder).not.toHaveBeenCalled();
 });
