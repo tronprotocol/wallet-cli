@@ -86,7 +86,7 @@ After each block is produced, the block award is sent to the account's allowance
 
 ## How to create witness
 
-Applying to become a witness account needs to consume **100_000 TRX**. This part of the funds will be burned directly.
+Applying to become a witness account burns a registration fee — currently about **9,999 TRX**. The exact amount is the chain parameter `getAccountUpgradeCost`, which the network can change by proposal, so read it with `getchainparameters` rather than assuming a fixed value. The fee is burned outright and is not refundable; there is no way to unregister.
 
 ### CreateWitness
 

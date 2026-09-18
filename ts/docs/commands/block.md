@@ -23,27 +23,27 @@ Requires `--network` (or config.defaultNetwork). Works on TRON and EVM networks;
 ## Examples
 
 ```bash
-wallet-cli block --network tron:3448148188
+wallet-cli block --network nile
 ```
 
 ```console
-Number        #70,433,745
-Time          2026-08-27 08:17:54 UTC
-Transactions  5
+Number        #69,093,315
+Time          2026-07-11 15:29:21 UTC
+Transactions  212
 ```
 
 ```bash
-wallet-cli block 70433745 --network tron:3448148188 -o json
+wallet-cli block 69093315 --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"block","data":{"block":{"blockID":"0000000041e6a3c3…","block_header":{"raw_data":{"number":70433745,"txTrieRoot":"…","witness_address":"41…","parentHash":"…","version":31,"timestamp":1787818674000},"witness_signature":"…"},"transactions":[{}]}},"meta":{"durationMs":126,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"block","data":{"block":{"blockID":"0000000041e6a3c3…","block_header":{"raw_data":{"number":69093315,"txTrieRoot":"…","witness_address":"41…","parentHash":"…","version":31,"timestamp":1783783761000},"witness_signature":"…"},"transactions":[{}]}},"meta":{"durationMs":126,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the text summary carries the gas and fee figures a block actually has:
 
 ```bash
-wallet-cli block --network eip155:11155111
+wallet-cli block --network sepolia
 ```
 
 ```console

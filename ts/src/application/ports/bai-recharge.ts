@@ -45,10 +45,7 @@ export interface BaiRechargeApi {
   bind(input: BaiBindWalletInput): Promise<{ userId: string; address: string; chain: string }>;
   /** Response contract is not documented yet. Do not infer a payment destination. */
   createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>>;
-  reportTxHash(
-    input: BaiReportTransactionInput,
-    options?: { signal: AbortSignal },
-  ): Promise<BaiReportResult>;
+  reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult>;
 }
 
 /** A payment implementation verified against B.AI's preorder destination and payer rules. */
@@ -63,10 +60,8 @@ export interface BaiRechargePayment {
   }>;
 }
 
-/** Bounded report-only recovery. Timing is supplied by the composition root. */
-export interface BaiReportRetry {
-  readonly timeoutMs: number;
-  readonly delaysMs: readonly number[];
-  now(): number;
+/** Pause between a fresh payment and its single report, so B.AI can index the transaction. */
+export interface BaiReportDelay {
+  readonly initialDelayMs: number;
   wait(ms: number): Promise<void>;
 }

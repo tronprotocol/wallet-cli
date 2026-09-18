@@ -17,7 +17,7 @@ wallet-cli tx COMMAND
 | [`tx status`](status.md) | Show confirmation status of a transaction | TRON, EVM |
 | [`tx info`](info.md) | Show full transaction detail + receipt | TRON, EVM |
 | [`tx sign`](sign.md) | Sign a transaction built elsewhere | TRON, EVM |
-| [`tx approvals`](approvals.md) | Show collected signatures on a multi-sig transaction | TRON only |
+| [`tx approvals`](approvals.md) | Show sign-weight and the approved-signer list of a transaction hex | TRON only |
 | [`tx multisig`](multisig.md) | Multi-sig collaboration via the TronLink service (list / create / co-sign / watch) | TRON only |
 
 The transaction **hex** these commands exchange is `protocol.Transaction` protobuf on TRON and RLP (`0x02…`) on EVM. Fee flags differ by family too — `--fee-limit` / `--permission-id` / `--expiration` on TRON, `--gas-limit` / `--max-fee` / `--priority-fee` / `--nonce` on EVM — and each set is refused on the other family with `invalid_option`.
@@ -33,9 +33,9 @@ build ──sign──> submit ──receipt──> confirmed
 
 `tx send` covers build+sign+submit in one step (with `--dry-run` / `--sign-only` stopping earlier); `tx broadcast` submits what was signed elsewhere; `tx status` / `tx info` observe the outcome. `confirmed` means included and receipted, not finalized. **Submission is not confirmation** — scripts must follow [machine-interface → Script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
-## Multi-sig co-signing
+## Multi-sig co-signing — TRON only
 
-**TRON only.** An EVM transaction carries exactly one signature, so there is no threshold to reach and no co-signing path; `tx sign` there simply signs, and `tx approvals` / `tx multisig` are not bound to EVM at all.
+An EVM transaction carries exactly one signature, so there is no threshold to reach and no co-signing path: `tx sign` there simply signs, and `tx approvals` / `tx multisig` do not apply.
 
 For TRON accounts that require more than one signature, there are two co-signing paths:
 

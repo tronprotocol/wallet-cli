@@ -38,7 +38,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli stake withdraw --network nile --password-stdin
 ```
 
 ```console
@@ -49,7 +49,7 @@ echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdi
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli stake withdraw --network nile --password-stdin -o json
 ```
 
 ```json
@@ -59,7 +59,7 @@ echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --password-stdi
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake withdraw --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli stake withdraw --network nile --wait --password-stdin
 ```
 
 ```console

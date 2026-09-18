@@ -10,7 +10,7 @@ wallet-cli token list [options]
 
 ## Description
 
-Lists every token visible to the active account (or `--account`) on the selected network: the bundled **official** layer plus your **user** additions. The `source` column tells them apart. These are the symbols `tx send --token <symbol>` resolves against. Read-only and purely local — no password, and no node is contacted.
+Lists every token visible to the active account (or `--account`) on the selected network: the bundled **official** layer plus your **user** additions. The `source` column tells them apart. These are the symbols `tx send --token <symbol>` resolves against. Read-only, local + metadata only — no password.
 
 The book is per network, so the same command lists different tokens on `tron:3448148188` and `eip155:11155111`.
 
@@ -21,7 +21,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli token list --network tron:3448148188
+wallet-cli token list --network nile
 ```
 
 ```console
@@ -31,19 +31,14 @@ wallet-cli token list --network tron:3448148188
 | USDD   | Usdd Stablecoin | official | TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt |
 ```
 
-> The `official` layer is bundled per network, and not every network has one. A network with no bundled entries lists only what you added with `token add` — an empty table until then:
->
-> ```console
-> | Symbol | Name | Source | Contract / ID |
-> | ------ | ---- | ------ | ------------- |
-> ```
+> The `official` layer is bundled **per network**, and not every network has one: `tron:728126428` ships USDT / USDC / USDD, `tron:3448148188` ships USDT / USDD, and `eip155:1` ships USDT / USDC. The other networks ship none, so everything they list is a `user` entry you added with `token add`. An official entry is never copied between chains — the same symbol can have a different address and different decimals elsewhere (USDT is 6 decimals on Ethereum and 18 on BNB Smart Chain).
 
 ```bash
-wallet-cli token list --network tron:3448148188 -o json
+wallet-cli token list --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"token.list","data":{"network":"tron:3448148188","account":"wlt_n5v4r992","tokens":[{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD","source":"official"},{"kind":"trc20","id":"TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt","symbol":"USDD","decimals":18,"name":"Usdd Stablecoin","source":"official"}]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"token.list","data":{"network":"tron:3448148188","account":"wlt_b2.0","tokens":[{"kind":"trc20","id":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"name":"Tether USD","source":"official"},{"kind":"trc20","id":"TYQF9cAeJ3Faq8QXpHxTcFco72DRCQbgFt","symbol":"USDD","decimals":18,"name":"Usdd Stablecoin","source":"official"}]},"meta":{"durationMs":13,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

@@ -12,9 +12,9 @@ wallet-cli contract clear-abi <address>
 
 ## Description
 
-Removes the ABI held on chain for a contract. **This cannot be undone** — the ABI is gone from the chain, and anything that decoded calls by reading it (explorers, SDKs, [`contract call`](call.md)) must supply its own from then on.
+> **TRON only.** An on-chain ABI registry is a TRON protocol feature — an EVM chain keeps no ABI on chain, so there is nothing to clear and the command fails with `family_mismatch`.
 
-**TRON only** — there is no on-chain ABI to clear on an EVM chain; that network fails with `family_mismatch`.
+Removes the ABI held on chain for a contract. **This cannot be undone** — the ABI is gone from the chain, and anything that decoded calls by reading it (explorers, SDKs, [`contract call`](call.md)) must supply its own from then on.
 
 What it does **not** touch: the bytecode and the contract's state are unaffected, and the contract stays callable exactly as before. The ABI is auxiliary metadata, not part of execution.
 
@@ -22,7 +22,7 @@ Only the contract's deployer can do this — the address the chain records as th
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot parse this governance contract type. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot parse this governance contract type. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -44,7 +44,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network nile --wait --password-stdin
 ```
 
 ```console
@@ -58,7 +58,7 @@ echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:344814
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network nile --wait --password-stdin -o json
 ```
 
 ```json
@@ -76,7 +76,7 @@ echo "$PW" | wallet-cli contract clear-abi TQ5nJ8mV...4wRe --network tron:344814
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address; `family_mismatch` on an EVM network).
 
 ## See also
 

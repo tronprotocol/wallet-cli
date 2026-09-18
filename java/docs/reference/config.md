@@ -1,6 +1,6 @@
 # Configuration reference
 
-Full reference for `config.conf`. At startup, wallet-cli first reads `./config.conf` from the process working directory. If that file does not exist, it loads the bundled classpath resource (`src/main/resources/config.conf` in a source checkout). You can also switch networks at runtime with [`SwitchNetwork`](../commands/network.md).
+Full reference for `config.conf`. At startup, wallet-cli first reads `./config.conf` from the process working directory. If that file does not exist, it loads the bundled classpath resource (`java/src/main/resources/config.conf` in the repository). You can also switch networks at runtime with [`SwitchNetwork`](../commands/network.md).
 
 ## Minimal config
 

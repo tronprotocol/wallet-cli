@@ -4,7 +4,7 @@ Gas-free token transfers via the GasFree service.
 
 `gasfree` moves tokens without holding any TRX: you sign a transfer with TIP-712 structured-data signing (TRON's EIP-712 analogue) and the GasFree service ([open.gasfree.io](https://open.gasfree.io)) puts it on-chain for you. The fee is charged in the transferred token itself — a per-transfer service fee, plus a one-time activation fee on your first transfer — so **no TRX is needed**.
 
-**TRON only.** GasFree is a TRON service; every subcommand here fails with `family_mismatch` on an EVM network.
+> **TRON only.** Every command in this group implements a TRON protocol feature with no EVM counterpart; on an EVM network they fail with `family_mismatch` before any node call.
 
 ## Synopsis
 

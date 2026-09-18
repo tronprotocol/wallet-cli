@@ -22,31 +22,32 @@ Only the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli account info --network tron:3448148188
+wallet-cli account info --network nile
 ```
 
 ```console
-Label        demo
-Address      TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-Balance      9,915.80311 TRX
-Energy       used 0 / 0
-Bandwidth    used 325 / 600
-Created      2025-07-30
-Permissions  owner 1-of-2, 1 active group
+Label        main
+Address      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+Balance      1,969.421 TRX
+Staked       12 TRX (energy 12 + bandwidth 0)
+Energy       used 0 / 888
+Bandwidth    used 374 / 600
+Created      2026-06-30
+Permissions  owner 1-of-1, 1 active group
 ```
 
 ```bash
-wallet-cli account info --network tron:3448148188 -o json
+wallet-cli account info --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.info","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","account":{"account_name":"71612d74657374","balance":"9915803110","create_time":1753860222000,"owner_permission":{"threshold":1,"keys":[{},{}]},"active_permission":[{}],"frozenV2":[{},{"type":"ENERGY"},{"type":"TRON_POWER"}]},"resources":{"bandwidth":{"used":325,"limit":600},"energy":{"used":0,"limit":0}}},"meta":{"durationMs":746,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.info","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","account":{"balance":"1976489000","create_time":1782787719000,"owner_permission":{},"active_permission":[],"frozenV2":[{},{"type":"ENERGY","amount":"12000000"},{"type":"TRON_POWER"}]},"resources":{"bandwidth":{"used":0,"limit":600},"energy":{"used":0,"limit":888}}},"meta":{"durationMs":1914,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the same command reports the EVM account state:
 
 ```bash
-wallet-cli account info --network eip155:11155111
+wallet-cli account info --network sepolia
 ```
 
 ```console
@@ -58,7 +59,7 @@ Type     EOA
 ```
 
 ```bash
-wallet-cli account info --network eip155:11155111 -o json
+wallet-cli account info --network sepolia -o json
 ```
 
 ```json
@@ -97,4 +98,4 @@ EVM:
 
 ## See also
 
-[`account balance`](balance.md) · `stake freeze` — obtain resources (TRON) · [Resource model](../../concepts/networks.md#fees-the-tron-resource-model)
+[`account balance`](balance.md) · `stake freeze` — obtain resources (TRON) · [Fee models](../../concepts/networks.md#fees-the-tron-resource-model)

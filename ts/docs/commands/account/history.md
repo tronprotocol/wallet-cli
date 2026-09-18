@@ -1,6 +1,6 @@
 # wallet-cli account history
 
-Show transaction history. TRON only.
+Show transaction history (requires TronGrid).
 
 ## Synopsis
 
@@ -10,9 +10,11 @@ wallet-cli account history [--limit <n>] [--only <native|token>] [options]
 
 ## Description
 
-Lists recent activity touching the account, newest first. TRON only — there is no EVM binding, so on an EVM network the command fails with `family_mismatch` rather than returning an empty list. History is served by **TronGrid**, not plain node RPC, so on TRON networks/endpoints without TronGrid it fails while `balance`/`info` still work.
+> **TRON only.** There is no EVM binding for this listing, so on an EVM network the command fails with `family_mismatch` rather than returning an empty list.
 
-`--only token` selects TronGrid's TRC20 transfer endpoint. The current `--only native` path uses the general transactions endpoint and does not post-filter its records, so it may include non-native contract activity; omitting `--only` uses that same endpoint. Do not treat `only: "native"` in JSON as proof that every returned record is a TRX transfer.
+Lists recent activity touching the account, newest first. History is served by **TronGrid**, not plain node RPC — on networks/endpoints without TronGrid this command fails while `balance`/`info` still work.
+
+`--only token` selects TronGrid's TRC20 transfer endpoint. `--only native` selects the general transactions endpoint and does not post-filter its records, so it can include non-native contract activity; omitting `--only` queries that same endpoint. Do not read `only: "native"` in the JSON as proof that every record is a TRX transfer.
 
 ## Options
 
@@ -20,14 +22,14 @@ Lists recent activity touching the account, newest first. TRON only — there is
 |---|---|
 | `--limit <number>` | Max records, 1–200 (default 20) |
 | `--only token` | Query TRC20 transfer history |
-| `--only native` | Select the general transaction endpoint; currently not a strict native-transfer filter |
+| `--only native` | Select the general transaction endpoint; not a strict native-transfer filter |
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
 ```bash
-wallet-cli account history --limit 3 --network tron:3448148188
+wallet-cli account history --limit 3 --network nile
 ```
 
 ```console
@@ -40,7 +42,7 @@ wallet-cli account history --limit 3 --network tron:3448148188
 ```
 
 ```bash
-wallet-cli account history --limit 2 --network tron:3448148188 -o json
+wallet-cli account history --limit 2 --network nile -o json
 ```
 
 ```json
@@ -51,7 +53,7 @@ wallet-cli account history --limit 2 --network tron:3448148188 -o json
 
 | Field | Type | Meaning |
 |---|---|---|
-| `address` / `only` / `count` | — | Query echo and returned record count; `only` echoes the selector and does not strengthen the filtering guarantee above |
+| `address` / `only` / `count` | — | Query echo and record count |
 | `records[].txId` | string | Feed to [`tx info`](../tx/info.md) for detail |
 | `records[].time` | number | Epoch ms |
 | `records[].type` | string | Transaction type (e.g. `Transfer`, `CreateSmart`) |
@@ -62,7 +64,7 @@ wallet-cli account history --limit 2 --network tron:3448148188 -o json
 
 ## Exit status
 
-`0` · `1` execution failure (`history_not_supported`, including a missing or incompatible TronGrid endpoint) · `2` usage error (limit out of 1–200).
+`0` · `1` execution failure (`history_not_supported` — a missing or incompatible TronGrid endpoint) · `2` usage error (limit out of 1–200; `family_mismatch` on an EVM network).
 
 ## See also
 

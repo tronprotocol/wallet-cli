@@ -16,6 +16,8 @@ wallet-cli current [options]
 
 Plus the [global options](index.md) (`--account` overrides which account is shown).
 
+## Description
+
 An account carries one address per chain family, and the text output lists every address it has. `--network` selects which one `--qr` encodes; it does not filter the listing, and no node is contacted.
 
 ## Examples
@@ -25,38 +27,9 @@ wallet-cli current
 ```
 
 ```console
-Active account: main
-  TRON address  TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
-  EVM address   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
-```
-
-The header follows `data.active`, not the flag: it reads `Selected account:` when `--account` names an account other than the active one, and stays `Active account:` otherwise — including when `--account` happens to name the active account.
-
-Add `--qr` to also render the active account's address as a scannable receive QR code, drawn with block characters after the address list and followed by a `Receive address` line carrying the full value. Purely local — the address comes from local keystore metadata, no node access:
-
-```bash
-wallet-cli current --qr
-```
-
-```console
-Active account: main
-  TRON address  TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
-  EVM address   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
-
-[ scannable QR code of the TRON address, drawn in the terminal ]
-Receive address  TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8
-```
-
-The QR encodes **one** address — the receive address for the selected network. Pass `--network` to choose which:
-
-```bash
-wallet-cli current --qr --network eip155:11155111
-```
-
-The QR is a terminal rendering only and scans from a real terminal (where the block characters line up). In JSON mode no QR pixels are rendered; `--qr` validates that the selected account has an address for the selected network and adds that value as `data.receiveAddress`. If the text terminal is non-interactive or too narrow to fit the QR, it degrades to printing the addresses with a warning:
-
-```console
-warning: terminal is non-interactive or too narrow for a complete QR code; showing the full address only
+Active account: main-1
+  TRON address  TVz38F2QmQf53g7QVATBbsZ6JkHKccJFAQ
+  EVM address   0xEA4A61822322c695F5A9eB7920b843054CbDaA83
 ```
 
 ```bash
@@ -64,18 +37,26 @@ wallet-cli current -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_z259a1hq.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TE9kPMtaMjfZN95CuPRsCHUQGWwx9EcJW8","evm":"0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C"},"seedId":"wlt_z259a1hq","derivationPath":null},"meta":{"durationMs":14,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"current","data":{"accountId":"wlt_kwyjcwdh.1","label":"main-1","type":"seed","index":1,"active":true,"addresses":{"tron":"TVz38F2QmQf53g7QVATBbsZ6JkHKccJFAQ","evm":"0xEA4A61822322c695F5A9eB7920b843054CbDaA83"},"seedId":"wlt_kwyjcwdh","derivationPath":null},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
-With no active account yet, it fails with `missing_wallet_address` (exit 1):
+Add `--qr` to also draw the receive address of the selected network as a QR code, followed by a `Receive address` line; `--network sepolia` picks the EVM address:
 
 ```bash
-wallet-cli current
+wallet-cli current --qr
 ```
 
 ```console
-error [missing_wallet_address]: no active account; import one first
+Active account: main-1
+  TRON address  TVz38F2QmQf53g7QVATBbsZ6JkHKccJFAQ
+  EVM address   0xEA4A61822322c695F5A9eB7920b843054CbDaA83
+
+[ QR code of the TRON address, drawn with block characters ]
+
+Receive address  TVz38F2QmQf53g7QVATBbsZ6JkHKccJFAQ
 ```
+
+The QR code needs an interactive terminal wide enough to draw it; otherwise the command prints `warning: terminal is non-interactive or too narrow for a complete QR code; showing the full address only` and shows just the addresses.
 
 ## Output
 
@@ -89,10 +70,11 @@ error [missing_wallet_address]: no active account; import one first
 | `index` | number \| null | HD derivation index; `null` for non-HD accounts |
 | `active` | boolean | `true` for the active account; `false` when `--account` selected a different one |
 | `addresses` | object | One entry per family the account can produce: `tron` (base58) and/or `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | null | Always `null`; `current` does not unlock the seed or provide derivation information |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
+| `derivationPath` | null | Always `null`, deliberately — `current` takes no master password, so it cannot tell an old TRON path from a current one without opening the seed; `derive` and `backup` report verified paths |
+| `receiveAddress` | string | Present in JSON only when `--qr` was given; the address selected by `--network` |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
-| `receiveAddress` | string | Present in JSON only when `--qr` was requested; address selected by `--network` |
+| `path` | string | The account's derivation path on the device (`ledger` accounts only) |
 
 The `chain` block echoes the network selected for display; the command contacts no node.
 

@@ -37,6 +37,7 @@ export function baiApiError(
   value: unknown,
   procedure: string,
   status: number,
+  retryAfterMs?: number,
 ): TransportError | undefined {
   const root = record(Array.isArray(value) ? value[0] : value);
   const error = record(root?.error);
@@ -56,7 +57,7 @@ export function baiApiError(
     return new TransportError(
       "provider_rate_limited",
       "B.AI rate limit exceeded; wait before retrying this API operation",
-      context,
+      retryAfterMs === undefined ? context : { ...context, retryAfterMs },
     );
   const candidates = [detail?.message, detail?.code, record(detail?.data)?.code, payload?.code];
   for (const candidate of candidates) {

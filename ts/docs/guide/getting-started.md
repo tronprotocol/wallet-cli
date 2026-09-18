@@ -30,30 +30,17 @@ wallet-cli list
 
 ```console
 HD  wlt_4473p34m
-└─ [0] main  TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ  (active)
+└─ [0] main        TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ  (active)
 ```
 
-The `T…` string is your TRON address, the same on every TRON network. `(active)` marks the account commands act on by default; switch with `wallet-cli use <label>`.
-
-Your account also has an **EVM address**, derived from the same seed — `list` shows one chain family at a time, so pass `--network` to see the other:
-
-```bash
-wallet-cli list --network sepolia
-```
-
-```console
-HD  wlt_4473p34m
-└─ [0] main  0x3f9A1C74E5B2d80Af6C31e97b45D2a08c7E6F193  (active)
-```
-
-The two are independent addresses with independent balances; funding one does nothing for the other. Everything below works the same way on either — swap `--network tron:3448148188` for `--network sepolia` and the amounts are in ETH instead of TRX. See [Networks](../concepts/networks.md).
+The `T…` string is your TRON address, the same on every TRON network. The account also has an EVM `0x` address, derived from the same seed — `wallet-cli current` prints both, and `list` shows whichever family `--network` selects. `(active)` marks the account commands act on by default; switch with `wallet-cli use <label>`.
 
 ## 2. Get test TRX
 
 Open the Nile faucet at [nileex.io/join/getJoinPage](https://nileex.io/join/getJoinPage), find the "Get 2000 test coins" section, paste your `T…` address, pass the captcha, and submit (once per day; arrives in under a minute). Then verify it arrived:
 
 ```bash
-wallet-cli account balance --network tron:3448148188
+wallet-cli account balance --network nile
 ```
 
 ```console
@@ -72,26 +59,26 @@ wallet-cli config defaultNetwork tron:3448148188
 Sending a transaction takes your master password on stdin via `--password-stdin`:
 
 ```bash
-printf '%s' "$MY_PASSWORD" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188 --password-stdin
+printf '%s' "$MY_PASSWORD" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network nile --password-stdin
 ```
 
 **Tip — a password manager is preferable** (setup in step 1). Pipe the password straight from it:
 
 ```bash
-op read "op://Private/wallet-cli/password" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188 --password-stdin
+op read "op://Private/wallet-cli/password" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network nile --password-stdin
 ```
 
 The transaction is signed and **submitted**. Submission is not confirmation — check where it landed:
 
 ```bash
-wallet-cli tx status --txid <the txid you got back> --network tron:3448148188
+wallet-cli tx status --txid <the txid you got back> --network nile
 ```
 
 ```console
-TxID           7d9b6a08505537f7fd51ed4fb4223ce89098403d26e8d3fe07bdb3d625a46364
+TxID           1789b6e3d420d84f21013fa4e18ecd2c60df1accb7101fd71c2511b75835c0cd
 Status         confirmed ✅
-Block          #70,433,563
-Confirmations  1
+Block          #70,604,611
+Confirmations  19
 ```
 
 `pending` means wait and re-run; `failed` means the chain rejected it (see [troubleshooting](../troubleshooting.md)). To make `tx send` block until confirmed, add `--wait`.
@@ -99,7 +86,7 @@ Confirmations  1
 Not sure about a transaction? Rehearse it first — `--dry-run` builds and estimates without signing or broadcasting:
 
 ```bash
-wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network tron:3448148188 --dry-run
+wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network nile --dry-run
 ```
 
 ## 4. Where to go next
@@ -111,6 +98,6 @@ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network 
 - Full transaction detail and receipts: [`tx info`](../commands/tx/info.md)
 - Your history and holdings: [`account history`](../commands/account/history.md), [`account portfolio`](../commands/account/portfolio.md)
 - Automating any of this: [Scripting guide](scripting.md)
-- What `tron:3448148188` / `eip155:11155111` actually are, and which commands run where: [Networks](../concepts/networks.md)
+- What `tron:3448148188` / `tron:728126428` actually are: [Networks](../concepts/networks.md)
 
 > **Before touching mainnet**: mainnet TRX is real money. Re-check the recipient address, prefer `--dry-run` first, and understand that a confirmed transaction cannot be reversed.
