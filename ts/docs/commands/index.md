@@ -225,7 +225,7 @@ Fee and multi-sig flags are **family-scoped**, so they are not global:
 
 | Flags | Family | Where |
 |---|---|---|
-| `--permission-id <n>` / `--expiration <ms>` | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
+| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
 | `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy` |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 

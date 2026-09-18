@@ -62,7 +62,7 @@ TRON only:
 |---|---|
 | `--abi <json>` | Contract ABI as a JSON array string; required unless `--artifact` supplies one |
 | `--fee-limit <sun>` | Max energy fee to burn, in SUN (default 100000000) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 
 EVM only:

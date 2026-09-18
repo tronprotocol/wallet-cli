@@ -57,8 +57,8 @@ TRON only:
 |---|---|
 | `--asset-id <string>` | TRC10 numeric asset id |
 | `--fee-limit <string>` | Max TRX energy fee to burn for TRC20 transfers, in SUN (default 100000000) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 
 EVM only:
 
