@@ -130,18 +130,10 @@ export class BaiRechargeClient implements BaiRechargeApi {
     if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
     return result;
   }
-  async reportTxHash(
-    input: BaiReportTransactionInput,
-    options?: { signal: AbortSignal },
-  ): Promise<BaiReportResult> {
+  async reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult> {
     const result = this.decode(
       report,
-      await this.call(
-        "order.reportTxHash",
-        this.input(reportInput, input),
-        "POST",
-        options?.signal,
-      ),
+      await this.call("order.reportTxHash", this.input(reportInput, input)),
     );
     return result.success
       ? result
@@ -172,7 +164,6 @@ export class BaiRechargeClient implements BaiRechargeApi {
     procedure: string,
     input: unknown,
     method: "GET" | "POST" = "POST",
-    parentSignal?: AbortSignal,
   ): Promise<unknown> {
     const key = this.config.baiApiKey;
     if (!key)
@@ -188,8 +179,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
       );
     const payload = JSON.stringify({ json: input });
     if (method === "GET") url.searchParams.set("input", payload);
-    const timeout = AbortSignal.timeout(this.timeoutMs);
-    const signal = parentSignal ? AbortSignal.any([parentSignal, timeout]) : timeout;
+    const signal = AbortSignal.timeout(this.timeoutMs);
     let response: Response;
     let decoded: unknown;
     try {
@@ -205,8 +195,14 @@ export class BaiRechargeClient implements BaiRechargeApi {
         ...(method === "POST" ? { body: payload } : {}),
       });
       if ([401, 403, 429].includes(response.status)) {
+        const retryAfter = response.headers.get("retry-after") ?? "";
         await response.body?.cancel();
-        throw baiApiError(undefined, procedure, response.status)!;
+        throw baiApiError(
+          undefined,
+          procedure,
+          response.status,
+          /^\d{1,6}$/.test(retryAfter) ? Number(retryAfter) * 1000 : undefined,
+        )!;
       }
       response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
       try {

@@ -21,7 +21,7 @@ Give the values of the original recharge:
 
 The hash must be 64 hex characters on TRON and `0x` plus 64 hex characters on BSC and Base.
 
-When B.AI cannot find the transaction yet, the CLI retries a few times within about 90 seconds. If it still cannot confirm, the command succeeds with `creditStatus: "unconfirmed"` and a `code` / `warning`; run it again later. Do not recharge again. Reporting a transaction that is already credited is safe: it returns `credited` again and adds nothing.
+The transaction is reported once; the CLI does not retry. When B.AI cannot find the transaction yet, or is rate-limiting the client, the command still succeeds with `creditStatus: "unconfirmed"` and a `code` / `warning` (a rate limit also carries `error.details.retryAfterMs` when B.AI sends `Retry-After`); run it again later. Do not recharge again. Reporting a transaction that is already credited is safe: it returns `credited` again and adds nothing.
 
 Requires a B.AI API key stored with [`config baiApiKey`](../config.md); see [`bai`](index.md#the-api-key).
 
@@ -83,7 +83,7 @@ wallet-cli bai report-recharge 3f7a9c2e1b8d4f60a5c3e7b9d1f2a4c6e8b0d3f5a7c9e1b2d
 
 `credited` (the heading `B.AI recharge credited`) means B.AI has matched the transaction to its order, shown in `order`. Reporting a transaction that was already credited returns the same result and adds no credits.
 
-Reporting a transaction B.AI cannot verify — here an ordinary TRX transfer that was never a B.AI recharge — still exits `0`. After retrying for about a minute, it returns `creditStatus: unconfirmed` (the heading `B.AI credit not confirmed`) and a reason:
+Reporting a transaction B.AI cannot verify — here an ordinary TRX transfer that was never a B.AI recharge — still exits `0`. It returns `creditStatus: unconfirmed` (the heading `B.AI credit not confirmed`) and a reason:
 
 ```bash
 wallet-cli bai report-recharge 54a7315953ded3b8565cf36973cb56fa3d65f63eccb86aaf1033f28d2bdea01a --chain tron

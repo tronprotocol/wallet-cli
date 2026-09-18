@@ -98,7 +98,7 @@ it.each([
           ],
           {
             ...DETACHED,
-            env: { ...process.env, WALLET_CLI_HOME: home },
+            env: { ...process.env, WALLET_CLI_HOME: home, WALLET_CLI_BAI_REPORT_DELAY_MS: "0" },
             encoding: "utf8",
             input: withPassword ? "testPassword123\n" : undefined,
             timeout: 20000,
