@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { join } from "node:path";
 
 export default defineConfig({
   test: {
@@ -26,6 +27,14 @@ export default defineConfig({
           include: ["test/**/*.test.ts"],
           testTimeout: 30_000,
           hookTimeout: 30_000,
+          // Build once, then every case spawns `node dist/index.js` instead of cold-transpiling
+          // the whole CLI through tsx. `verify:package` sets WALLET_CLI_TEST_ENTRY to the
+          // independently installed package and must keep testing that, not dist.
+          globalSetup: ["./test/build-entry.ts"],
+          env: {
+            WALLET_CLI_TEST_ENTRY:
+              process.env.WALLET_CLI_TEST_ENTRY ?? join(process.cwd(), "dist", "index.js"),
+          },
         },
       },
     ],

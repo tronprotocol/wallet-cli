@@ -9,7 +9,11 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 import type { TokenEntry, WalletsFile } from "../src/domain/types/index.js";
 import { DETACHED } from "./detached.js";
 
-const ENTRY = join(process.cwd(), "src", "index.ts");
+// A built entry (WALLET_CLI_TEST_ENTRY, set by vitest.config for the golden project) runs as
+// plain `node <entry>`; without one, the TypeScript source is executed through tsx per spawn.
+const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
+  ? [process.env.WALLET_CLI_TEST_ENTRY]
+  : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
 const PACKAGE_VERSION = (
   JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string }
 ).version;
@@ -41,7 +45,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
   // signal instead of silently eating the whole test budget.
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.
-  const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...finalArgs], {
+  const r = spawnSync(process.execPath, [...ENTRY_ARGS, ...finalArgs], {
     input: stdin,
     encoding: "utf8",
     env,
