@@ -5,8 +5,9 @@ import {
   type GasFreeProvider,
 } from "@bankofai/x402-tron/gasfree";
 import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
-import { TransportError, UsageError } from "../../../domain/errors/index.js";
+import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
+import { safeRetryAfter } from "./payment-error.js";
 
 /** Read-only relay configuration used by the SDK to build the payer authorization.
  * Submission remains the protected endpoint's facilitator responsibility. */
@@ -97,29 +98,62 @@ class SelectedRelay extends GasFreeAPIClient {
       headers.Timestamp = timestamp;
       headers.Authorization = `ApiKey ${this.credentials.key}:${signature}`;
     }
+    // Each failure keeps its class so a caller can act on it (wait, shrink, fix the relay);
+    // none echoes the relay's text, and none falls back to another relay.
+    let response: Response;
     try {
-      const response = await fetchBounded(
+      response = await fetchBounded(
         this.fetcher,
         target.toString(),
         { headers, redirect: "error" },
         this.timeout,
       );
-      if (!response.ok) throw new Error();
-      const result = (await response.json()) as { code?: unknown; data?: unknown };
-      if (
-        result.code !== 200 ||
-        !result.data ||
-        typeof result.data !== "object" ||
-        Array.isArray(result.data)
-      )
-        throw new Error();
-      return result.data as Record<string, unknown>;
-    } catch {
+    } catch (error) {
+      // fetchBounded already typed timeouts, oversized bodies and refused redirects.
+      if (error instanceof CliError) {
+        throw new TransportError(error.code, `Selected GasFree relay: ${error.message}`, {
+          ...error.details,
+          retryPayment: false,
+        });
+      }
       throw new TransportError(
         "provider_error",
         "Selected GasFree relay request failed; no fallback was attempted",
         { retryPayment: false },
       );
     }
+    if (!response.ok) {
+      const limited = response.status === 429;
+      throw new TransportError(
+        limited ? "provider_rate_limited" : "provider_error",
+        limited
+          ? "Selected GasFree relay is rate limited; wait before retrying"
+          : `Selected GasFree relay returned HTTP ${response.status}; no fallback was attempted`,
+        {
+          httpStatus: response.status,
+          ...(limited ? safeRetryAfter(response.headers.get("retry-after")) : {}),
+          retryPayment: false,
+        },
+      );
+    }
+    let result: { code?: unknown; data?: unknown } | undefined;
+    try {
+      result = (await response.json()) as { code?: unknown; data?: unknown };
+    } catch {
+      /* Not JSON: reported below as an invalid response. */
+    }
+    if (
+      result?.code !== 200 ||
+      !result.data ||
+      typeof result.data !== "object" ||
+      Array.isArray(result.data)
+    ) {
+      throw new TransportError(
+        "invalid_x402_response",
+        "Selected GasFree relay returned an unexpected response; no fallback was attempted",
+        { retryPayment: false },
+      );
+    }
+    return result.data as Record<string, unknown>;
   }
 }

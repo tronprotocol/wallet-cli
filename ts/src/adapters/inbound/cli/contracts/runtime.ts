@@ -16,7 +16,15 @@ export interface StreamManager {
   warnings(): WarningItem[];
 }
 
-export type SecretKind = "password" | "privateKey" | "mnemonic" | "tx" | "message" | "apiKey";
+export const SECRET_KINDS = [
+  "password",
+  "privateKey",
+  "mnemonic",
+  "tx",
+  "message",
+  "apiKey",
+] as const;
+export type SecretKind = (typeof SECRET_KINDS)[number];
 export interface SecretResolver {
   masterPassword(): string;
   /** whether a master-password source exists, WITHOUT consuming stdin. */

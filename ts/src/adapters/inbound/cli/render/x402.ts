@@ -112,6 +112,7 @@ export function paymentText(value: unknown): string {
     ["Delivered", p.delivered === true ? "Yes" : "No"],
     ["From", text(asObj(p.payer).address)],
     ["Transaction", text(asObj(p.paymentResponse).transaction)],
+    ["Approval", text(asObj(p.approval).txId)],
     ["Output", text(asObj(p.output).path)],
   ]);
   if (p.dryRun === true)

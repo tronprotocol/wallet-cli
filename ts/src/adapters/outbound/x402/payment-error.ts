@@ -1,4 +1,9 @@
-import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import {
+  CliError,
+  ExecutionError,
+  TransportError,
+  UsageError,
+} from "../../../domain/errors/index.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
 const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
@@ -152,6 +157,19 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         retryPayment: false,
       },
     );
+  // The SDK's built-in spend control (a $1 per-payment ceiling on its default assets, active
+  // whenever no wallet-cli ceiling was given) refuses inside requirement selection, before any
+  // payment exists. A deterministic policy refusal, not an upstream fault: keep it typed.
+  if (/^All payment requirements were rejected by spendControls/.test(cause)) {
+    const overLimit = cause.includes("maxAmountPerPayment");
+    return new ExecutionError(
+      overLimit ? "amount_exceeds_limit" : "no_matching_requirement",
+      overLimit
+        ? "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount or --max-raw-amount to authorize it"
+        : "no offered payment route uses an asset the built-in spend control allows; pass --max-amount or --max-raw-amount to set the ceiling yourself",
+      { ...(phase ? { phase } : {}), paymentStatus: "not_sent", retryPayment: false },
+    );
+  }
   let reason: string | undefined;
   if (/^Insufficient balance in GasFree wallet /.test(cause)) {
     reason = "gasfree_insufficient_balance";
@@ -217,7 +235,8 @@ function candidateEvidence(value?: Record<string, unknown>) {
   };
 }
 
-function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
+/** Only a plain number of seconds is passed on; an HTTP-date or anything else is dropped. */
+export function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
   if (
     (typeof value === "string" && /^\d{1,9}$/.test(value)) ||
     (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 999999999)

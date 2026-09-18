@@ -283,6 +283,7 @@ A failed payment carries extra fields in `error.details` so a script can tell wh
 | `settled` / `delivered` | Whether the payment settled and the resource arrived |
 | `retryPayment` | `false` means do **not** pay again to recover. It overrides the code's generic `retry` value |
 | `candidateTxHash` / `candidateNetwork` | A transaction that may be the payment. Evidence for reconciliation, not proof of payment |
+| `approval` | TRON: the one-time Permit2 approve that was signed before the failure — `{txId, token, spender, allowance, feeLimitSun, status}` with `status` `submitted`, `confirmed` or `exported`. It is not the payment; do not report it as one. A `paymentStatus: "not_sent"` beside it means the allowance exists on chain but no payment authorization was produced |
 
 **Treat `paymentStatus: "unknown"` as possibly paid.** For example, an `exact` payment from an account with no token balance currently fails as `provider_error` with `phase: "create_payment"` and `paymentStatus: "unknown"`, even though nothing was sent.
 

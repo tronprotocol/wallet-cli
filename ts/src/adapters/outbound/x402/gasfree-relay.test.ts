@@ -54,3 +54,75 @@ it.each([
     expect.objectContaining({ code: "invalid_value" }),
   );
 });
+
+/**
+ * A selected relay's failures used to collapse into one `provider_error`, so a script could not
+ * tell a rate limit from a timeout from a malformed answer. Each keeps its class and the safe
+ * retry metadata; none echoes the relay's text, and none falls back to another relay.
+ */
+const relay = (fetcher: typeof fetch, timeout = 1000) =>
+  gasfreeRelayClient(network, "https://relay.example", {}, timeout, fetcher)!;
+
+it("classifies HTTP 429 as provider_rate_limited with a numeric Retry-After only", async () => {
+  const fetcher = vi.fn(
+    async () => new Response("SECRET", { status: 429, headers: { "retry-after": "7" } }),
+  );
+  await expect(relay(fetcher as typeof fetch).getProviders()).rejects.toMatchObject({
+    code: "provider_rate_limited",
+    details: { httpStatus: 429, retryAfterSeconds: 7, retryPayment: false },
+  });
+  const bad = vi.fn(
+    async () => new Response("SECRET", { status: 429, headers: { "retry-after": "Wed, 21 Oct" } }),
+  );
+  const error = await relay(bad as typeof fetch)
+    .getProviders()
+    .catch((e) => e);
+  expect(error.details).not.toHaveProperty("retryAfterSeconds");
+  expect(JSON.stringify(error)).not.toContain("SECRET");
+});
+
+it("keeps other HTTP failures as provider_error with the status, without the body", async () => {
+  const fetcher = vi.fn(async () => new Response("SECRET", { status: 503 }));
+  const error = await relay(fetcher as typeof fetch)
+    .getProviders()
+    .catch((e) => e);
+  expect(error).toMatchObject({
+    code: "provider_error",
+    details: { httpStatus: 503, retryPayment: false },
+  });
+  expect(JSON.stringify(error)).not.toContain("SECRET");
+});
+
+it("keeps a transport timeout as timeout", async () => {
+  const fetcher = vi.fn(
+    (_url: unknown, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+      }),
+  );
+  await expect(relay(fetcher as unknown as typeof fetch, 5).getProviders()).rejects.toMatchObject({
+    code: "timeout",
+    details: { retryPayment: false },
+  });
+});
+
+it("keeps an oversized body as response_too_large", async () => {
+  const fetcher = vi.fn(async () => new Response("x".repeat(11 * 1024 * 1024), { status: 200 }));
+  await expect(relay(fetcher as typeof fetch).getProviders()).rejects.toMatchObject({
+    code: "response_too_large",
+    details: { retryPayment: false },
+  });
+});
+
+it.each([
+  ["not JSON", () => new Response("<html>", { status: 200 })],
+  ["a non-200 envelope code", () => Response.json({ code: 500, data: {} })],
+  ["a missing data object", () => Response.json({ code: 200, data: [] })],
+])("reports %s as invalid_x402_response", async (_label, make) => {
+  const fetcher = vi.fn(async () => make());
+  await expect(relay(fetcher as typeof fetch).getProviders()).rejects.toMatchObject({
+    code: "invalid_x402_response",
+    details: { retryPayment: false },
+  });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});

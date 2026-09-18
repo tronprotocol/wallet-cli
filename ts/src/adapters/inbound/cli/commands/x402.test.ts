@@ -97,3 +97,60 @@ it("does not advertise unsupported provider type or facilitator waiting", () => 
   for (const command of ["pay", "roundtrip"])
     expect(registry.resolveNeutral(["x402", command])!.supportsWait).toBe(false);
 });
+
+/**
+ * `--body-file -` reads the same fd 0 a `--*-stdin` secret is bound to. Refusing only
+ * `--password-stdin` let `--api-key-stdin` (or any other secret) be read as the request body and
+ * posted to the endpoint. Every secret bound to stdin must refuse the body, before anything is read.
+ */
+it.each(["password", "apiKey", "tx", "message"])(
+  "refuses --body-file - when --%s-stdin also claims stdin, without reading or sending",
+  async (kind) => {
+    const registry = new CommandRegistry();
+    const svc = service();
+    registerX402Commands(registry, svc);
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    const readStdinOnce = vi.fn(() => "secret");
+    const ctx = {
+      secrets: { has: (k: string) => k === kind },
+      streams: { readStdinOnce },
+    };
+    await expect(
+      pay.run(ctx as never, { id: "eip155:56" } as never, {
+        url: "https://example.test",
+        method: "POST",
+        header: [],
+        bodyFile: "-",
+      }),
+    ).rejects.toMatchObject({ code: "invalid_option" });
+    expect(readStdinOnce).not.toHaveBeenCalled();
+    expect(svc.pay).not.toHaveBeenCalled();
+  },
+);
+
+/**
+ * Catalog warnings come from a remote document and go to the terminal through the diagnostic
+ * channel, which — unlike the result renderer — does not strip terminal control sequences.
+ */
+it("strips terminal control sequences from remote catalog warnings before warning", async () => {
+  const registry = new CommandRegistry();
+  const svc = service();
+  const ESC = String.fromCharCode(27);
+  const BEL = String.fromCharCode(7);
+  (svc.providerList as ReturnType<typeof vi.fn>).mockResolvedValue({
+    providers: [],
+    warnings: [`stale ${ESC}[2J${ESC}[H${BEL}catalog`, "plain"],
+  });
+  registerX402Commands(registry, svc);
+  const list = registry.resolveNeutral(["x402", "provider-list"])!;
+  const warn = vi.fn();
+  await list.run({ warn, emit: vi.fn() } as never, undefined, { limit: 20, offset: 0 });
+  expect(warn).toHaveBeenCalledTimes(2);
+  for (const [message] of warn.mock.calls) {
+    expect(message).not.toContain(ESC);
+    expect(message).not.toContain(BEL);
+  }
+  expect(warn).toHaveBeenCalledWith("plain");
+  expect(warn.mock.calls[0]![0]).toContain("stale");
+  expect(warn.mock.calls[0]![0]).toContain("catalog");
+});

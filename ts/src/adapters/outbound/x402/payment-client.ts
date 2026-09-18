@@ -15,18 +15,29 @@ import {
   decodePaymentResponseHeader,
 } from "@bankofai/x402-fetch";
 import { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";
-import { createClientTronSigner, registerToken, type ClientTronSigner } from "@bankofai/x402-tron";
+import {
+  createClientTronSigner,
+  registerToken,
+  PERMIT2_ADDRESSES,
+  type ClientTronSigner,
+} from "@bankofai/x402-tron";
 import { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";
 import { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
 import type { ClientEvmSigner } from "@bankofai/x402-evm";
 import type { Network } from "@bankofai/x402-core/types";
 import { decodePaymentRequiredHeader } from "@bankofai/x402-core/http";
-import { writeFile } from "node:fs/promises";
+import { open, unlink, type FileHandle } from "node:fs/promises";
 import type { X402PayInput, X402PaymentPort } from "../../../application/ports/x402-payment.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
-import { ExecutionError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import {
+  ExecutionError,
+  TransportError,
+  UsageError,
+  type CliError,
+} from "../../../domain/errors/index.js";
+import type { SignedApproval } from "../../../application/contracts/x402-payer.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { toX402Wallet } from "./signer-bridge.js";
 import { createPayerSigner } from "../../../application/services/x402/payer-signer.js";
@@ -91,9 +102,13 @@ export class X402PaymentClient implements X402PaymentPort {
       type: "activity",
       message: "Requesting the resource and checking payment requirements…",
     });
-    const authorization = { signed: false };
+    const authorization: PaymentAuthorization = { signed: false };
     let phase: PaymentPhase = "request";
+    let out: OutputReservation | undefined;
     try {
+      // An existing --out is knowable now; discovering it after settlement means paying for bytes
+      // that are then discarded. Reserve the target exclusively before the first request.
+      if (input.out !== undefined) out = await reserveOutput(input.out);
       if (this.paidFetchFactory && !input.expectedPayTo && input.exactAmount === undefined) {
         authorization.signed = true; // External fetch factories own their signing lifecycle.
         const signer = this.resolveSigner(scope, network);
@@ -105,25 +120,13 @@ export class X402PaymentClient implements X402PaymentPort {
         } catch (error) {
           throw settlementError(error, response, toX402Network(network), signer);
         }
-        return await this.readResponse(
-          input.url,
-          bounded,
-          signer,
-          input.out,
-          toX402Network(network),
-        );
+        return await this.readResponse(input.url, bounded, signer, out, toX402Network(network));
       }
 
       const boundedFetch = this.boundedFetch(scope, network);
       const initial = await boundedFetch(input.url, requestInit);
       if (initial.status !== 402)
-        return await this.readResponse(
-          input.url,
-          initial,
-          undefined,
-          input.out,
-          toX402Network(network),
-        );
+        return await this.readResponse(input.url, initial, undefined, out, toX402Network(network));
       phase = "challenge";
       scope.emit({
         type: "activity",
@@ -147,15 +150,20 @@ export class X402PaymentClient implements X402PaymentPort {
       );
       phase = "payment_request";
       scope.emit({ type: "activity", message: "Preparing payment for the service…" });
-      return await this.readResponse(
+      const result = await this.readResponse(
         input.url,
         await paidFetch(input.url, requestInit),
         signer,
-        input.out,
+        out,
         toX402Network(network),
       );
+      return authorization.approval ? { ...result, approval: authorization.approval } : result;
     } catch (error) {
-      throw authorization.signed ? sdkPaymentError(error, phase) : unsentPaymentError(error, phase);
+      await out?.release();
+      const classified = authorization.signed
+        ? sdkPaymentError(error, phase)
+        : unsentPaymentError(error, phase);
+      throw withApproval(classified, authorization.approval);
     }
   }
 
@@ -163,7 +171,7 @@ export class X402PaymentClient implements X402PaymentPort {
     url: string,
     response: Response,
     signer?: Pick<Signer, "address">,
-    out?: string,
+    out?: OutputReservation,
     expectedNetwork?: string,
   ) {
     const declaredLength = Number(response.headers.get("content-length"));
@@ -251,8 +259,8 @@ export class X402PaymentClient implements X402PaymentPort {
         );
       }
       if (out) {
-        await writeOutput(out, bytes);
-        return { ...base, output: { path: out, bytes: bytes.byteLength } };
+        await out.write(bytes);
+        return { ...base, output: { path: out.path, bytes: bytes.byteLength } };
       }
       const text = new TextDecoder().decode(bytes);
       const contentType = response.headers.get("content-type") ?? "";
@@ -286,26 +294,46 @@ export class X402PaymentClient implements X402PaymentPort {
     input: X402PayInput,
     initial: Response,
     relay: ReturnType<typeof gasfreeRelayClient>,
-    authorization: { signed: boolean },
+    authorization: PaymentAuthorization,
   ): Promise<typeof fetch> {
-    let maxGasfreeFeeRaw = input.maxGasfreeFeeRaw;
-    if (maxGasfreeFeeRaw === undefined && input.maxGasfreeFee !== undefined) {
-      const challenge = await decodeChallenge(initial.clone());
-      const selected = selectMatching(challenge.accepts, network, input)[0]!;
-      maxGasfreeFeeRaw = decimalToRaw(
-        input.maxGasfreeFee,
-        paymentDecimals(network.id, selected.asset, input.decimals),
-      );
-    }
+    // A human-unit fee ceiling is converted by the bridge against the token the SDK actually
+    // puts in the PermitTransfer — not against whichever candidate the CLI matched first, since
+    // the SDK's own selection (and its default spend control) may settle on another asset.
     const wallet = toX402Wallet(signer, {
       family: network.family,
-      maxGasfreeFeeRaw,
+      maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
+      maxGasfreeFee: input.maxGasfreeFee,
+      gasfreeFeeDecimals: (token) => metadata(network.id, token)?.decimals,
+      // The SDK has the RPC build its one-time Permit2 approve; the bridge signs nothing else.
+      ...(network.family === "tron" && PERMIT2_ADDRESSES[toX402Network(network)]
+        ? {
+            approveIntent: {
+              spender: PERMIT2_ADDRESSES[toX402Network(network)]!,
+              tokens: Object.values(X402_TOKENS[network.id] ?? {}).map((t) => t.address),
+            },
+          }
+        : {}),
+      onApprovalSigned: (approval) => {
+        // Before the payment authorization exists the SDK broadcasts the approve itself and waits
+        // for its receipt (auto); after it, the approve is exported inside the payment package for
+        // the endpoint to sponsor. Either way the signature has left the wallet.
+        authorization.approval = {
+          ...approval,
+          status: authorization.signed ? "exported" : "submitted",
+        };
+        scope.warn(
+          `Permit2 approval ${approval.txId} signed for ${approval.token} (unlimited allowance to ${approval.spender}); check it on-chain before approving again`,
+        );
+      },
       warn: (message) => scope.warn(message),
     });
     const bridge = {
       ...wallet,
       async signTypedData(payload: unknown) {
         scope.emit({ type: "activity", message: "Signing payment authorization…" });
+        // The SDK only asks for the payment authorization once its auto approve has confirmed.
+        if (authorization.approval?.status === "submitted")
+          authorization.approval = { ...authorization.approval, status: "confirmed" };
         try {
           const signed = await wallet.signTypedData(normalizeTypedData(payload));
           authorization.signed = true;
@@ -324,7 +352,9 @@ export class X402PaymentClient implements X402PaymentPort {
         const signed = await wallet.signTransaction(tx).catch((error: unknown) => {
           throw sdkPaymentError(error, "sign");
         });
-        authorization.signed = true;
+        // A TRON approve is not the payment: its evidence is tracked in `approval`, and a later
+        // failure is still "no payment was sent". An EVM signed transaction may be the payment.
+        if (network.family === "evm") authorization.signed = true;
         scope.emit({
           type: "activity",
           message: "Payment transaction signed; continuing payment verification and settlement…",
@@ -424,15 +454,57 @@ export class X402PaymentClient implements X402PaymentPort {
   }
 }
 
-async function writeOutput(path: string, bytes: Uint8Array): Promise<void> {
+interface PaymentAuthorization {
+  /** A payment authorization (typed data or EVM payment transaction) has been signed. */
+  signed: boolean;
+  /** The one-time Permit2 approve, once signed, and how far the SDK has taken it. */
+  approval?: SignedApproval & { status: "submitted" | "confirmed" | "exported" };
+}
+
+/** Never lose the approve's evidence to whatever failed after it. */
+function withApproval(error: CliError, approval: PaymentAuthorization["approval"]): CliError {
+  if (!approval) return error;
+  const ErrorType = error.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(error.code, error.message, { ...error.details, approval });
+}
+
+interface OutputReservation {
+  readonly path: string;
+  /** Write the delivered bytes; the reservation is then final and `release` keeps the file. */
+  write(bytes: Uint8Array): Promise<void>;
+  /** Remove the placeholder if nothing was written to it. */
+  release(): Promise<void>;
+}
+
+/** Exclusively create `path` now (`wx`), so a taken target fails before any request is made. */
+async function reserveOutput(path: string): Promise<OutputReservation> {
+  let handle: FileHandle;
   try {
-    await writeFile(path, bytes, { flag: "wx", mode: 0o600 });
+    handle = await open(path, "wx", 0o600);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
       throw new UsageError("output_exists", `output already exists: ${path}`);
     }
-    throw new ExecutionError("io_error", `could not write x402 response to ${path}`);
+    throw new ExecutionError("io_error", `could not create x402 output ${path}`);
   }
+  let written = false;
+  return {
+    path,
+    async write(bytes) {
+      try {
+        await handle.writeFile(bytes);
+        written = true;
+        await handle.close();
+      } catch {
+        throw new ExecutionError("io_error", `could not write x402 response to ${path}`);
+      }
+    },
+    async release() {
+      if (written) return;
+      await handle.close().catch(() => {});
+      await unlink(path).catch(() => {});
+    },
+  };
 }
 
 function metadata(network: string, asset: string) {
