@@ -105,6 +105,9 @@ export const ERROR_CODES = {
   tx_integrity: { exit: 1, retry: "never", meaning: "the transaction re-encoded differently than it arrived — it was altered in flight" },
   chain_id_mismatch: { exit: 1, retry: "never", meaning: "the transaction was built for a different chain than the one selected" },
   signing_rejected: { exit: 1, retry: "never", meaning: "the signature was declined on the device" },
+  payer_mismatch: { exit: 1, retry: "never", meaning: "the payload names a payer other than the signing account" },
+  fee_cap_exceeded: { exit: 1, retry: "never", meaning: "the payload's fee exceeds the ceiling the caller set" },
+  signed_payload_mismatch: { exit: 1, retry: "never", meaning: "the signature is not for the struct that was requested" },
   dry_run_violation: { exit: 1, retry: "never", meaning: "a --dry-run path attempted to broadcast; the attempt was barred" },
   invalid_permission: { exit: 2, retry: "never", meaning: "no such permission group on the account, or it cannot be used here" },
   not_authorized: { exit: 1, retry: "never", meaning: "the account is not permitted to perform this operation" },
@@ -132,6 +135,16 @@ export const ERROR_CODES = {
   invalid_node_response: { exit: 1, retry: "same", meaning: "the node's answer was not in the shape the API defines" },
   provider_error: { exit: 1, retry: "same", meaning: "an external service failed" },
   provider_rate_limited: { exit: 1, retry: "later", meaning: "an external service is rate-limiting this client" },
+  gasfree_insufficient_balance: { exit: 1, retry: "changed", meaning: "the GasFree token balance cannot cover payment and maximum fee" },
+  gasfree_asset_unsupported: { exit: 1, retry: "changed", meaning: "the selected token contract is unavailable in the GasFree account; check the asset and relay" },
+  gasfree_not_activated: { exit: 1, retry: "changed", meaning: "the GasFree account is not activated" },
+  permit2_allowance_required: { exit: 1, retry: "changed", meaning: "the token allowance for Permit2 is insufficient" },
+  approval_reset_required: { exit: 1, retry: "changed", meaning: "the token requires zero allowance before a new approval" },
+  invalid_x402_response: { exit: 1, retry: "same", meaning: "an x402 response could not be decoded" },
+  invalid_settlement: { exit: 1, retry: "never", meaning: "the paid response carried an invalid settlement receipt" },
+  no_matching_requirement: { exit: 1, retry: "never", meaning: "no offered x402 payment route matched the requested filters" },
+  amount_exceeds_limit: { exit: 1, retry: "never", meaning: "the requested x402 payment exceeds its configured limit" },
+  response_too_large: { exit: 1, retry: "changed", meaning: "the remote response exceeded the CLI safety limit" },
   timeout: { exit: 1, retry: "same", meaning: "the node, service or device did not answer in time" },
   aborted: { exit: "either", retry: "never", meaning: "the operation was stopped before it finished" },
   cancelled: { exit: 1, retry: "never", meaning: "the operation was cancelled before it reached the device" },
@@ -141,6 +154,9 @@ export const ERROR_CODES = {
   gasfree_credentials_missing: { exit: 2, retry: "never", meaning: "no GasFree credentials are configured" },
   gasfree_integrity: { exit: 1, retry: "never", meaning: "the GasFree service's answer failed its integrity check" },
   gasfree_rejected: { exit: 1, retry: "never", meaning: "the GasFree service refused the transfer" },
+  bai_rejected: { exit: 1, retry: "changed", meaning: "the B.AI service rejected an operation with a recognized business reason" },
+  bai_auth_failed: { exit: 1, retry: "never", meaning: "the B.AI service rejected the configured API key" },
+  bai_credentials_missing: { exit: 2, retry: "never", meaning: "no B.AI API key is configured" },
   tronlink_credentials_missing: { exit: 2, retry: "never", meaning: "no TronLink multi-sig service credentials are configured" },
 
   // ── hardware wallet ───────────────────────────────────────────────────────
@@ -190,6 +206,10 @@ export const ERROR_CODES = {
   not_contract_deployer: { exit: 1, retry: "never", meaning: "the account did not deploy this contract" },
 
   // ── last resort ───────────────────────────────────────────────────────────
+  port_in_use: { exit: 1, retry: "never", meaning: "the requested server port is already in use" },
+  agent_not_found: { exit: 1, retry: "never", meaning: "the agent token does not exist" },
+  provider_not_found: { exit: 1, retry: "never", meaning: "the requested provider does not exist" },
+  catalog_schema_unsupported: { exit: 1, retry: "never", meaning: "the provider catalog schema version is unsupported" },
   internal_error: { exit: 1, retry: "never", meaning: "an unexpected internal failure; the message is redacted on purpose" },
 } as const satisfies Record<string, ErrorCodeEntry>;
 

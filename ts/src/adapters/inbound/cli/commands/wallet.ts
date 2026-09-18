@@ -599,6 +599,8 @@ export function registerWalletCommands(
     examples: [{ cmd: "wallet-cli delete old --yes" }],
     formatText: TextFormatters.walletDelete,
     run: async (ctx, _net, input) => {
+      const deletionWarning = wallets.deletionWarning(input.account);
+      if (deletionWarning) ctx.warn(deletionWarning);
       if (!input.yes) {
         if (!ctx.prompt.isTTY()) {
           throw new UsageError(

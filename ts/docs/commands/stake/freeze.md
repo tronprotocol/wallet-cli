@@ -40,7 +40,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — stake 1,000 TRX for energy, returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin
 ```
 
 ```console
@@ -51,7 +51,7 @@ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy -
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin -o json
 ```
 
 ```json
@@ -61,7 +61,7 @@ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy -
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --wait --password-stdin
 ```
 
 ```console

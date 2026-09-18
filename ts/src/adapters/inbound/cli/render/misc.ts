@@ -1,3 +1,4 @@
+import { structuredText } from "./structured.js";
 import type { TextFormatter } from "../contracts/index.js";
 import { formatScalar, num, methodName } from "./scalars.js";
 import { type Obj, asObj, kv, query, receipt, table, ok } from "./layout.js";
@@ -108,6 +109,8 @@ function renderConfig(d: Obj): string {
     ]);
   }
   if ("key" in d) {
+    if (d.value === undefined || d.value === null || d.value === "")
+      return kv([[String(d.key), "Not configured"]], "");
     // A map-valued key (networks, aliases, one network) gets a titled block whose body may itself
     // nest; a scalar stays one line.
     return isMap(d.value)
@@ -163,6 +166,6 @@ function configValue(v: unknown): string {
 }
 
 function formatResult(v: unknown): string {
-  if (Array.isArray(v)) return v.map((x) => formatScalar(x)).join(", ");
+  if (v !== null && typeof v === "object") return structuredText(v);
   return formatScalar(v);
 }

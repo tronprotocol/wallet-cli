@@ -1,6 +1,6 @@
 # wallet-cli import keystore
 
-Import a Web3 keystore file. **Interactive-only.**
+Import an account from a Web3 keystore file. **Interactive-only.**
 
 > **Note**: there are no stdin flags here. Both the master password and the keystore file's own password are entered **only** via hidden TTY prompts — the file password is secret material like any other.
 
@@ -20,7 +20,7 @@ Two passwords are involved and they are unrelated: your master password encrypts
 
 Without a TTY the command fails with `tty_required` at exit `2`, and that check runs **first**, ahead of the file. In a non-interactive environment every call fails the same way whether the path is good or not; the file-before-password ordering above only applies once you have a terminal.
 
-Import never overwrites an existing account. Importing the same key twice is idempotent (`status: "existing"`, the existing account is selected); importing a key that matches an address already held by a *different kind* of account (an HD seed's derived address, a watch-only or Ledger address) adds a second, independent `privateKey` account at that address rather than replacing what is there. See [`import private-key`](private-key.md), which this command matches exactly once the key is decrypted.
+Import never overwrites an existing account. Importing the same key twice is idempotent (`status: "existing"`, and that account is selected); importing a key whose address is already held by a *different kind* of account — an HD seed's derived address, a watch-only or Ledger address — adds a second, independent `privateKey` account at that address rather than replacing what is there. See [`import private-key`](private-key.md), which this command matches exactly once the key is decrypted.
 
 ## Options
 
@@ -43,8 +43,8 @@ wallet-cli import keystore ./tronlink-export.json --label imported
 ✅ Imported wallet "imported"
   Account ID    wlt_7h2k9m1a
   Type          private key
-  TRON address  TZx9kP2m...7bWq
-  EVM address   0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961
+  TRON address  TPBivseBCFmG8AEL38DJ4hxrFMQteENxDz
+  EVM address   0x90F79bf6EB2c4f870365E785982E1f101E93b906
   Active        yes
 
 ⚠️ The keystore password was read from hidden input and was not printed.
@@ -57,7 +57,7 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 ```console
 ? Master password (hidden):
 ? Keystore file password (hidden):
-{"schema":"wallet-cli.result.v1","success":true,"command":"import.keystore","data":{"status":"created","accountId":"wlt_7h2k9m1a","label":"imported","type":"privateKey","index":null,"active":true,"addresses":{"tron":"TZx9kP2m...7bWq","evm":"0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961"},"derivationPath":null},"meta":{"durationMs":44,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"import.keystore","data":{"status":"created","accountId":"wlt_7h2k9m1a","label":"imported","type":"privateKey","index":null,"active":true,"addresses":{"tron":"TPBivseBCFmG8AEL38DJ4hxrFMQteENxDz","evm":"0x90F79bf6EB2c4f870365E785982E1f101E93b906"},"derivationPath":null},"meta":{"durationMs":44,"warnings":[]}}
 ```
 
 ## Output
@@ -66,18 +66,18 @@ wallet-cli import keystore ./tronlink-export.json --label imported -o json
 
 | Field | Type | Meaning |
 |---|---|---|
-| `status` | string | `"created"`, or `"existing"` when the same key was already present (the existing account is selected) |
+| `status` | string | `"created"`, or `"existing"` when the same key was already present (that account is selected) |
 | `accountId` | string | Stable account id |
 | `label` | string | Account label |
 | `type` | string | `"privateKey"` (standalone, no seed) |
 | `index` | number \| null | Non-HD account, always `null` |
 | `active` | boolean | Became the active account |
 | `addresses` | object | Both encodings of the imported key: `tron` (base58) and `evm` (EIP-55) |
-| `derivationPath` | null | A Web3 keystore contains one raw key and has no derivation path |
+| `derivationPath` | null | A Web3 keystore holds one raw key and has no derivation path |
 
 ## Exit status
 
-`0` imported · `1` execution failure (`wrong_keystore_password`; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; `keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `invalid_value` — duplicate or invalid label).
+`0` imported · `1` execution failure (`wrong_keystore_password`; `auth_failed`; `io_error`) · `2` usage error (`tty_required` — no TTY for interactive input, checked before anything else; `keystore_not_found` — no such file; `invalid_keystore` — not a valid keystore JSON; `invalid_value` — a duplicate or invalid label).
 
 ## See also
 

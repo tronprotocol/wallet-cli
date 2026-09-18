@@ -33,9 +33,9 @@ wallet-cli address generate
 
 ```console
 ✅ Keypair generated (NOT stored in the wallet)
-  TRON address  TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
-  EVM address   0x8a41C3b9E2d07f6A5B14c8D9e0F27a3B6c5D48E1
-  Private key   written to <wallet-cli-root>/generated/keypair-TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz
+  TRON address  TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ
+  EVM address   0x46A2e02eBdFb7Ce4660e069A04e93cC8126e415E
+  Private key   written to <wallet-cli-root>/generated/keypair-TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ
 
 ! To sign with this key, import it: wallet-cli import private-key
 ```
@@ -47,7 +47,7 @@ wallet-cli address generate -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"address.generate","data":{"tron":"TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz","evm":"0x8a41C3b9E2d07f6A5B14c8D9e0F27a3B6c5D48E1","secretFile":"<wallet-cli-root>/generated/keypair-TNewAddr9k2fP7cW4bXm1sV8dRj6eL3aQz"},"meta":{"durationMs":8,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"address.generate","data":{"tron":"TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ","evm":"0x46A2e02eBdFb7Ce4660e069A04e93cC8126e415E","secretFile":"<wallet-cli-root>/generated/keypair-TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ"},"meta":{"durationMs":8,"warnings":[]}}
 ```
 
 ## Output
@@ -60,7 +60,7 @@ wallet-cli address generate -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error`, `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`output_exists` — the `--out` target already exists and is never overwritten; `invalid_value`).
+`0` success · `1` execution failure (`io_error`; `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`output_exists` — the `--out` target already exists and is never overwritten; `invalid_value`).
 
 ## See also
 

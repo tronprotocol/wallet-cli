@@ -23,12 +23,12 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli gasfree info --account main --network tron:3448148188
+wallet-cli gasfree info --account main --network nile
 ```
 
 ```console
-Owner            TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
-GasFree address  TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw
+Owner            TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
+GasFree address  TRks49oTpezV5iXoWavUrUBFiDHEFZU6NG
 Status           active
 Nonce            4
 
@@ -38,11 +38,11 @@ Nonce            4
 ```
 
 ```bash
-wallet-cli gasfree info --account main --network tron:3448148188 -o json
+wallet-cli gasfree info --account main --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","gasFreeAddress":"TVjsyZ7fYF3qCcNaMxN5PMWmSgYcCyqZfw","active":true,"nonce":"4","tokens":[{"symbol":"USDT","address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"activateFee":"1000000","transferFee":"500000","balance":"125000000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.info","data":{"ownerAddress":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","gasFreeAddress":"TRks49oTpezV5iXoWavUrUBFiDHEFZU6NG","active":true,"nonce":"4","tokens":[{"symbol":"USDT","address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"activateFee":"1000000","transferFee":"500000","balance":"125000000"}]},"meta":{"durationMs":380,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

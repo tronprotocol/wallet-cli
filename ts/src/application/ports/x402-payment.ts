@@ -1,0 +1,37 @@
+import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { TransactionScope } from "../contracts/execution-scope.js";
+
+export interface X402PayInput {
+  url: string;
+  method: string;
+  headers: string[];
+  body?: string;
+  token?: string;
+  asset?: string;
+  decimals?: number;
+  scheme?: "exact" | "exact_gasfree";
+  maxAmount?: string;
+  maxRawAmount?: string;
+  /** Internal payment constraints, enforced against every offered x402 requirement. */
+  expectedPayTo?: string;
+  exactAmount?: string;
+  dryRun?: boolean;
+  out?: string;
+  gasfreeRelay?: string;
+  maxGasfreeFee?: string;
+  maxGasfreeFeeRaw?: string;
+}
+
+export interface X402PaymentPort {
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void;
+  /** Local configuration checks only; no signing or I/O. */
+  validateConfiguration?(
+    network: NetworkDescriptor,
+    input: Pick<X402PayInput, "gasfreeRelay">,
+  ): void;
+  pay(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: X402PayInput,
+  ): Promise<Record<string, unknown>>;
+}

@@ -17,7 +17,7 @@ Shows what a transaction currently costs per unit — the inputs to "how much wi
 - **TRON (`tron-resource`)** — the energy unit price, the bandwidth unit price, and the memo fee. The node returns each as a price *history* timeline; text shows only the current value (the last segment), while `-o json` keeps the full `history`.
 - **EVM (`eip1559` / `legacy`)** — the current base fee, the suggested priority fee (tip), the resulting gas price, and what a plain 21,000-gas native transfer would cost at those numbers.
 
-**Units**: TRON unit prices stay in **SUN** (1 TRX = 1,000,000 SUN) — the industry convention, and `--fee-limit` is SUN-denominated; the memo fee, being an ordinary amount, is shown in TRX. EVM prices are shown in **gwei** and costs in the native coin; json is uniformly the base unit (SUN, wei).
+**Units**: TRON unit prices stay in **SUN** (1 TRX = 1,000,000 SUN) — the industry convention, and `--fee-limit` is SUN-denominated; the memo fee, being an ordinary amount, is shown in TRX. EVM prices are shown in **gwei** and costs in the native coin. json is uniformly the base unit (SUN, wei).
 
 ## Options
 
@@ -26,7 +26,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli chain prices --network tron:3448148188
+wallet-cli chain prices --network nile
 ```
 
 ```console
@@ -36,7 +36,7 @@ Memo fee         1 TRX
 ```
 
 ```bash
-wallet-cli chain prices --network tron:3448148188 -o json
+wallet-cli chain prices --network nile -o json
 ```
 
 ```json
@@ -46,7 +46,7 @@ wallet-cli chain prices --network tron:3448148188 -o json
 On an EVM network the answer is a gas price instead:
 
 ```bash
-wallet-cli chain prices --network eip155:11155111
+wallet-cli chain prices --network sepolia
 ```
 
 ```console
@@ -55,6 +55,10 @@ Base fee       0.947033 gwei
 Priority fee   0.001 gwei
 Gas price      0.948033 gwei
 Transfer cost  0.000019 ETH  (21,000 gas)
+```
+
+```bash
+wallet-cli chain prices --network sepolia -o json
 ```
 
 ```json
@@ -81,7 +85,7 @@ EVM:
 |---|---|---|
 | `feeModel` | string | `eip1559` or `legacy` |
 | `baseFeeWei` | string | The latest block's base fee per gas; EIP-1559 chains only. A zero base fee is reported as `"0"`, not omitted |
-| `priorityFeeWei` | string \| null | The node's suggested tip per gas; `null` when the node suggests none. Present on EIP-1559 chains only, alongside `baseFeeWei` |
+| `priorityFeeWei` | string \| null | The node's suggested tip per gas; `null` when the node suggests none. EIP-1559 chains only, alongside `baseFeeWei` |
 | `gasPriceWei` | string | Price per gas at those numbers |
 | `transferGas` | number | `21000` — the gas a plain native transfer costs |
 | `transferCostWei` | string | `transferGas × gasPriceWei`, i.e. what that transfer would cost now |
@@ -92,4 +96,4 @@ EVM:
 
 ## See also
 
-[`chain params`](params.md) · [`chain node`](node.md) · [Energy & bandwidth](../../concepts/energy-bandwidth.md) · [`tx send`](../tx/send.md)
+[`chain params`](params.md) · [`chain node`](node.md) · [Energy & bandwidth](../../concepts/energy-bandwidth.md) · [Fee models](../../concepts/networks.md#fees-the-evm-gas-model) · [`tx send`](../tx/send.md)

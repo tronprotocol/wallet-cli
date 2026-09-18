@@ -10,7 +10,9 @@ wallet-cli chain params [--key <name>] [options]
 
 ## Description
 
-Lists the chain's governance parameters — network-wide system settings changed by SR proposals (see [`proposal create`](../proposal/create.md)); this command only reads them. **TRON only**: an EVM network has no such parameter set and fails with `family_mismatch`. `--key` returns a single one. Keys pass through exactly as the chain returns them; text output adds thousands separators and units (SUN / ms) for known numeric keys, `-o json` keeps raw values.
+> **TRON only.** SR-governed system parameters have no EVM counterpart; on an EVM network this fails with `family_mismatch` before any node call.
+
+Lists the chain's governance parameters — network-wide system settings changed by SR proposals (see [`proposal create`](../proposal/create.md)); this command only reads them. `--key` returns a single one. Keys pass through exactly as the chain returns them; text output adds thousands separators and units (SUN / ms) for known numeric keys, `-o json` keeps raw values.
 
 Frequently used keys:
 
@@ -37,7 +39,7 @@ Plus the [global options](../index.md#global-options-every-command).
 A single parameter with `--key`:
 
 ```bash
-wallet-cli chain params --key getEnergyFee --network tron:3448148188
+wallet-cli chain params --key getEnergyFee --network nile
 ```
 
 ```console
@@ -48,7 +50,7 @@ Value  210 SUN
 All parameters (excerpt):
 
 ```bash
-wallet-cli chain params --network tron:3448148188
+wallet-cli chain params --network nile
 ```
 
 ```console
@@ -62,7 +64,7 @@ wallet-cli chain params --network tron:3448148188
 ```
 
 ```bash
-wallet-cli chain params --network tron:3448148188 -o json
+wallet-cli chain params --network nile -o json
 ```
 
 ```json
@@ -76,11 +78,11 @@ wallet-cli chain params --network tron:3448148188 -o json
 | Field | Type | Meaning |
 |---|---|---|
 | `key` | string | Parameter name, verbatim from the chain |
-| `value` | number | Raw chain value, no unit suffix (text adds SUN / ms). Absent altogether for a parameter the node reports without one. The port that carries it is typed `number \| string`, but the TronWeb gateway behind it only ever yields numbers |
+| `value` | number | Raw chain value, no unit suffix (text adds SUN / ms). Absent altogether for a parameter the node reports without one |
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`not_found` — `--key` doesn't exist; `invalid_value`).
+`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`not_found` — `--key` doesn't exist; `invalid_value`; `family_mismatch` on an EVM network).
 
 ## See also
 

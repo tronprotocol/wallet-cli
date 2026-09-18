@@ -50,13 +50,17 @@ export const WalletFormatters = {
     // One derive produces an address per family, so the receipt lists every one of them —
     // showing only the first hides what the command actually did. `Index` and `Account ID` come along for the same reason `create` carries them: they are
     // what the next command is addressed by.
-    return receipt(ok(), `Derived sub-account ${quote(displayName(d))}`, [
-      ["Account ID", String(d.accountId ?? "")],
-      ["Index", d.index === null || d.index === undefined ? "" : formatInt(d.index)],
-      ...addressPairs(d),
-      ["Active", d.active === true ? "yes" : ""],
-      ["Note", "shares the wallet's recovery phrase"],
-    ]);
+    return receipt(
+      ok(),
+      `${d.status === "existing" ? "Selected existing account" : "Derived sub-account"} ${quote(displayName(d))}`,
+      [
+        ["Account ID", String(d.accountId ?? "")],
+        ["Index", d.index === null || d.index === undefined ? "" : formatInt(d.index)],
+        ...addressPairs(d),
+        ["Active", d.active === true ? "yes" : ""],
+        ["Note", "shares the wallet's recovery phrase"],
+      ],
+    );
   }) satisfies TextFormatter,
   walletDelete: ((data) => {
     const d = asObj(data);

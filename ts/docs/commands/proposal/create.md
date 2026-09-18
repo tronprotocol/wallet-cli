@@ -42,7 +42,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 One parameter, waiting for confirmation:
 
 ```bash
-echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -60,7 +60,7 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tro
 Several parameters in one proposal — the receipt lists them by parameter id:
 
 ```bash
-echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -77,11 +77,11 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --set getCrea
 ```
 
 ```bash
-echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network nile --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.create","data":{"kind":"proposal-create","stage":"confirmed","txId":"9c4...","confirmed":true,"blockNumber":57880102,"feeSun":0,"energyUsed":0,"netUsed":268,"energyFeeSun":0,"netFeeSun":0,"failed":false,"proposerAddress":"TSRmq8kP...","proposalId":48,"changes":[{"id":3,"name":"getTransactionFee","currentValue":10,"proposedValue":15,"unit":"sun/byte"}],"resource":{"netUsage":268,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"proposal.create","data":{"kind":"proposal-create","stage":"confirmed","txId":"9c4...","confirmed":true,"blockNumber":57880102,"feeSun":0,"energyUsed":0,"netUsed":268,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":268,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"failed":false,"proposerAddress":"TSRmq8kP...","proposalId":48,"changes":[{"id":3,"name":"getTransactionFee","currentValue":10,"proposedValue":15,"unit":"sun/byte"}]},"meta":{"durationMs":6480,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -91,16 +91,11 @@ echo "$PW" | wallet-cli proposal create --set getTransactionFee=15 --network tro
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "proposal-create"`, `stage: "submitted"`, `txId`, `proposerAddress`, `changes[]` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), `failed`, and optional `proposalId` — the new proposal's id, known only once it is on chain |
-
-`proposalId` is **omitted** when the id cannot be established beyond doubt. The chain does not
-report it, so it is recognised by comparing the proposal list against a snapshot taken before
-submitting; if the node's list has not caught up yet, or more than one new proposal matches these
-parameters, a warning says so and the field is absent. Treat it as optional and fall back to
-[`proposal list`](list.md) — a guessed id would be passed on to `proposal approve` or the
-irreversible `proposal delete`. The transaction itself has succeeded either way.
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed`, and optional `proposalId` — the new proposal's id, known only once it is on chain |
 
 `changes[]` entries carry `id`, `name`, `currentValue`, `proposedValue`, and `unit`, ordered by `id`.
+
+`proposalId` is **omitted** when the id cannot be pinned down for certain. The chain does not report it, so the CLI compares the proposal list against a snapshot taken before submitting. If the list has not caught up yet, or more than one new proposal matches these parameters, the field is left out and a warning says so. Look the id up with [`proposal list`](list.md) instead of guessing — the id goes on to `proposal approve` and the irreversible `proposal delete`. The transaction itself succeeded either way.
 
 ## Exit status
 

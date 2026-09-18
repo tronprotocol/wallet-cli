@@ -1,6 +1,6 @@
 # wallet-cli contact remove
 
-Remove a contact.
+Remove a recipient from the contact book.
 
 ## Synopsis
 
@@ -25,7 +25,7 @@ wallet-cli contact remove bob
 ```console
 ✅ Contact removed
   Name     bob
-  Address  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz
+  Address  TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP
 ```
 
 ```bash
@@ -33,7 +33,7 @@ wallet-cli contact remove bob -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contact.remove","data":{"name":"bob","address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz"},"meta":{"durationMs":3,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contact.remove","data":{"name":"bob","address":"TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP"},"meta":{"durationMs":3,"warnings":[]}}
 ```
 
 ## Output

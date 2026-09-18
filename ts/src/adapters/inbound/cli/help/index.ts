@@ -64,10 +64,6 @@ export class HelpService {
       );
       return 0;
     }
-    if (!family && path.length === 1 && this.#isNeutralGroup(path[0]!)) {
-      this.streams.result(this.#renderNeutralGroup(path[0]!));
-      return 0;
-    }
     this.#assertResolvable(family, path);
     this.streams.result(this.#renderTree(path[0]));
     return 0;
@@ -171,6 +167,9 @@ export class HelpService {
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
+      ["x402", "Pay and inspect x402 service providers", ""],
+      ["bai", "Query and recharge a B.AI account", ""],
+      ["8004", "Read and manage ERC-8004 Agent identities", ""],
     ] as const;
     const commands = [
       ["use", "Set the active account", ""],
@@ -245,15 +244,20 @@ export class HelpService {
   /** logical resource group (`account --help`): default surface, implementations chosen by --network/defaultNetwork. */
   #renderLogicalNs(group: string): string {
     const commands = this.#chainGroupCommands(group);
+    const neutral = this.#neutralGroupCommands(group);
     const tags = commands.map((c) => groupRowTag(c.families));
     // A group whose every command belongs to the same single family is already tagged as a whole
     // at the root (`stake … (TRON only)`). Repeating it on all six rows adds a column that never
     // varies — the group's own help stops repeating it. Tag rows only where they DISCRIMINATE.
-    const uniform = tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
+    const uniform =
+      neutral.length === 0 && tags.length > 0 && tags.every((t) => t !== "" && t === tags[0]);
     const rows = commands.map(
       (c, i) => [c.path[1] ?? "", c.summary ?? "", uniform ? "" : tags[i]!] as const,
     );
-    return this.#renderGroup(group, rows);
+    return this.#renderGroup(group, [
+      ...rows,
+      ...neutral.map((c) => [c.path[1] ?? "", c.summary ?? "", ""] as const),
+    ]);
   }
 
   /** shared group skeleton: inline Usage → description → verb list → footer. */
@@ -290,6 +294,7 @@ export class HelpService {
       auth: cmd.auth,
       wallet: cmd.wallet,
       broadcasts: cmd.broadcasts,
+      supportsWait: cmd.supportsWait,
       fields: introspectFields(cmd.fields),
       inputFlags: inputFlagsFor(cmd),
       exclusive: cmd.exclusive,
@@ -312,6 +317,7 @@ export class HelpService {
       auth: spec.auth,
       wallet: spec.wallet,
       broadcasts: spec.broadcasts,
+      supportsWait: spec.supportsWait,
       fields: introspectFields(mergedFields(def)),
       fieldFamilies: fieldFamilies(def),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
@@ -333,6 +339,7 @@ export class HelpService {
     auth: CommandDefinition["auth"];
     wallet: CommandDefinition["wallet"];
     broadcasts?: boolean;
+    supportsWait?: boolean;
     fields: FieldInfo[];
     /** family-specific flags, so each can be marked with the family it belongs to. */
     fieldFamilies?: Map<string, ChainFamily>;
@@ -467,7 +474,7 @@ export class HelpService {
       c.network,
       c.auth,
       c.wallet,
-      c.broadcasts ?? false,
+      c.supportsWait ?? c.broadcasts ?? false,
       c.secretsTtyOnly ?? false,
     ))
       lines.push(globalFlagLine(g));
@@ -690,6 +697,9 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   encoding: "Convert and validate addresses and encodings across formats.",
   address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
   contact: "Manage the recipient address book.",
+  bai: "Query B.AI account credits, usage records, and recharge orders.",
+  "8004": "Read and manage ERC-8004 Agent identities on supported networks.",
+  x402: "Pay x402 endpoints and inspect the provider catalog.",
 };
 
 /** "--output, -o <text|json>" style header for text help. */

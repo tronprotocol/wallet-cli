@@ -1,12 +1,9 @@
+import type { GovernanceTransactionInput } from "../../contracts/transaction-input.js";
+export type { GovernanceTransactionInput } from "../../contracts/transaction-input.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { transactionMode, type TransactionModeInput } from "../../services/transaction-mode.js";
-
-export interface GovernanceTransactionInput extends TransactionModeInput {
-  expiration?: number;
-  permissionId?: number;
-}
+import { transactionMode } from "../../services/transaction-mode.js";
 
 export function governanceTransactionMode(
   pipeline: TxPipeline,

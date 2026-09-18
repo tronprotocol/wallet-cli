@@ -181,3 +181,26 @@ describe("SignerResolver — resolving an address shared by two accounts", () =>
     expect(code).toBe("family_mismatch");
   });
 });
+
+it("prepares software key access without producing a signature", () => {
+  const ks = freshKeystore();
+  const ref = ks.import({
+    type: "seed",
+    secret: "test test test test test test test test test test test junk",
+    label: "test",
+  }).accountId;
+  const decrypt = vi.spyOn(ks, "decryptSeed");
+  const sign = vi.fn();
+  const resolver = new SignerResolver(ks, {} as never, {
+    tron: { ...tronSignStrategy, sign },
+    evm: null as never,
+  });
+  resolver.prepare(ref, "tron");
+  expect(decrypt).toHaveBeenCalledOnce();
+  expect(sign).not.toHaveBeenCalled();
+  decrypt.mockImplementation(() => {
+    throw new Error("locked");
+  });
+  expect(() => resolver.prepare(ref, "tron")).toThrow("locked");
+  expect(sign).not.toHaveBeenCalled();
+});

@@ -14,11 +14,11 @@ wallet-cli account set (--name <name> | --id <account-id>)
 
 Sets the account's on-chain **name** (a display alias, up to 32 bytes) or its **account id** (a globally unique identifier, 8–32 bytes). One at a time — `--name` and `--id` are mutually exclusive; to set both, run it twice.
 
-⚠️ **Each can be set only once and can never be changed** — the value is permanent, and there is no confirmation prompt. This is not a mainnet-only rule: the CLI refuses a second write with `name_already_set` / `id_already_set` on every network, Nile and Shasta included, so a testnet run is not a rehearsal you can repeat. This is different from [`rename`](../rename.md), which changes the local label and can be redone anytime.
+⚠️ **Each can be set only once and can never be changed** — the value is permanent, and there is no confirmation prompt. This is not a mainnet-only rule: a second write is refused with `name_already_set` / `id_already_set` on every network, Nile and Shasta included, so a testnet run is not a rehearsal you can repeat. This is different from [`rename`](../rename.md), which changes the local label and can be redone anytime.
 
-Requires the account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
+Requires the account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` never unlock the wallet. Watch-only accounts fail with `watch_only_no_signer` in a signing mode. The account id's uniqueness is enforced on-chain — a taken id fails with `id_taken`.
 
-Ledger support differs by field: the TRON app can sign `--name`, but cannot sign `--id` (`SetAccountIdContract`). A Ledger account may still build or dry-run either field; a signing mode with `--id` fails with `ledger_unsupported` before device interaction.
+Ledger support differs by field: the TRON app can sign `--name`, but not `--id` (`SetAccountIdContract`). A Ledger account can still build or dry-run either field; a signing mode with `--id` fails with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -43,12 +43,12 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Set the on-chain name and wait for confirmation:
 
 ```bash
-echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --wait --password-stdin
 ```
 
 ```console
 ✅ On-chain name set
-  Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  Address  TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
   Name     Acme Treasury
   TxID     f2b...
   Block    #84,341,590
@@ -57,22 +57,22 @@ echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:344814
 ```
 
 ```bash
-echo "$PW" | wallet-cli account set --name "Acme Treasury" --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.set","data":{"kind":"account-set","stage":"confirmed","txId":"f2b...","confirmed":true,"blockNumber":84341590,"feeSun":300000,"failed":false,"field":"name","value":"Acme Treasury","address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw"},"meta":{"durationMs":6420,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.set","data":{"kind":"account-set","stage":"confirmed","txId":"f2b...","confirmed":true,"blockNumber":84341590,"feeSun":300000,"failed":false,"field":"name","value":"Acme Treasury","address":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V"},"meta":{"durationMs":6420,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Set the account id instead (`--id`); the id's uniqueness is enforced on-chain:
 
 ```bash
-echo "$PW" | wallet-cli account set --id acme-treasury-01 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli account set --id acme-treasury-01 --network nile --wait --password-stdin
 ```
 
 ```console
 ✅ On-chain id set
-  Address  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
+  Address  TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
   ID       acme-treasury-01
   TxID     3d9...
   Block    #84,341,730

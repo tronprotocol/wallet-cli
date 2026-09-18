@@ -21,26 +21,26 @@ Only the [global options](../index.md#global-options-every-command) (`--account`
 ## Examples
 
 ```bash
-wallet-cli account balance --network tron:3448148188
+wallet-cli account balance --network nile
 ```
 
 ```console
-Label    demo
-Balance  9,915.80311 TRX
+Label    main
+Balance  1,976.489 TRX
 ```
 
 ```bash
-wallet-cli account balance --network tron:3448148188 -o json
+wallet-cli account balance --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB","balance":"9915803110","decimals":6,"symbol":"TRX"},"meta":{"durationMs":681,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 The same command on an EVM network reads that account's EVM address instead:
 
 ```bash
-wallet-cli account balance --network eip155:11155111 -o json
+wallet-cli account balance --network sepolia -o json
 ```
 
 ```json
@@ -52,7 +52,7 @@ wallet-cli account balance --network eip155:11155111 -o json
 | Field | Type | Meaning |
 |---|---|---|
 | `address` | string | Queried address, in the selected network's format (base58 on TRON, `0x` hex on EVM) |
-| `balance` | string | Raw balance in the chain's base unit — SUN on TRON (`"9915803110"` = 9915.80311 TRX), wei on EVM |
+| `balance` | string | Raw balance in the chain's base unit — SUN on TRON (`"1976489000"` = 1976.489 TRX), wei on EVM |
 | `decimals` | number | Base units per coin: `6` on TRON, `18` on EVM |
 | `symbol` | string | The network's native coin — `TRX`, `ETH`, `BNB` |
 
@@ -62,4 +62,4 @@ wallet-cli account balance --network eip155:11155111 -o json
 
 ## See also
 
-[`account portfolio`](portfolio.md) — includes tokens · [`account info`](info.md) · [Units: TRX vs SUN](../../concepts/networks.md#fees-the-tron-resource-model)
+[`account portfolio`](portfolio.md) — includes tokens · [`account info`](info.md) · [Fee models and units](../../concepts/networks.md#fees-the-tron-resource-model)

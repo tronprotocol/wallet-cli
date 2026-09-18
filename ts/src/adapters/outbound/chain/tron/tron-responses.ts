@@ -31,7 +31,8 @@ const TronTxInfoSchema = objectish(
     fee: optNum,
     receipt: z
       .looseObject({
-        result: optStr,
+        // present-but-numeric must survive as a string: dropping it would read as "no result".
+        result: z.union([z.string(), z.number()]).transform(String).optional().catch(undefined),
         energy_usage_total: optNum,
         energy_fee: optNum,
         net_usage: optNum,

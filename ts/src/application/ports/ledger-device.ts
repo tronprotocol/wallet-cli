@@ -23,6 +23,7 @@ export interface LedgerDevice {
     path: string,
     transaction: UnsignedTx,
     signal?: AbortSignal,
+    options?: { onWarning?: (message: string) => void },
   ): Promise<SignedTx>;
   signMessage(
     family: ChainFamily,

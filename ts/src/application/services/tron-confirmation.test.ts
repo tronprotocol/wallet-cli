@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stageTronBroadcast } from "./tron-confirmation.js";
+import { stageTronBroadcast, tronConfirmation } from "./tron-confirmation.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { TronGateway, TronTxInfo } from "../ports/chain/tron-gateway.js";
 
@@ -119,5 +119,49 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
       await stageTronBroadcast(gateway(undefined), s, { txId: OTHER }, undefined),
     ).toMatchObject({ txId: OTHER });
     expect(s.warnings).toEqual([]);
+  });
+});
+
+/**
+ * A mined transaction is not a successful one. TRON reports contract failures in two places —
+ * the top-level `result: "FAILED"` and the nested `receipt.result` — and a receipt that carries
+ * neither says nothing about a smart-contract call's execution. Reading "no failure recorded" as
+ * "succeeded" reported reverted ERC-8004 writes as confirmed.
+ */
+describe("tronConfirmation distinguishes mined from succeeded", () => {
+  it("top-level result FAILED with no nested receipt result → failed", async () => {
+    const s = scope();
+    const out = await stageTronBroadcast(
+      gateway({ blockNumber: 42, result: "FAILED", receipt: {} }),
+      s,
+      { txId: "abc" },
+    );
+    expect(out.stage).toBe("failed");
+  });
+
+  it("nested receipt result other than SUCCESS/DEFAULT → failed even when the top level is silent", async () => {
+    const s = scope();
+    const out = await stageTronBroadcast(
+      gateway({ blockNumber: 42, receipt: { result: "17" } }),
+      s,
+      { txId: "abc" },
+    );
+    expect(out.stage).toBe("failed");
+  });
+
+  it("a contract call whose receipt carries no execution result is not confirmed", async () => {
+    const s = scope({ waitTimeoutMs: 0 });
+    const confirm = tronConfirmation(gateway({ blockNumber: 42, receipt: {} }), s, {
+      requireReceiptResult: true,
+    });
+    expect(await confirm("abc")).toBeUndefined();
+  });
+
+  it("a native transaction may legitimately omit receipt.result and still confirms", async () => {
+    const s = scope();
+    const out = await stageTronBroadcast(gateway({ blockNumber: 42, receipt: {} }), s, {
+      txId: "abc",
+    });
+    expect(out.stage).toBe("confirmed");
   });
 });

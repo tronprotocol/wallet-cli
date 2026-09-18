@@ -1,3 +1,11 @@
+import { MessageService } from "../application/use-cases/message-service.js";
+import { ManagedX402Server } from "./x402-server-lifecycle.js";
+import { setTimeout as delay } from "node:timers/promises";
+import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
+import { setLogger, noopLogger } from "@bankofai/x402-core";
+import { BaiWalletBinding, baiChain } from "../application/use-cases/bai-wallet-binding.js";
+import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
+import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
 import { isTronNetwork } from "../domain/types/network.js";
 import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
@@ -43,6 +51,19 @@ import { SecureKeypairWriter } from "../adapters/outbound/persistence/keypair-wr
 import { registerEncodingCommands } from "../adapters/inbound/cli/commands/encoding.js";
 import { registerAddressCommands } from "../adapters/inbound/cli/commands/address.js";
 import { TerminalQrEncoder } from "../adapters/outbound/qr/index.js";
+import { BaiClient } from "../adapters/outbound/bai/client.js";
+import { BaiService } from "../application/use-cases/bai-service.js";
+import { registerBaiCommands } from "../adapters/inbound/cli/commands/bai.js";
+import { EvmContractService } from "../application/use-cases/evm/contract-service.js";
+import { TronContractService } from "../application/use-cases/tron/contract-service.js";
+import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
+import { RegistrationLoader } from "../adapters/outbound/erc8004/registration-loader.js";
+import { AgentService } from "../application/use-cases/agent-service.js";
+import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
+import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
+import { X402Service } from "../application/use-cases/x402-service.js";
+import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
+import { X402HttpServer } from "../adapters/outbound/x402/server.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -52,6 +73,8 @@ export interface BootstrapOptions {
 
 /** Fully wired process-scoped dependencies. No command side effect runs during construction. */
 export function composeCliRuntime(options: BootstrapOptions) {
+  // SDK console logs must not corrupt the CLI result envelope or expose request URLs.
+  setLogger(noopLogger);
   const config = ConfigLoader.load();
   // effective per-invocation RPC/device timeout: --timeout wins over the config default.
   const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
@@ -110,9 +133,45 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
+  const x402Payments = new X402PaymentClient(signerResolver, undefined, undefined, config);
+  const x402Service = new X402Service(
+    x402Payments,
+    new X402ProviderCatalog(undefined, undefined, timeoutMs),
+    networkRegistry,
+    new ManagedX402Server(
+      new X402HttpServer(undefined, timeoutMs, undefined, (line) =>
+        streams.diagnostic("debug", line),
+      ),
+    ),
+  );
+  registerBaiCommands(
+    registry,
+    new BaiService(
+      new BaiClient(config, timeoutMs),
+      () => new Date(),
+      x402Service,
+      new BaiWalletBinding(new MessageService(signerResolver)),
+      new BaiRechargeClient(config, timeoutMs),
+      { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
+      { initialDelayMs: baiReportDelayMs(), wait: delay },
+      gatewayProvider,
+      keystore,
+    ),
+  );
+  const agentContracts = {
+    evm: new EvmContractService(gatewayProvider, txPipeline),
+    tron: new TronContractService(gatewayProvider, txPipeline),
+  };
+  const agents = new AgentService(
+    agentContracts,
+    new SdkAgentRegistry(agentContracts, gatewayProvider),
+    new RegistrationLoader(timeoutMs),
+  );
+  registerX402Commands(registry, x402Service);
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
   registerTronChainCommands(registry, {
+    agents,
     gateways: gatewayProvider,
     tokens: tokenBook,
     prices: priceProvider,
@@ -127,6 +186,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     tokenBook: tokenBookService,
   });
   registerEvmChainCommands(registry, {
+    agents,
     signers: signerResolver,
     gateways: gatewayProvider,
     balances: accountBalances,
@@ -153,6 +213,22 @@ export function composeCliRuntime(options: BootstrapOptions) {
         key,
         summary: CAP_SUMMARIES[key] ?? key,
       }));
+    // Neutral commands are absent from capabilityKeysByFamily; the payment adapter
+    // supports both wallet network families and validates the offered scheme itself.
+    commandCapabilities.push({
+      key: "x402.pay",
+      summary: "Inspect or pay an x402 endpoint using the selected wallet network",
+    });
+    commandCapabilities.push({
+      key: "x402.serve",
+      summary: "Serve a local x402 endpoint; the server validates network token support",
+    });
+    if (baiChain(network)) {
+      commandCapabilities.push({
+        key: "bai.recharge",
+        summary: "Recharge B.AI from a configured payer wallet",
+      });
+    }
     const traits = network.capabilities.map((key) => ({
       key,
       summary: TRAIT_SUMMARIES[key] ?? key,
@@ -187,3 +263,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
 }
 
 export type CliRuntime = ReturnType<typeof composeCliRuntime>;
+
+/** Pause before reporting a fresh recharge payment; tests spawn the real CLI and set this to 0. */
+function baiReportDelayMs(): number {
+  const raw = process.env.WALLET_CLI_BAI_REPORT_DELAY_MS;
+  return raw !== undefined && /^\d{1,7}$/.test(raw) ? Number(raw) : 15_000;
+}

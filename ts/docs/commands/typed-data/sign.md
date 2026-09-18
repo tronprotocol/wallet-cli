@@ -12,7 +12,7 @@ wallet-cli typed-data sign --typed-data <json> [options]
 
 Signs structured (typed) data with the active account's key (or `--account`), and prints the signature, the digest that was signed, and the primary type. Signing only — nothing is broadcast, and no node is contacted.
 
-Works on TRON and EVM: the selected network decides which of the account's keys signs and which address is reported. EIP-712 and TIP-712 are the same construction, so the same payload can be signed for either — the domain inside the payload, not `--network`, is what a verifying contract checks.
+Works on TRON and EVM: the selected network decides which of the account's keys signs and which address is reported. EIP-712 and TIP-712 are the same construction, so the same payload can be signed for either — the domain inside the payload, not `--network`, is what a verifying contract checks. `--network` is optional and falls back to `config.defaultNetwork`.
 
 The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…,"types":…,"primaryType"?:…,"message":…}`. Three conveniences apply when it is parsed:
 
@@ -38,7 +38,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network tron:3448148188
+echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network nile
 ```
 
 ```console
@@ -50,23 +50,23 @@ echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --pass
 ```
 
 ```bash
-echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network tron:3448148188 -o json
+echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network nile -o json
 ```
 
 ```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"typed-data.sign","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","primaryType":"Permit","digest":"0x1e0f...","signature":"0x9f3c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-The same payload signed on an EVM network, with the account's EVM key:
-
-```bash
-echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network eip155:11155111
-```
-
 Ledger account — confirm on device, no master password needed:
 
 ```bash
-wallet-cli typed-data sign --typed-data "$(cat permit.json)" --network tron:3448148188
+wallet-cli typed-data sign --typed-data "$(cat permit.json)" --network nile
+```
+
+The same payload signed on an EVM network, with the account's EVM key:
+
+```bash
+echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network sepolia
 ```
 
 ## Output

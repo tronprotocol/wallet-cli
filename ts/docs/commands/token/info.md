@@ -12,21 +12,23 @@ wallet-cli token info (--contract <address> | --asset-id <id>) [options]
 
 Fetches a token's metadata straight from the chain — a pure RPC read that never touches your accounts. Pass exactly one selector: `--contract` for a contract-based token (TRC20 on TRON, ERC20 on EVM), `--asset-id` for a TRC10 asset.
 
-Contract-token reads (TRC20/ERC20) return normalized metadata. The TRC10 `--asset-id` branch keeps the node record's snake_case keys, but decodes its text fields (`name`, `abbr`, `url`, `description`) to UTF-8 and serializes int64 quantities such as `total_supply` as decimal strings. Do not apply the contract-token field set to a TRC10 response.
+Contract-token reads (TRC20/ERC20) return normalized metadata. The TRC10 `--asset-id` branch is different: it keeps the node record's snake_case keys, decodes its text fields (`name`, `abbr`, `url`, `description`) to UTF-8, and serializes int64 quantities such as `total_supply` as decimal strings. Do not apply the contract-token field set to a TRC10 response.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--contract <string>` | Token contract address — TRC20 on TRON, ERC20 on EVM |
+| `--contract <string>` | Token contract address — TRC20 on TRON, ERC20 on EVM; exactly one of `--contract` / `--asset-id` |
 | `--asset-id <string>` | **TRON only.** TRC10 numeric asset id; exactly one of `--asset-id` / `--contract` |
+
+`--asset-id` is a TRON-only flag: help tags it `(TRON only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
 ```bash
-wallet-cli token info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
+wallet-cli token info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile
 ```
 
 ```console
@@ -36,17 +38,17 @@ Decimals  6
 ```
 
 ```bash
-wallet-cli token info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
+wallet-cli token info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"token.info","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"Tether USD","symbol":"USDT","decimals":6,"totalSupply":"17600000000030000000"},"meta":{"durationMs":690,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"token.info","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","name":"Tether USD","symbol":"USDT","decimals":6,"totalSupply":"17600000000030000000"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 An ERC20 token on an EVM network — no `totalSupply`:
 
 ```bash
-wallet-cli token info --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --network eip155:11155111 -o json
+wallet-cli token info --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --network sepolia -o json
 ```
 
 ```json
@@ -56,7 +58,7 @@ wallet-cli token info --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --ne
 A TRC10 lookup keeps the node's key names while decoding text and preserving quantities exactly:
 
 ```bash
-wallet-cli token info --asset-id 1002000 --network tron:3448148188 -o json
+wallet-cli token info --asset-id 1002000 --network nile -o json
 ```
 
 ```json
@@ -86,9 +88,9 @@ For `--asset-id` (TRC10):
 | `precision` | number? | Asset precision; absent means `0` |
 | `start_time` / `end_time` | number | ICO window, epoch milliseconds |
 | `free_asset_net_limit` / `public_free_asset_net_limit` | number? | Free-bandwidth limits when present |
-| `frozen_supply` | array? | Frozen tranches; each `frozen_amount` is a decimal string and `frozen_days` is a number |
+| `frozen_supply` | array? | Frozen tranches; each `frozen_amount` is a decimal string and `frozen_days` a number |
 
-The TRC10 shape does not contain normalized `contract`, `symbol`, or `decimals` keys.
+The TRC10 shape carries no normalized `contract`, `symbol`, or `decimals` keys.
 
 ## Exit status
 

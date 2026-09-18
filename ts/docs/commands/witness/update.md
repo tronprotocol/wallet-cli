@@ -18,7 +18,7 @@ The acting account must already be a candidate; otherwise the command fails with
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot sign witness contract types. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -40,7 +40,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -54,7 +54,7 @@ echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tro
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness update --url https://sr.acme.io/v2 --network nile --wait --password-stdin -o json
 ```
 
 ```json

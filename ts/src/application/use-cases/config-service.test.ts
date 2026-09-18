@@ -71,7 +71,7 @@ describe("ConfigService TronLink credentials", () => {
     const { svc } = service();
     expect(
       svc.execute({ key: "tronlinkSecretId", value: "TEST" }, effective, networks),
-    ).toMatchObject({ key: "tronlinkSecretId", value: "TEST" });
+    ).toMatchObject({ key: "tronlinkSecretId", value: "********" });
     expect(
       svc.execute({ key: "tronlinkSecretKey", value: "TESTTESTTEST" }, effective, networks),
     ).toMatchObject({ key: "tronlinkSecretKey", value: "********" });
@@ -100,7 +100,7 @@ describe("ConfigService GasFree credentials", () => {
   it("writes the documented flat keys and masks the API secret", () => {
     const { svc } = service();
     expect(svc.execute({ key: "gasfreeApiKey", value: "TEST" }, effective, networks)).toMatchObject(
-      { key: "gasfreeApiKey", value: "TEST" },
+      { key: "gasfreeApiKey", value: "********" },
     );
     expect(
       svc.execute({ key: "gasfreeApiSecret", value: "TESTTESTTEST" }, effective, networks),
@@ -113,6 +113,22 @@ describe("ConfigService GasFree credentials", () => {
     expect(svc.execute({}, configured, networks)).toMatchObject({ gasfreeApiSecret: "********" });
     expect(svc.execute({ key: "gasfreeApiSecret" }, configured, networks)).toEqual({
       key: "gasfreeApiSecret",
+      value: "********",
+    });
+  });
+});
+
+describe("ConfigService B.AI configuration", () => {
+  it("masks the API key in write and read receipts", () => {
+    const { svc } = service();
+    expect(
+      svc.execute({ key: "baiApiKey", value: "bai_test_secret" }, effective, networks),
+    ).toMatchObject({ key: "baiApiKey", value: "********", input: "********" });
+
+    const configured = { ...effective, baiApiKey: "bai_test_secret" };
+    expect(svc.execute({}, configured, networks)).toMatchObject({ baiApiKey: "********" });
+    expect(svc.execute({ key: "baiApiKey" }, configured, networks)).toEqual({
+      key: "baiApiKey",
       value: "********",
     });
   });
@@ -470,4 +486,23 @@ describe("ConfigService writes the API-key pair", () => {
       svc.execute({ key: "networks.nile.chainId", value: "9" }, keyedNetworks, keyedRegistry),
     ).toThrow(/apiKeyHeader/);
   });
+});
+
+it.each([
+  "tronlinkSecretId",
+  "tronlinkSecretKey",
+  "gasfreeApiKey",
+  "gasfreeApiSecret",
+  "baiApiKey",
+])("never echoes %s in config outputs", (key) => {
+  const { svc } = service();
+  const value = "sentinel-secret-123";
+  const configured = { ...effective, [key]: value };
+  for (const result of [
+    svc.execute({}, configured, networks),
+    svc.execute({ key }, configured, networks),
+    svc.execute({ key, value }, configured, networks),
+  ]) {
+    expect(JSON.stringify(result)).not.toContain(value);
+  }
 });

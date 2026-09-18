@@ -382,6 +382,7 @@ export interface TronGateway extends Broadcaster {
     contract: string,
     method: string,
     parameters: TronContractParameter[],
+    callValueSun?: string,
   ): Promise<TronFeeEstimate>;
   buildFreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<UnsignedTx>;
   buildUnfreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<UnsignedTx>;

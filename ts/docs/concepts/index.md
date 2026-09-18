@@ -4,9 +4,9 @@ How the chains and wallet-cli work underneath the commands. Read these once and 
 
 | Concept | What it explains |
 |---|---|
-| [Networks](networks.md) | Canonical network ids, chain families (TRON / EVM), how a command picks a network, and the two fee models |
-| [Accounts and HD wallets](accounts-and-hd.md) | Seeds, derived accounts, one account's address per family, account types, the active account, backup and delete |
-| [Energy and bandwidth](energy-bandwidth.md) | TRON's fee model and why `stake` exists (TRON only) |
+| [Networks](networks.md) | Canonical CAIP-2 network ids and their aliases, the two chain families, how a command picks a network, and the two fee models |
+| [Accounts and HD wallets](accounts-and-hd.md) | Seeds, derived accounts, one address per chain family, account types, the active account, backup and delete |
+| [Energy and bandwidth](energy-bandwidth.md) | TRON's fee model and why `stake` exists |
 | [Security model](security.md) | Key storage, secret handling, recovery, and what remains your responsibility |
 
 Doing rather than understanding? See the [guides](../guide/index.md). Looking up a command? See the [command reference](../commands/index.md).

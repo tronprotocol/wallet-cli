@@ -65,6 +65,30 @@ function typeClosure(
   return Object.fromEntries(Object.entries(types).filter(([name]) => seen.has(name)));
 }
 
+/** The struct names in `types` that no other struct references — the candidate signing roots. */
+function rootTypes(types: Record<string, TypedDataField[]>): string[] {
+  return Object.keys(types).filter((name) => !isReferencedType(types, name));
+}
+
+/**
+ * Resolve which struct a payload is signing: the declared `primaryType`, or — when the caller
+ * omitted it — the struct `types` reaches from nowhere else, PROVIDED there is exactly one such
+ * struct. Returns `undefined` when that root cannot be determined unambiguously (zero roots, e.g.
+ * a cycle with nothing outside it, or more than one candidate), the same condition under which an
+ * encoder handed the bare map would refuse to infer a root.
+ *
+ * Callers that must never silently treat "root unknown" as "no guard needed" — see
+ * `adapters/outbound/x402/signer-bridge.ts` — should refuse rather than proceed when this returns
+ * `undefined`.
+ */
+export function resolvePrimaryType(
+  payload: Pick<TypedDataPayload, "types" | "primaryType">,
+): string | undefined {
+  if (payload.primaryType !== undefined) return payload.primaryType;
+  const roots = rootTypes(payload.types);
+  return roots.length === 1 ? roots[0] : undefined;
+}
+
 /**
  * Validate and canonicalize a caller-supplied typed-data payload.
  * - `EIP712Domain` is dropped from `types`: it describes `domain`, it is not a struct to hash,

@@ -66,6 +66,21 @@ describe("approveRows", () => {
     expect(rows.spender).toBe("TBhCfAytweLuLLL2gr8xxxxxxxxxxxxxxx");
   });
 
+  it("reports an ERC-721 operator and agent ID without reading fungible-token metadata", async () => {
+    const metadata = vi.fn(async () => ({ decimals: 6, symbol: "USDC" }));
+
+    const rows = await approveRows({
+      ...base,
+      approvalKind: "erc721",
+      method: "approve(address,uint256)",
+      params: params("42"),
+      metadata,
+    });
+
+    expect(rows).toEqual({ identity: { operator: SPENDER, agentId: "42" } });
+    expect(metadata).not.toHaveBeenCalled();
+  });
+
   // Spacing is a typing habit, not a different method.
   it("matches the signature regardless of spacing", async () => {
     await expect(

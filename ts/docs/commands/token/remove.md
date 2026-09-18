@@ -18,15 +18,17 @@ Purely local — the token and your balance on-chain are unaffected; only the lo
 
 | Option | Description |
 |---|---|
-| `--contract <string>` | Token contract address to remove — TRC20 on TRON, ERC20 on EVM |
+| `--contract <string>` | Token contract address to remove — TRC20 on TRON, ERC20 on EVM; exactly one of `--contract` / `--asset-id` |
 | `--asset-id <string>` | **TRON only.** TRC10 numeric asset id to remove; exactly one of `--asset-id` / `--contract` |
+
+`--asset-id` is a TRON-only flag: help tags it `(TRON only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
 ```bash
-wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
+wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile
 ```
 
 ```console
@@ -36,7 +38,7 @@ wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network 
 ```
 
 ```bash
-wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
+wallet-cli token remove --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile -o json
 ```
 
 ```json

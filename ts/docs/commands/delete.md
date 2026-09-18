@@ -22,42 +22,55 @@ Plus [global options](index.md).
 
 ## Notes
 
-Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched. Run [`backup`](backup.md) first and follow any warning it reports. Metadata-only — no master password needed.
+Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched. Run [`backup`](backup.md) first and act on any warning it prints. Metadata-only — no master password needed.
+
+**Deleting from an HD wallet that has TRON sub-accounts** (index 1 or higher) always prints a warning, before the confirmation. `delete` cannot tell, without the password, which derivation path created those addresses; if they came from an older version, re-importing the mnemonic will not recreate them. Back up and verify their keys first — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md). The warning does not stop the deletion.
 
 ## Examples
 
-Without `--yes`, deletion prompts for confirmation — you must type the account label exactly:
+Deleting an HD sub-account removes only that account and keeps the seed, so you can `derive` it again. Because the wallet has TRON sub-accounts, the legacy-derivation warning is printed first:
 
 ```bash
-wallet-cli delete solo
+wallet-cli delete main-2 --yes
 ```
 
 ```console
-? Delete solo? Type the exact label "solo" to confirm: solo
-✅ Deleted wallet wlt_p7cg790g
-  Secret removed  yes
+warning: This HD wallet contains TRON sub-accounts. If created with an older derivation path, default mnemonic recovery may not recreate them. Back up and verify their keys before deleting. https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md
+✅ Deleted account wlt_kwyjcwdh.2
+  Secret removed  no
+  New active      wlt_kwyjcwdh.0
 ```
 
-Deleting an HD root cascades to the whole wallet (all derived accounts + keys):
+```bash
+wallet-cli delete main-2 --yes -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"delete","data":{"accountId":"wlt_kwyjcwdh.2","scope":"account","secretRemoved":false,"newActive":"wlt_kwyjcwdh.0"},"meta":{"durationMs":26,"warnings":["This HD wallet contains TRON sub-accounts. If created with an older derivation path, default mnemonic recovery may not recreate them. Back up and verify their keys before deleting. https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md"]}}
+```
+
+Deleting the wallet's root account removes the whole wallet — every derived account and the seed:
 
 ```bash
 wallet-cli delete main --yes
 ```
 
 ```console
-✅ Deleted wallet wlt_teh9fafq
+warning: This HD wallet contains TRON sub-accounts. If created with an older derivation path, default mnemonic recovery may not recreate them. Back up and verify their keys before deleting. https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md
+✅ Deleted wallet wlt_kwyjcwdh
   Secret removed  yes
+  New active      wlt_h10w1nm0
 ```
 
-Deleting a single HD sub-account removes only that account, keeping the seed key (you can `derive` again); the JSON shows the deletion scope, whether the key was removed too, and the account active afterwards:
-
 ```bash
-wallet-cli delete main-1 --yes -o json
+wallet-cli delete main --yes -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"delete","data":{"accountId":"wlt_teh9fafq.1","scope":"account","secretRemoved":false,"newActive":"wlt_teh9fafq.0"},"meta":{"durationMs":14,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"delete","data":{"accountId":"wlt_kwyjcwdh","scope":"wallet","secretRemoved":true,"newActive":"wlt_h10w1nm0"},"meta":{"durationMs":53,"warnings":["This HD wallet contains TRON sub-accounts. If created with an older derivation path, default mnemonic recovery may not recreate them. Back up and verify their keys before deleting. https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md"]}}
 ```
+
+Without `--yes`, the command asks you to type the account's label to confirm, and needs an interactive terminal.
 
 ## Output
 

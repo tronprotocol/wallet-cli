@@ -154,14 +154,14 @@ Participate in the issuance of a TRC10 token.
 - `OwnerAddress` (optional) — the address of the account which initiated the transaction. Default: the address of the login account.
 - `ToAddress` — account address of TRC10 issuers.
 - `AssetID` — TRC10 token ID. Example: 1000001.
-- `Amount` — the number of TRC10 token to transfer.
+- `Amount` — the amount of **TRX you spend**, in SUN. It is *not* the number of tokens you receive: the tokens credited to you are `Amount / TrxNum * AssetNum` at the rate fixed when the token was issued, rounded down to a whole base unit. The TRX is transferred in full, so a truncated remainder is not refunded.
 
 The participation process must happen during the release of TRC10, otherwise an error may occur.
 
 Example:
 
 ```console
-> ParticipateAssetIssue TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 1000001 1000
+> ParticipateAssetIssue TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 1000001 1000  # spend 1000 SUN
 > getaccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  # View remaining balance
 {
   "address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
@@ -174,6 +174,8 @@ Example:
   ]
 }
 ```
+
+The 1000 SUN spent above buys 1000 base units only because this token was issued at a rate of `TrxNum` 1 : `AssetNum` 1. At a rate of `TrxNum` 2 : `AssetNum` 1, the same 1000 SUN would credit 500. Query the rate with [`getAssetIssueById`](#how-to-obtain-trc10-token-information) before participating.
 
 ### ListAssetIssuePaginated
 

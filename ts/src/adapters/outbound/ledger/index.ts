@@ -13,6 +13,7 @@
  * This module never prints; callers print waiting prompts via StreamManager.
  */
 import { utils as tronUtils } from "tronweb";
+import { createHash } from "node:crypto";
 import { Transaction, TypedDataEncoder, type TransactionLike } from "ethers";
 import { assertTronTxIntegrity } from "../chain/tron/tx-integrity.js";
 import type {
@@ -42,6 +43,7 @@ interface TrxApp {
   getAddress(path: string, display?: boolean): Promise<{ publicKey: string; address: string }>;
   getAppConfiguration(): Promise<{ version: string }>;
   signTransaction(path: string, rawTxHex: string, tokenSignatures: string[]): Promise<string>;
+  signTransactionHash?(path: string, rawTxHashHex: string): Promise<string>;
   signPersonalMessage(path: string, messageHex: string): Promise<string>;
   signTIP712HashedMessage?(
     path: string,
@@ -102,6 +104,20 @@ function joinVrs(sig: { v: number | string; r: string; s: string }): string {
   const parity = raw < 27n ? raw & 1n : raw >= 35n ? (raw - 35n) & 1n : (raw - 27n) & 1n;
   const v = (27n + parity).toString(16);
   return `0x${sig.r.replace(/^0x/, "")}${sig.s.replace(/^0x/, "")}${v.padStart(2, "0")}`;
+}
+
+/** TRON's TIP-712 APDU returns parity (0/1); contract ecrecover expects 27/28.
+ * Keep this separate from raw TRON transaction signatures, whose wire format is unchanged. */
+function normalizeTronTypedSignature(signature: string): string {
+  if (!/^[0-9a-fA-F]{128}(?:00|01|1[bBcC])$/.test(signature)) {
+    throw new ExecutionError(
+      "encoding_error",
+      "Ledger returned an invalid TIP-712 signature encoding",
+    );
+  }
+  const recovery = Number.parseInt(signature.slice(128), 16);
+  const v = recovery < 2 ? recovery + 27 : recovery;
+  return `0x${signature.slice(0, 128)}${v.toString(16)}`;
 }
 
 /** hw-app-trx wants a BIP32 path WITHOUT the leading "m/" (e.g. 44'/195'/0'/0/0). */
@@ -287,6 +303,7 @@ export class Ledger {
     path: string,
     tx: UnsignedTx,
     signal?: AbortSignal,
+    options?: { onWarning?: (message: string) => void },
   ): Promise<SignedTx> {
     this.assertWired(family);
     if (family === "evm") return this.#signEvmTransaction(path, tx, signal);
@@ -307,7 +324,35 @@ export class Ledger {
       return await this.#bound<TrxApp, SignedTx>(
         family,
         async (trx) => {
-          const signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
+          let signature: string;
+          try {
+            signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
+          } catch (error) {
+            // hw-app-trx throws this while packing protobuf fields, before sending any APDU.
+            // Never retry a device rejection, transport failure, or cancelled operation as a hash.
+            if (
+              !(error instanceof Error) ||
+              error.message !== "Too many bytes to encode." ||
+              (error as { statusCode?: number }).statusCode !== undefined ||
+              signal?.aborted
+            ) {
+              throw error;
+            }
+            if (typeof trx.signTransactionHash !== "function") {
+              throw new WalletError(
+                "ledger_unsupported",
+                "this Ledger SDK cannot sign TRON transaction hashes",
+              );
+            }
+            options?.onWarning?.(
+              "Ledger transaction data exceeds the SDK field-size limit; falling back to hash signing. The device cannot display the URI or full transaction details. Verify the transaction on this computer before approving its hash.",
+            );
+            // Recompute from the bytes after the same integrity checks as full transaction signing.
+            const hash = createHash("sha256")
+              .update(Buffer.from(rawTxHex.replace(/^0x/, ""), "hex"))
+              .digest("hex");
+            signature = await trx.signTransactionHash(ledgerPath(path), hash);
+          }
           return {
             ...(tx as object),
             signature: prior.includes(signature) ? prior : [...prior, signature],
@@ -389,7 +434,7 @@ export class Ledger {
             domainHash,
             messageHash,
           );
-          return { signature: `0x${signature}`, digest, primaryType };
+          return { signature: normalizeTronTypedSignature(signature), digest, primaryType };
         },
         signal,
       );

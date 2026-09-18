@@ -33,7 +33,7 @@ import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 interface JsonRpcResponse {
   result?: unknown;
-  error?: { code: number; message: string };
+  error?: { code: number; message: string; data?: unknown };
 }
 
 export class EvmRpcClient implements EvmGateway {
@@ -564,7 +564,12 @@ export class EvmRpcClient implements EvmGateway {
         // told the reader what kind of problem it was and nothing about theirs. The category
         // stays first (scannable, stable, translatable); the node's wording stays visible after
         // it. `details.nodeMessage` is kept unchanged for machine readers.
-        throw new ChainError(known.code, `${known.message}: ${message}`, { nodeMessage: message });
+        throw new ChainError(known.code, `${known.message}: ${message}`, {
+          nodeMessage: message,
+          ...(typeof body.error.data === "string" && /^0x[0-9a-f]+$/i.test(body.error.data)
+            ? { revertData: body.error.data }
+            : {}),
+        });
       }
       throw new ChainError("rpc_error", `${method} failed: ${message}`);
     }

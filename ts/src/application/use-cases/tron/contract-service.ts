@@ -1,3 +1,4 @@
+import { currentTronEnergyPrice } from "../../../domain/amounts/tron-energy-price.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -19,7 +20,7 @@ import {
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import { fromBaseUnits } from "../../../domain/amounts/index.js";
-import { approveRows } from "../../services/approve-receipt.js";
+import { approveRows, type ApprovalKind } from "../../services/approve-receipt.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronContractService {
@@ -49,6 +50,8 @@ export class TronContractService {
     input: GovernanceTransactionInput & {
       contract: string;
       method: string;
+      /** disambiguates standards that share a write signature. */
+      approvalKind?: ApprovalKind;
       parameters: TronContractParameter[];
       callValueSun: string;
       feeLimit: string;
@@ -62,6 +65,7 @@ export class TronContractService {
     const approval = await approveRows({
       method: input.method,
       params: input.parameters,
+      approvalKind: input.approvalKind,
       metadata: () =>
         gateway.getTokenInfo(input.contract).then((info) => ({
           decimals: info.decimals ?? info.precision,
@@ -78,7 +82,7 @@ export class TronContractService {
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
-      confirm: tronConfirmation(gateway, scope),
+      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       build: async (from) =>
         gateway.triggerSmartContract(from, input.contract, input.method, input.parameters, {
           feeLimit: input.feeLimit,
@@ -91,6 +95,7 @@ export class TronContractService {
           input.contract,
           input.method,
           input.parameters,
+          input.callValueSun,
         );
         warnIfFeeLimitLikelyInsufficient(scope, input.feeLimit, estimate);
         return estimate;
@@ -139,7 +144,7 @@ export class TronContractService {
         return prepared;
       },
       signerOptions: { requireSoftware: true },
-      confirm: tronConfirmation(gateway, scope),
+      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       build: (from) => gateway.deployContract(from, input),
       estimate: async () => ({
         feeModel: "tron-resource",
@@ -256,7 +261,7 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
-      confirm: tronConfirmation(gateway, scope),
+      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       ...tronTransactionHooks(gateway),
       build: async (address) => await build(gateway, address),
       estimate: async (_tx: UnsignedTx) => ({
@@ -315,7 +320,6 @@ function positiveInteger(value: unknown): bigint | undefined {
 }
 
 function currentEnergyPrice(value: unknown): bigint | undefined {
-  if (typeof value !== "string") return undefined;
-  const latest = value.split(",").at(-1)?.split(":");
-  return latest?.length === 2 ? positiveInteger(latest[1]) : undefined;
+  const price = currentTronEnergyPrice(value);
+  return price === undefined ? undefined : BigInt(price);
 }

@@ -72,3 +72,10 @@ describe("parseTronTx", () => {
     expect(parseTronTx("boom").ret).toBeUndefined();
   });
 });
+
+// A numeric receipt.result must not be coerced away into "no result": a present-but-unexpected
+// value is evidence the call did not report SUCCESS, and dropping it turned it into a success.
+it("parseTronTxInfo keeps a numeric receipt.result as a string", () => {
+  const info = parseTronTxInfo({ blockNumber: 1, receipt: { result: 17 } });
+  expect(info.receipt?.result).toBe("17");
+});

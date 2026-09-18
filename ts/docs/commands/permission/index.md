@@ -4,7 +4,7 @@ View and update account permissions — the basis of TRON multi-sig.
 
 `show` is the read-only query to run before you touch anything; `update` replaces the whole permission structure in one on-chain transaction (and burns 100 TRX).
 
-**TRON only.** The multi-key permission model is a TRON protocol feature; both subcommands fail with `family_mismatch` on an EVM network.
+> **TRON only.** Every command in this group implements a TRON protocol feature with no EVM counterpart; on an EVM network they fail with `family_mismatch` before any node call.
 
 ## Synopsis
 
