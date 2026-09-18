@@ -1,4 +1,9 @@
-import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import {
+  CliError,
+  ExecutionError,
+  TransportError,
+  UsageError,
+} from "../../../domain/errors/index.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
 const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
@@ -157,7 +162,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
   // payment exists. A deterministic policy refusal, not an upstream fault: keep it typed.
   if (/^All payment requirements were rejected by spendControls/.test(cause)) {
     const overLimit = cause.includes("maxAmountPerPayment");
-    return new UsageError(
+    return new ExecutionError(
       overLimit ? "amount_exceeds_limit" : "no_matching_requirement",
       overLimit
         ? "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount or --max-raw-amount to authorize it"
