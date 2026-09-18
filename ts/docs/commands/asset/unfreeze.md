@@ -22,7 +22,7 @@ This is unrelated to [`stake unfreeze`](../stake/unfreeze.md), which releases st
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign TRC10 issuance contract types. Ledger accounts may dry-run or build unsigned hex, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot sign TRC10 issuance contract types. A Ledger account can dry-run or build unsigned hex; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -34,7 +34,7 @@ This command has no options of its own.
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
@@ -45,13 +45,13 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli asset unfreeze --network nile --wait --password-stdin
 ```
 
 ```console
 ✅ Frozen supply released
   Asset         MyToken  (id 1000123)
-  Issuer        TQkXm4vN...5Zt7Uw
+  Issuer        TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
   Released      100,000,000 MyToken
   Still frozen  50,000,000 MyToken
   TxID          6a5...
@@ -61,11 +61,11 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --passwo
 ```
 
 ```bash
-echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli asset unfreeze --network nile --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"asset.unfreeze","data":{"kind":"asset-unfreeze","stage":"confirmed","txId":"6a5...","confirmed":true,"blockNumber":57883560,"feeSun":0,"netUsed":288,"netFeeSun":0,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TQkXm4vN...","releasedAmount":"100000000000000","stillFrozenAmount":"50000000000000","precision":6},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"asset.unfreeze","data":{"kind":"asset-unfreeze","stage":"confirmed","txId":"6a5...","confirmed":true,"blockNumber":57883560,"failed":false,"assetId":"1000123","name":"MyToken","issuerAddress":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","releasedAmount":"100000000000000","stillFrozenAmount":"50000000000000","precision":6,"feeSun":0,"netUsed":288,"netFeeSun":0},"meta":{"durationMs":6410,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -77,7 +77,7 @@ echo "$PW" | wallet-cli asset unfreeze --network tron:3448148188 --wait --passwo
 | default (submit) | `kind: "asset-unfreeze"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `precision`, and `releasedAmount` / `stillFrozenAmount` — present here too, but as the amounts this command *intends* to release |
 | `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed`; `releasedAmount` is then taken from the receipt |
 
-`releasedAmount` and `stillFrozenAmount` are raw decimal strings (smallest unit); `precision` is included for scaling. Both are always present — before confirmation they are this command's own computation from the asset's frozen tranches, and only the confirmed `releasedAmount` is the receipt's number.
+`releasedAmount` and `stillFrozenAmount` are raw decimal strings (smallest unit), with `precision` for scaling. Both are always present: before confirmation they are this command's own computation from the asset's frozen tranches, and only the confirmed `releasedAmount` is the receipt's number.
 
 ## Exit status
 

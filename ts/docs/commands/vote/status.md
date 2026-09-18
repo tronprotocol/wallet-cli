@@ -13,7 +13,7 @@ wallet-cli vote status [options]
 One read-only screen for the stake → vote → reward loop: your current vote distribution and each SR's reward ratio, your voting power (total / used / available TP), and the currently claimable reward.
 
 - **Voting power (TP)** — total = staked TRX; used = votes placed; available = total − used.
-- **APR / Reward ratio** — reward ratio is read on-chain. `aprPct` is reserved and always `null` because the current implementation has no APR provider. An SR can change its ratio at any time (on-chain UpdateBrokerage) — votes placed at 80% silently stop earning if it drops to 0%.
+- **APR / Reward ratio** — same semantics as [`vote list`](list.md); APR is reserved and always shows `—`. Worth re-checking: an SR can change its ratio at any time (on-chain UpdateBrokerage) — votes placed at 80% silently stop earning if it drops to 0%.
 - **0% warning** — if any votes sit on an SR with a 0% reward ratio, text output appends a `!` line and json adds a plain-string entry to `meta.warnings`, one per affected SR.
 - **Claimable** — same source as [`reward balance`](../reward/balance.md); claim with [`reward withdraw`](../reward/withdraw.md).
 
@@ -24,24 +24,24 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli vote status --account main --network tron:3448148188
+wallet-cli vote status --account main --network nile
 ```
 
 ```console
-Label         main
-Voting power  1,500 TP  (used 1,000 / available 500)
-Claimable     12.345678 TRX
+Label           main
+Voting power    1,500 TP  (used 1,000 / available 500)
+Claimable       12.345678 TRX
 
 Current votes (2)
 | Name         | Votes | APR | Reward ratio | Address                            |
 | ------------ | ----- | --- | ------------ | ---------------------------------- |
 | tronscan.org | 600   | —   | 80%          | TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g |
-| binance.com  | 400   | —   | 0%           | TT5W8MPbYJih9R586kTszb4LoybzUvCYm2 |
+| binance.com  | 400   | —   | 0%           | TNXpQ9nzSJ3bVbmmd4VPhfgHirti3vMFmq |
 ! 400 votes on binance.com earn nothing — 0% reward ratio
 ```
 
 ```bash
-wallet-cli vote status --account main --network tron:3448148188 -o json
+wallet-cli vote status --account main --network nile -o json
 ```
 
 ```json

@@ -30,7 +30,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli exchange list --limit 3 --network tron:3448148188
+wallet-cli exchange list --limit 3 --network nile
 ```
 
 ```console
@@ -43,7 +43,7 @@ Exchanges (limit 3, offset 0)
 ```
 
 ```bash
-wallet-cli exchange list --limit 3 --network tron:3448148188 -o json
+wallet-cli exchange list --limit 3 --network nile -o json
 ```
 
 ```json

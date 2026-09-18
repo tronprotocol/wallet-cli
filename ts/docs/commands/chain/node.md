@@ -23,7 +23,7 @@ No command-specific options; the [global options](../index.md#global-options-eve
 ## Examples
 
 ```bash
-wallet-cli chain node --network tron:3448148188
+wallet-cli chain node --network nile
 ```
 
 ```console
@@ -35,7 +35,7 @@ Peers        60 connected / 3 active
 ```
 
 ```bash
-wallet-cli chain node --network tron:3448148188 -o json
+wallet-cli chain node --network nile -o json
 ```
 
 ```json
@@ -45,7 +45,7 @@ wallet-cli chain node --network tron:3448148188 -o json
 On an EVM network, with the chain id and the node's own syncing flag added:
 
 ```bash
-wallet-cli chain node --network eip155:11155111
+wallet-cli chain node --network sepolia
 ```
 
 ```console
@@ -56,6 +56,10 @@ Head block   #11,576,632  2026-08-27 08:16:00 (~6s ago — in sync)
 Solid block  #11,576,563  (69 blocks behind head)
 Syncing      no
 Peers        25 connected / 25 active
+```
+
+```bash
+wallet-cli chain node --network sepolia -o json
 ```
 
 ```json
@@ -73,7 +77,7 @@ Peers        25 connected / 25 active
 | `headBlock` | object | Latest block `{number, timestamp}` |
 | `solidBlock` | object \| null | Solidified block on TRON, the finalized block on EVM — `{number}` |
 | `lagBlocks` | number \| null | Head − solid block gap |
-| `inSync` | boolean \| null | Whether the node is caught up. On TRON: the head block is fresh (within 3 block intervals, i.e. ≤ 9 s). On EVM: the node's own `eth_syncing` answer, inverted — `null` when it could not be read, which is not the same as out of sync |
+| `inSync` | boolean \| null | Whether the node is caught up. TRON: the head block is fresh (within 3 block intervals, i.e. ≤ 9 s). EVM: the node's own `eth_syncing` answer, inverted — `null` when it could not be read, which is not the same as out of sync |
 | `peers` | object \| null | `{connected, active}`; `null` when the endpoint hides it. EVM reports one peer count, so both fields carry it |
 
 ## Exit status

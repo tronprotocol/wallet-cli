@@ -50,7 +50,7 @@ Capital injection. When conducting a capital injection, depending on its quantit
 - `OwnerAddress` (optional) — the address of the account which initiated the transaction. Default: the address of the login account.
 - `exchange_id` — ID of the trading pair.
 - `token_id`, `quant` — the ID and quantity of tokens being exchanged, equivalent to selling.
-- `expected` — expected quantity of another token. `expected` must be less than `quant`, or an error will be reported.
+- `expected` — the **minimum quantity of the other token** you are willing to receive, in that token's base unit. It is a slippage floor, not a price: the chain computes the real output along the pair's bonding curve and rejects the transaction if it would come out below `expected`. It is denominated in a different token than `quant`, so the two are not comparable — `expected` is not required to be smaller than `quant`. It must be greater than 0.
 
 Example:
 
@@ -58,7 +58,7 @@ Example:
 > ExchangeTransaction 1 1000001 100 80
 ```
 
-It is expected to acquire 80 TRX by exchanging 1000001 from the trading pair with ID 1, and the amount is 100. (Equivalent to selling an amount of 100 tokenID - 1000001, at a price of 80 TRX, in trading pair ID - 1.)
+Sells 100 base units of token 1000001 into trading pair 1, and requires at least 80 base units of the pair's other token in return. If the curve would return less than 80 at that moment, the transaction fails and nothing is sold. The `80` is a floor on the amount received, not a price.
 
 ## ExchangeWithdraw
 

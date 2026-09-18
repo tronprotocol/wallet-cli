@@ -15,7 +15,7 @@ Cancels **every** unstake still in its waiting period and rolls those amounts ba
 
 **By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -25,7 +25,7 @@ The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. Ledger accounts may dry-r
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -38,18 +38,18 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin
 ```
 
 ```console
 ⏳ Cancelled pending unstakes
   TxID    9ec...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:3448148188 --txid 9ec...
+! Track it: wallet-cli tx info --network nile --txid 9ec...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin -o json
 ```
 
 ```json
@@ -59,7 +59,7 @@ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --passwo
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --wait --password-stdin
 ```
 
 ```console

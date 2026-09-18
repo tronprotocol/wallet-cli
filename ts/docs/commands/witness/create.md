@@ -20,7 +20,7 @@ The account must already be activated and hold at least the registration fee. `-
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot sign witness contract types. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -31,7 +31,7 @@ The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
@@ -42,7 +42,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile --wait --password-stdin
 ```
 
 ```console
@@ -56,11 +56,11 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:3
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile --wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"witness.create","data":{"kind":"witness-create","stage":"confirmed","txId":"d3a...","confirmed":true,"blockNumber":57881020,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io","feeSun":"9999000000","energyUsed":0,"netUsed":285,"energyFeeSun":0,"netFeeSun":0,"registrationFeeSun":"9999000000","resource":{"netUsage":285,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0}},"meta":{"durationMs":6620,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"witness.create","data":{"kind":"witness-create","stage":"confirmed","txId":"d3a...","confirmed":true,"blockNumber":57881020,"failed":false,"witnessAddress":"TSRmq8kP...","url":"https://sr.acme.io","feeSun":"9999000000","energyUsed":0,"netUsed":285,"energyFeeSun":0,"netFeeSun":0,"resource":{"netUsage":285,"netFeeSun":0,"energyUsage":0,"energyFeeSun":0},"registrationFeeSun":"9999000000"},"meta":{"durationMs":6620,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -70,9 +70,9 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network tron:3
 | Stage | Fields |
 |---|---|
 | default (submit) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url`, `feeSun`, and `registrationFeeSun` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), `failed`, and `registrationFeeSun` |
+| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed`, and `registrationFeeSun` |
 
-`registrationFeeSun` and `feeSun` are decimal strings containing the same irreversible registration burn. The command deliberately overwrites the node receipt's bandwidth/energy fee with that economically relevant amount; do not add the two fields together.
+`registrationFeeSun` and `feeSun` are decimal strings carrying the same irreversible registration burn. The command deliberately overwrites the node receipt's bandwidth/energy fee with that economically relevant amount, so do not add the two together.
 
 ## Exit status
 

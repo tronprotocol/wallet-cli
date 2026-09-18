@@ -31,7 +31,7 @@ Votes take effect at the next maintenance cycle (~6 h). Each vote uses 1 TP (it 
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
@@ -44,7 +44,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — broadcasts and returns the **submitted** receipt without waiting:
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --password-stdin
 ```
 
 ```console
@@ -56,7 +56,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 ```
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -66,7 +66,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 Add `--wait` to block until the vote is confirmed on chain (adds real block / fee):
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -89,7 +89,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network tr
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — total exceeds the account's **total** TP (votes already placed are re-allocated, not added, so the check is against total, not available); `invalid_value` — bad SR address, non-positive count, > 30 entries).
+`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — the total exceeds the account's **total** TP; votes already placed are re-allocated rather than added, so the check is against total, not available; `invalid_value` — bad SR address, non-positive count, > 30 entries).
 
 ## See also
 

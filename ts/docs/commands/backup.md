@@ -18,16 +18,19 @@ Two formats:
 - **Native** — the wallet's own backup JSON. A seed account exports its recovery phrase, so the whole seed moves with it.
 - **`--keystore`** — a standard Web3 keystore JSON, importable by TronLink and others, encrypted with **your master password**. A keystore holds a **single private key**: an HD account exports only its current derived key, and that key arrives elsewhere as a standalone account with nothing derivable from it. Use the native format to move a seed.
 
-In a fully interactive terminal, omitting `--keystore` opens a format selector before the password prompt. Commands using `--password-stdin`, and other non-interactive invocations, keep native as the default so scripts never stop for this choice.
+Without `--keystore`, a fully interactive terminal asks which format to write, before the password prompt:
 
-The native export may warn that some stored accounts need a separate `--keystore` export. Follow
-that warning before deleting anything; see [Recover addresses after
-`legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+```console
+? Backup format (Up/Down, Enter)
+> Native wallet backup (recovery phrase for the whole HD wallet)
+  Web3 keystore (single TRON private key)
+```
 
-The warning means this version's default mnemonic import and derive flow will not recreate those
-TRON addresses. The recovery phrase can still derive their keys at the listed legacy paths.
+When the password comes from `--password-stdin`, or the run is otherwise non-interactive, there is no prompt and the native format is written.
 
-**A keystore also holds one key per *family*.** A seed account derives a different key for TRON (coin type 195) and for EVM (coin type 60), and a keystore can carry only one of them, so `--network` selects which — falling back to `config.defaultNetwork` when omitted. The receipt names the family that was written, and the export log records it. A private-key account has a single key and ignores the selection; the native backup covers every family at once, so it needs no choice and reports none.
+A native backup of a wallet created before 4.13.1 can print a warning: some of its TRON accounts use an old path that importing the recovery phrase will not bring back. The warning names each account and the `--keystore` command that saves its key. Run those before deleting the wallet — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+
+A seed derives a different key per chain family, and a keystore carries only one of them, so `--network` selects which family's key is written — falling back to `config.defaultNetwork` when omitted. The receipt names the family it wrote, and so does the export log. A private-key account has one key and ignores the selection; the native format covers every family at once, so it needs no choice and reports none.
 
 **Files land in the current working directory** by default — `./<accountId>-<timestamp>.json`, or `./<accountId>-<timestamp>.keystore.json` with `--keystore`. `--out` overrides the path.
 
@@ -49,10 +52,9 @@ The positional account is the exception: it means different things in the two fo
 | Option | Description |
 |---|---|
 | `<account>` | Account to export, by accountId, label, or address. Required unless `--records`; **with** `--records` it filters the log instead, like `--account` |
-| `--keystore` | Export as a standard Web3 keystore instead of the native format. Omit in a fully interactive terminal to choose |
+| `--keystore` | Export as a standard Web3 keystore instead of the native format. Omit it in an interactive terminal to choose from a prompt |
 | `--out <path>` | Output file path; mode 0600, never overwritten (default: the current directory, see above) |
 | `--password-stdin` | Master password from stdin (fd 0) |
-| `--network <id>` | With `--keystore`, which family's key to export (`tron:3448148188` → the TRON key, `eip155:1` → the EVM key). No node is contacted |
 
 With `--records`, instead of an account:
 
@@ -71,35 +73,43 @@ Plus the [global options](index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
-Native export of a seed account — the recovery phrase:
+Native export of a seed account — the recovery phrase, written to the current directory:
 
 ```bash
 printf '%s' "$PW" | wallet-cli backup main --password-stdin
 ```
 
 ```console
-⚠️ Backup written /home/you/wlt_d1qbj2fb.0-1783751611076.json
-  Account ID  wlt_d1qbj2fb.0
+⚠️ Backup written /home/you/wlt_kwyjcwdh.0-1789571843395.json
+  Account ID  wlt_kwyjcwdh.0
   Secret      recovery phrase
   File mode   0600
-  Bytes       277
+  Bytes       325
 
 ⚠️ Secret material was written only to the backup file, never to stdout.
 ```
 
-As a keystore instead — a single private key:
+```bash
+printf '%s' "$PW" | wallet-cli backup main --password-stdin -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_kwyjcwdh.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa","evm":"0xeb0a0D15e3B8f6E2FC4bc011Eb6644f1ce3E4fa2"},"seedId":"wlt_kwyjcwdh","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"secretType":"mnemonic","format":"native","out":"/home/you/wlt_kwyjcwdh.0-1789571843395.json","fileMode":"0600","bytes":325},"meta":{"durationMs":2187,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+```
+
+As a keystore instead — a single private key, here the TRON one of the default network:
 
 ```bash
-printf '%s' "$PW" | wallet-cli backup main --keystore --password-stdin
+printf '%s' "$PW" | wallet-cli backup main --keystore --out ./main.keystore.json --password-stdin
 ```
 
 ```console
-⚠️ Keystore written /home/you/wlt_d1qbj2fb.0-1785930000.keystore.json
-  Account ID  wlt_d1qbj2fb.0
+⚠️ Keystore written /home/you/main.keystore.json
+  Account ID  wlt_kwyjcwdh.0
   Family      tron
   Secret      private key
   File mode   0600
-  Bytes       491
+  Bytes       608
 
 ⚠️ Secret material was written only to the keystore file, never to stdout.
 ```
@@ -109,22 +119,22 @@ printf '%s' "$PW" | wallet-cli backup main --keystore --out ./main.keystore.json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_d1qbj2fb.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TQkXm4vN...5Zt7Uw","evm":"0x86B3D0f2...f4106"},"seedId":"wlt_d1qbj2fb","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"/home/you/main.keystore.json","fileMode":"0600","bytes":491},"meta":{"durationMs":1420,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup","data":{"accountId":"wlt_kwyjcwdh.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa","evm":"0xeb0a0D15e3B8f6E2FC4bc011Eb6644f1ce3E4fa2"},"seedId":"wlt_kwyjcwdh","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"},"family":"tron","secretType":"privateKey","format":"keystore","out":"/home/you/main.keystore.json","fileMode":"0600","bytes":608},"meta":{"durationMs":1858,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
-The audit log:
+The audit log of past exports, newest first:
 
 ```bash
 wallet-cli backup --records --limit 3
 ```
 
 ```console
-Backup records (showing 3 of 12)
-| Time (UTC)       | Exported account         | Operation         | File                                              |
-| ---------------- | ------------------------ | ----------------- | ------------------------------------------------- |
-| 2026-08-05 11:40 | TQkXm4vN...5Zt7Uw (main) | backup --keystore | /home/you/wlt_d1qbj2fb.0-1785930000.keystore.json |
-| 2026-08-04 09:12 | TQkXm4vN...5Zt7Uw (main) | backup            | /home/you/wlt_d1qbj2fb.0-1785834720.json          |
-| 2026-07-30 22:03 | TBeta9mR...8pLx          | backup            | /home/you/tbeta-seed.json                         |
+Backup records (showing 3 of 4)
+| Time (UTC)       | Exported account             | Operation         | File                                        |
+| ---------------- | ---------------------------- | ----------------- | ------------------------------------------- |
+| 2026-09-16 15:17 | TEKbsrcsL7...ok78dtTa (main) | backup --keystore | /home/you/main-2.keystore.json              |
+| 2026-09-16 15:17 | TEKbsrcsL7...ok78dtTa (main) | backup --keystore | /home/you/main.keystore.json                |
+| 2026-09-16 15:17 | TEKbsrcsL7...ok78dtTa (main) | backup            | /home/you/wlt_kwyjcwdh.0-1789571843395.json |
 ```
 
 ```bash
@@ -132,12 +142,12 @@ wallet-cli backup --records --limit 3 -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","family":"tron","label":"main","out":"/home/you/wlt_d1qbj2fb.0-1785930000.keystore.json","timestamp":"2026-08-05T11:40:00Z"},{"operation":"backup","accountId":"wlt_d1qbj2fb.0","account":"TQkXm4vN...5Zt7Uw","label":"main","out":"/home/you/wlt_d1qbj2fb.0-1785834720.json","timestamp":"2026-08-04T09:12:00Z"},{"operation":"backup","accountId":"wlt_9x3k2m7p.0","account":"TBeta9mR...8pLx","label":null,"out":"/home/you/tbeta-seed.json","timestamp":"2026-07-30T22:03:00Z"}]},"meta":{"durationMs":8,"warnings":[],"pagination":{"offset":0,"limit":3,"total":12}},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"backup.records","data":{"records":[{"operation":"backup --keystore","accountId":"wlt_kwyjcwdh.0","account":"TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa","family":"tron","label":"main","out":"/home/you/main-2.keystore.json","timestamp":"2026-09-16T15:17:27Z"},{"operation":"backup --keystore","accountId":"wlt_kwyjcwdh.0","account":"TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa","family":"tron","label":"main","out":"/home/you/main.keystore.json","timestamp":"2026-09-16T15:17:25Z"},{"operation":"backup","accountId":"wlt_kwyjcwdh.0","account":"TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa","label":"main","out":"/home/you/wlt_kwyjcwdh.0-1789571843395.json","timestamp":"2026-09-16T15:17:23Z"}]},"meta":{"durationMs":17,"warnings":[],"pagination":{"offset":0,"limit":3,"total":4}},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
 
-Both forms are local and contact no node, but `backup` has an optional network display selector: the selected or default network chooses which family `--keystore` exports. The result therefore includes a `chain` block, including for `--records`. The forms carry different `command` ids: `backup` for an export, `backup.records` for the log.
+Both forms are local and contact no node, but `backup` has an optional network display selector: the selected or default network decides which family `--keystore` exports. The envelope therefore carries a `chain` block, `--records` included. The two forms carry different `command` ids: `backup` for an export, `backup.records` for the log.
 
 `data` for an export is the account plus the file's details:
 
@@ -148,12 +158,12 @@ Both forms are local and contact no node, but `backup` has an optional network d
 | `type` | string | Account type (exportable: `seed` / `privateKey`) |
 | `index` | number \| null | HD derivation index; `null` for private-key accounts |
 | `active` | boolean | Whether it is the active account |
-| `addresses` | object | One entry per family the account can produce: `tron` and/or `evm` |
-| `derivationPath` | object \| null | The verified BIP44 path behind each address. A seed backup unlocks the seed and reports every family's actual path, including the pre-4.13.1 TRON path for a stranded account; a private-key account reports `null` |
-| `family` | string | With `--keystore`, which family's key was written; absent for a native backup, which covers every family |
+| `addresses` | object | One entry per family the account can produce: `tron` (base58) and/or `evm` (`0x`) |
 | `seedId` | string | Owning seed wallet id (`seed` accounts only) |
+| `derivationPath` | object \| null | The verified path behind each address, read from the seed — for an old account this is the pre-4.13.1 TRON path it actually uses. `null` for a private-key account |
+| `family` | string | With `--keystore`, whose family's key was written; absent for a native backup, which covers every family |
 | `secretType` | string | Kind of exported secret — `mnemonic`, or `privateKey` with `--keystore` |
-| `format` | string | `keystore` when `--keystore` was used |
+| `format` | string | `native` or `keystore` |
 | `out` | string | **Absolute** path written — a relative `--out` is resolved against the working directory before it is reported |
 | `fileMode` | string | File permissions, always `0600` |
 | `bytes` | number | File size in bytes |
@@ -163,6 +173,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 | Field | Type | Meaning |
 |---|---|---|
 | `operation` | string | `backup` or `backup --keystore` |
+| `family` | string | For `backup --keystore`, whose family's key was exported; absent for a native backup |
 | `accountId` / `account` / `label` | string \| null | The account whose secret was exported; `label` is `null` when unset |
 | `out` | string | File the secret went to, as an **absolute** path |
 | `timestamp` | string | Export time, UTC |
@@ -171,7 +182,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 
 ## Exit status
 
-`0` success · `1` execution failure (`account_not_found` — no such account; `not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
+`0` success · `1` execution failure (`not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`account_not_found` — no such account; `output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
 
 ## See also
 

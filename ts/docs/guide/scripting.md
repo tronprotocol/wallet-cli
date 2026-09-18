@@ -8,6 +8,9 @@ Before hard-coding anything, ask the CLI what it supports. One call returns ever
 
 ```bash
 wallet-cli --json-schema | jq '.commands[] | select(.id == "tx.send") | {families, examples}'
+```
+
+```bash
 wallet-cli --json-schema | jq '.errorCodes'
 ```
 
@@ -25,7 +28,7 @@ wallet-cli account balance --network tron:3448148188 -o json
 {"schema":"wallet-cli.result.v1","success":true,"command":"account.balance","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","balance":"1976489000","decimals":6,"symbol":"TRX"},"meta":{"durationMs":1114,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-**2. Check the exit code, then `error.code`.** `0` success, `1` runtime failure, `2` you built the command wrong. Two of the exit-`2` codes are worth handling by name when a script switches networks: `family_mismatch` (this command or account does not belong to the selected network's chain) and `invalid_option` (a flag that belongs to the other family):
+**2. Check the exit code, then `error.code`.** `0` success, `1` runtime failure, `2` you built the command wrong. Two of the exit-`2` codes are worth handling by name when a script switches networks: `family_mismatch` (this command or account does not belong to the selected network's chain family) and `invalid_option` (a flag that belongs to the other family):
 
 ```bash
 if out=$(wallet-cli account balance --network tron:3448148188 -o json); then
@@ -35,14 +38,14 @@ else
 fi
 ```
 
-**3. Secrets via stdin, never argv.** Passwords/mnemonics/keys in arguments would end up in shell history and `ps` output. wallet-cli does not read dedicated secret environment variables either:
+**3. Secrets via stdin, never argv.** Passwords/mnemonics/keys in arguments would end up in shell history and `ps` output, and wallet-cli reads no dedicated secret environment variables either:
 
 ```bash
 printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
   --network tron:3448148188 --password-stdin -o json
 ```
 
-(`$PW` should come from your secret store as a short-lived shell variable for this pipe, not from a file in the repo and not from a long-lived `export`. Only one `*-stdin` flag per run.)
+(`$PW` should come from your secret store as a short-lived shell variable for this pipe — not from a file in the repo, and not from a long-lived `export`. Only one `*-stdin` flag per run.)
 
 ## Waiting for confirmation
 
@@ -57,27 +60,34 @@ Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.
 
 ## Sign here, broadcast there
 
-`--sign-only` separates signing from broadcast, but it still builds and estimates through the selected RPC endpoint before signing. For a signing machine with no chain access, build unsigned hex online, sign that artifact offline, then broadcast from an online machine:
+`--sign-only` separates signing from broadcast, but it still builds and estimates through the selected RPC endpoint before signing. For a signing machine with no chain access, build the unsigned hex online, sign that artifact offline, then broadcast from an online machine:
 
 ```bash
 # on the connected build machine
 wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
   --build-only --expiration 3600000 -o json | jq -r '.data.hex' > unsigned.hex
+```
 
+```bash
 # on the offline signing machine
 printf '%s' "$PW" | wallet-cli tx sign --file unsigned.hex --network tron:3448148188 \
   --offline --password-stdin --out signed.hex
+```
 
+```bash
 # on the connected machine
 wallet-cli tx broadcast --file signed.hex --network tron:3448148188 -o json
 ```
 
-The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. `--expiration` is TRON-only; its value above gives the transfer one hour for file movement and signing (maximum 24 hours). The node default is about 60 seconds, and `tx sign --offline` refuses an expired artifact, so choose the shortest practical window and rebuild after it expires. Omit the flag for EVM, whose transaction format has no expiration field. If the signing machine does have RPC access and you only want to withhold broadcast, `tx send --sign-only` emits signed hex directly.
+The **hex** form above works on both chain families — protobuf on TRON, RLP on EVM. `--expiration` is TRON-only; the value above gives the artifact one hour for transfer and signing (maximum 24 h). The node default is about 60 seconds, and `tx sign --offline` refuses an expired artifact, so pick the shortest practical window and rebuild after it lapses. Omit the flag on EVM, whose transaction format has no expiration field. If the signing machine does have RPC access and you only want to withhold broadcast, `tx send --sign-only` emits signed hex directly.
 
 TRON also accepts signed transaction JSON, but JSON must go through `--transaction` or `--tx-stdin`; `--file` and `--hex` are hex-only:
 
 ```bash
 wallet-cli tx send ... --sign-only -o json | jq -c '.data.signed' > signed.json
+```
+
+```bash
 wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.json
 ```
 
@@ -90,4 +100,5 @@ Every RPC/device call is bounded by `--timeout` (ms). On `error.code = "timeout"
 ## See also
 
 - [Machine interface](../machine-interface.md) — envelope schema, error codes, stability promise
-- [Command reference](../commands/index.md) — each command's `data` payload, and [which commands run on which networks](../commands/index.md#which-commands-run-on-which-networks)
+- [Command reference](../commands/index.md#which-commands-run-on-which-networks) — which commands run on which networks
+- [Command reference](../commands/index.md) — each command's `data` payload

@@ -27,7 +27,7 @@ Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -40,18 +40,18 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — stake 1,000 TRX for energy, returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin
 ```
 
 ```console
 ⏳ Staked 1,000 TRX for energy
   TxID    c3d...
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network tron:3448148188 --txid c3d...
+! Track it: wallet-cli tx info --network nile --txid c3d...
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin -o json
 ```
 
 ```json
@@ -61,7 +61,7 @@ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy -
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --wait --password-stdin
 ```
 
 ```console

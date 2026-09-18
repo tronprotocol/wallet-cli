@@ -38,7 +38,7 @@ Plus the [global options](../index.md#global-options-every-command).
 By id:
 
 ```bash
-wallet-cli asset info 1000123 --network tron:3448148188
+wallet-cli asset info 1000123 --network nile
 ```
 
 ```console
@@ -61,7 +61,7 @@ Asset MyToken (id 1000123)
 ### A name that is not unique
 
 ```bash
-wallet-cli asset info MyToken --network tron:3448148188
+wallet-cli asset info MyToken --network nile
 ```
 
 The command fails with exit `1`; the message and the candidate table go to **stderr**:
@@ -70,8 +70,8 @@ The command fails with exit `1`; the message and the candidate table go to **std
 error [ambiguous_asset_name]: 2 TRC10 tokens are named MyToken; re-run with the id
 | ID      | Issuer                             | Total supply  | Precision |
 | ------- | ---------------------------------- | ------------- | --------- |
-| 1000123 | TQkXm4vN2f8LrQ5tYc7bWmXe3sVd9Zt7Uw | 1,000,000,000 | 6         |
-| 1000488 | TZx9kP2mR4nJ6vLc8dHqYe1tWbXs5f7bWq | 50,000,000    | 2         |
+| 1000123 | TKDdzNtGz4bbqTzZunrECcpGKqsSnAUFJq | 1,000,000,000 | 6         |
+| 1000488 | TVAk2rzYyAgcMBmbb1SonA2WMb1Qfwdw9W | 50,000,000    | 2         |
 ```
 
 In json the same information is in `error.details` — see [Output](#output).
@@ -79,7 +79,7 @@ In json the same information is in `error.details` — see [Output](#output).
 By issuer — someone else's token here, and it has no frozen tranches:
 
 ```bash
-wallet-cli asset info --issuer TZx9kP2m...7bWq --network tron:3448148188
+wallet-cli asset info --issuer TZx9kP2m...7bWq --network nile
 ```
 
 ```console
@@ -97,7 +97,7 @@ Asset MyToken (id 1000488)
 ```
 
 ```bash
-wallet-cli asset info 1000123 --network tron:3448148188 -o json
+wallet-cli asset info 1000123 --network nile -o json
 ```
 
 ```json
@@ -107,7 +107,7 @@ wallet-cli asset info 1000123 --network tron:3448148188 -o json
 The ambiguous-name failure, in json:
 
 ```bash
-wallet-cli asset info MyToken --network tron:3448148188 -o json
+wallet-cli asset info MyToken --network nile -o json
 ```
 
 ```json

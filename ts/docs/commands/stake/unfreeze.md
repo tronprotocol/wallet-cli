@@ -27,7 +27,7 @@ Stake 2.0 allows at most **32 pending unstakes** per account at a time; check re
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin |
 
@@ -40,7 +40,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network nile --password-stdin
 ```
 
 ```console
@@ -51,7 +51,7 @@ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network nile --password-stdin -o json
 ```
 
 ```json
@@ -61,13 +61,14 @@ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy --network nile --wait --password-stdin
 ```
 
 ```console
 ✅ Unstaked 1,000 TRX
   TxID          d4e...
   Block         #68,763,004
+  Fee           0 TRX
   Withdrawable  after the unlock period — then run `stake withdraw`
   Status        success
 ```

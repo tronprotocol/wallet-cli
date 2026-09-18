@@ -4,7 +4,7 @@ Vote for super representatives (SR).
 
 Voting spends **Tron Power (TP)**: 1 TP = 1 staked TRX ([`stake freeze`](../stake/freeze.md)). Votes are tallied at the next maintenance cycle (~6 h) and then earn rewards continuously — query and claim them with [`reward`](../reward/index.md).
 
-**TRON only.** SR voting is a TRON protocol feature; every subcommand here fails with `family_mismatch` on an EVM network.
+> **TRON only.** Every command in this group implements a TRON protocol feature with no EVM counterpart; on an EVM network they fail with `family_mismatch` before any node call.
 
 ## Synopsis
 

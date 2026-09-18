@@ -26,7 +26,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli asset list --limit 3 --network tron:3448148188
+wallet-cli asset list --limit 3 --network nile
 ```
 
 ```console
@@ -39,7 +39,7 @@ Assets (limit 3, offset 0)
 ```
 
 ```bash
-wallet-cli asset list --limit 3 --network tron:3448148188 -o json
+wallet-cli asset list --limit 3 --network nile -o json
 ```
 
 ```json

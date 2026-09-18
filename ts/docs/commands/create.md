@@ -27,7 +27,7 @@ Plus the [global options](index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
-Interactive — prompts for the master password, then shows the new account:
+Interactive — prompts for the master password twice, then shows the new account:
 
 ```bash
 wallet-cli create --label main
@@ -37,41 +37,41 @@ wallet-cli create --label main
 ? Set master password (hidden):
 ? Confirm master password:
 ✅ Created wallet "main"
-  Account ID    wlt_2dbv24de.0
+  Account ID    wlt_kwyjcwdh.0
   Type          HD
-  TRON address  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ
-  EVM address   0x5c8e1b04A7f39d62C0B3e85A1d47F9028b6ce713
+  TRON address  TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa
+  EVM address   0xeb0a0D15e3B8f6E2FC4bc011Eb6644f1ce3E4fa2
   Active        yes
 
 ⚠️ Recovery phrase is encrypted locally and was not printed.
 ⚠️ Run `backup` soon and store the file offline.
 ```
 
-Non-interactive (password piped from stdin):
+Non-interactive, with the password piped from stdin:
 
 ```bash
 printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_2dbv24de.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ","evm":"0x5c8e1b04A7f39d62C0B3e85A1d47F9028b6ce713"},"seedId":"wlt_2dbv24de","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":38,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"create","data":{"status":"created","accountId":"wlt_kwyjcwdh.0","label":"main","type":"seed","index":0,"active":true,"addresses":{"tron":"TEKbsrcsL74XyNWH6ju9zfjGDNok78dtTa","evm":"0xeb0a0D15e3B8f6E2FC4bc011Eb6644f1ce3E4fa2"},"seedId":"wlt_kwyjcwdh","derivationPath":{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}},"meta":{"durationMs":956,"warnings":[]}}
 ```
 
 ## Output
 
 `data` describes the created account (local command — no `chain` block). No mnemonic field is ever returned.
 
-| Field | Type | Meaning |
-|---|---|---|
-| `status` | string | `"created"` |
-| `accountId` | string | Stable id `<seedId>.<index>` |
-| `label` | string | Account label |
-| `type` | string | `"seed"` (HD-derived) |
-| `index` | number | HD derivation index (0 for the first account) |
-| `active` | boolean | Whether it became the active account |
-| `addresses` | object | One address per family the account can produce: `tron` (base58) and `evm` (`0x`, EIP-55 checksummed) |
-| `derivationPath` | object | The BIP44 path each address came from — `m/44'/<coin>'/0'/0/<index>` per family. `create` only ever makes index 0: `{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}` |
-| `seedId` | string | Owning seed wallet id |
+| Field            | Type    | Meaning                                                                                                                       |
+| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `status`         | string  | `"created"`                                                                                                                   |
+| `accountId`      | string  | Stable id `<seedId>.<index>`                                                                                                  |
+| `label`          | string  | Account label                                                                                                                 |
+| `type`           | string  | `"seed"` (HD-derived)                                                                                                         |
+| `index`          | number  | HD derivation index (0 for the first account)                                                                                 |
+| `active`         | boolean | Whether it became the active account                                                                                          |
+| `addresses`      | object  | One address per family the account can produce: `tron` (base58) and `evm` (`0x`, EIP-55 checksummed)                          |
+| `derivationPath` | object  | The BIP44 path each address came from. `create` always makes index 0: `{"tron":"m/44'/195'/0'/0/0","evm":"m/44'/60'/0'/0/0"}` |
+| `seedId`         | string  | Owning seed wallet id                                                                                                         |
 
 ## Exit status
 

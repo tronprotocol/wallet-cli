@@ -4,13 +4,16 @@ Every command — including every subcommand — has its own page. Most follow t
 
 ## Which commands run on which networks
 
-wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` selects one network of one family. Commands fall into three kinds:
+wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` selects one network of one family. Commands fall into these kinds:
 
 - **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
 - **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
+- **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the catalog, usage, and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
 - **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
 Individual flags are family-scoped the same way. `--help` tags them `(TRON only)` / `(EVM only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
+
+The catalog is the authority on all of this: `wallet-cli --json-schema` reports a `families` array per command.
 
 ## Wallets and accounts
 
@@ -162,6 +165,34 @@ Individual flags are family-scoped the same way. `--help` tags them `(TRON only)
 | `typed-data` (group) | [typed-data/index.md](typed-data/index.md) |
 | `typed-data sign` | [typed-data/sign.md](typed-data/sign.md) |
 
+## Payments and Agent identity
+
+| Command | Page |
+|---|---|
+| `x402` (group) | [x402/index.md](x402/index.md) |
+| `x402 pay` | [x402/pay.md](x402/pay.md) |
+| `x402 serve` | [x402/serve.md](x402/serve.md) |
+| `x402 roundtrip` | [x402/roundtrip.md](x402/roundtrip.md) |
+| `x402 provider-list` | [x402/provider-list.md](x402/provider-list.md) |
+| `x402 provider-show` | [x402/provider-show.md](x402/provider-show.md) |
+| `x402 endpoint-list` | [x402/endpoint-list.md](x402/endpoint-list.md) |
+| `x402 update-catalog` | [x402/update-catalog.md](x402/update-catalog.md) |
+| `bai` (group) | [bai/index.md](bai/index.md) |
+| `bai usage-summary` | [bai/usage-summary.md](bai/usage-summary.md) |
+| `bai usage-records` | [bai/usage-records.md](bai/usage-records.md) |
+| `bai recharge-orders` | [bai/recharge-orders.md](bai/recharge-orders.md) |
+| `bai recharge` | [bai/recharge.md](bai/recharge.md) |
+| `bai report-recharge` | [bai/report-recharge.md](bai/report-recharge.md) |
+| `8004` (group) | [8004/index.md](8004/index.md) |
+| `8004 show` | [8004/show.md](8004/show.md) |
+| `8004 operator-check` | [8004/operator-check.md](8004/operator-check.md) |
+| `8004 register` | [8004/register.md](8004/register.md) |
+| `8004 update` | [8004/update.md](8004/update.md) |
+| `8004 transfer` | [8004/transfer.md](8004/transfer.md) |
+| `8004 approve` | [8004/approve.md](8004/approve.md) |
+| `8004 add-operator` | [8004/add-operator.md](8004/add-operator.md) |
+| `8004 remove-operator` | [8004/remove-operator.md](8004/remove-operator.md) |
+
 ## Local
 
 | Command | Page |
@@ -179,25 +210,25 @@ Individual flags are family-scoped the same way. `--help` tags them `(TRON only)
 -o, --output <text|json>   result format (default: config.defaultOutput, built-in text)
 --network <string>         network id or alias, e.g. nile, sepolia, bsc, eip155:11155111
                            (falls back to config.defaultNetwork)
---account <string>         accountId, label, or address (wallet-bound commands; falls back to active);
-                           an address is only valid on its own chain, use accountId or label to cross
-                           chains; read-only commands accept any address of that chain, signing
-                           commands require you to hold it
---timeout <number>         per node, service, or device call timeout, ms (default: config.timeoutMs, built-in 60000)
+--account <string>         accountId, label, or address (wallet-bound commands; falls back to active)
+                           an address names one chain, so use accountId or label to cross families;
+                           an address matching several accounts that are not interchangeable
+                           signers for the family being acted on is `ambiguous_account`
+--timeout <number>         per RPC/device call timeout, ms (default: config.timeoutMs, built-in 60000)
 -v, --verbose              extra diagnostic output
 -h, --help / -V, --version
 ```
 
-Commands whose schema enables post-broadcast polling take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). Early-exit modes are also command-specific: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while submit-only commands such as `tx broadcast` do not rebuild or sign and therefore omit `--sign-only` / `--build-only`.
+Commands whose schema allows post-broadcast polling take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
 
 Fee and multi-sig flags are **family-scoped**, so they are not global:
 
 | Flags | Family | Where |
 |---|---|---|
-| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
+| `--permission-id <n>` / `--expiration <ms>` | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
 | `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy` |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
-Those TRON transaction-building commands take the multi-signature pair: the permission group to sign under (0=owner, 1=witness, 2-9=active) and the transaction's expiry, which extends the window for collecting co-signatures when building or signing offline. On a multi-family command they are tagged `(TRON only)` and refused on EVM with `invalid_option`; an EVM transaction carries exactly one signature, so neither has a counterpart there.
+`--permission-id` selects the permission group to sign under (0=owner, 1=witness, 2-9=active) and `--expiration` extends the window for collecting co-signatures. An EVM transaction carries exactly one signature, so neither has a counterpart there: on a portable command they are tagged `(TRON only)` and refused on EVM with `invalid_option`.
 
-Where all three early-exit modes are present, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the governance writes it is `invalid_value`, and which field the message names depends on the rule. The mutual-exclusion rule is attached to the whole object, so it reports the field as `--input` rather than the flags you passed — `invalid --input: choose at most one of --dry-run, --sign-only, --build-only`. The `--expiration` rule is attached to its own field and names it — `invalid --expiration: only valid with --sign-only or --build-only`. Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
+Where all three early-exit modes exist, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the `account`, `permission`, `contract`, `proposal` and `witness` writes it is `invalid_value`, and which field the message names depends on the rule. Mutual exclusion is attached to the whole object, so it reports `--input` rather than the flags you passed (`invalid --input: choose at most one of --dry-run, --sign-only, --build-only`); the `--expiration` rule is attached to its own field and names it (`invalid --expiration: only valid with --sign-only or --build-only`). Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).

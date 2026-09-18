@@ -45,7 +45,7 @@ Known keys:
 
 Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 60000.
 
-**Secrets are never rendered in clear text.** `baiApiKey`, `tronlinkSecretKey`, `gasfreeApiSecret` and `networks.<id>.apiKey` come back as `********` from every read, and a set of one echoes `input: "********"` too — the value goes to `config.yaml`, not to the terminal or to your shell history file's neighbours in a log.
+**Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` and `networks.<id>.apiKey` come back as `********` from every read, and a set of one echoes both `value` and `input` as `"********"` too — the value goes to `config.yaml`, not to the terminal or to your shell history file's neighbours in a log.
 
 **Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:3448148188`) or its leaf (`config networks.tron:3448148188.httpEndpoint`) is the deliberate act that reveals the whole URL.
 
@@ -102,10 +102,10 @@ aliases
   sepolia       eip155:11155111
   bsc           eip155:56
   bsc-testnet   eip155:97
-tronlinkSecretId   TEST
+tronlinkSecretId   ********
 tronlinkSecretKey  ********
 tronlinkChannel    test
-gasfreeApiKey      ak_9f2c71d0e8b64a53
+gasfreeApiKey      ********
 gasfreeApiSecret   ********
 ```
 
@@ -166,9 +166,9 @@ networks.tron:3448148188
 
 | Mode | `data` fields |
 |---|---|
-| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret` |
+| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` — each only when set, secrets masked |
 | read (`<key>`) | `key`, `value` |
-| set (`<key> <value>`) | `key`, `value`, `input` (the raw string as typed; `"********"` when the key is a secret) |
+| set (`<key> <value>`) | `key`, `value`, `input` (the raw string as typed); both `"********"` when the key is a secret |
 
 An unset network field is **absent** from the view rather than present and empty — the view says what *is* configured.
 

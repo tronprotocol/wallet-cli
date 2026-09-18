@@ -27,39 +27,70 @@ No command-specific options; the [global options](../index.md#global-options-eve
 
 ## Examples
 
-**A never-modified account** shows the chain-default owner and active groups. The active group's complete operation set is wrapped at a fixed 76-character width (not the terminal's); labels are never replaced with an ellipsis. Unknown bitmap bits are printed as `Unknown contract type <id>`.
+**A never-modified account** shows the chain-default structure — the active group covers every ordinary operation type:
+
+```bash
+wallet-cli permission show --account solo --network nile
+```
+
+```console
+Account  solo (TDWjkQ5EoUSoRNhhw6cDfa72YN8WuV5d8a)
+
+Permission Name   owner  (id 0)
+Threshold         1
+Authorized To     Address                             Weight
+                  TDWjkQ5EoUSoRNhhw6cDfa72YN8WuV5d8a       1  (this wallet: solo)
+
+Permission Name   active  (id 2, active)
+Operation(s)      Activate Account · Transfer TRX · Transfer TRC10 · Vote for TRC10 [unused]
+                  Vote · Apply to Become a SR Candidate · Issue TRC10 · Update SR Info
+                  Participate in TRC10 Issuance · Update Account Name · TRX Stake (1.0)
+                  TRX Unstake (1.0) · Claim Voting Rewards · Unstake TRC10
+                  Update TRC10 Parameters · Create Proposal · Approve Proposal
+                  Cancel Proposal · Set Account Id · Custom Contract · Create Smart Contract
+                  Trigger Smart Contract · Get Contract · Update Contract Parameters
+                  Create Bancor Transaction · Inject Assets into Bancor Transaction
+                  Withdraw Assets from Bancor Transaction · Execute Bancor Transaction
+                  Update Contract Energy Limit · Clear Contract ABI
+                  Update SR Commission Ratio · Market Sell Asset · Market Cancel Order
+                  TRX Stake (2.0) · TRX Unstake (2.0) · Withdraw Unstaked TRX
+                  Delegate Resources · Reclaim Resources · Cancel Unstake  (39 total)
+Threshold         1
+Authorized To     Address                             Weight
+                  TDWjkQ5EoUSoRNhhw6cDfa72YN8WuV5d8a       1  (this wallet: solo)
+```
 
 **A multi-sig account** — here the owner group is a 2-of-3 and a scoped `finance` active group handles day-to-day transfers. This wallet holds only one of the keys (`main`); the other two are held by external co-signers, so they carry no annotation:
 
 ```bash
-wallet-cli permission show --account main --network tron:3448148188
+wallet-cli permission show --account main --network nile
 ```
 
 ```console
-Account  main (TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw)
+Account  main (TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V)
 
 Permission Name   owner  (id 0)
 Threshold         2
 Authorized To     Address                             Weight
-                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw       1  (this wallet: main)
-                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub       1
-                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz       1
+                  TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V       1  (this wallet: main)
+                  TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c       1
+                  TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP       1
 
 Permission Name   finance  (id 2, active)
 Operation(s)      Transfer TRX · Transfer TRC10 · Trigger Smart Contract  (3 total)
 Threshold         2
 Authorized To     Address                             Weight
-                  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw       1  (this wallet: main)
-                  TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub       1
-                  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz       1
+                  TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V       1  (this wallet: main)
+                  TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c       1
+                  TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP       1
 ```
 
 ```bash
-wallet-cli permission show --account main --network tron:3448148188 -o json
+wallet-cli permission show --account main --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"permission.show","data":{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":{"id":0,"name":"owner","threshold":2,"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationLabels":["Transfer TRX","Transfer TRC10","Trigger Smart Contract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","unknownOperationIds":[],"keys":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"local":"main"},{"address":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","weight":1,"local":null},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"local":null}]}]},"meta":{"durationMs":21,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"permission.show","data":{"address":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","owner":{"id":0,"name":"owner","threshold":2,"keys":[{"address":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","weight":1,"local":"main"},{"address":"TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c","weight":1,"local":null},{"address":"TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP","weight":1,"local":null}]},"witness":null,"actives":[{"id":2,"name":"finance","threshold":2,"operations":["TransferContract","TransferAssetContract","TriggerSmartContract"],"operationLabels":["Transfer TRX","Transfer TRC10","Trigger Smart Contract"],"operationsHex":"0600008000000000000000000000000000000000000000000000000000000000","unknownOperationIds":[],"keys":[{"address":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","weight":1,"local":"main"},{"address":"TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c","weight":1,"local":null},{"address":"TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP","weight":1,"local":null}]}]},"meta":{"durationMs":21,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -68,17 +99,17 @@ wallet-cli permission show --account main --network tron:3448148188 -o json
 |---|---|---|
 | `address` | string | Queried account |
 | `owner` | object | Owner group `{id, name, threshold, keys[]}` |
-| `witness` | object \| null | Witness group with `{id, name, threshold, keys[]}` for SRs, else `null` |
+| `witness` | object \| null | Witness group `{id, name, threshold, keys[]}` for SRs, else `null` |
 | `actives[]` | array | Active groups, each `{id, name, threshold, operations[], operationLabels[], operationsHex, unknownOperationIds[], keys[]}` |
 | `…operations[]` | string[] | Contract-type names the active group may perform |
-| `…operationLabels[]` | string[] | Human-readable labels corresponding to known operation ids |
+| `…operationLabels[]` | string[] | Human-readable labels for the known operation ids |
 | `…operationsHex` | string | Raw 32-byte operations bitmap, hex |
 | `…unknownOperationIds[]` | number[] | Set bits this build cannot map to a known contract type; empty when all operations are known |
 | `…keys[]` | array | Group keys: `{address, weight, local}` — `local` is the wallet label if held locally, else `null` |
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — the address is unactivated / absent on chain; `rpc_error`) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`not_found` — the address is unactivated or absent on chain; `rpc_error`) · `2` usage error (`invalid_value`).
 
 ## See also
 

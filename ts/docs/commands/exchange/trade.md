@@ -47,7 +47,7 @@ Slippage grows with trade size relative to the reserves — that is the curve, n
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
-| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
+| `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2–9=active); default `0` |
 | `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
@@ -60,7 +60,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 With an explicit floor:
 
 ```bash
-echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -79,7 +79,7 @@ echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received
 The same trade via `--slippage 1`: the CLI computes 4,950 from the current reserves, takes 1 % off, and sends 4,900.5 as the floor. The percentage is first converted to basis points, **rounded to the nearest** one — so `--slippage 1.006` tolerates 1.01 % — and the floor itself is then integer-divided, i.e. rounded down.
 
 ```bash
-echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network nile --wait --password-stdin -o json
 ```
 
 ```json

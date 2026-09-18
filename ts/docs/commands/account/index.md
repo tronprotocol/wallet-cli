@@ -8,20 +8,22 @@ Query on-chain account state, and activate & name accounts.
 wallet-cli account COMMAND
 ```
 
-Subcommands act on the **active account** by default; override with `--account <accountId|label>` or change the default with `wallet-cli use <account>`. Which address is queried follows the selected network's family — the same account has a TRON base58 address and an EVM `0x` address. The first four are read-only queries; `activate` and `set` change on-chain state. Software signing needs the master password, Ledger signing confirms on device, and `--dry-run` / `--build-only` do not unlock the wallet.
+Subcommands act on the **active account** by default; override with `--account <accountId|label>` or change the default with `wallet-cli use <account>`. The first four are read-only queries; `activate` and `set` change on-chain state. Software signing needs the master password, Ledger signing confirms on device, and `--dry-run` / `--build-only` never unlock the wallet.
+
+## Networks
+
+`balance`, `info` and `portfolio` run on TRON and EVM networks alike, reporting the family-specific fields per family. `history`, `activate` and `set` are **TRON only** and fail with `family_mismatch` on an EVM network. See [which commands run on which networks](../index.md#which-commands-run-on-which-networks).
 
 ## Subcommands
 
-| Command | Description | Networks | Data source |
-|---|---|---|---|
-| [`account balance`](balance.md) | Native coin balance | TRON, EVM | node RPC |
-| [`account info`](info.md) | On-chain account state (TRON adds bandwidth/energy) | TRON, EVM | node RPC |
-| [`account history`](history.md) | Transaction history | TRON only | **TronGrid required** |
-| [`account portfolio`](portfolio.md) | Native + token balances, best-effort USD | TRON, EVM | node RPC + price source |
-| [`account activate`](activate.md) | Activate a not-yet-existing account (no transfer) | TRON only | broadcast |
-| [`account set`](set.md) | Set the on-chain name / account id (one-time) | TRON only | broadcast |
-
-A **TRON only** command run against an EVM network fails with `family_mismatch` before any node call.
+| Command | Description | Data source |
+|---|---|---|
+| [`account balance`](balance.md) | Native coin balance | node RPC |
+| [`account info`](info.md) | On-chain account state — resources on TRON, nonce and code on EVM | node RPC |
+| [`account history`](history.md) | Transaction history | **TronGrid required** |
+| [`account portfolio`](portfolio.md) | Native + token balances, best-effort USD | node RPC + price source |
+| [`account activate`](activate.md) | Activate a not-yet-existing account (no transfer) | broadcast |
+| [`account set`](set.md) | Set the on-chain name / account id (one-time) | broadcast |
 
 ## See also
 

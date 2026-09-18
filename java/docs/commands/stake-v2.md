@@ -107,14 +107,15 @@ wallet> GetTransactionById dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3
 ### DelegateResource
 
 ```console
-> delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress [lock]
+> delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress [lock] [lockPeriod]
 ```
 
 - `OwnerAddress` — the address of the account that initiated the transaction, optional, default is the address of the login account.
 - `balance` — the amount of delegate, the unit is the smallest unit (Sun), the minimum is 1000000 sun.
 - `ResourceCode` — 0 BANDWIDTH; 1 ENERGY.
 - `ReceiverAddress` — the address of the account.
-- `lock` — default is false, set true if you need to lock the delegate for 3 days.
+- `lock` — default is false, set true to lock the delegation so it cannot be reclaimed before the lock period ends.
+- `lockPeriod` — optional, only meaningful with `lock true`. The lock length **in blocks** (one block ≈ 3 seconds), so 28800 is one day. Omit it to use the chain's default lock period of 3 days.
 
 Example:
 
