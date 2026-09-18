@@ -73,7 +73,7 @@ Transaction
   From        TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
   To          TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (in ~23h)
+  Expires     2026-07-18 15:32 (in ~23h)
 
 Progress  2 / 2 — threshold reached
 | Approved signer                    | Weight |
@@ -101,7 +101,7 @@ Transaction (local inspection)
   To          TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
   Permission  active (id 2)
   Signatures  1
-  Expires     2026-07-14 15:32 (in ~23h)
+  Expires     2026-07-18 15:32 (in ~23h)
 ! Approval state was not checked online. Inspect it with: wallet-cli tx approvals --hex <hex-above>
 ```
 
