@@ -1,8 +1,8 @@
 # wallet-cli tx multisig
 
-Create / co-sign a multi-sig transaction through the TronLink service. TRON only.
+Multi-sig collaboration via the TronLink multi-sig service.
 
-> `tx multisig` is TRON only — on an EVM network it fails with `family_mismatch`. It works only through the external TronLink multi-sig service and needs credentials (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`). It is an optional convenience layer — the on-chain path ([`tx sign`](sign.md) / [`tx approvals`](approvals.md) / [`tx broadcast`](broadcast.md)) does the same job without any service. Without credentials the command is unusable (`tronlink_credentials_missing`).
+> `tx multisig` works only through the external TronLink multi-sig service and needs credentials (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`). It is an optional convenience layer — the on-chain path ([`tx sign`](sign.md) / [`tx approvals`](approvals.md) / [`tx broadcast`](broadcast.md)) does the same job without any service. Without credentials the command is unusable (`tronlink_credentials_missing`).
 
 ## Synopsis
 
@@ -13,11 +13,13 @@ wallet-cli tx multisig [--create (--hex <unsigned-hex> | --file <path>) | --sign
 
 ## Description
 
+> **TRON only.** An EVM transaction carries exactly one signature, so there is no threshold to reach and nothing to collect; this command fails on an EVM network with `family_mismatch`.
+
 Where the on-chain path passes a hex from person to person, the service path has the TronLink service **hold** a transaction, **accumulate** signatures one by one, and **push** notifications to co-signers over a WebSocket. The command has four mutually exclusive modes:
 
 - **default (no mode flag)** — list the service's multi-sig transactions involving this account, with their progress. This is the everyday way to find what's awaiting you.
-- **`--create`** — sign an **unsigned** transaction locally and submit it, which opens the collection. The input is unsigned hex, produced by a transaction-building command that supports `--build-only` (e.g. `tx send … --build-only`). Software accounts require the master password; Ledger accounts confirm on device.
-- **`--sign <txId>`** — co-sign one: fetch it with the signatures gathered so far, sign locally, and submit the whole transaction back for the service to accumulate. Software accounts require the master password; Ledger accounts confirm on device.
+- **`--create`** — sign an **unsigned** transaction locally and submit it, which opens the collection. The input is unsigned hex, produced by any broadcast command in `--build-only` mode (e.g. `tx send … --build-only`). Software accounts need the master password; Ledger accounts confirm on the device.
+- **`--sign <txId>`** — co-sign one: fetch it with the signatures gathered so far, sign locally, and submit the whole transaction back for the service to accumulate. Software accounts need the master password; Ledger accounts confirm on the device.
 - **`--watch`** — keep a WebSocket open and nudge you with the **count** of transactions awaiting your signature (no details); list them with the default mode to act.
 
 ### Opening a collection is your first signature
@@ -53,69 +55,69 @@ The initiator builds an **unsigned** transaction (`--build-only`, expiry extende
 
 ```bash
 # --build-only does not sign and needs no master password
-wallet-cli tx send --to TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub --amount 1000 --permission-id 2 --build-only --expiration 86400000 --network tron:3448148188 > tx.unsigned.hex
+wallet-cli tx send --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c --amount 1000 --permission-id 2 --build-only --expiration 86400000 --network nile > tx.unsigned.hex
 ```
 
 ```bash
-echo "$PW" | wallet-cli tx multisig --create --file tx.unsigned.hex --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli tx multisig --create --file tx.unsigned.hex --network nile --password-stdin
 ```
 
 ```console
 ✅ Created on TronLink multi-sig service
-  Signer  TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw  (weight 1)
+  Signer  TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V  (weight 1)
   Hex     0a02...9f31
 
 Transaction
   TxID        9c1...
   Type        Transfer TRX — 1,000 TRX
-  From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
-  To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  From        TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
+  To          TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (in ~23h)
+  Expires     2026-07-18 15:32 (in ~23h)
 
 Progress  1 / 2 — 1 more weight needed
 | Approved signer                    | Weight |
 | ---------------------------------- | ------ |
-| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw | 1      |
+| TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V | 1      |
 ! Each co-signer signs it with: wallet-cli tx multisig --sign 9c1...
 ```
 
 A co-signer lists what's awaiting them (default mode), then co-signs:
 
 ```bash
-wallet-cli tx multisig --account cosigner --network tron:3448148188
+wallet-cli tx multisig --account cosigner --network nile
 ```
 
 ```console
 Multi-sig transactions — TronLink service (1 total)
 | TxID   | Type             | Amount    | State        | Validation | Progress | Expires                    |
 | ------ | ---------------- | --------- | ------------ | ---------- | -------- | -------------------------- |
-| 9c1... | TransferContract | 1,000 TRX | awaiting you | verified   | 1 / 2    | 2026-07-14 15:32 (in ~22h) |
+| 9c1... | TransferContract | 1,000 TRX | awaiting you | verified   | 1 / 2    | 2026-07-18 15:32 (in ~22h) |
 ! Co-sign one with: wallet-cli tx multisig --sign <txId>
 ```
 
 ```bash
-echo "$PW" | wallet-cli tx multisig --sign 9c1... --account cosigner --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli tx multisig --sign 9c1... --account cosigner --network nile --password-stdin
 ```
 
 ```console
 ✅ Signed & submitted
-  Signer  TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz  (weight 1)
+  Signer  TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP  (weight 1)
   Hex     0a02...9f31
 
 Transaction
   TxID        9c1...
   Type        Transfer TRX — 1,000 TRX
-  From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
-  To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  From        TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
+  To          TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (in ~22h)
+  Expires     2026-07-18 15:32 (in ~22h)
 
 Progress  2 / 2 — threshold reached
 | Approved signer                    | Weight |
 | ---------------------------------- | ------ |
-| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw | 1      |
-| TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz | 1      |
+| TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V | 1      |
+| TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP | 1      |
 ! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid 9c1...
   Not on chain: wallet-cli tx broadcast --hex 0a02...
 ```
@@ -123,21 +125,20 @@ Progress  2 / 2 — threshold reached
 The list mode as JSON:
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.multisig","data":{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","total":1,"unreadable":0,"transactions":[{"verified":true,"txId":"9c1...","state":"pending","contractType":"TransferContract","originator":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","owner":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"awaitingMySignature":true,"signedByCurrentAccount":false,"createdAt":1784385120000,"expiration":1784388720000,"expired":false,"signatures":1,"signatureProgress":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1,"signed":true,"signedAt":1784385130000},{"address":"TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz","weight":1,"signed":false,"signedAt":null}],"from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000"}]},"meta":{"durationMs":420,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.multisig","data":{"address":"TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP","total":1,"unreadable":0,"transactions":[{"txId":"9c1...","state":"pending","verified":true,"contractType":"TransferContract","operation":"Transfer TRX","rawAmount":"1000000000","originator":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","owner":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"awaitingMySignature":true,"signedByCurrentAccount":false,"expiration":1784388720000}]},"meta":{"durationMs":420,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Optionally, a WebSocket nudge (count only — list them to see details):
 
 ```bash
-wallet-cli tx multisig --watch --account cosigner --network tron:3448148188
+wallet-cli tx multisig --watch --account cosigner --network nile
 ```
 
 ```console
 Watching TronLink multi-sig service for tron:3448148188 … (Ctrl-C to stop)
 🔔 You have 1 transaction(s) to sign — view them with: wallet-cli tx multisig
-
 ✅ Stopped watching TronLink multi-sig service
-  Address        TXe4Kd8nP2rF9gH5jL3mV6cW1bN7yS0aQz
+  Address        TNDHPk1LMLZTap8tMWfxUBy4MgArnWeSVP
   Notifications  1
 ```
 
@@ -157,17 +158,17 @@ Watching TronLink multi-sig service for tron:3448148188 … (Ctrl-C to stop)
 | `transactions[].verified` | boolean | Whether the record reconciled with the chain |
 | `transactions[].unverifiedReason` | string? | Present only when `verified` is `false` |
 | `transactions[].contractType` | string | Contract type reported by the service |
-| `transactions[].from` / `to` | string? | Decoded sender and recipient when the contract type exposes them |
+| `transactions[].from` / `to` | string? | Decoded sender and recipient, when the contract type exposes them |
 | `transactions[].rawAmount` | string? | Decoded raw integer amount when available; units follow the contract type |
+| `transactions[].createdAt` / `expiration` | number | Service creation time and transaction expiry, in Unix milliseconds |
+| `transactions[].expired` | boolean | Whether the transaction has already expired |
+| `transactions[].signatures` | number | Signatures currently attached |
+| `transactions[].signatureProgress` | array | Per-key `address`, `weight`, `signed`, and nullable `signedAt` |
 | `transactions[].originator` / `owner` | string | Who created it / whose account it acts on |
 | `transactions[].permission` | object | `id`, `name`, `threshold` |
 | `transactions[].currentWeight` / `missingWeight` / `thresholdReached` | — | Approval progress |
 | `transactions[].awaitingMySignature` | boolean | Whether it is waiting on the selected account |
 | `transactions[].signedByCurrentAccount` | boolean | Whether this account already signed |
-| `transactions[].createdAt` / `expiration` | number | Service creation time and transaction expiry, in Unix milliseconds |
-| `transactions[].expired` | boolean | Whether the transaction is already expired |
-| `transactions[].signatures` | number | Number of signatures currently attached |
-| `transactions[].signatureProgress` | array | Per-key `address`, `weight`, `signed`, and nullable `signedAt` |
 
 A record the client cannot reconcile with the chain stays visible and is labelled rather than failing the whole page.
 
@@ -179,11 +180,11 @@ A record the client cannot reconcile with the chain stays visible and is labelle
 | `hex` | string | The transaction hex including all signatures gathered so far |
 | `transaction` | object | Transaction summary + approval progress |
 
-`--watch` streams count nudges. When stopped, its terminal result is `{action: "watch", address, notifications}` in JSON mode; text mode prints the same address and notification count.
+`--watch` streams count nudges. When it stops, its terminal result is `{action: "watch", address, notifications}` in JSON mode; text mode prints the same address and notification count.
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — txId not on the service, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error / rate limit) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
+`0` success · `1` execution failure (`not_found` — txId not on the service, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error or rate limit; TronLink reports **every** non-404 status this way, 429 included) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
 
 ## See also
 

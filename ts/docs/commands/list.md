@@ -66,6 +66,7 @@ JSON lists every account with all of its addresses, whatever the network.
 | `seedId`         | string         | Owning seed wallet id (`seed` accounts only)                                                          |
 | `derivationPath` | null | Always `null`, deliberately — `list` takes no master password, so it cannot tell an old TRON path from a current one without opening the seed; `derive` and `backup` report verified paths |
 | `family`         | string         | Chain family this account is bound to — present only on single-family accounts (`watch`, `ledger`)    |
+| `path`           | string         | The account's derivation path on the device (`ledger` accounts only)                                  |
 
 The `chain` block echoes the network that was selected for display; the command itself contacts no node.
 

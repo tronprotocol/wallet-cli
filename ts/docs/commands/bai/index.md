@@ -23,19 +23,17 @@ wallet-cli bai COMMAND
 Every command needs your personal B.AI API key. Store it once with [`config`](../config.md), which reads the key from stdin — here from the `$BAI_KEY` environment variable:
 
 ```bash
-printf '%s\n' "$BAI_KEY" | wallet-cli config baiApiKey --api-key-stdin --account main --network tron
+printf '%s\n' "$BAI_KEY" | wallet-cli config baiApiKey --api-key-stdin
 ```
 
-Before saving, the CLI asks B.AI whether the selected account's address on that network is already bound to the key's B.AI account. The network must be `tron`, `bsc`, or `base` mainnet (`unsupported_network_capability` otherwise). The CLI only checks the binding and does not create it: bind the wallet address to your B.AI account first. A rejected key fails with `bai_auth_failed`; an address that is not bound fails with `invalid_value`; in both cases the key is not saved.
-
-The confirmation is also what lets [`bai recharge`](recharge.md) pay from that account on that network. To pay from another account or network, store the key again with that `--account` / `--network`.
+Storing the key only saves it locally: it needs no network, account or master password, and B.AI is not contacted, so a wrong key is not caught until a `bai` command uses it (`bai_auth_failed`).
 
 Without a stored key every `bai` command stops with `bai_credentials_missing` (exit 2).
 
 ## How recharging works
 
-1. Optionally, `bai recharge --dry-run` previews the recharge: it runs the same checks (except the master password) and shows what would be paid, without creating an order or signing.
-2. `bai recharge` checks the amount, network, token, payer binding, recipient and master password first — any failure stops it with no order and no payment. It then creates an order, pays it with an x402 payment from your account, and reports the transaction to B.AI.
+1. Optionally, `bai recharge --dry-run` previews the recharge: it runs the same checks (except the master password), reports whether the paying address still has to be bound (`bindingRequired`), and shows what would be paid, without binding, creating an order or signing.
+2. `bai recharge` checks the amount, network, token, recipient and master password, and asks B.AI whether the paying address is bound to your B.AI account. If it is not, the CLI signs B.AI's binding message with that account and binds it. Any failure stops it with no order and no payment. It then creates an order, pays it with an x402 payment from your account, and reports the transaction to B.AI.
 3. B.AI confirms and adds the credits: `creditStatus: "credited"`.
 4. If B.AI cannot confirm in time, the command still succeeds with `creditStatus: "unconfirmed"` and the transaction hash. **The payment went through — do not recharge again.** Run [`bai report-recharge`](report-recharge.md) with that hash instead.
 

@@ -10,7 +10,7 @@ wallet-cli contract call --contract <address> --method <sig> [--params <json>] [
 
 ## Description
 
-Calls a contract method as a constant (read-only) call on TRON or EVM: nothing is signed, nothing is broadcast, no fee is spent, and no account is needed.
+Calls a contract method as a constant (read-only) call on TRON or EVM: nothing is signed, nothing is broadcast, no fee is spent. No account is needed, and yours is never used as the caller — TRON calls from a fixed placeholder address, EVM sends no `from` — so a method that reads `msg.sender` does not answer for you.
 
 The function signature and parameter types are supplied explicitly — no ABI is fetched or consulted. Parameters are a JSON array of `{type, value}` objects matching the method signature.
 
@@ -27,26 +27,26 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:3448148188
+wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network nile
 ```
 
 ```console
 Method  balanceOf
-Result  0000000000000000000000000000000000000000000000000000000000000000 (raw)
+Result  - 0000000000000000000000000000000000000000000000000000000000000000 (raw)
 ```
 
 ```bash
-wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network tron:3448148188 -o json
+wallet-cli contract call --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --method "balanceOf(address)" --params '[{"type":"address","value":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ"}]' --network nile -o json
 ```
 
 ```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"contract.call","data":{"contract":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","method":"balanceOf(address)","result":["0000000000000000000000000000000000000000000000000000000000000000"]},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-The same call on an EVM network. Note the shape of `result`: TRON passes the node's `constant_result` array through untouched, while the EVM node returns one `0x` blob:
+The same call on an EVM network. Note the shape of `result`: the TRON node returns the return data split into 32-byte words, the EVM node returns it as one `0x` blob:
 
 ```bash
-wallet-cli contract call --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --method "balanceOf(address)" --params '[{"type":"address","value":"0x541B10b92b45C08513e67bb8209f035D810212B6"}]' --network eip155:11155111
+wallet-cli contract call --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --method "balanceOf(address)" --params '[{"type":"address","value":"0x541B10b92b45C08513e67bb8209f035D810212B6"}]' --network sepolia
 ```
 
 ```console

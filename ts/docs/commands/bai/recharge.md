@@ -28,14 +28,14 @@ The minimum is 1 for USDT and USDC; USDD has none.
 
 - The amount must be a positive number that meets the minimum (`invalid_amount`).
 - The network: anything but `tron`, `bsc` and `base` fails with `unsupported_network_capability`.
-- The paying address must be bound to the API key's B.AI account, and confirmed by storing the key with `config baiApiKey --api-key-stdin` **for this account and network**. Otherwise it fails with `invalid_value`.
+- The paying address must be bound to the API key's B.AI account. The CLI asks B.AI each time; if the address is not bound yet, it signs B.AI's binding message with the paying account (after the master password is checked) and binds it. A binding that fails stops the command. A binding that succeeds stays in place even if a later step fails.
 - The token must be one the network accepts (`invalid_value`), and the amount may have at most 6 decimal places (`invalid_amount`). `exact_gasfree` is refused outside TRON (`invalid_value`).
 - With `--to`, B.AI must recognize the recipient; otherwise it fails with `provider_error`.
 - The master password: without `--password-stdin` the command stops with `auth_required`.
 
 Each of these fails with no order and no payment. The order is created only after all of them pass.
 
-**Preview with `--dry-run`.** It runs the same checks (except the password), then reads the payment requirements without creating an order, unlocking the wallet or signing. It reports who pays whom, the price in smallest units, the payment route, and the payer's current balances. The fee is not known until payment, so `estimatedFee` is `null`. No password is needed.
+**Preview with `--dry-run`.** It runs the same checks (except the password), then reads the payment requirements without binding, creating an order, unlocking the wallet or signing. `bindingRequired` says whether a real recharge would first bind the paying address (with a warning when it would). It reports who pays whom, the price in smallest units, the payment route, and the payer's current balances. The fee is not known until payment, so `estimatedFee` is `null`. No password is needed.
 
 **`exact_gasfree`** pays from the account's [GasFree](../gasfree/index.md) account instead of its own token balance, as with [`x402 pay`](../x402/pay.md): `--gasfree-relay` chooses where the GasFree account data comes from, and `--max-gasfree-fee` caps the fee you authorize. The balances in a `--dry-run` preview are those of the paying wallet, not its GasFree account.
 
@@ -77,6 +77,7 @@ wallet-cli bai recharge 1 --network tron --dry-run
 ```console
 ✅ B.AI recharge preview — no order or payment created
   dry Run: Yes
+  binding Required: No
   network: tron:728126428
   token: USDT
   amount: 1
@@ -118,7 +119,7 @@ wallet-cli bai recharge 1 --network tron --dry-run -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"bai.recharge","data":{"dryRun":true,"network":"tron:728126428","token":"USDT","amount":"1","payer":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6","payTo":"TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE","scheme":"exact","rawAmount":"1000000","rechargeTarget":{"type":"self","walletAddress":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"payment":{"url":"http://127.0.0.1:60779/pay","status":402,"delivered":false,"settled":false,"dryRun":true,"paymentRequired":true,"selected":{"scheme":"exact","network":"tron:728126428","amount":"1000000","asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","payTo":"TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE","maxTimeoutSeconds":300,"extra":{"assetTransferMethod":"permit2"}}},"balance":{"tokenRaw":"2500000","nativeRaw":"7000006"},"estimatedFee":null,"feeLimit":{},"warning":"Preview only; final network/relay fee is unavailable until payment authorization. Balance refers to the payer wallet, not its GasFree account. No order or payment was created."},"meta":{"durationMs":1851,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"bai.recharge","data":{"dryRun":true,"bindingRequired":false,"network":"tron:728126428","token":"USDT","amount":"1","payer":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6","payTo":"TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE","scheme":"exact","rawAmount":"1000000","rechargeTarget":{"type":"self","walletAddress":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"payment":{"url":"http://127.0.0.1:60779/pay","status":402,"delivered":false,"settled":false,"dryRun":true,"paymentRequired":true,"selected":{"scheme":"exact","network":"tron:728126428","amount":"1000000","asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","payTo":"TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE","maxTimeoutSeconds":300,"extra":{"assetTransferMethod":"permit2"}}},"balance":{"tokenRaw":"2500000","nativeRaw":"7000006"},"estimatedFee":null,"feeLimit":{},"warning":"Preview only; final network/relay fee is unavailable until payment authorization. Balance refers to the payer wallet, not its GasFree account. No order or payment was created."},"meta":{"durationMs":1851,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 `payer` pays 1 USDT (`rawAmount` `1000000`, 6 decimals) to `payTo`, B.AI's receiving address. `balance` is the payer's current balance in smallest units: `tokenRaw` for USDT, `nativeRaw` for TRX (in SUN).
@@ -188,6 +189,7 @@ With `--dry-run`:
 | Field | Type | Meaning |
 |---|---|---|
 | `dryRun` | boolean | `true` |
+| `bindingRequired` | boolean | `true` when the paying address is not bound to the key's B.AI account yet, so a real recharge would sign and bind it first |
 | `network` / `token` / `amount` | string | What would be paid |
 | `payer` / `payTo` | string | Paying address, and B.AI's receiving address |
 | `scheme` | string | `exact` or `exact_gasfree` |
@@ -201,7 +203,7 @@ With `--dry-run`:
 
 ## Exit status
 
-`0` paid (check `creditStatus`), or previewed with `--dry-run` · `1` execution failure (the payment errors of [`x402 pay`](../x402/pay.md#exit-status); `auth_required` — no `--password-stdin`, before any order is created; `provider_error` — including a `--to` recipient B.AI does not recognize; `bai_auth_failed`; `bai_rejected` — with `error.details.reason`) · `2` usage error (`bai_credentials_missing`; `unsupported_network_capability`; `invalid_value` — unconfirmed payer, a token the network does not accept, or `exact_gasfree` outside TRON; `invalid_amount` — not a positive amount, below the minimum, or more than 6 decimal places; `invalid_option` — both GasFree fee caps, or `--wait` / `--wait-timeout`, which this command does not take).
+`0` paid (check `creditStatus`), or previewed with `--dry-run` · `1` execution failure (the payment errors of [`x402 pay`](../x402/pay.md#exit-status); `auth_required` — no `--password-stdin`, before any order is created; `provider_error` — including a `--to` recipient B.AI does not recognize, or a binding B.AI returns for a different address or chain; `bai_auth_failed` — B.AI rejected the stored key; `bai_rejected` — with `error.details.reason`) · `2` usage error (`bai_credentials_missing`; `unsupported_network_capability`; `invalid_value` — a token the network does not accept, or `exact_gasfree` outside TRON; `invalid_amount` — not a positive amount, below the minimum, or more than 6 decimal places; `invalid_option` — both GasFree fee caps, or `--wait` / `--wait-timeout`, which this command does not take).
 
 ## See also
 

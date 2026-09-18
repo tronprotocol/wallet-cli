@@ -28,6 +28,8 @@ What the server answers:
 
 `--resource-url` sets the resource URL advertised in the payment requirements (default: the `/pay` URL itself). The server binds only to `127.0.0.1` or `::1`. No wallet or password is needed.
 
+**On TRON the facilitator is asked first.** Before listening, the server reads `--facilitator-url`'s `/supported` list and advertises the network the way the facilitator spells it for x402 v2 and the chosen scheme — the decimal id (`tron:3448148188`) when supported, otherwise the facilitator's hex form (such as `tron:0xcd8690dc`). If the list cannot be read or has no matching entry, the server does not start. [`x402 roundtrip`](roundtrip.md) and [`bai recharge`](../bai/recharge.md) run the same check.
+
 **Access log.** Each request is logged with its status and duration — never its URL query, headers, body or payment signature. In the foreground the lines go to stderr, as `Payment required: HTTP 402 (1 ms)` in text mode or `{"event":"x402.request","method":"GET","route":"/pay","status":402,"durationMs":1}` in JSON mode; with `--daemon` they go to the log file.
 
 ## Options
@@ -122,7 +124,7 @@ Printed once at start-up:
 
 ## Exit status
 
-`0` stopped with Ctrl-C, or with `--daemon` the server started · `1` execution failure (`port_in_use` — the port is taken; `provider_error` — with `--daemon`, the background server failed to start, including when the port is taken, with its log file in `error.details.logFile`) · `2` usage error (`missing_option` — no `--pay-to`; `invalid_address` — `--pay-to` or `--asset` is not a valid address; `family_mismatch` — `--pay-to` belongs to the other chain family; `invalid_option` — `--amount` with `--raw-amount`, `--token` with `--asset`, `--decimals` without `--asset`, or `--decimals` that differs from a known token's; `invalid_amount` — the price is not positive or has more decimals than the token; `invalid_value` — the token is not registered on the network and no `--asset` with `--decimals` was given, `exact_gasfree` on an EVM network, `--facilitator-url` is not HTTPS, `--resource-url` is not HTTP(S), `--host` is not a loopback address, `--port` is outside 1–65535, or `--valid-for-seconds` is outside 1–86400).
+`0` stopped with Ctrl-C, or with `--daemon` the server started · `1` execution failure (`port_in_use` — the port is taken; `provider_error` — the facilitator's `/supported` list could not be read, or with `--daemon` the background server failed to start, including when the port is taken, with its log file in `error.details.logFile`; `provider_rate_limited` — the facilitator answered 429; `invalid_x402_response` — its `/supported` list is malformed) · `2` usage error (`unsupported_network_capability` — on TRON, the facilitator does not support this network and scheme; `missing_option` — no `--pay-to`; `invalid_address` — `--pay-to` or `--asset` is not a valid address; `family_mismatch` — `--pay-to` belongs to the other chain family; `invalid_option` — `--amount` with `--raw-amount`, `--token` with `--asset`, `--decimals` without `--asset`, or `--decimals` that differs from a known token's; `invalid_amount` — the price is not positive or has more decimals than the token; `invalid_value` — the token is not registered on the network and no `--asset` with `--decimals` was given, `exact_gasfree` on an EVM network, `--facilitator-url` is not HTTPS, `--resource-url` is not HTTP(S), `--host` is not a loopback address, `--port` is outside 1–65535, or `--valid-for-seconds` is outside 1–86400).
 
 ## See also
 

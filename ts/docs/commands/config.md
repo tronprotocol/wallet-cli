@@ -15,8 +15,11 @@ wallet-cli config [<key>] [<value>] [options]
 
 ## Options
 
-`--api-key-stdin` reads a B.AI API key from stdin; accepted only with `config baiApiKey`.
-See also [global options](index.md).
+| Option | Description |
+|---|---|
+| `--api-key-stdin` | Read the B.AI API key from stdin (fd 0). Accepted only by `config baiApiKey` |
+
+Plus [global options](index.md).
 
 ## Notes
 
@@ -26,14 +29,14 @@ Known keys:
 |---|---|---|---|
 | `defaultNetwork` | network id | `tron:728126428` | Network used when `--network` is omitted |
 | `defaultOutput` | `text` \| `json` | `text` | Output format when `-o` is omitted |
-| `timeoutMs` | ms, any finite number > 0 | `60000` | Default per node, service, or device call timeout (`--timeout` overrides). Unlike `waitTimeoutMs` it is not required to be an integer |
+| `timeoutMs` | ms, any finite number > 0 | `60000` | Default per node, service, or device call timeout (`--timeout` overrides). Unlike `waitTimeoutMs` it need not be an integer |
 | `waitTimeoutMs` | integer ms ≥ 0 | `60000` | Default `--wait` polling cap for broadcast commands |
-| `baiApiKey` | string via stdin | (unset) | B.AI API key; local configuration only |
-| `gasfreeApiKey` | string | (unset) | GasFree API key ([`gasfree`](gasfree/index.md)) |
-| `gasfreeApiSecret` | string | (unset) | GasFree API secret |
-| `tronlinkSecretId` | string | (unset) | TronLink multi-sig service secretId ([`tx multisig`](tx/multisig.md)) |
-| `tronlinkSecretKey` | string | (unset) | TronLink multi-sig service secretKey |
+| `gasfreeApiKey` | string | (unset) | GasFree API key ([`gasfree`](gasfree/index.md)). **Secret** |
+| `gasfreeApiSecret` | string | (unset) | GasFree API secret. **Secret** |
+| `tronlinkSecretId` | string | (unset) | TronLink multi-sig service secretId ([`tx multisig`](tx/multisig.md)). **Secret** |
+| `tronlinkSecretKey` | string | (unset) | TronLink multi-sig service secretKey. **Secret** |
 | `tronlinkChannel` | string | (unset) | TronLink multi-sig service channel |
+| `baiApiKey` | string | (unset) | B.AI personal API key, used by the `bai` commands. **Secret** — set only through `--api-key-stdin` |
 | `aliases` | — | — | Short name → canonical id map (read-only) |
 | `networks` | — | — | Known networks and their configurable fields (read-only as a whole) |
 | `networks.<id>` | — | — | One network's configurable fields; `<id>` may be a canonical id or an alias |
@@ -45,23 +48,17 @@ Known keys:
 
 Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 60000.
 
-**Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` and `networks.<id>.apiKey` come back as `********` from every read, and a set of one echoes both `value` and `input` as `"********"` too — the value goes to `config.yaml`, not to the terminal or to your shell history file's neighbours in a log.
+**Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` and `networks.<id>.apiKey` come back as `********` from every read, and setting one echoes `value` and `input` as `"********"` too.
 
 **Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:3448148188`) or its leaf (`config networks.tron:3448148188.httpEndpoint`) is the deliberate act that reveals the whole URL.
 
-Because `config.yaml` can hold service credentials, it is subject to a permission check: a symlink or a group/world-readable file fails with `insecure_config`. `chmod 600` it.
+An unset field is **absent** from the view rather than present and empty — the view says what *is* configured. Reading an unset key by name returns only `key` (text: `<key>  Not configured`).
 
 The external-service credentials are **per-environment**: the GasFree (`gasfreeApiKey` / `gasfreeApiSecret`) and TronLink (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`) credentials must match the service environment of the current `--network` (mainnet vs testnet); a mismatch fails with `provider_error`, so swap them when you switch environments. When a key is unset, the commands that need it fail with a clear error — `gasfree_credentials_missing` for [`gasfree`](gasfree/index.md), `tronlink_credentials_missing` for [`tx multisig`](tx/multisig.md).
 
+**`baiApiKey` is set differently from every other key.** It is never accepted as a command-line value — `config baiApiKey <key>` fails with `invalid_option` — and must be piped in with `--api-key-stdin`. Setting it only saves the key locally: it does not contact B.AI, needs no network, account or master password, and neither checks the key nor binds a wallet. [`bai recharge`](bai/recharge.md) checks the paying address's binding each time it runs and binds it first if needed.
+
 An invalid value returns `invalid_value` (exit 2).
-
-Setting `baiApiKey` does not contact B.AI or require a network, wallet or master password.
-It does not verify key validity or bind a wallet. Each `bai recharge` checks the
-selected payer’s live binding status and binds it if needed before ordering or paying.
-
-```bash
-printf '%s\n' "$BAI_KEY" | wallet-cli config baiApiKey --api-key-stdin
-```
 
 ## Examples
 
@@ -79,6 +76,8 @@ waitTimeoutMs      60000
 networks
   tron:728126428
     httpEndpoint  api.trongrid.io
+    apiKeyHeader  TRON-PRO-API-KEY
+    apiKey        ********
   tron:3448148188
     httpEndpoint  nile.trongrid.io
   tron:2494104990
@@ -91,6 +90,10 @@ networks
     httpEndpoint  bsc-dataseed.bnbchain.org
   eip155:97
     httpEndpoint  bsc-testnet-dataseed.bnbchain.org
+  eip155:8453
+    httpEndpoint  mainnet.base.org
+  eip155:84532
+    httpEndpoint  sepolia.base.org
 aliases
   tron          tron:728126428
   tron:mainnet  tron:728126428
@@ -102,6 +105,8 @@ aliases
   sepolia       eip155:11155111
   bsc           eip155:56
   bsc-testnet   eip155:97
+  base          eip155:8453
+  base-sepolia  eip155:84532
 tronlinkSecretId   ********
 tronlinkSecretKey  ********
 tronlinkChannel    test
@@ -141,8 +146,20 @@ Point a network at your own node, or at a commercial endpoint that authenticates
 
 ```bash
 wallet-cli config networks.tron:3448148188.httpEndpoint http://127.0.0.1:8090
+```
+
+```bash
 wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY
+```
+
+```bash
 wallet-cli config networks.tron:728126428.apiKey <your-key>
+```
+
+Store a B.AI API key, read from stdin:
+
+```bash
+printf '%s\n' "$BAI_KEY" | wallet-cli config baiApiKey --api-key-stdin
 ```
 
 Reading one network gives the endpoint in full, unlike the listing above:
@@ -156,8 +173,12 @@ networks.tron:3448148188
   httpEndpoint  https://nile.trongrid.io
 ```
 
+```bash
+wallet-cli config networks.tron:3448148188 -o json
+```
+
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"config","data":{"key":"networks.tron:3448148188","value":{"httpEndpoint":"https://nile.trongrid.io"}},"meta":{"durationMs":15,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"config","data":{"key":"networks.tron:3448148188","value":{"httpEndpoint":"https://nile.trongrid.io"}},"meta":{"durationMs":14,"warnings":[]}}
 ```
 
 ## Output
@@ -167,14 +188,12 @@ networks.tron:3448148188
 | Mode | `data` fields |
 |---|---|
 | show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` — each only when set, secrets masked |
-| read (`<key>`) | `key`, `value` |
+| read (`<key>`) | `key`, `value`; only `key` when the key is unset |
 | set (`<key> <value>`) | `key`, `value`, `input` (the raw string as typed); both `"********"` when the key is a secret |
-
-An unset network field is **absent** from the view rather than present and empty — the view says what *is* configured.
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error` — an atomic config write failed) · `2` usage error (`invalid_config` — `config.yaml` is unreadable or not valid YAML; `insecure_config` — it holds service credentials but is a symlink or group/world-readable, so `chmod 600` it; `invalid_value` — unknown key, a read-only key given a value, or an unsupported `networks.<id>.<field>`). See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure (`io_error` — an atomic config write failed) · `2` usage error (`invalid_config` — `config.yaml` is unreadable or not valid YAML; `insecure_config` — it holds service credentials but is a symlink or group/world-readable, so `chmod 600` it; `invalid_value` — unknown key, a read-only key given a value, or an unsupported `networks.<id>.<field>`; `invalid_option` — `baiApiKey` given on the command line). See [machine-interface](../machine-interface.md).
 
 ## See also
 

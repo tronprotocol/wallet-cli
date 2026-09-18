@@ -116,7 +116,7 @@ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH -
   To      TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH
   TxID    4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
   Status  pending — not yet on-chain
-! Track it: wallet-cli tx info --network nile --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
+! Track it: wallet-cli tx info --network tron:3448148188 --txid 4574b646adc694e99a1f64e548b2bdf9da62621c2d833f77354f67b751fbd0c4
 ```
 
 ```json

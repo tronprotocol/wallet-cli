@@ -74,6 +74,7 @@ The QR code needs an interactive terminal wide enough to draw it; otherwise the 
 | `derivationPath` | null | Always `null`, deliberately — `current` takes no master password, so it cannot tell an old TRON path from a current one without opening the seed; `derive` and `backup` report verified paths |
 | `receiveAddress` | string | Present in JSON only when `--qr` was given; the address selected by `--network` |
 | `family` | string | Chain family this account is bound to — single-family accounts (`watch`, `ledger`) only |
+| `path` | string | The account's derivation path on the device (`ledger` accounts only) |
 
 The `chain` block echoes the network selected for display; the command contacts no node.
 
