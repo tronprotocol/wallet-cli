@@ -1,18 +1,19 @@
 import type {
   BaiCreateOrderInput,
-  BaiReportRetry,
+  BaiReportDelay,
   BaiRechargeApi,
   BaiRechargePayment,
   BaiReportTransactionInput,
 } from "../ports/bai-recharge.js";
 import { CliError, UsageError, TransportError } from "../../domain/errors/index.js";
 
-/** Internal orchestration after target resolution and wallet binding. No implicit payment retries. */
+/** Internal orchestration after target resolution and wallet binding. No implicit retries: the
+ * transaction is reported once; an unconfirmed result carries the hash for `report-recharge`. */
 export class BaiRechargeFlow {
   constructor(
     private readonly api: Pick<BaiRechargeApi, "createOrder" | "reportTxHash">,
     private readonly payment: BaiRechargePayment,
-    private readonly retry?: BaiReportRetry,
+    private readonly delay?: BaiReportDelay,
     private readonly progress: (message: string) => void = () => {},
   ) {}
 
@@ -70,54 +71,37 @@ export class BaiRechargeFlow {
         warning: "Payment identity does not match the preorder; transaction was not reported",
       };
     }
+    if (this.delay?.initialDelayMs) {
+      this.progress("Waiting for the transaction to be indexed before reporting it to B.AI…");
+      await this.delay.wait(this.delay.initialDelayMs);
+    }
     this.progress("Submitting the transaction hash to B.AI and checking credit confirmation…");
-    return this.report(reportInput);
+    const reported = await this.report(reportInput);
+    // The hash was just paid, so "not found" means B.AI has not indexed it yet, not a bad hash.
+    return "code" in reported && reported.code === "TX_NOT_FOUND_OR_INVALID"
+      ? {
+          ...reported,
+          warning:
+            "B.AI has not indexed the transaction yet; report it again in a minute with `bai report-recharge`",
+        }
+      : reported;
   }
 
   /** Recovery entry point: only reports an existing hash; never creates an order or pays. */
   async report(input: BaiReportTransactionInput) {
-    return reportBaiTransaction(this.api, input, this.retry);
+    return reportBaiTransaction(this.api, input);
   }
 }
 
-/** Report-only recovery shared by the recharge flow and CLI. Never invokes payment. */
+/** Single report shared by the recharge flow and CLI. Never invokes payment, never retries. */
 export async function reportBaiTransaction(
   api: Pick<BaiRechargeApi, "reportTxHash">,
   input: BaiReportTransactionInput,
-  retry?: BaiReportRetry,
-) {
-  const request = structuredClone(input);
-  if (!retry) return reportOnce(api, request);
-  const deadline = retry.now() + retry.timeoutMs;
-  let result = await reportOnce(api, request, retry.timeoutMs);
-  for (const delay of retry.delaysMs) {
-    if (
-      result.creditStatus === "credited" ||
-      !["TX_NOT_FOUND_OR_INVALID", "TX_TIMESTAMP_UNAVAILABLE"].includes(result.code ?? "")
-    )
-      break;
-    if (retry.now() + delay >= deadline) break;
-    await retry.wait(delay);
-    const remaining = deadline - retry.now();
-    if (remaining <= 0) break;
-    result = await reportOnce(api, request, remaining);
-  }
-  return result;
-}
-
-async function reportOnce(
-  api: Pick<BaiRechargeApi, "reportTxHash">,
-  input: BaiReportTransactionInput,
-  timeoutMs?: number,
 ) {
   const request = structuredClone(input);
   const base = { ...request, retryPayment: false as const };
   try {
-    const result = await (timeoutMs === undefined
-      ? api.reportTxHash(structuredClone(request))
-      : api.reportTxHash(structuredClone(request), {
-          signal: AbortSignal.timeout(Math.ceil(timeoutMs)),
-        }));
+    const result = await api.reportTxHash(structuredClone(request));
     if (!result.success)
       return {
         ...base,

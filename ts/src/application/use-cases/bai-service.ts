@@ -2,7 +2,7 @@ import type { AccountStore } from "../ports/account-store.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type {
   BaiRechargeApi,
-  BaiReportRetry,
+  BaiReportDelay,
   BaiRechargeConfig,
   BaiRechargeTarget,
 } from "../ports/bai-recharge.js";
@@ -31,7 +31,7 @@ export class BaiService {
     private readonly binding?: Pick<BaiWalletBinding, "bind">,
     private readonly rechargeApi?: BaiRechargeApi,
     private readonly rechargeConfig?: BaiRechargeConfig,
-    private readonly reportRetry?: BaiReportRetry,
+    private readonly reportDelay?: BaiReportDelay,
     private readonly gateways?: ChainGatewayProvider,
     private readonly accounts?: Pick<AccountStore, "resolveAccount">,
   ) {}
@@ -161,7 +161,7 @@ export class BaiService {
           return { ...baiPaymentResult(result.pay, network.id), chain };
         },
       },
-      this.reportRetry,
+      this.reportDelay,
       (message) => scope.emit({ type: "activity", message }),
     );
     const result = await flow.execute({
@@ -205,23 +205,19 @@ export class BaiService {
       );
     }
     const amount = input.amount === undefined ? undefined : baiRechargeAmount(input.amount);
-    return reportBaiTransaction(
-      this.rechargeApi,
-      {
-        chain: input.chain,
-        txHash: input.txHash,
-        ...(amount === undefined ? {} : { amount }),
-        ...(to && targetId
-          ? {
-              rechargeTarget: {
-                input: { type: "personal", identifier: to },
-                confirmedTarget: { type: "personal", targetId },
-              },
-            }
-          : {}),
-      },
-      this.reportRetry,
-    );
+    return reportBaiTransaction(this.rechargeApi, {
+      chain: input.chain,
+      txHash: input.txHash,
+      ...(amount === undefined ? {} : { amount }),
+      ...(to && targetId
+        ? {
+            rechargeTarget: {
+              input: { type: "personal", identifier: to },
+              confirmedTarget: { type: "personal", targetId },
+            },
+          }
+        : {}),
+    });
   }
 
   async usage() {

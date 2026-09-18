@@ -153,12 +153,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       new BaiWalletBinding(new MessageService(signerResolver)),
       new BaiRechargeClient(config, timeoutMs),
       { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
-      {
-        timeoutMs: 90_000,
-        delaysMs: [15_000, 20_000, 25_000],
-        now: () => performance.now(),
-        wait: delay,
-      },
+      { initialDelayMs: baiReportDelayMs(), wait: delay },
       gatewayProvider,
       keystore,
     ),
@@ -268,3 +263,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
 }
 
 export type CliRuntime = ReturnType<typeof composeCliRuntime>;
+
+/** Pause before reporting a fresh recharge payment; tests spawn the real CLI and set this to 0. */
+function baiReportDelayMs(): number {
+  const raw = process.env.WALLET_CLI_BAI_REPORT_DELAY_MS;
+  return raw !== undefined && /^\d{1,7}$/.test(raw) ? Number(raw) : 15_000;
+}
