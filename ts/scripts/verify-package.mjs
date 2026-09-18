@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, posix, resolve } from "node:path";
 import assert from "node:assert/strict";
 
 const root = resolve(import.meta.dirname, "..");
@@ -17,16 +17,28 @@ try {
   // Never validate a stale dist left by an earlier build.
   call(npm, ["run", "build"]);
   const [packed] = JSON.parse(call(npm, ["pack", "--json", "--pack-destination", temp]));
-  const forbidden = packed.files.filter(
-    ({ path }) =>
-      path.startsWith("docs/development/") &&
-      path !== "docs/development/erc8004-sdk-integration.md",
-  );
+  const forbidden = packed.files.filter(({ path }) => path.startsWith("docs/development/"));
   assert.equal(forbidden.length, 0, "internal development reports must not be packaged");
   assert(
     packed.files.some(({ path }) => path === "dist/index.js"),
     "missing CLI entry",
   );
+  // A packaged document must not point at a document the package left out: every relative
+  // Markdown link in a packaged .md that stays inside the package must resolve to a packaged
+  // file. Links that climb out of the package (README -> the monorepo) are not its to satisfy.
+  const packedPaths = new Set(packed.files.map(({ path }) => path));
+  const dangling = [];
+  for (const path of packedPaths) {
+    if (!path.endsWith(".md")) continue;
+    const text = readFileSync(join(root, path), "utf8");
+    for (const [, target] of text.matchAll(/\]\(([^)#?\s]+\.md)(?:#[^)]*)?\)/g)) {
+      if (/^[a-z]+:/i.test(target)) continue;
+      const resolved = posix.normalize(posix.join(posix.dirname(path), target));
+      if (resolved.startsWith("../")) continue;
+      if (!packedPaths.has(resolved)) dangling.push(`${path} -> ${target}`);
+    }
+  }
+  assert.deepEqual(dangling, [], "packaged docs link to files the package does not contain");
   call(npm, ["init", "-y"], temp);
   call(npm, ["install", join(temp, packed.filename), "--no-audit", "--no-fund"], temp);
   const entry = join(temp, "node_modules/@tron-walletcli/wallet-cli/dist/index.js");
