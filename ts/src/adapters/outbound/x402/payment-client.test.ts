@@ -172,6 +172,59 @@ describe("X402PaymentClient", () => {
       }),
     ).rejects.toMatchObject({ code: "output_exists" });
   });
+
+  // A pre-existing --out is knowable before any request: refusing it only after the paid
+  // response arrives means the user has paid for bytes that were then thrown away.
+  it.each(["exists", "io"])(
+    "refuses an unusable output file (%s) before sending any request or signing",
+    async (mode) => {
+      const directory = await mkdtemp(join(tmpdir(), "wallet-cli-x402-out-"));
+      const output = join(directory, mode === "io" ? "missing/taken.bin" : "taken.bin");
+      if (mode === "exists") await writeFile(output, "keep me");
+      const fetcher = vi.fn();
+      const paidFetch = vi.fn();
+      const localResolver = { assertCanSign: vi.fn(), resolve: vi.fn(() => signer) } as never;
+      const client = new X402PaymentClient(
+        localResolver,
+        fetcher as typeof fetch,
+        vi.fn(async () => paidFetch as typeof fetch),
+      );
+      await expect(
+        client.pay(scope, net, {
+          url: "https://api.example/file",
+          method: "GET",
+          headers: [],
+          out: output,
+        }),
+      ).rejects.toMatchObject({
+        code: mode === "exists" ? "output_exists" : "io_error",
+        details: { paymentStatus: "not_sent" },
+      });
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(paidFetch).not.toHaveBeenCalled();
+      if (mode === "exists") expect(await readFile(output, "utf8")).toBe("keep me");
+      await rm(directory, { recursive: true });
+    },
+  );
+
+  it("releases the reserved output file when the request fails before anything is delivered", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "wallet-cli-x402-out-"));
+    const output = join(directory, "response.bin");
+    const fetcher = vi.fn(async () => {
+      throw new Error("connection refused");
+    });
+    const client = new X402PaymentClient(resolver, fetcher as typeof fetch);
+    await expect(
+      client.pay(scope, net, {
+        url: "https://api.example/file",
+        method: "GET",
+        headers: [],
+        out: output,
+      }),
+    ).rejects.toBeTruthy();
+    await expect(readFile(output)).rejects.toMatchObject({ code: "ENOENT" });
+    await rm(directory, { recursive: true });
+  });
 });
 
 it.each([
@@ -313,63 +366,44 @@ it("bounds oversized 402 bodies before the SDK or signer handles them", async ()
   expect(local.resolve).not.toHaveBeenCalled();
 });
 
-it.each(["json", "exists", "io"])(
-  "retains settlement when response processing fails: %s",
-  async (mode) => {
-    const directory = await mkdtemp(join(tmpdir(), "wallet-cli-settled-"));
-    const out = join(directory, mode === "io" ? "missing/out" : "out");
-    const transaction = "0x" + "a".repeat(64);
-    const paidFetch = vi.fn(
-      async () =>
-        new Response(mode === "json" ? "{" : "ok", {
-          headers: {
-            "content-type": mode === "json" ? "application/json" : "text/plain",
-            "payment-response": Buffer.from(
-              JSON.stringify({
-                success: true,
-                network: net.id,
-                transaction,
-                secret: "do-not-copy",
-              }),
-            ).toString("base64"),
-          },
-        }),
-    );
-    const client = new X402PaymentClient(resolver, globalThis.fetch, async () => paidFetch);
-    try {
-      if (mode === "exists") await writeFile(out, "original");
-      const error = await client
-        .pay(scope, net, {
-          url: "https://api.example/paid",
-          method: "GET",
-          headers: [],
-          ...(mode === "json" ? {} : { out }),
-        })
-        .catch((error) => error);
-      expect(error).toMatchObject({
-        code:
-          mode === "json"
-            ? "invalid_x402_response"
-            : mode === "exists"
-              ? "output_exists"
-              : "io_error",
-        details: {
-          paymentStatus: "settled",
-          retryPayment: false,
-          txHash: transaction,
-          settled: true,
-          paymentResponse: { success: true, network: net.id, transaction },
-          payer: { address: signer.address },
+// Output-file conflicts are now refused before payment (see above); a malformed paid body is
+// the failure that can only be discovered after settlement, and its evidence must survive.
+it("retains settlement when the paid response is malformed JSON", async () => {
+  const transaction = "0x" + "a".repeat(64);
+  const paidFetch = vi.fn(
+    async () =>
+      new Response("{", {
+        headers: {
+          "content-type": "application/json",
+          "payment-response": Buffer.from(
+            JSON.stringify({
+              success: true,
+              network: net.id,
+              transaction,
+              secret: "do-not-copy",
+            }),
+          ).toString("base64"),
         },
-      });
-      expect(JSON.stringify(error)).not.toContain("do-not-copy");
-      expect(paidFetch).toHaveBeenCalledOnce();
-      if (mode === "exists") expect(await readFile(out, "utf8")).toBe("original");
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  },
-);
+      }),
+  );
+  const client = new X402PaymentClient(resolver, globalThis.fetch, async () => paidFetch);
+  const error = await client
+    .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
+    .catch((error) => error);
+  expect(error).toMatchObject({
+    code: "invalid_x402_response",
+    details: {
+      paymentStatus: "settled",
+      retryPayment: false,
+      txHash: transaction,
+      settled: true,
+      paymentResponse: { success: true, network: net.id, transaction },
+      payer: { address: signer.address },
+    },
+  });
+  expect(JSON.stringify(error)).not.toContain("do-not-copy");
+  expect(paidFetch).toHaveBeenCalledOnce();
+});
 
 it.each([
   [

@@ -11,12 +11,17 @@
  * guards live here rather than at the call sites. Two of them refuse BEFORE the signature is
  * requested, so a rejected payment never reaches a device prompt.
  */
-import type { PayerPolicy, PayerSigner } from "../../../application/contracts/x402-payer.js";
+import type {
+  PayerPolicy,
+  PayerSigner,
+  SignedApproval,
+} from "../../../application/contracts/x402-payer.js";
 import type { TypedDataPayload, TypedDataSignature } from "../../../domain/types/index.js";
 import type { ChainFamily } from "../../../domain/family/chain-family.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { tronHexToBase58 } from "../../../domain/address/index.js";
+import { tronHexToBase58, tronHexAddress } from "../../../domain/address/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
+import { toBaseUnits } from "../../../domain/amounts/index.js";
 
 /**
  * The wallet an x402 scheme calls. Structural on purpose — see the module comment. TRON's scheme
@@ -81,9 +86,11 @@ function assertPayerMatches(
 function assertFeeWithinCap(
   payload: TypedDataPayload,
   primaryType: string,
-  maxGasfreeFeeRaw?: string,
+  policy: PayerPolicy,
 ): void {
-  if (maxGasfreeFeeRaw === undefined || primaryType !== PERMIT_TRANSFER) return;
+  if (primaryType !== PERMIT_TRANSFER) return;
+  const maxGasfreeFeeRaw = feeCapRaw(payload, policy);
+  if (maxGasfreeFeeRaw === undefined) return;
   const declared = payload.message.maxFee;
   let fee: bigint;
   let cap: bigint;
@@ -101,6 +108,69 @@ function assertFeeWithinCap(
       "fee_cap_exceeded",
       `GasFree maxFee ${fee} exceeds the ${maxGasfreeFeeRaw} ceiling`,
       { fee: fee.toString(), cap: maxGasfreeFeeRaw },
+    );
+  }
+}
+
+/**
+ * The ceiling in base units of the token the payload names. A raw ceiling is used as given; a
+ * human one is converted with that token's precision, and an unknown token refuses rather than
+ * guesses — a ceiling that cannot be applied must never be treated as "no ceiling".
+ */
+function feeCapRaw(payload: TypedDataPayload, policy: PayerPolicy): string | undefined {
+  if (policy.maxGasfreeFeeRaw !== undefined) return policy.maxGasfreeFeeRaw;
+  if (policy.maxGasfreeFee === undefined) return undefined;
+  const token = payload.message.token;
+  const decimals =
+    typeof token === "string" ? policy.gasfreeFeeDecimals?.(canonicalTronPayer(token)) : undefined;
+  if (decimals === undefined) {
+    throw new ChainError(
+      "fee_cap_exceeded",
+      `cannot apply the GasFree fee ceiling: unknown precision for token ${String(token)}`,
+    );
+  }
+  try {
+    return toBaseUnits(policy.maxGasfreeFee, decimals, "token", "--max-gasfree-fee");
+  } catch {
+    throw new ChainError(
+      "fee_cap_exceeded",
+      `GasFree fee ceiling ${policy.maxGasfreeFee} is not a valid amount for token ${token}`,
+    );
+  }
+}
+
+/**
+ * Which field bounds the authorization's validity, in unix seconds. Permit2 and GasFree call it
+ * `deadline`; EIP-3009 calls it `validBefore`. Structs without one carry no deadline to check.
+ */
+function declaredDeadline(payload: TypedDataPayload, primaryType: string): unknown {
+  return primaryType === "TransferWithAuthorization"
+    ? payload.message.validBefore
+    : payload.message.deadline;
+}
+
+/**
+ * The SDK fixes the deadline before it waits for an allowance to confirm, so the window can be
+ * gone by the time it asks for the signature, and again by the time a device returns one. Called
+ * before signing (nothing reaches the device) and after (nothing expired is handed on to be sent).
+ */
+function assertNotExpired(payload: TypedDataPayload, primaryType: string, now: number): void {
+  const declared = declaredDeadline(payload, primaryType);
+  if (declared === undefined) return;
+  let deadline: bigint;
+  try {
+    deadline = BigInt(declared as string | number | bigint);
+  } catch {
+    throw new ChainError(
+      "tx_expired",
+      `payment authorization deadline ${String(declared)} is not a whole number`,
+    );
+  }
+  if (deadline <= BigInt(now)) {
+    throw new ChainError(
+      "tx_expired",
+      "the payment authorization's deadline has passed; it was not signed or sent",
+      { deadline: deadline.toString(), now: String(now) },
     );
   }
 }
@@ -130,6 +200,63 @@ function evmRawTransaction(signed: unknown): string {
   return raw;
 }
 
+/** `approve(address,uint256)`; the spender is left-padded to 32 bytes, the amount is 32 bytes. */
+const APPROVE_SELECTOR = "095ea7b3";
+const MAX_UINT256_HEX = "f".repeat(64);
+/** The SDK's own fee limit for the approve (100 TRX); anything above it was not built for us. */
+const APPROVE_FEE_LIMIT_SUN = 100_000_000;
+
+function tronAddressField(value: unknown): string | undefined {
+  try {
+    return typeof value === "string" ? tronHexToBase58(value) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The generic integrity check proves the JSON and the bytes describe the same transaction; this
+ * proves that transaction is the approve the SDK asked a remote RPC to build. Everything is read
+ * from `raw_data`, which the integrity check binds to `raw_data_hex` before signing.
+ */
+function assertApproveIntent(
+  tx: unknown,
+  payer: string,
+  policy: PayerPolicy,
+): Omit<SignedApproval, "txId"> {
+  const refuse = (why: string): never => {
+    throw new ChainError(
+      "signed_payload_mismatch",
+      `x402 TRON transaction is not the requested Permit2 approve: ${why}; refusing to sign`,
+    );
+  };
+  const intent = policy.approveIntent;
+  if (!intent) return refuse("no approve was requested");
+  const raw = (tx as { raw_data?: { contract?: unknown; fee_limit?: unknown } } | null)?.raw_data;
+  const contracts = Array.isArray(raw?.contract) ? raw.contract : [];
+  if (contracts.length !== 1) return refuse(`expected one contract, got ${contracts.length}`);
+  const contract = contracts[0] as {
+    type?: unknown;
+    parameter?: { value?: Record<string, unknown> };
+  };
+  if (contract?.type !== "TriggerSmartContract")
+    return refuse(`contract type ${String(contract?.type)}`);
+  const value = contract.parameter?.value ?? {};
+  if (tronAddressField(value.owner_address) !== payer) return refuse("owner is not the payer");
+  const token = tronAddressField(value.contract_address);
+  if (token === undefined || !intent.tokens.includes(token))
+    return refuse("unknown token contract");
+  if (value.call_value !== undefined && Number(value.call_value) !== 0)
+    return refuse("call_value is not 0");
+  const data = typeof value.data === "string" ? value.data.replace(/^0x/, "").toLowerCase() : "";
+  const expected = `${APPROVE_SELECTOR}${"0".repeat(24)}${tronHexAddress(intent.spender).slice(2).toLowerCase()}${MAX_UINT256_HEX}`;
+  if (data !== expected) return refuse("calldata is not approve(Permit2, MaxUint256)");
+  const feeLimit = raw?.fee_limit;
+  if (typeof feeLimit !== "number" || !(feeLimit > 0 && feeLimit <= APPROVE_FEE_LIMIT_SUN))
+    return refuse(`fee_limit ${String(feeLimit)} is outside the approve budget`);
+  return { token, spender: intent.spender, allowance: "unlimited", feeLimitSun: feeLimit };
+}
+
 export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Wallet {
   return {
     address: payer.address,
@@ -146,8 +273,12 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
         );
       }
       assertPayerMatches(payload, primaryType, payer.address, policy.family);
-      assertFeeWithinCap(payload, primaryType, policy.maxGasfreeFeeRaw);
-      if (primaryType === PERMIT_TRANSFER && policy.maxGasfreeFeeRaw === undefined) {
+      assertFeeWithinCap(payload, primaryType, policy);
+      if (
+        primaryType === PERMIT_TRANSFER &&
+        policy.maxGasfreeFeeRaw === undefined &&
+        policy.maxGasfreeFee === undefined
+      ) {
         const fee = String(payload.message.maxFee);
         const value = String(payload.message.value);
         if (/^\d+$/.test(fee) && /^\d+$/.test(value) && BigInt(value) > 0n) {
@@ -157,15 +288,23 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
           );
         }
       }
+      const now = policy.now ?? (() => Math.floor(Date.now() / 1000));
+      assertNotExpired(payload, primaryType, now());
       const signed = await payer.signTypedData(payload);
       assertSignedTheRequest(signed, primaryType);
+      assertNotExpired(payload, primaryType, now());
       return prefixedHex(signed.signature);
     },
     async signTransaction(tx) {
-      const signed = await payer.signTransaction(
-        policy.family === "evm" ? evmTransactionInput(tx) : tx,
-      );
-      return policy.family === "evm" ? evmRawTransaction(signed) : signed;
+      if (policy.family === "evm") {
+        return evmRawTransaction(await payer.signTransaction(evmTransactionInput(tx)));
+      }
+      const approval = assertApproveIntent(tx, payer.address, policy);
+      const signed = await payer.signTransaction(tx);
+      // The signer has verified txID against raw_data_hex before signing; it is the id to look up.
+      const txId = (signed as { txID?: unknown })?.txID ?? (tx as { txID?: unknown })?.txID;
+      if (typeof txId === "string") policy.onApprovalSigned?.({ ...approval, txId });
+      return signed;
     },
   };
 }

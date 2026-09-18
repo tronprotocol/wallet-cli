@@ -122,3 +122,29 @@ it("uses not_sent only when the caller has no authorization or transaction evide
     details: { paymentStatus: "unknown" },
   });
 });
+
+/**
+ * Without an explicit --max-amount the SDK's own $1-per-payment spend control stays on, and it
+ * rejects inside `selectPaymentRequirements` — before any payment is created — with a plain
+ * Error. That is a deterministic policy refusal the caller can act on, not an upstream failure.
+ */
+it.each([
+  [
+    "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",
+    "amount_exceeds_limit",
+  ],
+  [
+    "All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed. Add an allowedAssets entry for non-default tokens, set allowedAssets: true, or set spendControls: false.",
+    "no_matching_requirement",
+  ],
+])("classifies the SDK's spend-control refusal as a typed, not-sent error", (message, code) => {
+  const error = sdkPaymentError(
+    new Error(`Failed to create payment payload: ${message}`),
+    "payment_request",
+  );
+  expect(error).toMatchObject({
+    code,
+    details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
+  });
+  expect(error.message).toContain("--max-amount");
+});

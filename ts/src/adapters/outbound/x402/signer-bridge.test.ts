@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { toX402Wallet } from "./signer-bridge.js";
 import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { tronHexAddress } from "../../../domain/address/index.js";
 
 const EVM_ADDRESS = "0xaB5801a7D398351b8bE11C439e05C5B3259aeC9B";
 const TRON_ADDRESS = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
@@ -221,13 +222,6 @@ describe("toX402Wallet", () => {
     expect(payer.signTypedData).not.toHaveBeenCalled();
   });
 
-  it("passes a TRON transaction through untouched", async () => {
-    const payer = payerOf(TRON_ADDRESS);
-    const tx = { raw_data: {}, txID: "abc" };
-    expect(await toX402Wallet(payer, { family: "tron" }).signTransaction(tx)).toEqual(tx);
-    expect(payer.signTransaction).toHaveBeenCalledWith(tx);
-  });
-
   it("unwraps an EVM signature to the raw serialisation x402 broadcasts", async () => {
     const payer: PayerSigner = {
       address: EVM_ADDRESS,
@@ -276,4 +270,220 @@ it("warns about an uncapped high GasFree fee before requesting the signature", a
   expect(warn.mock.invocationCallOrder[0]).toBeLessThan(
     vi.mocked(payer.signTypedData).mock.invocationCallOrder[0]!,
   );
+});
+
+/**
+ * A human-unit fee ceiling (`--max-gasfree-fee 1`) has no meaning until the token is known, and
+ * the token is only known once the SDK has chosen the requirement and filled the PermitTransfer.
+ * Converting the ceiling up front, with whichever candidate the CLI saw first, let a 1 USDD
+ * (18 decimals) ceiling authorise 1.3 USDT (6 decimals) of fees.
+ */
+describe("toX402Wallet converts a human fee ceiling with the SIGNED token's precision", () => {
+  const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const USDT_HEX = "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c"; // the same address as TIP-712 spells it
+  const withToken = (maxFee: string, token = USDT_HEX): TypedDataPayload => ({
+    ...permitPayload(TRON_ADDRESS, maxFee),
+    message: { user: TRON_ADDRESS, maxFee, token },
+  });
+  const policy = {
+    family: "tron" as const,
+    maxGasfreeFee: "1",
+    gasfreeFeeDecimals: (token: string) => (token === USDT ? 6 : undefined),
+  };
+
+  it("refuses a fee above the ceiling in the signed token's units", async () => {
+    const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
+    const wallet = toX402Wallet(payer, policy);
+    await expect(wallet.signTypedData(withToken("1300000"))).rejects.toMatchObject({
+      code: "fee_cap_exceeded",
+      details: { fee: "1300000", cap: "1000000" },
+    });
+    expect(payer.signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("signs a fee within the ceiling in the signed token's units", async () => {
+    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), policy);
+    await expect(wallet.signTypedData(withToken("1000000"))).resolves.toBeDefined();
+  });
+
+  it("refuses rather than guess when the signed token's precision is unknown", async () => {
+    const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
+    const wallet = toX402Wallet(payer, policy);
+    await expect(
+      wallet.signTypedData(withToken("1", "0x0000000000000000000000000000000000000001")),
+    ).rejects.toMatchObject({ code: "fee_cap_exceeded" });
+    expect(payer.signTypedData).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A payment authorization carries its own deadline (Permit2 `deadline`, EIP-3009 `validBefore`,
+ * GasFree `deadline`). The SDK computes it before waiting for an approve to confirm, so by the
+ * time it asks for the signature — or by the time a device returns one — the window can already
+ * be gone. An expired authorization must be refused before it reaches the device, and a signature
+ * that expired while the device was open must not be handed on to be sent.
+ */
+describe("toX402Wallet refuses expired payment authorizations", () => {
+  const EVM = "0x1111111111111111111111111111111111111111";
+  const NOW = 1_700_000_000;
+  const permit2 = (deadline: number): TypedDataPayload => ({
+    domain: { name: "Permit2" },
+    types: {
+      PermitWitnessTransferFrom: [
+        { name: "spender", type: "address" },
+        { name: "deadline", type: "uint256" },
+      ],
+    },
+    primaryType: "PermitWitnessTransferFrom",
+    message: { spender: EVM, deadline: String(deadline) },
+  });
+  const eip3009 = (validBefore: number): TypedDataPayload => ({
+    domain: { name: "USD Coin" },
+    types: {
+      TransferWithAuthorization: [
+        { name: "from", type: "address" },
+        { name: "validBefore", type: "uint256" },
+      ],
+    },
+    primaryType: "TransferWithAuthorization",
+    message: { from: EVM, validBefore: String(validBefore) },
+  });
+
+  it("refuses a Permit2 authorization whose deadline has passed, before signing", async () => {
+    const payer = payerOf(EVM, "sig", "PermitWitnessTransferFrom");
+    const wallet = toX402Wallet(payer, { family: "evm", now: () => NOW });
+    await expect(wallet.signTypedData(permit2(NOW - 1))).rejects.toMatchObject({
+      code: "tx_expired",
+    });
+    expect(payer.signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("refuses an EIP-3009 authorization whose validBefore has passed", async () => {
+    const payer = payerOf(EVM, "sig", "TransferWithAuthorization");
+    const wallet = toX402Wallet(payer, { family: "evm", now: () => NOW });
+    await expect(wallet.signTypedData(eip3009(NOW))).rejects.toMatchObject({ code: "tx_expired" });
+  });
+
+  it("refuses a GasFree PermitTransfer whose deadline has passed", async () => {
+    const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
+    const wallet = toX402Wallet(payer, { family: "tron", now: () => NOW });
+    const payload = {
+      ...permitPayload(TRON_ADDRESS, "1"),
+      message: { user: TRON_ADDRESS, maxFee: "1", deadline: String(NOW - 5) },
+    };
+    await expect(wallet.signTypedData(payload)).rejects.toMatchObject({ code: "tx_expired" });
+  });
+
+  it("signs an authorization whose deadline is still ahead", async () => {
+    const wallet = toX402Wallet(payerOf(EVM, "sig", "PermitWitnessTransferFrom"), {
+      family: "evm",
+      now: () => NOW,
+    });
+    await expect(wallet.signTypedData(permit2(NOW + 30))).resolves.toBe("0xsig");
+  });
+
+  it("does not hand on a signature whose deadline passed while the device was open", async () => {
+    let clock = NOW;
+    const payer = payerOf(EVM, "sig", "PermitWitnessTransferFrom");
+    (payer.signTypedData as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      clock = NOW + 61;
+      return { signature: "0xsig", digest: "0xdig", primaryType: "PermitWitnessTransferFrom" };
+    });
+    const wallet = toX402Wallet(payer, { family: "evm", now: () => clock });
+    await expect(wallet.signTypedData(permit2(NOW + 60))).rejects.toMatchObject({
+      code: "tx_expired",
+    });
+  });
+});
+
+/**
+ * The x402 TRON approve is the one transaction this wallet signs that a remote RPC built. The
+ * generic integrity check proves the JSON and the bytes are the same transaction — not that it is
+ * the approve that was asked for. A compromised RPC can return any self-consistent, owner-only
+ * transaction and the signature is handed over. The bridge therefore only ever signs the exact
+ * `approve(Permit2, MaxUint256)` the SDK requested, checked before any device prompt.
+ */
+describe("toX402Wallet signs only the Permit2 approve it was asked for (TRON)", () => {
+  const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
+  const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const hex20 = (base58: string) => tronHexAddress(base58).slice(2);
+  const approveData = (spender: string, amount = "f".repeat(64)) =>
+    `095ea7b3${"0".repeat(24)}${hex20(spender)}${amount}`;
+  const approveTx = (
+    over: Record<string, unknown> = {},
+    valueOver: Record<string, unknown> = {},
+  ) => ({
+    txID: "ab".repeat(32),
+    raw_data_hex: "0a",
+    raw_data: {
+      fee_limit: 100_000_000,
+      contract: [
+        {
+          type: "TriggerSmartContract",
+          parameter: {
+            type_url: "type.googleapis.com/protocol.TriggerSmartContract",
+            value: {
+              owner_address: tronHexAddress(TRON_ADDRESS),
+              contract_address: tronHexAddress(USDT),
+              data: approveData(PERMIT2),
+              ...valueOver,
+            },
+          },
+        },
+      ],
+      ...over,
+    },
+  });
+  const policy = {
+    family: "tron" as const,
+    approveIntent: { spender: PERMIT2, tokens: [USDT] },
+  };
+
+  it("signs the approve the SDK asked for, passing the transaction through untouched", async () => {
+    const payer = payerOf(TRON_ADDRESS);
+    const tx = approveTx();
+    expect(await toX402Wallet(payer, policy).signTransaction(tx)).toEqual(tx);
+    expect(payer.signTransaction).toHaveBeenCalledWith(tx);
+  });
+
+  it.each([
+    [
+      "an owner-only contract type substituted by the RPC",
+      {
+        contract: [
+          {
+            type: "WithdrawBalanceContract",
+            parameter: { value: { owner_address: tronHexAddress(TRON_ADDRESS) } },
+          },
+        ],
+      },
+      {},
+    ],
+    [
+      "a second contract appended",
+      { contract: [approveTx().raw_data.contract[0], approveTx().raw_data.contract[0]] },
+      {},
+    ],
+    ["a different spender", {}, { data: approveData(TRON_ADDRESS) }],
+    ["an amount other than MaxUint256", {}, { data: approveData(PERMIT2, "0".repeat(63) + "1") }],
+    ["a token this wallet does not know", {}, { contract_address: tronHexAddress(PERMIT2) }],
+    ["a different owner", {}, { owner_address: tronHexAddress(PERMIT2) }],
+    ["TRX attached to the call", {}, { call_value: 1 }],
+    ["a fee limit above the approve budget", { fee_limit: 100_000_001 }, {}],
+    ["no fee limit at all", { fee_limit: undefined }, {}],
+  ])("refuses %s before the signer is asked", async (_label, over, valueOver) => {
+    const payer = payerOf(TRON_ADDRESS);
+    await expect(
+      toX402Wallet(payer, policy).signTransaction(approveTx(over, valueOver)),
+    ).rejects.toMatchObject({ code: "signed_payload_mismatch" });
+    expect(payer.signTransaction).not.toHaveBeenCalled();
+  });
+
+  it("refuses any TRON transaction when no approve intent was declared", async () => {
+    const payer = payerOf(TRON_ADDRESS);
+    await expect(
+      toX402Wallet(payer, { family: "tron" }).signTransaction(approveTx()),
+    ).rejects.toMatchObject({ code: "signed_payload_mismatch" });
+    expect(payer.signTransaction).not.toHaveBeenCalled();
+  });
 });

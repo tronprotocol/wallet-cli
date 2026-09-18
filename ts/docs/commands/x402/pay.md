@@ -16,7 +16,7 @@ wallet-cli x402 pay <url> [--method <m>] [--header "Name: value"]... [--body <s>
 
 Sends the request. If the endpoint answers with a successful status (2xx), that response is returned as-is and nothing is paid; any other status except `402` fails with `provider_error`, carrying `httpStatus` and `phase: "request"`. If it answers `402 Payment Required`, `pay` reads the payment routes it offers, picks one that matches the selected `--network` and your filters, signs a payment authorization with the active account (or `--account`), and sends the request again with it. The endpoint's facilitator settles the payment on chain.
 
-**Nothing is signed until a route matches.** Routes on other networks are ignored; `--token`, `--asset` and `--scheme` narrow the choice further, and `--max-amount` (whole tokens) or `--max-raw-amount` (smallest units) rules out a route priced above it. If no route matches, the command fails with `no_matching_requirement`; if the matching route is priced over the limit, with `amount_exceeds_limit`. Both are raised before signing, with `paymentStatus: "not_sent"`, and no password is asked for — with or without `--dry-run`.
+**Nothing is signed until a route matches.** Routes on other networks are ignored; `--token`, `--asset` and `--scheme` narrow the choice further, and `--max-amount` (whole tokens) or `--max-raw-amount` (smallest units) rules out a route priced above it. If no route matches, the command fails with `no_matching_requirement`; if the matching route is priced over the limit, with `amount_exceeds_limit`. Both are raised before signing, with `paymentStatus: "not_sent"`, and no password is asked for — with or without `--dry-run`. Without a limit of your own, a built-in ceiling of **$1 per payment** applies to the known stablecoins; a route priced above it also fails with `amount_exceeds_limit`, and passing `--max-amount` or `--max-raw-amount` replaces that ceiling with yours.
 
 **Two payment schemes:**
 
@@ -54,7 +54,7 @@ Requires an account, even for an endpoint that turns out to be free. The master 
 | `--gasfree-relay <official\|gasfree\|url>` | Source of GasFree account data for `exact_gasfree` (default `official`); a URL must be HTTPS with no credentials, query, or fragment |
 | `--max-gasfree-fee <n>` | Highest GasFree fee to authorize, in whole tokens; excludes `--max-gasfree-fee-raw` |
 | `--max-gasfree-fee-raw <n>` | The same cap in smallest units |
-| `--out <path>` | Write the response body to a new file instead of `data.response`; an existing file is never overwritten |
+| `--out <path>` | Write the response body to a new file instead of `data.response`; an existing file is refused (`output_exists`) before any request is sent, so it is never overwritten and never paid for |
 | `--dry-run` | Read the challenge and report the selected route, without signing |
 | `--password-stdin` | Master password from stdin |
 
@@ -133,6 +133,7 @@ printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/provide
 | `settled` | boolean | Whether a valid settlement receipt for the selected network came back |
 | `payer` | object | `{address}` of the paying account; present when a payment was signed |
 | `paymentResponse` | object | The facilitator's settlement receipt, when the endpoint sent one: `success`, `transaction` (the payment's transaction ID), `network`, and `payer` — both as the facilitator writes them, e.g. `tron:0xcd8690dc` and a hex address |
+| `approval` | object | TRON only, when the payment needed a one-time Permit2 approve: `{txId, token, spender, allowance: "unlimited", feeLimitSun, status}`. `status` is `confirmed` (broadcast and mined before the payment was signed) or `exported` (signed into the payment package for the endpoint to sponsor). The same object appears in `error.details.approval` when anything after the approve fails |
 | `response` | any | The response body — parsed JSON, or text; absent with `--out` |
 | `output` | object | With `--out`: `{path, bytes}` written |
 | `dryRun` / `paymentRequired` / `selected` | — | With `--dry-run` on a `402`: `true`, `true`, and the route that would be paid (`scheme`, `network`, `amount` in smallest units, `asset`, `payTo`, `maxTimeoutSeconds`, `extra`) |

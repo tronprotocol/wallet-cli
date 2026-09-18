@@ -9,7 +9,8 @@ import {
 } from "../render/x402.js";
 import { paymentAmount, rawPaymentAmount, integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
-import type { CommandDefinition } from "../contracts/index.js";
+import { SECRET_KINDS, type CommandDefinition } from "../contracts/index.js";
+import { sanitizeText } from "../render/scalars.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
 import { readFile } from "node:fs/promises";
@@ -331,10 +332,13 @@ async function requestBody(
 ): Promise<string | undefined> {
   if (!path) return inline;
   if (path === "-") {
-    if (ctx.secrets.has("password")) {
+    // Every `--<kind>-stdin` secret is bound to the same fd 0; reading it as the body would post
+    // the secret to the endpoint. Refuse before anything is read, whichever secret claims stdin.
+    const claimed = SECRET_KINDS.find((kind) => ctx.secrets.has(kind));
+    if (claimed !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--body-file - cannot share stdin with --password-stdin",
+        `--body-file - cannot share stdin with --${claimed.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}-stdin`,
       );
     }
     return checkedBody(ctx.streams.readStdinOnce(), "stdin");
@@ -363,7 +367,9 @@ async function providerResult(
 ) {
   ctx.emit({ type: "activity", message: "Loading provider catalog data…" });
   const { warnings, ...data } = await pending;
+  // Remote text on the diagnostic channel bypasses the result renderer's sanitizing; do it here.
   if (Array.isArray(warnings))
-    for (const warning of warnings) if (typeof warning === "string") ctx.warn(warning);
+    for (const warning of warnings)
+      if (typeof warning === "string") ctx.warn(sanitizeText(warning));
   return data;
 }
