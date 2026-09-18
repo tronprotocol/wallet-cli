@@ -33,20 +33,38 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
     result.exchangeWithdrawnOther = info.exchange_withdraw_another_amount;
   }
   if (receipt.result !== undefined) result.result = receipt.result;
+  // TRON records a failure in two places: the top-level `result: "FAILED"` (with `resMessage`)
+  // and the nested `receipt.result`. Either one is authoritative; neither being present is not
+  // evidence of success — see `requireReceiptResult` below.
   result.failed =
-    receipt.result !== undefined && receipt.result !== "SUCCESS" && receipt.result !== "DEFAULT";
+    info.result === "FAILED" ||
+    (receipt.result !== undefined && receipt.result !== "SUCCESS" && receipt.result !== "DEFAULT");
   return result;
+}
+
+export interface TronConfirmationOptions {
+  /**
+   * A smart-contract call always carries `receipt.result` once mined; an info that has a block
+   * but no execution result is not a confirmation of that call, so keep polling rather than
+   * defaulting it to success. Native transactions (transfer, stake…) legitimately omit it.
+   */
+  requireReceiptResult?: boolean;
 }
 
 export function tronConfirmation(
   gateway: TronGateway,
   scope: TransactionScope,
+  options: TronConfirmationOptions = {},
 ): (txId: string) => Promise<Record<string, unknown> | undefined> {
   return async (txId) => {
     const deadline = Date.now() + Math.max(0, scope.waitTimeoutMs);
     for (;;) {
       const info = await gateway.getTransactionInfoById(txId).catch(() => undefined);
-      if (info?.blockNumber !== undefined) return normalize(info);
+      if (info?.blockNumber !== undefined) {
+        const normalized = normalize(info);
+        if (!options.requireReceiptResult || normalized.failed || normalized.result !== undefined)
+          return normalized;
+      }
       const remaining = deadline - Date.now();
       if (remaining <= 0) return undefined;
       await sleep(Math.min(1500, remaining));

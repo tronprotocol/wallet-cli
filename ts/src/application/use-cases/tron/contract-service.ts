@@ -82,7 +82,7 @@ export class TronContractService {
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
-      confirm: tronConfirmation(gateway, scope),
+      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       build: async (from) =>
         gateway.triggerSmartContract(from, input.contract, input.method, input.parameters, {
           feeLimit: input.feeLimit,
@@ -144,7 +144,7 @@ export class TronContractService {
         return prepared;
       },
       signerOptions: { requireSoftware: true },
-      confirm: tronConfirmation(gateway, scope),
+      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       build: (from) => gateway.deployContract(from, input),
       estimate: async () => ({
         feeModel: "tron-resource",
@@ -261,7 +261,7 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
-      confirm: tronConfirmation(gateway, scope),
+      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       ...tronTransactionHooks(gateway),
       build: async (address) => await build(gateway, address),
       estimate: async (_tx: UnsignedTx) => ({
