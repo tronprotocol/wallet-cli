@@ -60,7 +60,7 @@
   },
   "license": "LGPL-3.0-or-later",
   "dependencies": {
-    "@bankofai/8004-sdk": "1.2.0-beta.1",
+    "@bankofai/8004-sdk": "1.2.0",
     "@ledgerhq/hw-app-eth": "^7.8.15",
     "@ledgerhq/hw-app-trx": "^6.36.3",
     "@ledgerhq/hw-transport-node-hid-noevents": "^6.35.4",
