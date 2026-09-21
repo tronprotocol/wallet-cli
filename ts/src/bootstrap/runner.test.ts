@@ -107,6 +107,12 @@ describe("parseGlobals", () => {
     expect(secretPaths.password).toBeUndefined();
   });
 
+  it("maps --api-key-stdin to the B.AI configuration secret channel", () => {
+    const { secretPaths, stdinFlags } = parseGlobals(["config", "baiApiKey", "--api-key-stdin"]);
+    expect(secretPaths.apiKey).toBe("-");
+    expect(stdinFlags).toEqual(["--api-key-stdin"]);
+  });
+
   // BUG-V413-019: stdin (fd 0) can serve only one secret per run. `stdinFlags` names every
   // distinct `--*-stdin` flag seen so the caller (runner.ts) can reject a combination BEFORE
   // any secret is read, rather than discovering it later as secret_source_error.

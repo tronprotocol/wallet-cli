@@ -1,3 +1,4 @@
+import { currentTronEnergyPrice } from "../../../../domain/amounts/tron-energy-price.js";
 /**
  * TronRpcClient — thin TRON node wrapper via tronweb HTTP fullHost. Implements the
  * Broadcaster port plus TRON-specific reads, TRC10/TRC20, Stake 2.0, and contract operations.
@@ -181,7 +182,22 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       this.#pacedProviders.add(provider);
       const request = provider.request.bind(provider);
       provider.request = ((...args: Parameters<typeof request>) =>
-        this.#pacer.run(() => request(...args))) as typeof request;
+        this.#pacer.run(async () => {
+          const response = await request(...args);
+          // TronWeb discards constant-call revert data when it throws result.message.
+          // Preserve it at the transport boundary for callers decoding custom ABI errors.
+          const constant = response as
+            { result?: { message?: unknown }; constant_result?: unknown[] } | undefined;
+          if (String(args[0]).endsWith("/triggerconstantcontract") && constant?.result?.message) {
+            const raw = constant.constant_result?.[0];
+            if (typeof raw === "string" && /^[0-9a-f]+$/i.test(raw)) {
+              throw new ChainError("execution_reverted", "TRON constant call reverted", {
+                revertData: `0x${raw}`,
+              });
+            }
+          }
+          return response;
+        })) as typeof request;
     }
   }
 
@@ -1036,12 +1052,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     contract: string,
     fn: string,
     params: TronContractParameter[],
+    callValueSun = "0",
   ): Promise<number> {
+    const callValue = this.#safeNumber(callValueSun, "call value");
     return this.#wrap("estimateEnergy", async () => {
       const res = await this.#tw.transactionBuilder.triggerConstantContract(
         contract,
         fn,
-        {},
+        { callValue },
         params as Types.ContractFunctionParameter[],
         from,
       );
@@ -1053,16 +1071,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     contract: string,
     fn: string,
     params: TronContractParameter[],
+    callValueSun = "0",
   ): Promise<FeeEstimate> {
     const [energy, prices, resources] = await Promise.all([
-      this.estimateEnergy(from, contract, fn, params),
+      this.estimateEnergy(from, contract, fn, params, callValueSun),
       this.getEnergyPrices().catch(() => undefined),
       this.getAccountResources(from).catch(() => undefined),
     ]);
     return {
       feeModel: "tron-resource",
       energy,
-      energyPriceSun: prices,
+      energyPriceSun: currentTronEnergyPrice(prices),
       availableEnergy: resources
         ? Number(resources.EnergyLimit ?? 0) - Number(resources.EnergyUsed ?? 0)
         : undefined,

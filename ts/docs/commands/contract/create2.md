@@ -10,7 +10,9 @@ wallet-cli contract create2 --deployer <address> (--code <hex> | --code-file <pa
 
 ## Description
 
-Pure local arithmetic: no node is contacted, nothing is broadcast, and no account or password is involved. The result is the same on every TRON network, so `--network` does not affect it. TRON only — on an EVM network the command fails with `family_mismatch`.
+> **TRON only.** The derivation below is TRON's; on an EVM network the command fails with `family_mismatch`.
+
+Pure local arithmetic: no node is contacted, nothing is broadcast, and no account or password is involved. The result is the same on every TRON network, so `--network` selects only the family, never changes the address.
 
 **TRON's derivation is not Ethereum's** — do not compute it with an EVM calculator. The address is
 
@@ -58,7 +60,7 @@ wallet-cli contract create2 --deployer TQkXm4vN...5Zt7Uw --code 6080604052... --
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"contract.create2","data":{"deployerAddress":"TQkXm4vN...","salt":255,"saltHex":"0x00000000000000000000000000000000000000000000000000000000000000ff","codeHash":"c8f4a1...b91b","address":"TWq8dK3n...2mHb"},"meta":{"durationMs":3,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"contract.create2","data":{"deployerAddress":"TQkXm4vN...","salt":255,"saltHex":"0x00000000000000000000000000000000000000000000000000000000000000ff","codeHash":"c8f4a1...b91b","address":"TWq8dK3n...2mHb"},"meta":{"durationMs":3,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -71,11 +73,11 @@ wallet-cli contract create2 --deployer TQkXm4vN...5Zt7Uw --code 6080604052... --
 | `codeHash` | string | `keccak256` of the creation bytecode |
 | `address` | string | The resulting contract address, base58 |
 
-The command never contacts a node, but it is still a TRON chain command: the envelope carries the usual `chain` block for the selected network. `--network` is optional here and only picks which network the block names.
+The command never contacts a node, but it is still a TRON chain command: the envelope carries the usual `chain` block for the selected network. `--network` is optional here and only decides which network that block names.
 
 ## Exit status
 
-`0` success · `1` execution failure · `2` usage error (`missing_option` — no `--deployer` or `--salt`; `file_not_found` — `--code-file` does not exist; `invalid_value` — neither or both code sources, an unreadable code file, malformed deployer address, non-hex code, or a salt outside the signed 64-bit range).
+`0` success · `1` execution failure · `2` usage error (`missing_option` — no `--deployer` or `--salt`; `file_not_found` — `--code-file` does not exist; `invalid_value` — neither or both code sources, an unreadable code file, a malformed deployer address, non-hex code, or a salt outside the signed 64-bit range; `family_mismatch` on an EVM network).
 
 ## See also
 

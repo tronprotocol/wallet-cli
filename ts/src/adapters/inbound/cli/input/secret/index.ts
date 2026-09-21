@@ -197,6 +197,11 @@ export class SecretResolver implements ISecretResolver {
     }
     this.#stdinUsedBy = kind;
     if (!this.#byPath.has("-")) {
+      if (kind === "apiKey" && process.stdin.isTTY)
+        this.streams.diagnostic(
+          "info",
+          "Reading API key from stdin; finish input with Ctrl-D. Use a pipe for non-interactive input.",
+        );
       this.#byPath.set("-", this.streams.readStdinOnce().replace(/\r?\n$/, ""));
     }
     return this.#byPath.get("-")!;

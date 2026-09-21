@@ -8,13 +8,13 @@ Sign arbitrary messages.
 wallet-cli message COMMAND
 ```
 
+Runs on TRON and EVM networks: the selected network decides which of the account's keys signs — TIP-191/V2 with the TRON key, EIP-191 with the EVM one — and which address is reported.
+
 ## Subcommands
 
-| Command | Page | Description | Networks |
-|---|---|---|---|
-| `message sign` | [sign.md](sign.md) | Sign an arbitrary message (TIP-191/V2 · EIP-191) | TRON, EVM |
-
-Signing is local — no node is contacted. The selected network chooses which of the account's keys signs and which address is reported.
+| Command | Page | Description |
+|---|---|---|
+| `message sign` | [sign.md](sign.md) | Sign an arbitrary message |
 
 ## See also
 

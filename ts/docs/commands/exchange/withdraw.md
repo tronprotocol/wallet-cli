@@ -44,7 +44,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -60,7 +60,7 @@ echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network
 ```
 
 ```bash
-echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network nile --wait --password-stdin -o json
 ```
 
 ```json

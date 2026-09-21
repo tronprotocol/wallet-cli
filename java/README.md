@@ -46,7 +46,7 @@ You can also switch networks at runtime with the [`SwitchNetwork`](docs/commands
     $ java -jar wallet-cli.jar
     ```
 
-wallet-cli connects to java-tron via gRPC. At startup it first looks for `config.conf` in the current working directory, then falls back to the bundled classpath resource. Use `SwitchNetwork` to switch among mainnet, testnets (Nile and Shasta), and custom networks.
+wallet-cli connects to java-tron via gRPC. At startup it first looks for `config.conf` in the current working directory, then falls back to the copy bundled into the jar at build time (`java/src/main/resources/config.conf`). Use `SwitchNetwork` to switch among mainnet, testnets (Nile and Shasta), and custom networks.
 
 ## Quickstart
 

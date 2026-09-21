@@ -1,3 +1,4 @@
+import { structuredText } from "./structured.js";
 import type { TextFormatter, TextRenderContext } from "../contracts/index.js";
 import { asObj, ok, pending, receipt, titled } from "./layout.js";
 import { formatInt, formatSun } from "./scalars.js";
@@ -235,7 +236,7 @@ function confirmedFee(data: Obj): string {
 function signedSummary(value: unknown): string {
   if (!value || typeof value !== "object") return String(value ?? "");
   const signatures = (value as { signature?: unknown }).signature;
-  return Array.isArray(signatures) ? signatures.map(String).join(", ") : JSON.stringify(value);
+  return Array.isArray(signatures) ? signatures.map(String).join(", ") : structuredText(value);
 }
 
 function changeValue(value: unknown): string {

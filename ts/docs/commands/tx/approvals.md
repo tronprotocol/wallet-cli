@@ -1,6 +1,6 @@
 # wallet-cli tx approvals
 
-Show collected signatures on a multi-sig transaction. TRON only.
+Show the sign-weight and approved-signer list of a transaction hex.
 
 ## Synopsis
 
@@ -10,9 +10,9 @@ wallet-cli tx approvals (--hex <hex> | --file <path>) [options]
 
 ## Description
 
-A read-only view of a transaction hex's co-signing progress: the permission group and threshold it uses, the accumulated weight so far, the list of signers who have already approved, how much weight is still missing, and the expiration. It's the "look before you sign" companion to [`tx sign`](sign.md) — same information, no signature, no account or password needed.
+> **TRON only.** An EVM transaction carries exactly one signature, so there is no threshold to reach and nothing to collect; this command fails on an EVM network with `family_mismatch`.
 
-TRON only — multi-signature approval is a TRON permission-model concept, so on an EVM network the command fails with `family_mismatch` before any node call.
+A read-only view of a transaction hex's co-signing progress: the permission group and threshold it uses, the accumulated weight so far, the list of signers who have already approved, how much weight is still missing, and the expiration. It's the "look before you sign" companion to [`tx sign`](sign.md) — same information, no signature, no account or password needed.
 
 It needs a node (`--network`), because approval state — which signatures count, and for how much weight — is the chain's answer, not something derivable from the artifact alone. Files are read with a size cap of just over 1 MiB and must be regular files, not symlinks.
 
@@ -22,7 +22,7 @@ An expired transaction is still queryable (no error): the text `Expires` line sh
 
 | Option | Description |
 |---|---|
-| `--hex <hex>` | **Required** (one of). `protocol.Transaction` hex string |
+| `--hex <hex>` | **Required** (one of). Transaction hex string |
 | `--file <path>` | **Required** (one of). File containing the transaction hex |
 
 Plus the [global options](../index.md#global-options-every-command) (`--network`).
@@ -30,30 +30,30 @@ Plus the [global options](../index.md#global-options-every-command) (`--network`
 ## Examples
 
 ```bash
-wallet-cli tx approvals --file tx.hex --network tron:3448148188
+wallet-cli tx approvals --file tx.hex --network nile
 ```
 
 ```console
 Transaction
   TxID        9c1...
   Type        Transfer TRX — 1,000 TRX
-  From        TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw
-  To          TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+  From        TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V
+  To          TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
   Permission  active "finance" (id 2)  threshold 2
-  Expires     2026-07-14 15:32 (in ~22h)
+  Expires     2026-07-18 15:32 (in ~22h)
 
 Progress  1 / 2 — 1 more weight needed
 | Approved signer                    | Weight |
 | ---------------------------------- | ------ |
-| TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw | 1      |
+| TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V | 1      |
 ```
 
 ```bash
-wallet-cli tx approvals --file tx.hex --network tron:3448148188 -o json
+wallet-cli tx approvals --file tx.hex --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"tx.approvals","data":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"approved":[{"address":"TQkXm4vN8pR2sD6fWbYc3LhJa9Ee5Zt7Uw","weight":1}],"expiration":1784388720000,"expired":false,"signatures":1},"meta":{"durationMs":45,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"tx.approvals","data":{"txId":"9c1...","contractType":"TransferContract","operation":"Transfer TRX","from":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","to":"TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c","rawAmount":"1000000000","permission":{"id":2,"name":"finance","threshold":2},"currentWeight":1,"missingWeight":1,"thresholdReached":false,"approved":[{"address":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V","weight":1}],"expiration":1784388720000,"expired":false,"signatures":1},"meta":{"durationMs":45,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

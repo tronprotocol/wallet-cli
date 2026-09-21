@@ -84,7 +84,10 @@ export function buildCli(opts: ShellOptions): Argv {
     neutralByHead.set(head, bucket);
   }
 
+  const assembledChainCommands = all.filter(isChainCommand);
   for (const [head, cmds] of neutralByHead) {
+    // Mixed groups are registered once below, with both neutral and chain fields.
+    if (assembledChainCommands.some((c) => c.spec.path[0] === head)) continue;
     const hasVerbs = cmds.some((c) => c.path.length > 1);
     if (hasVerbs) {
       // group with sub-verbs (e.g. import mnemonic|private-key|ledger|watch)
@@ -117,11 +120,11 @@ export function buildCli(opts: ShellOptions): Argv {
     }
   }
 
-  const assembledChainCommands = all.filter(isChainCommand);
   const chainGroups = [
     ...new Set(assembledChainCommands.map((c) => c.spec.path[0]).filter(Boolean) as string[]),
   ];
   const fieldsOfLogicalGroup = (group: string) => [
+    ...(neutralByHead.get(group) ?? []).map((c) => c.fields),
     ...assembledChainCommands
       .filter((c) => c.spec.path[0] === group)
       .flatMap((c) => [
@@ -196,7 +199,7 @@ async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): P
     bindGroupedPositionals(chain.spec, argv);
     return executeChainCommand(opts, chain, argv);
   }
-  throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`);
+  return dispatchNeutral(opts, path, argv);
 }
 
 /**
@@ -533,10 +536,33 @@ export function assertNoTailFlags(tokens: string[]): void {
 }
 
 function assertKnownFlags(
-  cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals">,
+  cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals" | "supportsWait">,
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
+  if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
+    if (
+      argv.account !== undefined ||
+      (cmd.path[1] !== "provider-list" && argv.network !== undefined)
+    ) {
+      throw new UsageError(
+        "invalid_option",
+        "provider commands do not accept --account; --network is only a provider-list filter",
+      );
+    }
+  }
+  if (
+    cmd.supportsWait === false &&
+    (argv.wait !== undefined ||
+      argv.waitTimeout !== undefined ||
+      argv.waitTimeoutMs !== undefined ||
+      argv["wait-timeout"] !== undefined)
+  ) {
+    throw new UsageError(
+      "invalid_option",
+      "This command uses facilitator settlement and does not support --wait or --wait-timeout",
+    );
+  }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {
     allowed.add(name);

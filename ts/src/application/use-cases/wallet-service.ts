@@ -214,6 +214,22 @@ export class WalletService {
     return this.wallets.describe(account);
   }
 
+  /** Password-free deletion cannot determine which historical path generated cached addresses. */
+  deletionWarning(account: string): string | undefined {
+    const { wallet } = this.wallets.resolveAccount(account);
+    if (
+      wallet.source.type !== "seed" ||
+      !Object.entries(wallet.source.addresses).some(
+        ([index, addresses]) => Number(index) > 0 && addresses.tron,
+      )
+    )
+      return;
+    return (
+      "This HD wallet contains TRON sub-accounts. If created with an older derivation path, default mnemonic recovery may not recreate them. Back up and verify their keys before deleting. " +
+      LEGACY_DERIVATION_RECOVERY_GUIDE
+    );
+  }
+
   delete(account: string) {
     // `scope` ("account" | "wallet") tells the caller/renderer whether a single HD sub-account or
     // the whole wallet (incl. children + secret) was removed — a root ref cascades to "wallet".

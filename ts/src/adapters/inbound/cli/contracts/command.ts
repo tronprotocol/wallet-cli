@@ -37,7 +37,7 @@ export type AuthRequirement = "none" | "conditional" | "required";
 /** secret/payload channel a command reads from stdin; documents the matching --*-stdin flag.
  *  (Wallet-secret entry — mnemonic/private-key/master-password — is TTY-only, so those never
  *  appear here; see `secretsTtyOnly`.) */
-export type StdinChannel = "tx" | "message";
+export type StdinChannel = "tx" | "message" | "apiKey";
 
 export interface TextRenderContext {
   command: string;
@@ -58,6 +58,8 @@ interface CommandDefinitionBase<I, O> {
   auth: AuthRequirement;
   /** broadcasts a transaction on-chain (✍️); enables the --wait global flag in help projection. */
   broadcasts?: boolean;
+  /** Override waiting support for payments submitted by an external facilitator. */
+  supportsWait?: boolean;
   /** opt-in interactive master-password handling: "establish" = set on first wallet else verify; "verify" = require existing. Commands without this keep the lazy hasMasterPassword guard. */
   passwordMode?: "establish" | "verify";
   /** expose one or more `fields` entries as leading positionals (`block [<number>]`, `use [<account>]`,
@@ -140,6 +142,8 @@ export interface ChainSpec<_I = any, O = any> {
   wallet: WalletRequirement;
   auth: AuthRequirement;
   broadcasts?: boolean;
+  /** Override waiting support for payments submitted by an external facilitator. */
+  supportsWait?: boolean;
   capability?: string;
   stdin?: StdinChannel;
   /** the stdin channel belongs to ONE family (e.g. `--tx-stdin` carries TRON's transaction JSON).
@@ -179,6 +183,7 @@ export type CommandExecutionSpec = Pick<
   | "wallet"
   | "auth"
   | "broadcasts"
+  | "supportsWait"
   | "capability"
   | "interactive"
   | "passwordMode"

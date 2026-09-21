@@ -159,32 +159,24 @@ describe("the startup migration gate is wired into main()", () => {
   });
 
   it.each([
-    ["help", ["-o", "json", "--help"]],
-    ["version", ["-o", "json", "--version"]],
-    ["JSON schema", ["-o", "json", "--json-schema"]],
-  ])("checks migration before %s", async (_surface, tokens) => {
+    ["help", ["--help"]],
+    ["version", ["--version"]],
+    ["schema", ["--json-schema"]],
+    ["x402 help", ["x402", "--help"]],
+    ["bai help", ["bai", "--help"]],
+    ["8004 help", ["8004", "--help"]],
+    ["bare invocation", []],
+  ])("renders %s without touching an old secret-bearing wallet", async (_surface, tokens) => {
     const { code, stdout, walletsPath } = await runIn(v1SeedDoc, tokens);
-
-    expect(code).toBe(2);
-    expect(JSON.parse(stdout).error.code).toBe("migration_required");
-    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(1);
-  });
-
-  it("checks migration before bare-invocation help", async () => {
-    const { code, stderr, walletsPath } = await runIn(v1SeedDoc, []);
-
-    expect(code).toBe(2);
-    expect(stderr).toContain("migration_required");
-    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(1);
-  });
-
-  it("completes a secret-free migration instead of rendering requested help", async () => {
-    const { code, stdout, walletsPath } = await runIn(v1WatchDoc, ["--help"]);
-
     expect(code).toBe(0);
-    expect(stdout).toContain("Upgrade complete. Please run your command again");
-    expect(stdout).not.toContain("Usage:");
-    expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(2);
+    expect(stdout.length).toBeGreaterThan(0);
+    expect(JSON.parse(readFileSync(walletsPath, "utf8"))).toEqual(v1SeedDoc);
+  });
+  it("does not migrate a secret-free wallet for help", async () => {
+    const { code, stdout, walletsPath } = await runIn(v1WatchDoc, ["--help"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("Usage:");
+    expect(JSON.parse(readFileSync(walletsPath, "utf8"))).toEqual(v1WatchDoc);
   });
 });
 

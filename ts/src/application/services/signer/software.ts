@@ -27,6 +27,11 @@ export class SoftwareSigner implements Signer {
     private readonly strategy: SignStrategy,
   ) {}
 
+  /** Validate local key access without signing or broadcasting. */
+  prepare(): void {
+    this.loadKey();
+  }
+
   #pk(): `0x${string}` {
     return (this.#pkHex ??= `0x${bytesToHex(this.loadKey())}`);
   }

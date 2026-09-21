@@ -1,0 +1,44 @@
+import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { TransactionScope } from "../contracts/execution-scope.js";
+
+export interface X402RoundtripPort {
+  prepare(scope: TransactionScope, network: NetworkDescriptor): void;
+  validate(network: NetworkDescriptor, input: X402ServeInput): void;
+  roundtrip(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: X402ServeInput,
+  ): Promise<{ serve: Record<string, unknown>; pay: Record<string, unknown> }>;
+}
+
+export interface X402ServeInput {
+  /** Temporary roundtrip access logs are diagnostic; standalone servers retain access logs. */
+  accessLog?: "debug" | "text";
+  payTo: string;
+  amount?: string;
+  rawAmount?: string;
+  token?: string;
+  asset?: string;
+  decimals?: number;
+  resourceUrl?: string;
+  validForSeconds?: number;
+  daemon?: boolean;
+  dryRun?: boolean;
+  scheme: "exact" | "exact_gasfree";
+  host: string;
+  port: number;
+  facilitatorUrl: string;
+  gasfreeRelay?: string;
+  maxGasfreeFee?: string;
+  maxGasfreeFeeRaw?: string;
+}
+
+export interface X402ServerHandle {
+  details: Record<string, unknown>;
+  close(): Promise<void>;
+}
+
+export interface X402ServerPort {
+  validate(network: NetworkDescriptor, input: X402ServeInput): void;
+  start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle>;
+}

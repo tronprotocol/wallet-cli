@@ -1,3 +1,4 @@
+import { structuredText } from "./structured.js";
 import type {
   TxInfoView,
   TxReceiptKind,
@@ -395,6 +396,19 @@ function receiptRows(r: TxReceiptView): Pair[] {
   // approve(address,uint256): the two facts the caller cannot verify from what they typed — the
   // uint256 on the command line is scaled by the token's decimals, and its maximum is 78 digits.
   // Present in the dry run too, which is where an approval most wants checking.
+  if (r.identity) {
+    if (r.identity.agentId !== undefined) rows.push(["Agent ID", r.identity.agentId]);
+    if (r.identity.operator !== undefined) rows.push(["Operator", r.identity.operator]);
+    if (r.identity.uri !== undefined) rows.push(["URI", r.identity.uri]);
+    if (r.identity.oldURI !== undefined) rows.push(["Previous URI", r.identity.oldURI]);
+    if (r.identity.requestedURI !== undefined)
+      rows.push(["Requested URI", r.identity.requestedURI]);
+    if (r.identity.newURI !== undefined) rows.push(["Current URI", r.identity.newURI]);
+    if (r.identity.oldOwner !== undefined) rows.push(["Previous owner", r.identity.oldOwner]);
+    if (r.identity.requestedOwner !== undefined)
+      rows.push(["Requested owner", r.identity.requestedOwner]);
+    if (r.identity.newOwner !== undefined) rows.push(["Current owner", r.identity.newOwner]);
+  }
   if (r.spender !== undefined) rows.push(["Spender", String(r.spender)]);
   if (r.allowance !== undefined) rows.push(["Allowance", allowanceLabel(r)]);
   return rows;
@@ -565,5 +579,6 @@ function signatureRows(signed: unknown): Pair[] {
 function summarizeTx(tx: unknown): string {
   if (!tx || typeof tx !== "object") return formatScalar(tx);
   const o = asObj(tx);
-  return shorten(String(o.txid ?? o.txID ?? o.txId ?? o.hash ?? JSON.stringify(o)));
+  const hash = o.txid ?? o.txID ?? o.txId ?? o.hash;
+  return hash === undefined ? structuredText(o) : shorten(String(hash));
 }

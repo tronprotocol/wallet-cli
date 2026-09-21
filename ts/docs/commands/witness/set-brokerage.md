@@ -20,7 +20,7 @@ Any registered witness can set it, elected or not. The acting account must be a 
 
 **By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign witness contract types. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot sign witness contract types. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -44,7 +44,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Keep 20 %, pass 80 % to voters:
 
 ```bash
-echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli witness set-brokerage 20 --network nile --wait --password-stdin
 ```
 
 ```console
@@ -58,7 +58,7 @@ echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wai
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness set-brokerage 20 --network tron:3448148188 --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness set-brokerage 20 --network nile --wait --password-stdin -o json
 ```
 
 ```json

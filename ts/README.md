@@ -5,9 +5,10 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 ## Key features
 
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
-- **Encrypted local storage** — software keystores are encrypted on disk; secrets enter via stdin/TTY, never argv or dedicated secret environment variables.
+- **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
 - **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries.
+- **TRON and EVM chains** — one account holds an address on each; transfers, tokens, contracts, signing and chain queries work the same on both, and TRON-only protocol features are refused on EVM rather than half-working.
 
 ## Table of contents
 
@@ -22,28 +23,32 @@ The agent-first implementation of wallet-cli, built for automation: every comman
   - [Governance, TRC10, and the on-chain exchange](#governance-trc10-and-the-on-chain-exchange)
   - [Local tools and configuration](#local-tools-and-configuration)
 - [The contract, in one paragraph](#the-contract-in-one-paragraph)
-- [Understanding TRON mechanics](#understanding-tron-mechanics)
+- [Understanding the chains](#understanding-the-chains)
 - [Troubleshooting](#troubleshooting)
 
 ## Supported chains
 
-Seven built-in networks are supported. Networks use a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id. The namespace is not the family: `eip155` is CAIP-2's namespace for EVM chains, while the family this CLI branches on is `evm`.
+Networks are identified by a canonical [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `namespace:reference` id, and each belongs to one of two chain **families**, `tron` or `evm`. `--network` also accepts the short alias:
 
-| Network id | Family | Native coin | Environment |
+| Network id | Alias | What it is | Native coin value |
 |---|---|---|---|
-| `tron:728126428` | TRON | TRX | Mainnet — **real funds** |
-| `tron:3448148188` | TRON | TRX | Testnet |
-| `tron:2494104990` | TRON | TRX | Testnet |
-| `eip155:1` | EVM | ETH | Ethereum mainnet — **real funds** |
-| `eip155:11155111` | EVM | ETH | Sepolia testnet |
-| `eip155:56` | EVM | BNB | BNB Smart Chain mainnet — **real funds** |
-| `eip155:97` | EVM | BNB | BNB Smart Chain testnet |
+| `tron:728126428` | `tron` | Production TRON | **Real funds** |
+| `tron:3448148188` | `nile` | Primary TRON testnet (faucet at nileex.io) | None — use freely |
+| `tron:2494104990` | `shasta` | Alternate TRON testnet | None |
+| `eip155:1` | `ethereum` | Ethereum mainnet | **Real funds** |
+| `eip155:11155111` | `sepolia` | Ethereum test network | None |
+| `eip155:56` | `bsc` | BNB Smart Chain | **Real funds** |
+| `eip155:97` | `bsc-testnet` | BNB Smart Chain test network | None |
+| `eip155:8453` | `base` | Base | **Real funds** |
+| `eip155:84532` | `base-sepolia` | Base test network | None |
 
-One seed produces a TRON address and a different EVM address. Each address is reused within its family, while balances, tokens, and transactions remain isolated per network. TRON uses the `tron-resource` fee model (bandwidth + energy); EVM networks use gas. See [networks](docs/concepts/networks.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
+Balances, tokens, and transactions are isolated per network. The family decides two things: **which address** a command acts as — one account holds a TRON base58 address and an EVM `0x` address, derived from the same seed — and **which commands exist**, since TRON protocol features (staking, SR voting, TRC10, the Bancor exchange, on-chain permissions, GasFree) have no EVM counterpart and are refused there with `family_mismatch`. Fees follow the family too: TRON's `tron-resource` model (bandwidth + energy) or EVM gas. See [networks](docs/concepts/networks.md), [accounts](docs/concepts/accounts-and-hd.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
+
+The TRON ids used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) remain permanent aliases, so existing invocations keep working — but **output** now reports the CAIP-2 id, so a consumer that string-matches `tron:nile` must be updated.
 
 ## Install
 
-**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the app for the selected family installed — TRON for TRON accounts, Ethereum for EVM accounts. See the [Ledger guide](docs/guide/ledger.md).
+**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON or Ethereum app installed — see the [Ledger guide](docs/guide/ledger.md).
 
 ```bash
 npm install -g @tron-walletcli/wallet-cli
@@ -85,7 +90,7 @@ wallet-cli create --label main
   Account ID    wlt_2dbv24de.0
   Type          HD
   TRON address  TTVdGTBXY5mmY3nJFGUp7Vo898kUJ6gtFQ
-  EVM address   0x5c8e1b04A7f39d62C0B3e85A1d47F9028b6ce713
+  EVM address   0x7B28FE10FBccE88c3967ff0Fd64f1ffB46b46C9C
   Active        yes
 
 ⚠️ Recovery phrase is encrypted locally and was not printed.
@@ -170,6 +175,14 @@ Chain governance, super-representative operation, and TRON's protocol-level TRC1
 | [`asset`](docs/commands/asset/index.md) | Issue and manage TRC10 tokens ([issue](docs/commands/asset/issue.md) · [update](docs/commands/asset/update.md) · [participate](docs/commands/asset/participate.md) · [unfreeze](docs/commands/asset/unfreeze.md) · [info](docs/commands/asset/info.md) · [list](docs/commands/asset/list.md)); TRC10 transfers go through [`tx send`](docs/commands/tx/send.md) |
 | [`exchange`](docs/commands/exchange/index.md) | The protocol-level Bancor exchange between TRX and TRC10 ([create](docs/commands/exchange/create.md) · [inject](docs/commands/exchange/inject.md) · [withdraw](docs/commands/exchange/withdraw.md) · [trade](docs/commands/exchange/trade.md) · [show](docs/commands/exchange/show.md) · [list](docs/commands/exchange/list.md)) |
 
+### Payments and Agent identity
+
+| Command | Description |
+|---|---|
+| [`x402`](docs/commands/x402/index.md) | Pay x402-protected HTTP endpoints, run a local paywall, and browse the provider catalog |
+| [`bai`](docs/commands/bai/index.md) | B.AI credits, usage records, and stablecoin recharges |
+| [`8004`](docs/commands/8004/index.md) | Read and manage ERC-8004 Agent identities |
+
 ### Local tools and configuration
 
 Offline local commands and configuration.
@@ -183,19 +196,22 @@ Offline local commands and configuration.
 
 ## The contract, in one paragraph
 
-Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv and are not read from dedicated secret environment variables. Passwords can enter through stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md).
+Every command supports `-o json` and then prints **exactly one** terminal JSON frame on stdout, schema [`wallet-cli.result.v1`](docs/machine-interface.md#the-result-envelope). Exit codes are fixed: `0` success, `1` execution failure, `2` usage error. Secrets (passwords, mnemonics, private keys) are never accepted via argv or environment variables — only via stdin flags or interactive TTY prompts; mnemonic/private-key import and `change-password` are interactive-only (no stdin path at all). Full spec: [machine-interface.md](docs/machine-interface.md).
 
-## Understanding TRON mechanics
+## Understanding the chains
 
 TRON differs a lot from EVM chains in fees, accounts, and key permissions — these are worth understanding up front to avoid surprises:
 
-- [Networks](docs/concepts/networks.md) — built-in TRON/EVM networks and the CAIP-2 `namespace:reference` id
-- [Accounts & HD](docs/concepts/accounts-and-hd.md) — mnemonics, derivation paths, account activation
+- [Networks](docs/concepts/networks.md) — CAIP-2 ids and aliases, the two chain families, and the two fee models
+- [Accounts & HD](docs/concepts/accounts-and-hd.md) — mnemonics, derivation paths, one address per family, account activation
 - [Energy & bandwidth](docs/concepts/energy-bandwidth.md) — TRON's resource-based fee model (in place of EVM gas)
 - [Security](docs/concepts/security.md) — keystore encryption, secret handling, multi-sig permissions
+- [Which commands run on which networks](docs/commands/index.md#which-commands-run-on-which-networks) — portable, TRON-only, and local commands
 
 ## Troubleshooting
 
 A command errored or behaved unexpectedly? Common issues and how to diagnose them are in [troubleshooting.md](docs/troubleshooting.md).
 
-> Copy-pasteable examples that spend anything target a testnet — **Nile** (`--network tron:3448148188`) on TRON, **Sepolia** (`--network eip155:11155111`) on EVM. Mainnet ids (`tron:728126428`, `eip155:1`) also appear: in read-only examples such as token-book listings and config paths, and in a few illustrations of mainnet token contracts. Those last ones carry placeholder recipients (`T...` / `0x...`) and are not runnable as written.
+> All copy-pasteable examples in this documentation run against a test network — the **Nile testnet** (`--network nile`) on TRON, **Sepolia** (`--network sepolia`) on EVM. Mainnet commands move real funds; they appear only as annotated, non-copyable descriptions.
+>
+> Examples pass the short **alias** because it reads better; the output samples beside them show the canonical id (`tron:3448148188`, `eip155:11155111`), because that is what the CLI always reports. Aliases are local config and can be re-pointed, so scripts should pass canonical ids — see [machine interface](docs/machine-interface.md#calling-convention).

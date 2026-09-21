@@ -23,7 +23,7 @@ No command-specific options; `traceId` is a positional argument, plus the [globa
 ## Examples
 
 ```bash
-wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:3448148188
+wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network nile
 ```
 
 ```console
@@ -35,15 +35,15 @@ Amount          25 USDT
 Service fee     0.5 USDT
 Activation fee  0 USDT
 Total           25.5 USDT
-To              TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub
+To              TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
 ```
 
 ```bash
-wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:3448148188 -o json
+wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"amount":"25000000","serviceFee":"500000","activateFee":"0","totalDeducted":"25500000","from":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER","owner":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","to":"TBy6mQ7Y3nJ8sD2fWpXk4LhVc9Ra1Zt5Ub","nonce":"8"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.trace","data":{"traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"SUCCEED","txId":"d2e...","token":"USDT","tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"amount":"25000000","serviceFee":"500000","activateFee":"0","totalDeducted":"25500000","from":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER","owner":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","to":"TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c","nonce":"8"},"meta":{"durationMs":290,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -52,21 +52,21 @@ wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527 --network tron:344
 |---|---|---|
 | `traceId` | string | The provider's acceptance id |
 | `state` | string | Raw state enum: `WAITING` / `INPROGRESS` / `CONFIRMING` / `SUCCEED` / `FAILED` |
-| `txId` | string | On-chain transaction id (once submitted) |
-| `token` | string | Token symbol |
 | `tokenAddress` | string | TRC20 contract address |
 | `decimals` | number | Token decimals used to render amounts |
-| `amount` | string | Amount, in token base units |
-| `serviceFee` / `activateFee` | string | Fees charged, in token base units |
 | `totalDeducted` | string | Amount plus the settled service and activation fees, in token base units |
 | `from` / `owner` | string | GasFree holding address / owning account address |
-| `to` | string | Recipient address |
 | `nonce` | string | Authorization nonce |
 | `failureReason` | string | Provider explanation, only when supplied for a failed transfer |
+| `txId` | string | On-chain transaction id (once submitted) |
+| `token` | string | Token symbol |
+| `amount` | string | Amount, in token base units |
+| `serviceFee` / `activateFee` | string | Fees charged, in token base units |
+| `to` | string | Recipient address |
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — no such trace id, `gasfree_integrity`, `provider_error` — the service failed, answered with malformed or oversized JSON, returned a field this CLI will not act on, or returned any non-429 error status; `provider_rate_limited` — the service returned 429) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
+`0` success · `1` execution failure (`not_found` — no such trace id, `gasfree_integrity`, `provider_error` — the service failed, answered with malformed or oversized JSON, returned a field this CLI will not act on, or returned any non-429 error status; `provider_rate_limited` — the service returned 429, with `details.retryAfter` when it sent one) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
 
 A `FAILED` transfer is a successful query: the envelope stays `success: true` at exit `0`, and `data.failureReason` carries the provider's explanation.
 

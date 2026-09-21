@@ -4,7 +4,7 @@ Background on the TRON mechanics behind the commands. These are worth understand
 
 | Concept | What it covers |
 |---|---|
-| [Resources: bandwidth, energy & shares](resources.md) | How freezing produces resources, and how bandwidth is calculated |
+| [Resources: bandwidth, energy & TRON Power](resources.md) | What staking yields, and how bandwidth and energy are consumed and priced |
 | [Staking models: Stake 1.0 vs 2.0](staking-models.md) | The two freeze generations and which commands belong to each |
 | [Multi-signature concepts](multisig.md) | Permission types, keys, weights, and thresholds |
 

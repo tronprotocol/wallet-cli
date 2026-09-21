@@ -12,8 +12,8 @@
  * This barrel reassembles the one TextFormatters table command specs import.
  */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import { formatScalar } from "./scalars.js";
-import { type Obj, ok } from "./layout.js";
+import { structuredText } from "./structured.js";
+import { ok } from "./layout.js";
 import { WalletFormatters } from "./wallet.js";
 import { AccountFormatters } from "./account.js";
 import { AssetFormatters } from "./asset.js";
@@ -60,19 +60,6 @@ export function renderGenericText(
 ): string {
   const lines: string[] = [`${ok()} ${command}`];
   if (net) lines.push(`  network: ${net.id}`);
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    for (const [k, v] of Object.entries(data as Obj)) {
-      if (Array.isArray(v) && v.length > 0) {
-        lines.push(`  ${k}:`);
-        for (const item of v) lines.push(`    - ${formatScalar(item)}`);
-      } else {
-        lines.push(`  ${k}: ${formatScalar(v)}`);
-      }
-    }
-  } else if (Array.isArray(data)) {
-    for (const item of data) lines.push(`  - ${formatScalar(item)}`);
-  } else if (data !== undefined && data !== null) {
-    lines.push(`  ${String(data)}`);
-  }
+  if (data !== undefined && data !== null) lines.push(structuredText(data, "  "));
   return lines.join("\n");
 }

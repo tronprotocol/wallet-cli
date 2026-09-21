@@ -2,23 +2,19 @@
 
 TRON's protocol-level Bancor exchange.
 
-Pairs trade **TRX and TRC10 assets** — never TRC20 — and settle instantly against a bonding curve. Either side may be TRX or a TRC10 id, so a TRC10-against-TRC10 pair is legal too; the only rule is that the two sides differ: no order book, no counterparty, no matching. Four properties differ from the AMMs most people are used to, and all four matter before you touch this group:
+Pairs trade **TRX and TRC10 assets** — never TRC20 — and settle instantly against a bonding curve. Either side may be TRX or a TRC10 id, so a TRC10-against-TRC10 pair is legal too; the only rule is that the two sides differ. No order book, no counterparty, no matching. Four properties differ from the AMMs most people are used to, and all four matter before you touch this group:
 
 - **A pair is private to its creator.** Only the account that created a pair can inject or withdraw its liquidity, and that binding cannot be transferred. There are no LP tokens and no outside liquidity providers.
 - **Anyone can trade**, though — trading is open even though liquidity is not.
 - **The protocol charges no fee.** `trade`, `inject`, and `withdraw` cost bandwidth only; the one charge is `create`, which burns `getExchangeCreateFee`.
-- **Human amounts are scaled by node-supplied decimals.** Every `--amount` / `--amounts` /
-  `--min-received` is converted to base units using the TRC10 `precision` the node reports, so that
-  value decides the quantity you sign. It is checked against the protocol range 0..6 and against the
-  token id requested, but a wrong value inside that range cannot be caught locally. Use the
-  `--raw-*` variants when the exact base-unit quantity matters — they are used verbatim.
+- **Human amounts are scaled by node-supplied decimals.** Every `--amount` / `--amounts` / `--min-received` is converted to base units using the TRC10 `precision` the node reports, and that value decides the quantity you sign. It is checked against the protocol range 0–6 and against the token id asked for, but a wrong value inside that range cannot be caught locally — use the `--raw-*` variants when the exact base-unit quantity matters, since those are used verbatim.
 - **TRX's token id on chain is the underscore `_`.** Write `TRX` (any case) or an asset id; `_` is accepted too. json shows what actually went on chain, so TRX appears there as `"_"`.
 
-**Pricing follows the curve, not the ratio.** The ratio of the two reserves is a marginal quote — true only for a trade of size zero. A real trade moves along the curve, and the larger it is relative to the reserves, the worse the price it gets. That gap is the slippage. [`exchange trade`](trade.md) accepts one optional floor (`--min-received`, `--raw-min-received`, or `--slippage`); omitting all three is allowed but emits a warning and submits the protocol minimum `expected = 1`, which provides no practical slippage protection. No command here prints a "price". To price a specific amount, run `exchange trade --dry-run` against the current reserves. Reserves are also capped by the chain parameter `getExchangeBalanceLimit`.
+**Pricing follows the curve, not the ratio.** The ratio of the two reserves is a marginal quote — true only for a trade of size zero. A real trade moves along the curve, and the larger it is relative to the reserves, the worse the price it gets. That gap is the slippage. [`exchange trade`](trade.md) takes one optional floor (`--min-received`, `--raw-min-received`, or `--slippage`); omitting all three is allowed but emits a warning and submits the protocol minimum `expected = 1`, which is no practical protection. No command here prints a "price". To price a specific amount, run `exchange trade --dry-run` against the current reserves. Reserves are also capped by the chain parameter `getExchangeBalanceLimit`.
 
 **Tokens are named by id only in this group** — `TRX` or a numeric asset id, never a token name. Pairs are written with a colon (`--pair TRX:1000123`, `--amounts 10000:500000`), and TRC10 names may legally contain colons, so allowing names would make `--pair` ambiguous. Resolve a name to its id with [`asset info <name>`](../asset/info.md).
 
-**TRON only.** The Bancor exchange is built into the TRON protocol; every subcommand here fails with `family_mismatch` on an EVM network.
+> **TRON only.** Every command in this group implements a TRON protocol feature with no EVM counterpart; on an EVM network they fail with `family_mismatch` before any node call.
 
 ## Synopsis
 

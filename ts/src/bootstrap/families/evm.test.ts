@@ -1,3 +1,4 @@
+import type { AgentService } from "../../application/use-cases/agent-service.js";
 /**
  * The EVM family's command registrations.
  *
@@ -26,6 +27,7 @@ import type { RecipientResolver } from "../../application/services/recipient-res
 function registry(): CommandRegistry {
   const reg = new CommandRegistry();
   registerEvmChainCommands(reg, {
+    agents: {} as AgentService,
     signers: {} as SignerResolver,
     gateways: {} as ChainGatewayProvider,
     balances: {} as AccountBalanceService,
@@ -39,6 +41,12 @@ function registry(): CommandRegistry {
 }
 
 describe("registerEvmChainCommands", () => {
+  it("owns all 29 EVM bindings including identity commands", () => {
+    const commands = registry().all();
+    expect(
+      commands.filter((command) => "families" in command && command.families.evm),
+    ).toHaveLength(29);
+  });
   it("binds message sign and typed-data sign to the evm family", () => {
     const reg = registry();
     expect(reg.resolveChain(["message", "sign"])?.families.evm).toBeDefined();

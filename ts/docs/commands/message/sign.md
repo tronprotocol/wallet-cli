@@ -1,6 +1,6 @@
 # wallet-cli message sign
 
-Sign an arbitrary message (TIP-191/V2 · EIP-191).
+Sign an arbitrary message.
 
 ## Synopsis
 
@@ -12,7 +12,7 @@ wallet-cli message sign (--message <text> | --message-stdin) [options]
 
 Signs a message with the active account's key (or `--account`) using the personal-message scheme — TRON's TIP-191/V2 or Ethereum's EIP-191, which are the same construction over a different prefix. Signing only — nothing is broadcast, and no node is contacted.
 
-The selected network decides **which key signs and which address is reported**: an account has one key per family, so `--network nile` signs with its TRON key and reports its base58 address, `--network sepolia` signs with its EVM key and reports its `0x` address. `--network` is still optional, and with it omitted the config default network decides.
+The selected network decides **which key signs and which address is reported**: an account has one key per family, so `--network nile` signs with its TRON key and reports its base58 address, `--network sepolia` signs with its EVM key and reports its `0x` address. `--network` is optional and falls back to `config.defaultNetwork`; either way the signing itself is fully offline.
 
 **stdin has a single consumer (fd 0)**: `--message-stdin` and `--password-stdin` cannot both be used in one run (`secret_source_error`). In practice:
 
@@ -52,19 +52,19 @@ echo "$PW" | wallet-cli message sign --message "hello" --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"message.sign","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","message":"hello","signature":"0x9f3c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"message.sign","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","message":"hello","signature":"0x9f3c..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Ledger account — message via stdin, confirm on device:
 
 ```bash
-cat challenge.txt | wallet-cli message sign --message-stdin --network tron:3448148188
+cat challenge.txt | wallet-cli message sign --message-stdin --network nile
 ```
 
-The same message signed on an EVM network produces a different signature from a different key:
+The same message signed on an EVM network produces a different signature, from a different key:
 
 ```bash
-echo "$PW" | wallet-cli message sign --message "hello" --network eip155:11155111 --password-stdin
+echo "$PW" | wallet-cli message sign --message "hello" --network sepolia --password-stdin
 ```
 
 ## Output

@@ -15,7 +15,7 @@ Cancels **every** unstake still in its waiting period and rolls those amounts ba
 
 **By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. Ledger accounts may dry-run or build, but signing modes fail with `ledger_unsupported` before device interaction.
+The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -38,7 +38,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Default — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --password-stdin
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin
 ```
 
 ```console
@@ -49,7 +49,7 @@ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --passwo
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --password-stdin -o json
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin -o json
 ```
 
 ```json
@@ -59,7 +59,7 @@ echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --passwo
 Add `--wait` to block until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network tron:3448148188 --wait --password-stdin
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --wait --password-stdin
 ```
 
 ```console

@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DETACHED } from "./detached.js";
 
-const ENTRY = join(process.cwd(), "src", "index.ts");
+// A built entry (WALLET_CLI_TEST_ENTRY, set by vitest.config for the golden project) runs as
+// plain `node <entry>`; without one, the TypeScript source is executed through tsx per spawn.
+const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
+  ? [process.env.WALLET_CLI_TEST_ENTRY]
+  : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
 
 let HOME: string;
 beforeEach(() => {
@@ -15,7 +19,7 @@ beforeEach(() => {
 function run(args: string[]) {
   const env = { ...process.env, WALLET_CLI_HOME: HOME } as Record<string, string>;
   delete env.MASTER_PASSWORD;
-  const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...args], {
+  const r = spawnSync(process.execPath, [...ENTRY_ARGS, ...args], {
     encoding: "utf8",
     env,
     timeout: 18_000,

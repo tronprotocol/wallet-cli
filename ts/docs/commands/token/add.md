@@ -10,7 +10,7 @@ wallet-cli token add (--contract <address> | --asset-id <id>) [options]
 
 ## Description
 
-Fetches the token's name, symbol and decimals from the contract and adds it to the local token address book. Works on both TRON (TRC20/TRC10) and EVM (ERC20) networks. The book is scoped to **network + account**: a token added on `tron:3448148188` for one account does not appear for other networks or accounts.
+Fetches the token's name, symbol and decimals from the chain and adds it to the local token address book. Works on both TRON (TRC20/TRC10) and EVM (ERC20) networks. The book is scoped to **network + account**: a token added on `tron:3448148188` for one account does not appear for other networks or accounts.
 
 Once added, the token can be used by symbol elsewhere — e.g. `tx send --token USDT`. The book has two layers: **official** (bundled, read-only) and **user** (the ones you add). If the token is already bundled in the official layer, it fails with `token_already_listed` (no need to add it again); if you have already added it before, adding it again does not error — it re-fetches the token's metadata (symbol/decimals/name) and updates it, returning `action: refreshed`.
 
@@ -18,17 +18,17 @@ Once added, the token can be used by symbol elsewhere — e.g. `tx send --token 
 
 | Option | Description |
 |---|---|
-| `--contract <string>` | Token contract address — TRC20 on TRON, ERC20 on EVM |
+| `--contract <string>` | Token contract address — TRC20 on TRON, ERC20 on EVM; exactly one of `--contract` / `--asset-id` |
 | `--asset-id <string>` | **TRON only.** TRC10 numeric asset id; exactly one of `--asset-id` / `--contract` |
 
-Plus the [global options](../index.md#global-options-every-command).
-
 `--asset-id` is a TRON-only flag: help tags it `(TRON only)`, and passing it on an EVM network fails with `invalid_option` before any node call.
+
+Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
 ```bash
-wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
+wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile
 ```
 
 ```console
@@ -39,7 +39,7 @@ wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tro
 ```
 
 ```bash
-wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
+wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile -o json
 ```
 
 ```json
@@ -49,7 +49,7 @@ wallet-cli token add --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tro
 An ERC20 token on an EVM network, where `token.kind` is `erc20`:
 
 ```bash
-wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --network eip155:11155111
+wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --network sepolia
 ```
 
 ## Output

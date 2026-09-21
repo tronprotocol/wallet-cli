@@ -13,7 +13,7 @@ Four facts shape everything here:
 
 Amounts on the command line and in text output are in **whole tokens**; json carries the on-chain raw value (whole tokens × 10^precision).
 
-**TRON only.** TRC10 is a TRON protocol feature with no EVM counterpart; every subcommand here fails with `family_mismatch` on an EVM network.
+> **TRON only.** Every command in this group implements a TRON protocol feature with no EVM counterpart; on an EVM network they fail with `family_mismatch` before any node call.
 
 ## Synopsis
 

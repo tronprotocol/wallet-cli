@@ -9,6 +9,12 @@
 module.exports = {
   forbidden: [
     {
+      name: "ports-are-innermost",
+      severity: "error",
+      from: { path: "^src/application/ports/" },
+      to: { path: "^src/application/(use-cases|services)/" },
+    },
+    {
       name: "no-circular",
       severity: "error",
       from: {},

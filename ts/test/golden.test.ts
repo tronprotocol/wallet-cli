@@ -9,7 +9,11 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 import type { TokenEntry, WalletsFile } from "../src/domain/types/index.js";
 import { DETACHED } from "./detached.js";
 
-const ENTRY = join(process.cwd(), "src", "index.ts");
+// A built entry (WALLET_CLI_TEST_ENTRY, set by vitest.config for the golden project) runs as
+// plain `node <entry>`; without one, the TypeScript source is executed through tsx per spawn.
+const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
+  ? [process.env.WALLET_CLI_TEST_ENTRY]
+  : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
 const PACKAGE_VERSION = (
   JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string }
 ).version;
@@ -41,7 +45,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
   // signal instead of silently eating the whole test budget.
   // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
   // socket, so black-box tests also run in restricted CI/sandbox environments.
-  const r = spawnSync(process.execPath, ["--import", "tsx", ENTRY, ...finalArgs], {
+  const r = spawnSync(process.execPath, [...ENTRY_ARGS, ...finalArgs], {
     input: stdin,
     encoding: "utf8",
     env,
@@ -137,8 +141,7 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // Both families ship: 3 TRON + 4 EVM, each mainnet paired with a testnet. EVM was
-    // hidden while it was incomplete, and is deliberately exposed now.
+    // Both families ship: 3 TRON + 6 EVM; every EVM mainnet has a builtin testnet partner.
     expect(ids).toEqual(
       expect.arrayContaining([
         "tron:728126428",
@@ -148,9 +151,11 @@ describe("golden CLI — meta & introspection", () => {
         "eip155:11155111",
         "eip155:56",
         "eip155:97",
+        "eip155:8453",
+        "eip155:84532",
       ]),
     );
-    expect(ids).toHaveLength(7);
+    expect(ids).toHaveLength(9);
     // machine surfaces carry canonical ids only, never aliases — and a canonical id is
     // CAIP-2, so its namespace is `eip155` for the EVM family rather than the family's own name
     expect(ids.every((id: string) => /^(tron|eip155):/.test(id))).toBe(true);
@@ -1096,12 +1101,12 @@ describe("golden CLI — startup migration", () => {
     expect(existsSync(`${path}.v1.bak`)).toBe(false);
   });
 
-  it("checks migration before --help", () => {
+  it("renders --help without migrating the wallet", () => {
     const path = windBackToV1();
     const r = run(["--output", "json", "--help"], { password: null });
 
-    expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("migration_required");
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Usage:");
     expect(JSON.parse(readFileSync(path, "utf8")).version).toBe(1);
   });
 });
@@ -1213,4 +1218,50 @@ describe("golden CLI — yargs tail keys are not user-facing flags", () => {
     expect(r.status).toBe(0);
     expect(r.json.data.key).toBe("defaultNetwork");
   });
+});
+
+it.each([
+  ["x402", "pay", "http://127.0.0.1:1/pay"],
+  ["x402", "roundtrip", "--pay-to", TRON1],
+  ["bai", "recharge", "1"],
+])("rejects unused wait flags before payment: %j", (...args) => {
+  for (const flag of [["--wait"], ["--wait-timeout", "100"]]) {
+    const result = run([...args, "--network", "tron", ...flag, "-o", "json"], { password: null });
+    expect(result.json?.error.code).toBe("invalid_option");
+    expect(result.json?.error.message).toContain("does not support --wait");
+  }
+});
+
+it("reads --body-file - from stdin instead of treating the dash as a positional", () => {
+  seedWallet();
+  const result = run(
+    [
+      "x402",
+      "pay",
+      "http://127.0.0.1:1/pay",
+      "--network",
+      "nile",
+      "--body-file",
+      "-",
+      "--method",
+      "POST",
+      "-o",
+      "json",
+    ],
+    { password: null, input: "{}" },
+  );
+  expect(result.json?.error.code).toBe("provider_error");
+  expect(result.json?.error.details.paymentStatus).toBe("not_sent");
+  expect(result.json?.error.message).not.toContain("body-file");
+});
+
+it.each([
+  ["0.5", "tron", "invalid_amount"],
+  ["1", "nile", "unsupported_network_capability"],
+])("validates B.AI recharge input before credentials: %s on %s", (amount, network, code) => {
+  seedWallet();
+  const result = run(["bai", "recharge", amount, "--network", network, "-o", "json"], {
+    password: null,
+  });
+  expect(result.json?.error.code).toBe(code);
 });

@@ -10,9 +10,9 @@ wallet-cli contract info --contract <address> [options]
 
 ## Description
 
-Fetches a deployed contract's ABI and metadata (getContract + getContractInfo combined): name, method list, origin address, bytecode, energy settings. Useful before crafting a [`contract call`](call.md) / [`contract send`](send.md) — the ABI tells you the exact method signatures. Read-only — no account or password involved.
+> **TRON only.** The ABI this reads is the one held on chain, which is a TRON protocol feature; on an EVM network the command fails with `family_mismatch`.
 
-**TRON only.** An on-chain ABI registry is a TRON protocol feature; EVM chains keep no ABI on chain, so on an EVM network this fails with `family_mismatch`.
+Fetches a deployed contract's ABI and metadata (getContract + getContractInfo combined): name, method list, origin address, bytecode, energy settings. Useful before crafting a [`contract call`](call.md) / [`contract send`](send.md) — the ABI tells you the exact method signatures. Read-only — no account or password involved.
 
 ## Options
 
@@ -25,7 +25,7 @@ Plus the [global options](../index.md#global-options-every-command).
 ## Examples
 
 ```bash
-wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188
+wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile
 ```
 
 ```console
@@ -35,7 +35,7 @@ Methods   33 (name / deprecate / approve …)
 ```
 
 ```bash
-wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network tron:3448148188 -o json
+wallet-cli contract info --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf --network nile -o json
 ```
 
 ```json
@@ -57,7 +57,7 @@ Text output shows the human summary; the raw `contract` / `info` detail is json-
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`; address is not a contract) · `2` usage error.
+`0` success · `1` execution failure (`rpc_error`; address is not a contract) · `2` usage error (`family_mismatch` on an EVM network).
 
 ## See also
 

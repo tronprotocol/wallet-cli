@@ -38,7 +38,7 @@ wallet> ExportWalletMnemonic
 Please input your password.
 password:
 exportWalletMnemonic  successful !!
-alert twist correct matter pass gather pit position stop empty coconut abandon
+a*ert tw*st co*rect mat*er pa*s g*ther p*t p*sition s*op em*ty coc*nut aband*n
 ```
 
 ## ExportWalletKeystore
