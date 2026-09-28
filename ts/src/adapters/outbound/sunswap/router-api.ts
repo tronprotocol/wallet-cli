@@ -15,7 +15,7 @@
  * Amounts are parsed with `lossless-json` for the same reason as the market API: `JSON.parse`
  * rewrites a 24-digit integer, and these are money.
  */
-import { RouterApiClient } from "@sun-sdk/api";
+import { RouterApiClient } from "@sun-protocol/sun-sdk-api";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type { RouterPort, RouterRoute } from "../../../application/ports/sunswap/router.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";

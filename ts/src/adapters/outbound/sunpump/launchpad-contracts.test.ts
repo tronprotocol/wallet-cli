@@ -4,7 +4,7 @@ import {
   createLaunchpadSellAction,
   LaunchpadTokenState,
   MAX_UINT256,
-} from "@sun-sdk/launchpad";
+} from "@sun-protocol/sun-sdk-launchpad";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";

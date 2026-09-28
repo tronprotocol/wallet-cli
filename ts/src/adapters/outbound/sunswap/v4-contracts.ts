@@ -37,11 +37,11 @@ import {
   computeV4PoolId,
   decodeV4PoolParameters,
   normalizeV4PoolKey,
-} from "@sun-sdk/sunswap-v4";
-import { getContractAddress } from "@sun-sdk/chains";
+} from "@sun-protocol/sun-sdk-sunswap-v4";
+import { getContractAddress } from "@sun-protocol/sun-sdk-chains";
 // The builders' own return type: `#withPermits` passes one straight back into `encodeV4ContractCallAction`,
 // so a structural stand-in would not satisfy it.
-import type { ContractCallAction } from "@sun-sdk/core";
+import type { ContractCallAction } from "@sun-protocol/sun-sdk-core";
 import type {
   ContractCallPayload,
   ContractParameter,

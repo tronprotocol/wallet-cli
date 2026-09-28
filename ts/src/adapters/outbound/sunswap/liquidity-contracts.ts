@@ -20,7 +20,7 @@ import {
   NonfungiblePositionManager,
   SqrtPriceMath,
   TickMath,
-} from "@sun-sdk/sunswap-v3";
+} from "@sun-protocol/sun-sdk-sunswap-v3";
 import type {
   ContractCallPayload,
   LiquidityPort,

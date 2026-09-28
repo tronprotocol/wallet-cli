@@ -1,5 +1,5 @@
 /**
- * A read-only `@sun-sdk/runtime` Runtime, and the ONLY file allowed to import it (D6).
+ * A read-only `@sun-protocol/sun-sdk-runtime` Runtime, and the ONLY file allowed to import it (D6).
  *
  * Some SDK planners need a Runtime rather than a bare chain config — the Router's Permit2
  * planner, for instance, reads the Permit2Helper's "already approved?" answer and the Permit2
@@ -15,7 +15,12 @@
  * It is built with NO wallet, deliberately. A Runtime with a wallet could sign; this one has
  * nothing to sign with, which is a stronger guarantee than a policy.
  */
-import { createRuntime, type Runtime, type TronClient, type WalletAdapter } from "@sun-sdk/runtime";
+import {
+  createRuntime,
+  type Runtime,
+  type TronClient,
+  type WalletAdapter,
+} from "@sun-protocol/sun-sdk-runtime";
 import { utils as tronUtils } from "tronweb";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";

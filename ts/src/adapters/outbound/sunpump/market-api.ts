@@ -1,5 +1,5 @@
 /**
- * SunPumpMarketDataPort over `@sun-sdk/api`'s `SunPumpApiClient`.
+ * SunPumpMarketDataPort over `@sun-protocol/sun-sdk-api`'s `SunPumpApiClient`.
  *
  * The SDK owns the paths and nothing else: every method returns `Promise<unknown>` and the query
  * type is an open record, so this file owns which host was asked, which parameters exist, how the
@@ -14,7 +14,7 @@
  * `contractAddress`, `onSunSwap`, `filterTwitterLaunch`, `filterSunAgentLaunch`, `page`, `size`
  * and `sort`, each verified against live responses that would differ if it were ignored.
  */
-import type { SunPumpApiClient } from "@sun-sdk/api";
+import type { SunPumpApiClient } from "@sun-protocol/sun-sdk-api";
 import type { NetworkDescriptor } from "../../../domain/types/network.js";
 import type {
   SunPumpListQuery,

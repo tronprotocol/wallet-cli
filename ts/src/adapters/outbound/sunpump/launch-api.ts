@@ -1,5 +1,5 @@
 /**
- * SunPumpTokenLaunchPort over `@sun-sdk/api` — `POST /ai/agentTokenLaunch`.
+ * SunPumpTokenLaunchPort over `@sun-protocol/sun-sdk-api` — `POST /ai/agentTokenLaunch`.
  *
  * The one write in this folder that signs nothing: the service creates the token, picks its owner
  * and pays for it. What this adapter owns is therefore narrow and unforgiving — the exact body

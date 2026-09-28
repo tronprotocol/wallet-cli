@@ -20,8 +20,8 @@ import {
   materializeUniversalRouterAction,
   planRouterPermit2Authorization,
   type ProtocolsContext,
-} from "@sun-sdk/protocols";
-import { createDeferredContractCallAction } from "@sun-sdk/core";
+} from "@sun-protocol/sun-sdk-protocols";
+import { createDeferredContractCallAction } from "@sun-protocol/sun-sdk-core";
 import type {
   RouterExecutionPort,
   RouterSwapCall,

@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { SunPumpApiClient } from "@sun-sdk/api";
+import { SunPumpApiClient } from "@sun-protocol/sun-sdk-api";
 import { SunPumpMarketApi, type SunPumpApiClientFactory } from "./market-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 

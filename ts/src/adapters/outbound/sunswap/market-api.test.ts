@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isLosslessNumber } from "lossless-json";
-import { SunApiClient } from "@sun-sdk/api";
+import { SunApiClient } from "@sun-protocol/sun-sdk-api";
 import { parseRetryAfter, SunSwapMarketApi, type SunApiClientFactory } from "./market-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 

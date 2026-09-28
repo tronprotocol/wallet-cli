@@ -4,7 +4,7 @@
  * Shape and encoding only. Whether a trade is allowed, what floor it carries and how a receipt
  * reads are decisions, and they live in the use case above.
  *
- * Every signature and every parameter order here comes from `@sun-sdk/launchpad` rather than
+ * Every signature and every parameter order here comes from `@sun-protocol/sun-sdk-launchpad` rather than
  * being retyped. Its `SELECTOR_*` constants are full method signatures, and its action factories
  * return exactly the `{target, method, parameters, callValue}` shape `TxPipeline` builds from — so
  * the vendor describes the call, our gateway encodes it, and a retyped signature cannot drift
@@ -22,7 +22,7 @@ import {
   SELECTOR_QUOTE_SELL_EXACT_TRX,
   SELECTOR_TRC20_ALLOWANCE,
   SELECTOR_TRC20_BALANCE_OF,
-} from "@sun-sdk/launchpad";
+} from "@sun-protocol/sun-sdk-launchpad";
 import type {
   BuyQuote,
   BuyRequest,

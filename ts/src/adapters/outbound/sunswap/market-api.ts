@@ -1,5 +1,5 @@
 /**
- * MarketDataPort over `@sun-sdk/api`'s `SunApiClient`.
+ * MarketDataPort over `@sun-protocol/sun-sdk-api`'s `SunApiClient`.
  *
  * The SDK owns the URLs and the request; this file owns everything that makes the answer safe to
  * use — which host was asked, how the body was parsed, what a failure is called, and what shape
@@ -14,7 +14,7 @@
  *   first of those is the number a user copies into a remove-liquidity call.
  * - `fetchImpl` carries the call's timeout and response cap, which the SDK has no option for.
  */
-import { SunApiClient } from "@sun-sdk/api";
+import { SunApiClient } from "@sun-protocol/sun-sdk-api";
 import { parse as parseLosslessJson } from "lossless-json";
 import { isTronNetwork, type NetworkDescriptor } from "../../../domain/types/network.js";
 import type {

@@ -16,7 +16,7 @@
  *   20477938.60521827 and every eighteen-decimal price, silently.
  * - `fetchImpl` carries the call's timeout and response cap, which the SDK has no option for.
  */
-import { SunPumpApiClient } from "@sun-sdk/api";
+import { SunPumpApiClient } from "@sun-protocol/sun-sdk-api";
 import { parse as parseLosslessJson } from "lossless-json";
 import { isTronNetwork, type NetworkDescriptor } from "../../../domain/types/network.js";
 import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";

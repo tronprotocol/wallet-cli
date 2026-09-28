@@ -23,9 +23,9 @@ const depcruiseBin = join(repo, "node_modules", ".bin", "depcruise");
 /** Files placed under the throwaway tree's `src/`, each one breaking exactly one rule. */
 const VIOLATIONS: Record<string, string> = {
   // an application port reaching for the vendor SDK it should only know through a port type
-  "src/application/ports/sdk-leak.ts": `import type { SunApiClient } from "@sun-sdk/api";\nexport type Leak = SunApiClient;\n`,
+  "src/application/ports/sdk-leak.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Leak = SunApiClient;\n`,
   // the broadcasting runtime imported somewhere other than the single file allowed to build it
-  "src/adapters/outbound/sunswap/runtime-leak.ts": `import { createRuntime } from "@sun-sdk/runtime";\nexport const leak = createRuntime;\n`,
+  "src/adapters/outbound/sunswap/runtime-leak.ts": `import { createRuntime } from "@sun-protocol/sun-sdk-runtime";\nexport const leak = createRuntime;\n`,
   // the two integrations reaching into each other
   "src/adapters/outbound/sunswap/cross.ts": `import { marker } from "../sunpump/marker.js";\nexport const leak = marker;\n`,
   "src/adapters/outbound/sunpump/cross.ts": `import { marker } from "../sunswap/marker.js";\nexport const leak = marker;\n`,
@@ -35,8 +35,8 @@ const VIOLATIONS: Record<string, string> = {
 
 /** The same SDK import from the one place that owns it — proof the rule is not simply "always". */
 const ALLOWED: Record<string, string> = {
-  "src/adapters/outbound/sunswap/market-api.ts": `import type { SunApiClient } from "@sun-sdk/api";\nexport type Client = SunApiClient;\n`,
-  "src/adapters/outbound/sunswap/sdk-runtime.ts": `import { createRuntime } from "@sun-sdk/runtime";\nexport const build = createRuntime;\n`,
+  "src/adapters/outbound/sunswap/market-api.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Client = SunApiClient;\n`,
+  "src/adapters/outbound/sunswap/sdk-runtime.ts": `import { createRuntime } from "@sun-protocol/sun-sdk-runtime";\nexport const build = createRuntime;\n`,
 };
 
 function buildTree(files: Record<string, string>): string {

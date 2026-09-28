@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TickMath } from "@sun-sdk/sunswap-v3";
+import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
 
 /** The sqrt price AT a tick — the lower edge of its band, which is what V3 sizes from. */

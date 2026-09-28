@@ -1,7 +1,7 @@
 /**
  * The vendor's tick maths, checked before we size a deposit with it.
  *
- * `@sun-sdk/sunswap-v3` supplies the Uniswap v3 table rather than us writing one, which removes
+ * `@sun-protocol/sun-sdk-sunswap-v3` supplies the Uniswap v3 table rather than us writing one, which removes
  * nineteen chances to mistype a constant. It does not remove the need to check: a wrong value
  * here would mis-size a deposit rather than fail, and we did not write this code and cannot
  * reason about its intent.
@@ -11,7 +11,7 @@
  * computed by the chain from its own copy, so a constant that disagreed could not bracket it.
  */
 import { describe, expect, it } from "vitest";
-import { maxLiquidityForAmounts, SqrtPriceMath, TickMath } from "@sun-sdk/sunswap-v3";
+import { maxLiquidityForAmounts, SqrtPriceMath, TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { MAX_TICK, MIN_TICK } from "../../../domain/sunswap/ticks.js";
 
 const ratio = (tick: number): bigint => BigInt(TickMath.getSqrtRatioAtTick(tick).toString());
