@@ -145,6 +145,12 @@ export interface ChainSpec<_I = any, O = any> {
   /** Override waiting support for payments submitted by an external facilitator. */
   supportsWait?: boolean;
   capability?: string;
+  /** refuse `--account` outright, with this sentence as the reason. For the rare command that
+   *  touches no account AND whose result is not the active account's: `sunpump launch` has its
+   *  token created by a remote service, which picks the owner, so accepting an account flag would
+   *  imply the new token is that account's. `wallet: "none"` alone does not imply this — a query
+   *  command that ignores `--account` is harmless, while here it would mislead. */
+  rejectsAccount?: string;
   stdin?: StdinChannel;
   /** the stdin channel belongs to ONE family (e.g. `--tx-stdin` carries TRON's transaction JSON).
    *  Help tags the flag with it and every other family refuses it, the same way a flag declared in
@@ -185,6 +191,7 @@ export type CommandExecutionSpec = Pick<
   | "broadcasts"
   | "supportsWait"
   | "capability"
+  | "rejectsAccount"
   | "interactive"
   | "passwordMode"
   | "positionals"

@@ -469,3 +469,125 @@ describe("alias targets are normalised to canonical ids", () => {
     expect(new NetworkRegistry(config).resolve("tron:nile").id).toBe("tron:3448148188");
   });
 });
+
+describe("ConfigLoader sunswap network block", () => {
+  const tronNetwork = (config: ReturnType<typeof ConfigLoader.load>, id: string) =>
+    config.networks[id] as {
+      sunswap?: { marketApiBaseUrl?: string; routerApiBaseUrl?: string; contracts?: unknown };
+      sunpump?: { launchpad?: string; apiBaseUrl?: string };
+    };
+
+  it("ships the market API on mainnet and nowhere else", () => {
+    const config = ConfigLoader.load(envWithConfig(""));
+    expect(tronNetwork(config, "tron:728126428").sunswap?.marketApiBaseUrl).toBe(
+      "https://open.sun.io",
+    );
+    expect(tronNetwork(config, "tron:3448148188").sunswap?.marketApiBaseUrl).toBeUndefined();
+    expect(tronNetwork(config, "tron:2494104990").sunswap).toBeUndefined();
+  });
+
+  // The switch a tester flips to reach an internal service: config only, no code change.
+  it("lets config.yaml add the market API to another network", () => {
+    const config = ConfigLoader.load(
+      envWithConfig(
+        "networks:\n  nile:\n    sunswap:\n      marketApiBaseUrl: https://nile.example.test\n",
+      ),
+    );
+    expect(tronNetwork(config, "tron:3448148188").sunswap?.marketApiBaseUrl).toBe(
+      "https://nile.example.test",
+    );
+  });
+
+  // Every other service block replaces rather than merges, and sunswap follows that one rule:
+  // whatever a network needs has to be written out in full in the user's own block.
+  it("replaces the builtin block wholesale rather than merging into it", () => {
+    const config = ConfigLoader.load(
+      envWithConfig(
+        "networks:\n  tron:\n    sunswap:\n      routerApiBaseUrl: https://router.example.test\n",
+      ),
+    );
+    const block = tronNetwork(config, "tron:728126428").sunswap;
+    expect(block?.marketApiBaseUrl).toBeUndefined();
+  });
+
+  it("rejects a base URL that is not http(s)", () => {
+    expect(() =>
+      ConfigLoader.load(
+        envWithConfig("networks:\n  tron:\n    sunswap:\n      marketApiBaseUrl: open.sun.io\n"),
+      ),
+    ).toThrow(/invalid sunswap\.marketApiBaseUrl/);
+    expect(() =>
+      ConfigLoader.load(
+        envWithConfig(
+          "networks:\n  tron:\n    sunswap:\n      routerApiBaseUrl: ftp://open.sun.io\n",
+        ),
+      ),
+    ).toThrow(/invalid sunswap\.routerApiBaseUrl/);
+  });
+
+  it("rejects a contract address that is not base58 TRON", () => {
+    expect(() =>
+      ConfigLoader.load(
+        envWithConfig(
+          "networks:\n  tron:\n    sunswap:\n      contracts:\n        permit2: '0x1234'\n",
+        ),
+      ),
+    ).toThrow(/invalid sunswap\.contracts\.permit2/);
+  });
+
+  it("accepts a well-formed block", () => {
+    const config = ConfigLoader.load(
+      envWithConfig(
+        "networks:\n  tron:\n    sunswap:\n      marketApiBaseUrl: https://open.sun.io\n      contracts:\n        wtrx: TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR\n",
+      ),
+    );
+    expect(tronNetwork(config, "tron:728126428").sunswap?.contracts).toEqual({
+      wtrx: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+    });
+  });
+
+  /**
+   * Nile is the case that proves the two SunSwap capabilities are keyed on different fields: it
+   * has the contracts the liquidity commands call and no market API, and both are true at once.
+   */
+  it("ships verified contracts on both TRON networks, and the market API on mainnet only", () => {
+    const config = ConfigLoader.load(envWithConfig(""));
+    const mainnet = tronNetwork(config, "tron:728126428").sunswap;
+    const nile = tronNetwork(config, "tron:3448148188").sunswap;
+    expect(mainnet?.contracts).toEqual({
+      v2Router: "TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq",
+      v3PositionManager: "TLSWrv7eC1AZCXkRjpqMZUmvgd99cj7pPF",
+      wtrx: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+    });
+    expect(nile?.contracts).toEqual({
+      v2Router: "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy",
+      v3PositionManager: "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R",
+      // V4, supplied by the user and agreeing with the SDK's own Nile chain config; the position
+      // manager is also the address in PM 6.1.4's V4 receipt.
+      v4PoolManager: "TVivLPeq7FMmTG8Z7HaiBgHTsMwCEcipKT",
+      v4PositionManager: "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP",
+      wtrx: "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
+    });
+    expect(nile?.marketApiBaseUrl).toBeUndefined();
+    // Nile's route service is not public, so the SHIPPED build offers no router there. Enabling it
+    // for testing is a `config.yaml` job, not a builtin — see the deviation notes, item 9.
+    expect(nile?.routerApiBaseUrl).toBeUndefined();
+  });
+
+  /**
+   * SunPump is mainnet-only in the shipped build, and Nile carries no launchpad of its own.
+   *
+   * Enabling one for testing belongs in `config.yaml`, which layers over these builtins; putting it
+   * here would ship a capability on a network no outside caller can use.
+   */
+  it("ships no SunPump block on Nile", () => {
+    const config = ConfigLoader.load(envWithConfig(""));
+    expect(tronNetwork(config, "tron:3448148188").sunpump).toBeUndefined();
+  });
+
+  it("rejects a sunswap block that is not a mapping", () => {
+    expect(() =>
+      ConfigLoader.load(envWithConfig("networks:\n  tron:\n    sunswap: https://open.sun.io\n")),
+    ).toThrow(/invalid sunswap/);
+  });
+});

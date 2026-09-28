@@ -7,7 +7,7 @@ Every command — including every subcommand — has its own page. Most follow t
 wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` selects one network of one family. Commands fall into these kinds:
 
 - **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
-- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
+- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange`, `gasfree`, `sunswap` and `sunpump` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call. `sunswap` and `sunpump` narrow further, per network config rather than per build: the six `sunswap` read-only commands need the market data service and `sunpump` needs a launchpad address, and only mainnet has either, so on Nile or Shasta they fail with **`unsupported_network_capability`** and the message names the network that does work. The three `sunswap` liquidity commands talk to contracts instead and work on `tron` and `nile`.
 - **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the catalog, usage, and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
 - **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
@@ -96,6 +96,20 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `contract set-origin-energy-limit` | [contract/set-origin-energy-limit.md](contract/set-origin-energy-limit.md) |
 | `contract set-user-resource-percent` | [contract/set-user-resource-percent.md](contract/set-user-resource-percent.md) |
 | `contract create2` | [contract/create2.md](contract/create2.md) |
+| `sunswap` (group) | [sunswap/index.md](sunswap/index.md) |
+| `sunswap position-list` | [sunswap/position-list.md](sunswap/position-list.md) |
+| `sunswap pool-list` | [sunswap/pool-list.md](sunswap/pool-list.md) |
+| `sunswap pool-search` | [sunswap/pool-search.md](sunswap/pool-search.md) |
+| `sunswap token-list` | [sunswap/token-list.md](sunswap/token-list.md) |
+| `sunswap token-search` | [sunswap/token-search.md](sunswap/token-search.md) |
+| `sunswap price` | [sunswap/price.md](sunswap/price.md) |
+| `sunswap add-liquidity` | [sunswap/add-liquidity.md](sunswap/add-liquidity.md) |
+| `sunswap remove-liquidity` | [sunswap/remove-liquidity.md](sunswap/remove-liquidity.md) |
+| `sunswap collect-fees` | [sunswap/collect-fees.md](sunswap/collect-fees.md) |
+| `sunswap swap` | [sunswap/swap.md](sunswap/swap.md) |
+| `sunpump` (group) | [sunpump/index.md](sunpump/index.md) |
+| `sunpump buy` | [sunpump/buy.md](sunpump/buy.md) |
+| `sunpump sell` | [sunpump/sell.md](sunpump/sell.md) |
 | `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
 | `gasfree info` | [gasfree/info.md](gasfree/info.md) |
 | `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |

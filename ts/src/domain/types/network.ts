@@ -51,6 +51,10 @@ export interface TronNetworkDescriptor extends NetworkBase {
   tronlinkHttpEndpoint?: string;
   /** Official GasFree service plus the immutable TIP-712 controller domain. */
   gasfree?: GasFreeNetworkConfig;
+  /** SunSwap services and on-chain contracts available on this network. */
+  sunswap?: SunSwapNetworkConfig;
+  /** SunPump's bonding-curve launchpad. Absent disables the curve trading commands. */
+  sunpump?: SunPumpNetworkConfig;
 }
 
 /** EVM network. Reached over JSON-RPC; `chainId` is the EIP-155 chain id as a decimal string —
@@ -126,6 +130,51 @@ export interface GasFreeNetworkConfig {
   /** Decimal uint256 value to avoid passing chain identifiers through floating point. */
   controllerChainId: string;
   verifyingContract: string;
+}
+
+/**
+ * Per-network SunSwap availability. Every field is optional because a network may offer some
+ * services and not others: a capability is registered from the PRESENCE of the field it needs,
+ * which is what lets a tester open a network by editing config.yaml instead of patching code.
+ */
+export interface SunSwapNetworkConfig {
+  /** market/indexer API origin (HTTPS origin only; request paths are appended by the adapter). */
+  marketApiBaseUrl?: string;
+  /** swap route service origin. */
+  routerApiBaseUrl?: string;
+  /** base58 addresses of the contracts the liquidity and swap commands call. */
+  contracts?: SunSwapContracts;
+}
+
+/**
+ * SunPump's on-chain surface.
+ *
+ * One address, because the curve contract is the whole of it: it holds the reserves, quotes both
+ * directions, and is the spender a sale approves. The released binary carries it for mainnet
+ * only (PM 3.1), and a tester opens another network by setting it in `config.yaml`.
+ */
+export interface SunPumpNetworkConfig {
+  /** the bonding-curve launchpad, base58. */
+  launchpad?: string;
+  /**
+   * The launchpad's HTTP catalogue, e.g. `https://api-v2.sunpump.meme/pump-api`.
+   *
+   * Separate from `launchpad` because the two are separate facts: a network can have the curve
+   * contract and no catalogue. The SDK's chain config has `sunPump: null` for Nile, so there is
+   * no testnet catalogue to point this at, and absent means the read-only commands are off.
+   */
+  apiBaseUrl?: string;
+}
+
+/** SunSwap contract addresses, base58. Absent members simply disable what needs them. */
+export interface SunSwapContracts {
+  permit2?: string;
+  universalRouter?: string;
+  v2Router?: string;
+  v3PositionManager?: string;
+  v4PositionManager?: string;
+  v4PoolManager?: string;
+  wtrx?: string;
 }
 
 /** price service config ; best-effort — failures never fail a balance read. */

@@ -8,6 +8,7 @@
  *   vote.ts    — SR voting list/status views
  *   reward.ts  — voting/block reward views
  *   chain.ts   — chain queries (params, prices, node)
+ *   sunswap.ts — SunSwap market queries (price)
  *   misc.ts    — config, networks, contract call/info, message sign, block
  * This barrel reassembles the one TextFormatters table command specs import.
  */
@@ -28,6 +29,14 @@ import { GovernanceFormatters } from "./governance.js";
 import { PermissionFormatters } from "./permission.js";
 import { MultisigFormatters } from "./multisig.js";
 import { GasFreeFormatters } from "./gasfree.js";
+import { SunSwapFormatters } from "./sunswap.js";
+import { SunSwapLiquidityFormatters } from "./sunswap-liquidity.js";
+import { SunSwapRemoveLiquidityFormatters } from "./sunswap-remove-liquidity.js";
+import { SunSwapCollectFeesFormatters } from "./sunswap-collect-fees.js";
+import { SunPumpTradeFormatters } from "./sunpump-trade.js";
+import { SunPumpMarketFormatters } from "./sunpump-market.js";
+import { SunPumpLaunchFormatters } from "./sunpump-launch.js";
+import { SunSwapSwapFormatters } from "./sunswap-swap.js";
 import { ContactFormatters } from "./contact.js";
 import { EncodingFormatters } from "./encoding.js";
 
@@ -49,6 +58,14 @@ export const TextFormatters = {
   ...PermissionFormatters,
   ...MultisigFormatters,
   ...GasFreeFormatters,
+  ...SunSwapFormatters,
+  ...SunSwapLiquidityFormatters,
+  ...SunSwapRemoveLiquidityFormatters,
+  ...SunSwapCollectFeesFormatters,
+  ...SunPumpTradeFormatters,
+  ...SunPumpMarketFormatters,
+  ...SunPumpLaunchFormatters,
+  ...SunSwapSwapFormatters,
   ...ContactFormatters,
   ...EncodingFormatters,
 };
