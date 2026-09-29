@@ -36,6 +36,7 @@ import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
 import { isTronNetwork } from "../../../../domain/types/network.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
+import { readPosition } from "./position-read.js";
 import { describeHooks, hasHooks } from "../../../../domain/sunswap/v4-pool.js";
 import {
   derivedAmounts,
@@ -102,9 +103,6 @@ export interface PositionInfoView {
   };
 }
 
-/** The error codes that mean "the contract answered, and the answer was a refusal". */
-const REVERTED = new Set(["execution_reverted", "provider_error"]);
-
 export class SunSwapPositionInfoService {
   constructor(
     private readonly liquidity: LiquidityPort,
@@ -142,7 +140,7 @@ export class SunSwapPositionInfoService {
     network: NetworkDescriptor,
     tokenId: string,
   ): Promise<PositionInfoView> {
-    const position = await this.#read("V3", tokenId, network, () =>
+    const position = await readPosition("V3", tokenId, network, () =>
       this.liquidity.v3Position(network, tokenId),
     );
     const pool = await this.liquidity.v3PoolState(
@@ -199,7 +197,7 @@ export class SunSwapPositionInfoService {
     network: NetworkDescriptor,
     tokenId: string,
   ): Promise<PositionInfoView> {
-    const position = await this.#read("V4", tokenId, network, () =>
+    const position = await readPosition("V4", tokenId, network, () =>
       this.liquidity.v4Position(network, tokenId),
     );
     const pool = await this.liquidity.v4PoolState(network, position.poolId);
@@ -443,38 +441,6 @@ export class SunSwapPositionInfoService {
         )}`,
       });
       return undefined;
-    }
-  }
-
-  /**
-   * A position read, with "there is no such position" separated from "the node did not answer".
-   *
-   * `ownerOf` on an id that was never minted REVERTS, and a revert reaches here as a provider
-   * error — which would tell a caller the service is broken when their id is simply wrong. The one
-   * thing this must not do is turn a genuine outage into `position_not_found`, so only a failed
-   * read of THIS id is reinterpreted, and the original message travels in the new one.
-   */
-  async #read<T>(
-    protocol: "V3" | "V4",
-    tokenId: string,
-    network: NetworkDescriptor,
-    read: () => Promise<T>,
-  ): Promise<T> {
-    try {
-      return await read();
-    } catch (error) {
-      // ONLY a revert. An id that was never minted reverts `ownerOf` — measured on mainnet, where
-      // V4 id 99999999 answers `NOT_MINTED` — and an empty `constant_result` surfaces as
-      // `provider_error`. A timeout, a rate limit or a transport failure keeps its own code and its
-      // own exit class: "no such position" is a different thing to tell a caller than "nobody
-      // answered", and a caller who is told the first will stop retrying.
-      if (error instanceof ChainError && REVERTED.has(error.code)) {
-        throw new ChainError(
-          "position_not_found",
-          `no ${protocol} position with id ${tokenId} on ${network.id}`,
-        );
-      }
-      throw error;
     }
   }
 }

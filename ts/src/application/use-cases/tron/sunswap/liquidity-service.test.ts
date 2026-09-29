@@ -6,6 +6,7 @@ import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { SunSwapLiquidityService } from "./liquidity-service.js";
+import { ChainError } from "../../../../domain/errors/index.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -775,6 +776,19 @@ describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
     });
   });
 
+  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
+  it("reports an id that was never minted as position_not_found", async () => {
+    const port = makePort({
+      v3Position: vi.fn(async () => {
+        throw new ChainError("execution_reverted", "TRON constant call reverted");
+      }) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    await expect(
+      service.addLiquidity(scope, NETWORK, { ...INCREASE, dryRun: true }),
+    ).rejects.toMatchObject({ code: "position_not_found" });
+  });
+
   // A dry run can be minutes old by the time someone runs the real thing.
   it("re-reads the owner immediately before sending, not only in the dry run", async () => {
     const { service, scope, port } = makeHarness();
@@ -1052,6 +1066,17 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     } as Partial<LiquidityPort>);
     const { result } = run({ ...BASE_V4, dryRun: true }, port);
     await expect(result).rejects.toMatchObject({ code: "invalid_value" });
+  });
+
+  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
+  it("reports an id that was never minted as position_not_found", async () => {
+    const port = v4Port({
+      v4Position: vi.fn(async () => {
+        throw new ChainError("execution_reverted", "TRON constant call reverted");
+      }) as never,
+    } as Partial<LiquidityPort>);
+    const { result } = run({ ...BASE_V4, dryRun: true }, port);
+    await expect(result).rejects.toMatchObject({ code: "position_not_found" });
   });
 
   /**

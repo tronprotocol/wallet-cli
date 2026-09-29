@@ -52,6 +52,7 @@ import { LiquidityTransactions, outcomeTxId, type ApprovalPlan } from "./liquidi
 import { warnOnPostCheck } from "../../../services/post-check.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import { readPosition } from "./position-read.js";
 import { isTronNetwork } from "../../../../domain/types/network.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
@@ -888,7 +889,9 @@ export class SunSwapLiquidityService {
     tokenId: string,
     owner: string,
   ): Promise<V4Position> {
-    const position = await this.liquidity.v4Position(network, tokenId);
+    const position = await readPosition("V4", tokenId, network, () =>
+      this.liquidity.v4Position(network, tokenId),
+    );
     if (position.owner !== owner) {
       throw new UsageError(
         "invalid_value",
@@ -1516,7 +1519,9 @@ export class SunSwapLiquidityService {
     tokenId: string,
     owner: string,
   ): Promise<V3Position> {
-    const position = await this.liquidity.v3Position(network, tokenId);
+    const position = await readPosition("V3", tokenId, network, () =>
+      this.liquidity.v3Position(network, tokenId),
+    );
     if (position.owner !== owner) {
       throw new UsageError(
         "invalid_value",

@@ -6,6 +6,7 @@ import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { SunSwapRemoveLiquidityService } from "./remove-liquidity-service.js";
+import { ChainError } from "../../../../domain/errors/index.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const MANAGER = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
@@ -278,6 +279,19 @@ describe("remove-liquidity V3", () => {
       code: "invalid_value",
       message: expect.stringContaining("TSomeoneElse11111111111111111111"),
     });
+  });
+
+  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
+  it("reports an id that was never minted as position_not_found", async () => {
+    const port = makePort({
+      v3Position: vi.fn(async () => {
+        throw new ChainError("execution_reverted", "TRON constant call reverted");
+      }) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    await expect(
+      service.removeLiquidity(scope, NETWORK, { ...V3, dryRun: true }),
+    ).rejects.toMatchObject({ code: "position_not_found" });
   });
 
   // A dry run can be minutes old by the time the real thing runs.
@@ -664,6 +678,19 @@ describe("remove-liquidity V4 — the cross-checks", () => {
     await expect(
       service.removeLiquidity(scope, NETWORK, { ...V4, dryRun: true }),
     ).rejects.toMatchObject({ code: "invalid_value" });
+  });
+
+  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
+  it("reports an id that was never minted as position_not_found", async () => {
+    const port = makeV4Port({
+      v4Position: vi.fn(async () => {
+        throw new ChainError("execution_reverted", "TRON constant call reverted");
+      }) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    await expect(
+      service.removeLiquidity(scope, NETWORK, { ...V4, dryRun: true }),
+    ).rejects.toMatchObject({ code: "position_not_found" });
   });
 
   it("refuses burning more liquidity than the position holds", async () => {
