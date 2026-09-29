@@ -118,11 +118,21 @@ function priceCell(pool: PoolRow, quote: string): string {
 }
 
 /** 18 places is what the value carries; six is what a person reads. */
+/**
+ * A decimal shortened to six places, KEEPING any exponent.
+ *
+ * The exponent has to be split off before the fraction is cut, or it is cut with it. An earlier
+ * version sliced `"2.939544628365392e-39"` into `"2.939544"` — a full-range V4 position's lower
+ * price bound, printed 39 orders of magnitude too high and looking entirely plausible. The JSON was
+ * right; only the text lied.
+ */
 function trimZeros(value: string): string {
-  if (!value.includes(".")) return value;
-  const [whole = "0", fraction = ""] = value.split(".");
+  const match = /^(-?\d+(?:\.\d+)?)([eE][+-]?\d+)$/.exec(value.trim());
+  const [mantissa, exponent] = match ? [match[1]!, match[2]!.toLowerCase()] : [value, ""];
+  if (!mantissa.includes(".")) return `${mantissa}${exponent}`;
+  const [whole = "0", fraction = ""] = mantissa.split(".");
   const shown = fraction.slice(0, 6).replace(/0+$/, "");
-  return shown === "" ? whole : `${whole}.${shown}`;
+  return `${shown === "" ? whole : `${whole}.${shown}`}${exponent}`;
 }
 
 interface PositionRow {

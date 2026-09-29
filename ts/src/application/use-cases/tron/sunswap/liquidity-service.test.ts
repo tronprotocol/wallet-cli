@@ -1277,6 +1277,46 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   }
 
   /**
+   * The grant's expiry in the preview is the grant's, not the transaction's.
+   *
+   * The signed grant lasts `V4_PERMIT_TTL_SECONDS` (an hour); the transaction deadline is thirty
+   * minutes. An earlier version printed the deadline as the grant's `expiration`, so the preview said
+   * the authorisation lapsed half an hour before it actually did.
+   */
+  it("previews each grant expiring an hour out, not at the transaction deadline", async () => {
+    const before = Math.floor(Date.now() / 1000);
+    const out = (await run({ ...BASE_V4, dryRun: true }).result) as {
+      deadline: number;
+      permits: { expiration: string }[];
+    };
+    expect(out.permits.length).toBeGreaterThan(0);
+    for (const permit of out.permits) {
+      const expiration = Number(permit.expiration);
+      expect(expiration).toBeGreaterThanOrEqual(before + 3600);
+      expect(expiration).toBeLessThanOrEqual(before + 3600 + 5);
+      expect(expiration).not.toBe(out.deadline);
+    }
+  });
+
+  /**
+   * A V4 deposit publishes NO minimum, because it has none.
+   *
+   * It is bounded from above. The shared plan type keeps a minimum for V2 and V3, which need one
+   * when they send, and V4's placeholder `"0"` used to leak into the JSON — telling an agent the
+   * deposit accepted any amount, when a ceiling caps it.
+   */
+  it("publishes no amountMinimum on either side of a V4 deposit", async () => {
+    const out = (await run({ ...BASE_V4, dryRun: true }).result) as {
+      token0: Record<string, unknown>;
+      token1: Record<string, unknown>;
+    };
+    expect(out.token0).not.toHaveProperty("amountMinimum");
+    expect(out.token1).not.toHaveProperty("amountMinimum");
+    // The amount itself is still there; only the meaningless floor is gone.
+    expect(out.token0).toHaveProperty("amount");
+  });
+
+  /**
    * A confirmed V4 mint reports the position it created.
    *
    * It is the one figure a caller needs afterwards — every later command names the position by it —

@@ -312,6 +312,29 @@ describe("sunswap position detail", () => {
     expect(out).not.toContain("$0.00");
   });
 
+  /**
+   * An exponent is PART OF THE NUMBER, not trailing noise.
+   *
+   * A full-range V4 position's bounds are ~1e-39 and ~1e+38. The earlier formatter sliced the fraction
+   * before looking for an exponent, so `2.939544628365392e-39` printed as `2.939544` — thirty-nine
+   * orders of magnitude out, and entirely plausible on the page. Measured on Nile position 7.
+   */
+  it("keeps the exponent of a very small or very large price bound", () => {
+    const out = SunSwapFormatters.sunswapPositionInfo(
+      positionInfo({
+        extra: {
+          ...positionInfo().position.extra,
+          minPrice: "2.939544628365392e-39",
+          maxPrice: "3.4018874568203963e+38",
+        },
+      }) as never,
+    );
+    expect(out).toContain("2.939544e-39");
+    expect(out).toContain("3.401887e+38");
+    // The shape of the defect, stated directly: the bare mantissa must not stand alone.
+    expect(out).not.toMatch(/2\.939544 /);
+  });
+
   it("says EMPTY for a position whose liquidity is gone", () => {
     const out = SunSwapFormatters.sunswapPositionInfo(
       positionInfo({

@@ -188,10 +188,12 @@ function dryRun(value: RemovalView, rows: Pair[], ctx: TextRenderContext): strin
       `${warn()} The withdrawal's own fee cannot be estimated until the approval is on-chain.`,
     );
   }
-  // V3 brings the accrued fees out in the same transaction, which is this version's addition
-  // over upstream — worth saying before it happens, because the amount that arrives will be
-  // larger than the principal the plan quotes.
-  if (value.protocol === "V3") {
+  // V3 AND V4 bring the accrued fees out in the same transaction — worth saying before it happens,
+  // because the amount that arrives will be larger than the principal the plan quotes. V4 was left
+  // out of this once, on PM 6.2's claim that a V4 withdrawal leaves fees behind; measured on Nile it
+  // does not (position 7: owed 4821 / 3132 before, 0 / 0 after), so a V4 dry run was quoting only
+  // the principal and staying silent about the rest. Same behaviour, same warning.
+  if (value.protocol === "V3" || value.protocol === "V4") {
     lines.push(
       `${warn()} Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.`,
     );

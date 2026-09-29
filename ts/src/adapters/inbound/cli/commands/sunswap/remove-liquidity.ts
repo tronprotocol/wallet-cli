@@ -227,7 +227,9 @@ export const sunswapRemoveLiquiditySpec: ChainSpec = {
     "manager already holds the NFT. The receipt's Received line is the total; -o json separates\n" +
     "the principal from the fees collected alongside it.\n\n" +
     "V4 withdraws from a position too, and is ONE call rather than a multicall: decreaseLiquidity\n" +
-    "settles the pair itself. It needs BOTH --position-id and the pair — the position chooses the\n" +
+    "settles the pair itself — and, as on V3, the fees the position has accrued come out with the\n" +
+    "principal, so more arrives than the estimate; -o json separates them as amount and feeAmount.\n" +
+    "It needs BOTH --position-id and the pair — the position chooses the\n" +
     "pool, and --token0/--token1 are checked against what it holds, so a withdrawal from a position\n" +
     "you did not mean is refused rather than sent. The tokens always go to the signing account, so\n" +
     "--recipient is not accepted. --min0/--min1 are floors, defaulting to 0, and --slippage lowers\n" +

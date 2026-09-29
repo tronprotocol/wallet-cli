@@ -320,7 +320,9 @@ export class SunSwapLiquidityService {
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
     const planned = await this.#planV4(network, owner, input);
-    const { plan, pool, permitsNeeded, call } = planned;
+    const { plan: internal, pool, permitsNeeded, call } = planned;
+    // What leaves this method never carries a V4 minimum; see `withoutV4Minimum`.
+    const plan = withoutV4Minimum(internal);
 
     if (mode.buildOnly && permitsNeeded.length > 0) {
       // The deposit embeds the signed grants, so it cannot be built before they exist — the same
@@ -580,7 +582,7 @@ export class SunSwapLiquidityService {
         newPosition: true,
         ...(auto ? { tickRangeAuto: true } : {}),
         ...(target.kind === "create" ? { poolCreated: true } : {}),
-        ...this.#v4PermitRows(sized, deadline),
+        ...this.#v4PermitRows(sized),
       },
       pool,
       permitsNeeded: sized.permitsNeeded.map((side) => ({
@@ -682,7 +684,7 @@ export class SunSwapLiquidityService {
         ...this.#v4PlanBase(network, owner, pool, range, sized, position.owner, deadline),
         nftTokenId: position.tokenId,
         newPosition: false,
-        ...this.#v4PermitRows(sized, deadline),
+        ...this.#v4PermitRows(sized),
       },
       pool,
       permitsNeeded: sized.permitsNeeded.map((side) => ({
@@ -822,14 +824,22 @@ export class SunSwapLiquidityService {
     };
   }
 
-  /** The grants a plan will sign, absent entirely when the standing ones already cover it. */
-  #v4PermitRows(sized: V4Sizing, deadline: number): Partial<LiquidityPlanView> {
+  /**
+   * The grants a plan will sign, absent entirely when the standing ones already cover it.
+   *
+   * `expiration` is the GRANT's expiry — `now + V4_PERMIT_TTL_SECONDS`, the same bound
+   * `#signV4Permits` asserts before signing — and not the transaction's deadline. An earlier
+   * version printed the deadline here (30 minutes) while signing a one-hour grant, so the preview
+   * told a caller the authorisation lapsed half an hour before it actually did.
+   */
+  #v4PermitRows(sized: V4Sizing): Partial<LiquidityPlanView> {
     if (sized.permitsNeeded.length === 0) return {};
+    const expiration = String(Math.floor(Date.now() / 1000) + V4_PERMIT_TTL_SECONDS);
     return {
       permits: sized.permitsNeeded.map((side) => ({
         token: side.token,
         amount: side.amount,
-        expiration: String(deadline),
+        expiration,
       })),
     };
   }
@@ -1738,6 +1748,23 @@ export class SunSwapLiquidityService {
  * `parameters` VERBATIM from the pool. Re-encoding it from the tick spacing would be our guess at a
  * layout the pool has already told us, and a key that hashes to a different id names a different pool.
  */
+/**
+ * A V4 plan as it is PUBLISHED: without `amountMinimum` on either side.
+ *
+ * A V4 deposit is bounded from ABOVE (`amount0Max` / `amount1Max`) and has no floor at all. The
+ * shared plan type carries a minimum because V2 and V3 genuinely need one when they send, so the
+ * field stays required internally — but printing V4's placeholder `"0"` told an agent reading the
+ * JSON that the deposit accepted any amount, when it is in fact capped. The ceiling is what
+ * protects a V4 caller, and the output should say that rather than the opposite.
+ */
+function withoutV4Minimum<T extends { token0: object; token1: object }>(plan: T): T {
+  const strip = (side: object): object => {
+    const { amountMinimum: _dropped, ...rest } = side as { amountMinimum?: unknown };
+    return rest;
+  };
+  return { ...plan, token0: strip(plan.token0), token1: strip(plan.token1) } as T;
+}
+
 function keyOf(pool: V4PoolState): V4DepositRequest["pool"] {
   return {
     currency0: pool.currency0,
