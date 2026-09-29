@@ -89,6 +89,7 @@ export const sunswapSwapSpec: ChainSpec = {
   capability: "sunswap.swap",
   summary: "Swap tokens through SunSwap or a SunPump curve",
   description:
+    "Ledger: Permit2 and hash-signing fallback require Settings > Sign by Hash > Allowed in the TRON app. The device displays hashes instead of full details; verify the CLI preview before approving.\n" +
     "Exchange one token for another.\n\n" +
     "THE MARKET IS CHOSEN FIRST, from on-chain state, and identically in every mode. If exactly\n" +
     "one side is TRX and the other is a SunPump token that has not launched yet, the trade goes\n" +

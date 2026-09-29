@@ -54,6 +54,7 @@ interface SwapView {
   readonly routes?: readonly QuotedRoute[];
   readonly routesAvailable?: number;
   readonly amountOutExpected?: string;
+  readonly priceImpactPercent?: string;
   readonly amountOut?: string;
   readonly amountOutMinimum?: string;
   readonly slippage?: string;
@@ -65,6 +66,7 @@ interface SwapView {
   readonly approvals?: readonly ApprovalRow[];
   readonly permit?: PermitView;
   readonly feeCovers?: string;
+  readonly feeUnavailableReason?: string;
   readonly fee?: unknown;
   readonly txId?: string;
   readonly approvalTxIds?: readonly string[];
@@ -95,7 +97,10 @@ export const SunSwapSwapFormatters = {
         ? `${amount(value.amountIn ?? "0", tokenIn)} (incl. ${formatAmount(value.tradingFee, 6)} TRX platform fee)`
         : amount(value.amountIn ?? "0", tokenIn);
     const received =
-      value.market === "sunpump" && tokenOut.symbol === "TRX" && out !== undefined
+      value.market === "sunpump" &&
+      tokenOut.symbol === "TRX" &&
+      out !== undefined &&
+      value.amountOut === undefined
         ? `${amount(out, tokenOut)} (after ${formatAmount(value.tradingFee, 6)} TRX platform fee)`
         : out === undefined
           ? ""
@@ -118,6 +123,9 @@ export const SunSwapSwapFormatters = {
         value.amountOutMinimum === undefined ? "" : amount(value.amountOutMinimum, tokenOut),
       ],
       ["Slippage", value.slippage === undefined ? "" : `${percent(value.slippage)}%`],
+      ...(value.priceImpactPercent === undefined
+        ? []
+        : ([["Price impact (quote)", `${value.priceImpactPercent}%`]] as Pair[])),
     ];
 
     if (value.mode === "dry-run") {
@@ -268,7 +276,7 @@ function withNotes(body: string, value: SwapView): string {
   }
   // The swap's own fee is unknowable until the permit is signed, and a dry run does not sign. Said
   // rather than left to infer, as the liquidity commands do for a pending approval.
-  if (value.feeCovers === "approvals") {
+  if (value.feeUnavailableReason || value.feeCovers === "approvals") {
     notes.push(
       `${warn()} The swap's own fee cannot be estimated until the Permit2 authorization is signed, which a dry run does not do.`,
     );

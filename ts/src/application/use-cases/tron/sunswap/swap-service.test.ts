@@ -1011,3 +1011,36 @@ describe("when the grant already covers the trade", () => {
     );
   });
 });
+
+describe("swap receipt output", () => {
+  it.each(["sunpump", "sunswap"])("reads confirmed %s proceeds", async (market) => {
+    const h = makeHarness(
+      makePort({
+        tokenState: vi.fn(async () =>
+          market === "sunpump" ? LAUNCHPAD_STATE.TRADING : LAUNCHPAD_STATE.NOT_EXIST,
+        ),
+      }),
+    );
+    const receivedAmount = vi.fn(async () => "12345");
+    Object.assign(h.gateway, { receivedAmount });
+    const out = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: market === "sunpump" ? "1" : "100",
+    });
+    expect(out).toMatchObject({ amountOut: "12345", amountsEstimated: false });
+    expect(receivedAmount).toHaveBeenCalledWith(expect.any(String), TOKEN, OWNER);
+  });
+  it("keeps the estimate with a warning when receipt evidence is missing", async () => {
+    const h = makeHarness();
+    Object.assign(h.gateway, { receivedAmount: vi.fn(async () => undefined) });
+    const out = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+    });
+    expect(out.amountsEstimated).toBe(true);
+    expect(out).not.toHaveProperty("amountOut");
+    expect(h.scope.warn).toHaveBeenCalled();
+  });
+});

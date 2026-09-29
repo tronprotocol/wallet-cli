@@ -23,6 +23,7 @@ import {
   buildV4CollectAction,
   buildV4DecreaseLiquidityAction,
   buildV4IncreaseLiquidityAction,
+  buildV4InitializePoolAction,
   buildV4MintPositionAction,
   buildV4MulticallAction,
   encodeV4ContractCallAction,
@@ -39,7 +40,7 @@ import {
   normalizeV4PoolKey,
 } from "@sun-protocol/sun-sdk-sunswap-v4";
 import { getContractAddress } from "@sun-protocol/sun-sdk-chains";
-// The builders' own return type: `#withPermits` passes one straight back into `encodeV4ContractCallAction`,
+// The builders' own return type: `#liquidityCall` passes one straight back into `encodeV4ContractCallAction`,
 // so a structural stand-in would not satisfy it.
 import type { ContractCallAction } from "@sun-protocol/sun-sdk-core";
 import type {
@@ -218,8 +219,8 @@ export class SunSwapV4Contracts {
   /**
    * The deposit call, in the shape measured on Nile.
    *
-   * No permits: a bare `modifyLiquidities`. With permits: `multicall(bytes[])` carrying one Permit2
-   * forward call per token and then the deposit, so the grants and the spend are one transaction.
+   * Existing pool without permits: a bare `modifyLiquidities`. Otherwise `multicall(bytes[])`
+   * initializes a new pool first, forwards any Permit2 grants and then deposits.
    * Order matters and is not incidental — a forward call after the deposit would authorize a pull that
    * has already been attempted.
    *
@@ -254,7 +255,17 @@ export class SunSwapV4Contracts {
       sweepRecipient: request.sweepRecipient as never,
     });
 
-    return this.#payload(this.#withPermits(sdkNetwork, mint, request.owner, request.permits));
+    const initialize =
+      request.initialSqrtPriceX96 === undefined
+        ? undefined
+        : buildV4InitializePoolAction({
+            network: sdkNetwork,
+            poolKey: this.#poolKey(sdkNetwork, request.pool),
+            sqrtPriceX96: request.initialSqrtPriceX96,
+          });
+    return this.#payload(
+      this.#liquidityCall(sdkNetwork, mint, request.owner, request.permits, initialize),
+    );
   }
 
   /**
@@ -277,30 +288,32 @@ export class SunSwapV4Contracts {
       deadline: String(request.deadline),
       sweepRecipient: request.sweepRecipient as never,
     });
-    return this.#payload(this.#withPermits(sdkNetwork, increase, request.owner, request.permits));
+    return this.#payload(this.#liquidityCall(sdkNetwork, increase, request.owner, request.permits));
   }
 
   /**
-   * A liquidity action, wrapped behind the grants it needs — or left alone when it needs none.
+   * A liquidity action preceded by initialization (when creating) and then its grants.
    *
-   * The permits come FIRST and that is not incidental: a forward call after the liquidity action
-   * would authorize a pull that has already been attempted.
+   * Initialization and the deposit share one multicall, so a failed deposit rolls back creation.
+   * Permits precede the deposit: forwarding a grant after the spend would be too late.
    *
    * THE CALL VALUE IS CARRIED ACROSS. `buildV4MulticallAction` computes none of its own — only the
    * inner action knows a native pair sends its ceiling as the value — so a multicall built without
    * this would forward the grants and then send a native deposit worth nothing. Shared by the mint
    * and the increase because the trap is the same on both.
    */
-  #withPermits(
+  #liquidityCall(
     sdkNetwork: never,
     action: ContractCallAction,
     owner: string,
     permits: readonly { readonly grant: unknown; readonly signature: string }[],
+    initialize?: ContractCallAction,
   ): ContractCallAction {
-    if (permits.length === 0) return action;
+    if (permits.length === 0 && initialize === undefined) return action;
     return buildV4MulticallAction({
       network: sdkNetwork,
       calls: [
+        ...(initialize === undefined ? [] : [encodeV4ContractCallAction(initialize)]),
         ...permits.map((permit) =>
           encodeV4Permit2ForwardCall({
             owner: owner as never,

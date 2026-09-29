@@ -1,3 +1,4 @@
+import { resolveTronAccount } from "../../../services/tron-account.js";
 /**
  * The transaction mechanics the SunSwap liquidity commands share.
  *
@@ -30,7 +31,12 @@ import type { TxPipeline } from "../../../services/pipeline/index.js";
 import { outcomeData, type ResolvedTransactionMode } from "../../../services/transaction-mode.js";
 import { tronConfirmation } from "../../../services/tron-confirmation.js";
 import { assertTronSignerAuthorized, tronTransactionHooks } from "../multisig-authorization.js";
-import { ChainError } from "../../../../domain/errors/index.js";
+import {
+  ChainError,
+  classifyError,
+  ExecutionError,
+  UsageError,
+} from "../../../../domain/errors/index.js";
 
 /** The cap a TRON contract call burns at when the caller names none, in SUN — 100 TRX, the same
  *  default `contract send` and the ERC-8004 writes use. */
@@ -41,7 +47,7 @@ export interface ApprovalPlan {
   readonly symbol: string;
   readonly decimals: number;
   readonly spender: string;
-  /** base units to approve — exactly what this call needs, never unbounded. */
+  /** Base units to grant; some protocols request an unlimited allowance. */
   readonly amount: string;
   /** what the spender may already move, for a reader deciding whether this is expected. */
   readonly currentAllowance: string;
@@ -54,10 +60,12 @@ export interface ApprovalPlan {
  * cannot be priced until they are on-chain. The key exists so a script can tell the two apart
  * without reading the English the text mode prints.
  */
-export type FeeCoverage = "all" | "approvals";
+export type FeeCoverage = "all" | "approvals" | "none";
 
 /** One side of a pair, and how much of it this command needs. */
 export interface SideAmount {
+  /** Grant policy when the existing allowance is below amount. */
+  readonly approvalAmount?: string;
   readonly facts: TokenFacts;
   readonly amount: string;
 }
@@ -147,7 +155,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     approvals: readonly ApprovalPlan[],
     mode: ResolvedTransactionMode,
     feeLimit: string | undefined,
-  ): Promise<{ fee: FeeReport; feeCovers: FeeCoverage }> {
+  ): Promise<{ fee: FeeReport; feeCovers: FeeCoverage; feeUnavailableReason: string }> {
     const fees: FeeReport[] = [];
     for (const approval of approvals) {
       const outcome = await this.run(scope, network, this.approvalPayload(network, approval), {
@@ -157,7 +165,13 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       });
       fees.push(outcomeFee(outcome));
     }
-    return { fee: sumEnergyFees(fees), feeCovers: "approvals" };
+    const reason =
+      "the main transaction cannot be estimated until the Permit2 authorization is signed";
+    return {
+      fee: fees.length ? sumEnergyFees(fees) : { feeModel: "tron-resource", note: reason },
+      feeCovers: fees.length ? "approvals" : "none",
+      feeUnavailableReason: reason,
+    };
   }
 
   /**
@@ -175,6 +189,9 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     mode: ResolvedTransactionMode,
     feeLimit: string | undefined,
   ): Promise<Record<string, unknown>> {
+    // Leave enough time to sign, confirm and re-read a sequence of offline approvals.
+    // An explicit --expiration always wins; signed artifacts are never refreshed.
+    if (approvals.length > 0) mode = { ...mode, expiration: mode.expiration ?? 3_600_000 };
     const built: TxOutcome[] = [];
     for (const approval of approvals) {
       built.push(
@@ -212,6 +229,23 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
    * An approve and the call that spends it cannot be sent together: the node may order them
    * either way, and the wrong order reverts the call after the approval's fee has been spent.
    */
+  async withApprovals<T>(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    approvals: readonly ApprovalPlan[],
+    owner: string,
+    mode: ResolvedTransactionMode,
+    feeLimit: string | undefined,
+    action: (approvalTxIds: string[]) => Promise<T>,
+  ): Promise<T> {
+    const txIds = await this.sendApprovals(scope, network, approvals, owner, mode, feeLimit);
+    try {
+      return await action(txIds);
+    } catch (error) {
+      throw approvalProgressError(error, txIds);
+    }
+  }
+
   async sendApprovals(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -221,17 +255,21 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     feeLimit: string | undefined,
   ): Promise<string[]> {
     const txIds: string[] = [];
-    for (const approval of approvals) {
-      const outcome = await this.run(scope, network, this.approvalPayload(network, approval), {
-        mode,
-        // An approval is a plain ERC-20 `approve`; it has no precondition of its own, so it is
-        // always priceable.
-        estimable: true,
-        feeLimit,
-      });
-      const txId = outcomeTxId(outcome);
-      if (txId) txIds.push(txId);
-      await this.#assertAllowanceLanded(network, approval, owner);
+    try {
+      for (const approval of approvals) {
+        const outcome = await this.run(scope, network, this.approvalPayload(network, approval), {
+          mode,
+          // An approval is a plain ERC-20 `approve`; it has no precondition of its own, so it is
+          // always priceable.
+          estimable: true,
+          feeLimit,
+        });
+        const txId = outcomeTxId(outcome);
+        if (txId) txIds.push(txId);
+        await this.#assertAllowanceLanded(network, approval, owner);
+      }
+    } catch (error) {
+      throw approvalProgressError(error, txIds);
     }
     return txIds;
   }
@@ -290,7 +328,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
         symbol: side.facts.symbol,
         decimals: side.facts.decimals,
         spender,
-        amount: side.amount,
+        amount: side.approvalAmount ?? side.amount,
         currentAllowance: current,
       });
     }
@@ -335,7 +373,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     // A constant call, so it needs no key and runs on the watch-only paths too.
     return async () =>
       gateway.estimateResources(
-        scope.resolveAddress("tron"),
+        resolveTronAccount(scope),
         payload.target,
         payload.method,
         [...payload.parameters],
@@ -406,4 +444,19 @@ export function sumEnergyFees(fees: readonly FeeReport[]): FeeReport {
     ...(first.energyPriceSun === undefined ? {} : { energyPriceSun: first.energyPriceSun }),
     ...(first.availableEnergy === undefined ? {} : { availableEnergy: first.availableEnergy }),
   };
+}
+
+/** Preserve the original classification, redaction and details while reporting partial progress. */
+function approvalProgressError(error: unknown, approvalTxIds: readonly string[]): unknown {
+  if (approvalTxIds.length === 0) return error;
+  const classified = classifyError(error);
+  const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
+  return new ErrorType(
+    classified.code,
+    `${classified.message}; approval transactions already submitted: ${approvalTxIds.join(", ")}`,
+    {
+      ...classified.details,
+      approvalTxIds: [...approvalTxIds],
+    },
+  );
 }

@@ -40,7 +40,7 @@ const fields = z.object({
     .number()
     .optional()
     .describe(
-      "fee tier, e.g. 500 or 3000; selects the pool on a V3 new position, part of the pool key on V4, checked against the position's own on a V4 increase",
+      "fee tier, e.g. 500 or 3000; selects the pool on a V3 new position, required with no default for a V4 new position; optional and checked against the position's own on a V4 increase",
     ),
   tickLower: z.coerce
     .number()
@@ -97,7 +97,7 @@ const fields = z.object({
     .number()
     .optional()
     .describe(
-      "REQUIRED on V4: the pool's tick spacing. Part of the pool's identity and NOT implied by --fee — two V4 pools at the same fee tier can differ in spacing, so there is no default. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing",
+      "REQUIRED for a V4 new position: the pool's tick spacing. Part of the pool's identity and NOT implied by --fee — two V4 pools at the same fee tier can differ in spacing, so there is no default. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing",
     ),
   hooks: z
     .string()
@@ -380,6 +380,7 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
   capability: "sunswap.liquidity",
   summary: "Add liquidity to a pool",
   description:
+    "Ledger: Permit2 and hash-signing fallback require Settings > Sign by Hash > Allowed in the TRON app. The device displays hashes instead of full details; verify the CLI preview before approving.\n" +
     "Deposit both sides of a pair into a SunSwap pool.\n\n" +
     "V2 adds at the pool's current ratio and returns LP tokens. V3 mints a position NFT over a\n" +
     "price range, or adds to one you already hold with --position-id — which fixes the pair, the\n" +

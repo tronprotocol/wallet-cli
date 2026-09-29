@@ -67,3 +67,9 @@ The energy fee is **not** included in that check: it is paid in burned TRX or fr
 ## See also
 
 [`sunpump sell`](sell.md) · [`sunswap swap`](../sunswap/swap.md) · [machine-interface.md](../../machine-interface.md)
+
+
+With `--wait`, a successful confirmed trade adds `tokensOut` and `amountsEstimated: false` when the
+transaction's transfers verify the net output to the account. Native TRX output excludes network
+fees. Missing receipt evidence leaves the expected amount marked as estimated and emits a warning;
+the CLI never substitutes an account balance difference. `platformFee` remains the quoted fee.

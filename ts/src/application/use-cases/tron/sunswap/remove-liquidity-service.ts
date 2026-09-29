@@ -1,3 +1,4 @@
+import { resolveTronAccount } from "../../../services/tron-account.js";
 /**
  * SunSwap remove-liquidity — taking a position back out.
  *
@@ -162,7 +163,7 @@ export class SunSwapRemoveLiquidityService {
     network: NetworkDescriptor,
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const { plan } = await this.#planV2(network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
@@ -191,39 +192,41 @@ export class SunSwapRemoveLiquidityService {
       return { kind: KIND, ...plan, ...built };
     }
 
-    const approvalTxIds = await this.tx.sendApprovals(
+    return this.tx.withApprovals(
       scope,
       network,
       plan.approvals ?? [],
       owner,
       mode,
       input.feeLimit,
-    );
-    const main = await this.tx.run(scope, network, payload, {
-      mode,
-      estimable: true,
-      feeLimit: input.feeLimit,
-    });
-    const settled = await this.#settleV2(scope, network, plan, main);
+      async (approvalTxIds) => {
+        const main = await this.tx.run(scope, network, payload, {
+          mode,
+          estimable: true,
+          feeLimit: input.feeLimit,
+        });
+        const settled = await this.#settleV2(scope, network, plan, main);
 
-    return {
-      kind: KIND,
-      account: plan.account,
-      protocol: plan.protocol,
-      router: plan.router,
-      recipient: plan.recipient,
-      lpAmount: plan.lpAmount,
-      // decimals travels with the amount. Without it the receipt printed "LP burned 766,634"
-      // for the same burn the dry run had shown as a fraction — a live Nile run caught it, and
-      // it is the third time this shape of defect has appeared on this path.
-      lpDecimals: plan.lpDecimals,
-      token0: publishedSide(plan.token0),
-      token1: publishedSide(plan.token1),
-      ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
-      ...outcomeData(main),
-      amountsEstimated: true,
-      ...settled,
-    };
+        return {
+          kind: KIND,
+          account: plan.account,
+          protocol: plan.protocol,
+          router: plan.router,
+          recipient: plan.recipient,
+          lpAmount: plan.lpAmount,
+          // decimals travels with the amount. Without it the receipt printed "LP burned 766,634"
+          // for the same burn the dry run had shown as a fraction — a live Nile run caught it, and
+          // it is the third time this shape of defect has appeared on this path.
+          lpDecimals: plan.lpDecimals,
+          token0: publishedSide(plan.token0),
+          token1: publishedSide(plan.token1),
+          ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
+          ...outcomeData(main),
+          amountsEstimated: true,
+          ...settled,
+        };
+      },
+    );
   }
 
   async #planV2(
@@ -374,7 +377,7 @@ export class SunSwapRemoveLiquidityService {
     network: NetworkDescriptor,
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const { plan, position } = await this.#planV3(network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
@@ -586,7 +589,7 @@ export class SunSwapRemoveLiquidityService {
     network: NetworkDescriptor,
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const { plan, request } = await this.#planV4(network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);

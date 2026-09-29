@@ -82,3 +82,5 @@ A drained V3 position, alongside one whose reported share exceeds 100%:
 ## See also
 
 [`sunswap pool-list`](pool-list.md) · [`sunswap` group](index.md)
+
+`--account` is rejected; select the queried address with `--owner`.

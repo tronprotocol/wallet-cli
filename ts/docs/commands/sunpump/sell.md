@@ -90,3 +90,14 @@ The account must hold the full `--amount`, checked against its token balance bef
 ## See also
 
 [`sunpump buy`](buy.md) · [`sunswap swap`](../sunswap/swap.md) · [machine-interface.md](../../machine-interface.md)
+
+
+Ledger Permit2 signing and transaction hash fallback require **TRON app → Settings → Sign by Hash → Allowed**.
+The device displays hashes on these paths, not full transaction details; verify the CLI preview
+before approving. See [Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
+
+
+With `--wait`, a successful confirmed trade adds `trxOut` and `amountsEstimated: false` when the
+transaction's transfers verify the net output to the account. Native TRX output excludes network
+fees. Missing receipt evidence leaves the expected amount marked as estimated and emits a warning;
+the CLI never substitutes an account balance difference. `platformFee` remains the quoted fee.

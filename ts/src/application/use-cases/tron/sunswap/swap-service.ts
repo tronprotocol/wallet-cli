@@ -1,3 +1,5 @@
+import { resolveTronAccount } from "../../../services/tron-account.js";
+import { tradeOutput } from "../trade-output.js";
 /**
  * `sunswap swap` — the market decision, and the bonding-curve branch.
  *
@@ -31,7 +33,7 @@ import {
 } from "../../../services/transaction-mode.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { LiquidityTransactions, type ApprovalPlan } from "./liquidity-transactions.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import { ChainError, UsageError, WalletError } from "../../../../domain/errors/index.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import type { RouterExecutionPort } from "../../../ports/sunswap/router-execution.js";
@@ -114,7 +116,7 @@ export class SunSwapSwapService {
 
   constructor(
     private readonly launchpad: LaunchpadPort,
-    gateways: ChainGatewayProvider,
+    private readonly gateways: ChainGatewayProvider,
     pipeline: TxPipeline,
     private readonly tokens: SunSwapTokenResolver,
     private readonly router: RouterPort,
@@ -145,6 +147,16 @@ export class SunSwapSwapService {
     // Anything malformed is left to `toBaseUnits`, which needs the token's decimals to judge it.
     if (/^0+(\.0+)?$/.test(input.amountIn.trim())) {
       throw new UsageError("invalid_amount", "<amountIn> must be greater than 0");
+    }
+
+    if (!input.quote) {
+      try {
+        resolveTronAccount(scope);
+      } catch (error) {
+        // Preserve account-independent build-only refusals when no account is configured.
+        // An existing account with the wrong family must still fail before querying a market.
+        if (!(error instanceof WalletError && error.code === "missing_wallet_address")) throw error;
+      }
     }
 
     const market = await this.#chooseMarket(network, inAddress, outAddress);
@@ -227,11 +239,11 @@ export class SunSwapSwapService {
       // being asked for an account first and told about the flag afterwards.
       throw new UsageError(
         "invalid_option",
-        "is not available for a router swap that spends a token: the transaction embeds a Permit2 signature, so it cannot be built before that signature exists. --dry-run validates it, and a swap that spends TRX has no permit and does build",
+        "--build-only is not available for a router swap that spends a token: the transaction embeds a Permit2 signature, so it cannot be built before that signature exists. --dry-run validates it, and a swap that spends TRX has no permit and does build",
       );
     }
     if (transactionRequiresSigner(input)) this.routerTx.assertCanSign(scope);
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const bips = slippageToBips(input.slippage ?? DEFAULT_SWAP_SLIPPAGE);
     const minimumOut = floorOf(chosen.amountOutRaw, bips);
     const feeLimit = input.feeLimit ?? DEFAULT_SWAP_FEE_LIMIT_SUN;
@@ -251,6 +263,8 @@ export class SunSwapSwapService {
       },
       tradingFee: toBaseUnits(chosen.fee, tokenIn.decimals, tokenIn.symbol, "fee"),
       amountOutExpected: chosen.amountOutRaw,
+      priceImpactPercent: chosen.priceImpactPercent,
+      priceImpactEstimated: true,
       amountOutMinimum: minimumOut,
       slippage: bipsToSlippage(bips),
     };
@@ -308,25 +322,27 @@ export class SunSwapSwapService {
       };
     }
 
-    const approvalTxIds = await this.routerTx.sendApprovals(
+    return this.routerTx.withApprovals(
       scope,
       network,
       approvals,
       owner,
       mode,
       feeLimit,
+      async (approvalTxIds) => {
+        const signed = await this.#signPermit(scope, network, permit, owner, spending);
+        const call = await this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
+          amountIn: spending.amountIn,
+          nativeIn: false,
+          permit: { grant: permit.grant, signature: signed.signature, facts: signed.facts },
+        });
+        return this.#send(scope, network, input, mode, call, approvalTxIds, {
+          ...view,
+          approvals: approvals.map(publishedApproval),
+          permit: authorization,
+        });
+      },
     );
-    const signed = await this.#signPermit(scope, network, permit, owner, spending);
-    const call = await this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
-      amountIn: spending.amountIn,
-      nativeIn: false,
-      permit: { grant: permit.grant, signature: signed.signature, facts: signed.facts },
-    });
-    return this.#send(scope, network, input, mode, call, approvalTxIds, {
-      ...view,
-      approvals: approvals.map(publishedApproval),
-      permit: authorization,
-    });
   }
 
   /**
@@ -464,6 +480,15 @@ export class SunSwapSwapService {
       ...view,
       ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
       ...outcomeData(main),
+      ...(await tradeOutput(
+        scope,
+        network,
+        this.gateways,
+        main,
+        this.tokens.resolve(network, input.tokenOut),
+        resolveTronAccount(scope),
+        "amountOut",
+      )),
     };
   }
 
@@ -699,7 +724,7 @@ export class SunSwapSwapService {
       slippage: bipsToSlippage(bips),
     };
 
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const payload = buying
       ? this.launchpad.buyPayload(network, {
           token: tokenAddress,
@@ -783,25 +808,36 @@ export class SunSwapSwapService {
       return { ...view, ...built };
     }
 
-    const owner = scope.resolveAddress("tron");
-    const approvalTxIds = await this.tx.sendApprovals(
+    const owner = resolveTronAccount(scope);
+    return this.tx.withApprovals(
       scope,
       network,
       approvals,
       owner,
       mode,
       input.feeLimit,
+      async (approvalTxIds) => {
+        const main = await this.tx.run(scope, network, payload, {
+          mode,
+          estimable: true,
+          feeLimit: input.feeLimit,
+        });
+        return {
+          ...view,
+          ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
+          ...outcomeData(main),
+          ...(await tradeOutput(
+            scope,
+            network,
+            this.gateways,
+            main,
+            this.tokens.resolve(network, input.tokenOut),
+            resolveTronAccount(scope),
+            "amountOut",
+          )),
+        };
+      },
     );
-    const main = await this.tx.run(scope, network, payload, {
-      mode,
-      estimable: true,
-      feeLimit: input.feeLimit,
-    });
-    return {
-      ...view,
-      ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
-      ...outcomeData(main),
-    };
   }
 }
 

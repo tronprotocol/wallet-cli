@@ -21,6 +21,7 @@ export const sunswapPositionListSpec: ChainSpec = {
   path: ["sunswap", "position-list"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "--account is not accepted by position-list; use --owner to choose the address",
   auth: "none",
   capability: "sunswap.market",
   summary: "List the liquidity positions held by an address",

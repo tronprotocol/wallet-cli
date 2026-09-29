@@ -592,3 +592,21 @@ describe("sunswap position-info", () => {
     expect(r.json.error.code).not.toBe("no_account");
   });
 });
+
+it("position-list refuses --account before validating the owner or calling an API", () => {
+  const r = run([
+    "sunswap",
+    "position-list",
+    "--owner",
+    "invalid",
+    "--account",
+    "unused",
+    "--network",
+    "tron",
+    "-o",
+    "json",
+  ]);
+  expect(r.status).toBe(2);
+  expect(r.json.error.code).toBe("invalid_option");
+  expect(r.json.error.message).toContain("--account");
+});

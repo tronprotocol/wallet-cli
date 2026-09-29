@@ -1,3 +1,4 @@
+import { UsageError } from "../../../../domain/errors/index.js";
 import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
@@ -388,5 +389,36 @@ describe("a sale that is too small", () => {
     await expect(
       service.sell(scope, NETWORK, { token: TOKEN, amount: "1", quote: true }),
     ).rejects.toThrow(/constant call reverted/);
+  });
+});
+
+describe("confirmed output and early account validation", () => {
+  it.each(["buy", "sell"] as const)(
+    "publishes the actual %s output from the transaction",
+    async (direction) => {
+      const h = makeHarness(makePort({ allowance: vi.fn(async () => UNLIMITED) }));
+      Object.assign(h.gateway, { receivedAmount: vi.fn(async () => "12345") });
+      const out = await h.service[direction](h.scope, NETWORK, {
+        token: TOKEN,
+        amount: direction === "buy" ? "1" : "1000",
+      });
+      expect(out).toMatchObject({
+        [direction === "buy" ? "tokensOut" : "trxOut"]: "12345",
+        amountsEstimated: false,
+      });
+    },
+  );
+  it("refuses an incompatible account before asking the curve", async () => {
+    const h = makeHarness();
+    h.resolveAddress.mockImplementation(() => {
+      throw new UsageError("family_mismatch", "switch to an evm network");
+    });
+    await expect(
+      h.service.buy(h.scope, NETWORK, { token: TOKEN, amount: "1" }),
+    ).rejects.toMatchObject({
+      code: "family_mismatch",
+      message: expect.stringContaining("--account"),
+    });
+    expect(h.port.tokenState).not.toHaveBeenCalled();
   });
 });

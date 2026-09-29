@@ -22,7 +22,7 @@ export function assertNotExpired(transaction: TronTransactionArtifact, now = Dat
   if (expiration <= now) {
     throw new ChainError(
       "tx_expired",
-      `transaction expired at ${new Date(expiration).toISOString()}`,
+      `transaction expired at ${new Date(expiration).toISOString()}; rebuild and sign it again`,
     );
   }
 }

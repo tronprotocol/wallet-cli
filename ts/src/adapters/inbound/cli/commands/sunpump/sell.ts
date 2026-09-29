@@ -24,6 +24,7 @@ export const sunpumpSellSpec: ChainSpec = {
   capability: "sunpump.curve",
   summary: "Sell a token on the SunPump bonding curve",
   description:
+    "Ledger: Permit2 and hash-signing fallback require Settings > Sign by Hash > Allowed in the TRON app. The device displays hashes instead of full details; verify the CLI preview before approving.\n" +
     "Sell a token back to the curve for TRX, before it has launched.\n\n" +
     "The curve PULLS the tokens, so the launchpad is approved first — for an UNLIMITED amount,\n" +
     "unlike the liquidity commands, because it pulls on every sale and its contract is an\n" +

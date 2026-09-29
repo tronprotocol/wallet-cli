@@ -54,9 +54,9 @@ Note the interaction with exact-amount approvals: the router consumes the allowa
 | `--position-id <id>` | Add to this existing position; must be held by this account (V3 and V4) |
 | `--amount0 <n>` / `--amount1 <n>` | Amounts in whole tokens. Give one, the other, or both |
 | `--min0 <n>` / `--min1 <n>` | Least to accept depositing. Default: V2 95% of the computed amount, V3 `0`. **Not accepted on V4**, which bounds from above — see `--slippage` |
-| `--fee <n>` | Fee tier, e.g. `500` or `3000`. Selects the pool on a V3 new position (default `3000`); part of the pool key on V4; on a V4 increase, checked against the position's own |
+| `--fee <n>` | Fee tier, e.g. `500` or `3000`. Selects the pool on a V3 new position (default `3000`); **required with no default for a V4 new position**; on a V4 increase, optional and checked against the position's own |
 | `--tick-lower <n>` / `--tick-upper <n>` | Price range; each a multiple of the pool's tick spacing (V3 and V4 new position only) |
-| `--tick-spacing <n>` | **Required on V4, no default.** The pool's tick spacing — part of its identity. See below |
+| `--tick-spacing <n>` | **Required for a V4 new position, no default.** The pool's tick spacing — part of its identity. See below |
 | `--hooks <address>` | The pool's hook contract; default none, which is what almost every pool has (V4 only) |
 | `--slippage <decimal>` | Tolerance on the deposit **ceiling**, e.g. `0.005`; default none, so the ceiling is exactly the computed amounts (V4 only) |
 | `--create-pool` | Create the pool as part of this deposit; requires `--sqrt-price` on top of the pool key (V4 only) |
@@ -93,7 +93,7 @@ A V4 pool has no contract of its own — every pool lives inside one pool manage
 
 There is **no `--pool` flag**. A V4 pool id is a hash of that key; naming the key is the only way in.
 
-**`--tick-spacing` is required and has no default.** On V3 the spacing follows from the fee tier; on V4 it does not — it is part of the pool's identity. Measured on Nile: TRX/USDT at fee `500` exists **twice**, once at spacing `10` and once at spacing `12`, as two separate pools. A default taken from the V3 convention would name one of them for you, and if that pool exists your deposit goes into it silently. Omitting the flag is refused:
+**V4 new positions require both `--fee` and `--tick-spacing`, with no defaults.** This also applies to `--create-pool`. Existing positions use their on-chain pool parameters. On V3 the spacing follows from the fee tier; on V4 it does not — it is part of the pool's identity. Measured on Nile: TRX/USDT at fee `500` exists **twice**, once at spacing `10` and once at spacing `12`, as two separate pools. A default taken from the V3 convention would name one of them for you, and if that pool exists your deposit goes into it silently. Omitting the flag is refused:
 
 ```
 error [missing_option]: invalid --tick-spacing: --tick-spacing is required on V4 and has no default: two V4 pools at the SAME fee tier can have different tick spacings — measured, USDC/USDT at fee 500 has spacing 12 while TRX/USDT at fee 500 has spacing 10 — so it cannot be derived from --fee. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks
@@ -102,6 +102,23 @@ error [missing_option]: invalid --tick-spacing: --tick-spacing is required on V4
 **Get the value from [`sunswap pool-list --protocol V4`](pool-list.md)**, which publishes each pool's `tickSpacing` and `hooks` under `extra` in its JSON (`-o json`). `--hooks` defaults to none, which is what almost every pool has.
 
 The same flags create a pool: add `--create-pool` and `--sqrt-price`, and the pool that is created is the pool that is then deposited into, because one key builder serves both.
+
+Creation initializes the pool and mints the position in one main transaction. Any required Permit2
+grants are forwarded between initialization and the deposit. A reverting deposit rolls back that
+transaction's initialization; earlier TRC20 approval transactions are separate and remain on-chain.
+The initial price must be within the contract's Q64.96 bounds. When no range is supplied, its tick
+is calculated from that price, then the default range extends 100 tick spacings on each side,
+aligned to the grid. The preview includes `Initial sqrtPriceX96`; JSON carries
+`initialSqrtPriceX96` on creation plans and receipts. `initialPrice.token1PerToken0` expresses
+human token1 per human token0 (eight significant digits, approximately); `createPool: true`
+is published alongside the existing `poolCreated` field.
+
+A pool already initialized at planning time, or at the check after permit signing, is refused as
+`pool_already_exists`. These checks cannot reserve the pool until mining: the position manager's
+[`initializePool`](https://github.com/sun-protocol/sunswap-v4-periphery/blob/main/contracts/pool-cl/CLPositionManager.sol)
+catches initialization errors, including another transaction creating the pool first. A concurrent
+creation after the last check can therefore make the mint execute against that pool, subject to the
+deposit's amount ceilings. The requested initial price is not an on-chain guarantee in that race.
 
 **Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool, so the tokens select nothing — they are checked against the pair the position holds, and a mismatch is refused rather than sent. `--fee` is checked the same way when given. `--tick-spacing`, `--hooks` and the tick range are not needed.
 
@@ -121,12 +138,13 @@ On a native pair the ceiling is sent as the call's value and the remainder is re
 
 V4 is the one exception to exact approvals. The token side goes through **Permit2** in two layers:
 
-- The token's allowance **to Permit2** is **unlimited**, granted once per token.
+- The token's allowance **to Permit2** is checked against the deposit ceiling. A sufficient allowance (including a finite one) is reused; only an insufficient allowance triggers a new **unlimited** approval.
 - The **Permit2 grant** each deposit signs locally is for **exactly this deposit's ceiling**, and lives **one hour**. It travels inside the deposit's own call, so the signature and the transaction that spends it cannot be separated.
 
-The limit sits on the grant, not on the allowance — that is what Permit2 is for. The JSON lists the grants a deposit will sign under `permits`; when standing grants already cover the amounts there is nothing to sign and `permits` is absent. A native TRX side needs neither.
+The limit sits on the grant, not on the allowance — that is what Permit2 is for. The JSON lists the grants a deposit will sign under `permits`; a dry run checks standing grants and omits covered amounts from `permits` (empty or absent when fully covered). Live execution rechecks the grants before signing. A native TRX side needs neither.
 
-Because the deposit carries its signed grants, **`--build-only` is refused** on a V4 deposit that still needs one; it builds when nothing is left to sign. For the same reason a dry run cannot price the deposit itself: `fee` carries a note instead of an energy figure, and `feeCovers` is `approvals`.
+Because the deposit carries its signed grants, **`--build-only` is refused** on a V4 deposit that still needs one; it builds when nothing is left to sign. When a grant is still needed, a dry run cannot price the deposit itself: `fee` carries a note instead of an energy figure, and `feeCovers` is `approvals` when approval transactions are priced, or `none` when only
+an unsigned Permit2 grant prevents estimation. `feeUnavailableReason` explains this dependency. When standing grants and token allowances cover the deposit, the dry run estimates the main transaction and reports `feeCovers: "all"`.
 
 ## Examples
 
@@ -248,6 +266,11 @@ Broadcast results include `amountsEstimated`: `false` when the reported token am
 
 **V4 adds the pool key and the ceiling.** `poolId`, `feeTier`, `tickSpacing` and `hooks` describe the pool; `nftTokenId` and `newPosition` the position. `amount0Max` / `amount1Max` are the ceiling, present only when `--slippage` moved it above the deposit; `nativeLocked`, beside them on a native pair, is the TRX locked as the call's value; `permits[]` lists the Permit2 grants the deposit will sign. On V4 the bound is the ceiling — `amountMinimum` does not bound a V4 deposit.
 
+V3 plans and receipts always name `token0` and `token1` in the pool's on-chain order, so the
+same names apply when adding to the position later. For a new position, input `--amount0` /
+`--min0` still correspond to the caller's `--token0` (and likewise for side 1); with
+`--position-id`, amounts correspond to the position's on-chain token order.
+
 **V2 confirmed amounts come from this transaction.** When `amountsEstimated` is `false`, `token0.amount`, `token1.amount`, and `lpAmount` are the Router return values. `reservesAfter` is a separate current-state read; concurrent swaps and transfers do not affect the reported deposit amounts. V3 reads token amounts and liquidity from the transaction's `IncreaseLiquidity` event. V4 matches the pool and position `ModifyLiquidity` events and reports token amounts as the account's net expenditure, including native refunds and any fees or hook adjustments settled during the deposit, but excluding network fees. A negative V4 amount means the account received a net credit on that side. V4 `liquidity` comes from the position event, so later position changes cannot alter what this deposit reports. `liquidityAfter` is a separate current-state read.
 
 `--build-only` with approvals returns `data.transactions[]` as `[{purpose, tx, hex}, …]` in execution order; without them it keeps the ordinary single-transaction shape.
@@ -255,3 +278,29 @@ Broadcast results include `amountsEstimated`: `false` when the reported token am
 ## See also
 
 [`sunswap remove-liquidity`](remove-liquidity.md) · [`sunswap collect-fees`](collect-fees.md) · [`sunswap position-list`](position-list.md) · [machine-interface.md](../../machine-interface.md)
+
+
+### Transaction lifetime and partial progress
+
+A multi-transaction `--build-only` result uses a one-hour transaction lifetime.
+Send the approvals in order and confirm them before
+sending the deposit. The lifetime starts at each transaction's timestamp, not when a later signer
+opens the file; contract deadlines and Permit2 expiry still apply independently.
+
+New TRON transactions signed with Ledger reserve at least ten minutes, or the configured device
+signing timeout plus one minute if longer, before signing. Imported transaction files and explicit
+expiration settings are preserved. If a transaction expires while being signed, the CLI returns
+`tx_expired` and does not broadcast it; rebuild and sign again.
+
+If approval transactions were submitted before a later step failed, their IDs appear in
+`error.details.approvalTxIds` and the text error. Check these transactions before retrying;
+they are not rolled back when the deposit or Permit2 signing fails.
+
+
+Ledger Permit2 signing and transaction hash fallback require **TRON app → Settings → Sign by Hash → Allowed**.
+The device displays hashes on these paths, not full transaction details; verify the CLI preview
+before approving. See [Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
+
+
+V4 JSON publishes an unbounded grant as `approvals[].amount: "unlimited"`; the on-chain approval
+payload still encodes MAX_UINT256.

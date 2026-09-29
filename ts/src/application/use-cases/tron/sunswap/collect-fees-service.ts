@@ -1,3 +1,4 @@
+import { resolveTronAccount } from "../../../services/tron-account.js";
 /**
  * SunSwap collect-fees — taking a position's earnings without touching its principal.
  *
@@ -153,7 +154,7 @@ export class SunSwapCollectFeesService {
       );
     }
 
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const { plan, position } = await this.#plan(network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
@@ -312,7 +313,7 @@ export class SunSwapCollectFeesService {
     network: NetworkDescriptor,
     input: CollectFeesInput,
   ): Promise<Record<string, unknown>> {
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const { plan, request } = await this.#planV4(scope, network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);

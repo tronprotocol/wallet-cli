@@ -34,10 +34,12 @@ interface TradeView {
   /** buy */
   readonly trxIn?: string;
   readonly tokensOutExpected?: string;
+  readonly tokensOut?: string;
   readonly tokensOutMinimum?: string;
   /** sell */
   readonly tokensIn?: string;
   readonly trxOutExpected?: string;
+  readonly trxOut?: string;
   readonly trxOutMinimum?: string;
   readonly approvals?: readonly ApprovalRow[];
   readonly fee?: unknown;
@@ -129,8 +131,16 @@ function tradeRows(value: TradeView): Pair[] {
         `${formatSun(value.trxIn ?? "0")} TRX (incl. ${formatSun(value.platformFee)} TRX platform fee)`,
       ],
       [
-        value.mode === undefined ? "Received (est)" : "Receive (est)",
-        value.tokensOutExpected === undefined ? "" : tokens(value, value.tokensOutExpected),
+        value.stage === "confirmed" && value.tokensOut !== undefined
+          ? "Received"
+          : value.mode === undefined
+            ? "Received (est)"
+            : "Receive (est)",
+        value.stage === "confirmed" && value.tokensOut !== undefined
+          ? tokens(value, value.tokensOut)
+          : value.tokensOutExpected === undefined
+            ? ""
+            : tokens(value, value.tokensOutExpected),
       ],
       [
         "Min received",
@@ -144,10 +154,16 @@ function tradeRows(value: TradeView): Pair[] {
       value.tokensIn === undefined ? "" : tokens(value, value.tokensIn),
     ],
     [
-      value.mode === undefined ? "Received (est)" : "Receive (est)",
-      value.trxOutExpected === undefined
-        ? ""
-        : `${formatSun(value.trxOutExpected)} TRX (after ${formatSun(value.platformFee)} TRX platform fee)`,
+      value.stage === "confirmed" && value.trxOut !== undefined
+        ? "Received"
+        : value.mode === undefined
+          ? "Received (est)"
+          : "Receive (est)",
+      value.stage === "confirmed" && value.trxOut !== undefined
+        ? `${formatSun(value.trxOut)} TRX`
+        : value.trxOutExpected === undefined
+          ? ""
+          : `${formatSun(value.trxOutExpected)} TRX (after ${formatSun(value.platformFee)} TRX platform fee)`,
     ],
     [
       "Min received",

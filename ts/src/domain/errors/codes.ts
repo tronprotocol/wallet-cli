@@ -161,6 +161,8 @@ export const ERROR_CODES = {
 
   // ── hardware wallet ───────────────────────────────────────────────────────
   device_not_found: { exit: 1, retry: "never", meaning: "no Ledger device answered" },
+  device_disconnected: { exit: 1, retry: "never", meaning: "the Ledger disconnected during an operation" },
+  device_unavailable: { exit: 1, retry: "never", meaning: "the Ledger could not be opened; it may be in use or inaccessible" },
   device_locked: { exit: 1, retry: "never", meaning: "the Ledger device is connected but locked" },
   ledger_setting_required: { exit: 1, retry: "never", meaning: "a setting in the Ledger app must be enabled for this operation" },
   ledger_unsupported: { exit: 1, retry: "never", meaning: "the Ledger app does not implement this operation or cannot decode it" },

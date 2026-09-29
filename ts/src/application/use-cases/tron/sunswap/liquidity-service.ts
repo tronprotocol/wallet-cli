@@ -1,3 +1,5 @@
+import { initialPrice } from "../../../../domain/sunswap/initial-price.js";
+import { resolveTronAccount } from "../../../services/tron-account.js";
 /**
  * SunSwap liquidity — validation, planning, and the approval sequence.
  *
@@ -194,6 +196,8 @@ export interface LiquidityPlanView {
   readonly hooks?: string;
   /** true when the deposit initialises the pool as well as funding it. */
   readonly poolCreated?: boolean;
+  /** The requested initial Q64.96 price, only for a pool creation. */
+  readonly initialSqrtPriceX96?: string;
   /**
    * The CEILING on each side, base units — the opposite of `amountMinimum`.
    *
@@ -317,13 +321,60 @@ export class SunSwapLiquidityService {
     input: AddLiquidityInput,
   ): Promise<Record<string, unknown>> {
     const mode = transactionMode(input);
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
     const planned = await this.#planV4(network, owner, input);
-    const { plan: internal, pool, permitsNeeded, call } = planned;
+    const { plan: internal, pool, call } = planned;
+    let permitsNeeded = planned.permitsNeeded;
+    if (mode.dryRun || mode.buildOnly) {
+      const needed = [];
+      for (const side of permitsNeeded) {
+        const permit = await this.permits.planPermit(network, {
+          owner,
+          token: side.token,
+          spender: this.#v4Manager(network),
+          amount: side.amount,
+          ttlSeconds: V4_PERMIT_TTL_SECONDS,
+        });
+        if (permit !== undefined) needed.push(side);
+      }
+      permitsNeeded = needed;
+    }
     // What leaves this method never carries a V4 minimum; see `withoutV4Minimum`.
     const plan = withoutV4Minimum(internal);
+    const view = {
+      ...plan,
+      ...((mode.dryRun || mode.buildOnly) && plan.permits
+        ? {
+            permits: plan.permits.filter((row) =>
+              permitsNeeded.some((side) => side.token === row.token),
+            ),
+          }
+        : {}),
+      ...(plan.approvals
+        ? {
+            approvals: plan.approvals.map((a) => ({
+              ...a,
+              amount: a.amount === V4_TRC20_ALLOWANCE ? "unlimited" : a.amount,
+            })),
+          }
+        : {}),
+      ...(plan.initialSqrtPriceX96 === undefined
+        ? {}
+        : {
+            createPool: true,
+            initialPrice: {
+              token0: plan.token0.symbol,
+              token1: plan.token1.symbol,
+              token1PerToken0: initialPrice(
+                plan.initialSqrtPriceX96,
+                plan.token0.decimals,
+                plan.token1.decimals,
+              ),
+            },
+          }),
+    };
 
     if (mode.buildOnly && permitsNeeded.length > 0) {
       // The deposit embeds the signed grants, so it cannot be built before they exist — the same
@@ -332,7 +383,7 @@ export class SunSwapLiquidityService {
       // refusal on the protocol.
       throw new UsageError(
         "invalid_option",
-        "is not available for this V4 deposit: it carries Permit2 grants inside the call, so it cannot be built before they are signed. --dry-run validates it, and a deposit whose Permit2 grants already cover the amounts has nothing to sign and does build",
+        "--build-only is not available for this V4 deposit: it carries Permit2 grants inside the call, so it cannot be built before they are signed. --dry-run validates it, and a deposit whose Permit2 grants already cover the amounts has nothing to sign and does build",
       );
     }
 
@@ -356,80 +407,91 @@ export class SunSwapLiquidityService {
               mode,
               input.feeLimit,
             );
-      return { kind: KIND, mode: "dry-run", ...plan, ...priced };
+      return { kind: KIND, mode: "dry-run", ...view, ...priced };
     }
 
     // The TRC20 allowance to Permit2, UNLIMITED on this path. PM 13.3 names V4 liquidity as one of
     // exactly two paths where that is correct, and it is the opposite of what `sunswap swap` does —
     // carried as a ruling rather than by analogy with the neighbouring code.
-    const approvalTxIds = await this.tx.sendApprovals(
+    return this.tx.withApprovals(
       scope,
       network,
       plan.approvals ?? [],
       owner,
       mode,
       input.feeLimit,
+      async (approvalTxIds) => {
+        const permits = await this.#signV4Permits(scope, network, owner, pool, permitsNeeded);
+
+        // Read the holder again, immediately before sending: a dry run can be minutes old, and an
+        // increase must not be sent against a position that changed hands in between (PM 6.1.3). The
+        // same guard V3's increase and the V4 withdrawal run, for the same reason.
+        if (call.kind === "increase") {
+          await this.#assertV4PositionOwned(network, call.request.tokenId, owner);
+        } else if (
+          call.request.initialSqrtPriceX96 !== undefined &&
+          (await this.liquidity.v4PoolState(network, pool.poolId)).exists
+        ) {
+          // Permit approvals and device prompts may take minutes. initializePool catches an already-
+          // initialized error, so do not knowingly mint at a price different from the planned one.
+          throw new ChainError(
+            "pool_already_exists",
+            `V4 pool ${pool.poolId} was initialized while preparing this deposit; run again without --create-pool and --sqrt-price to size it at its current price`,
+          );
+        }
+
+        const payload = this.#v4Payload(network, call, permits);
+        const main = await this.tx.run(scope, network, payload, {
+          mode,
+          estimable: true,
+          feeLimit: input.feeLimit,
+        });
+        // What the position actually gained, read back — the planned figure is what the amounts were
+        // worth a moment earlier, and the pool credits at its own price.
+        const settled =
+          call.kind === "increase"
+            ? await this.#settleV4Increase(
+                scope,
+                network,
+                call.request.tokenId,
+                planned.liquidityBefore ?? "0",
+                main,
+              )
+            : await this.#settleV4Mint(scope, network, main);
+        const txId = outcomeTxId(main);
+        if (main.stage === "confirmed" && txId !== undefined) {
+          await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
+            const actual = await this.liquidity.v4LiquidityResult(network, txId, {
+              poolId: plan.poolId!,
+              account: owner,
+              ...(call.kind === "increase" ? { tokenId: call.request.tokenId } : {}),
+              token0: plan.token0.address,
+              token1: plan.token1.address,
+              nativeValueSent: payload.callValueSun ?? "0",
+            });
+            if (!actual)
+              return "the deposit confirmed but its actual amounts could not be read; amounts remain estimates";
+            Object.assign(settled, {
+              token0: { ...plan.token0, amount: (-BigInt(actual.balanceDelta0)).toString() },
+              token1: { ...plan.token1, amount: (-BigInt(actual.balanceDelta1)).toString() },
+              liquidity: actual.liquidityDelta,
+              nftTokenId: actual.tokenId,
+              amountsEstimated: false,
+            });
+            return undefined;
+          });
+        }
+        return {
+          kind: KIND,
+          ...view,
+          ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
+          ...outcomeData(main),
+          // Last, so the liquidity the position actually gained replaces the one that was planned.
+          amountsEstimated: true,
+          ...settled,
+        };
+      },
     );
-
-    const permits = await this.#signV4Permits(scope, network, owner, pool, permitsNeeded);
-
-    // Read the holder again, immediately before sending: a dry run can be minutes old, and an
-    // increase must not be sent against a position that changed hands in between (PM 6.1.3). The
-    // same guard V3's increase and the V4 withdrawal run, for the same reason.
-    if (call.kind === "increase") {
-      await this.#assertV4PositionOwned(network, call.request.tokenId, owner);
-    }
-
-    const payload = this.#v4Payload(network, call, permits);
-    const main = await this.tx.run(scope, network, payload, {
-      mode,
-      estimable: true,
-      feeLimit: input.feeLimit,
-    });
-    // What the position actually gained, read back — the planned figure is what the amounts were
-    // worth a moment earlier, and the pool credits at its own price.
-    const settled =
-      call.kind === "increase"
-        ? await this.#settleV4Increase(
-            scope,
-            network,
-            call.request.tokenId,
-            planned.liquidityBefore ?? "0",
-            main,
-          )
-        : await this.#settleV4Mint(scope, network, main);
-    const txId = outcomeTxId(main);
-    if (main.stage === "confirmed" && txId !== undefined) {
-      await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
-        const actual = await this.liquidity.v4LiquidityResult(network, txId, {
-          poolId: plan.poolId!,
-          account: owner,
-          ...(call.kind === "increase" ? { tokenId: call.request.tokenId } : {}),
-          token0: plan.token0.address,
-          token1: plan.token1.address,
-          nativeValueSent: payload.callValueSun ?? "0",
-        });
-        if (!actual)
-          return "the deposit confirmed but its actual amounts could not be read; amounts remain estimates";
-        Object.assign(settled, {
-          token0: { ...plan.token0, amount: (-BigInt(actual.balanceDelta0)).toString() },
-          token1: { ...plan.token1, amount: (-BigInt(actual.balanceDelta1)).toString() },
-          liquidity: actual.liquidityDelta,
-          nftTokenId: actual.tokenId,
-          amountsEstimated: false,
-        });
-        return undefined;
-      });
-    }
-    return {
-      kind: KIND,
-      ...plan,
-      ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
-      ...outcomeData(main),
-      // Last, so the liquidity the position actually gained replaces the one that was planned.
-      amountsEstimated: true,
-      ...settled,
-    };
   }
 
   async addLiquidityV2(
@@ -437,7 +499,7 @@ export class SunSwapLiquidityService {
     network: NetworkDescriptor,
     input: AddLiquidityV2Input,
   ): Promise<Record<string, unknown>> {
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const { plan } = await this.#planV2(network, owner, input);
     const mode = transactionMode(input);
 
@@ -471,40 +533,41 @@ export class SunSwapLiquidityService {
     }
 
     const router = plan.router;
-    const approvalTxIds = await this.tx.sendApprovals(
+    return this.tx.withApprovals(
       scope,
       network,
       plan.approvals ?? [],
       owner,
       mode,
       input.feeLimit,
+      async (approvalTxIds) => {
+        // Every approval above is confirmed and re-read by the time this runs, so the deposit's
+        // preconditions hold and its estimate is a real one.
+        const main = await this.tx.run(scope, network, this.#depositPayload(network, plan), {
+          mode,
+          estimable: true,
+          feeLimit: input.feeLimit,
+        });
+
+        const settled = await this.#settle(scope, network, plan, main);
+
+        return {
+          kind: KIND,
+          account: plan.account,
+          protocol: plan.protocol,
+          router,
+          lpDecimals: plan.lpDecimals,
+          recipient: plan.recipient,
+          token0: publishedSide(plan.token0),
+          token1: publishedSide(plan.token1),
+          ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
+          ...outcomeData(main),
+          // Last, so the amounts the chain actually took replace the ones that were requested.
+          amountsEstimated: true,
+          ...settled,
+        };
+      },
     );
-
-    // Every approval above is confirmed and re-read by the time this runs, so the deposit's
-    // preconditions hold and its estimate is a real one.
-    const main = await this.tx.run(scope, network, this.#depositPayload(network, plan), {
-      mode,
-      estimable: true,
-      feeLimit: input.feeLimit,
-    });
-
-    const settled = await this.#settle(scope, network, plan, main);
-
-    return {
-      kind: KIND,
-      account: plan.account,
-      protocol: plan.protocol,
-      router,
-      lpDecimals: plan.lpDecimals,
-      recipient: plan.recipient,
-      token0: publishedSide(plan.token0),
-      token1: publishedSide(plan.token1),
-      ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
-      ...outcomeData(main),
-      // Last, so the amounts the chain actually took replace the ones that were requested.
-      amountsEstimated: true,
-      ...settled,
-    };
   }
 
   /**
@@ -601,7 +664,9 @@ export class SunSwapLiquidityService {
         ...this.#v4PlanBase(network, owner, pool, range, sized, recipient, deadline),
         newPosition: true,
         ...(auto ? { tickRangeAuto: true } : {}),
-        ...(target.kind === "create" ? { poolCreated: true } : {}),
+        ...(target.kind === "create"
+          ? { poolCreated: true, initialSqrtPriceX96: target.sqrtPriceX96 }
+          : {}),
         ...this.#v4PermitRows(sized),
       },
       pool,
@@ -612,6 +677,7 @@ export class SunSwapLiquidityService {
       call: {
         kind: "mint",
         request: {
+          ...(target.kind === "create" ? { initialSqrtPriceX96: target.sqrtPriceX96 } : {}),
           pool: keyOf(pool),
           tickLower: range.tickLower,
           tickUpper: range.tickUpper,
@@ -775,17 +841,13 @@ export class SunSwapLiquidityService {
       network,
       owner,
       permit2,
-      /*
-       * UNLIMITED, per PM 13.3, which names V4 liquidity as one of two paths where that is correct —
-       * and the OPPOSITE of what `sunswap swap` grants one file away.
-       *
-       * The Permit2 GRANT signed against this allowance is not unlimited: it is the exact ceiling and
-       * it expires in an hour (`V4_PERMIT_TTL_SECONDS`, used in `#signV4Permits`). The two neighbouring
-       * approvals differ on purpose — the TRC20 allowance is what Permit2 may ever move, the grant is
-       * what this deposit may move — and saying so here is what stops one later being "fixed" to match
-       * the other.
-       */
-      permitsNeeded.map((side) => ({ facts: side.facts, amount: V4_TRC20_ALLOWANCE })),
+      // Compare the deposit ceiling with the existing allowance. Only an insufficient
+      // allowance is replaced with the V4 unlimited TRC20 grant.
+      permitsNeeded.map((side) => ({
+        facts: side.facts,
+        amount: side.amount,
+        approvalAmount: V4_TRC20_ALLOWANCE,
+      })),
     );
 
     const nativeIn = isNative(pool.currency0) || isNative(pool.currency1);
@@ -925,7 +987,8 @@ export class SunSwapLiquidityService {
    *
    * Its price is the caller's `--sqrt-price` and NOT read from the chain: an uninitialised pool reports
    * zero, and the zero-price guard would refuse the one caller who supplied a price and is entitled to
-   * proceed. `currentTick` is 0 because nothing reads it — sizing uses the price.
+   * proceed. The tick is derived from that price for the automatic range; sizing uses the price
+   * itself, preserving its precision within the tick.
    */
   #createdPool(
     target: Extract<ReturnType<typeof resolveV4Pool>, { kind: "create" }>,
@@ -935,7 +998,7 @@ export class SunSwapLiquidityService {
       poolId,
       exists: false,
       sqrtPriceX96: target.sqrtPriceX96,
-      currentTick: 0,
+      currentTick: this.liquidity.tickAtSqrtPrice(target.sqrtPriceX96),
       liquidity: "0",
       currency0: target.token0,
       currency1: target.token1,
@@ -1132,8 +1195,11 @@ export class SunSwapLiquidityService {
     network: NetworkDescriptor,
     input: AddLiquidityInput,
   ): Promise<Record<string, unknown>> {
-    const owner = scope.resolveAddress("tron");
-    const { plan, liquidityBefore } = await this.#planV3(network, owner, input);
+    const owner = resolveTronAccount(scope);
+    const { plan, liquidityBefore, poolOrder } = await this.#planV3(network, owner, input);
+    // Inputs and payload construction retain the caller's order; all position views use
+    // pool order so the receipt's token0 matches a later --position-id --amount0.
+    const view = poolOrder ? plan : { ...plan, token0: plan.token1, token1: plan.token0 };
     const mode = transactionMode(input);
 
     if (transactionRequiresSigner(input)) {
@@ -1148,7 +1214,7 @@ export class SunSwapLiquidityService {
         mode,
         input.feeLimit,
       );
-      return { kind: KIND, mode: "dry-run", ...plan, ...priced };
+      return { kind: KIND, mode: "dry-run", ...view, ...priced };
     }
     if (mode.buildOnly) {
       const built = await this.tx.buildOnly(
@@ -1159,86 +1225,93 @@ export class SunSwapLiquidityService {
         mode,
         input.feeLimit,
       );
-      return { kind: KIND, ...plan, ...built };
+      return { kind: KIND, ...view, ...built };
     }
 
-    const approvalTxIds = await this.tx.sendApprovals(
+    return this.tx.withApprovals(
       scope,
       network,
       plan.approvals ?? [],
       owner,
       mode,
       input.feeLimit,
-    );
+      async (approvalTxIds) => {
+        // Read again, immediately before sending: a dry run can be minutes old, and an increase must
+        // not be sent against a position that changed hands in between (PM 6.1.3).
+        if (plan.nftTokenId !== undefined && !plan.newPosition) {
+          await this.#assertPositionOwned(network, plan.nftTokenId, owner);
+        }
 
-    // Read again, immediately before sending: a dry run can be minutes old, and an increase must
-    // not be sent against a position that changed hands in between (PM 6.1.3).
-    if (plan.nftTokenId !== undefined && !plan.newPosition) {
-      await this.#assertPositionOwned(network, plan.nftTokenId, owner);
-    }
-
-    const main = await this.tx.run(scope, network, this.#depositPayload(network, plan), {
-      mode,
-      estimable: true,
-      feeLimit: input.feeLimit,
-    });
-
-    // A new position's id is assigned during execution, so nothing before the receipt can know
-    // it — and on Nile `position-list` cannot tell a caller afterwards, which is why help says to
-    // pass --wait (PM 6.1.4).
-    const minted = await this.#mintedPositionId(scope, network, plan, main);
-    const settled = await this.#settleV3(
-      scope,
-      network,
-      plan.nftTokenId ?? minted,
-      liquidityBefore,
-      main,
-    );
-
-    const txId = outcomeTxId(main);
-    if (main.stage === "confirmed" && txId !== undefined) {
-      await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
-        const actual = await this.liquidity.v3DepositedAmounts(
-          network,
-          txId,
-          plan.nftTokenId ?? minted,
-        );
-        if (!actual)
-          return "the deposit confirmed but its IncreaseLiquidity event could not be read; amounts remain estimates";
-        Object.assign(settled, {
-          token0: { ...publishedSide(plan.token0), amount: actual.amount0 },
-          token1: { ...publishedSide(plan.token1), amount: actual.amount1 },
-          liquidity: actual.liquidity,
-          nftTokenId: actual.tokenId,
-          amountsEstimated: false,
+        const main = await this.tx.run(scope, network, this.#depositPayload(network, plan), {
+          mode,
+          estimable: true,
+          feeLimit: input.feeLimit,
         });
-        return undefined;
-      });
-    }
 
-    return {
-      kind: KIND,
-      account: plan.account,
-      protocol: plan.protocol,
-      positionManager: plan.router,
-      recipient: plan.recipient,
-      token0: publishedSide(plan.token0),
-      token1: publishedSide(plan.token1),
-      ...(minted === undefined ? {} : { nftTokenId: minted }),
-      ...(plan.nftTokenId === undefined ? {} : { nftTokenId: plan.nftTokenId }),
-      newPosition: plan.newPosition === true,
-      feeTier: plan.feeTier,
-      tickLower: plan.tickLower,
-      tickUpper: plan.tickUpper,
-      liquidity: plan.liquidity,
-      ...(plan.feeAuto ? { feeAuto: true } : {}),
-      ...(plan.tickRangeAuto ? { tickRangeAuto: true } : {}),
-      ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
-      ...outcomeData(main),
-      // Last, so the liquidity the position actually gained replaces the one that was planned.
-      amountsEstimated: true,
-      ...settled,
-    };
+        // A new position's id is assigned during execution, so nothing before the receipt can know
+        // it — and on Nile `position-list` cannot tell a caller afterwards, which is why help says to
+        // pass --wait (PM 6.1.4).
+        const minted = await this.#mintedPositionId(scope, network, plan, main);
+        const settled = await this.#settleV3(
+          scope,
+          network,
+          plan.nftTokenId ?? minted,
+          liquidityBefore,
+          main,
+        );
+
+        const txId = outcomeTxId(main);
+        if (main.stage === "confirmed" && txId !== undefined) {
+          await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
+            const actual = await this.liquidity.v3DepositedAmounts(
+              network,
+              txId,
+              plan.nftTokenId ?? minted,
+            );
+            if (!actual)
+              return "the deposit confirmed but its IncreaseLiquidity event could not be read; amounts remain estimates";
+            Object.assign(settled, {
+              token0: {
+                ...publishedSide(view.token0),
+                amount: actual.amount0,
+              },
+              token1: {
+                ...publishedSide(view.token1),
+                amount: actual.amount1,
+              },
+              liquidity: actual.liquidity,
+              nftTokenId: actual.tokenId,
+              amountsEstimated: false,
+            });
+            return undefined;
+          });
+        }
+
+        return {
+          kind: KIND,
+          account: plan.account,
+          protocol: plan.protocol,
+          positionManager: plan.router,
+          recipient: plan.recipient,
+          token0: publishedSide(view.token0),
+          token1: publishedSide(view.token1),
+          ...(minted === undefined ? {} : { nftTokenId: minted }),
+          ...(plan.nftTokenId === undefined ? {} : { nftTokenId: plan.nftTokenId }),
+          newPosition: plan.newPosition === true,
+          feeTier: plan.feeTier,
+          tickLower: plan.tickLower,
+          tickUpper: plan.tickUpper,
+          liquidity: plan.liquidity,
+          ...(plan.feeAuto ? { feeAuto: true } : {}),
+          ...(plan.tickRangeAuto ? { tickRangeAuto: true } : {}),
+          ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
+          ...outcomeData(main),
+          // Last, so the liquidity the position actually gained replaces the one that was planned.
+          amountsEstimated: true,
+          ...settled,
+        };
+      },
+    );
   }
 
   /**
@@ -1328,7 +1401,7 @@ export class SunSwapLiquidityService {
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
-  ): Promise<{ plan: LiquidityPlanView; liquidityBefore: string }> {
+  ): Promise<{ plan: LiquidityPlanView; liquidityBefore: string; poolOrder: boolean }> {
     const manager = positionManagerOf(network);
     const deadline = resolveDeadline(input.deadline, Date.now());
     const scenario = await this.#v3Scenario(network, owner, input);
@@ -1342,12 +1415,31 @@ export class SunSwapLiquidityService {
     }
 
     // The pool's own token order need not be the caller's, and the contract takes the amounts in
-    // ITS order. Deposits are sized in pool order and reported in the caller's.
+    // ITS order. Keep this internal plan in input order for amount/minimum payload binding;
+    // addLiquidityV3 publishes position views in pool order.
     const poolOrder = pool.token0.toLowerCase() === scenario.token0.address.toLowerCase();
     const given = poolOrder
       ? { amount0: scenario.amount0, amount1: scenario.amount1 }
       : { amount0: scenario.amount1, amount1: scenario.amount0 };
-    const sized = this.liquidity.v3Amounts(pool, { tickLower, tickUpper }, given);
+    let sized: ReturnType<LiquidityPort["v3Amounts"]>;
+    try {
+      sized = this.liquidity.v3Amounts(pool, { tickLower, tickUpper }, given);
+    } catch (error) {
+      const required =
+        error instanceof UsageError
+          ? (error.details as { requiredAmount?: string } | undefined)?.requiredAmount
+          : undefined;
+      if (!poolOrder && (required === "amount0" || required === "amount1")) {
+        const flag = required === "amount0" ? "amount1" : "amount0";
+        const token = flag === "amount0" ? scenario.token0 : scenario.token1;
+        throw new UsageError(
+          "invalid_value",
+          `this range takes only ${token.symbol}; give --${flag}`,
+          { requiredAmount: flag },
+        );
+      }
+      throw error;
+    }
     const amount0 = poolOrder ? sized.amount0 : sized.amount1;
     const amount1 = poolOrder ? sized.amount1 : sized.amount0;
 
@@ -1409,7 +1501,7 @@ export class SunSwapLiquidityService {
       ...(atPriceBound(pool) ? { poolHasNoPrice: true } : {}),
       ...(approvals.length === 0 ? {} : { approvals }),
     };
-    return { plan, liquidityBefore: scenario.liquidityBefore ?? "0" };
+    return { plan, liquidityBefore: scenario.liquidityBefore ?? "0", poolOrder };
   }
 
   /**

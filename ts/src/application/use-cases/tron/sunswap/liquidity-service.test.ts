@@ -6,7 +6,7 @@ import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { SunSwapLiquidityService } from "./liquidity-service.js";
-import { ChainError } from "../../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -1335,6 +1335,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
         idsAsked.push(id);
         return POOL;
       }),
+      tickAtSqrtPrice: vi.fn((price: string) => (price === "263961795081773446554" ? -390416 : 0)),
       v4ParametersFor: vi.fn(() => PARAMETERS),
       v4Amounts: vi.fn(() => ({
         amount0: "1000000",
@@ -1371,6 +1372,159 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     return { ...h, result: h.service.addLiquidity(h.scope, NETWORK, input as never) };
   }
 
+  it("publishes unlimited approvals and explains an unsigned Permit2 fee", async () => {
+    const port = v4Port({ allowance: vi.fn(async () => "0") });
+    const h = makeHarness(port, { planPermit: async () => ({}) }, signers);
+    const out = await h.service.addLiquidity(h.scope, NETWORK, { ...BASE_V4, dryRun: true });
+    expect(out.approvals).toEqual(
+      expect.arrayContaining([expect.objectContaining({ amount: "unlimited" })]),
+    );
+    const coveredTrc20 = makeHarness(v4Port(), { planPermit: async () => ({}) }, signers);
+    const noApprovals = await coveredTrc20.service.addLiquidity(coveredTrc20.scope, NETWORK, {
+      ...BASE_V4,
+      dryRun: true,
+    });
+    expect(noApprovals.approvals ?? []).toEqual([]);
+    expect(noApprovals).toMatchObject({
+      feeCovers: "none",
+      fee: { note: expect.stringContaining("Permit2") },
+    });
+  });
+  it("omits covered Permit2 grants and builds without signing", async () => {
+    const preview = await run({ ...BASE_V4, dryRun: true }).result;
+    expect(preview.permits ?? []).toEqual([]);
+    expect(preview.feeCovers).toBe("all");
+    await expect(run({ ...BASE_V4, buildOnly: true }).result).resolves.toBeDefined();
+  });
+  it("uses an existing finite allowance when it covers the deposit ceiling", async () => {
+    const port = v4Port({ allowance: vi.fn(async () => "4000000") });
+    const out = await run({ ...BASE_V4, dryRun: true }, port).result;
+    expect(out.approvals ?? []).toEqual([]);
+  });
+  it("compares finite allowance to the ceiling, and grants unlimited only to the short side", async () => {
+    const port = v4Port({
+      allowance: vi.fn(async (_n, token) => (token === USDT ? "1000000" : "4000000")),
+    });
+    const out = await run({ ...BASE_V4, slippage: "0.01", dryRun: true }, port).result;
+    expect(out.approvals).toEqual([
+      expect.objectContaining({ token: USDT, amount: "unlimited", currentAllowance: "1000000" }),
+    ]);
+  });
+  it("keeps confirmed approvals when Permit2 preparation later fails", async () => {
+    const port = v4Port({
+      allowance: vi
+        .fn()
+        .mockResolvedValueOnce("0")
+        .mockResolvedValueOnce("0")
+        .mockResolvedValue(MAX_UINT256),
+    });
+    const permits = {
+      planPermit: vi.fn(async () => {
+        throw new ChainError("signing_rejected", "rejected");
+      }),
+    };
+    const h = makeHarness(port, permits, signers);
+    await expect(h.service.addLiquidity(h.scope, NETWORK, BASE_V4)).rejects.toMatchObject({
+      code: "signing_rejected",
+      details: { approvalTxIds: [`tx:built:${APPROVE}`, `tx:built:${APPROVE}`] },
+    });
+  });
+
+  it("carries initialization into the main transaction and centers defaults at its price", async () => {
+    const port = v4Port({
+      v4PoolState: vi.fn(async () => ({ ...POOL, exists: false, sqrtPriceX96: "0" })),
+    });
+    const out = await run(
+      { ...BASE_V4, tickSpacing: 60, createPool: true, sqrtPrice: "263961795081773446554" },
+      port,
+    ).result;
+    expect(port.tickAtSqrtPrice).toHaveBeenCalledWith("263961795081773446554");
+    expect(port.v4Amounts).toHaveBeenCalledWith(
+      expect.objectContaining({ currentTick: -390416, sqrtPriceX96: "263961795081773446554" }),
+      { tickLower: -396420, tickUpper: -384420 },
+      expect.anything(),
+    );
+    expect(port.v4DepositPayload).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({
+        initialSqrtPriceX96: "263961795081773446554",
+        tickLower: -396420,
+        tickUpper: -384420,
+      }),
+    );
+    expect(out).toMatchObject({ initialSqrtPriceX96: "263961795081773446554", poolCreated: true });
+  });
+
+  it("refuses a pool initialized during permit preparation", async () => {
+    const port = v4Port({
+      v4PoolState: vi
+        .fn()
+        .mockResolvedValueOnce({ ...POOL, exists: false, sqrtPriceX96: "0" })
+        .mockResolvedValue(POOL),
+    });
+    const h = run(
+      { ...BASE_V4, createPool: true, sqrtPrice: "79228162514264337593543950336" },
+      port,
+    );
+    await expect(h.result).rejects.toMatchObject({ code: "pool_already_exists" });
+    expect(port.v4DepositPayload).not.toHaveBeenCalled();
+    expect(h.pipeline.run).not.toHaveBeenCalled();
+  });
+
+  it("preserves an explicit creation range and publishes its initial price in dry-run", async () => {
+    const port = v4Port({
+      v4PoolState: vi.fn(async () => ({ ...POOL, exists: false, sqrtPriceX96: "0" })),
+    });
+    const h = run(
+      {
+        ...BASE_V4,
+        createPool: true,
+        sqrtPrice: "263961795081773446554",
+        tickSpacing: 60,
+        tickLower: -396000,
+        tickUpper: -384000,
+        dryRun: true,
+      },
+      port,
+    );
+    await expect(h.result).resolves.toMatchObject({
+      initialSqrtPriceX96: "263961795081773446554",
+      tickLower: -396000,
+      tickUpper: -384000,
+    });
+    expect(port.v4DepositPayload).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({ initialSqrtPriceX96: "263961795081773446554", permits: [] }),
+    );
+    expect(h.pipeline.run).toHaveBeenCalledWith(expect.objectContaining({ mode: "dry-run" }));
+    expect(port.v4Amounts).toHaveBeenCalledWith(
+      expect.anything(),
+      { tickLower: -396000, tickUpper: -384000 },
+      expect.anything(),
+    );
+  });
+
+  it("rejects an invalid initial price before any approval or permit", async () => {
+    const port = v4Port({
+      tickAtSqrtPrice: vi.fn(() => {
+        throw new Error("invalid --sqrt-price");
+      }),
+    });
+    const h = run({ ...BASE_V4, createPool: true, sqrtPrice: "1" }, port);
+    await expect(h.result).rejects.toThrow("--sqrt-price");
+    expect(port.allowance).not.toHaveBeenCalled();
+    expect(h.pipeline.run).not.toHaveBeenCalled();
+  });
+
+  it("does not initialize an existing pool", async () => {
+    const port = v4Port();
+    await run(BASE_V4, port).result;
+    expect(port.tickAtSqrtPrice).not.toHaveBeenCalled();
+    expect(vi.mocked(port.v4DepositPayload).mock.calls[0]![1]).not.toHaveProperty(
+      "initialSqrtPriceX96",
+    );
+  });
+
   /**
    * The grant's expiry in the preview is the grant's, not the transaction's.
    *
@@ -1380,7 +1534,8 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
    */
   it("previews each grant expiring an hour out, not at the transaction deadline", async () => {
     const before = Math.floor(Date.now() / 1000);
-    const out = (await run({ ...BASE_V4, dryRun: true }).result) as {
+    const h = makeHarness(v4Port(), { planPermit: async () => ({}) }, signers);
+    const out = (await h.service.addLiquidity(h.scope, NETWORK, { ...BASE_V4, dryRun: true })) as {
       deadline: number;
       permits: { expiration: string }[];
     };
@@ -1542,4 +1697,99 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     await expect(result).rejects.toMatchObject({ code: "missing_option" });
     await expect(result).rejects.toThrow(flag);
   });
+});
+
+describe("Ledger report regressions — V3 ordering and approval progress", () => {
+  it.each(
+    [false, true].flatMap((reversed) =>
+      ["confirmed", "dry-run", "build-only", "increase"].map((mode) => ({ reversed, mode })),
+    ),
+  )("publishes pool-order amounts for $mode (reversed=$reversed)", async ({ reversed, mode }) => {
+    const port = makePort({
+      allowance: vi.fn(async () => "999999999999"),
+      v3PoolState: vi.fn(async () => ({
+        poolAddress: MANAGER,
+        liquidity: "1000000",
+        exists: true,
+        sqrtPriceX96: "55743275095956664623638036817",
+        currentTick: -7032,
+        fee: 500,
+        token0: USDT,
+      })),
+      v3DepositedAmounts: vi.fn(async () => ({
+        amount0: "1000000",
+        amount1: "493089",
+        liquidity: "123",
+        tokenId: "1846",
+      })),
+    });
+    const h = makeHarness(port);
+    const result = await h.service.addLiquidity(h.scope, NETWORK, {
+      protocol: "V3",
+      ...(mode === "increase"
+        ? { positionId: "1846" }
+        : { token0: reversed ? WTRX : USDT, token1: reversed ? USDT : WTRX }),
+      ...(mode === "dry-run" ? { dryRun: true } : mode === "build-only" ? { buildOnly: true } : {}),
+      amount0: "1",
+      fee: 500,
+    });
+    expect(result).toMatchObject({
+      ...(mode === "confirmed" || mode === "increase" ? { amountsEstimated: false } : {}),
+      token0: { address: USDT, amount: "1000000" },
+      token1: { address: WTRX, amount: "493089" },
+    });
+  });
+  it("translates a pool-order missing-side error into the caller's flag", async () => {
+    const port = makePort({
+      v3PoolState: vi.fn(async () => ({
+        poolAddress: MANAGER,
+        liquidity: "1000000",
+        exists: true,
+        sqrtPriceX96: "55743275095956664623638036817",
+        currentTick: -7032,
+        fee: 500,
+        token0: USDT,
+      })),
+      v3Amounts: vi.fn(() => {
+        throw new UsageError(
+          "invalid_value",
+          "the price is below this range, so the position takes only token0; give --amount0",
+          { requiredAmount: "amount0" },
+        );
+      }),
+    });
+    const h = makeHarness(port);
+    await expect(
+      h.service.addLiquidity(h.scope, NETWORK, {
+        protocol: "V3",
+        token0: WTRX,
+        token1: USDT,
+        amount0: "1",
+        fee: 500,
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("give --amount1"),
+    });
+  });
+  it("retains an approval ID when the allowance re-read fails", async () => {
+    const h = makeHarness();
+    await expect(h.service.addLiquidityV2(h.scope, NETWORK, BASE)).rejects.toMatchObject({
+      code: "execution_reverted",
+      details: { approvalTxIds: [`tx:built:${APPROVE}`] },
+    });
+  });
+  it.each([undefined, 120_000])(
+    "uses the offline batch lifetime, respecting an explicit %s",
+    async (expiration) => {
+      const h = makeHarness();
+      await h.service.addLiquidityV2(h.scope, NETWORK, {
+        ...BASE,
+        buildOnly: true,
+        ...(expiration === undefined ? {} : { expiration }),
+      });
+      for (const [p] of vi.mocked(h.pipeline.run).mock.calls)
+        expect(p.expiration).toBe(expiration ?? 3_600_000);
+    },
+  );
 });

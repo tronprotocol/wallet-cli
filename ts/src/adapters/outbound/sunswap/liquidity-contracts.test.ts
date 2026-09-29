@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
 
@@ -328,6 +329,14 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   ])("refuses a one-sided range named from the wrong side, %s", (_name, given, tick, message) => {
     const moved = { currentTick: tick, sqrtPriceX96: sqrtAt(tick), exists: true } as never;
     expect(() => contracts.v4Amounts(moved, RANGE, given)).toThrow(message);
+    for (const size of [
+      () => contracts.v3Amounts(moved, RANGE, given),
+      () => contracts.v4Amounts(moved, RANGE, given),
+    ]) {
+      expect(size).toThrow(
+        expect.objectContaining({ details: { requiredAmount: tick > 0 ? "amount1" : "amount0" } }),
+      );
+    }
   });
 
   /**
@@ -436,14 +445,70 @@ describe("the V4 deposit payload", () => {
     deadline: 1790240000,
     permits: [],
   };
-  const grant = (amount: string) => ({
+  const grant = (amount: string, token = pool.currency0) => ({
     grant: {
-      details: { token: pool.currency0, amount, expiration: "1790240349", nonce: "0" },
+      details: { token, amount, expiration: "1790240349", nonce: "0" },
       spender: MANAGER,
       sigDeadline: "1790240349",
     },
     signature: `0x${"ab".repeat(65)}`,
   });
+
+  it.each([false, true])(
+    "initializes before permits and mint in one transaction (native=%s)",
+    (native) => {
+      const abi = new Interface([
+        "function initializePool((address currency0,address currency1,address hooks,uint24 fee,bytes32 parameters),uint160)",
+        "function modifyLiquidities(bytes,uint256)",
+      ]);
+      const request = {
+        ...base,
+        pool: { ...pool, ...(native ? { currency0: pool.hooks } : {}) },
+        initialSqrtPriceX96: "263961795081773446554",
+      };
+      const grants = [
+        ...(native ? [] : [grant(base.amount0Max)]),
+        grant(base.amount1Max, pool.currency1),
+      ];
+      for (const permits of [[], grants]) {
+        const payload = contracts.v4DepositPayload(NILE, { ...request, permits });
+        expect(payload.method).toBe("multicall(bytes[])");
+        const calls = payload.parameters[0]!.value as string[];
+        expect(calls).toHaveLength(permits.length + 2);
+        const [key, price] = abi.decodeFunctionData("initializePool", calls[0]!);
+        expect([...key].map((v) => (typeof v === "string" ? v.toLowerCase() : v))).toEqual(
+          [
+            ...[request.pool.currency0, request.pool.currency1, request.pool.hooks].map(
+              (a) => `0x${tronHexAddress(a).slice(2)}`,
+            ),
+            500n,
+            request.pool.parameters,
+          ].map((v) => (typeof v === "string" && v.startsWith("0x") ? v.toLowerCase() : v)),
+        );
+        expect(price).toBe(263961795081773446554n);
+        const plain = contracts.v4DepositPayload(NILE, {
+          ...base,
+          pool: request.pool,
+          permits: [],
+        });
+        expect(calls.at(-1)).toBe(
+          abi.encodeFunctionData(
+            "modifyLiquidities",
+            plain.parameters.map((p) => p.value),
+          ),
+        );
+        if (permits.length) {
+          const existing = contracts.v4DepositPayload(NILE, {
+            ...base,
+            pool: request.pool,
+            permits,
+          });
+          expect(calls.slice(1)).toEqual(existing.parameters[0]!.value);
+        }
+        expect(payload.callValueSun).toBe(native ? base.amount0Max : undefined);
+      }
+    },
+  );
 
   it("is a bare modifyLiquidities when no permit is needed", () => {
     const payload = contracts.v4DepositPayload(NILE, base);
@@ -900,4 +965,21 @@ describe("V3 deposited amounts", () => {
     ).resolves.toBeUndefined();
     await expect(port([event], "REVERT").v3DepositedAmounts(NILE, "tx")).resolves.toBeUndefined();
   });
+});
+
+describe("initial V4 price to tick", () => {
+  const contracts = new SunSwapLiquidityContracts({} as ChainGatewayProvider);
+  it.each([
+    ["79228162514264337593543950336", 0],
+    ["263961795081773446554", -390416],
+    ["4295128739", -887272],
+  ])("uses integer TickMath for %s", (price, expected) => {
+    expect(contracts.tickAtSqrtPrice(price)).toBe(expected);
+  });
+  it.each(["0", "4295128738", "1461446703485210103287273052203988822378723970342", "-1", "1.5"])(
+    "rejects invalid initial price %s before approval",
+    (price) => {
+      expect(() => contracts.tickAtSqrtPrice(price)).toThrow(/--sqrt-price/);
+    },
+  );
 });

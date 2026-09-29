@@ -87,3 +87,67 @@ it("renders V4 actual settlement even when a hook changes principal plus fees", 
   expect(text).not.toContain("0.006481 TRX");
   expect(text).not.toContain("Received (est)");
 });
+
+it("shows the exact initial price and its range in a V4 creation preview", () => {
+  const text = SunSwapLiquidityFormatters.sunswapLiquidity(
+    {
+      ...base,
+      protocol: "V4",
+      mode: "dry-run",
+      poolCreated: true,
+      initialSqrtPriceX96: "263961795081773446554",
+      tickLower: -396420,
+      tickUpper: -384420,
+      tickRangeAuto: true,
+    },
+    ctx,
+  );
+  expect(text).toContain("Initial sqrtPriceX96");
+  expect(text).toContain("263961795081773446554");
+  expect(text).toContain("[-396420, -384420]");
+});
+
+it.each(["sunpump-buy", "sunpump-sell"])(
+  "renders verified %s output instead of the quote",
+  (kind) => {
+    const text = SunPumpTradeFormatters.sunpumpTrade(
+      {
+        kind,
+        stage: "confirmed",
+        tokenAddress: "token",
+        tokenSymbol: "TKN",
+        tokenDecimals: 6,
+        trxIn: "1000000",
+        tokensIn: "1000000",
+        tokensOutExpected: "999000000",
+        trxOutExpected: "999000000",
+        tokensOut: "1230000",
+        trxOut: "1230000",
+        platformFee: "10000",
+      },
+      ctx,
+    );
+    expect(text).toContain("Received");
+    expect(text).not.toContain("Received (est)");
+    expect(text).toContain("1.23");
+    expect(text).not.toContain("999");
+  },
+);
+it("renders a Permit2-only fee gap and initial human price without an approval warning", () => {
+  const text = SunSwapLiquidityFormatters.sunswapLiquidity(
+    {
+      ...base,
+      protocol: "V4",
+      mode: "dry-run",
+      initialSqrtPriceX96: "79228162514264337593543950336",
+      initialPrice: { token0: "USDT", token1: "WTRX", token1PerToken0: "1" },
+      feeCovers: "none",
+      feeUnavailableReason:
+        "the main transaction cannot be estimated until the Permit2 authorization is signed",
+    },
+    ctx,
+  );
+  expect(text).toContain("Permit2");
+  expect(text).not.toContain("until the approval is on-chain");
+  expect(text).toContain("1 USDT ≈ 1 WTRX");
+});

@@ -267,7 +267,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
 | `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, or an error status from GasFree / TronLink. TronLink reports **every** non-404 status this way, 429 included |
 | `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI: `error.details.httpStatus: 429`. TronLink's 429 is `provider_error` instead |
-| `tx_expired` | The transaction's expiration passed before signatures were collected (TRON) |
+| `tx_expired` | The transaction expired before/during signing, or the TRON node rejected it as expired; rebuild and sign again |
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `history_not_supported` | The selected network exposes no transaction history endpoint (`account history`, TRON) |
@@ -310,6 +310,15 @@ Common codes at exit **1** (execution — runtime failure):
 | `internal_error` | Unexpected internal failure; message is intentionally generic |
 
 Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the maintained discovery index, not a parser exhaustiveness guarantee.
+
+### Approval progress on failure
+
+Multi-step SunSwap and SunPump operations retain submitted approval transaction IDs in
+`error.details.approvalTxIds`, in execution order, if a later approval, allowance check,
+Permit2 signature or main transaction fails. The original error code and existing details
+are preserved; text errors also list the IDs. These approvals are separate transactions and
+are not rolled back. A returned ID records submission, not a guarantee of successful execution;
+check its receipt before retrying.
 
 ### x402 and B.AI payment details
 
@@ -484,3 +493,20 @@ Not covered: text-mode output, `error.message` wording, field ordering, `meta.du
 - [Scripting guide](guide/scripting.md) — a gentler introduction
 - [Command reference](commands/index.md) — per-command `data` payloads
 - [Troubleshooting](troubleshooting.md) — human-facing remedies, keyed by the error codes above
+
+
+### Verified trade output and Ledger failures
+
+Confirmed SunPump buy/sell receipts expose `tokensOut` / `trxOut`; confirmed SunSwap swaps expose
+`amountOut`, only when the transaction receipt verifies the received amount. `amountsEstimated`
+is false for verified output and true for the quote fallback. A failed receipt read becomes a
+warning, never a failure of an already confirmed trade. Router `priceImpactPercent` and trade fees
+remain quoted; router impact carries `priceImpactEstimated: true`.
+
+Permit2 dry runs with no on-chain approvals to estimate publish `feeCovers: "none"` and
+`feeUnavailableReason`, not an approval-on-chain explanation. V4 unlimited approval plans use the
+string `"unlimited"`; transaction payloads continue to encode the uint256 value.
+
+Ledger errors distinguish `device_disconnected` (lost connection), `device_unavailable` (cannot
+open a detected or inaccessible device) and `device_not_found` (no device detected). All use exit 1.
+Native OS paths are not included in device-open errors.

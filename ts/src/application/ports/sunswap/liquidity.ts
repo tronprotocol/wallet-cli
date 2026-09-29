@@ -335,6 +335,9 @@ export interface LiquidityPort {
    */
   v4ParametersFor(tickSpacing: number): string;
 
+  /** Validate an initial Q64.96 price and return its tick using the contract's integer maths. */
+  tickAtSqrtPrice(sqrtPriceX96: string): number;
+
   /** `mint`, which creates a new position NFT. */
   v3MintPayload(network: NetworkDescriptor, request: V3MintRequest): ContractCallPayload;
 
@@ -519,6 +522,8 @@ export interface V4OwedFees {
 
 /** A V4 deposit: the pool, the range, the liquidity, the ceiling, and any permits it carries. */
 export interface V4DepositRequest {
+  /** Present only when this transaction must initialize the pool before minting. */
+  readonly initialSqrtPriceX96?: string;
   /** The pool key, as the position manager reports it or as a creation supplies it. */
   readonly pool: {
     readonly currency0: string;

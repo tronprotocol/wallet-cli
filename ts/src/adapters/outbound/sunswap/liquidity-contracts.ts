@@ -176,6 +176,20 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     return this.#v4.parametersFor(tickSpacing);
   }
 
+  tickAtSqrtPrice(sqrtPriceX96: string): number {
+    if (
+      !/^\d+$/.test(sqrtPriceX96) ||
+      BigInt(sqrtPriceX96) < BigInt(TickMath.MIN_SQRT_RATIO.toString()) ||
+      BigInt(sqrtPriceX96) >= BigInt(TickMath.MAX_SQRT_RATIO.toString())
+    ) {
+      throw new UsageError(
+        "invalid_value",
+        `--sqrt-price must be an integer from ${TickMath.MIN_SQRT_RATIO.toString()} (inclusive) to ${TickMath.MAX_SQRT_RATIO.toString()} (exclusive)`,
+      );
+    }
+    return TickMath.getTickAtSqrtRatio(jsbiOf(sqrtPriceX96));
+  }
+
   async tokenFacts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
     const [decimals, symbol] = await Promise.all([
       this.#read(network, address, "decimals()", []),
@@ -995,12 +1009,14 @@ function amountsForDeposit(
     throw new UsageError(
       "invalid_value",
       "the price is above this range, so the position takes only token1; give --amount1",
+      { requiredAmount: "amount1" },
     );
   }
   if (given.amount1 !== undefined && given.amount0 === undefined && !takes1) {
     throw new UsageError(
       "invalid_value",
       "the price is below this range, so the position takes only token0; give --amount0",
+      { requiredAmount: "amount0" },
     );
   }
   // An unnamed side is unbounded, so the named one is what limits the liquidity.

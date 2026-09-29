@@ -433,7 +433,7 @@ describe("Ledger TIP-712", () => {
  */
 describe("Ledger device states", () => {
   it("reports an unreachable device as device_not_found, not auth_required", async () => {
-    failures.open = new Error("cannot open device");
+    failures.open = Object.assign(new Error("NoDevice"), { id: "NoDevice" });
     try {
       await expect(new Ledger(2000).getAddress("tron", PATH)).rejects.toMatchObject({
         code: "device_not_found",
@@ -472,5 +472,49 @@ describe("Ledger device states", () => {
     } finally {
       failures.tip712 = undefined;
     }
+  });
+});
+
+describe("recoverable Ledger failures", () => {
+  it.each(["DisconnectedDevice", "DisconnectedDeviceDuringOperation"])(
+    "explains %s without leaking native paths",
+    async (name) => {
+      failures.tip712 = Object.assign(new Error("IOService:/sensitive/native/path"), { name });
+      try {
+        await expect(
+          new Ledger(1000).signTypedData("tron", PATH, {
+            domain: { name: "test", version: "1", chainId: 1 },
+            types: { Test: [{ name: "value", type: "uint256" }] },
+            message: { value: "1" },
+          }),
+        ).rejects.toMatchObject({
+          code: "device_disconnected",
+          message: expect.stringContaining("reconnect"),
+        });
+      } finally {
+        failures.tip712 = undefined;
+      }
+    },
+  );
+});
+
+it("keeps unknown open failures distinct and does not expose OS paths", async () => {
+  failures.open = new Error("cannot open IOService:/sensitive/native/path");
+  try {
+    const error = await new Ledger(1000).getAddress("tron", PATH).catch((e) => e);
+    expect(error.code).toBe("device_unavailable");
+    expect(error.message).toContain("Ledger Live");
+    expect(error.message).not.toContain("IOService");
+  } finally {
+    failures.open = undefined;
+  }
+});
+it("gives an app hint for 0x6d02 without treating it as a user rejection", async () => {
+  transactionSignSpy.mockRejectedValueOnce(
+    Object.assign(new Error("UNKNOWN_APDU"), { statusCode: 0x6d02 }),
+  );
+  await expect(new Ledger(1000).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+    code: "ledger_unsupported",
+    message: expect.stringContaining("correct app"),
   });
 });

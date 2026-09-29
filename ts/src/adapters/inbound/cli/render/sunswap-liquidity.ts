@@ -48,6 +48,8 @@ interface LiquidityView {
   /** already the word for it, never the zero address — see `describeHooks`. */
   readonly hooks?: string;
   readonly poolCreated?: boolean;
+  readonly initialSqrtPriceX96?: string;
+  readonly initialPrice?: { token0: string; token1: string; token1PerToken0: string };
   readonly recipient: string;
   readonly deadline: number;
   readonly token0: Side;
@@ -66,6 +68,7 @@ interface LiquidityView {
   readonly approvals?: readonly ApprovalRow[];
   readonly fee?: unknown;
   readonly feeCovers?: string;
+  readonly feeUnavailableReason?: string;
   readonly feeAuto?: boolean;
   readonly tickRangeAuto?: boolean;
   readonly txId?: string;
@@ -215,9 +218,9 @@ function dryRun(value: LiquidityView, rows: Pair[], ctx: TextRenderContext): str
   }
   // The deposit's own price is unknowable until its approval is on-chain, so a reader is told
   // that the number above is not the whole cost rather than left to infer it.
-  if (value.feeCovers === "approvals") {
+  if (value.feeUnavailableReason || value.feeCovers === "approvals") {
     lines.push(
-      `${warn()} The deposit's own fee cannot be estimated until the approval is on-chain.`,
+      `${warn()} ${value.feeUnavailableReason ?? "The deposit's own fee cannot be estimated until the approval is on-chain."}`,
     );
   }
   // A pool pinned at the edge of the tick range was initialised and never traded. A deposit into
@@ -364,6 +367,19 @@ function v4Rows(value: LiquidityView): Pair[] {
     ["Fee tier", value.feeTier === undefined ? "" : `${value.feeTier / 10_000}%`],
     ["Tick spacing", value.tickSpacing === undefined ? "" : String(value.tickSpacing)],
     ["Hooks", value.hooks ?? ""],
+    ...(value.initialSqrtPriceX96 === undefined
+      ? []
+      : ([
+          ["Initial sqrtPriceX96", value.initialSqrtPriceX96],
+          ...(value.initialPrice
+            ? [
+                [
+                  "Initial price (approx)",
+                  `1 ${value.initialPrice.token0} ≈ ${value.initialPrice.token1PerToken0} ${value.initialPrice.token1}`,
+                ],
+              ]
+            : []),
+        ] as Pair[])),
     ["Range", range],
   ];
 }

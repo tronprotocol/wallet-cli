@@ -148,8 +148,22 @@ Every other mode publishes one chosen `route` instead, with `amountOutExpected`,
 - `approvals` — the TRC-20 approval to Permit2, `{token, spender, amount, …}`, absent when the allowance already covers the trade or the input is TRX.
 - `permit` — `{permit2, spender, amount, expiration}`: the grant that was authorized, not merely that one was. Absent for a TRX input, which needs none.
 - `approvalTxIds` — in the order sent, beside the swap's own `txId`.
-- `feeCovers` — `"approvals"` when a dry run could only price the approval, `"all"` otherwise.
+- `feeCovers` — `"approvals"` when a dry run could only price the approval, `"none"` when an unsigned Permit2 grant prevents estimation and there are no on-chain approvals to price, and `"all"` when the complete transaction can be estimated.
 
 ## See also
 
 [`sunpump buy`](../sunpump/buy.md) · [`sunpump sell`](../sunpump/sell.md) · [`sunswap price`](price.md) · [machine-interface.md](../../machine-interface.md)
+
+
+Ledger Permit2 signing and transaction hash fallback require **TRON app → Settings → Sign by Hash → Allowed**.
+The device displays hashes on these paths, not full transaction details; verify the CLI preview
+before approving. See [Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
+
+
+With `--wait`, a successful confirmed trade publishes `amountOut` from output-token Transfer logs
+or native TRX internal transfers to the recipient, net of outgoing transfers of that asset within
+the same transaction. Network fees are excluded. `amountsEstimated: false` identifies verified
+output; absent, malformed or unavailable receipt evidence keeps `amountOutExpected`, sets
+`amountsEstimated: true` and adds a warning. Concurrent account activity cannot alter these figures.
+`priceImpactPercent` on a router trade remains the route's quoted impact and is explicitly marked
+`priceImpactEstimated: true`; it is not a post-trade measurement. `tradingFee` remains quoted too.

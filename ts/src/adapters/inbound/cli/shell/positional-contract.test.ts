@@ -206,6 +206,7 @@ describe("every registered positional command rejects its --<field> spelling", (
     expect(paths.map((path) => path.join(" ")).sort()).toEqual([
       "sunpump launch",
       "sunswap position-info",
+      "sunswap position-list",
     ]);
     for (const path of paths) {
       await expect(

@@ -37,7 +37,7 @@ Nothing changes in the commands:
 wallet-cli tx send --to T... --amount 1 --network nile --account cold
 ```
 
-Instead of a password prompt, the transaction details appear **on the Ledger screen** — verify the recipient and amount there (that is the whole point of the device) and approve. The transaction then broadcasts normally; confirm with [`tx status`](../commands/tx/status.md).
+Instead of a password prompt, the Ledger asks you to approve. When the app decodes the transaction, verify its recipient and amount on the device; hash-only signing is described below. The transaction then broadcasts normally; confirm with [`tx status`](../commands/tx/status.md).
 
 This is your best defense against address-swapping malware: what the device screen shows is what gets signed, regardless of what the host displays.
 
@@ -58,3 +58,33 @@ Ledger already isolates keys, but you can still split build, sign and broadcast.
 ## See also
 
 [`import ledger` help](../commands/import/index.md) · [Security model](../concepts/security.md) · [Getting started](getting-started.md)
+
+
+For newly built TRON transactions sent directly to Ledger, the CLI reserves at least ten minutes
+for signing, or the configured device timeout plus one minute when longer. It preserves an explicit
+expiration and never extends imported or already signed transaction files. Expiration is checked
+again after signing; an expired transaction returns `tx_expired` instead of being broadcast.
+Multi-transaction SunSwap/SunPump `--build-only` batches use a one-hour transaction lifetime,
+though contract deadlines and Permit2 signatures may expire earlier.
+
+
+## Hash signing and recovery
+
+TRON Permit2 authorizations use TIP-712 hash signing. Some large contract transactions also fall
+back to hash signing when the Ledger SDK cannot encode their fields. These paths require
+**TRON app → Settings → Sign by Hash → Allowed**. The device displays hashes rather than the full
+token, amount and spender details; verify those in the CLI preview before approving. A hash-signing
+fallback emits a warning. This does not mean every swap uses hash-only transaction signing.
+
+On timeout or cancellation the CLI closes the underlying HID device without waiting for the
+pending APDU. Hardware behavior still depends on the device and USB driver; reconnect the device
+if the next operation cannot open it.
+
+- `device_disconnected`: reconnect, unlock and reopen the correct app before retrying.
+- `device_unavailable`: close Ledger Live and other applications using the device, check USB access,
+  then reconnect. This code does not prove another application owns the device.
+- `device_not_found`: no device was detected.
+- `ledger_unsupported`: open the correct app and check its version; the status alone does not prove
+  the app was closed.
+
+A `0x6985` rejection remains `signing_rejected`; it is not reclassified as a lock without evidence.

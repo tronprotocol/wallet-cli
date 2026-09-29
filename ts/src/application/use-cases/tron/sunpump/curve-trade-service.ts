@@ -1,3 +1,6 @@
+import { resolveTronAccount } from "../../../services/tron-account.js";
+import { tradeOutput } from "../trade-output.js";
+import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 /**
  * SunPump curve trading — buying and selling on the bonding curve.
  *
@@ -65,7 +68,7 @@ export class SunPumpCurveTradeService {
 
   constructor(
     private readonly launchpad: LaunchpadPort,
-    gateways: ChainGatewayProvider,
+    private readonly gateways: ChainGatewayProvider,
     pipeline: TxPipeline,
   ) {
     this.tx = new LiquidityTransactions(launchpad, gateways, pipeline);
@@ -76,6 +79,7 @@ export class SunPumpCurveTradeService {
     network: NetworkDescriptor,
     input: CurveTradeInput,
   ): Promise<Record<string, unknown>> {
+    if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
     const trxSun = toBaseUnits(input.amount, 6, "TRX", "--trx");
     const quoted = await this.launchpad.quoteBuy(network, facts.address, trxSun);
@@ -102,7 +106,7 @@ export class SunPumpCurveTradeService {
       trxIn: trxSun,
     };
 
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     await this.#assertNativeBalance(network, owner, trxSun);
     const payload = this.launchpad.buyPayload(network, {
       token: facts.address,
@@ -123,6 +127,7 @@ export class SunPumpCurveTradeService {
     network: NetworkDescriptor,
     input: CurveTradeInput,
   ): Promise<Record<string, unknown>> {
+    if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
     const tokensIn = toBaseUnits(input.amount, facts.decimals, facts.symbol, "--amount");
     const quoted = await this.#quoteSell(network, facts, tokensIn);
@@ -159,7 +164,7 @@ export class SunPumpCurveTradeService {
       tokensIn,
     };
 
-    const owner = scope.resolveAddress("tron");
+    const owner = resolveTronAccount(scope);
     const held = await this.launchpad.balanceOf(network, facts.address, owner);
     if (BigInt(held) < BigInt(tokensIn)) {
       throw new ChainError(
@@ -342,25 +347,36 @@ export class SunPumpCurveTradeService {
       return { ...view, ...built };
     }
 
-    const owner = scope.resolveAddress("tron");
-    const approvalTxIds = await this.tx.sendApprovals(
+    const owner = resolveTronAccount(scope);
+    return this.tx.withApprovals(
       scope,
       network,
       approvals,
       owner,
       mode,
       input.feeLimit,
+      async (approvalTxIds) => {
+        const main = await this.tx.run(scope, network, payload, {
+          mode,
+          estimable: true,
+          feeLimit: input.feeLimit,
+        });
+        return {
+          ...view,
+          ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
+          ...outcomeData(main),
+          ...(await tradeOutput(
+            scope,
+            network,
+            this.gateways,
+            main,
+            view.kind === "sunpump-buy" ? input.token : NATIVE_TRX_ADDRESS,
+            owner,
+            view.kind === "sunpump-buy" ? "tokensOut" : "trxOut",
+          )),
+        };
+      },
     );
-    const main = await this.tx.run(scope, network, payload, {
-      mode,
-      estimable: true,
-      feeLimit: input.feeLimit,
-    });
-    return {
-      ...view,
-      ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
-      ...outcomeData(main),
-    };
   }
 }
 
