@@ -5,10 +5,12 @@ Deposit both sides of a pair into a SunSwap pool.
 ## Synopsis
 
 ```
-wallet-cli sunswap add-liquidity --protocol <V2|V3> [--token0 <token> --token1 <token>]
+wallet-cli sunswap add-liquidity --protocol <V2|V3|V4> [--token0 <token> --token1 <token>]
                                  [--position-id <id>] [--amount0 <n>] [--amount1 <n>]
                                  [--min0 <n>] [--min1 <n>] [--fee <n>]
                                  [--tick-lower <n>] [--tick-upper <n>]
+                                 [--tick-spacing <n>] [--hooks <address>] [--slippage <decimal>]
+                                 [--create-pool --sqrt-price <Q64.96>]
                                  [--recipient <address>] [--deadline <timestamp>]
                                  [--fee-limit <sun>]
                                  [--dry-run | --build-only | --wait [--wait-timeout <ms>]]
@@ -16,17 +18,17 @@ wallet-cli sunswap add-liquidity --protocol <V2|V3> [--token0 <token> --token1 <
 
 ## Description
 
-**V2** adds at the pool's current ratio and returns LP tokens. **V3** mints a position NFT over a price range, or adds to one you already hold with `--position-id` — which fixes the pair, the fee tier and the range, so those flags are refused alongside it.
+**V2** adds at the pool's current ratio and returns LP tokens. **V3** mints a position NFT over a price range, or adds to one you already hold with `--position-id` — which fixes the pair, the fee tier and the range, so those flags are refused alongside it. **V4** also mints or adds to a position, but names its pool by the full pool key, and an increase takes the pair as well as `--position-id`; see [V4 below](#v4-a-pool-is-named-by-its-key).
 
-Give one amount and the other is derived — from the pool's reserves on V2, from the range and the current price on V3. Give both to deposit exact amounts. A pool that holds nothing has no ratio to derive from, so the first deposit into one must name both sides.
+Give one amount and the other is derived — from the pool's reserves on V2, from the range and the current price on V3 and V4. Give both to deposit exact amounts. A pool that holds nothing has no ratio to derive from, so the first deposit into one must name both sides.
 
-**On V3 your TRX becomes WTRX.** V3 pools are wrapped. On V2, TRX is deposited natively through `addLiquidityETH` and only the other side is approved. Three protocols, three answers, and V3 is the one where what you typed is not what the pool receives.
+**On V3 your TRX becomes WTRX.** V3 pools are wrapped. On V2, TRX is deposited natively through `addLiquidityETH` and only the other side is approved. On V4, TRX is native again and travels as the call's value. Three protocols, three answers, and V3 is the one where what you typed is not what the pool receives.
 
-Each side is approved for **exactly the amount this deposit needs**, never an unbounded allowance. The approval is sent, confirmed, and the allowance re-read from the chain before the deposit follows — the two can never land out of order, and a token whose `approve` caps or refuses what it grants is caught before the deposit reverts for a reason the receipt could not explain.
+On V2 and V3, each side is approved for **exactly the amount this deposit needs**, never an unbounded allowance. The approval is sent, confirmed, and the allowance re-read from the chain before the deposit follows — the two can never land out of order, and a token whose `approve` caps or refuses what it grants is caught before the deposit reverts for a reason the receipt could not explain.
 
 `--dry-run` validates everything — balances, the pool, the amounts, the allowances — without a password, and works for a watch-only account.
 
-**A new position's NFT id exists only in the confirmed receipt.** The manager assigns it during execution, so pass `--wait` to learn it; [`sunswap position-list`](position-list.md) is mainnet-only and cannot tell you afterwards on Nile.
+**A new position's NFT id exists only in the confirmed receipt.** The manager assigns it during execution, so pass `--wait` to learn it; [`sunswap position-list`](position-list.md) is mainnet-only and cannot tell you afterwards on Nile. Once you have the id, [`sunswap position-info`](position-info.md) reads the position on either network.
 
 ## Two things about the fee estimate
 
@@ -47,13 +49,18 @@ Note the interaction with exact-amount approvals: the router consumes the allowa
 
 | Option | Description |
 |---|---|
-| `--protocol <V2\|V3>` | **Required.** V4 is refused as not yet supported |
-| `--token0 <token>` / `--token1 <token>` | The pair, symbol or contract address. Not accepted with `--position-id` |
-| `--position-id <id>` | Add to this existing position; must be held by this account (V3 only) |
+| `--protocol <V2\|V3\|V4>` | **Required** |
+| `--token0 <token>` / `--token1 <token>` | The pair, symbol or contract address. Not accepted with `--position-id` on V3; **required** with it on V4, where they select nothing and are checked against the pair the position holds |
+| `--position-id <id>` | Add to this existing position; must be held by this account (V3 and V4) |
 | `--amount0 <n>` / `--amount1 <n>` | Amounts in whole tokens. Give one, the other, or both |
-| `--min0 <n>` / `--min1 <n>` | Least to accept depositing. Default: V2 95% of the computed amount, V3 `0` |
-| `--fee <n>` | Fee tier: `100`, `500`, `3000` or `10000` (V3 new position only; default `3000`) |
-| `--tick-lower <n>` / `--tick-upper <n>` | Price range; each a multiple of the tier's tick spacing (V3 new position only) |
+| `--min0 <n>` / `--min1 <n>` | Least to accept depositing. Default: V2 95% of the computed amount, V3 `0`. **Not accepted on V4**, which bounds from above — see `--slippage` |
+| `--fee <n>` | Fee tier, e.g. `500` or `3000`. Selects the pool on a V3 new position (default `3000`); part of the pool key on V4; on a V4 increase, checked against the position's own |
+| `--tick-lower <n>` / `--tick-upper <n>` | Price range; each a multiple of the pool's tick spacing (V3 and V4 new position only) |
+| `--tick-spacing <n>` | **Required on V4, no default.** The pool's tick spacing — part of its identity. See below |
+| `--hooks <address>` | The pool's hook contract; default none, which is what almost every pool has (V4 only) |
+| `--slippage <decimal>` | Tolerance on the deposit **ceiling**, e.g. `0.005`; default none, so the ceiling is exactly the computed amounts (V4 only) |
+| `--create-pool` | Create the pool as part of this deposit; requires `--sqrt-price` on top of the pool key (V4 only) |
+| `--sqrt-price <Q64.96>` | The new pool's starting price in Q64.96 fixed point, **not** a decimal ratio (V4 `--create-pool` only) |
 | `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission. One already past is refused |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. See the note above |
@@ -63,9 +70,9 @@ Note the interaction with exact-amount approvals: the router consumes the allowa
 
 A flag outside its scenario is `invalid_option`, not silently ignored. Dropping `--fee` would deposit at a tier you did not choose; dropping `--tick-lower` on an increase would suggest a position's range can be changed, which it cannot.
 
-## The price range, on V3
+## The price range, on V3 and V4
 
-A tick you type is **checked** against the tier's grid, never rounded onto it. A range is a price opinion, and moving a boundary by one spacing changes what the position earns. Only a range the CLI chose is aligned — the current tick ± 100 spacings — and the receipt marks it `tickRangeAuto: true` so our choice is never mistaken for yours. The same holds for `feeAuto` when `--fee` was omitted.
+A tick you type is **checked** against the pool's tick-spacing grid, never rounded onto it. A range is a price opinion, and moving a boundary by one spacing changes what the position earns. Only a range the CLI chose is aligned — the current tick ± 100 spacings — and the receipt marks it `tickRangeAuto: true` so our choice is never mistaken for yours. The same holds for `feeAuto` when `--fee` was omitted.
 
 A pool that was **initialised and never traded** has no price: its tick sits at the representable floor, a default range collapses against it, and the amounts round to nothing. `mint` reverts on zero liquidity, so the command refuses before the node and names the state:
 
@@ -75,6 +82,51 @@ so a deposit cannot be sized against it; choose a fee tier whose pool has traded
 ```
 
 This is a real condition on Nile: the 3000 tier — the default — is in exactly that state, while 100, 500 and 10000 carry live prices.
+
+## V4: a pool is named by its key
+
+A V4 pool has no contract of its own — every pool lives inside one pool manager — so it is named by the five parts of its **pool key**: the two tokens, the fee, the **tick spacing** and the **hooks** contract. On this command that is:
+
+```
+--token0 <token> --token1 <token> --fee <n> --tick-spacing <n> [--hooks <address>]
+```
+
+There is **no `--pool` flag**. A V4 pool id is a hash of that key; naming the key is the only way in.
+
+**`--tick-spacing` is required and has no default.** On V3 the spacing follows from the fee tier; on V4 it does not — it is part of the pool's identity. Measured on Nile: TRX/USDT at fee `500` exists **twice**, once at spacing `10` and once at spacing `12`, as two separate pools. A default taken from the V3 convention would name one of them for you, and if that pool exists your deposit goes into it silently. Omitting the flag is refused:
+
+```
+error [missing_option]: invalid --tick-spacing: --tick-spacing is required on V4 and has no default: two V4 pools at the SAME fee tier can have different tick spacings — measured, USDC/USDT at fee 500 has spacing 12 while TRX/USDT at fee 500 has spacing 10 — so it cannot be derived from --fee. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks
+```
+
+**Get the value from [`sunswap pool-list --protocol V4`](pool-list.md)**, which publishes each pool's `tickSpacing` and `hooks` under `extra` in its JSON (`-o json`). `--hooks` defaults to none, which is what almost every pool has.
+
+The same flags create a pool: add `--create-pool` and `--sqrt-price`, and the pool that is created is the pool that is then deposited into, because one key builder serves both.
+
+**Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool, so the tokens select nothing — they are checked against the pair the position holds, and a mismatch is refused rather than sent. `--fee` is checked the same way when given. `--tick-spacing`, `--hooks` and the tick range are not needed.
+
+### On V4 the bound is a ceiling, not a floor
+
+On V2 and V3, `--min0` / `--min1` bound the deposit **from below**: the least you will accept depositing. **V4 bounds it from above**: the most the deposit may cost. `--min0` / `--min1` are refused on V4:
+
+```
+error [invalid_option]: invalid --min0: is not accepted on V4: a V4 deposit is bounded from ABOVE, by --slippage on the ceiling, not from below by a minimum
+```
+
+`--slippage` widens that ceiling **upward**. With no `--slippage`, the ceiling is exactly the computed amounts. Note that [`remove-liquidity`](remove-liquidity.md) also has a V4 `--slippage`, and there it works the other way — it lowers the floor on what comes back. The same flag name moves in opposite directions on the two commands.
+
+On a native pair the ceiling is sent as the call's value and the remainder is returned, so **the account must hold the ceiling, not the deposit**. The dry run says so.
+
+### Approvals on V4
+
+V4 is the one exception to exact approvals. The token side goes through **Permit2** in two layers:
+
+- The token's allowance **to Permit2** is **unlimited**, granted once per token.
+- The **Permit2 grant** each deposit signs locally is for **exactly this deposit's ceiling**, and lives **one hour**. It travels inside the deposit's own call, so the signature and the transaction that spends it cannot be separated.
+
+The limit sits on the grant, not on the allowance — that is what Permit2 is for. The JSON lists the grants a deposit will sign under `permits`; when standing grants already cover the amounts there is nothing to sign and `permits` is absent. A native TRX side needs neither.
+
+Because the deposit carries its signed grants, **`--build-only` is refused** on a V4 deposit that still needs one; it builds when nothing is left to sign. For the same reason a dry run cannot price the deposit itself: `fee` carries a note instead of an energy figure, and `feeCovers` is `approvals`.
 
 ## Examples
 
@@ -126,6 +178,64 @@ wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee
   Status         success
 ```
 
+A V4 dry run for a new position in the TRX/USDT pool at fee 500, spacing 10:
+
+```bash
+wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 \
+  --tick-spacing 10 --amount0 1 --dry-run --account demo --network nile
+```
+
+```console
+⏳ Dry run sunswap add-liquidity
+  Account                    TNmoJ3Be59...iL3G8HVB (demo)
+  Protocol                   V4
+  Pool                       977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
+  Fee tier                   0.05%
+  Tick spacing               10
+  Hooks                      none
+  Range                      [-11140, -9140]  (default)
+  Deposit                    1 TRX / 0.362993 USDT
+  Liquidity                  12,354,133
+  Recipient                  TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
+  Deadline                   2026-09-29 08:51:48 UTC
+  Fee (est, approvals only)  not estimable until the approval is on-chain
+
+⚠️ The deposit's own fee cannot be estimated until the approval is on-chain.
+```
+
+`Pool` is the id the key hashes to — the same id [`pool-list`](pool-list.md) and [`position-info`](position-info.md) print — so you can confirm you named the pool you meant before anything is sent.
+
+Adding to an existing V4 position, with a 1% ceiling:
+
+```bash
+wallet-cli sunswap add-liquidity --protocol V4 --position-id 7 --token0 TRX --token1 USDT \
+  --amount0 1 --slippage 0.01 --dry-run --account demo --network nile
+```
+
+```console
+⏳ Dry run sunswap add-liquidity
+  Account                    TNmoJ3Be59...iL3G8HVB (demo)
+  Protocol                   V4
+  Position                   #7
+  Pool                       977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
+  Fee tier                   0.05%
+  Tick spacing               10
+  Hooks                      none
+  Range                      [-887270, 887270]
+  Deposit                    1 TRX / 0.362794 USDT
+  Max deposit                1.01 TRX / 0.366421 USDT
+  Liquidity                  602,323
+  Recipient                  TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
+  Deadline                   2026-09-29 08:51:54 UTC
+  Fee (est, approvals only)  not estimable until the approval is on-chain
+
+⚠️ This deposit locks 1.01 TRX as the transaction's value — about 1 TRX is expected to be deposited and the rest returned. The full amount must be available.
+
+⚠️ The deposit's own fee cannot be estimated until the approval is on-chain.
+```
+
+`Max deposit` is the ceiling — the deposit plus the slippage, **upward**. There is no `Min deposit` row on V4.
+
 ## Reading the JSON
 
 `kind` is `sunswap-add-liquidity` in every mode.
@@ -133,6 +243,8 @@ wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee
 **`fee` is the estimated cost, always** — the `{feeModel, energy, …}` object every dry run in this CLI carries. The V3 fee tier is `feeTier`, a number in hundredths of a basis point (`3000` = 0.3%). They are separate keys on purpose: one key whose meaning depended on the mode is how a script reads a tier as a cost.
 
 **Amounts are base units and carry their scale.** Each side is `{address, symbol, decimals, amount}`, plus `amountMinimum` in the plan. `lpAmount` is accompanied by `lpDecimals`.
+
+**V4 adds the pool key and the ceiling.** `poolId`, `feeTier`, `tickSpacing` and `hooks` describe the pool; `nftTokenId` and `newPosition` the position. `amount0Max` / `amount1Max` are the ceiling, present only when `--slippage` moved it above the deposit; `nativeLocked`, beside them on a native pair, is the TRX locked as the call's value; `permits[]` lists the Permit2 grants the deposit will sign. On V4 the bound is the ceiling — `amountMinimum` does not bound a V4 deposit.
 
 **A confirmed receipt reports what happened, not what was asked for.** A V2 pool takes the two sides at its own ratio, so `token0.amount` / `token1.amount` in the confirmed state are the amounts the reserves actually moved by, `lpAmount` is the LP balance delta, and `reservesAfter` is the pool read back. On V3, `liquidity` is what the position actually gained — read from the position after confirmation, not the figure the plan predicted, because the pool credits slightly less than the amounts were worth a moment earlier. **That is the number [`remove-liquidity`](remove-liquidity.md) wants for `--liquidity`**, so it has to be the real one.
 

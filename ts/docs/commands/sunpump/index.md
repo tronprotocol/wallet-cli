@@ -1,6 +1,6 @@
 # wallet-cli sunpump
 
-Trade a token on its **SunPump bonding curve** — before it has launched onto a DEX.
+Create a token on a **SunPump bonding curve**, look tokens up, and trade them on their curve — before they have launched onto a DEX.
 
 ```
 wallet-cli sunpump COMMAND
@@ -10,8 +10,14 @@ wallet-cli sunpump COMMAND
 |---|---|---|
 | `sunpump buy` | [buy.md](buy.md) | Spend TRX to buy a token on its curve |
 | `sunpump sell` | [sell.md](sell.md) | Sell a token back to its curve for TRX |
+| `sunpump launch` | [launch.md](launch.md) | Create a new token on the curve — **owned by a creator SunPump chooses, not by you** |
+| `sunpump token-list` | [token-list.md](token-list.md) | List launchpad tokens, ranked or by creator |
+| `sunpump token-info` | [token-info.md](token-info.md) | Full details of one token |
+| `sunpump token-search` | [token-search.md](token-search.md) | Search tokens by symbol or name |
 
-> **TRON mainnet only.** Availability is a config question, not a build one: a network gains this group when its `sunpump.launchpad` address is set, and only mainnet's is. On Nile or Shasta both commands fail with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier, on the family.
+> **TRON mainnet only.** Availability is a config question, not a build one: a network gains this group when its `sunpump.launchpad` address is set, and only mainnet's is. On Nile or Shasta every command in the group fails with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier, on the family.
+
+`buy` and `sell` sign and broadcast; `launch` creates a token through the SunPump service and signs nothing; the three queries read the launchpad service and need no account. The rest of this page is about trading.
 
 ## What a bonding curve is, as far as these commands are concerned
 
@@ -21,7 +27,7 @@ When enough TRX has accumulated the token **launches**: the curve closes and the
 
 ## The state gate
 
-Both commands read the token's state **from the contract**, before pricing anything, and only one of four states may trade:
+`buy` and `sell` both read the token's state **from the contract**, before pricing anything, and only one of four states may trade:
 
 | State | What happens |
 |---|---|
