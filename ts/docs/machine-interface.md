@@ -284,6 +284,8 @@ Common codes at exit **1** (execution — runtime failure):
 | `no_frozen_supply` / `not_yet_unfreezable` | Nothing frozen, or nothing matured yet (`asset unfreeze`) |
 | `not_exchange_creator` / `token_not_in_exchange` / `exchange_closed` / `same_token` | Exchange-pair access and state conditions |
 | `pool_not_found` | No SunSwap liquidity pool exists for that pair, so there is no ratio to size a one-sided deposit against. Name both amounts, or create the pool first |
+| `pool_already_exists` | `sunswap add-liquidity --create-pool`: a V4 pool with that key (pair, fee, tick spacing, hooks) is already live. Deposit into it without `--create-pool` and `--sqrt-price` |
+| `position_not_found` | No SunSwap position with that id under that protocol (`sunswap position-info`, `add-liquidity` / `remove-liquidity` / `collect-fees` with `--position-id`) |
 | `no_matching_route` | The SunSwap route service found no path for that pair (`sunswap swap`). Retryable with the same input: routes appear and disappear with liquidity |
 | `launchpad_token_not_found` | That address is not a SunPump token on this network (`sunpump buy` / `sell` / `token-info`) |
 | `launchpad_trading_closed` | The token's bonding curve is closed — it is awaiting launch, or it has launched and moved to SunSwap. The message distinguishes the two, because one is a wait and the other is a redirect to `sunswap swap` |

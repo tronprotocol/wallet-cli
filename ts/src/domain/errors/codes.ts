@@ -201,6 +201,7 @@ export const ERROR_CODES = {
   same_token: { exit: 1, retry: "never", meaning: "both sides of the pair would be the same token" },
   insufficient_reserve: { exit: 1, retry: "never", meaning: "the pair's reserve cannot support the requested amount" },
   pool_not_found: { exit: 1, retry: "never", meaning: "no liquidity pool exists for that pair" },
+  pool_already_exists: { exit: 1, retry: "never", meaning: "a liquidity pool already exists for that pool key, so it cannot be created" },
   position_not_found: { exit: 1, retry: "never", meaning: "no liquidity position with that id under that protocol" },
   no_matching_route: { exit: 1, retry: "same", meaning: "the route service found no path for that pair" },
   launchpad_token_not_found: { exit: 1, retry: "never", meaning: "that address is not a SunPump token on this network" },

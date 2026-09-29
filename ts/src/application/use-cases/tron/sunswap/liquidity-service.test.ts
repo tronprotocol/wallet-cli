@@ -1407,14 +1407,39 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
    */
   it("resolves symbols on the creating path too", async () => {
     keysAsked.length = 0;
-    await run({
+    await run(
+      {
+        ...BASE_V4,
+        createPool: true,
+        sqrtPrice: "79228162514264337593543950336",
+        amount1: "1",
+        dryRun: true,
+      },
+      v4Port({
+        v4PoolState: vi.fn(async () => ({ ...POOL, exists: false, sqrtPriceX96: "0" })),
+      } as Partial<LiquidityPort>),
+    ).result;
+    expect(keysAsked[0]).toMatchObject({ token0: USDT, token1: WTRX });
+  });
+
+  /**
+   * CREATING A POOL THAT EXISTS IS REFUSED.
+   *
+   * The creating path sizes the deposit at the caller's `--sqrt-price`, not the pool's, so on a pool
+   * that is already live it planned amounts for a price the pool does not have and published
+   * `poolCreated: true` for a pool nobody created. Measured on Nile: TRX/USDT at fee 500, spacing 10.
+   */
+  it("refuses --create-pool on a key that already names a live pool", async () => {
+    const { result } = run({
       ...BASE_V4,
       createPool: true,
       sqrtPrice: "79228162514264337593543950336",
       amount1: "1",
       dryRun: true,
-    }).result;
-    expect(keysAsked[0]).toMatchObject({ token0: USDT, token1: WTRX });
+    });
+    await expect(result).rejects.toMatchObject({ code: "pool_already_exists" });
+    await expect(result).rejects.toThrow(POOL_ID);
+    await expect(result).rejects.toThrow(/without --create-pool/);
   });
 
   /**

@@ -552,6 +552,19 @@ export class SunSwapLiquidityService {
       target.kind === "existing"
         ? await this.liquidity.v4PoolState(network, poolId)
         : this.#createdPool(target, poolId);
+    /*
+     * Creating a pool that is already live is refused rather than planned.
+     *
+     * The creating path sizes at the caller's `--sqrt-price`, not the pool's — that is its point — so
+     * on a live pool it would size for a price the pool does not have and report a creation that
+     * never happens. Only existence is read here; the price stays the caller's.
+     */
+    if (target.kind === "create" && (await this.liquidity.v4PoolState(network, poolId)).exists) {
+      throw new ChainError(
+        "pool_already_exists",
+        `a V4 pool already exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} (pool id ${poolId}). Deposit into it without --create-pool and --sqrt-price`,
+      );
+    }
     if (target.kind === "existing" && !pool.exists) {
       /*
        * A key that hashes to nothing, said as what it is.
