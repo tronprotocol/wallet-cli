@@ -61,6 +61,7 @@ function makePort(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
   return {
     tokenFacts: vi.fn(async (_n: NetworkDescriptor, address: string) => FACTS[address]!),
     v2PairState: vi.fn(async () => PAIR),
+    v2LiquidityResult: vi.fn(async () => undefined),
     balanceOf: vi.fn(async () => "999999999999"),
     nativeBalance: vi.fn(async () => "999999999999"),
     allowance: vi.fn(async () => "0"),
@@ -531,20 +532,24 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
     return harness;
   }
 
-  it("reports what the pool actually took, not what was requested", async () => {
+  it("isolates this deposit from concurrent swaps and LP transfers", async () => {
     let pairReads = 0;
     const port = makePort({
+      v2LiquidityResult: vi.fn(async () => ({
+        amount0: "900000",
+        amount1: "686044",
+        lpAmount: "780258",
+      })),
       allowance: vi.fn(async () => "999999999999") as never,
       v2PairState: vi.fn(async () => {
         pairReads += 1;
-        // After the deposit the reserves have grown — by less than the request, as a V2 pool
-        // takes the two sides at its own ratio.
+        // A concurrent swap also changes reserves; those deltas cannot price our deposit.
         return pairReads === 1
           ? PAIR
-          : { ...PAIR, reserve0: "8971374880412", reserve1: "6154766561060" };
+          : { ...PAIR, reserve0: "8971374980412", reserve1: "6154766461060" };
       }) as never,
       balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
-        token === PAIR.pairAddress ? (pairReads > 1 ? "780258" : "0") : "999999999999",
+        token === PAIR.pairAddress ? (pairReads > 1 ? "880258" : "0") : "999999999999",
       ) as never,
     });
     const { service, scope } = confirming(port);
@@ -558,9 +563,19 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
     expect(result.token1).toMatchObject({ amount: "686044", symbol: "WTRX", decimals: 6 });
     expect(result.lpAmount).toBe("780258");
     expect(result.reservesAfter).toEqual({
-      token0: "8971374880412",
-      token1: "6154766561060",
+      token0: "8971374980412",
+      token1: "6154766461060",
     });
+  });
+
+  it("keeps estimates explicit when the router result is missing", async () => {
+    const port = makePort({ allowance: vi.fn(async () => "999999999999") });
+    const { service, scope } = confirming(port);
+    const result = await service.addLiquidityV2(scope, NETWORK, BASE);
+    expect(result.stage).toBe("confirmed");
+    expect(result.amountsEstimated).toBe(true);
+    expect(result).not.toHaveProperty("lpAmount");
+    expect(scope.warn).toHaveBeenCalled();
   });
 
   it("leaves a submitted receipt alone — there is nothing on chain to read back", async () => {
@@ -584,6 +599,11 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
   it("warns rather than fails when the follow-up read is unavailable", async () => {
     let pairReads = 0;
     const port = makePort({
+      v2LiquidityResult: vi.fn(async () => ({
+        amount0: "900000",
+        amount1: "686044",
+        lpAmount: "780258",
+      })),
       allowance: vi.fn(async () => "999999999999") as never,
       v2PairState: vi.fn(async () => {
         pairReads += 1;
@@ -596,9 +616,13 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
     // The deposit is on chain; a follow-up read that fails must not turn it into an error.
     const result = (await service.addLiquidityV2(scope, NETWORK, BASE)) as Record<string, unknown>;
 
+    expect(result.token0).toMatchObject({ amount: "900000" });
+    expect(result.lpAmount).toBe("780258");
+    expect(result.lpDecimals).toBe(6);
+    expect(result.amountsEstimated).toBe(false);
     expect(result.txId).toBe(`tx:built:${ADD_LIQUIDITY}`);
     expect(scope.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "sunswap_liquidity_postread_unavailable" }),
+      expect.objectContaining({ code: "sunswap_liquidity_reserves_unavailable" }),
     );
   });
 });
@@ -892,6 +916,31 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
     return harness;
   }
 
+  it("uses the V3 IncreaseLiquidity receipt even if later position state has changed", async () => {
+    const port = makePort({
+      allowance: vi.fn(async () => "999999999999"),
+      v3DepositedAmounts: vi.fn(async () => ({
+        tokenId: "686",
+        liquidity: "12345",
+        amount0: "999000",
+        amount1: "173000",
+      })),
+    });
+    const { service, scope } = confirmingHarness(port);
+    await expect(
+      service.addLiquidity(scope, NETWORK, {
+        protocol: "V3",
+        positionId: "686",
+        amount0: "1",
+      }),
+    ).resolves.toMatchObject({
+      liquidity: "12345",
+      token0: { amount: "999000" },
+      token1: { amount: "173000" },
+      amountsEstimated: false,
+    });
+  });
+
   // A V3 pool takes the amounts at its own price, so it credits a little less than the plan
   // predicted. A live Nile run found the receipt reporting the planned figure: two deposits of
   // 14,398,816 each read back as 28,793,272 on chain, not 28,797,632 — and that figure is what a
@@ -1039,6 +1088,27 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     const h = makeHarness(port, standingGrants, signers);
     return { ...h, result: h.service.addLiquidity(h.scope, NETWORK, input as never) };
   }
+
+  it("uses receipt settlement amounts and liquidity instead of planning and later position deltas", async () => {
+    const port = v4Port({
+      v4LiquidityResult: vi.fn(async () => ({
+        tokenId: "12",
+        liquidityDelta: "12345",
+        principal0: "-999000",
+        principal1: "-173000",
+        fee0: "100",
+        fee1: "20",
+        balanceDelta0: "-998900",
+        balanceDelta1: "-172980",
+      })),
+    });
+    await expect(run(BASE_V4, port).result).resolves.toMatchObject({
+      token0: { amount: "998900" },
+      token1: { amount: "172980" },
+      liquidity: "12345",
+      amountsEstimated: false,
+    });
+  });
 
   it("refuses a pair that is not the one the position holds, naming both", async () => {
     const { result } = run({ ...BASE_V4, token1: USDT, dryRun: true });

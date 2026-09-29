@@ -90,11 +90,8 @@ export interface CollectedSide {
   readonly symbol: string;
   readonly decimals: number;
   /**
-   * V3: base units owed before the transaction; what actually arrived afterwards.
-   * V4: base units the LP fee helper reported as owed immediately before the call.
-   *
-   * ABSENT on either protocol when the read did not answer. An absent amount is the honest answer
-   * to a question nobody could put; a zero would be a claim that the position earned nothing.
+   * Base units estimated before sending, then actual settlement after confirmation.
+   * Absent when neither an estimate nor a receipt is available.
    */
   readonly amount?: string;
 }
@@ -209,6 +206,7 @@ export class SunSwapCollectFeesService {
       token0: plan.token0,
       token1: plan.token1,
       ...outcomeData(main),
+      amountsEstimated: true,
       ...settled,
     };
   }
@@ -274,6 +272,7 @@ export class SunSwapCollectFeesService {
         return "the collection confirmed but its Collect event could not be read, so the receipt reports what was owed beforehand rather than what arrived";
       }
       settled = {
+        amountsEstimated: false,
         token0: { ...plan.token0, amount: actual.amount0 },
         token1: { ...plan.token1, amount: actual.amount1 },
       };
@@ -360,11 +359,28 @@ export class SunSwapCollectFeesService {
       feeLimit: input.feeLimit,
     });
 
-    // No post-read: there is no decodable event for what a V4 collection paid out. The amounts on
-    // the receipt are the LP fee helper's, read immediately before the call — and the call takes
-    // everything owed, so they are what it moved unless the pool traded in between. When the helper
-    // could not be read there is no amount at all, rather than a zero.
-    return { kind: KIND, ...plan, ...outcomeData(main) };
+    let settled: Record<string, unknown> = {};
+    const txId = outcomeTxId(main);
+    if (main.stage === "confirmed" && txId !== undefined) {
+      await warnOnPostCheck(scope, "sunswap_collect_amounts", async () => {
+        const actual = await this.liquidity.v4LiquidityResult(network, txId, {
+          poolId: plan.poolId!,
+          tokenId: plan.nftTokenId,
+          account: plan.recipient,
+          token0: plan.token0.address,
+          token1: plan.token1.address,
+        });
+        if (!actual)
+          return "the collection confirmed but its actual amounts could not be read; amounts remain estimates";
+        settled = {
+          token0: { ...plan.token0, amount: actual.balanceDelta0 },
+          token1: { ...plan.token1, amount: actual.balanceDelta1 },
+          amountsEstimated: false,
+        };
+        return undefined;
+      });
+    }
+    return { kind: KIND, ...plan, ...outcomeData(main), amountsEstimated: true, ...settled };
   }
 
   /**

@@ -37,6 +37,8 @@ import type {
   V3Position,
   V3RemoveRequest,
   V4DepositRequest,
+  V4LiquidityReceiptQuery,
+  V4LiquidityResult,
   V4IncreaseRequest,
   V4RemoveRequest,
   V4OwedFees,
@@ -100,6 +102,14 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
 
   constructor(private readonly gateways: ChainGatewayProvider) {
     this.#v4 = new SunSwapV4Contracts(gateways);
+  }
+
+  v4LiquidityResult(
+    network: NetworkDescriptor,
+    txId: string,
+    query: V4LiquidityReceiptQuery,
+  ): Promise<V4LiquidityResult | undefined> {
+    return this.#v4.liquidityResult(network, txId, query);
   }
 
   async v4PoolState(network: NetworkDescriptor, poolId: string): Promise<V4PoolState> {
@@ -713,6 +723,55 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
       ],
     );
     return { amount0: word(raw, 0), amount1: word(raw, 1) };
+  }
+
+  async v2LiquidityResult(
+    network: NetworkDescriptor,
+    txId: string,
+    operation: "add" | "remove",
+    nativeFirst: boolean,
+  ): Promise<{ amount0: string; amount1: string; lpAmount?: string } | undefined> {
+    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    if (info.receipt?.result !== "SUCCESS") return undefined;
+    const results = info.contractResult;
+    if (!Array.isArray(results) || results.length !== 1 || typeof results[0] !== "string") {
+      return undefined;
+    }
+    const raw = results[0].replace(/^0x/, "");
+    const words = operation === "add" ? 3 : 2;
+    if (raw.length !== words * 64 || !/^[0-9a-f]+$/i.test(raw)) return undefined;
+    return {
+      amount0: word(raw, nativeFirst ? 1 : 0),
+      amount1: word(raw, nativeFirst ? 0 : 1),
+      ...(operation === "add" ? { lpAmount: word(raw, 2) } : {}),
+    };
+  }
+
+  async v3DepositedAmounts(network: NetworkDescriptor, txId: string, tokenId?: string) {
+    const managerHex = tronHexAddress(this.#positionManager(network)).slice(2).toLowerCase();
+    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    if (info.receipt?.result !== "SUCCESS" || !Array.isArray(info.log)) return undefined;
+    const topic = eventTopic("IncreaseLiquidity(uint256,uint128,uint256,uint256)");
+    const matches = (info.log as TronLogEntry[]).filter((entry) => {
+      const topics = entry.topics ?? [];
+      return (
+        String(entry.address ?? "").toLowerCase() === managerHex &&
+        topics.length === 2 &&
+        String(topics[0]).toLowerCase() === topic &&
+        /^[0-9a-f]{64}$/i.test(String(topics[1])) &&
+        (tokenId === undefined || BigInt(`0x${topics[1]}`).toString() === tokenId)
+      );
+    });
+    if (matches.length !== 1) return undefined;
+    const event = matches[0]!;
+    const data = String(event.data ?? "");
+    if (!/^[0-9a-f]{192}$/i.test(data)) return undefined;
+    return {
+      tokenId: BigInt(`0x${event.topics![1]}`).toString(),
+      liquidity: word(data, 0),
+      amount0: word(data, 1),
+      amount1: word(data, 2),
+    };
   }
 
   /** What a confirmed removal transferred, from the manager's own `Collect` event. */

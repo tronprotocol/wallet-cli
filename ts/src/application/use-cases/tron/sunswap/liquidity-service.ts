@@ -398,12 +398,36 @@ export class SunSwapLiquidityService {
             main,
           )
         : await this.#settleV4Mint(scope, network, main);
+    const txId = outcomeTxId(main);
+    if (main.stage === "confirmed" && txId !== undefined) {
+      await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
+        const actual = await this.liquidity.v4LiquidityResult(network, txId, {
+          poolId: plan.poolId!,
+          account: owner,
+          ...(call.kind === "increase" ? { tokenId: call.request.tokenId } : {}),
+          token0: plan.token0.address,
+          token1: plan.token1.address,
+          nativeValueSent: payload.callValueSun ?? "0",
+        });
+        if (!actual)
+          return "the deposit confirmed but its actual amounts could not be read; amounts remain estimates";
+        Object.assign(settled, {
+          token0: { ...plan.token0, amount: (-BigInt(actual.balanceDelta0)).toString() },
+          token1: { ...plan.token1, amount: (-BigInt(actual.balanceDelta1)).toString() },
+          liquidity: actual.liquidityDelta,
+          nftTokenId: actual.tokenId,
+          amountsEstimated: false,
+        });
+        return undefined;
+      });
+    }
     return {
       kind: KIND,
       ...plan,
       ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
       ...outcomeData(main),
       // Last, so the liquidity the position actually gained replaces the one that was planned.
+      amountsEstimated: true,
       ...settled,
     };
   }
@@ -414,7 +438,7 @@ export class SunSwapLiquidityService {
     input: AddLiquidityV2Input,
   ): Promise<Record<string, unknown>> {
     const owner = scope.resolveAddress("tron");
-    const { plan, pair } = await this.#planV2(network, owner, input);
+    const { plan } = await this.#planV2(network, owner, input);
     const mode = transactionMode(input);
 
     // A dry run answers without a key: PM 13.1 requires it to work for a watch-only account, so
@@ -456,11 +480,6 @@ export class SunSwapLiquidityService {
       input.feeLimit,
     );
 
-    // What the recipient holds of the LP token before the deposit. The difference after it is
-    // what this deposit minted — read rather than computed, because the expected figure is what
-    // the pool looked like a moment ago and the actual one is what it paid.
-    const lpBefore = await this.#lpBalance(network, pair, plan.recipient);
-
     // Every approval above is confirmed and re-read by the time this runs, so the deposit's
     // preconditions hold and its estimate is a real one.
     const main = await this.tx.run(scope, network, this.#depositPayload(network, plan), {
@@ -469,38 +488,25 @@ export class SunSwapLiquidityService {
       feeLimit: input.feeLimit,
     });
 
-    const settled = await this.#settle(scope, network, plan, pair, lpBefore, main);
+    const settled = await this.#settle(scope, network, plan, main);
 
     return {
       kind: KIND,
       account: plan.account,
       protocol: plan.protocol,
       router,
+      lpDecimals: plan.lpDecimals,
       recipient: plan.recipient,
       token0: publishedSide(plan.token0),
       token1: publishedSide(plan.token1),
       ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
       ...outcomeData(main),
       // Last, so the amounts the chain actually took replace the ones that were requested.
+      amountsEstimated: true,
       ...settled,
     };
   }
 
-  /**
-   * What the deposit actually did, read back from the chain (PM 6.1.4).
-   *
-   * Only in the confirmed state: before a transaction is mined there is nothing to read, and a
-   * submitted receipt that reported "actual" amounts would be reporting the requested ones under
-   * a name that promises otherwise.
-   *
-   * A V2 pool takes the two sides at ITS ratio, not at the caller's, so the amounts that landed
-   * are routinely smaller than the ones asked for — the excess stays in the account. They come
-   * from the reserves' movement, which is the pool's own record of what it received, and the LP
-   * minted comes from the recipient's balance delta.
-   *
-   * Best-effort throughout: the transaction is already on chain, so a failed follow-up read
-   * degrades to a warning rather than turning a successful deposit into an error.
-   */
   /**
    * Everything a V4 deposit needs, decided before anything is sent.
    *
@@ -1076,40 +1082,42 @@ export class SunSwapLiquidityService {
     scope: TransactionScope,
     network: NetworkDescriptor,
     plan: LiquidityPlanView,
-    before: V2PairState,
-    lpBefore: string,
     outcome: TxOutcome,
   ): Promise<Record<string, unknown>> {
     if (outcome.stage !== "confirmed") return {};
-    let settled: Record<string, unknown> = {};
+    const txId = outcomeTxId(outcome);
+    if (!txId) return {};
+    const settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_liquidity_postread", async () => {
-      const [after, lpAfter] = await Promise.all([
-        this.liquidity.v2PairState(
-          network,
-          poolSideOf(network, plan.token0.address),
-          poolSideOf(network, plan.token1.address),
-        ),
-        this.#lpBalance(network, before, plan.recipient),
-      ]);
-      const added0 = difference(after.reserve0, before.reserve0);
-      const added1 = difference(after.reserve1, before.reserve1);
-      settled = {
-        token0: { ...publishedSide(plan.token0), amount: added0 },
-        token1: { ...publishedSide(plan.token1), amount: added1 },
-        lpAmount: difference(lpAfter, lpBefore),
+      const actual = await this.liquidity.v2LiquidityResult(
+        network,
+        txId,
+        "add",
+        isNative(plan.token0.address),
+      );
+      if (!actual) return "the router result could not be read; amounts remain estimates";
+      Object.assign(settled, {
+        token0: { ...publishedSide(plan.token0), amount: actual.amount0 },
+        token1: { ...publishedSide(plan.token1), amount: actual.amount1 },
+        lpAmount: actual.lpAmount,
+        amountsEstimated: false,
+      });
+      return undefined;
+    });
+    await warnOnPostCheck(scope, "sunswap_liquidity_reserves", async () => {
+      const after = await this.liquidity.v2PairState(
+        network,
+        poolSideOf(network, plan.token0.address),
+        poolSideOf(network, plan.token1.address),
+      );
+      Object.assign(settled, {
         lpDecimals: after.lpDecimals,
         reservesAfter: { token0: after.reserve0, token1: after.reserve1 },
         pool: after.pairAddress,
-      };
+      });
       return undefined;
     });
     return settled;
-  }
-
-  /** The LP token is the pair contract itself; a pool that does not exist yet has none. */
-  async #lpBalance(network: NetworkDescriptor, pair: V2PairState, owner: string): Promise<string> {
-    if (!pair.exists) return "0";
-    return this.liquidity.balanceOf(network, pair.pairAddress, owner);
   }
 
   /**
@@ -1187,6 +1195,27 @@ export class SunSwapLiquidityService {
       main,
     );
 
+    const txId = outcomeTxId(main);
+    if (main.stage === "confirmed" && txId !== undefined) {
+      await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
+        const actual = await this.liquidity.v3DepositedAmounts(
+          network,
+          txId,
+          plan.nftTokenId ?? minted,
+        );
+        if (!actual)
+          return "the deposit confirmed but its IncreaseLiquidity event could not be read; amounts remain estimates";
+        Object.assign(settled, {
+          token0: { ...publishedSide(plan.token0), amount: actual.amount0 },
+          token1: { ...publishedSide(plan.token1), amount: actual.amount1 },
+          liquidity: actual.liquidity,
+          nftTokenId: actual.tokenId,
+          amountsEstimated: false,
+        });
+        return undefined;
+      });
+    }
+
     return {
       kind: KIND,
       account: plan.account,
@@ -1207,6 +1236,7 @@ export class SunSwapLiquidityService {
       ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
       ...outcomeData(main),
       // Last, so the liquidity the position actually gained replaces the one that was planned.
+      amountsEstimated: true,
       ...settled,
     };
   }
@@ -1815,13 +1845,6 @@ function publishedSide(side: PlannedSide): Record<string, unknown> {
     decimals: side.decimals,
     amount: side.amount,
   };
-}
-
-/** `after - before`, floored at zero: a reserve that did not grow says the pool took nothing,
- *  and a negative "amount added" would be a nonsense number to publish. */
-function difference(after: string, before: string): string {
-  const delta = BigInt(after) - BigInt(before);
-  return (delta > 0n ? delta : 0n).toString();
 }
 
 /** The pool's price is pinned at the edge of the representable range: it was initialised and has

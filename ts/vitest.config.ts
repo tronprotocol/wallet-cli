@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { join } from "node:path";
+import { availableParallelism } from "node:os";
 
 export default defineConfig({
   test: {
@@ -15,14 +16,13 @@ export default defineConfig({
         },
       },
       {
-        // Golden tests spawn a fresh `node --import tsx src/index.ts` per case, which cold-transpiles the
-        // whole CLI import graph each time. Under parallel CPU load a single spawn can take far
-        // longer than vitest's default 5s testTimeout, causing intermittent timeout failures.
-        // 30s covers the heaviest case (~4s on a 10-core dev box) on CI's 2-core runner, where the
-        // same case has been measured past 15s. Keep this suite above the child-process guard so
-        // hangs fail with subprocess details.
+        // Each golden invocation stays a separate process. Keep the test timeout above
+        // its 25s subprocess guard so a hung command fails with subprocess diagnostics.
         test: {
           name: "golden",
+          // Each worker also starts a full CLI process; cap CPU/memory contention from SDK
+          // loading and real scrypt rather than multiplying it by every available core.
+          maxWorkers: Math.min(4, availableParallelism()),
           environment: "node",
           include: ["test/**/*.test.ts"],
           testTimeout: 30_000,

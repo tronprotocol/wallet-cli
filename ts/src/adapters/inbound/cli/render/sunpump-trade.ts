@@ -122,7 +122,6 @@ export const SunPumpTradeFormatters = {
  * the amount is what stops a reader adding it on top of what they already paid.
  */
 function tradeRows(value: TradeView): Pair[] {
-  const sent = value.mode === undefined ? "" : " (est)";
   if (isBuy(value)) {
     return [
       [
@@ -130,7 +129,7 @@ function tradeRows(value: TradeView): Pair[] {
         `${formatSun(value.trxIn ?? "0")} TRX (incl. ${formatSun(value.platformFee)} TRX platform fee)`,
       ],
       [
-        value.mode === undefined ? "Received" : `Receive${sent}`,
+        value.mode === undefined ? "Received (est)" : "Receive (est)",
         value.tokensOutExpected === undefined ? "" : tokens(value, value.tokensOutExpected),
       ],
       [
@@ -145,7 +144,7 @@ function tradeRows(value: TradeView): Pair[] {
       value.tokensIn === undefined ? "" : tokens(value, value.tokensIn),
     ],
     [
-      value.mode === undefined ? "Received" : `Receive${sent}`,
+      value.mode === undefined ? "Received (est)" : "Receive (est)",
       value.trxOutExpected === undefined
         ? ""
         : `${formatSun(value.trxOutExpected)} TRX (after ${formatSun(value.platformFee)} TRX platform fee)`,
@@ -188,14 +187,7 @@ function approvalRows(value: TradeView): Pair[] {
 
 const direction = (value: TradeView) => (isBuy(value) ? "buy" : "sell");
 
-function confirmedSummary(value: TradeView): string {
-  if (isBuy(value)) {
-    const got = value.tokensOutExpected === undefined ? "" : tokens(value, value.tokensOutExpected);
-    return `Bought ${got} for ${formatSun(value.trxIn ?? "0")} TRX`;
-  }
-  const sold = value.tokensIn === undefined ? "" : tokens(value, value.tokensIn);
-  return `Sold ${sold} for ${formatSun(value.trxOutExpected ?? "0")} TRX`;
-}
+const confirmedSummary = (value: TradeView) => (isBuy(value) ? "Buy confirmed" : "Sale confirmed");
 
 const submittedSummary = (value: TradeView) => (isBuy(value) ? "Buy submitted" : "Sale submitted");
 

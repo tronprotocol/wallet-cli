@@ -199,13 +199,12 @@ export class SunSwapRemoveLiquidityService {
       mode,
       input.feeLimit,
     );
-    const before = await this.#heldAmounts(network, plan, plan.recipient);
     const main = await this.tx.run(scope, network, payload, {
       mode,
       estimable: true,
       feeLimit: input.feeLimit,
     });
-    const settled = await this.#settleV2(scope, network, plan, before, main);
+    const settled = await this.#settleV2(scope, network, plan, main);
 
     return {
       kind: KIND,
@@ -222,6 +221,7 @@ export class SunSwapRemoveLiquidityService {
       token1: publishedSide(plan.token1),
       ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
       ...outcomeData(main),
+      amountsEstimated: true,
       ...settled,
     };
   }
@@ -329,65 +329,42 @@ export class SunSwapRemoveLiquidityService {
     });
   }
 
-  /**
-   * What actually came back, read rather than echoed.
-   *
-   * The reserves move between planning and mining, so the share a burn is worth is not the share
-   * it was worth a moment ago. The recipient's own balances are the honest record of what
-   * arrived. Best-effort: the tokens are already theirs, so a failed follow-up read costs the
-   * exact figure, not the withdrawal.
-   */
+  /** Read this transaction's router result; account deltas also include fees and other transfers. */
   async #settleV2(
     scope: TransactionScope,
     network: NetworkDescriptor,
     plan: RemovalPlanView,
-    before: { amount0: string; amount1: string },
     outcome: TxOutcome,
   ): Promise<Record<string, unknown>> {
     if (outcome.stage !== "confirmed") return {};
-    let settled: Record<string, unknown> = {};
+    const txId = outcomeTxId(outcome);
+    if (!txId) return {};
+    const settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_removal_postread", async () => {
-      const [after, pairAfter] = await Promise.all([
-        this.#heldAmounts(network, plan, plan.recipient),
-        this.liquidity.v2PairState(
-          network,
-          poolSideOf(network, plan.token0.address),
-          poolSideOf(network, plan.token1.address),
-        ),
-      ]);
-      settled = {
-        token0: {
-          ...publishedSide(plan.token0),
-          amount: difference(after.amount0, before.amount0),
-        },
-        token1: {
-          ...publishedSide(plan.token1),
-          amount: difference(after.amount1, before.amount1),
-        },
-        reservesAfter: { token0: pairAfter.reserve0, token1: pairAfter.reserve1 },
-      };
+      const actual = await this.liquidity.v2LiquidityResult(
+        network,
+        txId,
+        "remove",
+        isNative(plan.token0.address),
+      );
+      if (!actual) return "the router result could not be read; amounts remain estimates";
+      Object.assign(settled, {
+        token0: { ...publishedSide(plan.token0), amount: actual.amount0 },
+        token1: { ...publishedSide(plan.token1), amount: actual.amount1 },
+        amountsEstimated: false,
+      });
+      return undefined;
+    });
+    await warnOnPostCheck(scope, "sunswap_removal_reserves", async () => {
+      const after = await this.liquidity.v2PairState(
+        network,
+        poolSideOf(network, plan.token0.address),
+        poolSideOf(network, plan.token1.address),
+      );
+      settled.reservesAfter = { token0: after.reserve0, token1: after.reserve1 };
       return undefined;
     });
     return settled;
-  }
-
-  /** What the recipient holds of both sides right now — native TRX included. */
-  async #heldAmounts(
-    network: NetworkDescriptor,
-    plan: RemovalPlanView,
-    owner: string,
-  ): Promise<{ amount0: string; amount1: string }> {
-    const [amount0, amount1] = await Promise.all([
-      this.#balance(network, plan.token0.address, owner),
-      this.#balance(network, plan.token1.address, owner),
-    ]);
-    return { amount0, amount1 };
-  }
-
-  async #balance(network: NetworkDescriptor, token: string, owner: string): Promise<string> {
-    return isNative(token)
-      ? this.liquidity.nativeBalance(network, owner)
-      : this.liquidity.balanceOf(network, token, owner);
   }
 
   // ── V3 ──────────────────────────────────────────────────────────────────────
@@ -444,6 +421,7 @@ export class SunSwapRemoveLiquidityService {
       token0: publishedSide(plan.token0),
       token1: publishedSide(plan.token1),
       ...outcomeData(main),
+      amountsEstimated: true,
       ...settled,
     };
   }
@@ -567,6 +545,7 @@ export class SunSwapRemoveLiquidityService {
         return "the removal confirmed but its Collect event could not be read, so the receipt reports the expected amounts rather than the actual ones";
       }
       settled = {
+        amountsEstimated: false,
         token0: splitSide(plan.token0, collected.amount0, owed?.amount0),
         token1: splitSide(plan.token1, collected.amount1, owed?.amount1),
         liquidityAfter: after.liquidity,
@@ -658,6 +637,7 @@ export class SunSwapRemoveLiquidityService {
       token0: withFees(publishedSide(plan.token0), owed?.amount0),
       token1: withFees(publishedSide(plan.token1), owed?.amount1),
       ...outcomeData(main),
+      amountsEstimated: true,
       ...settled,
     };
   }
@@ -878,9 +858,40 @@ export class SunSwapRemoveLiquidityService {
   ): Promise<Record<string, unknown>> {
     if (outcome.stage !== "confirmed") return {};
     let settled: Record<string, unknown> = {};
+    const txId = outcomeTxId(outcome);
+    if (txId !== undefined) {
+      await warnOnPostCheck(scope, "sunswap_removal_amounts", async () => {
+        const actual = await this.liquidity.v4LiquidityResult(network, txId, {
+          poolId: plan.poolId!,
+          tokenId: plan.nftTokenId!,
+          account: plan.recipient,
+          token0: plan.token0.address,
+          token1: plan.token1.address,
+        });
+        if (!actual)
+          return "the withdrawal confirmed but its actual amounts could not be read; amounts remain estimates";
+        settled = {
+          token0: {
+            ...publishedSide(plan.token0),
+            amount: actual.principal0,
+            feeAmount: actual.fee0,
+            receivedAmount: actual.balanceDelta0,
+          },
+          token1: {
+            ...publishedSide(plan.token1),
+            amount: actual.principal1,
+            feeAmount: actual.fee1,
+            receivedAmount: actual.balanceDelta1,
+          },
+          liquidity: (-BigInt(actual.liquidityDelta)).toString(),
+          amountsEstimated: false,
+        };
+        return undefined;
+      });
+    }
     await warnOnPostCheck(scope, "sunswap_removal_postread", async () => {
       const after = await this.liquidity.v4Position(network, plan.nftTokenId ?? "0");
-      settled = { liquidityAfter: after.liquidity };
+      settled = { ...settled, liquidityAfter: after.liquidity };
       return undefined;
     });
     return settled;
@@ -971,11 +982,6 @@ function splitSide(
 /** `amount * reserve / totalSupply` — the share of a reserve that a burn is worth. */
 function share(amount: string, reserve: string, totalSupply: string): string {
   return ((BigInt(amount) * BigInt(reserve)) / BigInt(totalSupply)).toString();
-}
-
-function difference(after: string, before: string): string {
-  const delta = BigInt(after) - BigInt(before);
-  return (delta > 0n ? delta : 0n).toString();
 }
 
 function wholeNumber(value: string, flag: string): string {

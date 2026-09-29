@@ -54,6 +54,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:golden": "vitest run --project golden",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build",
     "verify:package": "node scripts/verify-package.mjs"

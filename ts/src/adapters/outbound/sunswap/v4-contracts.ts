@@ -46,6 +46,8 @@ import type {
   ContractCallPayload,
   ContractParameter,
   V4DepositRequest,
+  V4LiquidityReceiptQuery,
+  V4LiquidityResult,
   V4IncreaseRequest,
   V4OwedFees,
   V4OwedFeesQuery,
@@ -61,6 +63,7 @@ import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { tronBytesToBase58 } from "../../../domain/address/index.js";
 import { normalisePoolId } from "../../../domain/sunswap/protocol.js";
 import { assertPositionPool, decodeV4PositionInfo } from "../../../domain/sunswap/v4-position.js";
+import { decodeV4LiquidityReceipt } from "./v4-liquidity-receipt.js";
 import { V4_NO_HOOKS } from "../../../domain/sunswap/v4-pool.js";
 
 /** The SDK's own network names, which its V4 builders take. */
@@ -71,6 +74,21 @@ const SDK_NETWORKS: Readonly<Record<string, string>> = {
 
 export class SunSwapV4Contracts {
   constructor(private readonly gateways: ChainGatewayProvider) {}
+
+  async liquidityResult(
+    network: NetworkDescriptor,
+    txId: string,
+    query: V4LiquidityReceiptQuery,
+  ): Promise<V4LiquidityResult | undefined> {
+    const sdkNetwork = this.#network(network);
+    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    return decodeV4LiquidityReceipt(
+      info,
+      query,
+      String(getContractAddress(sdkNetwork, "sunswapV4PositionManager")),
+      String(getContractAddress(sdkNetwork, "sunswapV4PoolManager")),
+    );
+  }
 
   /**
    * A pool, by id.

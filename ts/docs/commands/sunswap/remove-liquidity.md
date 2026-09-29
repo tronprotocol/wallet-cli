@@ -63,9 +63,9 @@ On both, a withdrawal also pays out **every fee the position has accrued**, in t
 The receipt's `Received` line is the **total**, because that is the number a person is checking. JSON splits it: `amount` is the principal, `feeAmount` is the fees paid out alongside. The two protocols arrive at the split differently:
 
 - **V3** reads the owed fees with a static call **before** sending and subtracts them from what the transaction's `Collect` event says arrived.
-- **V4** emits no event this CLI decodes, so `amount` is the principal the plan computed and `feeAmount` is what the position was owed just before sending. `feeAmount` is a **lower bound**: the pool can accrue more between that read and the block.
+- **V4** matches the pool and position `ModifyLiquidity` events: `amount` is the executed principal and `feeAmount` is the accrued LP fee. `receivedAmount` is the actual net transfer to the recipient, excluding network fees. Text uses `receivedAmount`; it can differ from principal plus fees when hooks adjust settlement.
 
-On both, when the owed-fees read fails, there is no `feeAmount` rather than a split invented from nothing.
+When the receipt cannot be decoded, V4 retains the pre-send estimate with `amountsEstimated: true` and a warning. Missing estimated fees are omitted.
 
 If you want the fees **without** touching the principal, use [`sunswap collect-fees`](collect-fees.md).
 
@@ -171,11 +171,13 @@ wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --token1 WTRX \
 
 ## Reading the JSON
 
+Broadcast results include `amountsEstimated`: `false` when the reported token amounts were read from this transaction’s receipt, `true` when they still come from the pre-transaction estimate. Pending, failed, and estimated results use `(est)` labels in text output. A confirmed transaction can still carry estimated amounts if the receipt read is unavailable.
+
 `kind` is `sunswap-remove-liquidity` in every mode.
 
 - `lpAmount` — LP tokens burned, base units, with `lpDecimals` beside it (V2).
 - `liquidity` — the position liquidity burned; `liquidityAfter` is what the position holds now, read back after confirmation (V3 and V4). Neither carries decimals, because a position's liquidity is not a token amount.
-- `token0` / `token1` — `{address, symbol, decimals, amount}`. Before the transaction, `amount` is what the current reserves say is coming back. Afterwards, on V2 and V3, it is what actually arrived — from the recipient's balances on V2 and from the `Collect` event on V3 — with `feeAmount` beside it on V3. On V4, `amount` is the planned principal and `feeAmount` the fees owed just before sending, as described above.
+- `token0` / `token1` — `{address, symbol, decimals, amount}`. Before the transaction, `amount` is what the current reserves say is coming back. Afterwards, on V2 and V3, it is what actually arrived — from the Router return values on V2 (before network fees) and from the `Collect` event on V3 — with `feeAmount` beside it on V3. On confirmed V4 transactions, `amount` and `feeAmount` are the executed principal and accrued fees; `receivedAmount` is the actual net amount received, as described above.
 - `poolId`, `feeTier`, `tickSpacing`, `hooks`, `tickLower`, `tickUpper` — the position's pool key and range (V4).
 - `reservesAfter` — the pool read back after confirmation (V2).
 - `fee` and `feeCovers` — the estimated cost and what it covers, as in [`add-liquidity`](add-liquidity.md).

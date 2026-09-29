@@ -65,6 +65,7 @@ function makePort(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
   return {
     tokenFacts: vi.fn(async (_n: NetworkDescriptor, address: string) => FACTS[address]!),
     v2PairState: vi.fn(async () => PAIR),
+    v2LiquidityResult: vi.fn(async () => undefined),
     balanceOf: vi.fn(async () => "999999999999"),
     nativeBalance: vi.fn(async () => "999999999999"),
     allowance: vi.fn(async () => "0"),
@@ -106,7 +107,7 @@ interface PipelineParams {
   estimate: (tx: unknown) => Promise<Record<string, unknown>>;
 }
 
-function makeHarness(port: LiquidityPort = makePort(), confirmed = false) {
+function makeHarness(port: LiquidityPort = makePort(), confirmed = false, feeSun = 0) {
   const gateway = {
     triggerSmartContract: vi.fn(async (_from, target, method) => ({
       txID: `built:${method}`,
@@ -127,7 +128,7 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = false) {
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };
       if (p.mode === "build-only") return { stage: "built", tx, hex: "0abc", fee };
       return confirmed
-        ? { stage: "confirmed", txId: `tx:${tx.txID}`, blockNumber: 1, fee }
+        ? { stage: "confirmed", txId: `tx:${tx.txID}`, blockNumber: 1, fee, feeSun }
         : { stage: "submitted", txId: `tx:${tx.txID}`, fee };
     }),
   } as unknown as TxPipeline;
@@ -212,6 +213,88 @@ describe("remove-liquidity V2", () => {
 
     expect(assertCanSign).not.toHaveBeenCalled();
   });
+});
+
+describe("remove-liquidity V2 — gross native receipts", () => {
+  it.each([
+    ["token0", OWNER, "895260075", "20073600"],
+    ["token1", OWNER, "895260075", "20073600"],
+    ["token0", USDT, "895260075", "20073600"],
+    ["token0", OWNER, "1000000", "20073600"],
+    ["token0", OWNER, "895260075", "0"],
+  ])(
+    "reports received TRX on %s to %s (received %s, fee %s)",
+    async (side, recipient, received, fee) => {
+      // Nile a03bee79…: router pays 895.260075 TRX; the sender's balance only
+      // grows by 875.186475 because the same transaction costs 20.073600 TRX.
+      const before = 1000000000n;
+      // An unrelated incoming transfer lands while the removal confirms.
+      const after = before + BigInt(received) - (recipient === OWNER ? BigInt(fee) : 0n) + 1000000n;
+      const port = makePort({
+        v2LiquidityResult: vi.fn(async () => ({
+          amount0: side === "token0" ? received : "0",
+          amount1: side === "token1" ? received : "0",
+        })),
+        allowance: vi.fn(async () => "999999999999"),
+        nativeBalance: vi
+          .fn()
+          .mockResolvedValueOnce(before.toString())
+          .mockResolvedValue(after.toString()),
+        balanceOf: vi.fn(async (_n, token) => (token === PAIR_ADDRESS ? "999999999999" : "0")),
+      });
+      const { service, scope } = makeHarness(port, true, Number(fee));
+      const result = await service.removeLiquidity(scope, NETWORK, {
+        ...V2,
+        token0: side === "token0" ? "TRX" : USDT,
+        token1: side === "token1" ? "TRX" : USDT,
+        recipient,
+      });
+      expect(port.v2LiquidityResult).toHaveBeenCalledWith(
+        NETWORK,
+        expect.any(String),
+        "remove",
+        side === "token0",
+      );
+      expect(result.amountsEstimated).toBe(false);
+      expect(result[side]).toMatchObject({ amount: received });
+      expect(result[side === "token0" ? "token1" : "token0"]).toMatchObject({ amount: "0" });
+    },
+  );
+});
+
+describe("V2 removal receipt availability", () => {
+  it("preserves confirmed amounts if the later reserves query fails", async () => {
+    const port = makePort({
+      allowance: vi.fn(async () => "999999999999"),
+      v2LiquidityResult: vi.fn(async () => ({ amount0: "12", amount1: "34" })),
+      v2PairState: vi.fn().mockResolvedValueOnce(PAIR).mockRejectedValue(new Error("offline")),
+    });
+    const { service, scope } = makeHarness(port, true);
+    const result = await service.removeLiquidity(scope, NETWORK, V2);
+    expect(result.token0).toMatchObject({ amount: "12" });
+    expect(result.token1).toMatchObject({ amount: "34" });
+    expect(result.amountsEstimated).toBe(false);
+    expect(scope.warn).toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "marks missing receipt amounts as estimates (throws=%s)",
+    async (throws) => {
+      const port = makePort({
+        allowance: vi.fn(async () => "999999999999"),
+        v2LiquidityResult: vi.fn(async () => {
+          if (throws) throw new Error("offline");
+          return undefined;
+        }),
+      });
+      const { service, scope } = makeHarness(port, true);
+      const result = await service.removeLiquidity(scope, NETWORK, V2);
+      expect(result.stage).toBe("confirmed");
+      expect(result.amountsEstimated).toBe(true);
+      expect(result.token0).toMatchObject({ amount: "640812" });
+      expect(scope.warn).toHaveBeenCalled();
+    },
+  );
 });
 
 describe("remove-liquidity V3", () => {
@@ -760,5 +843,46 @@ describe("remove-liquidity V4 — the fees that arrive with the principal", () =
 
     expect(result.token0).not.toHaveProperty("feeAmount");
     expect(result.token1).not.toHaveProperty("feeAmount");
+  });
+});
+
+describe("V4 confirmed receipt amounts", () => {
+  it("uses actual principal and fees even when the pre-send estimates differ", async () => {
+    const port = makeV4Port({
+      v4OwedFees: vi.fn(async () => ({ amount0: "1", amount1: "2" })),
+      v4LiquidityResult: vi.fn(async () => ({
+        tokenId: "12",
+        liquidityDelta: "-1000",
+        principal0: "1660",
+        principal1: "602",
+        fee0: "4821",
+        fee1: "3132",
+        balanceDelta0: "6481",
+        balanceDelta1: "3734",
+      })),
+    });
+    const { service, scope } = makeHarness(port, true);
+    const result = await service.removeLiquidity(scope, NETWORK, V4);
+    expect(result.token0).toMatchObject({
+      amount: "1660",
+      feeAmount: "4821",
+      receivedAmount: "6481",
+    });
+    expect(result.token1).toMatchObject({
+      amount: "602",
+      feeAmount: "3132",
+      receivedAmount: "3734",
+    });
+    expect(result.amountsEstimated).toBe(false);
+  });
+  it("warns and preserves estimates when the confirmed receipt is unavailable", async () => {
+    const port = makeV4Port({ v4LiquidityResult: vi.fn(async () => undefined) });
+    const { service, scope } = makeHarness(port, true);
+    const result = await service.removeLiquidity(scope, NETWORK, V4);
+    expect(result.amountsEstimated).toBe(true);
+    expect(result.token0).not.toHaveProperty("receivedAmount");
+    expect(scope.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "sunswap_removal_amounts_mismatch" }),
+    );
   });
 });

@@ -177,3 +177,7 @@ describe("a swap that failed on chain", () => {
     expect(out).not.toContain("still in place");
   });
 });
+
+it("keeps a confirmed swap quote labelled as an estimate", () => {
+  expect(render(routerSwap({ stage: "confirmed" }))).toContain("Received (est)");
+});

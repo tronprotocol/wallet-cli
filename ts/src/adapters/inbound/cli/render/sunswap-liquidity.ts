@@ -34,6 +34,7 @@ interface ApprovalRow {
 interface LiquidityView {
   readonly mode?: string;
   readonly stage?: string;
+  readonly amountsEstimated?: boolean;
   readonly account?: string;
   readonly protocol: string;
   // ── V4 ──────────────────────────────────────────────────────────────────────
@@ -106,20 +107,17 @@ export const SunSwapLiquidityFormatters = {
   },
 };
 
-/**
- * The receipt of a deposit that was sent (PM 2.9, 6.1.4).
- *
- * `Deposited` rather than `Deposit`, and `LP received` rather than `LP received (est)`: past
- * tense is the difference between what a pool was asked for and what it took, and the amounts
- * here are the second of those.
- */
+/** Sent deposits retain an estimate label until their actual amounts are read. */
 function executed(value: LiquidityView, ctx: TextRenderContext): string {
   const stage = value.stage ?? "submitted";
   const rows: Pair[] = [
     ["Account", accountRow(value, ctx)],
     ["Protocol", value.protocol],
     ...positionRows(value),
-    ["Deposited", `${amount(value.token0)} / ${amount(value.token1)}`],
+    [
+      stage !== "confirmed" || value.amountsEstimated ? "Deposited (est)" : "Deposited",
+      `${amount(value.token0)} / ${amount(value.token1)}`,
+    ],
     ["LP received", lpRow(value, value.lpAmount)],
     ["Liquidity", value.liquidity === undefined ? "" : formatInt(value.liquidity)],
     ["Recipient", value.recipient],

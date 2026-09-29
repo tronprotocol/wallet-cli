@@ -809,3 +809,95 @@ describe("the V4 pool id, from the parts a caller gives", () => {
     expect(contracts.v4PoolIdOf(MAINNET, { ...key })).toBe(contracts.v4PoolIdOf(MAINNET, key));
   });
 });
+
+describe("V2 transaction return amounts", () => {
+  function portFor(contractResult: unknown, result = "SUCCESS") {
+    return new SunSwapLiquidityContracts({
+      get: () => ({
+        getTransactionInfoById: async () => ({ receipt: { result }, contractResult }),
+      }),
+    } as unknown as ChainGatewayProvider);
+  }
+
+  it.each([false, true])("decodes the QA Nile withdrawal, nativeFirst=%s", async (nativeFirst) => {
+    // a03bee7941c545ecd0c2ae399b8dcc3f100e8f964bb0a43e74a9c17409dc4d01
+    const raw =
+      "000000000000000000000000000000000000000000000000000000004db8f50e00000000000000000000000000000000000000000000000000000000355c95ab";
+    expect(await portFor([raw]).v2LiquidityResult(NILE, "qa-tx", "remove", nativeFirst)).toEqual({
+      amount0: nativeFirst ? "895260075" : "1303966990",
+      amount1: nativeFirst ? "1303966990" : "895260075",
+    });
+  });
+
+  it.each([false, true])(
+    "decodes used amounts and minted LP without rounding, nativeFirst=%s",
+    async (nativeFirst) => {
+      const large = 123456789012345678901234n;
+      expect(
+        await portFor([uint(large) + uint(456) + uint(789)]).v2LiquidityResult(
+          NILE,
+          "tx",
+          "add",
+          nativeFirst,
+        ),
+      ).toEqual({
+        amount0: nativeFirst ? "456" : large.toString(),
+        amount1: nativeFirst ? large.toString() : "456",
+        lpAmount: "789",
+      });
+    },
+  );
+
+  it.each([undefined, [], [""], ["zz".repeat(64)], [uint(1)], [uint(1) + uint(2) + uint(3)]])(
+    "does not turn missing or malformed removal output into zero: %j",
+    async (raw) => {
+      expect(await portFor(raw).v2LiquidityResult(NILE, "tx", "remove", false)).toBeUndefined();
+    },
+  );
+  it("rejects failed receipts and truncated deposit output", async () => {
+    expect(
+      await portFor([uint(1) + uint(2)], "REVERT").v2LiquidityResult(NILE, "tx", "remove", false),
+    ).toBeUndefined();
+    expect(
+      await portFor([uint(1) + uint(2)]).v2LiquidityResult(NILE, "tx", "add", false),
+    ).toBeUndefined();
+  });
+});
+
+import { keccak_256 } from "@noble/hashes/sha3.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
+import { tronHexAddress } from "../../../domain/address/index.js";
+describe("V3 deposited amounts", () => {
+  const event = {
+    address: tronHexAddress("TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R").slice(2).toLowerCase(),
+    topics: [
+      bytesToHex(keccak_256(utf8ToBytes("IncreaseLiquidity(uint256,uint128,uint256,uint256)"))),
+      uint(686),
+    ],
+    data: uint(12345) + uint(999000) + uint(173000),
+  };
+  const port = (logs: unknown[], result = "SUCCESS") =>
+    new SunSwapLiquidityContracts({
+      get: () => ({ getTransactionInfoById: async () => ({ receipt: { result }, log: logs }) }),
+    } as unknown as ChainGatewayProvider);
+  it("reads exact amounts and position liquidity from one transaction", async () => {
+    await expect(port([event]).v3DepositedAmounts(NILE, "tx", "686")).resolves.toEqual({
+      tokenId: "686",
+      liquidity: "12345",
+      amount0: "999000",
+      amount1: "173000",
+    });
+    await expect(port([event]).v3DepositedAmounts(NILE, "tx")).resolves.toHaveProperty(
+      "tokenId",
+      "686",
+    );
+  });
+  it("rejects another position, malformed/ambiguous logs, and failed receipts", async () => {
+    await expect(port([event]).v3DepositedAmounts(NILE, "tx", "687")).resolves.toBeUndefined();
+    await expect(port([event, event]).v3DepositedAmounts(NILE, "tx")).resolves.toBeUndefined();
+    await expect(
+      port([{ ...event, data: "00" }]).v3DepositedAmounts(NILE, "tx"),
+    ).resolves.toBeUndefined();
+    await expect(port([event], "REVERT").v3DepositedAmounts(NILE, "tx")).resolves.toBeUndefined();
+  });
+});

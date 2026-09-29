@@ -882,3 +882,23 @@ describe("collect-fees — V4's cross-checks", () => {
     ).rejects.toMatchObject({ code: "missing_option" });
   });
 });
+
+it("reports V4 fees from the confirmed receipt rather than the pre-send owed estimate", async () => {
+  const { port } = makeV4Port({
+    v4LiquidityResult: vi.fn(async () => ({
+      tokenId: "1",
+      liquidityDelta: "0",
+      principal0: "0",
+      principal1: "0",
+      fee0: "14000",
+      fee1: "4200",
+      balanceDelta0: "14000",
+      balanceDelta1: "4200",
+    })),
+  });
+  const { service, scope } = makeHarness(port);
+  const result = await service.collectFees(scope, NETWORK, V4);
+  expect(result.token0).toMatchObject({ amount: "14000" });
+  expect(result.token1).toMatchObject({ amount: "4200" });
+  expect(result.amountsEstimated).toBe(false);
+});

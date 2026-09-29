@@ -46,6 +46,29 @@ export interface V2PairState {
   readonly exists: boolean;
 }
 
+export interface V4LiquidityReceiptQuery {
+  readonly poolId: string;
+  readonly tokenId?: string;
+  readonly account: string;
+  readonly token0: string;
+  readonly token1: string;
+  /** Exact native value of the submitted payload, before any refund. */
+  readonly nativeValueSent?: string;
+}
+
+export interface V4LiquidityResult {
+  readonly tokenId: string;
+  readonly liquidityDelta: string;
+  /** Signed principal deltas from the pool event; positive means withdrawal. */
+  readonly principal0: string;
+  readonly principal1: string;
+  readonly fee0: string;
+  readonly fee1: string;
+  /** Signed account flows from this receipt, excluding the network fee. */
+  readonly balanceDelta0: string;
+  readonly balanceDelta1: string;
+}
+
 export interface LiquidityPort {
   /** SunSwap's own contracts — routers, the position manager, and Permit2 */
   readonly approvalDomain: "sunswap-contracts";
@@ -78,6 +101,16 @@ export interface LiquidityPort {
 
   /** the V2 pair for an unordered token couple, and its current reserves. */
   v2PairState(network: NetworkDescriptor, token0: string, token1: string): Promise<V2PairState>;
+
+  /** Router return values for this transaction only, in the caller's token order.
+   * Native calls return (token, TRX); nativeFirst restores a caller's (TRX, token) order.
+   */
+  v2LiquidityResult(
+    network: NetworkDescriptor,
+    txId: string,
+    operation: "add" | "remove",
+    nativeFirst: boolean,
+  ): Promise<{ amount0: string; amount1: string; lpAmount?: string } | undefined>;
 
   /** `owner`'s balance of `token`, in base units. */
   balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<string>;
@@ -126,6 +159,12 @@ export interface LiquidityPort {
     token1: string,
     fee: number,
   ): Promise<V3PoolState>;
+
+  v4LiquidityResult(
+    network: NetworkDescriptor,
+    txId: string,
+    query: V4LiquidityReceiptQuery,
+  ): Promise<V4LiquidityResult | undefined>;
 
   /** an existing position and its holder, by NFT id. */
   v3Position(network: NetworkDescriptor, tokenId: string): Promise<V3Position>;
@@ -345,6 +384,13 @@ export interface LiquidityPort {
     tokenId: string,
     recipient: string,
   ): Promise<{ amount0: string; amount1: string }>;
+
+  /** Amounts and liquidity from the transaction's IncreaseLiquidity event. */
+  v3DepositedAmounts(
+    network: NetworkDescriptor,
+    txId: string,
+    tokenId?: string,
+  ): Promise<{ tokenId: string; liquidity: string; amount0: string; amount1: string } | undefined>;
 
   /** what a confirmed removal actually transferred, from the transaction's own `Collect` event. */
   v3CollectedAmounts(

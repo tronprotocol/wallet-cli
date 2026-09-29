@@ -238,6 +238,8 @@ wallet-cli sunswap add-liquidity --protocol V4 --position-id 7 --token0 TRX --to
 
 ## Reading the JSON
 
+Broadcast results include `amountsEstimated`: `false` when the reported token amounts were read from this transaction’s receipt, `true` when they still come from the pre-transaction estimate. Pending, failed, and estimated results use `(est)` labels in text output. A confirmed transaction can still carry estimated amounts if the receipt read is unavailable.
+
 `kind` is `sunswap-add-liquidity` in every mode.
 
 **`fee` is the estimated cost, always** — the `{feeModel, energy, …}` object every dry run in this CLI carries. The V3 fee tier is `feeTier`, a number in hundredths of a basis point (`3000` = 0.3%). They are separate keys on purpose: one key whose meaning depended on the mode is how a script reads a tier as a cost.
@@ -246,7 +248,7 @@ wallet-cli sunswap add-liquidity --protocol V4 --position-id 7 --token0 TRX --to
 
 **V4 adds the pool key and the ceiling.** `poolId`, `feeTier`, `tickSpacing` and `hooks` describe the pool; `nftTokenId` and `newPosition` the position. `amount0Max` / `amount1Max` are the ceiling, present only when `--slippage` moved it above the deposit; `nativeLocked`, beside them on a native pair, is the TRX locked as the call's value; `permits[]` lists the Permit2 grants the deposit will sign. On V4 the bound is the ceiling — `amountMinimum` does not bound a V4 deposit.
 
-**A confirmed receipt reports what happened, not what was asked for.** A V2 pool takes the two sides at its own ratio, so `token0.amount` / `token1.amount` in the confirmed state are the amounts the reserves actually moved by, `lpAmount` is the LP balance delta, and `reservesAfter` is the pool read back. On V3, `liquidity` is what the position actually gained — read from the position after confirmation, not the figure the plan predicted, because the pool credits slightly less than the amounts were worth a moment earlier. **That is the number [`remove-liquidity`](remove-liquidity.md) wants for `--liquidity`**, so it has to be the real one.
+**V2 confirmed amounts come from this transaction.** When `amountsEstimated` is `false`, `token0.amount`, `token1.amount`, and `lpAmount` are the Router return values. `reservesAfter` is a separate current-state read; concurrent swaps and transfers do not affect the reported deposit amounts. V3 reads token amounts and liquidity from the transaction's `IncreaseLiquidity` event. V4 matches the pool and position `ModifyLiquidity` events and reports token amounts as the account's net expenditure, including native refunds and any fees or hook adjustments settled during the deposit, but excluding network fees. A negative V4 amount means the account received a net credit on that side. V4 `liquidity` comes from the position event, so later position changes cannot alter what this deposit reports. `liquidityAfter` is a separate current-state read.
 
 `--build-only` with approvals returns `data.transactions[]` as `[{purpose, tx, hex}, …]` in execution order; without them it keeps the ordinary single-transaction shape.
 

@@ -17,6 +17,7 @@ interface Side {
   readonly amount: string;
   readonly amountMinimum?: string;
   readonly feeAmount?: string;
+  readonly receivedAmount?: string;
   readonly decimals: number;
 }
 
@@ -30,6 +31,7 @@ interface ApprovalRow {
 interface RemovalView {
   readonly mode?: string;
   readonly stage?: string;
+  readonly amountsEstimated?: boolean;
   readonly account?: string;
   readonly protocol: string;
   readonly recipient: string;
@@ -68,7 +70,10 @@ const deadline = (seconds: number): string =>
   `${new Date(seconds * 1000).toISOString().replace("T", " ").slice(0, 19)} UTC`;
 
 /** Principal and fees arrive together, so the total is what actually landed. */
-const arrived = (side: Side): bigint => BigInt(side.amount) + BigInt(side.feeAmount ?? "0");
+const arrived = (side: Side): bigint =>
+  side.receivedAmount === undefined
+    ? BigInt(side.amount) + BigInt(side.feeAmount ?? "0")
+    : BigInt(side.receivedAmount);
 
 const received = (value: RemovalView): string =>
   `${formatAmount(arrived(value.token0).toString(), value.token0.decimals)} ${value.token0.symbol} / ${formatAmount(arrived(value.token1).toString(), value.token1.decimals)} ${value.token1.symbol}`;
@@ -94,7 +99,10 @@ export const SunSwapRemoveLiquidityFormatters = {
 
     const rows: Pair[] = [
       ...head,
-      ["Received", received(value)],
+      [
+        value.stage !== "confirmed" || value.amountsEstimated ? "Received (est)" : "Received",
+        received(value),
+      ],
       ["Recipient", value.recipient],
       ["Pool reserves", reservesRow(value)],
       ...(value.approvalTxIds ?? []).map((id, index): Pair => [`Approval tx ${index + 1}`, id]),

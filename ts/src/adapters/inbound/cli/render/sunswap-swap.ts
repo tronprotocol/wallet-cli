@@ -105,7 +105,14 @@ export const SunSwapSwapFormatters = {
       ["Account", accountRow(value, ctx)],
       ["Market", marketLabel(value.market)],
       [value.mode === undefined ? "Spent" : "Spend", spent],
-      [value.mode === undefined ? "Received" : "Receive (est)", received],
+      [
+        value.mode === undefined
+          ? value.stage === "confirmed" && value.amountOut !== undefined
+            ? "Received"
+            : "Received (est)"
+          : "Receive (est)",
+        received,
+      ],
       [
         "Min received",
         value.amountOutMinimum === undefined ? "" : amount(value.amountOutMinimum, tokenOut),
@@ -291,6 +298,7 @@ function formatTimestamp(seconds: string): string {
 }
 
 function summary(value: SwapView, tokenIn: Side, tokenOut: Side, out: string | undefined): string {
+  if (value.amountOut === undefined) return "Swap confirmed";
   const got = out === undefined ? "" : amount(out, tokenOut);
   return `Swapped ${amount(value.amountIn ?? "0", tokenIn)} for ${got}`;
 }

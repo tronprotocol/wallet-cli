@@ -21,6 +21,7 @@ interface Side {
 interface CollectView {
   readonly mode?: string;
   readonly stage?: string;
+  readonly amountsEstimated?: boolean;
   readonly account?: string;
   readonly protocol: string;
   readonly nftTokenId?: string;
@@ -55,7 +56,7 @@ export const SunSwapCollectFeesFormatters = {
   sunswapCollectFees: (value: CollectView, ctx: TextRenderContext): string => {
     const collected = `${amount(value.token0)} / ${amount(value.token1)}`;
     const label = priced(value)
-      ? value.mode === undefined
+      ? value.mode === undefined && value.stage === "confirmed" && !value.amountsEstimated
         ? "Collected"
         : "Collected (est)"
       : "Collecting";

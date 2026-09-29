@@ -102,9 +102,11 @@ The pair was read from the position; nothing on the command line named it. This 
 
 ## Reading the JSON
 
+Broadcast results include `amountsEstimated`: `false` when the reported token amounts were read from this transaction’s receipt, `true` when they still come from the pre-transaction estimate. Pending, failed, and estimated results use `(est)` labels in text output. A confirmed transaction can still carry estimated amounts if the receipt read is unavailable.
+
 `kind` is `sunswap-collect-fees` in every mode.
 
-- `token0` / `token1` — `{address, symbol, decimals, amount}`. On V3, before the transaction, `amount` is what the contract's own static `collect` says is claimable — the same figure the transaction will move, so a preview promises what the receipt will report — and afterwards it is what the `Collect` event recorded, because a trade in between changes what was owed. On V4, `amount` is what was owed when read before the call; V4 emits no event this CLI decodes, so there is no after-figure. When that read failed, `amount` is **absent**, not `"0"`.
+- `token0` / `token1` — `{address, symbol, decimals, amount}`. On V3, before the transaction, `amount` is what the contract's own static `collect` says is claimable — the same figure the transaction will move, so a preview promises what the receipt will report — and afterwards it is what the `Collect` event recorded, because a trade in between changes what was owed. On V4, before sending `amount` is the estimated fees owed. After confirmation it is the net amount paid to the recipient in this transaction, matched to the position and pool events; native TRX excludes network fees. When that read failed, `amount` is **absent**, not `"0"`.
 - `recipient` — always the **resolved** address, never a placeholder. On V3 this command can send money somewhere other than the account that signed, so where it went is a fact a script has to be able to read.
 - `tokensAuto` — always `true`: the pair is read from the position. On V4, tokens you pass are only checked against it.
 - `poolId`, `feeTier`, `tickSpacing`, `hooks`, `deadline` — the position's pool key and the call's deadline (V4).
