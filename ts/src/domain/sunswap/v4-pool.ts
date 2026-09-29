@@ -24,9 +24,8 @@
  * and differ only in tick spacing or hooks, so the pair is not an identity here.
  */
 import { ChainError, UsageError } from "../errors/index.js";
-import { tronAddressBytes } from "../address/index.js";
+import { TronAddress, tronAddressBytes } from "../address/index.js";
 import { NATIVE_TRX_ADDRESS } from "./tokens.js";
-import { isPoolId, normalisePoolId } from "./protocol.js";
 
 /**
  * The zero address, in the base58 form everything on TRON uses.
@@ -115,26 +114,41 @@ function addressValue(address: string): bigint {
 }
 
 /**
+ * The five parts a V4 pool is made of.
+ *
+ * Not four, and the fifth is the one this command used to be missing. A V4 pool key is
+ * `(currency0, currency1, fee, tickSpacing, hooks)` and the pool id is its hash, so every part
+ * selects the market the money lands in.
+ *
+ * **THE TICK SPACING IS NOT IMPLIED BY THE FEE TIER.** V3 has a fixed table — 100/1, 500/10,
+ * 3000/60, 10000/200 — and carrying it over to V4 is wrong. Measured on Nile on 2026-09-29: the
+ * USDC/USDT pool at fee 500 has spacing 12 while the TRX/USDT pool at the same fee 500 has spacing
+ * 10, and a third pool sits at fee 1000, a tier V3 does not have. Defaulting a spacing from a tier
+ * would compute a different pool key — and when that other pool exists, the deposit lands in a
+ * market the caller never named, silently. So the spacing is asked for.
+ */
+export interface V4PoolKey {
+  readonly token0: string;
+  readonly token1: string;
+  readonly fee: number;
+  readonly tickSpacing: number;
+  readonly hooks: string;
+}
+
+/**
  * How the caller named the pool they want.
  *
- * Exactly one of the two, and they are not interchangeable: an id addresses a pool that exists, and
- * a creation describes one that does not yet. Accepting both together would leave it unclear which
- * one decides the tick spacing the ticks are then aligned to.
+ * Both kinds carry THE SAME key, built by the same function: a deposit into a pool that exists and a
+ * deposit that creates one differ only in whether a starting price comes with it. They used to be
+ * named two different ways — an opaque 32-byte id for one, the parts for the other — which meant a
+ * caller could not name an existing V4 pool without first finding its id somewhere this CLI did not
+ * publish.
  */
 export type V4PoolTarget =
-  | { readonly kind: "existing"; readonly poolId: string }
-  | {
-      readonly kind: "create";
-      readonly token0: string;
-      readonly token1: string;
-      readonly fee: number;
-      readonly tickSpacing: number;
-      readonly sqrtPriceX96: string;
-      readonly hooks: string;
-    };
+  | ({ readonly kind: "existing" } & V4PoolKey)
+  | ({ readonly kind: "create"; readonly sqrtPriceX96: string } & V4PoolKey);
 
 export interface V4PoolTargetInput {
-  readonly pool?: string;
   readonly createPool?: boolean;
   readonly sqrtPrice?: string;
   readonly token0?: string;
@@ -153,38 +167,14 @@ export interface V4PoolTargetInput {
  * the message names it rather than listing the whole flag set.
  */
 export function resolveV4Pool(input: V4PoolTargetInput): V4PoolTarget {
-  const creating = input.createPool === true;
-
-  if (creating && input.pool !== undefined) {
-    throw new UsageError(
-      "invalid_option",
-      "--pool names a pool that already exists and --create-pool makes a new one; pass one of them",
-    );
-  }
-
-  if (!creating) {
+  if (input.createPool !== true) {
     if (input.sqrtPrice !== undefined) {
       throw new UsageError(
         "invalid_option",
         "--sqrt-price is the starting price of a NEW pool and is only accepted with --create-pool; an existing pool already has a price",
       );
     }
-    const pool = input.pool;
-    if (pool === undefined) {
-      throw new UsageError(
-        "missing_option",
-        "--pool is required on V4: a pool is identified by its 32-byte pool id, because two pools can share a token pair and a fee tier and differ in tick spacing or hooks",
-      );
-    }
-    if (!isPoolId(pool)) {
-      // Said explicitly, because the natural thing to pass is a pair address — which is what V2
-      // takes — and a base58 address here is a category error rather than a typo.
-      throw new UsageError(
-        "invalid_value",
-        `--pool must be a 32-byte pool id, 64 hex characters with or without 0x; ${pool} looks like an address, and a V4 pool has none`,
-      );
-    }
-    return { kind: "existing", poolId: normalisePoolId(pool) };
+    return { kind: "existing", ...requireV4PoolKey(input) };
   }
 
   if (input.sqrtPrice === undefined) {
@@ -199,6 +189,17 @@ export function resolveV4Pool(input: V4PoolTargetInput): V4PoolTarget {
       "--sqrt-price must be a positive whole number: it is the price in Q64.96 fixed point, not a decimal ratio",
     );
   }
+  return { kind: "create", ...requireV4PoolKey(input), sqrtPriceX96: input.sqrtPrice.trim() };
+}
+
+/**
+ * The pool key, from the flags that describe it — ONE builder for both scenarios.
+ *
+ * Deliberately not two functions that agree: an existing pool and a new one are named by exactly the
+ * same five parts, and the only way to guarantee that "the pool I created" and "the pool I deposit
+ * into" hash to the same id is for one piece of code to assemble both.
+ */
+export function requireV4PoolKey(input: V4PoolTargetInput): V4PoolKey {
   for (const [flag, value] of [
     ["--token0", input.token0],
     ["--token1", input.token1],
@@ -206,26 +207,49 @@ export function resolveV4Pool(input: V4PoolTargetInput): V4PoolTarget {
     if (value === undefined) {
       throw new UsageError(
         "missing_option",
-        `${flag} is required with --create-pool: there is no pool id to read the pair from yet`,
+        `${flag} is required on V4: a pool is named by its parts — both currencies, the fee tier, the tick spacing and the hook`,
       );
     }
   }
-  if (input.fee === undefined || input.tickSpacing === undefined) {
+  if (input.fee === undefined) {
     throw new UsageError(
       "missing_option",
-      "--fee and --tick-spacing are required with --create-pool: they are part of the pool's identity on V4, not settings applied to it afterwards",
+      "--fee is required on V4: the fee tier is part of the pool's identity, so the pair alone does not name a pool",
     );
   }
-  // Last, and deliberately: a caller missing a flag should hear about the flag, not about an
-  // ordering they have not finished describing yet.
-  assertSortedPair(input.token0!, input.token1!);
+  if (input.tickSpacing === undefined) {
+    throw new UsageError(
+      "missing_option",
+      "--tick-spacing is required on V4 and has no default: two V4 pools at the SAME fee tier can have different tick spacings — measured, USDC/USDT at fee 500 has spacing 12 while TRX/USDT at fee 500 has spacing 10 — so it cannot be derived from --fee. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks",
+    );
+  }
+  // Last of the presence checks, and deliberately: a caller missing a flag should hear about the
+  // flag, not about an ordering they have not finished describing yet.
+  assertSortedPairWhenResolved(input.token0!, input.token1!);
   return {
-    kind: "create",
-    token0: input.token0!,
-    token1: input.token1!,
+    token0: input.token0!.trim(),
+    token1: input.token1!.trim(),
     fee: input.fee,
     tickSpacing: input.tickSpacing,
-    sqrtPriceX96: input.sqrtPrice.trim(),
-    hooks: input.hooks ?? V4_NO_HOOKS,
+    hooks: (input.hooks ?? V4_NO_HOOKS).trim(),
   };
+}
+
+/**
+ * The pair's order, checked only once both sides are addresses.
+ *
+ * `--token0 TRX` is a SYMBOL, and a symbol has no 20-byte value to order by. This function is
+ * reached twice: once from the command schema, where the flags are still whatever the caller typed,
+ * and once from the use case, after the token resolver has turned each side into an address. Running
+ * the byte comparison on a symbol threw "Invalid checksum" out of the address decoder — a refusal
+ * that named neither the flag at fault nor anything the caller could act on — so the schema pass
+ * skips it and the use-case pass, which always has addresses, performs it.
+ *
+ * A side that is neither a symbol nor an address is not silently accepted here: the token resolver
+ * refuses it a moment later, by the name of the flag it came from.
+ */
+function assertSortedPairWhenResolved(token0: string, token1: string): void {
+  const codec = new TronAddress();
+  if (!codec.validate(token0.trim()) || !codec.validate(token1.trim())) return;
+  assertSortedPair(token0, token1);
 }

@@ -748,3 +748,64 @@ describe("the V4 owed-fees read", () => {
     expect(seen[0]).toContain(`0x${uint(1n)}`);
   });
 });
+
+/**
+ * The pool id, derived from the five parts `add-liquidity` now takes.
+ *
+ * This is the whole basis for naming a V4 pool by `--token0 --token1 --fee --tick-spacing --hooks`
+ * instead of by an opaque id: the id is a hash of exactly those five, and the derivation here is the
+ * pool manager's own. If any part stopped reaching the hash, a caller would be silently routed to a
+ * DIFFERENT pool — one that may well exist — so each part is tested for the effect it must have.
+ */
+describe("the V4 pool id, from the parts a caller gives", () => {
+  const contracts = new SunSwapLiquidityContracts({} as unknown as ChainGatewayProvider);
+  const MAINNET = {
+    id: "tron:728126428",
+    family: "tron",
+    chainId: "728126428",
+    nativeSymbol: "TRX",
+    capabilities: [],
+    sunswap: { contracts: {} },
+  } as unknown as NetworkDescriptor;
+
+  /** The live mainnet TRX/USDT V4 pool, taken from a router quote's own `poolKey`. */
+  const key = {
+    token0: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
+    token1: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    fee: 500,
+    tickSpacing: 10,
+    hooks: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
+  };
+  /** Measured: that pool's id, as the market service reports it. */
+  const LIVE_POOL_ID = "dda1d5819853f19f3e952da5d93aa2d572d95c72a8e6e4c2acab65384fd2557e";
+
+  it("reproduces a real pool's id from its parts alone", () => {
+    expect(contracts.v4PoolIdOf(MAINNET, key)).toBe(LIVE_POOL_ID);
+  });
+
+  /**
+   * EVERY part must move the id.
+   *
+   * The tick spacing is the case this whole change turns on. It travels inside the `parameters`
+   * word rather than as a field of its own, so it is the part most easily dropped on the way to the
+   * hash — and the two pools below are both real: TRX/USDT at fee 500 has spacing 10, USDC/USDT at
+   * the same fee 500 has spacing 12. A spacing that did not reach the id would make those two pools
+   * one, and a deposit meant for either could land in the other.
+   */
+  it.each([
+    ["token0", { ...key, token0: "TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9" }],
+    ["token1", { ...key, token1: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR" }],
+    ["fee", { ...key, fee: 3000 }],
+    ["tickSpacing", { ...key, tickSpacing: 12 }],
+    ["hooks", { ...key, hooks: "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB" }],
+  ])("gives a different pool when %s differs", (_part, changed) => {
+    expect(contracts.v4PoolIdOf(MAINNET, changed)).not.toBe(LIVE_POOL_ID);
+    expect(contracts.v4PoolIdOf(MAINNET, changed)).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  // And the same parts always give the same id: the key builder feeding it is one function, so a
+  // pool created from these flags is the pool a later deposit with the same flags reaches.
+  it("is stable for the same parts", () => {
+    expect(contracts.v4PoolIdOf(MAINNET, { ...key })).toBe(contracts.v4PoolIdOf(MAINNET, key));
+  });
+});

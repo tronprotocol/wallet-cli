@@ -61,6 +61,7 @@ import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { tronBytesToBase58 } from "../../../domain/address/index.js";
 import { normalisePoolId } from "../../../domain/sunswap/protocol.js";
 import { assertPositionPool, decodeV4PositionInfo } from "../../../domain/sunswap/v4-position.js";
+import { V4_NO_HOOKS } from "../../../domain/sunswap/v4-pool.js";
 
 /** The SDK's own network names, which its V4 builders take. */
 const SDK_NETWORKS: Readonly<Record<string, string>> = {
@@ -88,7 +89,14 @@ export class SunSwapV4Contracts {
     ]);
 
     const sqrtPriceX96 = word(slot0, 0);
-    const poolKey = readPoolKey(key);
+    /*
+     * An id nothing has ever been stored under answers with an ALL-ZERO key, and a zero key decodes
+     * to a tick spacing of zero. That used to be reported as `provider_error: a V4 pool's parameters
+     * decoded to a tick spacing of 0` — an internal detail, raised as if the node had misbehaved,
+     * for the ordinary case of asking about a pool that does not exist. It is `exists: false` here,
+     * and the caller says what it means in the caller's own terms.
+     */
+    const poolKey = isAbsentPoolKey(key) ? ABSENT_POOL_KEY : readPoolKey(key);
     return {
       poolId: normalisePoolId(poolId),
       // Zero price is the honest signal for "nothing has initialised this". The pool manager has no
@@ -454,6 +462,28 @@ export class SunSwapV4Contracts {
     return name as never;
   }
 }
+
+/**
+ * Whether a pool key came back as nothing at all.
+ *
+ * The pool manager stores no key for an id it has never seen, so the read succeeds and returns
+ * zeroes. Every field of a REAL key is non-zero somewhere — currency1 is never the zero address, and
+ * the tick spacing is never 0 — so an all-zero head is unambiguous.
+ */
+function isAbsentPoolKey(words: readonly string[]): boolean {
+  const data = hex(words);
+  return data.length >= 5 * 64 && /^0+$/.test(data.slice(0, 5 * 64));
+}
+
+/** What a pool that does not exist reports in place of a key. Nothing reads it: `exists` is false. */
+const ABSENT_POOL_KEY = {
+  currency0: V4_NO_HOOKS,
+  currency1: V4_NO_HOOKS,
+  hooks: V4_NO_HOOKS,
+  fee: 0,
+  parameters: `0x${"0".repeat(64)}`,
+  tickSpacing: 0,
+} as const;
 
 /** The pool key's five words, wherever they sit at the front of a return. */
 function readPoolKey(words: readonly string[]): {

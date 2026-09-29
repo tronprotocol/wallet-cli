@@ -40,18 +40,18 @@ const fields = z.object({
     .number()
     .optional()
     .describe(
-      "fee tier: 100, 500, 3000 or 10000; selects the pool on a V3 new position, checked against the position's own on a V4 increase",
+      "fee tier, e.g. 500 or 3000; selects the pool on a V3 new position, part of the pool key on V4, checked against the position's own on a V4 increase",
     ),
   tickLower: z.coerce
     .number()
     .optional()
     .describe(
-      "lower bound of the price range; a multiple of the tier's tick spacing (V3 new position only)",
+      "lower bound of the price range; a multiple of the pool's tick spacing (V3 and V4 new position only)",
     ),
   tickUpper: z.coerce
     .number()
     .optional()
-    .describe("upper bound of the price range; same constraint (V3 new position only)"),
+    .describe("upper bound of the price range; same constraint (V3 and V4 new position only)"),
   amount0: z
     .string()
     .optional()
@@ -81,16 +81,12 @@ const fields = z.object({
   // this CLI exposes it with the same default, and hard-coding a spend cap on a command that
   // moves money is worse than an optional flag. The default is a constant and is never derived
   // from an estimate: TRON's estimate is a lower bound (see the reference page).
-  pool: z
-    .string()
-    .optional()
-    .describe(
-      "the V4 pool's 32-byte pool id, 64 hex characters; a V4 pool has no address (V4, existing pool)",
-    ),
   createPool: z
     .boolean()
     .default(false)
-    .describe("create the pool as part of this deposit; requires --sqrt-price (V4 only)"),
+    .describe(
+      "create the pool as part of this deposit; requires --sqrt-price on top of the pool key (V4 only)",
+    ),
   sqrtPrice: z
     .string()
     .optional()
@@ -101,12 +97,14 @@ const fields = z.object({
     .number()
     .optional()
     .describe(
-      "the new pool's tick spacing, part of its identity on V4 rather than implied by the fee (V4 --create-pool only)",
+      "REQUIRED on V4: the pool's tick spacing. Part of the pool's identity and NOT implied by --fee — two V4 pools at the same fee tier can differ in spacing, so there is no default. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing",
     ),
   hooks: z
     .string()
     .optional()
-    .describe("the new pool's hook contract; default none (V4 --create-pool only)"),
+    .describe(
+      "the pool's hook contract; default none, which is what almost every pool has (V4 only). 'sunswap pool-list --protocol V4' publishes each pool's hooks",
+    ),
   slippage: z
     .string()
     .optional()
@@ -126,10 +124,10 @@ const V3_ONLY = ["positionId", "fee", "tickLower", "tickUpper"] as const;
 /**
  * Flags that belong only to V4.
  *
- * A pool is a 32-byte id there rather than a pair or a position, and its identity includes the tick
- * spacing and the hook — which is why creating one takes more than a fee tier.
+ * A V4 pool's identity includes the tick spacing and the hook on top of the pair and the tier, which
+ * is why naming one — existing or new — takes more flags than a fee tier.
  */
-const V4_ONLY = ["pool", "createPool", "sqrtPrice", "tickSpacing", "hooks", "slippage"] as const;
+const V4_ONLY = ["createPool", "sqrtPrice", "tickSpacing", "hooks", "slippage"] as const;
 
 /**
  * Flags V4 does not have, because its bound points the other way.
@@ -148,14 +146,13 @@ const NOT_ON_V4 = ["min0", "min1"] as const;
  * Not the same list as V3's: `--token0` / `--token1` are REQUIRED here rather than refused, and
  * `--fee` is accepted. See `refuseV4Flags`.
  *
- * `--pool`, `--tick-spacing` and `--hooks` are this CLI's own flags rather than PM's, and they are
- * refused for PM's reason: they name or describe a pool, and the position has already named one.
+ * `--tick-spacing` and `--hooks` are this CLI's own flags rather than PM's, and they are refused for
+ * PM's reason: they describe a pool, and the position has already named one.
  */
 const NOT_WITH_V4_POSITION_ID = [
   "tickLower",
   "tickUpper",
   "recipient",
-  "pool",
   "createPool",
   "sqrtPrice",
   "tickSpacing",
@@ -210,22 +207,11 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
     refuseV4IncreaseFlags(value, ctx);
     return;
   }
-  // `--fee` belongs to a creation on V4: an existing pool's tier is already in its id.
-  if (value.createPool !== true && value.fee !== undefined) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["fee"],
-      message: "is not accepted with --pool; the pool's id already fixes its fee tier",
-      params: { errorCode: "invalid_option" },
-    });
-    return;
-  }
-
   /**
    * How the pool is named, resolved HERE so the refusal is deterministic.
    *
-   * `resolveV4Pool` is pure — a pool id is a string and a starting price is a number — so none of it
-   * needs chain state. Left to the use case it would sit behind the account requirement, and a caller
+   * `resolveV4Pool` is pure — a pool key is five flags and a starting price is a number — so none of
+   * it needs chain state. Left to the use case it would sit behind the account requirement, and a caller
    * who forgot `--sqrt-price` would be asked for an account first: the same flake the `--slippage`
    * bounds had, for the same reason.
    *
@@ -234,7 +220,6 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
    */
   try {
     resolveV4Pool({
-      ...(value.pool === undefined ? {} : { pool: String(value.pool) }),
       createPool: value.createPool === true,
       ...(value.sqrtPrice === undefined ? {} : { sqrtPrice: String(value.sqrtPrice) }),
       ...(value.token0 === undefined ? {} : { token0: String(value.token0) }),
@@ -249,7 +234,7 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
       code: "custom",
       // Pointed at the flag the message is about, where the message names one, so the error reads as
       // being about that flag rather than about the command.
-      path: [flagFrom(error) ?? "pool"],
+      path: [flagFrom(error) ?? "token0"],
       /**
        * The domain's message, whole.
        *
@@ -316,8 +301,9 @@ function messageOf(error: unknown): string {
  * can be changed, which it cannot.
  *
  * V4's flags ARE declared now, so a V2 or V3 deposit that carries one is refused here by name — and
- * refused first, because a caller who passed `--pool` to V3 has the wrong protocol rather than a
- * stray flag, and hearing about the flag alone would send them hunting for a V3 pool id.
+ * refused first, because a caller who passed `--tick-spacing` to V3 has the wrong protocol rather
+ * than a stray flag, and hearing about the flag alone would send them hunting for a V3 setting that
+ * does not exist.
  */
 function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: RefinementCtx): void {
   const protocol = String(value.protocol).toUpperCase();
@@ -330,9 +316,9 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
     });
     return;
   }
-  // V4's flags on a V2 or V3 deposit, said before anything else: a caller who passed --pool to V3
-  // has the wrong protocol rather than a stray flag, and hearing about the flag first would send
-  // them looking for a V3 pool id that does not exist.
+  // V4's flags on a V2 or V3 deposit, said before anything else: a caller who passed --tick-spacing
+  // to V3 has the wrong protocol rather than a stray flag, and hearing about the flag first would
+  // send them looking for a V3 setting that does not exist.
   if (protocol !== "V4") {
     for (const flag of V4_ONLY) {
       if (value[flag] !== undefined && value[flag] !== false) {
@@ -398,8 +384,16 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     "V2 adds at the pool's current ratio and returns LP tokens. V3 mints a position NFT over a\n" +
     "price range, or adds to one you already hold with --position-id — which fixes the pair, the\n" +
     "fee tier and the range, so those flags are not accepted alongside it.\n\n" +
-    "V4 names its pool by a 32-byte --pool id, or adds to a position with --position-id. A V4\n" +
-    "increase ALSO REQUIRES --token0/--token1, unlike V3's: they select nothing — the position\n" +
+    "V4 NAMES A POOL BY ITS PARTS, and there are four of them: --token0, --token1, --fee and\n" +
+    "--tick-spacing, plus --hooks when the pool has one (almost none do). The fourth is not\n" +
+    "redundant — a V4 pool's tick spacing is part of its identity and is NOT implied by its fee\n" +
+    "tier the way V3's is. Measured: two Nile pools both at fee 500, one with spacing 12 and one\n" +
+    "with spacing 10. So --tick-spacing has no default; getting it wrong names a different pool.\n" +
+    "'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks.\n\n" +
+    "The same four flags create a pool, with --create-pool and --sqrt-price on top — one key\n" +
+    "builder serves both, so the pool you create is the pool you then deposit into.\n\n" +
+    "Or add to a position with --position-id, which names its own pool. A V4 increase ALSO\n" +
+    "REQUIRES --token0/--token1, unlike V3's: they select nothing — the position\n" +
     "names its own pool — and are checked against the pair the position holds, so adding to a\n" +
     "position you did not mean is refused rather than sent. --fee is checked the same way.\n\n" +
     "ON V4 THE BOUND IS A CEILING, not a floor: --min0/--min1 are not accepted and --slippage\n" +
@@ -430,6 +424,12 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     },
     {
       cmd: "wallet-cli sunswap add-liquidity --protocol V3 --position-id 1846 --amount0 5 --wait",
+    },
+    {
+      cmd: "wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 --amount0 5 --dry-run",
+    },
+    {
+      cmd: "wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 --create-pool --sqrt-price 79228162514264337593543950336 --amount0 5 --amount1 5 --wait",
     },
     {
       cmd: "wallet-cli sunswap add-liquidity --protocol V4 --position-id 12 --token0 TRX --token1 USDT --amount0 5 --dry-run",
@@ -463,7 +463,6 @@ export const sunswapAddLiquidityTronBinding = (
       // is declared but never passed on is a visible omission instead of a silent one — which is
       // exactly what happened here: the flags parsed, the help advertised them, and the service saw
       // none of them until this block named them.
-      ...(input.pool === undefined ? {} : { pool: input.pool }),
       ...(input.createPool === undefined ? {} : { createPool: input.createPool }),
       ...(input.sqrtPrice === undefined ? {} : { sqrtPrice: input.sqrtPrice }),
       ...(input.tickSpacing === undefined ? {} : { tickSpacing: input.tickSpacing }),

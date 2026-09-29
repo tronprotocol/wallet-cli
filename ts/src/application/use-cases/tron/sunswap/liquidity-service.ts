@@ -106,19 +106,23 @@ export interface AddLiquidityInput extends TransactionModeInput {
   readonly feeLimit?: string;
   /** V3 only: the NFT id of a position to add to, instead of minting a new one. */
   readonly positionId?: string;
-  /** V3 new position only; on V4 it belongs to a creation, where it is part of the pool's identity. */
+  /** V3 new position only; on V4 it is part of the pool key, for an existing pool and a new one alike. */
   readonly fee?: number;
   readonly tickLower?: number;
   readonly tickUpper?: number;
-  /** V4: the pool's 32-byte id. A V4 pool has no address. */
-  readonly pool?: string;
   /** V4: create the pool as part of the deposit. Travels with `sqrtPrice`. */
   readonly createPool?: boolean;
   /** V4 creation: the starting price, Q64.96. */
   readonly sqrtPrice?: string;
-  /** V4 creation: part of the pool's identity rather than implied by the fee tier. */
+  /**
+   * V4, REQUIRED: the pool's tick spacing, part of its identity rather than implied by the fee tier.
+   *
+   * There is no default and none can be invented: measured on Nile, two pools both at fee 500 have
+   * spacings 12 and 10. A defaulted spacing would name a different pool, and when that pool exists
+   * the deposit lands in a market nobody chose.
+   */
   readonly tickSpacing?: number;
-  /** V4 creation: the hook contract, or none. */
+  /** V4: the hook contract, or none. */
   readonly hooks?: string;
   /**
    * V4: tolerance on the deposit CEILING, as a decimal.
@@ -525,7 +529,6 @@ export class SunSwapLiquidityService {
     input: AddLiquidityInput,
   ): Promise<PlannedV4> {
     const target = resolveV4Pool({
-      ...(input.pool === undefined ? {} : { pool: input.pool }),
       createPool: input.createPool === true,
       ...(input.sqrtPrice === undefined ? {} : { sqrtPrice: input.sqrtPrice }),
       ...(input.token0 === undefined ? {} : { token0: this.tokens.resolve(network, input.token0) }),
@@ -535,14 +538,28 @@ export class SunSwapLiquidityService {
       ...(input.hooks === undefined ? {} : { hooks: input.hooks }),
     });
 
+    /*
+     * The id, computed from the key rather than asked for.
+     *
+     * The same derivation the pool manager itself uses, over the same five parts, so the pool a
+     * caller creates and the pool they later deposit into are reached by one road.
+     */
+    const poolId = this.liquidity.v4PoolIdOf(network, target);
     const pool =
       target.kind === "existing"
-        ? await this.liquidity.v4PoolState(network, target.poolId)
-        : this.#createdPool(network, target);
+        ? await this.liquidity.v4PoolState(network, poolId)
+        : this.#createdPool(target, poolId);
     if (target.kind === "existing" && !pool.exists) {
+      /*
+       * A key that hashes to nothing, said as what it is.
+       *
+       * The spacing is named first because it is the likeliest part to be wrong: it is the one part
+       * of the key that cannot be guessed from the pair and the tier, and V3's habit of deriving it
+       * from the tier does not hold here.
+       */
       throw new ChainError(
         "pool_not_found",
-        `no V4 pool with id ${target.poolId} has been initialised on this network`,
+        `no V4 pool exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} — that key hashes to pool id ${poolId}, which nothing has initialised. Check --tick-spacing first: it is part of the pool's identity and is not implied by --fee, so a pool at this fee tier may well exist at a different spacing. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks; --create-pool with --sqrt-price makes this one`,
       );
     }
 
@@ -623,10 +640,10 @@ export class SunSwapLiquidityService {
         "--tick-lower and --tick-upper are not accepted with --position-id; a position's range is fixed at birth",
       );
     }
-    if (input.pool !== undefined || input.createPool === true) {
+    if (input.createPool === true) {
       throw new UsageError(
         "invalid_option",
-        "--pool and --create-pool are not accepted with --position-id; the position names its own pool",
+        "--create-pool is not accepted with --position-id; the position names its own pool",
       );
     }
     if (input.token0 === undefined || input.token1 === undefined) {
@@ -879,11 +896,11 @@ export class SunSwapLiquidityService {
    * proceed. `currentTick` is 0 because nothing reads it — sizing uses the price.
    */
   #createdPool(
-    network: NetworkDescriptor,
     target: Extract<ReturnType<typeof resolveV4Pool>, { kind: "create" }>,
+    poolId: string,
   ): V4PoolState {
     return {
-      poolId: this.liquidity.v4PoolIdOf(network, target),
+      poolId,
       exists: false,
       sqrtPriceX96: target.sqrtPriceX96,
       currentTick: 0,

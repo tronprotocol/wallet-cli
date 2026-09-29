@@ -1063,7 +1063,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     ["--recipient", { recipient: ROUTER }],
     ["--tick-lower", { tickLower: -120 }],
     ["--tick-upper", { tickUpper: 120 }],
-    ["--pool", { pool: POOL_ID }],
     ["--create-pool", { createPool: true }],
   ])("refuses %s even when the schema is bypassed", async (_flag, extra) => {
     const { result } = run({ ...BASE_V4, ...extra, dryRun: true });
@@ -1198,3 +1197,151 @@ const noV4Signers = {
     throw new Error("V4 permit signing is not part of this test");
   },
 } as never;
+
+/**
+ * The V4 MINT scenario: a deposit into a pool named by its parts.
+ *
+ * `--pool`, a 32-byte id, used to be the only way to name a V4 pool here — a value PM never
+ * specified and this CLI published nowhere. The pool is named by what it is made of now:
+ * `--token0`, `--token1`, `--fee` and `--tick-spacing`, plus `--hooks` when there is one. The id is
+ * derived from those, by the same hash the pool manager uses.
+ */
+describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
+  const V4_MANAGER = "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP";
+  const PERMIT2 = "TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax";
+  const POOL_ID = "2f8c".padEnd(64, "a");
+  const PARAMETERS = `0x${"0".repeat(58)}0c0000`;
+  const MAX_UINT256 = (2n ** 256n - 1n).toString();
+
+  const POOL = {
+    poolId: POOL_ID,
+    exists: true,
+    sqrtPriceX96: "79228162514264337593543950336",
+    currentTick: -35,
+    liquidity: "1000000",
+    currency0: USDT,
+    currency1: WTRX,
+    fee: 500,
+    tickSpacing: 12,
+    hooks: TRX,
+    parameters: PARAMETERS,
+  };
+
+  const keysAsked: unknown[] = [];
+  const idsAsked: string[] = [];
+
+  function v4Port(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
+    return makePort({
+      v4PoolIdOf: vi.fn((_n: NetworkDescriptor, key: unknown) => {
+        keysAsked.push(key);
+        return POOL_ID;
+      }),
+      v4PoolState: vi.fn(async (_n: NetworkDescriptor, id: string) => {
+        idsAsked.push(id);
+        return POOL;
+      }),
+      v4ParametersFor: vi.fn(() => PARAMETERS),
+      v4Amounts: vi.fn(() => ({
+        amount0: "1000000",
+        amount1: "173468",
+        liquidity: "97941773",
+      })),
+      permit2Address: vi.fn(() => PERMIT2),
+      v4PositionManager: vi.fn(() => V4_MANAGER),
+      v4MintedPositionId: vi.fn(async () => "31"),
+      v4DepositPayload: vi.fn(() => ({
+        target: V4_MANAGER,
+        method: "modifyLiquidities(bytes,uint256)",
+        parameters: [],
+      })),
+      allowance: vi.fn(async () => MAX_UINT256),
+      ...overrides,
+    } as Partial<LiquidityPort>);
+  }
+
+  const standingGrants = { planPermit: vi.fn(async () => undefined) };
+  const signers = { resolve: vi.fn(() => ({})) };
+
+  const BASE_V4 = {
+    protocol: "V4",
+    token0: "USDT",
+    token1: "WTRX",
+    fee: 500,
+    tickSpacing: 12,
+    amount0: "1",
+  };
+
+  function run(input: Record<string, unknown>, port = v4Port()) {
+    const h = makeHarness(port, standingGrants, signers);
+    return { ...h, result: h.service.addLiquidity(h.scope, NETWORK, input as never) };
+  }
+
+  /** The four flags become a key, the key becomes an id, and the id is what the pool is read by. */
+  it("derives the pool id from the parts and reads that pool", async () => {
+    keysAsked.length = 0;
+    idsAsked.length = 0;
+    await expect(run({ ...BASE_V4, dryRun: true }).result).resolves.toMatchObject({
+      poolId: POOL_ID,
+      tickSpacing: 12,
+    });
+    expect(keysAsked[0]).toMatchObject({
+      token0: USDT,
+      token1: WTRX,
+      fee: 500,
+      tickSpacing: 12,
+      // Defaulted, and to the zero address rather than to nothing: it is part of the key either way.
+      hooks: TRX,
+    });
+    expect(idsAsked).toEqual([POOL_ID]);
+  });
+
+  /**
+   * SYMBOLS RESOLVE ON EVERY PATH.
+   *
+   * `--token0 TRX --create-pool` used to fail with `invalid --pool: Invalid checksum` — the pair
+   * ordering ran on the symbol, in the schema, before anything had resolved it. The key the port is
+   * asked for must hold ADDRESSES whichever path built it.
+   */
+  it("resolves symbols on the creating path too", async () => {
+    keysAsked.length = 0;
+    await run({
+      ...BASE_V4,
+      createPool: true,
+      sqrtPrice: "79228162514264337593543950336",
+      amount1: "1",
+      dryRun: true,
+    }).result;
+    expect(keysAsked[0]).toMatchObject({ token0: USDT, token1: WTRX });
+  });
+
+  /**
+   * A key that hashes to no pool says so — and points at the spacing.
+   *
+   * The equivalent used to be `provider_error: a V4 pool's parameters decoded to a tick spacing of
+   * 0`, an internal detail of decoding an empty answer. A wrong `--tick-spacing` is the likeliest
+   * cause of an id nothing has initialised, because it is the one part of the key that cannot be
+   * guessed from the pair and the tier.
+   */
+  it("says a pool does not exist, and names the flag most likely to be wrong", async () => {
+    const port = v4Port({
+      v4PoolState: vi.fn(async () => ({ ...POOL, exists: false, sqrtPriceX96: "0" })),
+    } as Partial<LiquidityPort>);
+    const { result } = run({ ...BASE_V4, dryRun: true }, port);
+    await expect(result).rejects.toMatchObject({ code: "pool_not_found" });
+    await expect(result).rejects.toThrow(/--tick-spacing/);
+    await expect(result).rejects.toThrow(/tick spacing 12/);
+    // The hook is named as the word, never as the zero address that also means TRX.
+    await expect(result).rejects.toThrow(/hooks none/);
+    await expect(result).rejects.toThrow(POOL_ID);
+  });
+
+  // The spacing has no default, on either path: a V4 pool at one fee tier may have any of several.
+  it.each([
+    ["--tick-spacing", { tickSpacing: undefined }],
+    ["--fee", { fee: undefined }],
+  ])("requires %s", async (flag, missing) => {
+    const { result } = run({ ...BASE_V4, ...missing, dryRun: true });
+    await expect(result).rejects.toMatchObject({ code: "missing_option" });
+    await expect(result).rejects.toThrow(flag);
+  });
+});

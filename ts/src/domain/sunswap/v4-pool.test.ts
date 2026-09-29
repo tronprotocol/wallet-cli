@@ -1,9 +1,9 @@
 /**
  * How a V4 pool is named, and the two facts that read as something else.
  *
- * The pool key in `LIVE_HOOKS` / `LIVE_POOL_ID` is the real mainnet TRX/USDT V4 pool, taken from a
- * router quote's own `poolKey` — so the two traps below are tested against the thing that actually
- * comes back, not against a description of it.
+ * The pool key in `LIVE_HOOKS` is the real mainnet TRX/USDT V4 pool, taken from a router quote's own
+ * `poolKey` — so the two traps below are tested against the thing that actually comes back, not
+ * against a description of it.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -16,8 +16,6 @@ import {
 import { NATIVE_TRX_ADDRESS } from "./tokens.js";
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-/** Measured: the pool id of the live TRX/USDT V4 pool, fee 500, tick spacing 10, no hooks. */
-const LIVE_POOL_ID = "dda1d5819853f19f3e952da5d93aa2d572d95c72a8e6e4c2acab65384fd2557e";
 /** Measured: what that pool's `hooks` field actually contains. */
 const LIVE_HOOKS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
@@ -44,52 +42,83 @@ describe("no hooks is spelled with the address that also means TRX", () => {
   });
 });
 
-describe("naming an existing pool", () => {
-  it("takes a 64-hex pool id, with or without 0x", () => {
-    expect(resolveV4Pool({ pool: LIVE_POOL_ID })).toEqual({
+describe("naming a pool by its parts", () => {
+  /**
+   * The five parts, and the fourth is the one this used to be missing.
+   *
+   * A V4 pool was named here by its 32-byte pool id — a value this CLI published nowhere and PM
+   * never specified. It is named by what it is made of now, which is also how `--create-pool`
+   * already named one, through the same builder.
+   */
+  const existing = {
+    token0: NATIVE_TRX_ADDRESS,
+    token1: USDT,
+    fee: 500,
+    tickSpacing: 10,
+  };
+
+  it("takes the pair, the fee and the spacing, and defaults the hook to none", () => {
+    expect(resolveV4Pool(existing)).toEqual({
       kind: "existing",
-      poolId: LIVE_POOL_ID,
+      token0: NATIVE_TRX_ADDRESS,
+      token1: USDT,
+      fee: 500,
+      tickSpacing: 10,
+      hooks: V4_NO_HOOKS,
     });
-    expect(resolveV4Pool({ pool: `0x${LIVE_POOL_ID}` })).toEqual({
-      kind: "existing",
-      poolId: LIVE_POOL_ID,
-    });
+  });
+
+  it("takes a hook when the pool has one", () => {
+    expect(resolveV4Pool({ ...existing, hooks: USDT })).toMatchObject({ hooks: USDT });
   });
 
   /**
-   * The mistake worth a specific message: V2 takes a PAIR ADDRESS, so an address is what a caller
-   * arriving from V2 will pass. It is a category error rather than a typo, and saying "a V4 pool has
-   * none" is what stops them looking for the right address.
+   * THE REFUSAL THIS VERSION EXISTS FOR.
+   *
+   * A V4 tick spacing is NOT implied by the fee tier. Measured on Nile: USDC/USDT at fee 500 has
+   * spacing 12 and TRX/USDT at fee 500 has spacing 10. Defaulting it from V3's table would compute a
+   * different pool key, and when that pool exists the deposit lands in a market nobody named.
    */
-  it("refuses an address and says a V4 pool does not have one", () => {
-    expect(() => resolveV4Pool({ pool: USDT })).toThrow(
-      /must be a 32-byte pool id.*a V4 pool has none/s,
+  it("requires --tick-spacing and says a fee tier does not fix it", () => {
+    expect(() => resolveV4Pool({ ...existing, tickSpacing: undefined })).toThrow(
+      /--tick-spacing is required on V4 and has no default.*SAME fee tier.*different tick spacings/s,
+    );
+    expect(() => resolveV4Pool({ ...existing, tickSpacing: undefined })).toThrow(
+      expect.objectContaining({ code: "missing_option" }),
     );
   });
 
-  // `toThrow(/invalid_value/)` would match the MESSAGE, not the code, and pass for the wrong
-  // reason — so the code is asserted as a property on both.
   it.each([
-    ["one hex short", LIVE_POOL_ID.slice(0, 63)],
-    ["one byte long", `${LIVE_POOL_ID}00`],
-  ])("refuses a pool id %s", (_name, pool) => {
-    expect(() => resolveV4Pool({ pool })).toThrow(
-      expect.objectContaining({ code: "invalid_value" }),
-    );
-  });
-
-  it("requires a pool and says why a pair would not do", () => {
-    expect(() => resolveV4Pool({})).toThrow(
-      /--pool is required on V4.*differ in tick spacing or hooks/s,
-    );
+    ["--token0", { ...existing, token0: undefined }, /--token0 is required on V4/],
+    ["--token1", { ...existing, token1: undefined }, /--token1 is required on V4/],
+    ["--fee", { ...existing, fee: undefined }, /--fee is required on V4/],
+  ])("requires %s", (_name, input, message) => {
+    expect(() => resolveV4Pool(input)).toThrow(message);
+    expect(() => resolveV4Pool(input)).toThrow(expect.objectContaining({ code: "missing_option" }));
   });
 
   // A price belongs to a pool being created. On an existing one it would be silently discarded,
   // which is how a caller comes to believe they set something.
   it("refuses --sqrt-price without --create-pool", () => {
-    expect(() => resolveV4Pool({ pool: LIVE_POOL_ID, sqrtPrice: "1" })).toThrow(
+    expect(() => resolveV4Pool({ ...existing, sqrtPrice: "1" })).toThrow(
       /only accepted with --create-pool/,
     );
+  });
+
+  /**
+   * A SYMBOL IS NOT AN ADDRESS YET, and the pair order cannot be judged on one.
+   *
+   * `--token0 TRX --create-pool` used to fail with `invalid --pool: Invalid checksum` — a flag the
+   * caller never passed and a cause that was not the problem — because the byte comparison ran on
+   * the symbol. The order is checked once both sides are addresses; the use case runs this again
+   * after resolving them.
+   */
+  it("passes a symbol through rather than decoding it as an address", () => {
+    expect(() => resolveV4Pool({ ...existing, token0: "TRX", token1: "USDT" })).not.toThrow();
+    expect(resolveV4Pool({ ...existing, token0: "TRX", token1: "USDT" })).toMatchObject({
+      token0: "TRX",
+      token1: "USDT",
+    });
   });
 });
 
@@ -130,16 +159,36 @@ describe("creating a pool", () => {
 
   it.each([
     ["--sqrt-price", { ...creation, sqrtPrice: undefined }, /--sqrt-price is required/],
-    ["--token0", { ...creation, token0: undefined }, /--token0 is required/],
-    ["--token1", { ...creation, token1: undefined }, /--token1 is required/],
-    ["--fee", { ...creation, fee: undefined }, /--fee and --tick-spacing are required/],
-    [
-      "--tick-spacing",
-      { ...creation, tickSpacing: undefined },
-      /--fee and --tick-spacing are required/,
-    ],
+    ["--token0", { ...creation, token0: undefined }, /--token0 is required on V4/],
+    ["--token1", { ...creation, token1: undefined }, /--token1 is required on V4/],
+    ["--fee", { ...creation, fee: undefined }, /--fee is required on V4/],
+    ["--tick-spacing", { ...creation, tickSpacing: undefined }, /--tick-spacing is required on V4/],
   ])("refuses a creation missing %s", (_name, input, message) => {
     expect(() => resolveV4Pool(input)).toThrow(message);
+  });
+
+  /**
+   * ONE KEY BUILDER, not two that agree.
+   *
+   * A creation and a deposit into an existing pool are named by exactly the same five parts. If they
+   * were assembled separately, the pool a caller created and the pool they later deposited into
+   * could drift apart — and the drift would be invisible, because both would be valid keys.
+   */
+  it("builds the same key as an existing pool from the same flags", () => {
+    const { kind, sqrtPriceX96, ...created } = resolveV4Pool(creation) as never as Record<
+      string,
+      unknown
+    >;
+    expect(kind).toBe("create");
+    expect(sqrtPriceX96).toBe(creation.sqrtPrice);
+    const { kind: otherKind, ...existing } = resolveV4Pool({
+      token0: creation.token0,
+      token1: creation.token1,
+      fee: creation.fee,
+      tickSpacing: creation.tickSpacing,
+    }) as never as Record<string, unknown>;
+    expect(otherKind).toBe("existing");
+    expect(created).toEqual(existing);
   });
 
   /**
@@ -148,10 +197,6 @@ describe("creating a pool", () => {
    */
   it.each([["0"], ["1.0001"], ["-1"], ["0x10"]])("refuses %s as a starting price", (value) => {
     expect(() => resolveV4Pool({ ...creation, sqrtPrice: value })).toThrow(/Q64.96 fixed point/);
-  });
-
-  it("refuses a creation that also names an existing pool", () => {
-    expect(() => resolveV4Pool({ ...creation, pool: LIVE_POOL_ID })).toThrow(/pass one of them/);
   });
 });
 

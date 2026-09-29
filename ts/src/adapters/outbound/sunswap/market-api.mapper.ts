@@ -20,6 +20,8 @@ import type {
 import { isLosslessNumber } from "lossless-json";
 import type { RawPool, RawPosition, RawToken } from "./market-api.schema.js";
 import { expandScientificNotation, toBaseUnitsTruncating } from "../../../domain/sunswap/amount.js";
+import { describeHooks, V4_NO_HOOKS } from "../../../domain/sunswap/v4-pool.js";
+import { decodeV4PoolParameters } from "@sun-protocol/sun-sdk-sunswap-v4";
 
 /**
  * `extraInfo` members that stay integers because they are counts or tick indices, not money.
@@ -136,10 +138,38 @@ export function mapPool(raw: RawPool): PoolRecord {
     transactionRecentTotal: Number(raw.transactionRecentTotal ?? 0),
     createdAt: epochMsToUtcMinute(raw.createBlockTimestamp ?? ""),
     createTxHash: raw.createTxHash ?? "",
-    extra: mapExtra(raw.extraInfo),
+    extra: { ...mapExtra(raw.extraInfo), ...v4PoolKeyParts(raw) },
     rates: raw.swapRateList ?? [],
   };
 }
+
+/**
+ * The two parts of a V4 pool key the service does not publish in a usable form.
+ *
+ * `add-liquidity` names a V4 pool by its parts — pair, fee, TICK SPACING and HOOK — and neither of
+ * the last two could be read off a pool row: the spacing was only inside the raw `parameters` word
+ * (`0x…0a0000` is spacing 10) and the hook appeared, under `hooksAddress`, only when there was one.
+ * So a caller could list a pool and still not know what to pass. Both are published here, DERIVED
+ * from what the row already carries rather than fetched.
+ *
+ * The hook is rendered the way the domain renders it everywhere else: the word "none", never the
+ * zero address — which on TRON is also the address the market API uses for native TRX, so printing
+ * it would read as a pool hooked to the chain's own coin.
+ */
+function v4PoolKeyParts(raw: RawPool): Record<string, unknown> {
+  const parameters = raw.extraInfo?.["parameters"];
+  if (raw.protocol !== "V4" || typeof parameters !== "string") return {};
+  const decoded = decodeV4PoolParameters(prefixed(parameters) as never) as {
+    tickSpacing?: number;
+  };
+  const hooks = raw.extraInfo?.["hooks_address"] ?? raw.extraInfo?.["hooksAddress"];
+  return {
+    ...(typeof decoded.tickSpacing === "number" ? { tickSpacing: decoded.tickSpacing } : {}),
+    hooks: describeHooks(typeof hooks === "string" && hooks !== "" ? hooks : V4_NO_HOOKS),
+  };
+}
+
+const prefixed = (word: string): string => (word.startsWith("0x") ? word : `0x${word}`);
 
 /**
  * A catalogue token.

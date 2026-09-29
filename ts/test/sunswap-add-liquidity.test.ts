@@ -52,12 +52,13 @@ describe("protocol", () => {
   /**
    * V4 is SERVED now, so the old case asserting "not supported yet" is gone.
    *
-   * What replaces it is the refusal a V4 caller actually meets: V4 identifies a pool by its
-   * 32-byte id, not by a pair, so `--protocol V4` with a pair and no `--pool` is a MISSING option
-   * rather than a rejected protocol. That is the more useful assertion — it pins where V4's own
-   * identity rules start.
+   * What replaces it is the refusal a V4 caller actually meets. A V4 pool key has FIVE parts, and a
+   * pair is two of them: the tier and the SPACING are missing, and the spacing cannot be derived
+   * from the tier the way V3's can. So a pair alone is a MISSING option rather than a rejected
+   * protocol — and the message has to say which flag and why, because the natural assumption
+   * carried over from V3 is that the fee tier fixes the spacing.
    */
-  it("asks a V4 caller for the pool it cannot infer from a pair", () => {
+  it("asks a V4 caller for the parts of the pool key a pair does not carry", () => {
     const r = run([
       "sunswap",
       "add-liquidity",
@@ -74,6 +75,58 @@ describe("protocol", () => {
     expect(r.status).toBe(2);
     expect(r.json.success).toBe(false);
     expect(r.json.error.code).toBe("missing_option");
+    expect(r.json.error.message).toContain("--fee");
+  });
+
+  it("asks for --tick-spacing once the tier is given, and says a tier does not fix it", () => {
+    const r = run([
+      "sunswap",
+      "add-liquidity",
+      "--protocol",
+      "V4",
+      ...PAIR,
+      "--fee",
+      "500",
+      "--amount0",
+      "1",
+      "--network",
+      "nile",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("missing_option");
+    expect(r.json.error.message).toContain("--tick-spacing");
+    expect(r.json.error.message).toContain("SAME fee tier");
+  });
+
+  /**
+   * `--pool` IS GONE. It was this CLI's own flag, never PM's, and it named a V4 pool by a 32-byte id
+   * that nothing here published — inconsistent with every other V4 money command, which locate by
+   * `--position-id`. An undeclared flag is refused by the parser, which is the right answer.
+   */
+  it("no longer accepts --pool", () => {
+    const r = run([
+      "sunswap",
+      "add-liquidity",
+      "--protocol",
+      "V4",
+      ...PAIR,
+      "--pool",
+      "2f8c".padEnd(64, "a"),
+      "--fee",
+      "500",
+      "--tick-spacing",
+      "10",
+      "--amount0",
+      "1",
+      "--network",
+      "nile",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
   });
 
   // And a protocol that genuinely does not exist is still refused by value.
@@ -210,7 +263,6 @@ describe("the V4 increase scenario", () => {
     ["--tick-lower", "-1284"],
     ["--tick-upper", "1116"],
     ["--recipient", "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB"],
-    ["--pool", "2f8c".padEnd(64, "a")],
     ["--sqrt-price", "79228162514264337593543950336"],
     ["--tick-spacing", "12"],
     ["--hooks", "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB"],
@@ -360,6 +412,16 @@ describe("help", () => {
     expect(r.stdout).toContain("--sqrt-price");
     expect(r.stdout).toContain("--create-pool");
     expect(r.stdout).toContain("--slippage");
+    /*
+     * And a V4 caller has to be able to READ OFF the help that a pool takes four flags, and why the
+     * fourth exists. `--tick-spacing` is no longer a creation-only setting: it is part of the pool's
+     * identity, with no default, because two pools at one fee tier can differ in it.
+     */
+    expect(r.stdout).toContain("--tick-spacing");
+    expect(r.stdout).toContain("--hooks");
+    expect(r.stdout).toMatch(/tick spacing/i);
+    // `--pool` is gone. Matched as a whole word, since `--create-pool` ends in the same letters.
+    expect(r.stdout).not.toMatch(/(^|[\s,[(])--pool([\s,\].)=]|$)/m);
     // And the one flag this command genuinely does not serve must still not appear.
     expect(r.stdout).not.toContain("--sign-only");
   });

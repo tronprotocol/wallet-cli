@@ -241,6 +241,34 @@ describe("mapPool", () => {
     expect(extra).toHaveProperty("protocolFeeRateToken0");
   });
 
+  /**
+   * A V4 row has to be enough to name the pool again.
+   *
+   * `add-liquidity` takes a V4 pool by its parts, and two of them were unreadable here: the tick
+   * spacing lived only inside the raw `parameters` word and the hook was simply absent when the
+   * pool had none. Both are published now, derived from the row itself.
+   */
+  it("decodes the tick spacing and names the hook on a V4 pool", () => {
+    const extra = mapPool(poolFixture(2)).extra;
+    expect(mapPool(poolFixture(2)).protocol).toBe("V4");
+    // 0x…0a0000 is spacing 10, and the raw word stays beside it.
+    expect(extra.tickSpacing).toBe(10);
+    expect(extra.parameters).toMatch(/0a0000$/);
+    // The word for absence, never the zero address — which on TRON also means native TRX.
+    expect(extra.hooks).toBe("none");
+    expect(extra.hooks).not.toContain("T9yD14");
+  });
+
+  // V2 and V3 rows have no pool key of this shape, so they gain nothing.
+  it.each([
+    ["V3", 0],
+    ["V2", 1],
+  ])("adds neither field to a %s row", (_protocol, index) => {
+    const extra = mapPool(poolFixture(index)).extra;
+    expect(extra).not.toHaveProperty("tickSpacing");
+    expect(extra).not.toHaveProperty("hooks");
+  });
+
   it("keeps money as digit strings and counts as numbers", () => {
     const pool = mapPool(poolFixture());
     expect(typeof pool.reserveUsd).toBe("string");
