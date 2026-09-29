@@ -83,6 +83,7 @@ export const sunpumpLaunchSpec: ChainSpec = {
   auth: "none",
   rejectsAccount:
     "the token is created by SunPump, which chooses its owner, and nothing here is signed locally",
+  rejectsWait: "the token is created by SunPump and no transaction comes back to wait for",
   capability: "sunpump.launch",
   summary: "Create a new token on the bonding curve",
   description:

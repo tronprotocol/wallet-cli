@@ -538,7 +538,7 @@ export function assertNoTailFlags(tokens: string[]): void {
 function assertKnownFlags(
   cmd: Pick<
     CommandExecutionSpec,
-    "path" | "fields" | "positionals" | "supportsWait" | "rejectsAccount"
+    "path" | "fields" | "positionals" | "supportsWait" | "rejectsAccount" | "rejectsWait"
   >,
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
@@ -550,6 +550,18 @@ function assertKnownFlags(
     throw new UsageError(
       "invalid_option",
       `${cmd.path.join(" ")} does not accept --account: ${cmd.rejectsAccount}`,
+    );
+  }
+  if (
+    cmd.rejectsWait !== undefined &&
+    (argv.wait !== undefined ||
+      argv.waitTimeout !== undefined ||
+      argv.waitTimeoutMs !== undefined ||
+      argv["wait-timeout"] !== undefined)
+  ) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept --wait: ${cmd.rejectsWait}`,
     );
   }
   if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {

@@ -217,6 +217,26 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
+  /**
+   * `--wait` is global too, and refused the same way by a command that submits nothing to wait on.
+   * `sunpump launch` creates its token server-side and returns no transaction, so an accepted
+   * `--wait` would read as having waited for a confirmation that does not exist.
+   */
+  it("refuses --wait on every command that declares it has nothing to wait for", async () => {
+    const paths = newRuntime()
+      .registry.all()
+      .flatMap((c) => (isChainCommand(c) && c.spec.rejectsWait !== undefined ? [c.spec.path] : []));
+    expect(paths.map((path) => path.join(" ")).sort()).toEqual(["sunpump launch"]);
+    for (const path of paths) {
+      for (const flag of [["--wait"], ["--wait-timeout", "1000"]]) {
+        await expect(buildCli(shellOpts()).parseAsync([...path, ...flag])).rejects.toMatchObject({
+          code: "invalid_option",
+          message: new RegExp(`^${path.join(" ")} does not accept --wait: `),
+        });
+      }
+    }
+  });
+
   // `use`/`rename`/`delete`/`backup` name their positional after the global --account. The global
   // stays valid; supplying both spellings at once is the case bindGroupedPositionals catches.
   it("keeps the global --account usable on the commands whose positional shares its name", async () => {

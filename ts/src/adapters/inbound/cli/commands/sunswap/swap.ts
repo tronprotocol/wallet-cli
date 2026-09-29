@@ -2,6 +2,7 @@ import { z, type RefinementCtx } from "zod";
 import { allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapSwapService } from "../../../../../application/use-cases/tron/sunswap/swap-service.js";
+import { UsageError } from "../../../../../domain/errors/index.js";
 import { TextFormatters } from "../../render/index.js";
 
 const fields = z.object({
@@ -123,8 +124,15 @@ export const sunswapSwapSpec: ChainSpec = {
 };
 
 export const sunswapSwapTronBinding = (service: SunSwapSwapService): FamilyBinding => ({
-  run: async (ctx, net, input) =>
-    service.swap(ctx, net, {
+  run: async (ctx, net, input) => {
+    // `--wait` is global, so the schema's --quote refusals cannot see it. A quote submits nothing.
+    if (input.quote === true && ctx.wait) {
+      throw new UsageError(
+        "invalid_option",
+        "--wait cannot be used with --quote, which sends no transaction",
+      );
+    }
+    return service.swap(ctx, net, {
       tokenIn: input.tokenIn,
       tokenOut: input.tokenOut,
       amountIn: input.amountIn,
@@ -134,5 +142,6 @@ export const sunswapSwapTronBinding = (service: SunSwapSwapService): FamilyBindi
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
       ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
-    }),
+    });
+  },
 });
