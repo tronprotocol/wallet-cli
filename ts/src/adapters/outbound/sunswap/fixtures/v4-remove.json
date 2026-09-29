@@ -3,9 +3,7 @@
   "fee": 12598100,
   "blockNumber": 71248729,
   "blockTimeStamp": 1790271852000,
-  "contractResult": [
-    ""
-  ],
+  "contractResult": [""],
   "contract_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
   "receipt": {
     "energy_fee": 11643100,
@@ -46,45 +44,35 @@
       "hash": "f6c4fab35a197c6af966caa185423ba264db30834955dab37519eb7ff153f743",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "ca6c271204fd5dbf9b4a86f12fffcb07d363639f123de369ed34238e6e017038",
       "caller_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
       "transferTo_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "6dd59ee8c84387ba4dd5618169c8bd187a23ad65102c0ecebcb7746d58eb82e6",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "c98d28d2dfa9c730fd04f693581ff2203f2e63ee25fe3100e6f463e386cb895e",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "a75b8451c05c32513c1a40ffaa8925a525228f51683d080c6eb8ecd901fd737a",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
@@ -102,27 +90,21 @@
       "hash": "e334bfb7dba580391153321d371221a9b12efabe029b02ed27817717197cbbdd",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "55de655fded87962aed3e116f8ae41af59f25260d9d13ce2c9e2f16a2f3c7759",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "56b44196b1d5a5192a30ee1b94cfb58c4adf890f5d91d4bb46123efc7dd5f462",
       "caller_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
       "transferTo_address": "41eca9bc828a3005b9a3b909f2cc5c2a54794de05f",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     }
   ]

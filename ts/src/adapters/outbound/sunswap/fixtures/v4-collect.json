@@ -3,9 +3,7 @@
   "fee": 10733200,
   "blockNumber": 71336271,
   "blockTimeStamp": 1790535354000,
-  "contractResult": [
-    ""
-  ],
+  "contractResult": [""],
   "contract_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
   "receipt": {
     "energy_fee": 9778200,
@@ -55,81 +53,63 @@
       "hash": "b7f18227dc81e49c619c5b5b2ddc6c31380dfd0a60d7ae3142add1f84d1521b0",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "a16739f4d76be7eb50a6c3fbc20a2689f3f990771f6d250ef06e03594e461de4",
       "caller_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
       "transferTo_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "796852dd01a49bbc5e551ecb1e2a267b40fb327f7d83cec2d488d6dd4b1af99c",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "9419af50a282bfe0539acc8b3061e9c93fe81d47479875a2dae311a96292972f",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "cd66f33a2526f4305d9442755707a4095399a32a017f19e293910e5fc91926ac",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "15acc9edf89e9603d651d6c68f601b7eb050627442d8179498f205bd825ec5c2",
       "caller_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
       "transferTo_address": "412a769a33b6ed01a074e4a45bffa0778a27949bec",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "ed258d7133de47c1489fc9178208704ab54303c0b67ada85f5656fbad34ca6c6",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "5d4123c7b41c08a169e6b19a825f34a461e16493fdc007a16066e5a5d9e02b71",
       "caller_address": "417dfe36f4916e434c020405ebb6e7cde0b9673cc7",
       "transferTo_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     },
     {
       "hash": "828417f8818f2fea9bb7a1fcd6e843574a5bc8442b105627afaf1966572a45a9",
       "caller_address": "41d8aec7918153470da1c6cfe464063b590ceec8b6",
       "transferTo_address": "41df8b1f3c5ceb7b8db39b729fa930387c4762c60b",
-      "callValueInfo": [
-        {}
-      ],
+      "callValueInfo": [{}],
       "note": "63616c6c"
     }
   ]
