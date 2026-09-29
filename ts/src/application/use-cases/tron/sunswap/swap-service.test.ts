@@ -545,6 +545,30 @@ describe("the curve branch", () => {
   });
 });
 
+describe("the amount in", () => {
+  /**
+   * Zero is refused before any market is asked, because nothing a market says can make it valid.
+   * Sent on, the route service answers "INVALID AMOUNT", which reached the caller as provider_error —
+   * a service fault, exit 1 — for what is the caller's own input.
+   */
+  it.each(["0", "0.0", "000"])(
+    "refuses %s as invalid_amount without asking either market",
+    async (amountIn) => {
+      const harness = makeHarness();
+      await expect(
+        harness.service.swap(harness.scope, NETWORK, {
+          tokenIn: "TRX",
+          tokenOut: "USDT",
+          amountIn,
+          quote: true,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_amount" });
+      expect(harness.port.tokenState).not.toHaveBeenCalled();
+      expect(harness.router.routes).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("--quote", () => {
   it("touches no account", async () => {
     const { service, scope, resolveAddress } = makeHarness(makePort(), false);

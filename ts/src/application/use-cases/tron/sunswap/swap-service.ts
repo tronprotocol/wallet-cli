@@ -140,6 +140,12 @@ export class SunSwapSwapService {
     if (inAddress === outAddress) {
       throw new ChainError("same_token", "the two sides of a swap are the same token");
     }
+    // Zero is refused before either market is asked: the route service answers it with
+    // "INVALID AMOUNT", which would reach the caller as a provider fault rather than their own input.
+    // Anything malformed is left to `toBaseUnits`, which needs the token's decimals to judge it.
+    if (/^0+(\.0+)?$/.test(input.amountIn.trim())) {
+      throw new UsageError("invalid_amount", "<amountIn> must be greater than 0");
+    }
 
     const market = await this.#chooseMarket(network, inAddress, outAddress);
     if (market === "sunswap") {
