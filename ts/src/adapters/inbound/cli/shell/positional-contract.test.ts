@@ -123,6 +123,14 @@ describe("every registered positional command rejects its --<field> spelling", (
       "proposal delete",
       "proposal show",
       "rename",
+      "sunpump buy",
+      "sunpump sell",
+      "sunpump token-info",
+      "sunpump token-search",
+      "sunswap pool-search",
+      "sunswap price",
+      "sunswap swap",
+      "sunswap token-search",
       "use",
       "witness set-brokerage",
       "x402 endpoint-list",
@@ -173,6 +181,61 @@ describe("every registered positional command rejects its --<field> spelling", (
     await expect(buildCli(shellOpts()).parseAsync(["config", "a", "b", "c"])).rejects.toMatchObject(
       { message: /too many positional arguments for config/ },
     );
+  });
+
+  /**
+   * A command may also refuse `--account` outright, and two do.
+   *
+   * `--account` is global, so the refusal has to be made on purpose. Without it the flag would be
+   * accepted and ignored: `sunpump launch --account main` would read as having created a token for
+   * `main` — which no launch does, since SunPump picks the owner — and `sunswap position-info
+   * --account main` would read as being about a position that account holds, when the command
+   * reports whoever holds the id it was given. Derived from the registry, so any later command that
+   * declares the same intent is covered here too.
+   */
+  function accountRefusingCommands() {
+    return newRuntime()
+      .registry.all()
+      .flatMap((c) =>
+        isChainCommand(c) && c.spec.rejectsAccount !== undefined ? [c.spec.path] : [],
+      );
+  }
+
+  it("refuses --account on every command that declares it does not take one", async () => {
+    const paths = accountRefusingCommands();
+    expect(paths.map((path) => path.join(" ")).sort()).toEqual([
+      "sunpump launch",
+      "sunswap position-info",
+      "sunswap position-list",
+    ]);
+    for (const path of paths) {
+      await expect(
+        buildCli(shellOpts()).parseAsync([...path, "--account", "main"]),
+      ).rejects.toMatchObject({
+        code: "invalid_option",
+        message: new RegExp(`^${path.join(" ")} does not accept --account: `),
+      });
+    }
+  });
+
+  /**
+   * `--wait` is global too, and refused the same way by a command that submits nothing to wait on.
+   * `sunpump launch` creates its token server-side and returns no transaction, so an accepted
+   * `--wait` would read as having waited for a confirmation that does not exist.
+   */
+  it("refuses --wait on every command that declares it has nothing to wait for", async () => {
+    const paths = newRuntime()
+      .registry.all()
+      .flatMap((c) => (isChainCommand(c) && c.spec.rejectsWait !== undefined ? [c.spec.path] : []));
+    expect(paths.map((path) => path.join(" ")).sort()).toEqual(["sunpump launch"]);
+    for (const path of paths) {
+      for (const flag of [["--wait"], ["--wait-timeout", "1000"]]) {
+        await expect(buildCli(shellOpts()).parseAsync([...path, ...flag])).rejects.toMatchObject({
+          code: "invalid_option",
+          message: new RegExp(`^${path.join(" ")} does not accept --wait: `),
+        });
+      }
+    }
   });
 
   // `use`/`rename`/`delete`/`backup` name their positional after the global --account. The global

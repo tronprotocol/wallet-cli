@@ -536,10 +536,34 @@ export function assertNoTailFlags(tokens: string[]): void {
 }
 
 function assertKnownFlags(
-  cmd: Pick<CommandExecutionSpec, "path" | "fields" | "positionals" | "supportsWait">,
+  cmd: Pick<
+    CommandExecutionSpec,
+    "path" | "fields" | "positionals" | "supportsWait" | "rejectsAccount" | "rejectsWait"
+  >,
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
+  // `--account` is global, so a command that must not be read as acting for an account has to say
+  // so out loud: ignoring it silently would let `sunpump launch --account main` look like it
+  // created a token for `main`, which no launch does.
+  if (cmd.rejectsAccount !== undefined && argv.account !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept --account: ${cmd.rejectsAccount}`,
+    );
+  }
+  if (
+    cmd.rejectsWait !== undefined &&
+    (argv.wait !== undefined ||
+      argv.waitTimeout !== undefined ||
+      argv.waitTimeoutMs !== undefined ||
+      argv["wait-timeout"] !== undefined)
+  ) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept --wait: ${cmd.rejectsWait}`,
+    );
+  }
   if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
     if (
       argv.account !== undefined ||

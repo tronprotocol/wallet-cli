@@ -41,6 +41,13 @@ import { AccountBalanceService } from "../application/use-cases/account-balance-
 import { TokenBookService } from "../application/use-cases/token-book-service.js";
 import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
 import { GasFreeClient } from "../adapters/outbound/gasfree/client.js";
+import { SunSwapMarketApi } from "../adapters/outbound/sunswap/market-api.js";
+import { SunSwapLiquidityContracts } from "../adapters/outbound/sunswap/liquidity-contracts.js";
+import { SunPumpLaunchpadContracts } from "../adapters/outbound/sunpump/launchpad-contracts.js";
+import { SunPumpMarketApi } from "../adapters/outbound/sunpump/market-api.js";
+import { SunPumpLaunchApi } from "../adapters/outbound/sunpump/launch-api.js";
+import { SunSwapRouterApi } from "../adapters/outbound/sunswap/router-api.js";
+import { SunSwapRouterPlanner } from "../adapters/outbound/sunswap/router-plan.js";
 import { ContactBook } from "../adapters/outbound/contactbook/index.js";
 import { ContactService } from "../application/use-cases/contact-service.js";
 import { RecipientResolver } from "../application/services/recipient-resolver.js";
@@ -114,7 +121,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
     familyMap((plugin) => plugin.createGateway),
     timeoutMs,
   );
-  const capabilityRegistry = new CapabilityRegistry();
+  const routerPlanner = new SunSwapRouterPlanner(gatewayProvider);
+  const capabilityRegistry = new CapabilityRegistry(config.aliases);
   const signerResolver = new SignerResolver(
     keystore,
     ledger,
@@ -181,6 +189,18 @@ export function composeCliRuntime(options: BootstrapOptions) {
     timeoutMs,
     tronlink: new TronLinkClient(config, timeoutMs),
     gasfree: new GasFreeClient(config, timeoutMs),
+    sunswapMarket: new SunSwapMarketApi(timeoutMs),
+    sunswapLiquidity: new SunSwapLiquidityContracts(gatewayProvider),
+    sunpumpLaunchpad: new SunPumpLaunchpadContracts(gatewayProvider),
+    sunpumpMarket: new SunPumpMarketApi(timeoutMs),
+    sunpumpLaunch: new SunPumpLaunchApi(timeoutMs),
+    sunswapRouter: new SunSwapRouterApi(timeoutMs),
+    sunswapRouterPlanner: routerPlanner,
+    // The SAME instance, under both ports. It memoises the chain clock per command, so two instances
+    // would read that clock twice and could disagree about the deadline — which is the mismatch the
+    // memo exists to remove.
+    sunswapPermits: routerPlanner,
+    aliases: config.aliases,
     recipients: recipientResolver,
     balances: accountBalances,
     tokenBook: tokenBookService,
@@ -208,6 +228,57 @@ export function composeCliRuntime(options: BootstrapOptions) {
       .filter(
         (key) =>
           !key.startsWith("gasfree.") || (isTronNetwork(network) && Boolean(network.gasfree)),
+      )
+      // Keyed on the exact field each service needs, not on the `sunswap.` prefix: the later
+      // swap and liquidity capabilities hang off different fields of the same block, and a
+      // prefix test would switch them all on the moment any one of them is configured.
+      .filter(
+        (key) =>
+          key !== "sunswap.market" ||
+          (isTronNetwork(network) && Boolean(network.sunswap?.marketApiBaseUrl)),
+      )
+      // The liquidity commands need contracts to call, which is a different question from
+      // whether the market data service answers for this network: Nile has the contracts and no
+      // market API, and both facts are true at once.
+      .filter(
+        (key) =>
+          key !== "sunswap.liquidity" ||
+          (isTronNetwork(network) &&
+            Boolean(network.sunswap?.contracts?.v2Router) &&
+            Boolean(network.sunswap?.contracts?.v3PositionManager)),
+      )
+      // SunPump's curve is one contract, and it is the only thing these commands need. The
+      // released binary carries it for mainnet alone (PM 3.1); a tester opens another network by
+      // setting the address in config.yaml, which is what D7 exists for.
+      .filter(
+        (key) =>
+          key !== "sunpump.curve" ||
+          (isTronNetwork(network) && Boolean(network.sunpump?.launchpad)),
+      )
+      // The catalogue is an HTTP service, which is a different question from whether the curve
+      // contract is reachable: a network can have one and not the other, and reading one
+      // network's tokens under another network's name is the failure this prevents.
+      .filter(
+        (key) =>
+          key !== "sunpump.market" ||
+          (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
+      )
+      // Creating a token is the same HTTP service as the catalogue, and deliberately its own key:
+      // one is a read and the other mints something permanent, so a network that may be listed is
+      // not thereby a network tokens may be created on.
+      .filter(
+        (key) =>
+          key !== "sunpump.launch" ||
+          (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
+      )
+      // `swap` is available where EITHER market can be served: the curve needs a launchpad
+      // address, the router needs a route service. Deliberately its own key rather than sunpump's,
+      // so neither market switching on implies the other is available.
+      .filter(
+        (key) =>
+          key !== "sunswap.swap" ||
+          (isTronNetwork(network) &&
+            (Boolean(network.sunpump?.launchpad) || Boolean(network.sunswap?.routerApiBaseUrl))),
       )
       .map((key) => ({
         key,

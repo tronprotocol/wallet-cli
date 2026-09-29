@@ -158,6 +158,34 @@ export function tronTransactionHooks(gateway: TronGateway) {
   return {
     prepare: (transaction: UnsignedTx, options: { permissionId: number; expiration?: number }) =>
       gateway.prepareTransaction(transaction, options),
+    prepareForSigning: (transaction: UnsignedTx, timeoutMs: number) => {
+      const artifact = transaction as TronTransactionArtifact;
+      const timestamp = artifact.raw_data.timestamp;
+      if (!Number.isSafeInteger(timestamp)) {
+        throw new ChainError(
+          "invalid_transaction",
+          "TRON transaction timestamp is missing or imprecise",
+        );
+      }
+      // The node's short default is often consumed by Ledger review. Reserve ten minutes
+      // or the device timeout plus a minute for broadcast, without shortening a longer TTL.
+      const expiration = Math.max(
+        artifact.raw_data.expiration ?? 0,
+        Date.now() + Math.max(600_000, timeoutMs + 60_000),
+      );
+      if (expiration - timestamp! > 86_400_000) {
+        throw new ChainError(
+          "tx_expired",
+          "the required signing window exceeds the TRON transaction lifetime; rebuild the transaction with a shorter device timeout",
+        );
+      }
+      return gateway.prepareTransaction(transaction, {
+        permissionId: artifact.raw_data.contract[0]?.Permission_id ?? 0,
+        expiration: expiration - timestamp!,
+      });
+    },
+    assertNotExpired: (transaction: UnsignedTx) =>
+      assertNotExpired(transaction as TronTransactionArtifact),
     artifact: (transaction: UnsignedTx) => gateway.encodeTransactionHex(transaction),
   };
 }

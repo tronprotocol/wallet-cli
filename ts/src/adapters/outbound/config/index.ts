@@ -13,6 +13,7 @@ import { UsageError } from "../../../domain/errors/index.js";
 import { BUILTIN_ALIASES, BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import type { ChainFamily } from "../../../domain/family/index.js";
+import { TronAddress } from "../../../domain/address/index.js";
 
 export class ConfigLoader {
   /** bootstrap: must run before locating config.yaml. */
@@ -183,8 +184,77 @@ function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescr
       `network ${id} in config.yaml has an unsupported family: ${String(family)}`,
     );
   }
+  validSunSwapBlock(id, merged.sunswap);
   // Traits are extras; having none is the normal case, not an error.
   return { capabilities: [], ...merged } as unknown as NetworkDescriptor;
+}
+
+const SUNSWAP_CONTRACT_KEYS = [
+  "permit2",
+  "universalRouter",
+  "v2Router",
+  "v3PositionManager",
+  "v4PositionManager",
+  "v4PoolManager",
+  "wtrx",
+] as const;
+
+/**
+ * Validate a hand-written `sunswap` block.
+ *
+ * The block is what decides whether the SunSwap commands are offered at all, so a typo in it
+ * has to be reported as a config mistake naming the field — silently registering a capability
+ * whose base URL is "htp://open.sun.io" moves the failure to the first request, where it
+ * surfaces as a provider error and looks like the service is down.
+ *
+ * A user block REPLACES the builtin one wholesale (the same rule every other service block
+ * follows), so every field a network needs must be present in the user's own block.
+ */
+function validSunSwapBlock(id: string, block: unknown): void {
+  if (block === undefined) return;
+  if (typeof block !== "object" || block === null || Array.isArray(block)) {
+    throw new UsageError("invalid_value", `network ${id} in config.yaml has an invalid sunswap`);
+  }
+  const { marketApiBaseUrl, routerApiBaseUrl, contracts } = block as Record<string, unknown>;
+  for (const [field, value] of [
+    ["marketApiBaseUrl", marketApiBaseUrl],
+    ["routerApiBaseUrl", routerApiBaseUrl],
+  ] as const) {
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !isHttpUrl(value)) {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has an invalid sunswap.${field}: expected an http(s) URL`,
+      );
+    }
+  }
+  if (contracts === undefined) return;
+  if (typeof contracts !== "object" || contracts === null || Array.isArray(contracts)) {
+    throw new UsageError(
+      "invalid_value",
+      `network ${id} in config.yaml has an invalid sunswap.contracts`,
+    );
+  }
+  const codec = new TronAddress();
+  for (const key of SUNSWAP_CONTRACT_KEYS) {
+    const value = (contracts as Record<string, unknown>)[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !codec.validate(value)) {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has an invalid sunswap.contracts.${key}: expected a base58 TRON address`,
+      );
+    }
+  }
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function readConfigDocument(path: string) {
