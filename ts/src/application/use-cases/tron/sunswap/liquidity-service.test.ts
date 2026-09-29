@@ -1276,6 +1276,44 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     return { ...h, result: h.service.addLiquidity(h.scope, NETWORK, input as never) };
   }
 
+  /**
+   * A confirmed V4 mint reports the position it created.
+   *
+   * It is the one figure a caller needs afterwards — every later command names the position by it —
+   * and on Nile `position-list` cannot recover it. An earlier version returned `{}` from the mint
+   * branch, so a real Nile mint (position 178) confirmed with no id anywhere but a raw log.
+   */
+  it("publishes the new position's id once the mint confirms", async () => {
+    const port = v4Port();
+    await expect(run({ ...BASE_V4 }, port).result).resolves.toMatchObject({
+      nftTokenId: "31",
+      newPosition: true,
+    });
+    expect(port.v4MintedPositionId).toHaveBeenCalledTimes(1);
+  });
+
+  // Nothing has been minted on a dry run, so there is nothing to look for.
+  it("does not look for a minted id on a dry run", async () => {
+    const port = v4Port();
+    const out = await run({ ...BASE_V4, dryRun: true }, port).result;
+    expect(out).not.toHaveProperty("nftTokenId");
+    expect(port.v4MintedPositionId).not.toHaveBeenCalled();
+  });
+
+  /**
+   * An id we could not read is ABSENT and WARNED, never guessed.
+   *
+   * The deposit is already on chain by then, so failing the command would misreport a success; but
+   * inventing an id would send the caller to act on a position that is not theirs.
+   */
+  it("warns and omits the id when the log cannot be read", async () => {
+    const port = v4Port({ v4MintedPositionId: vi.fn(async () => undefined) as never });
+    const h = run({ ...BASE_V4 }, port);
+    const out = await h.result;
+    expect(out).not.toHaveProperty("nftTokenId");
+    expect(h.scope.warn).toHaveBeenCalled();
+  });
+
   /** The four flags become a key, the key becomes an id, and the id is what the pool is read by. */
   it("derives the pool id from the parts and reads that pool", async () => {
     keysAsked.length = 0;

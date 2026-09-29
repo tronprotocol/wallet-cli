@@ -394,7 +394,7 @@ export class SunSwapLiquidityService {
             planned.liquidityBefore ?? "0",
             main,
           )
-        : {};
+        : await this.#settleV4Mint(scope, network, main);
     return {
       kind: KIND,
       ...plan,
@@ -1222,6 +1222,33 @@ export class SunSwapLiquidityService {
    * Best-effort, like the V2 follow-up read: the position exists on chain either way, so a log
    * that could not be read costs the caller the id, not the deposit.
    */
+  /**
+   * The id of the position a V4 mint created.
+   *
+   * It is assigned during execution, so nothing before the receipt can know it — and it is the one
+   * figure a caller needs afterwards, since every later command names the position by it. On Nile
+   * `position-list` cannot recover it either, so without this the only record of a new position is
+   * a transaction log the caller would have to decode by hand. Measured on Nile: a V4 mint emits an
+   * ERC-721 `Transfer` from the zero address, exactly as V3's does.
+   */
+  async #settleV4Mint(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    outcome: TxOutcome,
+  ): Promise<Record<string, unknown>> {
+    if (outcome.stage !== "confirmed") return {};
+    const txId = outcomeTxId(outcome);
+    if (txId === undefined) return {};
+    let minted: string | undefined;
+    await warnOnPostCheck(scope, "sunswap_position_id", async () => {
+      minted = await this.liquidity.v4MintedPositionId(network, txId);
+      return minted === undefined
+        ? "the mint confirmed but its position id could not be read from the transaction log"
+        : undefined;
+    });
+    return minted === undefined ? {} : { nftTokenId: minted, newPosition: true };
+  }
+
   async #mintedPositionId(
     scope: TransactionScope,
     network: NetworkDescriptor,

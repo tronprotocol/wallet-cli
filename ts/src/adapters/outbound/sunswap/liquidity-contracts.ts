@@ -746,7 +746,23 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
    * only says what the account holds now.
    */
   async v3MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
-    const manager = this.#positionManager(network);
+    return this.#mintedPositionId(network, txId, this.#positionManager(network));
+  }
+
+  /**
+   * The same read against V4's position manager. A V4 mint emits the same ERC-721 `Transfer` from
+   * the zero address — measured on Nile, position 178 — so one decoder serves both, told only which
+   * contract's log to trust.
+   */
+  async v4MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
+    return this.#mintedPositionId(network, txId, this.#v4.positionManager(network));
+  }
+
+  async #mintedPositionId(
+    network: NetworkDescriptor,
+    txId: string,
+    manager: string,
+  ): Promise<string | undefined> {
     const managerHex = tronHexAddress(manager).slice(2).toLowerCase();
     const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
     // `TronTxInfo` is open-ended, so the log is narrowed here rather than assumed.

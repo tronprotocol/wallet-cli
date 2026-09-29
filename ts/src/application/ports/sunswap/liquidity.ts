@@ -359,6 +359,9 @@ export interface LiquidityPort {
    * receipt can know it. Undefined when the transaction minted nothing.
    */
   v3MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
+
+  /** The id of the V4 position a confirmed mint created, from its ERC-721 `Transfer` log. */
+  v4MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
 }
 
 /** A V3 pool, as `slot0` and the factory report it. */
