@@ -14,6 +14,8 @@ const SYMBOLS: Record<string, string> = {
   TRX: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
 };
 const RESOLVER = {
+  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
+  resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) => SYMBOLS[value.toUpperCase()] ?? value,
 } as unknown as SunSwapTokenResolver;
 
@@ -276,28 +278,20 @@ describe("collect-fees — a collection of nothing", () => {
     expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
   });
 
-  // The dry run is where a caller finds out; refusing to show them the zero would hide the fact
-  // they came to check.
-  it("is still previewable, so the zero is visible", async () => {
-    const { service, scope } = makeHarness(nothing());
+  // Every mode answers alike: a dry run that succeeds where the execute refuses would preview a
+  // transaction that can never be sent. The message carries the zero the caller came to check.
+  it.each([
+    ["a dry run", { dryRun: true }],
+    ["a build", { buildOnly: true }],
+  ])("is refused on %s too, before anything is estimated", async (_name, mode) => {
+    const { service, scope, gateway } = makeHarness(nothing());
 
-    const result = (await service.collectFees(scope, NETWORK, {
-      ...V3,
-      dryRun: true,
-    })) as Record<string, Record<string, string>>;
-
-    expect(result.token0).toMatchObject({ amount: "0" });
-  });
-
-  it("still builds, because an unsigned transaction spends nothing", async () => {
-    const { service, scope } = makeHarness(nothing());
-
-    const result = (await service.collectFees(scope, NETWORK, {
-      ...V3,
-      buildOnly: true,
-    })) as Record<string, unknown>;
-
-    expect(result.mode).toBe("build-only");
+    await expect(service.collectFees(scope, NETWORK, { ...V3, ...mode })).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("position 686 has no fees to collect"),
+    });
+    expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
+    expect(gateway.estimateResources).not.toHaveBeenCalled();
   });
 });
 
@@ -553,21 +547,68 @@ describe("collect-fees — V4", () => {
    * The distinction this whole path exists for: a zero that came from the chain is a fact about
    * the position, and it is published without a warning.
    */
-  // The dry run SHOWS the zero, which is how a caller sees why the execute below refuses.
-  it("publishes a zero when the read says nothing is owed", async () => {
+  /**
+   * A zero that came from the chain is refused in EVERY mode, not only on execute.
+   *
+   * On V4 this is more than consistency: the collect call is a zero-delta `decreaseLiquidity`, and
+   * on an empty position the estimate reverts with `CannotUpdateEmptyPosition` (0xaefeb924). So a
+   * dry run that reached the estimate failed as `execution_reverted` while the execute refused as
+   * `invalid_value` — two answers to one question. Refusing before the estimate gives one.
+   */
+  it.each([
+    ["a dry run", { dryRun: true }],
+    ["a build", { buildOnly: true }],
+  ])("refuses %s when the read measured nothing owed, before estimating", async (_name, mode) => {
     const { port } = makeV4Port({
+      v4OwedFees: vi.fn(async () => ({ amount0: "0", amount1: "0" })) as never,
+    });
+    const { service, scope, gateway } = makeHarness(port);
+
+    await expect(service.collectFees(scope, NETWORK, { ...V4, ...mode })).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("position 1 has no fees to collect"),
+    });
+    expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
+    expect(gateway.estimateResources).not.toHaveBeenCalled();
+  });
+
+  /**
+   * An EMPTY position is refused even when the fee read failed.
+   *
+   * The contract refuses any modification of a position with no liquidity
+   * (`CannotUpdateEmptyPosition`), so the collect could never be sent; previewing it would only
+   * surface that revert as `execution_reverted` instead of the refusal the execute gives.
+   */
+  it("refuses a dry run on an empty position even when the fee read failed", async () => {
+    const { port } = makeV4Port({
+      v4Position: vi.fn(async () => ({ ...V4_POSITION, liquidity: "0" })) as never,
+      v4OwedFees: vi.fn(async () => undefined) as never,
+    });
+    const { service, scope, gateway } = makeHarness(port);
+
+    await expect(
+      service.collectFees(scope, NETWORK, { ...V4, dryRun: true }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("no fees to collect"),
+    });
+    expect(gateway.estimateResources).not.toHaveBeenCalled();
+  });
+
+  // A position that still holds liquidity but has earned nothing is the same nothing.
+  it("refuses a dry run on a funded position that has earned nothing", async () => {
+    const { port } = makeV4Port({
+      v4Position: vi.fn(async () => ({ ...V4_POSITION, liquidity: "148506" })) as never,
       v4OwedFees: vi.fn(async () => ({ amount0: "0", amount1: "0" })) as never,
     });
     const { service, scope } = makeHarness(port);
 
-    const result = (await service.collectFees(scope, NETWORK, { ...V4, dryRun: true })) as Record<
-      string,
-      Record<string, unknown>
-    >;
-
-    expect(result.token0).toEqual({ address: NATIVE, symbol: "TRX", decimals: 6, amount: "0" });
-    expect(result.token1).toEqual({ address: USDT, symbol: "USDT", decimals: 6, amount: "0" });
-    expect(scope.warn).not.toHaveBeenCalled();
+    await expect(
+      service.collectFees(scope, NETWORK, { ...V4, dryRun: true }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: expect.stringContaining("no fees to collect"),
+    });
   });
 
   /**

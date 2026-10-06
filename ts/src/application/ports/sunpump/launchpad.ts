@@ -30,10 +30,11 @@ export interface BuyQuote {
   readonly feeSun: string;
 }
 
-/** What a sale of a given token amount returns, and the platform fee taken out of it. */
+/** What a sale of a given token amount returns, and the platform fee the curve pays beside it. */
 export interface SellQuote {
-  /** SUN expected out, before the fee below is deducted. */
+  /** SUN the seller receives — already net of the fee below, which is paid on top of it. */
   readonly trxAmountSun: string;
+  /** SUN paid to the fee address; the sale's gross is `trxAmountSun + feeSun`. */
   readonly feeSun: string;
 }
 
@@ -55,21 +56,18 @@ export interface LaunchpadPort extends ApprovalCapablePort {
   /** `owner`'s balance of `token`, in base units. */
   balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<string>;
 
-  /** `owner`'s native TRX balance, in SUN — what a buy spends, and it has no contract to ask. */
-  nativeBalance(network: NetworkDescriptor, owner: string): Promise<string>;
-
   /** how many tokens `trxSun` buys, and the fee inside it. */
   quoteBuy(network: NetworkDescriptor, token: string, trxSun: string): Promise<BuyQuote>;
 
-  /** how much TRX `tokenAmount` sells for, and the fee taken out of it. */
+  /** how much TRX the seller of `tokenAmount` receives, net, and the fee paid beside it. */
   quoteSell(network: NetworkDescriptor, token: string, tokenAmount: string): Promise<SellQuote>;
 
   /**
-   * The smallest sale the curve will price, in base units of the token.
+   * The smallest sale that pays the seller anything, in base units of the token.
    *
-   * A sale whose gross proceeds fall below the platform fee's floor reverts inside the quote —
-   * the contract would have to subtract more than it is paying out. This asks the inverse
-   * question: how many tokens does the floor correspond to.
+   * Below it the curve either reverts inside the quote or prices the sale at nothing for the
+   * seller. This asks the inverse question of the contract: how many tokens a net of one SUN
+   * corresponds to.
    */
   minimumSellAmount(network: NetworkDescriptor, token: string): Promise<string>;
 

@@ -29,6 +29,8 @@ export const sunswapPriceSpec: ChainSpec = {
   path: ["sunswap", "price"],
   network: "optional",
   wallet: "none",
+  rejectsAccount:
+    "price resolves a symbol from the official token book only, so no account's token book is consulted; pass contract addresses with --address for any other token",
   auth: "none",
   capability: "sunswap.market",
   summary: "Show the USD price of one or more tokens",

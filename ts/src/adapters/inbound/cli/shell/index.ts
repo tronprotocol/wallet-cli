@@ -538,7 +538,13 @@ export function assertNoTailFlags(tokens: string[]): void {
 function assertKnownFlags(
   cmd: Pick<
     CommandExecutionSpec,
-    "path" | "fields" | "positionals" | "supportsWait" | "rejectsAccount" | "rejectsWait"
+    | "path"
+    | "fields"
+    | "positionals"
+    | "supportsWait"
+    | "rejectsAccount"
+    | "rejectsWait"
+    | "rejectsWaitWith"
   >,
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
@@ -563,6 +569,23 @@ function assertKnownFlags(
       "invalid_option",
       `${cmd.path.join(" ")} does not accept --wait: ${cmd.rejectsWait}`,
     );
+  }
+  // The same refusal, scoped to one mode: `sunpump buy --quote` sends nothing to wait on.
+  if (cmd.rejectsWaitWith !== undefined && argv[cmd.rejectsWaitWith] === true) {
+    const waitFlag =
+      argv.wait !== undefined
+        ? "--wait"
+        : argv.waitTimeout !== undefined ||
+            argv.waitTimeoutMs !== undefined ||
+            argv["wait-timeout"] !== undefined
+          ? "--wait-timeout"
+          : undefined;
+    if (waitFlag !== undefined) {
+      throw new UsageError(
+        "invalid_option",
+        `${waitFlag} cannot be used with --${camelToKebab(cmd.rejectsWaitWith)}, which sends no transaction`,
+      );
+    }
   }
   if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
     if (

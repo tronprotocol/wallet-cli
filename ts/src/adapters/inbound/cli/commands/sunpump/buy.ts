@@ -21,6 +21,8 @@ export const sunpumpBuySpec: ChainSpec = {
   wallet: "none",
   auth: "conditional",
   broadcasts: true,
+  // A quote sends nothing, so there is no confirmation for --wait or --wait-timeout to wait on.
+  rejectsWaitWith: "quote",
   capability: "sunpump.curve",
   summary: "Buy a token on the SunPump bonding curve",
   description:

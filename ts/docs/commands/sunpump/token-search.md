@@ -42,7 +42,7 @@ An empty or whitespace keyword is refused rather than sent: the service reads it
 | `--limit <n>` | `20` | Maximum rows; at most `50` |
 | `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit` |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
 ## Examples
 

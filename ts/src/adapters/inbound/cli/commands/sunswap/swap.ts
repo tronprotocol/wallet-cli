@@ -2,7 +2,6 @@ import { z, type RefinementCtx } from "zod";
 import { allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapSwapService } from "../../../../../application/use-cases/tron/sunswap/swap-service.js";
-import { UsageError } from "../../../../../domain/errors/index.js";
 import { TextFormatters } from "../../render/index.js";
 
 const fields = z.object({
@@ -82,6 +81,8 @@ export const sunswapSwapSpec: ChainSpec = {
   // the account itself on the paths that sign. An account is needed for every other mode.
   wallet: "none",
   auth: "conditional",
+  // A quote sends nothing, so there is no confirmation for --wait or --wait-timeout to wait on.
+  rejectsWaitWith: "quote",
   broadcasts: true,
   // Its own key, not sunpump's: this command needs a launchpad address OR a route service, and
   // `swap` must not be switched on merely because SunPump is configured — nor hidden on a network
@@ -126,13 +127,6 @@ export const sunswapSwapSpec: ChainSpec = {
 
 export const sunswapSwapTronBinding = (service: SunSwapSwapService): FamilyBinding => ({
   run: async (ctx, net, input) => {
-    // `--wait` is global, so the schema's --quote refusals cannot see it. A quote submits nothing.
-    if (input.quote === true && ctx.wait) {
-      throw new UsageError(
-        "invalid_option",
-        "--wait cannot be used with --quote, which sends no transaction",
-      );
-    }
     return service.swap(ctx, net, {
       tokenIn: input.tokenIn,
       tokenOut: input.tokenOut,

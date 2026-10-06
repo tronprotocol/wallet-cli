@@ -1,5 +1,5 @@
 import { z, type RefinementCtx } from "zod";
-import { Schemas } from "../../schemas/index.js";
+import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapRemoveLiquidityService } from "../../../../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
@@ -241,7 +241,9 @@ export const sunswapRemoveLiquiditySpec: ChainSpec = {
     "--dry-run validates everything — the position, the balance, the amounts — without a\n" +
     "password, and works for a watch-only account.",
   baseFields: fields,
-  baseRefine: refuseFlagsOutsideScenario,
+  // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
+  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1 (PM 6.0).
+  baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     {
       cmd: "wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --token1 WTRX --liquidity 0.5 --dry-run",

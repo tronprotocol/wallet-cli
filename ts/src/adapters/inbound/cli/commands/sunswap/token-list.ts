@@ -16,6 +16,7 @@ export const sunswapTokenListSpec: ChainSpec = {
   path: ["sunswap", "token-list"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "token-list reads public market data and is not about any account of yours",
   auth: "none",
   capability: "sunswap.market",
   summary: "List the tokens traded on SunSwap",
@@ -23,7 +24,8 @@ export const sunswapTokenListSpec: ChainSpec = {
     "List tokens traded on SunSwap, with price and liquidity data.\n" +
     "This is the on-chain DEX token catalogue; for the local token address book see 'wallet-cli token list'.\n" +
     "Each row is a token within one protocol scope: ALL (all protocols combined, the default) or a single protocol.\n" +
-    "Rows from different scopes overlap and must not be added together.",
+    "Rows from different scopes overlap and must not be added together.\n" +
+    "--offset + --limit may not exceed 1000: the data service exposes only the first 1000 rows of each ordering.",
   baseFields: fields,
   examples: [
     { cmd: "wallet-cli sunswap token-list" },

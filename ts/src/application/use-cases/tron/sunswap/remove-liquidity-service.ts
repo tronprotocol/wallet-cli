@@ -45,7 +45,11 @@ import {
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
 import { warnOnPostCheck } from "../../../services/post-check.js";
-import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import {
+  tokenBookAccount,
+  withTokenBook,
+  type SunSwapTokenResolver,
+} from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
 import { isTronNetwork } from "../../../../domain/types/network.js";
@@ -58,7 +62,19 @@ import {
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { describeHooks } from "../../../../domain/sunswap/v4-pool.js";
 import { slippageToBips } from "../../../../domain/sunpump/curve.js";
-import { LiquidityTransactions, outcomeTxId, type ApprovalPlan } from "./liquidity-transactions.js";
+import {
+  LiquidityTransactions,
+  outcomeTxId,
+  withPositionManager,
+  type ApprovalPlan,
+} from "./liquidity-transactions.js";
+
+/**
+ * The lookup for the resolution further in. The entry has already resolved `token0`/`token1`
+ * against the account's book, so what reaches these calls is an address (a pass-through) or a
+ * builtin; a caller that skipped the entry gets the official layer only.
+ */
+const RESOLVED = { caller: "liquidity" } as const;
 
 /** The receipt's `kind`, one value across every mode this command has (PM 2.9). */
 const KIND = "sunswap-remove-liquidity" as const;
@@ -108,6 +124,7 @@ export interface RemovalSide {
 export interface RemovalPlanView {
   readonly account: string;
   readonly protocol: "V2" | "V3" | "V4";
+  /** V2's router, or the V3 / V4 position manager — published as `positionManager` on V3 / V4. */
   readonly router: string;
   readonly recipient: string;
   readonly deadline: number;
@@ -149,11 +166,19 @@ export class SunSwapRemoveLiquidityService {
     network: NetworkDescriptor,
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
-    const protocol = input.protocol.toUpperCase();
-    if (protocol === "V4") return this.#removeV4(scope, network, input);
-    return protocol === "V3"
-      ? this.#removeV3(scope, network, input)
-      : this.#removeV2(scope, network, input);
+    const book = this.tokens.resolvePair(network, input, {
+      caller: "liquidity",
+      account: tokenBookAccount(scope),
+    });
+    const resolved = book.input;
+    const protocol = resolved.protocol.toUpperCase();
+    const result =
+      protocol === "V4"
+        ? await this.#removeV4(scope, network, resolved)
+        : protocol === "V3"
+          ? await this.#removeV3(scope, network, resolved)
+          : await this.#removeV2(scope, network, resolved);
+    return withTokenBook(result, book.resolved);
   }
 
   // ── V2 ──────────────────────────────────────────────────────────────────────
@@ -241,8 +266,8 @@ export class SunSwapRemoveLiquidityService {
     if (input.token0 === undefined || input.token1 === undefined) {
       throw new UsageError("missing_option", "V2 requires --token0 and --token1");
     }
-    const address0 = this.tokens.resolve(network, input.token0);
-    const address1 = this.tokens.resolve(network, input.token1);
+    const address0 = this.tokens.resolve(network, input.token0, RESOLVED);
+    const address1 = this.tokens.resolve(network, input.token1, RESOLVED);
     if (address0 === address1) {
       throw new ChainError("same_token", "--token0 and --token1 are the same token");
     }
@@ -392,11 +417,11 @@ export class SunSwapRemoveLiquidityService {
         mode,
         input.feeLimit,
       );
-      return { kind: KIND, mode: "dry-run", ...plan, ...priced };
+      return { kind: KIND, mode: "dry-run", ...withPositionManager(plan), ...priced };
     }
     if (mode.buildOnly) {
       const built = await this.tx.buildOnly(scope, network, [], payload, mode, input.feeLimit);
-      return { kind: KIND, ...plan, ...built };
+      return { kind: KIND, ...withPositionManager(plan), ...built };
     }
 
     // Re-read the owner immediately before sending: a dry run can be minutes old, and a position
@@ -604,11 +629,11 @@ export class SunSwapRemoveLiquidityService {
         mode,
         input.feeLimit,
       );
-      return { kind: KIND, mode: "dry-run", ...plan, ...priced };
+      return { kind: KIND, mode: "dry-run", ...withPositionManager(plan), ...priced };
     }
     if (mode.buildOnly) {
       const built = await this.tx.buildOnly(scope, network, [], payload, mode, input.feeLimit);
-      return { kind: KIND, ...plan, ...built };
+      return { kind: KIND, ...withPositionManager(plan), ...built };
     }
 
     // Re-read the owner immediately before sending, for the same reason V3 does: a dry run can be
@@ -636,7 +661,7 @@ export class SunSwapRemoveLiquidityService {
 
     return {
       kind: KIND,
-      ...plan,
+      ...withPositionManager(plan),
       token0: withFees(publishedSide(plan.token0), owed?.amount0),
       token1: withFees(publishedSide(plan.token1), owed?.amount1),
       ...outcomeData(main),
@@ -798,7 +823,10 @@ export class SunSwapRemoveLiquidityService {
     token0: string,
     token1: string,
   ): void {
-    const given = [this.tokens.resolve(network, token0), this.tokens.resolve(network, token1)];
+    const given = [
+      this.tokens.resolve(network, token0, RESOLVED),
+      this.tokens.resolve(network, token1, RESOLVED),
+    ];
     const held = [position.currency0, position.currency1];
     const matches =
       (given[0] === held[0] && given[1] === held[1]) ||

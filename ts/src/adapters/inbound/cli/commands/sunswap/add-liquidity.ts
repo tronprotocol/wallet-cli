@@ -1,5 +1,6 @@
 import { z, type RefinementCtx } from "zod";
-import { Schemas } from "../../schemas/index.js";
+import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
+import { CliError } from "../../../../../domain/errors/index.js";
 import { resolveV4Pool } from "../../../../../domain/sunswap/v4-pool.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapLiquidityService } from "../../../../../application/use-cases/tron/sunswap/liquidity-service.js";
@@ -229,6 +230,18 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
       ...(value.hooks === undefined ? {} : { hooks: String(value.hooks) }),
     });
   } catch (error) {
+    /**
+     * The domain's code is kept, whatever it is.
+     *
+     * A usage code rides the issue. An exit-1 code cannot — `parseInputSchema` turns any declared
+     * code that is not a usage code into `invalid_value` — so it is rethrown as it was raised:
+     * `same_token` is exit 1 here as it is on V2 and on every other command. Only when nothing
+     * earlier has been refused, so the first refusal is still the one reported.
+     */
+    if (error instanceof CliError && error.exitCode() === 1) {
+      if (ctx.issues.length === 0) throw error;
+      return;
+    }
     const code = (error as { code?: string }).code;
     ctx.addIssue({
       code: "custom",
@@ -245,7 +258,7 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
        * round". Redundant beats ungrammatical, and neither of them misleads.
        */
       message: messageOf(error),
-      params: { errorCode: code === "missing_option" ? "missing_option" : "invalid_value" },
+      params: { errorCode: code ?? "invalid_value" },
     });
   }
 }
@@ -412,7 +425,9 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     "--dry-run validates everything — balances, the pool, the amounts, the allowances — without a\n" +
     "password, and works for a watch-only account.",
   baseFields: fields,
-  baseRefine: refuseFlagsOutsideScenario,
+  // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
+  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1 (PM 6.0).
+  baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     {
       cmd: "wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --token1 WTRX --amount0 10 --dry-run",

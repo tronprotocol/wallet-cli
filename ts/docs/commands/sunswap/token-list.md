@@ -26,9 +26,9 @@ There is no `--sort`: the token endpoints expose a sort field but no direction, 
 | `--protocol <name>` | `ALL` | Protocol scope: `ALL`, `V1`, `V1_5`, `V2`, `V3`, `V4`, `CURVE` |
 | `--order-by <field>` | `tvl` | Order by `tvl` or `volume-24h` |
 | `--limit <n>` | `20` | Maximum rows |
-| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit` |
+| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit`, and `--offset` + `--limit` may not exceed 1000 — the data service exposes only the first 1000 rows of each ordering |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
 ## Examples
 

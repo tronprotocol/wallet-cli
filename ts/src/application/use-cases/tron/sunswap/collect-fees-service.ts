@@ -45,7 +45,11 @@ import type {
 } from "../../../ports/sunswap/liquidity.js";
 import type { ChainGatewayProvider } from "../../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
-import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import {
+  tokenBookAccount,
+  withTokenBook,
+  type SunSwapTokenResolver,
+} from "../../../services/sunswap-token-resolver.js";
 import {
   outcomeData,
   transactionMode,
@@ -60,6 +64,13 @@ import { resolveDeadline } from "../../../../domain/sunswap/liquidity.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { describeHooks } from "../../../../domain/sunswap/v4-pool.js";
 import { LiquidityTransactions, outcomeTxId } from "./liquidity-transactions.js";
+
+/**
+ * The lookup for the resolution further in. The entry has already resolved `token0`/`token1`
+ * against the account's book, so what reaches these calls is an address (a pass-through) or a
+ * builtin; a caller that skipped the entry gets the official layer only.
+ */
+const RESOLVED = { caller: "liquidity" } as const;
 
 /** The receipt's `kind`, one value across every mode this command has (PM 2.9). */
 const KIND = "sunswap-collect-fees" as const;
@@ -144,7 +155,14 @@ export class SunSwapCollectFeesService {
     input: CollectFeesInput,
   ): Promise<Record<string, unknown>> {
     const protocol = input.protocol.toUpperCase();
-    if (protocol === "V4") return this.#collectV4(scope, network, input);
+    if (protocol === "V4") {
+      // Only V4 reads the pair: it is the cross-check against the position's own currencies.
+      const book = this.tokens.resolvePair(network, input, {
+        caller: "liquidity",
+        account: tokenBookAccount(scope),
+      });
+      return withTokenBook(await this.#collectV4(scope, network, book.input), book.resolved);
+    }
     // Not "unknown protocol": V2's fees are real, they simply are not separable — they accrue
     // into the LP token's value and come out when the liquidity does.
     if (protocol !== "V3") {
@@ -158,6 +176,11 @@ export class SunSwapCollectFeesService {
     const { plan, position } = await this.#plan(network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
+    // A collection of nothing is not a small collection. Measured on Nile: the contract accepts
+    // it, emits a Collect of zero, charges 8.08 TRX and the receipt reads "Fees collected" — a
+    // transaction that looks like success and leaves the caller poorer. It is refused in EVERY
+    // mode, ahead of the estimate, so a dry run and a build answer exactly as the execute would.
+    if (nothingOwed(plan)) throw noFeesToCollect(plan.nftTokenId);
 
     const payload = this.#payload(network, plan);
     if (mode.dryRun) {
@@ -179,16 +202,6 @@ export class SunSwapCollectFeesService {
     // Re-read the owner immediately before sending: a dry run can be minutes old, and a position
     // that changed hands in between must not have its fees claimed on this account's behalf.
     await this.#assertOwned(network, position.tokenId, owner);
-    // A collection of nothing is not a small collection. Measured on Nile: the contract accepts
-    // it, emits a Collect of zero, charges 8.08 TRX and the receipt reads "Fees collected" — a
-    // transaction that looks like success and leaves the caller poorer. It is refused rather
-    // than sent, and the dry run still shows the zero so a caller can see why.
-    if (nothingOwed(plan)) {
-      throw new UsageError(
-        "invalid_value",
-        `position ${plan.nftTokenId} has no fees to collect; sending this would spend a fee to receive nothing`,
-      );
-    }
     const main = await this.tx.run(scope, network, payload, {
       mode,
       estimable: true,
@@ -314,9 +327,30 @@ export class SunSwapCollectFeesService {
     input: CollectFeesInput,
   ): Promise<Record<string, unknown>> {
     const owner = resolveTronAccount(scope);
-    const { plan, request } = await this.#planV4(scope, network, owner, input);
+    const { plan, position, request } = await this.#planV4(scope, network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
+    /**
+     * A collection of nothing is not a small collection — the same reason V3 refuses one, and in
+     * every mode for the same reason: a dry run and a build answer exactly as the execute would.
+     *
+     * On V4 it also has to run BEFORE the estimate. The collect call is a zero-delta
+     * `decreaseLiquidity`, and on an empty position the contract reverts it with
+     * `CannotUpdateEmptyPosition` (0xaefeb924), so an estimate reached here would fail as
+     * `execution_reverted` instead of saying what is actually wrong.
+     *
+     * The predicate is NOT V3's, and the difference is the whole point. V3's `nothingOwed` reads a
+     * missing amount as zero, which is right there because V3 always has the figure. Here the
+     * amount is absent whenever the fee read failed, and refusing on THAT would block a caller from
+     * collecting real fees because we could not read them. So both sides must be present AND zero:
+     * a measured nothing is refused, an unknown is sent.
+     *
+     * The one exception is an EMPTY position: the contract refuses any modification of one, so its
+     * collect could never be sent whatever the fee read said, and it is refused the same way.
+     */
+    if (measuredNothingOwed(plan) || BigInt(position.liquidity) === 0n) {
+      throw noFeesToCollect(request.tokenId);
+    }
 
     const payload = this.liquidity.v4CollectPayload(network, request);
     if (mode.dryRun) {
@@ -339,21 +373,6 @@ export class SunSwapCollectFeesService {
     // minutes old, and a position that changed hands in between must not have its fees claimed on
     // this account's behalf.
     await this.#assertV4Owned(network, request.tokenId, owner);
-    /**
-     * A collection of nothing is not a small collection — the same reason V3 refuses one.
-     *
-     * The predicate is NOT V3's, and the difference is the whole point. V3's `nothingOwed` reads a
-     * missing amount as zero, which is right there because V3 always has the figure. Here the
-     * amount is absent whenever the fee read failed, and refusing on THAT would block a caller from
-     * collecting real fees because we could not read them. So both sides must be present AND zero:
-     * a measured nothing is refused, an unknown is sent.
-     */
-    if (measuredNothingOwed(plan)) {
-      throw new UsageError(
-        "invalid_value",
-        `position ${request.tokenId} has no fees to collect; sending this would spend a fee to receive nothing`,
-      );
-    }
     const main = await this.tx.run(scope, network, payload, {
       mode,
       estimable: true,
@@ -566,7 +585,10 @@ export class SunSwapCollectFeesService {
     token0: string,
     token1: string,
   ): void {
-    const given = [this.tokens.resolve(network, token0), this.tokens.resolve(network, token1)];
+    const given = [
+      this.tokens.resolve(network, token0, RESOLVED),
+      this.tokens.resolve(network, token1, RESOLVED),
+    ];
     const held = [position.currency0, position.currency1];
     const matches =
       (given[0] === held[0] && given[1] === held[1]) ||
@@ -629,6 +651,14 @@ function measuredNothingOwed(plan: CollectFeesView): boolean {
   const b = plan.token1.amount;
   if (a === undefined || b === undefined) return false;
   return BigInt(a) === 0n && BigInt(b) === 0n;
+}
+
+/** One refusal for both protocols and every mode, so the three answers cannot drift apart. */
+function noFeesToCollect(tokenId: string): UsageError {
+  return new UsageError(
+    "invalid_value",
+    `position ${tokenId} has no fees to collect; sending this would spend a fee to receive nothing`,
+  );
 }
 
 function nothingOwed(plan: CollectFeesView): boolean {

@@ -145,16 +145,21 @@ export interface ChainSpec<_I = any, O = any> {
   /** Override waiting support for payments submitted by an external facilitator. */
   supportsWait?: boolean;
   capability?: string;
-  /** refuse `--account` outright, with this sentence as the reason. For the rare command that
-   *  touches no account AND whose result is not the active account's: `sunpump launch` has its
-   *  token created by a remote service, which picks the owner, so accepting an account flag would
-   *  imply the new token is that account's. `wallet: "none"` alone does not imply this — a query
-   *  command that ignores `--account` is harmless, while here it would mislead. */
+  /** refuse `--account` outright, with this sentence as the reason. For a command that touches no
+   *  account AND whose result is not the active account's: `sunpump launch` has its token created
+   *  by a remote service, which picks the owner, so accepting an account flag would imply the new
+   *  token is that account's; the SunSwap / SunPump market queries read public data, and the PRD
+   *  requires each of them to refuse the flag rather than ignore it. `wallet: "none"` alone does
+   *  not imply this — declare it on every command whose spec says it takes no account. */
   rejectsAccount?: string;
   /** refuse `--wait` / `--wait-timeout` outright, with this sentence as the reason. They are global,
    *  so a command that submits no transaction would otherwise accept and ignore them, reading as
    *  having waited for a confirmation that does not exist. */
   rejectsWait?: string;
+  /** refuse `--wait` / `--wait-timeout` when this boolean field is set — the mode flag (e.g.
+   *  `quote`) under which the command sends no transaction. The schema's own refinements cannot
+   *  see global flags, so this is where the pair is caught. */
+  rejectsWaitWith?: string;
   stdin?: StdinChannel;
   /** the stdin channel belongs to ONE family (e.g. `--tx-stdin` carries TRON's transaction JSON).
    *  Help tags the flag with it and every other family refuses it, the same way a flag declared in
@@ -197,6 +202,7 @@ export type CommandExecutionSpec = Pick<
   | "capability"
   | "rejectsAccount"
   | "rejectsWait"
+  | "rejectsWaitWith"
   | "interactive"
   | "passwordMode"
   | "positionals"

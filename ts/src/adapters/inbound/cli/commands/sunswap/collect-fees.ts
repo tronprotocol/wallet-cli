@@ -1,5 +1,5 @@
 import { z, type RefinementCtx } from "zod";
-import { Schemas } from "../../schemas/index.js";
+import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapCollectFeesService } from "../../../../../application/use-cases/tron/sunswap/collect-fees-service.js";
 import { TextFormatters } from "../../render/index.js";
@@ -160,7 +160,9 @@ export const sunswapCollectFeesSpec: ChainSpec = {
     "On V3, 'sunswap remove-liquidity' already collects the fees alongside the principal, so this\n" +
     "command is for the case where the principal should stay in the pool.",
   baseFields: fields,
-  baseRefine: refuseFlagsOutsideScenario,
+  // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
+  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1 (PM 6.0).
+  baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     { cmd: "wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --dry-run" },
     {

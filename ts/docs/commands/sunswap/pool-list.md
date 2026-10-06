@@ -18,7 +18,7 @@ Pools ranked by TVL, 24-hour volume, 24-hour fees or APR.
 
 `TRX` matches **native** TRX pools and is not silently swapped for WTRX; pass `WTRX` for wrapped pools.
 
-**On APR:** the figure comes from the data service and does not track today's volume. A pool with almost no liquidity can show an enormous APR that nobody can enter, so read `APR` next to `TVL` rather than on its own. A dynamic-fee V4 pool reports a fee of `0`, which would read as free; it renders as `dynamic` instead.
+**On APR:** when ordering by `apr`, set `--min-tvl` — a pool with almost no liquidity can show an enormous APR that nobody can enter, and without a threshold such pools top the list. The figure comes from the data service and does not track today's volume. A dynamic-fee V4 pool reports a fee of `0`, which would read as free; it renders as `dynamic` instead.
 
 `--pool` and `--token` cannot be given together — the service refuses the combination, and it is refused here as a usage error so the exit code says "this can never work" rather than "try again".
 
@@ -27,16 +27,27 @@ Pools ranked by TVL, 24-hour volume, 24-hour fees or APR.
 | Option | Default | Description |
 |---|---|---|
 | `--pool <pool>` | all | A 64-hex pool id for V4 (`0x` prefix stripped for you), the pool contract address otherwise. Mutually exclusive with `--token` |
-| `--token <symbol\|address>` | all | A token in the pool, by symbol or address. Adds `pairPrices` |
+| `--token <symbol\|address>` | all | A token in the pool, by symbol or address. Adds `pairPrices`. A symbol resolves against the **official** address book only — this command takes no account, so [`token add`](../token/add.md) entries do not apply; pass the address instead |
 | `--protocol <name>` | all | `V1`, `V1_5`, `V2`, `V3`, `V4`, `CURVE`. There is no `ALL` here — a pool belongs to one protocol, and "all of them" is omitting the flag |
+| `--min-tvl <usd>` | no filter | Only pools whose TVL (`reserveUsd`) is at least this many USD. A plain non-negative decimal (`100000`, `15963.5`); `-1`, `abc` and `1e5` are `invalid_value`. Applied **before** `--limit` / `--offset`; `0` is the same as omitting it |
 | `--order-by <field>` | `tvl` | `tvl`, `volume-24h`, `fees-24h`, `apr` |
 | `--sort <asc\|desc>` | `desc` | Sort direction |
 | `--limit <n>` | `20` | Maximum rows |
-| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit` |
+| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit`, and `--offset` + `--limit` may not exceed 1000 — the data service exposes only the first 1000 rows of each ordering |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
-There is no `--min-tvl`: the service offers no such filter, and applying one after paging would return fewer rows than `--limit` asked for without saying so.
+### `--min-tvl`: filter first, then page
+
+`--offset` and `--limit` count the pools that **meet** the threshold, in the chosen order: `--min-tvl 100000 --limit 20` is the first 20 such pools, and fewer than 20 come back only when fewer exist. The service has no TVL filter, so the CLI reads its pages (100 rows each) and drops the pools below the threshold; the order is still the service's.
+
+The service exposes only the first 1000 rows of any ordering, so a scan never reads past row 1000:
+
+- **Default order (`--order-by tvl --sort desc`)** — the scan stops at the first pool below the threshold, since nothing after it can qualify. Exact.
+- **Any other order or direction** — the scan reads that order until the window is filled or the pools run out. Exact. If it reaches row 1000 first, the CLI reads the complete qualifying set by TVL instead and sorts it locally (exact decimal comparison, ties by `poolAddress`). Exact as long as that set fits in 1000 rows: on mainnet the 1000th pool by TVL holds about $16,000, so for any threshold above that the complete set fits.
+- **More than 1000 pools qualify** and the requested order did not fill the window within its first 1000 rows: the complete set is unreachable. The pools that were found are returned, `hasMore` is `true`, and `meta.warnings` carries `{code: "sunswap_scan_truncated"}` (text mode prints it on stderr). Raise `--min-tvl` or use the default order for an exact answer.
+
+`meta.pagination.total` stays `null`. `hasMore` is always present with `--min-tvl`: `true` when a qualifying pool beyond the window was seen, or when the scan was truncated. A larger threshold or a sparser order means more pages, each bound by `--timeout`.
 
 ## Examples
 
@@ -56,8 +67,10 @@ Pools (limit 3, offset 0)
 The third row is a V4 pool: its identifier is 64 hex characters, not an address.
 
 ```bash
-wallet-cli sunswap pool-list --order-by apr --limit 3 --network tron
+wallet-cli sunswap pool-list --order-by apr --min-tvl 100000 --limit 3 --network tron
 ```
+
+The highest-APR pools holding at least $100,000. Without `--min-tvl`, the top of this list is pools nobody can enter.
 
 ## Output
 
@@ -80,7 +93,7 @@ The service's raw `swapRateList` is not published: its orientation is an impleme
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`invalid_option` — `--pool` with `--token`; `invalid_value` — protocol, ordering, direction or paging; `invalid_address`; `unsupported_token`; `unsupported_network_capability`).
+`0` success · `1` execution failure (`provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`invalid_option` — `--pool` with `--token`; `invalid_value` — protocol, ordering, direction, `--min-tvl` or paging, including a window past row 1000; `invalid_address`; `unsupported_token`; `unsupported_network_capability`).
 
 ## See also
 

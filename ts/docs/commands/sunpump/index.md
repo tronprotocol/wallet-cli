@@ -45,10 +45,10 @@ The state is never taken from an API. A stale answer would send a transaction th
 SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%, and the receipt says the rate it actually worked out to.
 
 ```
-⚠️ Platform fee is 34.01% of this sell (0.01 TRX minimum).
+⚠️ Platform fee is 29.2% of this sell (0.01 TRX minimum).
 ```
 
-It is reported **separately** from the energy fee, because they are different costs paid to different places. On a buy, `--trx` is the **total** — the platform fee comes out of it, not on top of it. On a sell, the fee comes out of the proceeds, so the minimum applies to what you **receive**.
+It is reported **separately** from the energy fee, because they are different costs paid to different places. On a buy, `--trx` is the **total** — the platform fee comes out of it, not on top of it. On a sell, the quoted TRX is already what you receive and the fee is paid beside it, so the minimum applies to what you **receive** and the rate is the fee's share of the two together.
 
 ## Defaults differ from the DEX on purpose
 
@@ -58,7 +58,7 @@ Default slippage here is **5%**, ten times [`sunswap swap`](../sunswap/swap.md)'
 
 `--quote` prices the trade from contract reads alone: **no account, no password, no transaction**, and it works on a machine with no wallet at all.
 
-It publishes **no minimum and no slippage**. `--quote` refuses `--slippage`, so a floor here would come from a default the caller never chose, and nothing would ever enforce it because a quote produces no transaction. An agent reading one would believe it had protection it does not have.
+It publishes **no minimum and no slippage**. `--quote` refuses `--slippage` and `--min-out` (and `--wait` / `--wait-timeout`), so a floor here would come from a default the caller never chose, and nothing would ever enforce it because a quote produces no transaction. An agent reading one would believe it had protection it does not have.
 
 ## See also
 

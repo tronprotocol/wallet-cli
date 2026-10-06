@@ -42,6 +42,7 @@ export const sunpumpTokenSearchSpec: ChainSpec = {
   path: ["sunpump", "token-search"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "token-search reads public launchpad data and is not about any account of yours",
   auth: "none",
   capability: "sunpump.market",
   summary: "Search SunPump tokens by symbol or name",

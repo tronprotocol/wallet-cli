@@ -26,7 +26,7 @@ The dry run names the spender and the ceiling for what they are:
 
 The approval is sent **once per token**; later sales of the same token send none. It is a real grant to an upgradeable contract, which is why it is stated rather than buried.
 
-The platform fee comes out of the **proceeds**, so the floor applies to what you receive, not to the gross.
+The curve's quote is already **net**: the seller receives the quoted TRX, and the platform fee is paid to SunPump's fee address beside it. The gross is the two together. The floor applies to what you receive, not to the gross.
 
 ## Options
 
@@ -34,7 +34,7 @@ The platform fee comes out of the **proceeds**, so the floor applies to what you
 |---|---|
 | `<token>` | **Required** positional. The token's contract address |
 | `--amount <tokens>` | **Required.** Whole tokens to sell |
-| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only` and `--slippage` |
+| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only`, `--slippage`, `--min-out`, `--wait` and `--wait-timeout` (`invalid_option`) |
 | `--slippage <decimal>` | Tolerance, e.g. `0.05`. **Default 5%.** Excludes `--min-out` |
 | `--min-out <base-units>` | Least TRX to accept, in SUN. Excludes `--slippage` |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000` |
@@ -43,47 +43,47 @@ The platform fee comes out of the **proceeds**, so the floor applies to what you
 ## Example
 
 ```bash
-wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --quote --network tron
+wallet-cli sunpump sell TR4z4y8aoCqwjci2DJd5uquNpQVc9HUuaP --amount 1000 --quote --network tron
 ```
 
 ```console
 ⏳ Quote sunpump sell
-  Token          Justin (TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E)
-  Sell           1,000 Justin
-  Receive (est)  0.019401 TRX (after 0.01 TRX platform fee)
+  Token          BabyKnight (TR4z4y8aoCqwjci2DJd5uquNpQVc9HUuaP)
+  Sell           1,000 BabyKnight
+  Receive (est)  0.024242 TRX (after 0.01 TRX platform fee)
 
-⚠️ Platform fee is 34.01% of this sell (0.01 TRX minimum).
+⚠️ Platform fee is 29.2% of this sell (0.01 TRX minimum).
 ```
 
-Measured on mainnet, and the point of the warning: 1,000 tokens are worth 0.0294 TRX, the fee floor takes 0.01 of it, and a third of the sale goes to the platform. Whether that is worth doing is the caller's call — but not an unstated one.
+Measured on mainnet, and the point of the warning: 1,000 tokens gross 0.034242 TRX, the fee floor takes 0.01 of it, and nearly a third of the sale goes to the platform. Whether that is worth doing is the caller's call — but not an unstated one. A sale large enough that the fee is the plain 1% shows no rate and no warning.
 
-## A sale too small to be worth sending is refused
+## A sale too small to pay the seller is refused
 
-There are **two** ways a sale can be too small, and they are different conditions:
+There are **two** ways a sale can be too small:
 
 - the curve **will not price it** at all, and
-- it prices, but the **fee exceeds the proceeds** — nothing would arrive.
+- it prices it, but the seller would receive **nothing**.
 
-Both end in the one thing a caller can act on: the minimum, computed from the contract's own `minTxFee()` and an inverse quote.
+Both end in the one thing a caller can act on: the smallest sale that pays the seller one SUN, read from the contract's own inverse quote.
 
 ```
-this sale is too small: its 9401 SUN of proceeds would not cover the 10000 SUN platform
-fee. Sell at least 507595914512855548755 Justin in base units
+this sale is too small: the curve will not price it. Sell at least 292065903216294733861
+BabyKnight in base units
 ```
 
-`invalid_amount`, exit 2. The minimum is in **base units**, because that is the figure the contract works in and rounding it to whole tokens would put the boundary on the wrong side.
+`invalid_amount`, exit 2. The minimum is in **base units**, because that is the figure the contract works in and rounding it to whole tokens would put the boundary on the wrong side. A sale above it is sent even when the fee floor takes most of the gross; the fee warning says how much.
 
-## Balance is checked before signing
+## Account and balance are checked before signing
 
-The account must hold the full `--amount`, checked against its token balance before anything is approved. Short, it fails with `insufficient_token_balance` naming both figures in base units — so no approval is granted for a sale that cannot happen.
+An account that is not activated on chain fails with `account_not_active`, whatever it holds. Otherwise the account must hold the full `--amount`, checked against its token balance before anything is approved. Short, it fails with `insufficient_token_balance` naming both figures in base units — so no approval is granted for a sale that cannot happen.
 
 ## Reading the JSON
 
 `kind` is `sunpump-sell` in every mode.
 
 - `tokensIn` — base units sold.
-- `trxOutExpected` — SUN **net** of the platform fee, which is what arrives; `trxOutMinimum` is the floor applied to that net figure, absent from a quote.
-- `platformFee` and `platformFeePercent` — SunPump's fee in SUN and the rate it worked out to, separate from `fee`, the chain's estimate.
+- `trxOutExpected` — SUN **net** of the platform fee, which is what arrives: the contract's quoted TRX, as quoted. `trxOutMinimum` is the floor applied to that net figure, absent from a quote.
+- `platformFee` and `platformFeePercent` — SunPump's fee in SUN and its share of the gross (`trxOutExpected + platformFee`), separate from `fee`, the chain's estimate. `platformFeePercent` appears only when the 0.01 TRX floor pushed the rate above 1%.
 - `tokenAddress`, `tokenSymbol`, `tokenDecimals` — read from the contract.
 - `approvals` — the unlimited grant, with the spender named, when one is needed. Absent on a later sale of the same token, because the standing allowance already covers it.
 

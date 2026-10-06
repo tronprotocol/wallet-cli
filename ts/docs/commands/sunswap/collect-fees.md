@@ -37,7 +37,7 @@ It is the same distinction the `Unclaimed` column draws in [`position-list`](pos
 
 ## A measured zero is refused; an unknown is sent
 
-If the position is **measured** to be owed nothing on **both** sides, the command fails before reaching the node:
+If the position is **measured** to be owed nothing on **both** sides, the command fails before anything is estimated or sent — in **every** mode, so `--dry-run`, `--build-only` and a real send give the same answer (`invalid_value`, exit 2):
 
 ```
 position 686 has no fees to collect; sending this would spend a fee to receive nothing
@@ -49,7 +49,7 @@ The refusal needs a **measurement**. On V4, if the owed amount **could not be re
 
 A position owed dust on one token and nothing on the other is a **real** collection and is sent — whether a small payout is worth its fee is your call, not ours.
 
-`--dry-run` still shows the zero, because that is what you came to find out, and `--build-only` still builds, because an unsigned transaction spends nothing.
+A position that still holds liquidity but has earned nothing is refused the same way. On V4 a position with **no liquidity** is refused even when the owed amount could not be read: the contract refuses any change to an empty position (`CannotUpdateEmptyPosition`), so its collect could never be sent.
 
 ## Options
 
@@ -57,8 +57,8 @@ A position owed dust on one token and nothing on the other is a **real** collect
 |---|---|
 | `--protocol <V3\|V4>` | **Required.** V2 is refused as explained above |
 | `--position-id <id>` | **Required.** Must be held by this account |
-| `--recipient <address>` | Who receives the fees; default the account (**V3 only**) |
-| `--token0 <token>` / `--token1 <token>` | The position's pair, checked against what it holds; give both or neither (V4 only) |
+| `--recipient <address>` | Who receives the fees; default the account (**V3 only**). A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
+| `--token0 <token>` / `--token1 <token>` | The position's pair, checked against what it holds; give both or neither (V4 only). A symbol resolves against the official address book plus the [`token add`](../token/add.md) entries of the account the command uses; one matching more than one entry is `ambiguous_token_symbol` (exit 2) |
 | `--fee <n>` | The pool's fee tier, checked against the one the position reports. No default: it selects nothing. Needs `--token0` / `--token1` beside it (V4 only) |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission (V4 only) |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. The dry run's estimate is a **lower bound**, so a limit set from it can fail |
@@ -73,16 +73,10 @@ wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --dry-run --netw
 ```
 
 ```console
-⏳ Dry run sunswap collect-fees
-  Account          TNmoJ3Be59...iL3G8HVB (nile)
-  Protocol         V3
-  Position         #686
-  Collected (est)  0 USDT / 0 WTRX
-  Recipient        TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Fee (est)        ~76,699 energy
+error [invalid_value]: position 686 has no fees to collect; sending this would spend a fee to receive nothing
 ```
 
-Zero here is a true answer: nothing has traded against that position, so it has earned nothing. Sending it would be refused.
+The contract says nothing is owed: nothing has traded against that position, so it has earned nothing. The dry run refuses exactly as sending would.
 
 ```bash
 wallet-cli sunswap collect-fees --protocol V4 --position-id 7 --dry-run --account demo --network nile
@@ -93,12 +87,12 @@ wallet-cli sunswap collect-fees --protocol V4 --position-id 7 --dry-run --accoun
   Account          TNmoJ3Be59...iL3G8HVB (demo)
   Protocol         V4
   Position         #7
-  Collected (est)  0 TRX / 0 USDT
+  Collected (est)  0.013974 TRX / 0.004108 USDT
   Recipient        TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
   Fee (est)        ~33,730 energy
 ```
 
-The pair was read from the position; nothing on the command line named it. This zero is also a measured one, so sending it would be refused.
+The pair was read from the position; nothing on the command line named it.
 
 ## Reading the JSON
 

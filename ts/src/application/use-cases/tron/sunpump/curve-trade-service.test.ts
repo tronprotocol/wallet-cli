@@ -26,15 +26,17 @@ const NETWORK = {
 
 /** The live mainnet quote for 1 TRX of the token PM's own example uses. */
 const BUY_QUOTE = { tokenAmount: "25125337148664452174594", feeSun: "10000" };
-/** 1000 tokens: gross 29401 SUN, of which 10000 is the platform fee. */
-const SELL_QUOTE = { trxAmountSun: "29401", feeSun: "10000" };
+/**
+ * A live Nile sale of 1000 tokens: the contract quoted `(22728, 10000)`, and the chain paid the
+ * seller 22728 SUN and the fee address 10000 SUN on top. The first figure is already net.
+ */
+const SELL_QUOTE = { trxAmountSun: "22728", feeSun: "10000" };
 
 function makePort(overrides: Partial<LaunchpadPort> = {}): LaunchpadPort {
   return {
     tokenState: vi.fn(async () => LAUNCHPAD_STATE.TRADING),
     tokenFacts: vi.fn(async () => ({ address: TOKEN, decimals: 18, symbol: "Justin" })),
     balanceOf: vi.fn(async () => "99999999999999999999999999"),
-    nativeBalance: vi.fn(async () => "1000000000"),
     allowance: vi.fn(async () => "0"),
     approvalPayload: vi.fn((_n: NetworkDescriptor, token: string) => ({
       target: token,
@@ -60,8 +62,13 @@ interface PipelineParams {
   estimate: (tx: unknown) => Promise<Record<string, unknown>>;
 }
 
-function makeHarness(port: LaunchpadPort = makePort(), withAccount = true) {
+function makeHarness(
+  port: LaunchpadPort = makePort(),
+  withAccount = true,
+  account: Record<string, unknown> = { address: "41owner", balance: "1000000000" },
+) {
   const gateway = {
+    getAccount: vi.fn(async () => account),
     triggerSmartContract: vi.fn(async (_f, _t, method) => ({ txID: `built:${method}` })),
     estimateResources: vi.fn(async () => ({ feeModel: "tron-resource" as const, energy: 48395 })),
   };
@@ -91,7 +98,7 @@ function makeHarness(port: LaunchpadPort = makePort(), withAccount = true) {
     { get: () => gateway } as unknown as ChainGatewayProvider,
     pipeline,
   );
-  return { service, scope, gateway, port, resolveAddress };
+  return { service, scope, gateway, port, resolveAddress, pipeline };
 }
 
 describe("the curve state gate", () => {
@@ -265,8 +272,7 @@ describe("buy", () => {
   });
 
   it("refuses a buy the account cannot fund", async () => {
-    const port = makePort({ nativeBalance: vi.fn(async () => "1") as never });
-    const { service, scope } = makeHarness(port);
+    const { service, scope } = makeHarness(makePort(), true, { address: "41owner", balance: "1" });
     await expect(
       service.buy(scope, NETWORK, { token: TOKEN, amount: "1", dryRun: true }),
     ).rejects.toMatchObject({ code: "insufficient_balance" });
@@ -274,17 +280,39 @@ describe("buy", () => {
 });
 
 describe("sell", () => {
-  it("reports what the caller receives, which is the gross less the fee", async () => {
+  // The contract's trxAmount is what arrives; the fee is paid on top of it, not out of it.
+  it("reports what the caller receives, which is the contract's trxAmount as quoted", async () => {
     const { service, scope } = makeHarness();
     const result = (await service.sell(scope, NETWORK, {
       token: TOKEN,
       amount: "1000",
       dryRun: true,
     })) as Record<string, unknown>;
-    // 29401 gross - 10000 fee.
-    expect(result.trxOutExpected).toBe("19401");
-    // The floor applies to what arrives, not to the gross.
-    expect(result.trxOutMinimum).toBe("18430");
+    expect(result.trxOutExpected).toBe("22728");
+    // floor(22728 x 0.95): the floor the Nile sale should have carried.
+    expect(result.trxOutMinimum).toBe("21591");
+    expect(result.platformFee).toBe("10000");
+    // 10000 of a 32728 gross.
+    expect(result.platformFeePercent).toBe("30.55");
+  });
+
+  /**
+   * A sale large enough that the fee is the plain 1% (a mainnet quote). The gross is the proceeds
+   * PLUS the fee, so the rate is 342095 / 34209569 — not / 33867474, which read 1.01% and warned
+   * about a fee floor that never applied.
+   */
+  it("reports no fee rate when the fee is the plain one percent", async () => {
+    const port = makePort({
+      quoteSell: vi.fn(async () => ({ trxAmountSun: "33867474", feeSun: "342095" })) as never,
+    });
+    const { service, scope } = makeHarness(port, false);
+    const result = (await service.sell(scope, NETWORK, {
+      token: TOKEN,
+      amount: "1000000",
+      quote: true,
+    })) as Record<string, unknown>;
+    expect(result.trxOutExpected).toBe("33867474");
+    expect(result).not.toHaveProperty("platformFeePercent");
   });
 
   /**
@@ -316,6 +344,25 @@ describe("sell", () => {
     expect(result).not.toHaveProperty("approvalTxIds");
   });
 
+  // The approval is sent and confirmed before the sale is built; a failed one must end the flow
+  // there, or the sale would be signed and broadcast against an allowance that never landed.
+  it("never builds or broadcasts the sale when its approval fails on chain", async () => {
+    const { service, scope, gateway, pipeline } = makeHarness();
+    vi.mocked(pipeline.run).mockResolvedValueOnce({
+      stage: "failed",
+      txId: "approve-tx",
+      result: "REVERT",
+    } as never);
+    await expect(
+      service.sell(scope, NETWORK, { token: TOKEN, amount: "1000" }),
+    ).rejects.toMatchObject({
+      code: "execution_reverted",
+      details: { approvalTxIds: ["approve-tx"] },
+    });
+    expect(vi.mocked(pipeline.run)).toHaveBeenCalledTimes(1);
+    expect(gateway.triggerSmartContract.mock.calls.map((call) => call[2])).not.toContain(SALE);
+  });
+
   it("refuses a sale the account cannot cover", async () => {
     const port = makePort({ balanceOf: vi.fn(async () => "1") as never });
     const { service, scope } = makeHarness(port);
@@ -326,9 +373,34 @@ describe("sell", () => {
 });
 
 /**
- * Two distinct conditions, both measured on a live mainnet curve: one token reverts in the quote,
- * three hundred prices and is then eaten by the fee. Each says what happened, and both end with
- * the one thing a caller can act on.
+ * An account the chain has never seen can pay for no transaction, whatever it holds. What to do
+ * about that differs from topping up a balance, so it is a different code.
+ */
+describe("an account that is not activated", () => {
+  it.each(["buy", "sell"] as const)("is refused as account_not_active on a %s", async (side) => {
+    const { service, scope, port } = makeHarness(makePort(), true, {});
+    await expect(
+      service[side](scope, NETWORK, {
+        token: TOKEN,
+        amount: side === "buy" ? "1" : "1000",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "account_not_active" });
+    // Before the token balance is asked, so a held balance cannot mask it.
+    expect(port.balanceOf).not.toHaveBeenCalled();
+  });
+
+  it("is not asked about by a quote, which has no account", async () => {
+    const { service, scope, gateway } = makeHarness(makePort(), false, {});
+    await service.sell(scope, NETWORK, { token: TOKEN, amount: "1000", quote: true });
+    expect(gateway.getAccount).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Two distinct conditions: the curve reverts rather than price the sale, or it prices it at
+ * nothing for the seller. Each says what happened, and both end with the one thing a caller can
+ * act on.
  */
 describe("a sale that is too small", () => {
   it("names the threshold when the curve will not price it", async () => {
@@ -346,17 +418,47 @@ describe("a sale that is too small", () => {
     });
   });
 
-  it("names the threshold when the fee consumes the proceeds", async () => {
+  it("names the threshold when the seller would receive nothing", async () => {
     const port = makePort({
-      quoteSell: vi.fn(async () => ({ trxAmountSun: "1820", feeSun: "10000" })) as never,
+      quoteSell: vi.fn(async () => ({ trxAmountSun: "0", feeSun: "10000" })) as never,
     });
     const { service, scope } = makeHarness(port);
     await expect(
       service.sell(scope, NETWORK, { token: TOKEN, amount: "300", quote: true }),
     ).rejects.toMatchObject({
       code: "invalid_amount",
-      message: expect.stringContaining("1820 SUN of proceeds would not cover the 10000 SUN"),
+      message: expect.stringContaining(
+        "it would pay the seller nothing. Sell at least 507595914512855548755 Justin",
+      ),
     });
+  });
+
+  // A small sale the curve DOES price with something for the seller is a sale, whatever the fee.
+  // Nile: 320 tokens quoted (473, 10000), which the chain fills and pays 473 SUN for.
+  it("lets a small sale through when it pays the seller anything", async () => {
+    const port = makePort({
+      quoteSell: vi.fn(async () => ({ trxAmountSun: "473", feeSun: "10000" })) as never,
+    });
+    const { service, scope } = makeHarness(port, false);
+    const result = (await service.sell(scope, NETWORK, {
+      token: TOKEN,
+      amount: "320",
+      quote: true,
+    })) as Record<string, unknown>;
+    expect(result.trxOutExpected).toBe("473");
+  });
+
+  it("refuses a sale that pays nothing even when the threshold cannot be read", async () => {
+    const port = makePort({
+      quoteSell: vi.fn(async () => ({ trxAmountSun: "0", feeSun: "10000" })) as never,
+      minimumSellAmount: vi.fn(async () => {
+        throw new Error("node unavailable");
+      }) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    await expect(
+      service.sell(scope, NETWORK, { token: TOKEN, amount: "300", quote: true }),
+    ).rejects.toMatchObject({ code: "invalid_amount" });
   });
 
   /**

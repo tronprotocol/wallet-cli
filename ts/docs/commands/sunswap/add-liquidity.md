@@ -50,7 +50,7 @@ Note the interaction with exact-amount approvals: the router consumes the allowa
 | Option | Description |
 |---|---|
 | `--protocol <V2\|V3\|V4>` | **Required** |
-| `--token0 <token>` / `--token1 <token>` | The pair, symbol or contract address. Not accepted with `--position-id` on V3; **required** with it on V4, where they select nothing and are checked against the pair the position holds |
+| `--token0 <token>` / `--token1 <token>` | The pair, symbol or contract address. Not accepted with `--position-id` on V3; **required** with it on V4, where they select nothing and are checked against the pair the position holds. A symbol resolves against the official address book plus the [`token add`](../token/add.md) entries of the account the command uses (`--account`, else the active account); a symbol matching more than one entry is `ambiguous_token_symbol` (exit 2), and one marked `(from your token book)` in text came from that account's own entries |
 | `--position-id <id>` | Add to this existing position; must be held by this account (V3 and V4) |
 | `--amount0 <n>` / `--amount1 <n>` | Amounts in whole tokens. Give one, the other, or both |
 | `--min0 <n>` / `--min1 <n>` | Least to accept depositing. Default: V2 95% of the computed amount, V3 `0`. **Not accepted on V4**, which bounds from above — see `--slippage` |
@@ -61,7 +61,7 @@ Note the interaction with exact-amount approvals: the router consumes the allowa
 | `--slippage <decimal>` | Tolerance on the deposit **ceiling**, e.g. `0.005`; default none, so the ceiling is exactly the computed amounts (V4 only) |
 | `--create-pool` | Create the pool as part of this deposit; requires `--sqrt-price` on top of the pool key (V4 only) |
 | `--sqrt-price <Q64.96>` | The new pool's starting price in Q64.96 fixed point, **not** a decimal ratio (V4 `--create-pool` only) |
-| `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account |
+| `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission. One already past is refused |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. See the note above |
 | `--dry-run` / `--build-only` / `--wait` | See [machine-interface.md](../../machine-interface.md) |
@@ -108,9 +108,11 @@ grants are forwarded between initialization and the deposit. A reverting deposit
 transaction's initialization; earlier TRC20 approval transactions are separate and remain on-chain.
 The initial price must be within the contract's Q64.96 bounds. When no range is supplied, its tick
 is calculated from that price, then the default range extends 100 tick spacings on each side,
-aligned to the grid. The preview includes `Initial sqrtPriceX96`; JSON carries
+aligned to the grid. The preview says so on one line,
+`Create pool  yes — initial sqrtPriceX96 <value> (≈ 1 <token0> = <price> <token1>)`; JSON carries
 `initialSqrtPriceX96` on creation plans and receipts. `initialPrice.token1PerToken0` expresses
-human token1 per human token0 (eight significant digits, approximately); `createPool: true`
+human token1 per human token0 (eight significant digits, rounded down) as a plain decimal string,
+never in scientific notation however small or large; `createPool: true`
 is published alongside the existing `poolCreated` field.
 
 A pool already initialized at planning time, or at the check after permit signing, is refused as
@@ -261,6 +263,10 @@ Broadcast results include `amountsEstimated`: `false` when the reported token am
 `kind` is `sunswap-add-liquidity` in every mode.
 
 **`fee` is the estimated cost, always** — the `{feeModel, energy, …}` object every dry run in this CLI carries. The V3 fee tier is `feeTier`, a number in hundredths of a basis point (`3000` = 0.3%). They are separate keys on purpose: one key whose meaning depended on the mode is how a script reads a tier as a cost.
+
+**The contract is `router` on V2 and `positionManager` on V3 and V4**, under the same key in every mode (dry run, build and receipt).
+
+**Liquidity: `liquidityExpected` before, `liquidity` after.** A V3 / V4 dry run or build gives the liquidity the amounts are expected to fund as `liquidityExpected`. The confirmed receipt gives what the position actually gained as `liquidity`, plus `liquidityAfter` for what it holds now. They are separate keys so that an estimate is never read as a settlement.
 
 **Amounts are base units and carry their scale.** Each side is `{address, symbol, decimals, amount}`, plus `amountMinimum` in the plan. `lpAmount` is accompanied by `lpDecimals`.
 

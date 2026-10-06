@@ -62,6 +62,53 @@ describe("--quote excludes the flags that describe a transaction", () => {
     expect(r.json.error.code).toBe("invalid_option");
     expect(r.json.error.message).toContain("which sends no transaction");
   });
+
+  // PM 2.11: a floor given to a quote would be accepted and then protect nothing.
+  it.each([
+    ["buy", "--trx", "--slippage", "0.0001", "a tolerance"],
+    ["sell", "--amount", "--min-out", "1", "a minimum"],
+  ])("%s refuses %s with %s alongside --quote", (command, amountFlag, flag, value, what) => {
+    const r = run([
+      "sunpump",
+      command,
+      TOKEN,
+      amountFlag,
+      "1",
+      "--quote",
+      flag,
+      value,
+      "--network",
+      "tron",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toBe(
+      `invalid ${flag}: cannot be given with --quote: a quote enforces no floor, so ${what} would have nothing to apply to`,
+    );
+  });
+
+  it.each([["--wait"], ["--wait-timeout", "1000"]])("refuses %s alongside --quote", (...flag) => {
+    const r = run([
+      "sunpump",
+      "sell",
+      TOKEN,
+      "--amount",
+      "1",
+      "--quote",
+      ...flag,
+      "--network",
+      "tron",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toBe(
+      `${flag[0]} cannot be used with --quote, which sends no transaction`,
+    );
+  });
 });
 
 describe("the two floors are exclusive", () => {

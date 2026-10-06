@@ -151,6 +151,9 @@ export class SunSwapV4Contracts {
     ]);
 
     // `(poolKey, uint256 info)`: five words of key, then the packed word.
+    assertWords(info, 6, "getPoolAndPositionInfo");
+    assertWords(liquidity, 1, "getPositionLiquidity");
+    assertWords(owner, 1, "ownerOf");
     const poolKey = readPoolKey(info);
     const packed = decodeV4PositionInfo(`0x${hex(info).slice(5 * 64, 6 * 64)}`);
     const poolId = computeV4PoolId(
@@ -559,6 +562,24 @@ function encodeParameters(tickSpacing: number): string {
 }
 
 const hex = (words: readonly string[]): string => words.join("").replace(/^0x/, "");
+
+/**
+ * A position read that holds at least `count` words, or a refusal saying the node's answer was bad.
+ *
+ * Checked before decoding, because a short answer would otherwise reach `readPoolKey`'s
+ * `provider_error` — which `position-read` takes to mean the position does not exist — or an
+ * unclassified throw that surfaces as `internal_error`. It arrived with HTTP 200 and is worth
+ * retrying: `invalid_node_response`.
+ */
+function assertWords(words: readonly string[], count: number, method: string): void {
+  const data = hex(words);
+  if (!/^[0-9a-fA-F]*$/.test(data) || data.length < count * 64) {
+    throw new ChainError(
+      "invalid_node_response",
+      `the V4 position manager answered ${method} with data that cannot be decoded: expected at least ${count * 32} bytes of ABI words`,
+    );
+  }
+}
 
 const word = (words: readonly string[], index: number): string =>
   BigInt(`0x${hex(words).slice(index * 64, (index + 1) * 64) || "0"}`).toString();

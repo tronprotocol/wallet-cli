@@ -117,6 +117,8 @@ interface PipelineParams {
 }
 
 const resolver = {
+  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
+  resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) => ({ USDT, WTRX })[value.toUpperCase()] ?? value,
   resolveSymbol: (_n: NetworkDescriptor, value: string) => value,
   label: () => "nile",

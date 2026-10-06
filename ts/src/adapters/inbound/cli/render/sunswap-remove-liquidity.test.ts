@@ -58,3 +58,30 @@ describe("sunswap remove-liquidity dry run — the fees that arrive with the pri
     expect(render(dryRun("V2"))).not.toContain(FEES_WARNING);
   });
 });
+
+/**
+ * PM 2.10 and 6.0: when a floor is zero, the dry run ENDS on the No-minimum warning, whatever else
+ * it has to say. It is the line a caller must not miss, so nothing may follow it.
+ */
+describe("sunswap remove-liquidity dry run — the No-minimum warning comes last", () => {
+  const NO_MINIMUM = "No minimum set — this transaction accepts any output amount.";
+  const unfloored = (protocol: string): Record<string, unknown> => {
+    const value = dryRun(protocol);
+    return {
+      ...value,
+      feeCovers: "approvals",
+      token0: { ...(value.token0 as object), amountMinimum: "0" },
+    };
+  };
+
+  it.each(["V2", "V3", "V4"])("ends a %s dry run on it", (protocol) => {
+    const text = render(unfloored(protocol));
+    expect(text.trimEnd().endsWith(NO_MINIMUM)).toBe(true);
+  });
+
+  it("still prints the fees warning, above it", () => {
+    const text = render(unfloored("V3"));
+    expect(text.indexOf(FEES_WARNING)).toBeGreaterThan(-1);
+    expect(text.indexOf(FEES_WARNING)).toBeLessThan(text.indexOf(NO_MINIMUM));
+  });
+});

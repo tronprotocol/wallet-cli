@@ -23,6 +23,9 @@ export default defineConfig({
           // Each worker also starts a full CLI process; cap CPU/memory contention from SDK
           // loading and real scrypt rather than multiplying it by every available core.
           maxWorkers: Math.min(4, availableParallelism()),
+          // Vitest refuses to run two projects with different maxWorkers in one group, so `npm test`
+          // runs golden as a second group, after unit, under its own worker cap.
+          sequence: { groupOrder: 1 },
           environment: "node",
           include: ["test/**/*.test.ts"],
           testTimeout: 30_000,

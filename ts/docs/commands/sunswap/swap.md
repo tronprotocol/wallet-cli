@@ -24,6 +24,15 @@ A pair with no native side is not asked about the curve at all, which also saves
 
 The receipt names the market in every mode, because it changes what the numbers mean: on a curve the trading fee is SunPump's **platform fee**, there is one hop, and there is no price impact.
 
+## Naming the tokens
+
+`<tokenIn>` and `<tokenOut>` each take a contract address or a symbol. `TRX` and `WTRX` are built in. Any other symbol is looked up, case-insensitively, in the **token address book of the account this command uses** — the official entries plus the ones that account added with [`token add`](../token/add.md) — which is `--account` when given, else the active account. `--quote` reads the same book as the execution it previews, so both name the same token; with no account at all, only the official entries apply.
+
+- A symbol that matches **more than one** entry is refused with `ambiguous_token_symbol` (exit 2), even when one of them is official. The message lists every candidate address; pass the one you mean. One is never picked for you: a user-added token calling itself `USDT` is exactly how an impersonation would reach a trade.
+- A symbol that matches nothing is `unsupported_token` (exit 2): pass its contract address in its place, or add it with `wallet-cli token add`.
+
+The contract each side resolved to is shown in every mode — `Token in` / `Token out` in text, `address` in JSON — and a side whose symbol came from the account's own book is marked `(from your token book)`.
+
 ## How a router swap is authorized
 
 A swap that spends **TRX** needs no permission: the TRX travels as the transaction's own value, and it is one transaction.
@@ -36,6 +45,10 @@ A swap that spends a **token** needs two, because the Universal Router does not 
 Then the swap itself. So a token swap is two transactions and one signature.
 
 **Neither grant is unlimited, and that took work.** The SDK's own swap planner asks for `MAX_UINT160` for **thirty days** in every authorizing mode, with no option to bound either figure. This command plans the authorization separately so the grant is exactly the trade and expires within the hour. [machine-interface.md](../../machine-interface.md) lists the two paths in this CLI that do grant unlimited allowances; this is not one of them.
+
+### The balance is checked first
+
+Before the permit or the approval is planned, in every mode, the account must hold what the swap spends: the TRX for a swap spending TRX, the token for a swap spending a token. An account the chain has no record of is `account_not_active`; an activated one that holds too little is `insufficient_balance` (TRX) or `insufficient_token_balance` (a token), all exit 1. Checking first is what keeps an execute from paying for a Permit2 approval it can never use. The chain's own fee is not added — `--fee-limit` bounds that.
 
 ### What is checked, and when
 
@@ -63,6 +76,8 @@ wallet-cli sunswap swap TRX USDT 100 --quote --network tron
 
 ```console
 Market  SunSwap
+Token in  T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+Token out  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
 
 | Route      | Amount in | Amount out     | Trading fee | Price impact |
 | ---------- | --------- | -------------- | ----------- | ------------ |
@@ -84,6 +99,8 @@ Market  SunSwap
 **A negative price impact is a real answer**, not a formatting slip: the route paid better than the service's reference price. It is published as measured rather than clamped to zero.
 
 A quote publishes **no minimum and no slippage**, anywhere in the payload — `--quote` refuses `--slippage`, so a floor would come from a default the caller never chose and nothing would enforce it. It is also why `--all` is refused without `--quote`: an execution takes one route, not a list.
+
+If the route service rate-limits the request (HTTP 429) the command fails with `provider_rate_limited` (exit 1, retry later), with `Retry-After` in `error.details.retryAfterSeconds` when sent. The request honours `--timeout` (`timeout`) and the CLI's response-size cap (`response_too_large`); any other failure is `provider_error`.
 
 **The floor is ours, not the service's.** The route service returns an `amountOutMinimum` field that is *equal to* `amountOut` even when slippage was requested, so it is never published and never used: reading it would report no protection where there is some. The minimum is computed from `--slippage` and then read back out of the encoded call to confirm it is the one being enforced.
 
@@ -108,6 +125,8 @@ For a swap spending **TRX** it prices the swap itself. For a swap spending a **t
 ⏳ Dry run sunswap swap
   Account                   TE9kPMtaMj...wx9EcJW8
   Market                    SunSwap
+  Token in                  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+  Token out                 T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
   Spend                     1 USDT
   Receive (est)             2.921823 TRX
   Min received              2.907213 TRX
@@ -129,6 +148,8 @@ For a swap spending **TRX** it prices the swap itself. For a swap spending a **t
 ## Reading the JSON
 
 `kind` is `sunswap-swap` in every mode, and `market` is `sunswap` or `sunpump`.
+
+`fromTokenBook` — present only when a symbol resolved from the account's own token book: the contract addresses that did, so a script can tell a user-added token from an official one.
 
 A quote is **plural**: `routes` is an array whether one candidate came back or five, with `routesAvailable` counting how many exist, so an agent parses `--quote` and `--quote --all` the same way.
 

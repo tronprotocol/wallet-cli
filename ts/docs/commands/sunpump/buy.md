@@ -23,7 +23,7 @@ The TRX travels as the call's **value**, so **nothing is approved** — a buy ne
 |---|---|
 | `<token>` | **Required** positional. The token's contract address. A malformed one is `invalid_address` (exit 2), refused before any node call |
 | `--trx <amount>` | **Required.** Whole TRX to spend, fee included |
-| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only` and `--slippage` |
+| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only`, `--slippage`, `--min-out`, `--wait` and `--wait-timeout` (`invalid_option`) |
 | `--slippage <decimal>` | Tolerance, e.g. `0.05`. **Default 5%.** Excludes `--min-out` |
 | `--min-out <base-units>` | Least to accept, in the token's smallest unit. Excludes `--slippage` |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. The dry run's estimate is a **lower bound**, so a limit set from it can fail |
@@ -48,9 +48,9 @@ One TRX pays the **0.01 TRX minimum** fee rather than 1% of it — the fee is 1%
 
 No minimum and no slippage appear, in the table or in the JSON, for the reason the [group page](index.md) gives.
 
-## Balance is checked before signing
+## Account and balance are checked before signing
 
-The account must hold the full `--trx`, checked against its native balance before the transaction is built. Short, it fails with `insufficient_balance` naming both figures in SUN.
+An account that is not activated on chain fails with `account_not_active`. Otherwise the account must hold the full `--trx`, checked against its native balance before the transaction is built. Short, it fails with `insufficient_balance` naming both figures in SUN.
 
 The energy fee is **not** included in that check: it is paid in burned TRX or from the account's energy, the estimate is a lower bound, and adding an estimate to a requirement would refuse trades that would have succeeded.
 

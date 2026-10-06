@@ -188,9 +188,6 @@ function dryRun(value: RemovalView, rows: Pair[], ctx: TextRenderContext): strin
       ...approvalRows(value),
     ]),
   ];
-  if (value.token0.amountMinimum === "0" || value.token1.amountMinimum === "0") {
-    lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
-  }
   if (value.feeCovers === "approvals") {
     lines.push(
       `${warn()} The withdrawal's own fee cannot be estimated until the approval is on-chain.`,
@@ -205,6 +202,11 @@ function dryRun(value: RemovalView, rows: Pair[], ctx: TextRenderContext): strin
     lines.push(
       `${warn()} Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.`,
     );
+  }
+  // LAST, whatever else was said (PM 2.10, 6.0): a floor of zero is the line a caller must not
+  // miss, so nothing is printed after it.
+  if (value.token0.amountMinimum === "0" || value.token1.amountMinimum === "0") {
+    lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
   }
   return lines.join("\n\n");
 }

@@ -37,6 +37,7 @@ import { SunPumpTradeFormatters } from "./sunpump-trade.js";
 import { SunPumpMarketFormatters } from "./sunpump-market.js";
 import { SunPumpLaunchFormatters } from "./sunpump-launch.js";
 import { SunSwapSwapFormatters } from "./sunswap-swap.js";
+import { withTokenBookNotes } from "./token-book.js";
 import { ContactFormatters } from "./contact.js";
 import { EncodingFormatters } from "./encoding.js";
 
@@ -59,9 +60,13 @@ export const TextFormatters = {
   ...MultisigFormatters,
   ...GasFreeFormatters,
   ...SunSwapFormatters,
-  ...SunSwapLiquidityFormatters,
-  ...SunSwapRemoveLiquidityFormatters,
-  ...SunSwapCollectFeesFormatters,
+  // The liquidity receipts keep addresses out of their rows (PM 6.0); a token resolved from the
+  // user's own book is the exception, named in a note under the receipt.
+  sunswapLiquidity: withTokenBookNotes(SunSwapLiquidityFormatters.sunswapLiquidity),
+  sunswapRemoveLiquidity: withTokenBookNotes(
+    SunSwapRemoveLiquidityFormatters.sunswapRemoveLiquidity,
+  ),
+  sunswapCollectFees: withTokenBookNotes(SunSwapCollectFeesFormatters.sunswapCollectFees),
   ...SunPumpTradeFormatters,
   ...SunPumpMarketFormatters,
   ...SunPumpLaunchFormatters,

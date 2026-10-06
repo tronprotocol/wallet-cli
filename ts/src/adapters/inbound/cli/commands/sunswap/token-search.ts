@@ -19,12 +19,14 @@ export const sunswapTokenSearchSpec: ChainSpec = {
   path: ["sunswap", "token-search"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "token-search reads public market data and is not about any account of yours",
   auth: "none",
   capability: "sunswap.market",
   summary: "Search the tokens traded on SunSwap by symbol",
   description:
     "Search tokens traded on SunSwap by symbol, ordered by TVL, highest first.\n" +
-    "Impersonation tokens share real symbols and names; check the Address column before using a token.",
+    "Impersonation tokens share real symbols and names; check the Address column before using a token.\n" +
+    "--offset + --limit may not exceed 1000: the data service exposes only the first 1000 rows of this listing.",
   positionals: [{ field: "keyword" }],
   baseFields: fields,
   examples: [

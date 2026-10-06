@@ -983,3 +983,86 @@ describe("initial V4 price to tick", () => {
     },
   );
 });
+
+/**
+ * A position read whose answer cannot be decoded.
+ *
+ * The node answered — HTTP 200 — but with fewer words than the return holds, or with something that
+ * is not hex. That is the node's fault and worth retrying, so it is `invalid_node_response`, never an
+ * unclassified throw (which surfaces as `internal_error`) and never `provider_error` (which
+ * `position-read` reads as "no such position").
+ */
+describe("a position read the node answered with undecodable data", () => {
+  const MANAGER = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
+  const OWNER = addressWord(HEX.usdt);
+  const POSITIONS =
+    uint(0) +
+    addressWord("0".repeat(40)) +
+    addressWord(HEX.usdt) +
+    addressWord(HEX.wtrx) +
+    uint(3000) +
+    uint((1n << 256n) - 60n) +
+    uint(60) +
+    uint(1234) +
+    uint(0).repeat(4);
+
+  function v3(positions: string, owner = OWNER) {
+    return new SunSwapLiquidityContracts(
+      gatewayAnswering({
+        [`${MANAGER}:positions(uint256)`]: positions,
+        [`${MANAGER}:ownerOf(uint256)`]: owner,
+      }),
+    );
+  }
+
+  it("decodes a complete V3 answer", async () => {
+    await expect(v3(POSITIONS).v3Position(NILE, "88")).resolves.toMatchObject({
+      token0: USDT,
+      token1: WTRX,
+      fee: 3000,
+      tickLower: -60,
+      tickUpper: 60,
+      liquidity: "1234",
+    });
+  });
+
+  it.each([
+    ["four bytes", "deadbeef"],
+    ["seven words, one short of the liquidity", POSITIONS.slice(0, 7 * 64)],
+    ["words that are not hex", "z".repeat(POSITIONS.length)],
+  ])("refuses a V3 positions answer of %s as invalid_node_response", async (_name, answer) => {
+    await expect(v3(answer).v3Position(NILE, "88")).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
+  });
+
+  it("refuses a V3 ownerOf answer shorter than a word as invalid_node_response", async () => {
+    await expect(v3(POSITIONS, "deadbeef").v3Position(NILE, "88")).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
+  });
+
+  /** the three V4 reads, answered by the function name the SDK's builder selects. */
+  function v4(answers: { info: string; liquidity: string; owner: string }) {
+    return new SunSwapLiquidityContracts({
+      get: () => ({
+        triggerConstantContract: async (_contract: string, method: string) => {
+          if (method.startsWith("getPoolAndPositionInfo")) return [answers.info];
+          if (method.startsWith("getPositionLiquidity")) return [answers.liquidity];
+          if (method.startsWith("ownerOf")) return [answers.owner];
+          throw new Error(`unscripted call ${method}`);
+        },
+      }),
+    } as unknown as ChainGatewayProvider);
+  }
+
+  it.each([
+    ["a pool key cut short", { info: "deadbeef", liquidity: uint(1), owner: OWNER }],
+    ["no liquidity word", { info: uint(0).repeat(6), liquidity: "", owner: OWNER }],
+    ["an owner cut short", { info: uint(0).repeat(6), liquidity: uint(1), owner: "dead" }],
+  ])("refuses a V4 position read with %s as invalid_node_response", async (_name, answers) => {
+    await expect(v4(answers).v4Position(NILE, "88")).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
+  });
+});

@@ -1,5 +1,6 @@
-import { resolveTronAccount } from "../../../services/tron-account.js";
+import { activeTronAccount, resolveTronAccount } from "../../../services/tron-account.js";
 import { tradeOutput } from "../trade-output.js";
+import { quoteCurveSale } from "../sunpump/curve-sale.js";
 /**
  * `sunswap swap` — the market decision, and the bonding-curve branch.
  *
@@ -31,7 +32,11 @@ import {
   transactionMode,
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
-import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import {
+  tokenBookAccount,
+  withTokenBook,
+  type SunSwapTokenResolver,
+} from "../../../services/sunswap-token-resolver.js";
 import { LiquidityTransactions, type ApprovalPlan } from "./liquidity-transactions.js";
 import { ChainError, UsageError, WalletError } from "../../../../domain/errors/index.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
@@ -137,8 +142,15 @@ export class SunSwapSwapService {
     network: NetworkDescriptor,
     input: SwapInput,
   ): Promise<Record<string, unknown>> {
-    const inAddress = this.tokens.resolve(network, input.tokenIn);
-    const outAddress = this.tokens.resolve(network, input.tokenOut);
+    // Resolved once, against the book of the account this command uses — the same one for a
+    // quote and for the execution it previews, so both name the same token.
+    const lookup = { caller: "swap", account: tokenBookAccount(scope) } as const;
+    const resolvedIn = this.tokens.resolveToken(network, input.tokenIn, lookup);
+    const resolvedOut = this.tokens.resolveToken(network, input.tokenOut, lookup);
+    const inAddress = resolvedIn.address;
+    const outAddress = resolvedOut.address;
+    // From here on the input names addresses, so nothing downstream resolves a symbol again.
+    input = { ...input, tokenIn: inAddress, tokenOut: outAddress };
     if (inAddress === outAddress) {
       throw new ChainError("same_token", "the two sides of a swap are the same token");
     }
@@ -160,10 +172,11 @@ export class SunSwapSwapService {
     }
 
     const market = await this.#chooseMarket(network, inAddress, outAddress);
-    if (market === "sunswap") {
-      return this.#routerSwap(scope, network, input, inAddress, outAddress);
-    }
-    return this.#curveSwap(scope, network, input, inAddress, outAddress);
+    const result =
+      market === "sunswap"
+        ? await this.#routerSwap(scope, network, input, inAddress, outAddress)
+        : await this.#curveSwap(scope, network, input, inAddress, outAddress);
+    return withTokenBook(result, [resolvedIn, resolvedOut]);
   }
 
   /**
@@ -244,6 +257,7 @@ export class SunSwapSwapService {
     }
     if (transactionRequiresSigner(input)) this.routerTx.assertCanSign(scope);
     const owner = resolveTronAccount(scope);
+    await this.#assertCovers(network, owner, tokenIn, spending);
     const bips = slippageToBips(input.slippage ?? DEFAULT_SWAP_SLIPPAGE);
     const minimumOut = floorOf(chosen.amountOutRaw, bips);
     const feeLimit = input.feeLimit ?? DEFAULT_SWAP_FEE_LIMIT_SUN;
@@ -343,6 +357,39 @@ export class SunSwapSwapService {
         });
       },
     );
+  }
+
+  /**
+   * The amount a router swap spends must be there before anything is planned (PRD 13.1).
+   *
+   * In every mode, and ahead of the permit and the approval on purpose: an execute that found the
+   * shortfall later would already have paid for a Permit2 approval it can never use. Like the
+   * curve's checks, it does not add the chain's own fee — `--fee-limit` bounds that.
+   */
+  async #assertCovers(
+    network: NetworkDescriptor,
+    owner: string,
+    tokenIn: SwapSide,
+    spending: { amountIn: string; nativeIn: boolean; tokenAddress: string },
+  ): Promise<void> {
+    const account = await activeTronAccount(this.gateways, network, owner);
+    const native = BigInt(account.balance ?? "0");
+    if (spending.nativeIn) {
+      if (native < BigInt(spending.amountIn)) {
+        throw new ChainError(
+          "insufficient_balance",
+          `this swap spends ${spending.amountIn} SUN and the account holds ${native}`,
+        );
+      }
+      return;
+    }
+    const held = await this.liquidity.balanceOf(network, spending.tokenAddress, owner);
+    if (BigInt(held) < BigInt(spending.amountIn)) {
+      throw new ChainError(
+        "insufficient_token_balance",
+        `this swap sells ${spending.amountIn} of ${tokenIn.symbol} in base units and the account holds ${held}`,
+      );
+    }
   }
 
   /**
@@ -485,7 +532,7 @@ export class SunSwapSwapService {
         network,
         this.gateways,
         main,
-        this.tokens.resolve(network, input.tokenOut),
+        input.tokenOut,
         resolveTronAccount(scope),
         "amountOut",
       )),
@@ -647,18 +694,20 @@ export class SunSwapSwapService {
       ? toBaseUnits(input.amountIn, 6, "TRX", "<amountIn>")
       : toBaseUnits(input.amountIn, facts.decimals, facts.symbol, "<amountIn>");
 
+    // Both quotes are already net of the platform fee: a buy pays it out of the TRX sent, and a
+    // sale's TRX is what the seller receives, with the fee paid beside it. A sale too small to pay
+    // the seller is refused exactly as `sunpump sell` refuses it.
     const quoted = buying
-      ? await this.launchpad.quoteBuy(network, tokenAddress, amountIn)
-      : await this.launchpad.quoteSell(network, tokenAddress, amountIn);
-    const gross = "tokenAmount" in quoted ? quoted.tokenAmount : quoted.trxAmountSun;
-    // Selling pays the fee out of the TRX received; buying pays it out of the TRX sent, so the
-    // token amount quoted is already net of it.
-    const expected = buying ? gross : (BigInt(gross) - BigInt(quoted.feeSun)).toString();
-    if (BigInt(expected) <= 0n) {
-      throw new UsageError(
-        "invalid_amount",
-        `this swap would return ${gross} SUN, which the ${quoted.feeSun} SUN SunPump platform fee consumes entirely`,
-      );
+      ? await this.launchpad
+          .quoteBuy(network, tokenAddress, amountIn)
+          .then((q) => ({ expected: q.tokenAmount, feeSun: q.feeSun }))
+      : await quoteCurveSale(this.launchpad, network, facts, amountIn).then((q) => ({
+          expected: q.trxOutSun,
+          feeSun: q.feeSun,
+        }));
+    const expected = quoted.expected;
+    if (buying && BigInt(expected) <= 0n) {
+      throw new UsageError("invalid_amount", `${input.amountIn} TRX buys no ${facts.symbol}`);
     }
 
     // One hop, no pool fees, and no price impact: a curve has no pool to move against, so the key
@@ -725,6 +774,18 @@ export class SunSwapSwapService {
     };
 
     const owner = resolveTronAccount(scope);
+    // Before anything is planned: an account the chain has never seen is refused as such, and a
+    // buy the account cannot fund fails here rather than inside the node's energy estimate.
+    const account = await activeTronAccount(this.gateways, network, owner);
+    if (buying) {
+      const held = String(account.balance ?? "0");
+      if (BigInt(held) < BigInt(amountIn)) {
+        throw new ChainError(
+          "insufficient_balance",
+          `this swap spends ${amountIn} SUN and the account holds ${held}`,
+        );
+      }
+    }
     const payload = buying
       ? this.launchpad.buyPayload(network, {
           token: tokenAddress,
@@ -831,7 +892,7 @@ export class SunSwapSwapService {
             network,
             this.gateways,
             main,
-            this.tokens.resolve(network, input.tokenOut),
+            input.tokenOut,
             resolveTronAccount(scope),
             "amountOut",
           )),

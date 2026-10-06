@@ -24,7 +24,7 @@ The text `Symbol` column is filled from the SunSwap catalogue and is **display o
 |---|---|
 | `--address <addresses>` | Comma-separated token contract addresses; mutually exclusive with the token argument |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`: this command reads no wallet.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: this command reads no wallet, and the flag is rejected with `invalid_option`.
 
 ## Examples
 

@@ -266,6 +266,15 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
         });
         const txId = outcomeTxId(outcome);
         if (txId) txIds.push(txId);
+        // A receipt that says the approval failed is the reason, and it is reported as such:
+        // re-reading the allowance would only add "it left 0", which reads as a confirmed approve.
+        if (outcome.stage === "failed") {
+          const result = typeof outcome.result === "string" ? ` (${outcome.result})` : "";
+          throw new ChainError(
+            "execution_reverted",
+            `the approval for ${approval.symbol} failed on chain${result}; the main transaction was not sent`,
+          );
+        }
         await this.#assertAllowanceLanded(network, approval, owner);
       }
     } catch (error) {
@@ -402,6 +411,18 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       );
     }
   }
+}
+
+/**
+ * A V3 / V4 plan as it is published: the contract is `positionManager`, in every mode (PM 6.0).
+ * `router` is V2's word for its own contract, and only V2 keeps it. The plans carry it as `router`
+ * internally because one field serves all three protocols.
+ */
+export function withPositionManager<T extends { readonly router: string }>(
+  view: T,
+): Omit<T, "router"> & { positionManager: string } {
+  const { router, ...rest } = view;
+  return { ...rest, positionManager: router };
 }
 
 export function outcomeTxId(outcome: TxOutcome): string | undefined {

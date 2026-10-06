@@ -431,6 +431,8 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
       this.#read(network, manager, "ownerOf(uint256)", [{ type: "uint256", value: tokenId }]),
     ]);
     // (nonce, operator, token0, token1, fee, tickLower, tickUpper, liquidity, …)
+    assertWords(positions, 8, manager, "positions(uint256)");
+    assertWords(owner, 1, manager, "ownerOf(uint256)");
     return {
       tokenId,
       owner: addressFromWord(owner),
@@ -967,6 +969,23 @@ function signedWord(data: string, index: number): number {
   const raw = BigInt(`0x${data.slice(index * 64, (index + 1) * 64)}`);
   const signed = raw >= 1n << 255n ? raw - (1n << 256n) : raw;
   return Number(signed);
+}
+
+/**
+ * An ABI return that holds at least `count` words, or a refusal saying the node's answer was bad.
+ *
+ * A short or non-hex answer arrives with HTTP 200, so nothing upstream has refused it, and decoding
+ * it anyway throws an unclassified error that surfaces as `internal_error`. It is the node's fault
+ * and worth retrying: `invalid_node_response`. Never `provider_error`, which `position-read` takes
+ * to mean the position does not exist.
+ */
+function assertWords(data: string, count: number, contract: string, method: string): void {
+  if (!/^[0-9a-fA-F]*$/.test(data) || data.length < count * 64) {
+    throw new ChainError(
+      "invalid_node_response",
+      `${contract} answered ${method} with data that cannot be decoded: expected at least ${count * 32} bytes of ABI words`,
+    );
+  }
 }
 
 /** the 32-byte word at `index` of an ABI return, as a decimal string. */

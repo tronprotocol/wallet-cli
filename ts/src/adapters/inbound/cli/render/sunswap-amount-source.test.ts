@@ -94,7 +94,6 @@ it("shows the exact initial price and its range in a V4 creation preview", () =>
       ...base,
       protocol: "V4",
       mode: "dry-run",
-      poolCreated: true,
       initialSqrtPriceX96: "263961795081773446554",
       tickLower: -396420,
       tickUpper: -384420,
@@ -102,8 +101,9 @@ it("shows the exact initial price and its range in a V4 creation preview", () =>
     },
     ctx,
   );
-  expect(text).toContain("Initial sqrtPriceX96");
-  expect(text).toContain("263961795081773446554");
+  expect(text).toMatch(/Create pool +yes — initial sqrtPriceX96 263961795081773446554\n/);
+  expect(text).not.toContain("Initial sqrtPriceX96");
+  expect(text).not.toContain("created by this deposit");
   expect(text).toContain("[-396420, -384420]");
 });
 
@@ -149,5 +149,7 @@ it("renders a Permit2-only fee gap and initial human price without an approval w
   );
   expect(text).toContain("Permit2");
   expect(text).not.toContain("until the approval is on-chain");
-  expect(text).toContain("1 USDT ≈ 1 WTRX");
+  expect(text).toMatch(
+    /Create pool +yes — initial sqrtPriceX96 79228162514264337593543950336 \(≈ 1 USDT = 1 WTRX\)/,
+  );
 });

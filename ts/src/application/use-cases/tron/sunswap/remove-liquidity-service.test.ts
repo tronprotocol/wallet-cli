@@ -4,7 +4,8 @@ import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../../ports/chain/gateway-provider.js";
 import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
-import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import type { TokenRepository } from "../../../ports/token-repository.js";
 import { SunSwapRemoveLiquidityService } from "./remove-liquidity-service.js";
 import { ChainError } from "../../../../domain/errors/index.js";
 
@@ -55,6 +56,8 @@ const POSITION = {
 };
 
 const resolver = {
+  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
+  resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) =>
     ({ USDT, WTRX, TRX })[value.toUpperCase()] ?? value,
   resolveSymbol: (_n: NetworkDescriptor, value: string) => value,
@@ -107,7 +110,12 @@ interface PipelineParams {
   estimate: (tx: unknown) => Promise<Record<string, unknown>>;
 }
 
-function makeHarness(port: LiquidityPort = makePort(), confirmed = false, feeSun = 0) {
+function makeHarness(
+  port: LiquidityPort = makePort(),
+  confirmed = false,
+  feeSun = 0,
+  tokens: SunSwapTokenResolver = resolver,
+) {
   const gateway = {
     triggerSmartContract: vi.fn(async (_from, target, method) => ({
       txID: `built:${method}`,
@@ -144,7 +152,7 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = false, feeSun
     port,
     { get: () => gateway } as unknown as ChainGatewayProvider,
     pipeline,
-    resolver,
+    tokens,
   );
   return { service, scope, gateway, pipeline, port, assertCanSign };
 }
@@ -884,5 +892,69 @@ describe("V4 confirmed receipt amounts", () => {
     expect(scope.warn).toHaveBeenCalledWith(
       expect.objectContaining({ code: "sunswap_removal_amounts_mismatch" }),
     );
+  });
+});
+
+/**
+ * The entry resolves the pair against the account's own token book (PRD 2.13), through the real
+ * resolver: a user-added symbol reaches the plan as its address, and the receipt says which.
+ */
+function bookResolver(): SunSwapTokenResolver {
+  const tokens = {
+    official: () => [],
+    effective: (_network: string, account: string) =>
+      account === "wlt_main.0"
+        ? [{ kind: "trc20", id: USDT, symbol: "MYUSD", decimals: 6, source: "user" }]
+        : [],
+  } as unknown as TokenRepository;
+  return new SunSwapTokenResolver(tokens);
+}
+
+describe("remove-liquidity — symbols from the account's token book", () => {
+  it("resolves a user-added symbol and publishes that it came from the book", async () => {
+    const { service, scope } = makeHarness(makePort(), false, 0, bookResolver());
+    Object.assign(scope, { activeAccount: "wlt_main.0" });
+    const result = (await service.removeLiquidity(scope, NETWORK, {
+      ...V2,
+      token0: "MYUSD",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    expect(result.token0).toMatchObject({ address: USDT });
+    expect(result.fromTokenBook).toEqual([USDT]);
+  });
+});
+
+/**
+ * PM 6.0: the contract a withdrawal goes through is `router` on V2 and `positionManager` on V3 and
+ * V4 — in every mode, so a script reads the same key from a preview and from a receipt.
+ */
+describe("remove-liquidity — the contract's key", () => {
+  it.each([
+    ["dry run", { dryRun: true }],
+    ["build", { buildOnly: true }],
+    ["receipt", {}],
+  ])("is positionManager on a V3 %s", async (_name, mode) => {
+    const { service, scope } = makeHarness(makePort(), true);
+    const result = await service.removeLiquidity(scope, NETWORK, { ...V3, ...mode });
+    expect(result.positionManager).toBe(MANAGER);
+    expect(result).not.toHaveProperty("router");
+  });
+
+  it.each([
+    ["dry run", { dryRun: true }],
+    ["build", { buildOnly: true }],
+    ["receipt", {}],
+  ])("is positionManager on a V4 %s", async (_name, mode) => {
+    const { service, scope } = makeHarness(makeV4Port(), true);
+    const result = await service.removeLiquidity(scope, NETWORK, { ...V4, ...mode });
+    expect(result.positionManager).toBe(V4_MANAGER);
+    expect(result).not.toHaveProperty("router");
+  });
+
+  it("stays router on V2", async () => {
+    const { service, scope } = makeHarness();
+    const result = await service.removeLiquidity(scope, NETWORK, { ...V2, dryRun: true });
+    expect(result).toHaveProperty("router");
+    expect(result).not.toHaveProperty("positionManager");
   });
 });

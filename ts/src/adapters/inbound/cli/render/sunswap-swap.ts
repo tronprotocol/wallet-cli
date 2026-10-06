@@ -11,6 +11,7 @@ import { formatAmount, formatInt, shorten } from "./scalars.js";
 import { fail, ok, pending, receipt, table, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 import { formatFee } from "./tx.js";
+import { fromTokenBook, TOKEN_BOOK_MARK } from "./token-book.js";
 
 interface Side {
   readonly address: string;
@@ -109,6 +110,8 @@ export const SunSwapSwapFormatters = {
     const rows: Pair[] = [
       ["Account", accountRow(value, ctx)],
       ["Market", marketLabel(value.market)],
+      ["Token in", tokenAddress(value, tokenIn.address)],
+      ["Token out", tokenAddress(value, tokenOut.address)],
       [value.mode === undefined ? "Spent" : "Spend", spent],
       [
         value.mode === undefined
@@ -216,7 +219,16 @@ function quote(value: SwapView): string {
       cells.push(route.priceImpactPercent === undefined ? "—" : `${route.priceImpactPercent}%`);
     return cells;
   });
-  const lines = [`Market  ${marketLabel(value.market)}`, "", table(headers, rows)];
+  // The contracts the two symbols resolved to, from the ends of the first route: every route
+  // joins the same two tokens.
+  const ends = routes[0]?.path ?? [];
+  const lines = [
+    `Market  ${marketLabel(value.market)}`,
+    `Token in  ${tokenAddress(value, ends[0]?.address)}`,
+    `Token out  ${tokenAddress(value, ends[ends.length - 1]?.address)}`,
+    "",
+    table(headers, rows),
+  ];
   // How many exist, not how many were shown — so a caller knows whether --all would add anything.
   if (value.routesAvailable !== undefined && value.routesAvailable > routes.length) {
     lines.push("", `${routes.length} of ${value.routesAvailable} routes shown — --all lists them.`);
@@ -309,6 +321,12 @@ function summary(value: SwapView, tokenIn: Side, tokenOut: Side, out: string | u
   if (value.amountOut === undefined) return "Swap confirmed";
   const got = out === undefined ? "" : amount(out, tokenOut);
   return `Swapped ${amount(value.amountIn ?? "0", tokenIn)} for ${got}`;
+}
+
+/** The contract a side resolved to, marked when the symbol came from the user's own book. */
+function tokenAddress(value: SwapView, address: string | undefined): string {
+  if (!address) return "";
+  return fromTokenBook(value, address) ? `${address} ${TOKEN_BOOK_MARK}` : address;
 }
 
 /** A side we were not given. Renders as a bare figure rather than mis-scaling one. */

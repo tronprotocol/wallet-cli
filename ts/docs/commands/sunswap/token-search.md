@@ -22,9 +22,9 @@ Results are always ordered by TVL descending — there is no ordering flag, so n
 |---|---|---|
 | `--protocol <name>` | `ALL` | Protocol scope, as in [`token-list`](token-list.md) |
 | `--limit <n>` | `20` | Maximum rows |
-| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit` |
+| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit`, and `--offset` + `--limit` may not exceed 1000 — the data service exposes only the first 1000 rows of this listing |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
 ## Examples
 

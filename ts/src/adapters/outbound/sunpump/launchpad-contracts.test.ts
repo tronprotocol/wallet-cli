@@ -95,16 +95,39 @@ describe("quotes", () => {
     });
   });
 
-  it("reads the gross TRX and the fee out of one sell quote", async () => {
+  // The first word is what the seller receives, already net: the fee is paid beside it.
+  it("reads the seller's net TRX and the fee out of one sell quote, as quoted", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
-        "getTrxAmountBySaleWithFee(address,uint256)": `${uint(39401n)}${uint(10000n)}`,
+        "getTrxAmountBySaleWithFee(address,uint256)": `${uint(22728n)}${uint(10000n)}`,
       }),
     );
     await expect(port.quoteSell(NETWORK, TOKEN, "1000")).resolves.toEqual({
-      trxAmountSun: "39401",
+      trxAmountSun: "22728",
       feeSun: "10000",
     });
+  });
+
+  /**
+   * The smallest sale that pays the seller anything: the inverse quote for a net of ONE SUN.
+   * Not the inverse of the fee floor, which is the point where the seller's net EQUALS the fee
+   * and roughly doubles the true minimum.
+   */
+  it("finds the minimum sale from the inverse quote for one SUN of proceeds", async () => {
+    const triggerConstantContract = vi.fn(
+      async (_contract: string, method: string, parameters: { value: unknown }[]) => {
+        if (method !== "getExactTrxAmountForSaleWithFee(address,uint256)") {
+          throw new Error(`unscripted call ${method}`);
+        }
+        expect(parameters[1]!.value).toBe("1");
+        return [`${uint(292065903216294733861n)}${uint(10000n)}`];
+      },
+    );
+    const port = new SunPumpLaunchpadContracts({
+      get: () => ({ triggerConstantContract }),
+    } as unknown as ChainGatewayProvider);
+    await expect(port.minimumSellAmount(NETWORK, TOKEN)).resolves.toBe("292065903216294733861");
+    expect(triggerConstantContract).toHaveBeenCalledTimes(1);
   });
 
   // Past what a double holds, which is why every amount here is a string.

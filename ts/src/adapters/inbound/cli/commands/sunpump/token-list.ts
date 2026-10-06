@@ -52,6 +52,7 @@ export const sunpumpTokenListSpec: ChainSpec = {
   path: ["sunpump", "token-list"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "token-list reads public launchpad data and is not about any account of yours",
   auth: "none",
   capability: "sunpump.market",
   summary: "List tokens on the SunPump launchpad",

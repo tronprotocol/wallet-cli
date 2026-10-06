@@ -38,17 +38,49 @@ export const curveTradeFields = {
 /** Flags that describe a transaction, and so cannot travel with `--quote`. */
 const SENDING_FLAGS = ["dryRun", "buildOnly"] as const;
 
+/** Flags that set a floor, which a quote never enforces; each named as its refusal reads. */
+const FLOOR_FLAGS = [
+  ["slippage", "a tolerance"],
+  ["minOut", "a minimum"],
+] as const;
+
 /**
- * `--quote` against the sending flags, and the two floors against each other.
+ * `--quote` against the flags that describe a transaction, and the two floors against each other.
  *
- * A quote that also carried `--dry-run` would be two answers to one question; the pair of floor
- * flags are two ways of saying the same thing, so a caller who gave both does not know which they
- * are getting. Neither silently wins.
+ * A quote that also carried `--dry-run` would be two answers to one question, and a floor given to
+ * a quote would be accepted and then protect nothing: a caller would believe they had set one
+ * (PM 2.11; the wording is `sunswap swap`'s). `--wait` and `--wait-timeout` are global flags the
+ * schema cannot see, so the spec's `rejectsWaitWith` refuses those. The pair of floor flags are
+ * two ways of saying the same thing, so a caller who gave both does not know which they are
+ * getting. Nothing silently wins.
  */
 export function refuseQuoteWithSendingFlags(
   value: Record<string, unknown>,
   ctx: RefinementCtx,
 ): void {
+  if (value.quote === true) {
+    for (const flag of SENDING_FLAGS) {
+      if (value[flag] === true) {
+        ctx.addIssue({
+          code: "custom",
+          path: [flag],
+          message: "cannot be given with --quote, which sends no transaction",
+          params: { errorCode: "invalid_option" },
+        });
+      }
+    }
+    for (const [flag, what] of FLOOR_FLAGS) {
+      if (value[flag] !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: [flag],
+          message: `cannot be given with --quote: a quote enforces no floor, so ${what} would have nothing to apply to`,
+          params: { errorCode: "invalid_option" },
+        });
+      }
+    }
+    return;
+  }
   if (value.slippage !== undefined && value.minOut !== undefined) {
     ctx.addIssue({
       code: "custom",
@@ -56,17 +88,6 @@ export function refuseQuoteWithSendingFlags(
       message: "cannot be given with --slippage; they are two ways of setting the same floor",
       params: { errorCode: "invalid_option" },
     });
-  }
-  if (value.quote !== true) return;
-  for (const flag of SENDING_FLAGS) {
-    if (value[flag] === true) {
-      ctx.addIssue({
-        code: "custom",
-        path: [flag],
-        message: "cannot be given with --quote, which sends no transaction",
-        params: { errorCode: "invalid_option" },
-      });
-    }
   }
 }
 

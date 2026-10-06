@@ -86,7 +86,7 @@ export interface MarketApiDeps {
  * `Retry-After` header exists: the SDK reads the body, throws its own error, and the `Response`
  * is gone. Every other status keeps flowing into the SDK so its own normalisation still applies.
  */
-class RateLimited extends Error {
+export class RateLimited extends Error {
   constructor(readonly retryAfterSeconds?: number) {
     super("rate limited");
     this.name = "RateLimited";
@@ -270,7 +270,7 @@ const defaultClientFactory: SunApiClientFactory = (options) => new SunApiClient(
  * Only 429. Letting any other status through keeps the SDK's status handling, body excerpt and
  * API-message extraction intact; this adds a channel for one header rather than replacing them.
  */
-function rateLimitAware(fetchImpl: typeof globalThis.fetch): typeof globalThis.fetch {
+export function rateLimitAware(fetchImpl: typeof globalThis.fetch): typeof globalThis.fetch {
   return async (input, init) => {
     const response = await fetchImpl(input, init);
     if (response.status !== 429) return response;

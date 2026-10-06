@@ -184,13 +184,14 @@ describe("every registered positional command rejects its --<field> spelling", (
   });
 
   /**
-   * A command may also refuse `--account` outright, and two do.
+   * A command may also refuse `--account` outright, and ten do.
    *
    * `--account` is global, so the refusal has to be made on purpose. Without it the flag would be
    * accepted and ignored: `sunpump launch --account main` would read as having created a token for
    * `main` — which no launch does, since SunPump picks the owner — and `sunswap position-info
    * --account main` would read as being about a position that account holds, when the command
-   * reports whoever holds the id it was given. Derived from the registry, so any later command that
+   * reports whoever holds the id it was given. The SunSwap / SunPump market queries refuse it because
+   * the PRD says each takes no account. Derived from the registry, so any later command that
    * declares the same intent is covered here too.
    */
   function accountRefusingCommands() {
@@ -205,8 +206,15 @@ describe("every registered positional command rejects its --<field> spelling", (
     const paths = accountRefusingCommands();
     expect(paths.map((path) => path.join(" ")).sort()).toEqual([
       "sunpump launch",
+      "sunpump token-info",
+      "sunpump token-list",
+      "sunpump token-search",
+      "sunswap pool-list",
+      "sunswap pool-search",
       "sunswap position-info",
-      "sunswap position-list",
+      "sunswap price",
+      "sunswap token-list",
+      "sunswap token-search",
     ]);
     for (const path of paths) {
       await expect(
@@ -233,6 +241,32 @@ describe("every registered positional command rejects its --<field> spelling", (
         await expect(buildCli(shellOpts()).parseAsync([...path, ...flag])).rejects.toMatchObject({
           code: "invalid_option",
           message: new RegExp(`^${path.join(" ")} does not accept --wait: `),
+        });
+      }
+    }
+  });
+
+  // The same refusal scoped to one mode: a curve quote sends nothing to wait on (PM 2.11).
+  it("refuses --wait and --wait-timeout with --quote on the commands that declare it", async () => {
+    const commands = newRuntime()
+      .registry.all()
+      .flatMap((c) =>
+        isChainCommand(c) && c.spec.rejectsWaitWith !== undefined
+          ? [{ path: c.spec.path, field: c.spec.rejectsWaitWith }]
+          : [],
+      );
+    expect(commands.map((c) => `${c.path.join(" ")} --${c.field}`).sort()).toEqual([
+      "sunpump buy --quote",
+      "sunpump sell --quote",
+      "sunswap swap --quote",
+    ]);
+    for (const { path } of commands) {
+      for (const [flag, ...value] of [["--wait"], ["--wait-timeout", "1000"]]) {
+        await expect(
+          buildCli(shellOpts()).parseAsync([...path, "--quote", flag!, ...value]),
+        ).rejects.toMatchObject({
+          code: "invalid_option",
+          message: `${flag} cannot be used with --quote, which sends no transaction`,
         });
       }
     }

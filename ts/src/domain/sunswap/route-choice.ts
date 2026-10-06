@@ -11,6 +11,7 @@
  * lower fee on a worse route is irrelevant.
  */
 import { ChainError } from "../errors/index.js";
+import { compareDecimal } from "./decimal.js";
 
 /** Only what choosing needs. The adapter's full route carries more. */
 export interface RouteCandidate {
@@ -59,22 +60,4 @@ function compareBigint(left: string, right: string): number {
   const a = BigInt(left);
   const b = BigInt(right);
   return a === b ? 0 : a < b ? -1 : 1;
-}
-
-/**
- * A human decimal fee, compared without floats.
- *
- * Only a tie-break, but a float here would make the ORDER depend on binary rounding — and an
- * unstable order is the thing this function exists to prevent.
- */
-function compareDecimal(left: string, right: string): number {
-  const [leftWhole = "0", leftFraction = ""] = left.trim().split(".");
-  const [rightWhole = "0", rightFraction = ""] = right.trim().split(".");
-  const width = Math.max(leftFraction.length, rightFraction.length);
-  const scaled = (whole: string, fraction: string) =>
-    BigInt(`${whole || "0"}${fraction.padEnd(width, "0") || "0"}`);
-  return compareBigint(
-    scaled(leftWhole, leftFraction).toString(),
-    scaled(rightWhole, rightFraction).toString(),
-  );
 }

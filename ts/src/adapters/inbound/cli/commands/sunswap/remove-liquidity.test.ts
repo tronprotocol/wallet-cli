@@ -7,6 +7,9 @@
  */
 import { describe, expect, it } from "vitest";
 import type { ZodIssue } from "zod";
+import type { ZodObject, ZodRawShape } from "zod";
+import { CliError } from "../../../../../domain/errors/index.js";
+import { composeRefines, parseInputSchema } from "../../shell/index.js";
 import { sunswapRemoveLiquiditySpec } from "./remove-liquidity.js";
 
 const schema = (
@@ -103,3 +106,53 @@ describe("sunswap remove-liquidity — V4's flags elsewhere", () => {
     expect(schema.safeParse({ ...V4, protocol: "v4" }).success).toBe(true);
   });
 });
+
+/**
+ * A malformed `--recipient` is the caller's typo, not our crash (PM 6.0's shared codes).
+ *
+ * Unchecked, it travelled to the ABI encoder and came back as `internal_error` ("Invalid checksum")
+ * at exit 1 — after the position had already been read. Refused here, it is `invalid_address` at
+ * exit 2 before anything remote is asked. An EVM address is malformed on TRON for the same reason.
+ */
+describe("sunswap remove-liquidity — a malformed --recipient", () => {
+  it.each(["TNotAnAddress", "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"])(
+    "refuses %s as invalid_address before any network call",
+    (recipient) => {
+      const error = recipientRefusal({
+        protocol: "V3",
+        positionId: "696",
+        liquidity: "1",
+        recipient,
+      });
+      expect(error).toMatchObject({ code: "invalid_address" });
+      expect(error.exitCode()).toBe(2);
+      expect(error.message).toMatch(/^invalid --recipient: /);
+    },
+  );
+
+  it("accepts a well-formed TRON address", () => {
+    expect(() =>
+      parseInputSchema(recipientSchema, {
+        protocol: "V3",
+        positionId: "696",
+        liquidity: "1",
+        recipient: "TM56HhEWoaw2UevQh86k9AUjJqj9QVvmFC",
+      }),
+    ).not.toThrow();
+  });
+});
+
+const recipientSchema = composeRefines(
+  sunswapRemoveLiquiditySpec.baseFields as ZodObject<ZodRawShape>,
+  sunswapRemoveLiquiditySpec.baseRefine,
+);
+
+function recipientRefusal(argv: Record<string, unknown>): CliError {
+  try {
+    parseInputSchema(recipientSchema, argv);
+  } catch (error) {
+    if (error instanceof CliError) return error;
+    throw error;
+  }
+  throw new Error("expected a refusal");
+}

@@ -142,6 +142,7 @@ describe("listing usage errors", () => {
     [["--limit", "0"], "invalid_value", /--limit/],
     [["--offset", "-1"], "invalid_value", /--offset/],
     [["--offset", "5", "--limit", "4"], "invalid_value", /multiple of --limit/],
+    [["--offset", "1000"], "invalid_value", /only the first 1000 rows of each ordering/],
     [["--address", "0xdead"], "invalid_address", /0xdead/],
   ])("token-list %s", (args, code, message) => {
     const r = run([
@@ -188,7 +189,9 @@ describe("pool listing usage errors", () => {
     [["--order-by", "nope"], "invalid_value", /tvl, volume-24h, fees-24h, apr/],
     [["--sort", "sideways"], "invalid_value", /--sort must be one of asc, desc/],
     [["--offset", "5", "--limit", "4"], "invalid_value", /multiple of --limit/],
-    [["--token", "NOSUCHSYMBOL"], "unsupported_token", /--address/],
+    [["--offset", "1000"], "invalid_value", /only the first 1000 rows of each ordering/],
+    [["--min-tvl", "1e5"], "invalid_value", /--min-tvl must be a non-negative decimal/],
+    [["--token", "NOSUCHSYMBOL"], "unsupported_token", /with --token/],
   ])("pool-list %s", (args, code, message) => {
     const r = run([
       "sunswap",
@@ -244,15 +247,27 @@ describe("pool listing usage errors", () => {
     expect(run(["sunswap", "token-list", "--help"]).stdout).not.toContain("--sort");
   });
 
-  // The service has no such filter, and filtering after paging would return fewer rows than
-  // --limit asked for without saying so.
-  it("offers no --min-tvl and no --include-blacklisted", () => {
-    for (const args of [["--min-tvl", "100000"], ["--include-blacklisted"]]) {
-      const r = run(["sunswap", "pool-list", ...args, "--network", "tron", "-o", "json"]);
-      expect(r.status).toBe(2);
-      expect(r.json.error.code).toBe("invalid_option");
-    }
-    expect(run(["sunswap", "pool-list", "--help"]).stdout).not.toContain("--min-tvl");
+  // Pool records carry no blacklist marker, so blacklisted pools could not be labelled.
+  it("offers no --include-blacklisted", () => {
+    const r = run([
+      "sunswap",
+      "pool-list",
+      "--include-blacklisted",
+      "--network",
+      "tron",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+  });
+
+  // PM 7.3.5: the help must say that --min-tvl filters first and that apr needs it.
+  it("documents --min-tvl and the apr advice in help", () => {
+    const out = run(["sunswap", "pool-list", "--help"]).stdout;
+    expect(out).toContain("applied before --limit/--offset");
+    expect(out).toContain("When ordering by apr, set --min-tvl");
+    expect(out).toContain("wallet-cli sunswap pool-list --order-by apr --min-tvl 100000");
   });
 
   // A V4 pool id is not a contract address, and a caller who treats it as one gets a failure
@@ -265,20 +280,20 @@ describe("pool listing usage errors", () => {
 });
 
 describe("position-list usage errors", () => {
-  // The address is required rather than defaulted: this command reads any address and takes no
-  // account, so falling back to an active one would answer a different question.
-  it("requires --owner and never falls back to an account", () => {
+  // Address-scoped like `account balance`: the active account by default, `--account` for any
+  // other. With no wallet and no `--account` there is nothing to list.
+  it("needs an account when none is active", () => {
     const r = run(["sunswap", "position-list", "--network", "tron", "-o", "json"]);
-    expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("missing_option");
-    expect(r.json.error.message).toContain("owner");
+    // exit 1, as `account balance` answers the same situation.
+    expect(r.status).toBe(1);
+    expect(r.json.error.code).toBe("missing_wallet_address");
   });
 
-  it("rejects a malformed owner before asking anyone", () => {
+  it("refuses an --account that is neither a known account nor a TRON address", () => {
     const r = run([
       "sunswap",
       "position-list",
-      "--owner",
+      "--account",
       "0xdead",
       "--network",
       "tron",
@@ -286,7 +301,22 @@ describe("position-list usage errors", () => {
       "json",
     ]);
     expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("invalid_address");
+    expect(r.json.error.code).toBe("account_not_found");
+  });
+
+  it("no longer takes --owner", () => {
+    const r = run([
+      "sunswap",
+      "position-list",
+      "--owner",
+      "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N",
+      "--network",
+      "tron",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
   });
 
   it("has no ordering flag, because the service sorts by value and takes none", () => {
@@ -317,7 +347,7 @@ describe("protocol scope versus protocol filter", () => {
       command === "pool-search"
         ? ["USDT"]
         : command === "position-list"
-          ? ["--owner", "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N"]
+          ? ["--account", "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N"]
           : [];
     return run([
       "sunswap",
@@ -591,22 +621,4 @@ describe("sunswap position-info", () => {
     expect(r.json.error.code).not.toBe("auth_required");
     expect(r.json.error.code).not.toBe("no_account");
   });
-});
-
-it("position-list refuses --account before validating the owner or calling an API", () => {
-  const r = run([
-    "sunswap",
-    "position-list",
-    "--owner",
-    "invalid",
-    "--account",
-    "unused",
-    "--network",
-    "tron",
-    "-o",
-    "json",
-  ]);
-  expect(r.status).toBe(2);
-  expect(r.json.error.code).toBe("invalid_option");
-  expect(r.json.error.message).toContain("--account");
 });

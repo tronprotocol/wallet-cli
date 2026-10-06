@@ -4,7 +4,8 @@ import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../../ports/chain/gateway-provider.js";
 import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
-import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import type { TokenRepository } from "../../../ports/token-repository.js";
 import { SunSwapLiquidityService } from "./liquidity-service.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 
@@ -36,6 +37,8 @@ const TRX = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 /** Symbols resolve through the shared resolver; here it is scripted rather than backed by a
  *  token repository, because what the service owes is using it at all. */
 const resolver = {
+  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
+  resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) =>
     ({ USDT, WTRX, TRX })[value.toUpperCase()] ?? value,
   resolveSymbol: (_n: NetworkDescriptor, value: string) => value,
@@ -127,6 +130,7 @@ function makeHarness(
   /** the V4 collaborators, which most cases never reach — see `noV4Permits`. */
   permits: unknown = noV4Permits,
   signers: unknown = noV4Signers,
+  tokens: SunSwapTokenResolver = resolver,
 ) {
   const estimated: { method: string }[] = [];
   const callValues: (string | undefined)[] = [];
@@ -165,7 +169,7 @@ function makeHarness(
     port,
     { get: () => gateway } as unknown as ChainGatewayProvider,
     pipeline,
-    resolver,
+    tokens,
     permits as never,
     signers as never,
   );
@@ -279,6 +283,19 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --dry-run", () => {
     await service.addLiquidityV2(scope, NETWORK, { ...BASE, dryRun: true });
 
     expect(assertCanSign).not.toHaveBeenCalled();
+  });
+
+  // PM 6.0: V2's contract is the router, and only V2 keeps that key.
+  it("names its contract router", async () => {
+    const { service, scope } = makeHarness();
+
+    const result = (await service.addLiquidityV2(scope, NETWORK, {
+      ...BASE,
+      dryRun: true,
+    })) as Record<string, unknown>;
+
+    expect(result.router).toBe(ROUTER);
+    expect(result).not.toHaveProperty("positionManager");
   });
 
   it("prices the deposit for real once the allowances are in place", async () => {
@@ -695,6 +712,40 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
 
     expect(result.token0!.amountMinimum).toBe("0");
     expect(result.token1!.amountMinimum).toBe("0");
+  });
+
+  /**
+   * PM 6.0 and 6.1.4: a V3 deposit names its contract `positionManager` (`router` is V2's word),
+   * and a preview's liquidity is `liquidityExpected` — `liquidity` is what a confirmed receipt
+   * measured, and one key for both would let a script read an estimate as a settlement.
+   */
+  it.each([
+    ["a dry run", { dryRun: true }],
+    ["a build", { buildOnly: true }],
+  ])("publishes positionManager and liquidityExpected on %s", async (_name, mode) => {
+    const { service, scope } = makeHarness();
+
+    const result = (await service.addLiquidity(scope, NETWORK, { ...MINT, ...mode })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result.positionManager).toBe(MANAGER);
+    expect(result.liquidityExpected).toBe("14398816");
+    expect(result).not.toHaveProperty("router");
+    expect(result).not.toHaveProperty("liquidity");
+  });
+
+  it("keeps liquidity, not liquidityExpected, on the confirmed receipt", async () => {
+    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const { service, scope } = makeHarness(port);
+
+    const result = (await service.addLiquidity(scope, NETWORK, MINT)) as Record<string, unknown>;
+
+    expect(result.positionManager).toBe(MANAGER);
+    expect(result).toHaveProperty("liquidity");
+    expect(result).not.toHaveProperty("liquidityExpected");
+    expect(result).not.toHaveProperty("router");
   });
 
   it("approves the position manager, not the V2 router", async () => {
@@ -1182,8 +1233,28 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
       tickSpacing: 12,
       // The word for it, never the zero address — which on TRON is also native TRX's.
       hooks: "none",
-      liquidity: SIZED.liquidity,
+      liquidityExpected: SIZED.liquidity,
     });
+  });
+
+  // PM 6.0: V3 and V4 name their contract `positionManager` in every mode; `router` is V2's.
+  it.each([
+    ["a dry run", { dryRun: true }],
+    ["a build", { buildOnly: true }],
+  ])("publishes positionManager and liquidityExpected on %s", async (_name, mode) => {
+    const result = (await run({ ...BASE_V4, ...mode }).result) as Record<string, unknown>;
+    expect(result.positionManager).toBe(V4_MANAGER);
+    expect(result.liquidityExpected).toBe(SIZED.liquidity);
+    expect(result).not.toHaveProperty("router");
+    expect(result).not.toHaveProperty("liquidity");
+  });
+
+  it("publishes positionManager and liquidity on the confirmed receipt", async () => {
+    const result = (await run(BASE_V4).result) as Record<string, unknown>;
+    expect(result.positionManager).toBe(V4_MANAGER);
+    expect(result).toHaveProperty("liquidity");
+    expect(result).not.toHaveProperty("liquidityExpected");
+    expect(result).not.toHaveProperty("router");
   });
 
   // The range came from the position, so nothing here chose it and saying "(default)" would be a
@@ -1792,4 +1863,46 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
         expect(p.expiration).toBe(expiration ?? 3_600_000);
     },
   );
+});
+
+/**
+ * The entry resolves the pair against the account's own token book (PRD 2.13), through the real
+ * resolver: a user-added symbol reaches the plan as its address, and the receipt says which.
+ */
+function bookResolver(): SunSwapTokenResolver {
+  const tokens = {
+    official: () => [],
+    effective: (_network: string, account: string) =>
+      account === "wlt_main.0"
+        ? [{ kind: "trc20", id: USDT, symbol: "MYUSD", decimals: 6, source: "user" }]
+        : [],
+  } as unknown as TokenRepository;
+  return new SunSwapTokenResolver(tokens);
+}
+
+describe("add-liquidity — symbols from the account's token book", () => {
+  it("resolves a user-added symbol and publishes that it came from the book", async () => {
+    const { service, scope } = makeHarness(makePort(), noV4Permits, noV4Signers, bookResolver());
+    Object.assign(scope, { activeAccount: "wlt_main.0" });
+    const result = (await service.addLiquidity(scope, NETWORK, {
+      ...BASE,
+      token0: "MYUSD",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    expect(result.token0).toMatchObject({ address: USDT });
+    expect(result.fromTokenBook).toEqual([USDT]);
+  });
+
+  it("refuses the symbol for another account, with the liquidity hint", async () => {
+    const { service, scope } = makeHarness(makePort(), noV4Permits, noV4Signers, bookResolver());
+    Object.assign(scope, { activeAccount: "wlt_other.0" });
+    await expect(
+      service.addLiquidity(scope, NETWORK, { ...BASE, token0: "MYUSD", dryRun: true }),
+    ).rejects.toMatchObject({
+      code: "unsupported_token",
+      message: expect.stringContaining(
+        "with --token0/--token1, or add it with 'wallet-cli token add'",
+      ),
+    });
+  });
 });

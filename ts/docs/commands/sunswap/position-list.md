@@ -5,14 +5,14 @@ List the liquidity positions an address holds, most valuable first.
 ## Synopsis
 
 ```
-wallet-cli sunswap position-list --owner <address> [options]
+wallet-cli sunswap position-list [options]
 ```
 
 ## Description
 
 This is the entry point to the liquidity commands: the `Position` column is the id that `add-liquidity`, `remove-liquidity`, `collect-fees` and `position-info` take as `--position-id`.
 
-`--owner` is **required and never falls back to the active account**. The command reads any address and takes no account at all, so defaulting it would silently answer about whichever account happened to be selected.
+The address comes from `--account`, as it does for `account balance` and the other address-scoped queries: the **active account by default**, or `--account <label|accountId|address>` for another one. A bare TRON address works too, so any holder can be queried without importing it.
 
 **Only V3 and V4 positions are NFTs.** V1, V1_5, V2 and CURVE positions have no id: the `Position` column shows `—` and the JSON omits `nftTokenId` entirely. Identify those by their pool instead. Those protocols also provide full-range liquidity, so their `status` is always `IN_RANGE`, and their fees accrue into the LP token rather than accumulating separately — `Unclaimed (USD)` shows `—`, which is not the same as `$0.00`.
 
@@ -26,18 +26,17 @@ Results are always ordered by LP value descending; there is no ordering flag and
 
 | Option | Required | Default | Description |
 |---|---|---|---|
-| `--owner <address>` | **yes** | — | The address whose positions to list |
 | `--pool <pool>` | no | all | Only positions in this pool: a 64-hex pool id for V4 (`0x` stripped for you), the pool contract address otherwise |
 | `--protocol <name>` | no | all | `V1`, `V1_5`, `V2`, `V3`, `V4`, `CURVE`. No `ALL`; omit the flag for every protocol |
 | `--limit <n>` | no | `20` | Maximum rows |
-| `--offset <n>` | no | `0` | Rows to skip; must be a multiple of `--limit` |
+| `--offset <n>` | no | `0` | Rows to skip; must be a multiple of `--limit`, and `--offset` + `--limit` may not exceed 1000 — the data service exposes only the first 1000 rows of this listing |
 
 Plus the [global options](../index.md#global-options-every-command). No `--account`.
 
 ## Examples
 
 ```bash
-wallet-cli sunswap position-list --owner TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N --offset 8 --limit 4 --network tron
+wallet-cli sunswap position-list --account TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N --offset 8 --limit 4 --network tron
 ```
 
 ```console
@@ -77,10 +76,10 @@ A drained V3 position, alongside one whose reported share exceeds 100%:
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`missing_option` — no `--owner`; `invalid_address`; `invalid_value` — protocol or paging; `unsupported_network_capability`).
+`0` success · `1` execution failure (`missing_wallet_address` — no active account and no `--account`; `provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`account_not_found` — `--account` is neither a known account nor a TRON address; `invalid_value` — protocol or paging; `unsupported_network_capability`).
 
 ## See also
 
 [`sunswap pool-list`](pool-list.md) · [`sunswap` group](index.md)
 
-`--account` is rejected; select the queried address with `--owner`.
+Plus the global options. `--account` selects the queried address; without it, the active account is used.

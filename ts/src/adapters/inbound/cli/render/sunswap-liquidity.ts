@@ -47,7 +47,6 @@ interface LiquidityView {
   readonly tickSpacing?: number;
   /** already the word for it, never the zero address — see `describeHooks`. */
   readonly hooks?: string;
-  readonly poolCreated?: boolean;
   readonly initialSqrtPriceX96?: string;
   readonly initialPrice?: { token0: string; token1: string; token1PerToken0: string };
   readonly recipient: string;
@@ -62,7 +61,10 @@ interface LiquidityView {
   readonly feeTier?: number;
   readonly tickLower?: number;
   readonly tickUpper?: number;
+  /** what a confirmed deposit measurably added. */
   readonly liquidity?: string;
+  /** what a preview expects the deposit to fund (PM 6.1.4). */
+  readonly liquidityExpected?: string;
   readonly poolHasNoPrice?: boolean;
   readonly reservesAfter?: { readonly token0: string; readonly token1: string };
   readonly approvals?: readonly ApprovalRow[];
@@ -100,7 +102,11 @@ export const SunSwapLiquidityFormatters = {
         // when no tolerance moved it. Printing "Min deposit 0" on V4 said the opposite of the truth.
         ...(isV4(value) ? ceilingRows(value) : ([["Min deposit", minimumRow(value)]] as Pair[])),
         ["LP received (est)", lpRow(value, value.lpAmountExpected)],
-        ["Liquidity", value.liquidity === undefined ? "" : formatInt(value.liquidity)],
+        // A preview's liquidity is an estimate, published as `liquidityExpected` (PM 6.1.4).
+        [
+          "Liquidity",
+          value.liquidityExpected === undefined ? "" : formatInt(value.liquidityExpected),
+        ],
         ["Recipient", value.recipient],
         ["Deadline", deadline(value.deadline)],
       ];
@@ -199,14 +205,6 @@ function dryRun(value: LiquidityView, rows: Pair[], ctx: TextRenderContext): str
       ...approvalRows(value),
     ]),
   ];
-  // A floor of zero accepts any output at all, which is a real choice and an unusual one, so it
-  // is said out loud before anything is signed — and only then (PM 6.0).
-  // NOT on V4: there is no minimum there by design, because the bound sits on the other side. Saying
-  // "accepts any output amount" would tell a caller they are unprotected when the protection is a
-  // ceiling — a warning that contradicts the command it is attached to.
-  if (!isV4(value) && acceptsAnything(value)) {
-    lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
-  }
   // What a native V4 deposit LOCKS, said only when it differs from what it deposits. The distinction
   // is the point: the ceiling is sent as the call's value and the remainder comes back, so a reader
   // needs to know what must be available rather than only what will be spent.
@@ -230,6 +228,15 @@ function dryRun(value: LiquidityView, rows: Pair[], ctx: TextRenderContext): str
     lines.push(
       `${warn()} This pool has no established price — it was initialised and never traded. A deposit into it will be one-sided.`,
     );
+  }
+  // A floor of zero accepts any output at all, which is a real choice and an unusual one, so it
+  // is said out loud before anything is signed — and only then (PM 6.0). It is the LAST line,
+  // whatever else was said (PM 2.10), because it is the one a caller must not miss.
+  // NOT on V4: there is no minimum there by design, because the bound sits on the other side. Saying
+  // "accepts any output amount" would tell a caller they are unprotected when the protection is a
+  // ceiling — a warning that contradicts the command it is attached to.
+  if (!isV4(value) && acceptsAnything(value)) {
+    lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
   }
   return lines.join("\n\n");
 }
@@ -358,28 +365,22 @@ function v4Rows(value: LiquidityView): Pair[] {
     // Absent on a mint, where the id is assigned during execution and nothing before the receipt
     // can know it — so the row is omitted rather than printed empty or as "new".
     ...(value.nftTokenId === undefined ? [] : ([["Position", `#${value.nftTokenId}`]] as Pair[])),
-    [
-      "Pool",
-      value.poolId === undefined
-        ? ""
-        : `${value.poolId}${value.poolCreated ? "  (created by this deposit)" : ""}`,
-    ],
-    ["Fee tier", value.feeTier === undefined ? "" : `${value.feeTier / 10_000}%`],
-    ["Tick spacing", value.tickSpacing === undefined ? "" : String(value.tickSpacing)],
-    ["Hooks", value.hooks ?? ""],
+    ["Pool", value.poolId ?? ""],
+    // PM 6.1.3: a creation must say so explicitly, on one line, with the price it starts at.
     ...(value.initialSqrtPriceX96 === undefined
       ? []
       : ([
-          ["Initial sqrtPriceX96", value.initialSqrtPriceX96],
-          ...(value.initialPrice
-            ? [
-                [
-                  "Initial price (approx)",
-                  `1 ${value.initialPrice.token0} ≈ ${value.initialPrice.token1PerToken0} ${value.initialPrice.token1}`,
-                ],
-              ]
-            : []),
+          [
+            "Create pool",
+            `yes — initial sqrtPriceX96 ${value.initialSqrtPriceX96}` +
+              (value.initialPrice
+                ? ` (≈ 1 ${value.initialPrice.token0} = ${value.initialPrice.token1PerToken0} ${value.initialPrice.token1})`
+                : ""),
+          ],
         ] as Pair[])),
+    ["Fee tier", value.feeTier === undefined ? "" : `${value.feeTier / 10_000}%`],
+    ["Tick spacing", value.tickSpacing === undefined ? "" : String(value.tickSpacing)],
+    ["Hooks", value.hooks ?? ""],
     ["Range", range],
   ];
 }

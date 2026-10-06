@@ -185,6 +185,8 @@ while :; do
 done
 ```
 
+The SunSwap market listings (`sunswap pool-list`, `pool-search`, `position-list`, `token-list`, `token-search`) can reach only the first 1000 rows of any ordering — the data service refuses a page past them. A window with `--offset` + `--limit` above 1000 is therefore refused locally as `invalid_value` (exit 2) before any request. `sunswap pool-list --min-tvl` filters before it pages; if more than 1000 pools qualify, a non-TVL ordering can come back short, with `hasMore: true` and a `sunswap_scan_truncated` warning.
+
 Commands that page a local, bounded set ([`backup --records`](commands/backup.md)) or that fetch everything and window it client-side ([`proposal list`](commands/proposal/list.md)) do report a `total`.
 
 Text mode titles the same window (`Assets (limit 50, offset 0)`, `Proposals (showing 2 of 4)`, `Backup records (showing 3 of 12)`), but text is not part of this contract — parse `-o json`.
@@ -266,7 +268,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
 | `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, or an error status from GasFree / TronLink. TronLink reports **every** non-404 status this way, 429 included |
-| `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI: `error.details.httpStatus: 429`. TronLink's 429 is `provider_error` instead |
+| `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI: `error.details.httpStatus: 429`. SunSwap market API, SunSwap route service and SunPump API: `error.details.httpStatus: 429`, plus `error.details.retryAfterSeconds` when a `Retry-After` header was sent. TronLink's 429 is `provider_error` instead |
 | `tx_expired` | The transaction expired before/during signing, or the TRON node rejected it as expired; rebuild and sign again |
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
@@ -472,7 +474,7 @@ Note the interaction with exact-amount approvals: the contract consumes the allo
 
 Every token amount in a JSON payload is **base units as a decimal string**, and the object that carries it also carries the `decimals` needed to read it — `{address, symbol, decimals, amount}`. Where an amount sits at the top of a payload rather than inside a side, its scale is beside it under a matching name (`lpAmount` / `lpDecimals`).
 
-The exception is a figure that is not a token amount at all: a SunSwap V3 position's `liquidity` and `liquidityAfter` are numbers the contract keeps, denominated in neither token, and carry no decimals.
+The exception is a figure that is not a token amount at all: a SunSwap V3 / V4 position's `liquidity`, `liquidityAfter` and (in an add-liquidity dry run or build) `liquidityExpected` are numbers the contract keeps, denominated in neither token, and carry no decimals.
 
 ## Stability promise (v1)
 

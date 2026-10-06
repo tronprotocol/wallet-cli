@@ -24,7 +24,7 @@ Reads the token's record from the SunPump launchpad service: its creator, status
 |---|---|
 | `<address>` | **Required** positional. The token's TRC20 contract address |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
 ## Example
 

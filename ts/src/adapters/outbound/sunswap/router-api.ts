@@ -14,13 +14,18 @@
  *
  * Amounts are parsed with `lossless-json` for the same reason as the market API: `JSON.parse`
  * rewrites a 24-digit integer, and these are money.
+ *
+ * The transport is the market API's too: `fetchImpl` carries the call's `--timeout` and the
+ * response cap, and a 429 is caught there while its `Retry-After` header is still readable.
  */
 import { RouterApiClient } from "@sun-protocol/sun-sdk-api";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type { RouterPort, RouterRoute } from "../../../application/ports/sunswap/router.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
+import { createTimedFetch } from "../http/timed-fetch.js";
+import { RateLimited, rateLimitAware } from "./market-api.js";
 
 /** What the service actually sends, named as it names things. Confined to this file. */
 interface WireRoute {
@@ -37,8 +42,17 @@ interface WireRoute {
   readonly containsUnverifiedHook?: unknown;
 }
 
+/** Injection seam. Production supplies none; it exists so tests can replay a response. */
+export interface RouterApiDeps {
+  /** the fetch the timeout and size cap are wrapped around. */
+  readonly fetchImpl?: typeof globalThis.fetch;
+}
+
 export class SunSwapRouterApi implements RouterPort {
-  constructor(private readonly timeoutMs: number) {}
+  constructor(
+    private readonly timeoutMs: number,
+    private readonly deps: RouterApiDeps = {},
+  ) {}
 
   async routes(
     network: NetworkDescriptor,
@@ -46,6 +60,12 @@ export class SunSwapRouterApi implements RouterPort {
   ): Promise<readonly RouterRoute[]> {
     const baseUrl = routerBaseUrl(network);
     const client = new RouterApiClient({
+      fetchImpl: rateLimitAware(
+        createTimedFetch({
+          timeoutMs: this.timeoutMs,
+          ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
+        }),
+      ),
       jsonParser: (text: string) => parseLosslessJson(text) as unknown,
     });
     let response: { code?: unknown; data?: unknown; message?: string; msg?: string };
@@ -58,10 +78,7 @@ export class SunSwapRouterApi implements RouterPort {
         amountIn: request.amountInRaw,
       });
     } catch (error) {
-      throw new ChainError(
-        "provider_error",
-        `the SunSwap route service did not answer: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      throw translate(error);
     }
     // Compared as text, not with `!==`: `lossless-json` hands back its own number wrapper for an
     // unquoted literal, so `code !== 0` is an object compared to a number and always true. The
@@ -75,6 +92,29 @@ export class SunSwapRouterApi implements RouterPort {
     const wire = Array.isArray(response.data) ? (response.data as WireRoute[]) : [];
     return wire.map((route) => normalise(route));
   }
+}
+
+/**
+ * A failure to get an answer, in the market API's vocabulary.
+ *
+ * A 429 is `provider_rate_limited` (retry later, not at once); the transport's own `timeout` and
+ * `response_too_large` pass through unchanged, because re-labelling them would lose the
+ * distinction the caller acts on. Anything else is the service failing.
+ */
+function translate(error: unknown): CliError {
+  if (error instanceof RateLimited) {
+    return new ChainError("provider_rate_limited", "SunSwap route service rate limit exceeded", {
+      httpStatus: 429,
+      ...(error.retryAfterSeconds === undefined
+        ? {}
+        : { retryAfterSeconds: error.retryAfterSeconds }),
+    });
+  }
+  if (error instanceof CliError) return error;
+  return new ChainError(
+    "provider_error",
+    `the SunSwap route service did not answer: ${error instanceof Error ? error.message : String(error)}`,
+  );
 }
 
 /**

@@ -6,7 +6,9 @@
  * answer has to be before a person can act on it.
  */
 import type { NetworkDescriptor, NetworkId } from "../../../../domain/types/index.js";
+import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type {
+  ListPoolsQuery,
   MarketDataPort,
   PositionRecord,
   PoolRecord,
@@ -25,10 +27,41 @@ import {
   SUNSWAP_PROTOCOL_FILTERS,
 } from "../../../../domain/sunswap/protocol.js";
 import { pairPrices } from "../../../../domain/sunswap/pair-price.js";
-import { offsetWindowToPage } from "../../../../domain/sunswap/pagination.js";
-import { poolSortField, tokenSortField } from "../../../../domain/sunswap/sort.js";
+import {
+  offsetWindowToPage,
+  refuseBeyondMarketWindow,
+  SUNSWAP_MARKET_WINDOW,
+} from "../../../../domain/sunswap/pagination.js";
+import {
+  POOL_ORDER_BY,
+  poolSortField,
+  tokenSortField,
+  type PoolOrderBy,
+} from "../../../../domain/sunswap/sort.js";
+import { isSignedDecimal } from "../../../../domain/sunswap/decimal.js";
+import {
+  isNoThreshold,
+  meetsMinTvl,
+  parseMinTvl,
+  sortPoolsBy,
+} from "../../../../domain/sunswap/min-tvl.js";
 
 const ADDRESS = new TronAddress();
+
+/** `pool-list` takes no account and signs nothing; it needs only to report a degraded answer. */
+type WarnScope = Pick<TransactionScope, "warn">;
+
+/** the page size of an internal `--min-tvl` scan; ten of them cover the service's whole window. */
+const SCAN_PAGE_SIZE = 100;
+
+type PoolSortField = (typeof POOL_ORDER_BY)[PoolOrderBy];
+
+/** what one `--min-tvl` scan saw, in the order the service served it. */
+interface PoolScan {
+  readonly qualifying: readonly PoolRecord[];
+  /** the service ran out, or (in TVL-descending order) a pool fell below the threshold. */
+  readonly complete: boolean;
+}
 
 export interface PriceQuery {
   /** a token SYMBOL, resolved locally; mutually exclusive with `addresses`. */
@@ -86,6 +119,8 @@ export interface PoolListQuery extends ListWindow {
   readonly protocol?: string;
   readonly orderBy: string;
   readonly sort: string;
+  /** USD threshold on `reserveUsd`, as typed; applied before the window (PM 7.3.3). */
+  readonly minTvl?: string;
 }
 
 export interface PoolSearchQuery extends ListWindow {
@@ -151,15 +186,16 @@ export class SunSwapMarketQueryService {
    * Positions held by one address.
    *
    * The server sorts by LP value descending and takes no ordering parameter, so there is no
-   * `meta.query` to echo. `--owner` is required by the schema rather than defaulted here: a
-   * listing that silently answered about whichever account happened to be active would be a
-   * different question from the one asked, and this command takes no account at all.
+   * `meta.query` to echo. The owner is the address the command's account resolves to — the active
+   * account by default, or whatever `--account` names, including a bare TRON address — the same
+   * selection every other read-only, address-scoped command makes.
    */
   async positionList(
     network: NetworkDescriptor,
     query: PositionListQuery,
   ): Promise<PositionListView> {
     const page = offsetWindowToPage(query);
+    refuseBeyondMarketWindow(query);
     const result = await this.market.listPositions(network, {
       owner: this.#validAddress(query.owner),
       ...(query.pool === undefined ? {} : { pool: this.#resolvePool(query.pool) }),
@@ -171,25 +207,121 @@ export class SunSwapMarketQueryService {
     return { positions: result.positions, pagination: this.#window(query, result.hasMore) };
   }
 
-  async poolList(network: NetworkDescriptor, query: PoolListQuery): Promise<PoolListView> {
+  async poolList(
+    scope: WarnScope,
+    network: NetworkDescriptor,
+    query: PoolListQuery,
+  ): Promise<PoolListView> {
     const page = offsetWindowToPage(query);
+    refuseBeyondMarketWindow(query);
+    const sort = poolSortField(query.orderBy);
+    const desc = this.#descending(query.sort);
+    const minTvl = query.minTvl === undefined ? undefined : parseMinTvl(query.minTvl);
     const quote = query.token === undefined ? undefined : this.#resolveToken(network, query.token);
-    const result = await this.market.listPools(network, {
-      sort: poolSortField(query.orderBy),
-      desc: this.#descending(query.sort),
+    const filters = {
       ...(query.pool === undefined ? {} : { pool: this.#resolvePool(query.pool) }),
       ...(quote === undefined ? {} : { token: quote }),
       ...(query.protocol === undefined
         ? {}
         : { protocol: normaliseProtocol(query.protocol, SUNSWAP_PROTOCOL_FILTERS) }),
-      ...page,
-    });
-    return {
-      pools: result.pools.map((pool) => this.#poolView(pool, quote)),
-      pagination: this.#window(query, result.hasMore),
+    };
+    const shown = (pools: readonly PoolRecord[], hasMore: boolean | undefined): PoolListView => ({
+      pools: pools.map((pool) => this.#poolView(pool, quote)),
+      pagination: this.#window(query, hasMore),
       query: { orderBy: query.orderBy, sort: query.sort },
       ...(query.token === undefined ? {} : { view: { quoteSymbol: query.token } }),
-    };
+    });
+    // A zero threshold is met by every pool, so it is the same question as no threshold.
+    if (minTvl === undefined || isNoThreshold(minTvl)) {
+      const result = await this.market.listPools(network, { sort, desc, ...filters, ...page });
+      return shown(result.pools, result.hasMore);
+    }
+    const found = await this.#qualifyingPools(network, { sort, desc, ...filters }, minTvl, query);
+    const end = query.offset + query.limit;
+    // Only a window left short is incomplete; a full one is exact even when the rest is unknown.
+    if (!found.complete && found.pools.length < end) {
+      scope.warn({
+        code: "sunswap_scan_truncated",
+        message:
+          `only the first ${SUNSWAP_MARKET_WINDOW} pools of this ordering could be scanned, and ` +
+          `more than ${SUNSWAP_MARKET_WINDOW} pools meet --min-tvl, so this list may be incomplete`,
+      });
+    }
+    return shown(found.pools.slice(query.offset, end), !found.complete || found.pools.length > end);
+  }
+
+  /**
+   * The pools meeting `--min-tvl`, in the requested order, as far as the window needs them.
+   *
+   * The service has no TVL filter and serves only the first 1000 rows of any ordering, so the
+   * qualifying pools are found by reading pages and dropping the rest:
+   *
+   * - TVL descending: nothing after the first pool below the threshold can qualify, so the scan
+   *   stops there and the answer is exact.
+   * - Any other order: scan it until the window (plus one row, to tell whether there is more) is
+   *   filled or the service runs out — exact, because every qualifying pool past row 1000 sorts
+   *   after the rows already seen. If row 1000 comes first, read the COMPLETE qualifying set by
+   *   TVL instead and sort it here. If that also passes row 1000, more than 1000 pools qualify,
+   *   the set is unreachable, and the first attempt's rows are returned as truncated.
+   */
+  async #qualifyingPools(
+    network: NetworkDescriptor,
+    query: Omit<ListPoolsQuery, "pageNo" | "pageSize">,
+    minTvl: string,
+    window: ListWindow,
+  ): Promise<{ pools: readonly PoolRecord[]; complete: boolean }> {
+    // one row past the window is what proves there is more
+    const wanted = window.offset + window.limit + 1;
+    const byTvl = { ...query, sort: poolSortField("tvl"), desc: true };
+    if (query.sort === byTvl.sort && query.desc) {
+      const scan = await this.#scanPools(network, byTvl, minTvl, wanted, true);
+      return {
+        pools: scan.qualifying,
+        complete: scan.complete || scan.qualifying.length >= wanted,
+      };
+    }
+    const first = await this.#scanPools(network, query, minTvl, wanted, false);
+    if (first.complete || first.qualifying.length >= wanted) {
+      return { pools: first.qualifying, complete: true };
+    }
+    const all = await this.#scanPools(network, byTvl, minTvl, Infinity, true);
+    if (!all.complete) return { pools: first.qualifying, complete: false };
+    const value = POOL_SORT_VALUE[query.sort as PoolSortField];
+    return { pools: sortPoolsBy(all.qualifying, value, query.desc), complete: true };
+  }
+
+  /**
+   * Read pages in `query`'s order, keeping pools that meet the threshold, until `wanted` of them
+   * are held, the service runs out, or the next page would pass row 1000. `stopBelow` ends the
+   * scan at the first pool below the threshold — valid only when the order is TVL descending.
+   */
+  async #scanPools(
+    network: NetworkDescriptor,
+    query: Omit<ListPoolsQuery, "pageNo" | "pageSize">,
+    minTvl: string,
+    wanted: number,
+    stopBelow: boolean,
+  ): Promise<PoolScan> {
+    const qualifying: PoolRecord[] = [];
+    for (let pageNo = 1; pageNo * SCAN_PAGE_SIZE <= SUNSWAP_MARKET_WINDOW; pageNo += 1) {
+      const result = await this.market.listPools(network, {
+        ...query,
+        pageNo,
+        pageSize: SCAN_PAGE_SIZE,
+      });
+      for (const pool of result.pools) {
+        if (meetsMinTvl(pool.reserveUsd, minTvl)) {
+          qualifying.push(pool);
+        } else if (stopBelow && isBelow(pool.reserveUsd, minTvl)) {
+          return { qualifying, complete: true };
+        }
+      }
+      if (result.hasMore === false || result.pools.length < SCAN_PAGE_SIZE) {
+        return { qualifying, complete: true };
+      }
+      if (qualifying.length >= wanted) break;
+    }
+    return { qualifying, complete: false };
   }
 
   /**
@@ -200,6 +332,7 @@ export class SunSwapMarketQueryService {
   async poolSearch(network: NetworkDescriptor, query: PoolSearchQuery): Promise<PoolListView> {
     const keyword = this.#searchKeyword(query.keyword);
     const page = offsetWindowToPage(query);
+    refuseBeyondMarketWindow(query);
     const filters = {
       keyword,
       ...(query.protocol === undefined
@@ -243,7 +376,7 @@ export class SunSwapMarketQueryService {
   /** `--token` takes a symbol or an address; a symbol resolves the same way `price` resolves one. */
   #resolveToken(network: NetworkDescriptor, value: string): string {
     const trimmed = value.trim();
-    return ADDRESS.validate(trimmed) ? trimmed : this.#resolveSymbol(network, trimmed);
+    return ADDRESS.validate(trimmed) ? trimmed : this.#resolveSymbol(network, trimmed, "pool-list");
   }
 
   #descending(sort: string): boolean {
@@ -262,6 +395,7 @@ export class SunSwapMarketQueryService {
 
   async tokenList(network: NetworkDescriptor, query: TokenListQuery): Promise<TokenListView> {
     const page = offsetWindowToPage(query);
+    refuseBeyondMarketWindow(query);
     const result = await this.market.listTokens(network, {
       protocol: normaliseProtocol(query.protocol),
       sort: tokenSortField(query.orderBy),
@@ -286,6 +420,7 @@ export class SunSwapMarketQueryService {
     // which is a different question from the one that was asked.
     const keyword = this.#searchKeyword(query.keyword);
     const page = offsetWindowToPage(query);
+    refuseBeyondMarketWindow(query);
     const result = await this.market.searchTokens(network, {
       keyword,
       protocol: normaliseProtocol(query.protocol),
@@ -328,12 +463,30 @@ export class SunSwapMarketQueryService {
         "this command requires a token symbol or --address <addresses>",
       );
     }
-    if (symbol !== "") return [this.#resolveSymbol(network, symbol)];
+    if (symbol !== "") return [this.#resolveSymbol(network, symbol, "price")];
     for (const address of listed) this.#validAddress(address);
     return [...new Set(listed)];
   }
 
-  #resolveSymbol(network: NetworkDescriptor, symbol: string): string {
-    return this.resolver.resolveSymbol(network, symbol);
+  /** Official layer only: neither caller takes an account (deviations 3.6 / 3.21). */
+  #resolveSymbol(
+    network: NetworkDescriptor,
+    symbol: string,
+    caller: "price" | "pool-list",
+  ): string {
+    return this.resolver.resolveSymbol(network, symbol, { caller }).address;
   }
+}
+
+/** the record field behind each service sort name, for sorting a qualifying set locally. */
+const POOL_SORT_VALUE: Record<PoolSortField, (pool: PoolRecord) => string> = {
+  reserveUsd: (pool) => pool.reserveUsd,
+  volumeUsd1d: (pool) => pool.volumeUsd1d,
+  feeUsd1d: (pool) => pool.feeUsd1d,
+  totalApr: (pool) => pool.totalApr,
+};
+
+/** a TVL that is a real figure under the threshold; a missing one proves nothing about the rest. */
+function isBelow(reserveUsd: string, minTvl: string): boolean {
+  return isSignedDecimal(reserveUsd) && !meetsMinTvl(reserveUsd, minTvl);
 }

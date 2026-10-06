@@ -50,9 +50,18 @@ import {
   transactionMode,
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
-import { LiquidityTransactions, outcomeTxId, type ApprovalPlan } from "./liquidity-transactions.js";
+import {
+  LiquidityTransactions,
+  outcomeTxId,
+  withPositionManager,
+  type ApprovalPlan,
+} from "./liquidity-transactions.js";
 import { warnOnPostCheck } from "../../../services/post-check.js";
-import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
+import {
+  tokenBookAccount,
+  withTokenBook,
+  type SunSwapTokenResolver,
+} from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
 import { isTronNetwork } from "../../../../domain/types/network.js";
@@ -76,6 +85,13 @@ import {
   MIN_TICK,
   tickSpacing,
 } from "../../../../domain/sunswap/ticks.js";
+
+/**
+ * The lookup for the resolution further in. The entry has already resolved `token0`/`token1`
+ * against the account's book, so what reaches these calls is an address (a pass-through) or a
+ * builtin; a caller that skipped the entry gets the official layer only.
+ */
+const RESOLVED = { caller: "liquidity" } as const;
 
 /** The receipt's `kind`, one value across every mode this command has (PM 2.9). */
 const KIND = "sunswap-add-liquidity" as const;
@@ -148,7 +164,12 @@ export interface LiquidityPlanView {
   /** the account the deposit comes out of — the text receipt leads with it (PM 2.10). */
   readonly account: string;
   readonly protocol: "V2" | "V3" | "V4";
-  /** the contract this deposit is made through: the V2 router, or the V3 position manager. */
+  /**
+   * The contract this deposit is made through: the V2 router, or the V3 / V4 position manager.
+   *
+   * Internal name only. V3 and V4 publish it as `positionManager` (PM 6.0) — see
+   * `withPositionManager` in `liquidity-transactions.ts`.
+   */
   readonly router: string;
   readonly recipient: string;
   readonly deadline: number;
@@ -177,7 +198,7 @@ export interface LiquidityPlanView {
   readonly feeTier?: number;
   readonly tickLower?: number;
   readonly tickUpper?: number;
-  /** the liquidity these amounts fund. */
+  /** the liquidity these amounts fund. Published as `liquidityExpected` by a preview (PM 6.1.4). */
   readonly liquidity?: string;
   /** set when the CLI chose the tier or the range, so a receipt says which values were used and
    *  that they were not the caller's (PM 6.1.3). */
@@ -297,11 +318,19 @@ export class SunSwapLiquidityService {
     network: NetworkDescriptor,
     input: AddLiquidityInput,
   ): Promise<Record<string, unknown>> {
-    const protocol = input.protocol.toUpperCase();
-    if (protocol === "V4") return this.addLiquidityV4(scope, network, input);
-    return protocol === "V3"
-      ? this.addLiquidityV3(scope, network, input)
-      : this.addLiquidityV2(scope, network, input as AddLiquidityV2Input);
+    const book = this.tokens.resolvePair(network, input, {
+      caller: "liquidity",
+      account: tokenBookAccount(scope),
+    });
+    const resolved = book.input;
+    const protocol = resolved.protocol.toUpperCase();
+    const result =
+      protocol === "V4"
+        ? await this.addLiquidityV4(scope, network, resolved)
+        : protocol === "V3"
+          ? await this.addLiquidityV3(scope, network, resolved)
+          : await this.addLiquidityV2(scope, network, resolved as AddLiquidityV2Input);
+    return withTokenBook(result, book.resolved);
   }
 
   /**
@@ -407,7 +436,7 @@ export class SunSwapLiquidityService {
               mode,
               input.feeLimit,
             );
-      return { kind: KIND, mode: "dry-run", ...view, ...priced };
+      return { kind: KIND, mode: "dry-run", ...asPositionPreview(view), ...priced };
     }
 
     // The TRC20 allowance to Permit2, UNLIMITED on this path. PM 13.3 names V4 liquidity as one of
@@ -483,7 +512,8 @@ export class SunSwapLiquidityService {
         }
         return {
           kind: KIND,
-          ...view,
+          // A build is still a preview, so its liquidity is the planned one (PM 6.1.4).
+          ...(mode.buildOnly ? asPositionPreview(view) : withPositionManager(view)),
           ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
           ...outcomeData(main),
           // Last, so the liquidity the position actually gained replaces the one that was planned.
@@ -603,8 +633,12 @@ export class SunSwapLiquidityService {
     const target = resolveV4Pool({
       createPool: input.createPool === true,
       ...(input.sqrtPrice === undefined ? {} : { sqrtPrice: input.sqrtPrice }),
-      ...(input.token0 === undefined ? {} : { token0: this.tokens.resolve(network, input.token0) }),
-      ...(input.token1 === undefined ? {} : { token1: this.tokens.resolve(network, input.token1) }),
+      ...(input.token0 === undefined
+        ? {}
+        : { token0: this.tokens.resolve(network, input.token0, RESOLVED) }),
+      ...(input.token1 === undefined
+        ? {}
+        : { token1: this.tokens.resolve(network, input.token1, RESOLVED) }),
       ...(input.fee === undefined ? {} : { fee: input.fee }),
       ...(input.tickSpacing === undefined ? {} : { tickSpacing: input.tickSpacing }),
       ...(input.hooks === undefined ? {} : { hooks: input.hooks }),
@@ -951,7 +985,10 @@ export class SunSwapLiquidityService {
     token0: string,
     token1: string,
   ): void {
-    const given = [this.tokens.resolve(network, token0), this.tokens.resolve(network, token1)];
+    const given = [
+      this.tokens.resolve(network, token0, RESOLVED),
+      this.tokens.resolve(network, token1, RESOLVED),
+    ];
     const held = [position.currency0, position.currency1];
     const matches =
       (given[0] === held[0] && given[1] === held[1]) ||
@@ -1214,7 +1251,7 @@ export class SunSwapLiquidityService {
         mode,
         input.feeLimit,
       );
-      return { kind: KIND, mode: "dry-run", ...view, ...priced };
+      return { kind: KIND, mode: "dry-run", ...asPositionPreview(view), ...priced };
     }
     if (mode.buildOnly) {
       const built = await this.tx.buildOnly(
@@ -1225,7 +1262,7 @@ export class SunSwapLiquidityService {
         mode,
         input.feeLimit,
       );
-      return { kind: KIND, ...view, ...built };
+      return { kind: KIND, ...asPositionPreview(view), ...built };
     }
 
     return this.tx.withApprovals(
@@ -1566,8 +1603,8 @@ export class SunSwapLiquidityService {
     }
     // On V3 a caller's TRX becomes WTRX — the pools are wrapped (PM 6.1.3). V2 is the protocol
     // where TRX stays native, and doing it silently is why help says so.
-    const address0 = wrapNative(network, this.tokens.resolve(network, input.token0));
-    const address1 = wrapNative(network, this.tokens.resolve(network, input.token1));
+    const address0 = wrapNative(network, this.tokens.resolve(network, input.token0, RESOLVED));
+    const address1 = wrapNative(network, this.tokens.resolve(network, input.token1, RESOLVED));
     if (address0 === address1) {
       throw new ChainError("same_token", "--token0 and --token1 are the same token");
     }
@@ -1743,8 +1780,8 @@ export class SunSwapLiquidityService {
     const router = routerOf(network);
     // Resolved BEFORE the comparison: `--token0 TRX --token1 TRX` and a symbol paired with its
     // own address are the same pair, and only the addresses show that.
-    const address0 = this.tokens.resolve(network, input.token0);
-    const address1 = this.tokens.resolve(network, input.token1);
+    const address0 = this.tokens.resolve(network, input.token0, RESOLVED);
+    const address1 = this.tokens.resolve(network, input.token1, RESOLVED);
     if (address0 === address1) {
       throw new ChainError("same_token", "--token0 and --token1 are the same token");
     }
@@ -1930,6 +1967,23 @@ function sideFacts(side: PlannedSide): TokenFacts {
  * base units back into the amount a person deposited. A receipt that dropped it printed
  * "Deposited 1,000,000 USDT" for a 1 USDT deposit — the misread in the direction that alarms.
  */
+/**
+ * A V3 / V4 plan as a dry run or a build publishes it: the liquidity it funds is an ESTIMATE, so
+ * it is `liquidityExpected` (PM 6.1.4). `liquidity` belongs to the confirmed receipt, where it is
+ * what the position measurably gained — one key for both would let a script read a plan as a
+ * settlement.
+ */
+function asPositionPreview<T extends { readonly router: string; readonly liquidity?: string }>(
+  view: T,
+) {
+  const { router, liquidity, ...rest } = view;
+  return {
+    ...rest,
+    positionManager: router,
+    ...(liquidity === undefined ? {} : { liquidityExpected: liquidity }),
+  };
+}
+
 function publishedSide(side: PlannedSide): Record<string, unknown> {
   return {
     address: side.address,

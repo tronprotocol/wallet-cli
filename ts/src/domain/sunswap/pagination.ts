@@ -38,3 +38,28 @@ export function offsetWindowToPage({ offset, limit }: OffsetWindow): PageWindow 
   }
   return { pageNo: offset / limit + 1, pageSize: limit };
 }
+
+/**
+ * The SunSwap market service exposes only the first 1000 rows of any ordering.
+ *
+ * Measured on mainnet for `/apiv2/pools`, `/pools/search`, `/tokens`, `/tokens/search` and
+ * `/positions/user`: a page whose `pageNo * pageSize` passes 1000 is answered with code 4003
+ * ("total size exceeds"), whatever the page size.
+ */
+export const SUNSWAP_MARKET_WINDOW = 1000;
+
+/**
+ * Refuse a window the SunSwap market service can never serve.
+ *
+ * Passed through, the service's refusal arrives as `provider_error` — exit 1, retry "same" — for a
+ * request that no retry will ever answer. Kept out of `offsetWindowToPage`, which SunPump shares
+ * with a service that has no such limit.
+ */
+export function refuseBeyondMarketWindow({ offset, limit }: OffsetWindow): void {
+  if (offset + limit > SUNSWAP_MARKET_WINDOW) {
+    throw new UsageError(
+      "invalid_value",
+      `--offset + --limit may not exceed ${SUNSWAP_MARKET_WINDOW}; the data service exposes only the first ${SUNSWAP_MARKET_WINDOW} rows of each ordering`,
+    );
+  }
+}

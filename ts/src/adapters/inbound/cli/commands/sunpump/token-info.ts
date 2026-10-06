@@ -12,6 +12,8 @@ export const sunpumpTokenInfoSpec: ChainSpec = {
   path: ["sunpump", "token-info"],
   network: "optional",
   wallet: "none",
+  rejectsAccount:
+    "token-info looks up a token by its address and is not about any account of yours",
   auth: "none",
   capability: "sunpump.market",
   summary: "Show full details of one SunPump token",

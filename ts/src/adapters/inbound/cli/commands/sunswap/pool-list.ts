@@ -18,6 +18,10 @@ const fields = z.object({
       "filter by a token in the pool, symbol or contract address; TRX matches native TRX pools, pass WTRX for wrapped ones",
     ),
   protocol: protocolFilterField,
+  minTvl: z
+    .string()
+    .optional()
+    .describe("only pools with at least this TVL, in USD; applied before --limit/--offset"),
   orderBy: z.string().default("tvl").describe("order by: tvl, volume-24h, fees-24h, apr"),
   sort: z.string().default("desc").describe("sort direction: asc, desc"),
   limit: limitField,
@@ -51,6 +55,7 @@ export const sunswapPoolListSpec: ChainSpec = {
   path: ["sunswap", "pool-list"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "pool-list reads public market data and is not about any account of yours",
   auth: "none",
   capability: "sunswap.market",
   summary: "List pools, ranked by TVL, volume, fees or APR",
@@ -59,9 +64,12 @@ export const sunswapPoolListSpec: ChainSpec = {
     "With --token, each pool also shows the price of its other tokens quoted in that token.\n" +
     "A V4 pool is identified by a 64-hex pool id rather than a contract address, because V4 pools\n" +
     "share one pool manager; querying that id as a contract fails, so read the Protocol column first.\n" +
-    "APR comes from the data service and does not track today's volume. A pool with almost no\n" +
-    "liquidity can therefore show an enormous APR that nobody can actually enter, so read APR\n" +
-    "alongside TVL rather than on its own. Liquidity commands accept V2, V3 and V4 pools only.",
+    "When ordering by apr, set --min-tvl: tiny pools can show huge APRs that are not enterable.\n" +
+    "APR comes from the data service and does not track today's volume. Liquidity commands accept\n" +
+    "V2, V3 and V4 pools only.\n" +
+    "--offset + --limit may not exceed 1000: the data service exposes only the first 1000 rows of\n" +
+    "each ordering. With --min-tvl they count qualifying pools, and if more than 1000 pools qualify\n" +
+    "a non-TVL ordering may come back incomplete, with a sunswap_scan_truncated warning.",
   baseFields: fields,
   exclusive: [
     {
@@ -73,15 +81,15 @@ export const sunswapPoolListSpec: ChainSpec = {
   baseRefine: refuseBothFilters,
   examples: [
     { cmd: "wallet-cli sunswap pool-list --token USDT" },
-    { cmd: "wallet-cli sunswap pool-list --order-by apr" },
+    { cmd: "wallet-cli sunswap pool-list --order-by apr --min-tvl 100000" },
     { cmd: "wallet-cli sunswap pool-list --protocol V3 --order-by volume-24h" },
   ],
   formatText: TextFormatters.sunswapPoolList,
 };
 
 export const sunswapPoolListTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.poolList(net, {
+  run: async (ctx, net, input) =>
+    service.poolList(ctx, net, {
       orderBy: input.orderBy,
       sort: input.sort,
       limit: input.limit,
@@ -89,5 +97,6 @@ export const sunswapPoolListTronBinding = (service: SunSwapMarketQueryService): 
       ...(input.pool === undefined ? {} : { pool: input.pool }),
       ...(input.token === undefined ? {} : { token: input.token }),
       ...(input.protocol === undefined ? {} : { protocol: input.protocol }),
+      ...(input.minTvl === undefined ? {} : { minTvl: input.minTvl }),
     }),
 });

@@ -83,12 +83,12 @@ The tokens always go to the **signing account**: `--recipient` is not accepted o
 |---|---|
 | `--protocol <V2\|V3\|V4>` | **Required** |
 | `--liquidity <n>` | **Required.** See the table above — it means different things per protocol |
-| `--token0 <token>` / `--token1 <token>` | **Required on V2**, where they name the pool; **required on V4**, where they are checked against the position; refused on V3 |
+| `--token0 <token>` / `--token1 <token>` | **Required on V2**, where they name the pool; **required on V4**, where they are checked against the position; refused on V3. A symbol resolves against the official address book plus the [`token add`](../token/add.md) entries of the account the command uses (`--account`, else the active account); a symbol matching more than one entry is `ambiguous_token_symbol` (exit 2), and one marked `(from your token book)` in text came from that account's own entries |
 | `--position-id <id>` | **Required on V3 and V4**; refused on V2, where a pool has no positions. Must be held by this account |
 | `--fee <n>` | The pool's fee tier, checked against the one the position reports; it selects nothing (V4 only) |
 | `--min0 <n>` / `--min1 <n>` | Least to accept back. Default: V2 95% of the expected amount, V3 and V4 `0` |
 | `--slippage <decimal>` | Tolerance **below** the computed minimums, e.g. `0.005`; not combinable with `--min0` / `--min1` (V4 only) |
-| `--recipient <address>` | Who receives the tokens; default the account. On V3 the collected fees go here too. **Not accepted on V4** |
+| `--recipient <address>` | Who receives the tokens; default the account. On V3 the collected fees go here too. **Not accepted on V4**. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. The dry run's estimate is a **lower bound**, so a limit set from it can fail |
 | `--dry-run` / `--build-only` / `--wait` | See [machine-interface.md](../../machine-interface.md) |
@@ -116,10 +116,12 @@ wallet-cli sunswap remove-liquidity --protocol V3 --position-id 686 --liquidity 
   Deadline          2026-09-23 19:33:10 UTC
   Fee (est)         ~296,972 energy
 
-⚠️ No minimum set — this transaction accepts any output amount.
-
 ⚠️ Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.
+
+⚠️ No minimum set — this transaction accepts any output amount.
 ```
+
+When a floor is zero, the No-minimum warning is always the **last** line of the dry run, after any other warning.
 
 ```bash
 wallet-cli sunswap remove-liquidity --protocol V4 --position-id 7 --token0 TRX --token1 USDT \
@@ -142,6 +144,8 @@ wallet-cli sunswap remove-liquidity --protocol V4 --position-id 7 --token0 TRX -
   Recipient         TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
   Deadline          2026-09-29 08:52:40 UTC
   Fee (est)         ~86,431 energy
+
+⚠️ Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.
 
 ⚠️ No minimum set — this transaction accepts any output amount.
 ```
@@ -179,6 +183,7 @@ Broadcast results include `amountsEstimated`: `false` when the reported token am
 - `liquidity` — the position liquidity burned; `liquidityAfter` is what the position holds now, read back after confirmation (V3 and V4). Neither carries decimals, because a position's liquidity is not a token amount.
 - `token0` / `token1` — `{address, symbol, decimals, amount}`. Before the transaction, `amount` is what the current reserves say is coming back. Afterwards, on V2 and V3, it is what actually arrived — from the Router return values on V2 (before network fees) and from the `Collect` event on V3 — with `feeAmount` beside it on V3. On confirmed V4 transactions, `amount` and `feeAmount` are the executed principal and accrued fees; `receivedAmount` is the actual net amount received, as described above.
 - `poolId`, `feeTier`, `tickSpacing`, `hooks`, `tickLower`, `tickUpper` — the position's pool key and range (V4).
+- `router` (V2) / `positionManager` (V3 and V4) — the contract the withdrawal goes through, under the same key in every mode.
 - `reservesAfter` — the pool read back after confirmation (V2).
 - `fee` and `feeCovers` — the estimated cost and what it covers, as in [`add-liquidity`](add-liquidity.md).
 

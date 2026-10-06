@@ -88,12 +88,6 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return word(raw, 0);
   }
 
-  /** Native TRX, so there is no contract to ask — the account itself carries the balance. */
-  async nativeBalance(network: NetworkDescriptor, owner: string): Promise<string> {
-    const account = await this.gateways.get(network, "tron").getAccount(owner);
-    return String(account.balance ?? "0");
-  }
-
   async allowance(
     network: NetworkDescriptor,
     token: string,
@@ -121,7 +115,10 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return { tokenAmount: word(raw, 0), feeSun: word(raw, 1) };
   }
 
-  /** `(trxAmount, fee)` — the fee comes out of the TRX, so the caller receives the difference. */
+  /**
+   * `(trxAmount, fee)` — `trxAmount` is what the seller receives, already net: the curve pays the
+   * fee to its fee address beside it. A Nile sale quoted `(22728, 10000)` paid the seller 22728.
+   */
   async quoteSell(
     network: NetworkDescriptor,
     token: string,
@@ -140,19 +137,22 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
   }
 
   /**
-   * The token amount whose gross proceeds equal the platform fee's floor.
+   * The token amount whose net proceeds are one SUN — the smallest sale that pays the seller.
    *
-   * Both halves are read from the contract rather than assumed: `minTxFee()` is the floor, and
-   * the inverse quote converts it into tokens. If SunPump changes either, the answer follows —
-   * a transcribed 0.01 TRX would have gone stale silently.
+   * Read from the contract's own inverse quote rather than derived here, so it follows the
+   * curve and any change to the fee. Not the inverse of `minTxFee()`: that is where the seller's
+   * net EQUALS the fee, roughly twice the true minimum.
    */
   async minimumSellAmount(network: NetworkDescriptor, token: string): Promise<string> {
-    const launchpad = this.launchpadAddress(network);
-    const floor = await this.#read(network, launchpad, "minTxFee()", []);
-    const inverse = await this.#read(network, launchpad, SELECTOR_QUOTE_SELL_EXACT_TRX, [
-      { type: "address", value: token },
-      { type: "uint256", value: word(floor, 0) },
-    ]);
+    const inverse = await this.#read(
+      network,
+      this.launchpadAddress(network),
+      SELECTOR_QUOTE_SELL_EXACT_TRX,
+      [
+        { type: "address", value: token },
+        { type: "uint256", value: "1" },
+      ],
+    );
     return word(inverse, 0);
   }
 

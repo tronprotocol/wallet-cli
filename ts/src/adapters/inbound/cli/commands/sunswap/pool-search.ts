@@ -19,6 +19,7 @@ export const sunswapPoolSearchSpec: ChainSpec = {
   path: ["sunswap", "pool-search"],
   network: "optional",
   wallet: "none",
+  rejectsAccount: "pool-search reads public market data and is not about any account of yours",
   auth: "none",
   capability: "sunswap.market",
   summary: "Search pools by token symbol or pool address",
@@ -26,7 +27,8 @@ export const sunswapPoolSearchSpec: ChainSpec = {
     "Search SunSwap liquidity pools, ordered by TVL, highest first.\n" +
     "Matching is on token SYMBOLS, so a search also finds pools of impersonation tokens that\n" +
     "share a real symbol. Check tokens[].address before acting on a pool this returns.\n" +
-    "A V4 pool is identified by a 64-hex pool id rather than a contract address.",
+    "A V4 pool is identified by a 64-hex pool id rather than a contract address.\n" +
+    "--offset + --limit may not exceed 1000: the data service exposes only the first 1000 rows of this listing.",
   positionals: [{ field: "keyword" }],
   baseFields: fields,
   examples: [

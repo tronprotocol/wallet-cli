@@ -1,6 +1,7 @@
-import { resolveTronAccount } from "../../../services/tron-account.js";
+import { activeTronAccount, resolveTronAccount } from "../../../services/tron-account.js";
 import { tradeOutput } from "../trade-output.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
+import { quoteCurveSale } from "./curve-sale.js";
 /**
  * SunPump curve trading — buying and selling on the bonding curve.
  *
@@ -10,9 +11,10 @@ import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
  *   the launchpad must be approved first — and for an UNBOUNDED amount, which is correct here and
  *   nowhere in the liquidity commands: the curve pulls on every sale and its contract is an
  *   upgradeable proxy that expects a standing allowance. The dry run says both of those out loud.
- * - The platform fee comes OUT of the TRX on both sides: deducted from what a buy spends, and from
- *   what a sale receives. It is 1% with a 0.01 TRX floor, so a small trade pays a rate far above
- *   1% — and that rate is reported, because it is the part a caller would not notice.
+ * - The platform fee is part of the TRX on both sides: deducted from what a buy spends, and paid
+ *   by the curve on top of what a sale's seller receives — the sale quote's TRX is already net.
+ *   It is 1% with a 0.01 TRX floor, so a small trade pays a rate far above 1% — and that rate is
+ *   reported, because it is the part a caller would not notice.
  * - Whether a trade is possible at all is a question about the curve's STATE, read from the
  *   contract before anything is quoted. Never from an HTTP status field: a stale "trading" sends a
  *   transaction that must revert.
@@ -30,7 +32,7 @@ import {
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
 import { LiquidityTransactions, type ApprovalPlan } from "../sunswap/liquidity-transactions.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import { ChainError } from "../../../../domain/errors/index.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import {
   bipsToSlippage,
@@ -130,27 +132,17 @@ export class SunPumpCurveTradeService {
     if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
     const tokensIn = toBaseUnits(input.amount, facts.decimals, facts.symbol, "--amount");
-    const quoted = await this.#quoteSell(network, facts, tokensIn);
-    // The fee comes out of the proceeds, so what the caller receives is the difference — and the
-    // floor is applied to that, not to the gross.
-    const net = BigInt(quoted.trxAmountSun) - BigInt(quoted.feeSun);
-    if (net <= 0n) {
-      // Priceable, but the fee eats all of it. A different condition from the curve refusing to
-      // price at all, and the same thing to do about it.
-      await this.#refuseTooSmall(
-        network,
-        facts,
-        tokensIn,
-        `its ${quoted.trxAmountSun} SUN of proceeds would not cover the ${quoted.feeSun} SUN platform fee`,
-      );
-    }
-    const netSun = net.toString();
+    // What the seller receives is the quote's TRX as it stands — the fee is paid on top of it —
+    // and the floor applies to that. The gross, for the fee's rate, is the two together.
+    const quoted = await quoteCurveSale(this.launchpad, network, facts, tokensIn);
+    const netSun = quoted.trxOutSun;
+    const grossSun = (BigInt(netSun) + BigInt(quoted.feeSun)).toString();
 
     // No floor in quote mode, for the same reason as a buy: nothing would enforce it.
     if (input.quote) {
       return {
         kind: "sunpump-sell" as const,
-        ...this.#side(facts, {}, quoted.feeSun, quoted.trxAmountSun),
+        ...this.#side(facts, {}, quoted.feeSun, grossSun),
         tokensIn,
         mode: "quote",
         trxOutExpected: netSun,
@@ -160,11 +152,12 @@ export class SunPumpCurveTradeService {
     const floor = this.#floor(input, netSun);
     const view = {
       kind: "sunpump-sell" as const,
-      ...this.#side(facts, floor, quoted.feeSun, quoted.trxAmountSun),
+      ...this.#side(facts, floor, quoted.feeSun, grossSun),
       tokensIn,
     };
 
     const owner = resolveTronAccount(scope);
+    await activeTronAccount(this.gateways, network, owner);
     const held = await this.launchpad.balanceOf(network, facts.address, owner);
     if (BigInt(held) < BigInt(tokensIn)) {
       throw new ChainError(
@@ -195,52 +188,6 @@ export class SunPumpCurveTradeService {
       trxOutExpected: netSun,
       trxOutMinimum: floor.amount,
     });
-  }
-
-  /**
-   * The sale's quote, and what a revert from it means.
-   *
-   * A sale can be too small in two distinct ways, both measured on a live mainnet curve: one
-   * token reverts here, because the curve will not price it at all, while three hundred prices
-   * and is then refused by the fee check above, because the proceeds are below the fee's floor.
-   * Two conditions, one thing to do about either.
-   */
-  async #quoteSell(
-    network: NetworkDescriptor,
-    facts: LaunchpadTokenFacts,
-    tokensIn: string,
-  ): Promise<{ trxAmountSun: string; feeSun: string }> {
-    try {
-      return await this.launchpad.quoteSell(network, facts.address, tokensIn);
-    } catch (error) {
-      await this.#refuseTooSmall(network, facts, tokensIn, "the curve will not price it");
-      throw error;
-    }
-  }
-
-  /**
-   * Both ways a sale can be too small, ending in the one thing a caller can act on.
-   *
-   * The threshold is READ, not assumed: the fee floor from the contract's own `minTxFee`, and the
-   * token amount it corresponds to from the inverse quote — so it stays true if SunPump changes
-   * the floor. And it is CHECKED before it is claimed: an amount that turns out not to be below
-   * the threshold means the failure was something else, so the original error is left to speak
-   * for itself rather than being relabelled.
-   */
-  async #refuseTooSmall(
-    network: NetworkDescriptor,
-    facts: LaunchpadTokenFacts,
-    tokensIn: string,
-    because: string,
-  ): Promise<void> {
-    const minimum = await this.launchpad
-      .minimumSellAmount(network, facts.address)
-      .catch(() => undefined);
-    if (minimum === undefined || BigInt(tokensIn) >= BigInt(minimum)) return;
-    throw new UsageError(
-      "invalid_amount",
-      `this sale is too small: ${because}. Sell at least ${minimum} ${facts.symbol} in base units`,
-    );
   }
 
   /**
@@ -292,14 +239,16 @@ export class SunPumpCurveTradeService {
    * The TRX a buy spends must be there before the fee is spent finding out.
    *
    * It does not account for the chain's own fee on top — that is what `--fee-limit` bounds, and
-   * the estimate reports it separately.
+   * the estimate reports it separately. An account the chain has never seen is refused as such
+   * first, because what to do about it is not "top up".
    */
   async #assertNativeBalance(
     network: NetworkDescriptor,
     owner: string,
     trxSun: string,
   ): Promise<void> {
-    const held = await this.launchpad.nativeBalance(network, owner);
+    const account = await activeTronAccount(this.gateways, network, owner);
+    const held = String(account.balance ?? "0");
     if (BigInt(held) < BigInt(trxSun)) {
       throw new ChainError(
         "insufficient_balance",

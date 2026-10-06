@@ -80,3 +80,25 @@ describe("approval failure progress", () => {
     ).rejects.toBe(error);
   });
 });
+
+/**
+ * An approval that lands on chain but fails (a revert, out of energy) must stop the flow: the main
+ * call would spend the allowance it never got and revert too, after its own fee was paid.
+ */
+describe("an approval that fails on chain", () => {
+  it("refuses with execution_reverted, keeps its txId, and never runs the main call", async () => {
+    const h = harness();
+    h.run.mockResolvedValueOnce({ stage: "failed", txId: "approve-tx", result: "REVERT" });
+    h.port.allowance.mockResolvedValue("0");
+    const main = vi.fn();
+    await expect(
+      h.tx.withApprovals(scope, network, [approval], "owner", mode, undefined, main),
+    ).rejects.toMatchObject({
+      code: "execution_reverted",
+      details: { approvalTxIds: ["approve-tx"] },
+      message: expect.stringContaining("failed on chain"),
+    });
+    expect(main).not.toHaveBeenCalled();
+    expect(h.run).toHaveBeenCalledTimes(1);
+  });
+});

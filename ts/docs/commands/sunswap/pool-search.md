@@ -24,9 +24,9 @@ Compared with [`pool-list --token`](pool-list.md): that matches one token *exact
 |---|---|---|
 | `--protocol <name>` | all | `V1`, `V1_5`, `V2`, `V3`, `V4`, `CURVE`. No `ALL`; omit the flag for every protocol |
 | `--limit <n>` | `20` | Maximum rows |
-| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit` |
+| `--offset <n>` | `0` | Rows to skip; must be a multiple of `--limit`, and `--offset` + `--limit` may not exceed 1000 — the data service exposes only the first 1000 rows of this listing |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
 ## Examples
 

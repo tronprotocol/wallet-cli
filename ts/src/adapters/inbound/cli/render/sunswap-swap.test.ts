@@ -181,3 +181,43 @@ describe("a swap that failed on chain", () => {
 it("keeps a confirmed swap quote labelled as an estimate", () => {
   expect(render(routerSwap({ stage: "confirmed" }))).toContain("Received (est)");
 });
+
+/**
+ * Which contracts the symbols resolved to, and whether one came from the user's own token book
+ * (PRD 2.13). A user-added token can shadow a familiar symbol, so the receipt names the contract.
+ */
+describe("the resolved contracts", () => {
+  it("shows both addresses on a dry run, unmarked when both are official", () => {
+    const out = render(routerSwap({ mode: "dry-run" }));
+    expect(out).toContain("Token in");
+    expect(out).toContain(USDT);
+    expect(out).toContain(TRX);
+    expect(out).not.toContain("from your token book");
+  });
+
+  it("marks a side that came from the token book", () => {
+    const out = render(routerSwap({ mode: "dry-run", fromTokenBook: [USDT] }));
+    expect(out).toContain(`${USDT} (from your token book)`);
+    expect(out).not.toContain(`${TRX} (from your token book)`);
+  });
+
+  it("shows and marks them on a quote", () => {
+    const out = render({
+      kind: "sunswap-swap",
+      mode: "quote",
+      market: "sunswap",
+      routes: [
+        {
+          amountIn: "1000000",
+          amountOut: "2921823",
+          tradingFee: "50",
+          path: [TOKEN_SIDE, TRX_SIDE],
+        },
+      ],
+      routesAvailable: 1,
+      fromTokenBook: [USDT],
+    });
+    expect(out).toContain(`Token in  ${USDT} (from your token book)`);
+    expect(out).toContain(`Token out  ${TRX}`);
+  });
+});

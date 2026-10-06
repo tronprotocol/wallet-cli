@@ -94,7 +94,7 @@ Pool fee     0.05%
 
 ## Exit status
 
-`0` success · `1` execution failure (`position_not_found` — no position with that id under that protocol on this network; `timeout`) · `2` usage error (`invalid_value` — a protocol other than `V3` / `V4`; `unsupported_network_capability`; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`position_not_found` — no position with that id under that protocol on this network; `invalid_node_response` — the node answered with data that cannot be decoded, worth retrying; `timeout`) · `2` usage error (`invalid_value` — a protocol other than `V3` / `V4`; `unsupported_network_capability`; `family_mismatch` on an EVM network).
 
 ## See also
 
