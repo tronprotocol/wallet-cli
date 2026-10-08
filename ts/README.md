@@ -7,7 +7,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
 - **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
-- **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, GasFree transfers, message signing, and on-chain queries.
+- **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, SunSwap swaps and liquidity, SunPump trading and launches, multi-sig, GasFree transfers, message signing, and on-chain queries.
 - **TRON and EVM chains** — one account holds an address on each; transfers, tokens, contracts, signing and chain queries work the same on both, and TRON-only protocol features are refused on EVM rather than half-working.
 
 ## Table of contents
@@ -174,6 +174,15 @@ Chain governance, super-representative operation, and TRON's protocol-level TRC1
 | [`witness`](docs/commands/witness/index.md) | Register and operate a super representative ([create](docs/commands/witness/create.md) · [update](docs/commands/witness/update.md) · [set-brokerage](docs/commands/witness/set-brokerage.md)) |
 | [`asset`](docs/commands/asset/index.md) | Issue and manage TRC10 tokens ([issue](docs/commands/asset/issue.md) · [update](docs/commands/asset/update.md) · [participate](docs/commands/asset/participate.md) · [unfreeze](docs/commands/asset/unfreeze.md) · [info](docs/commands/asset/info.md) · [list](docs/commands/asset/list.md)); TRC10 transfers go through [`tx send`](docs/commands/tx/send.md) |
 | [`exchange`](docs/commands/exchange/index.md) | The protocol-level Bancor exchange between TRX and TRC10 ([create](docs/commands/exchange/create.md) · [inject](docs/commands/exchange/inject.md) · [withdraw](docs/commands/exchange/withdraw.md) · [trade](docs/commands/exchange/trade.md) · [show](docs/commands/exchange/show.md) · [list](docs/commands/exchange/list.md)) |
+
+### SunSwap and SunPump
+
+Trade and provide liquidity on SunSwap, and trade or launch tokens on the SunPump bonding curve (TRON mainnet; the SunSwap liquidity commands also run on Nile).
+
+| Command | Description |
+|---|---|
+| [`sunswap`](docs/commands/sunswap/index.md) | Swap tokens and manage V2/V3/V4 liquidity ([swap](docs/commands/sunswap/swap.md) · [add-liquidity](docs/commands/sunswap/add-liquidity.md) · [remove-liquidity](docs/commands/sunswap/remove-liquidity.md) · [collect-fees](docs/commands/sunswap/collect-fees.md)), and look up pools, positions, tokens and prices ([pool-list](docs/commands/sunswap/pool-list.md) · [position-list](docs/commands/sunswap/position-list.md) · [price](docs/commands/sunswap/price.md), …) |
+| [`sunpump`](docs/commands/sunpump/index.md) | Buy and sell tokens on their bonding curve, launch a token, and look tokens up ([buy](docs/commands/sunpump/buy.md) · [sell](docs/commands/sunpump/sell.md) · [launch](docs/commands/sunpump/launch.md) · [token-list](docs/commands/sunpump/token-list.md) · [token-info](docs/commands/sunpump/token-info.md) · [token-search](docs/commands/sunpump/token-search.md)) |
 
 ### Payments and Agent identity
 

@@ -6,109 +6,99 @@ Take the fees a V3 or V4 position has earned, leaving its principal where it is.
 
 ```
 wallet-cli sunswap collect-fees --protocol <V3|V4> --position-id <id>
-                                [--recipient <address>]                             (V3)
-                                [--token0 <token> --token1 <token>] [--fee <n>]
-                                [--deadline <timestamp>]                            (V4)
+                                [--recipient <address>]
+                                [--token0 <token> --token1 <token> [--fee <n>]] [--deadline <timestamp>]
                                 [--fee-limit <sun>]
-                                [--dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                                [--dry-run | --build-only | --wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
 
-It collects **everything owed**. There is no "how much" — the contract does not offer one, and a partial option would suggest a choice that does not exist.
+Collects **everything the position is owed** — there is no partial amount. Nothing is approved: the position manager already holds the position. One transaction.
 
-Nothing is approved and no Permit2 is involved: the position manager already holds the position on both protocols.
+Works on **`tron` and `nile`**; on Shasta it fails with `unsupported_network_capability`, on an EVM network with `family_mismatch`.
 
-**On V4 the position names its own pool.** The pool key is read from the position, so nothing has to be typed to select it. `--token0` / `--token1` and `--fee` are optional **cross-checks**: they select nothing, and a disagreement with what the position reports is refused. The fees always go to the **signing account**, so `--recipient` is not accepted on V4.
+[`sunswap remove-liquidity`](remove-liquidity.md) already pays the fees out with the principal, so this command is for when the principal should stay in the pool.
 
-[`sunswap remove-liquidity`](remove-liquidity.md) already pays the fees out alongside the principal, on V3 and V4 alike, so this command is for the case where the principal should stay in the pool.
+**On V4 the position names its own pool.** `--token0` / `--token1` and `--fee` are optional cross-checks: they select nothing, and a disagreement with the position is refused. The fees always go to the **signing account**, so `--recipient` is not accepted on V4.
 
-Ownership is checked in the dry run **and again immediately before sending**.
+**V2 is refused.** A V2 pool's fees are real but not separable: they accrue into the LP token's value and come out with the liquidity. `--protocol V2` fails with `invalid_value`, saying so.
 
-## Why V2 is refused
+**A position owed nothing is refused.** The contract accepts a collection of zero and still charges the fee, so when the position is measured to be owed nothing on both sides, the command fails before anything is estimated or sent — in every mode, with `invalid_value`. A position owed dust on one side is a real collection and is sent. On V4, a position with **no liquidity** is refused even if the owed amount could not be read (`CannotUpdateEmptyPosition`). For a position with liquidity whose owed amount **could not be read**, the collection is sent anyway, and the receipt carries a warning instead of an amount.
 
-A V2 pool's fees are real. They are simply not *separable*: they accrue into the LP token's own value and come out when the liquidity does. So `--protocol V2` fails with `invalid_value` and says that, rather than calling the protocol unknown — which would send you looking for a spelling error instead of telling you how the pool works:
-
-```
-error [invalid_value]: invalid --protocol: must be V3 or V4; a V2 pool's fees accrue into the LP token itself and are taken out with the liquidity, so there is nothing separate to claim
-```
-
-It is the same distinction the `Unclaimed` column draws in [`position-list`](position-list.md).
-
-## A measured zero is refused; an unknown is sent
-
-If the position is **measured** to be owed nothing on **both** sides, the command fails before anything is estimated or sent — in **every** mode, so `--dry-run`, `--build-only` and a real send give the same answer (`invalid_value`, exit 2):
-
-```
-position 686 has no fees to collect; sending this would spend a fee to receive nothing
-```
-
-This is not caution for its own sake. Measured on Nile: the contract **accepts** a collect of zero, emits a `Collect` of zero, charges **8.08 TRX**, and the receipt reads `✅ Fees collected`. Collecting nothing still costs a fee. A transaction that succeeds, achieves nothing, and leaves you poorer is exactly what a preflight check is for.
-
-The refusal needs a **measurement**. On V4, if the owed amount **could not be read**, the collection is **sent anyway** — refusing on an unknown would block you from collecting real fees just because the figure was unavailable. The receipt then carries **no amount** and a warning (`sunswap_v4_owed_fees_unavailable`, or `sunswap_v4_owed_fees_undecodable`), rather than a zero; [`position-list`](position-list.md) reports the unclaimed value in that case (mainnet only).
-
-A position owed dust on one token and nothing on the other is a **real** collection and is sent — whether a small payout is worth its fee is your call, not ours.
-
-A position that still holds liquidity but has earned nothing is refused the same way. On V4 a position with **no liquidity** is refused even when the owed amount could not be read: the contract refuses any change to an empty position (`CannotUpdateEmptyPosition`), so its collect could never be sent.
+Ownership is checked in the dry run **and again immediately before sending**. `--dry-run` needs no password and works for a watch-only account.
 
 ## Options
 
 | Option | Description |
 |---|---|
-| `--protocol <V3\|V4>` | **Required.** V2 is refused as explained above |
+| `--protocol <V3\|V4>` | **Required** |
 | `--position-id <id>` | **Required.** Must be held by this account |
-| `--recipient <address>` | Who receives the fees; default the account (**V3 only**). A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
-| `--token0 <token>` / `--token1 <token>` | The position's pair, checked against what it holds; give both or neither (V4 only). A symbol resolves against the official address book plus the [`token add`](../token/add.md) entries of the account the command uses; one matching more than one entry is `ambiguous_token_symbol` (exit 2) |
-| `--fee <n>` | The pool's fee tier, checked against the one the position reports. No default: it selects nothing. Needs `--token0` / `--token1` beside it (V4 only) |
-| `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission (V4 only) |
-| `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. The dry run's estimate is a **lower bound**, so a limit set from it can fail |
-| `--dry-run` / `--build-only` / `--wait` | See [machine-interface.md](../../machine-interface.md) |
+| `--recipient <address>` | Who receives the fees; default the account (**V3 only**) |
+| `--token0 <token>` / `--token1 <token>` | The position's pair, checked against what it holds; give both or neither (V4 only) |
+| `--fee <n>` | The pool's fee tier, checked against the position's; needs `--token0` / `--token1` (V4 only) |
+| `--deadline <timestamp>` | Unix seconds; default 30 minutes from now (V4 only) |
+| `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
+| `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
+| `--build-only` | Emit the unsigned transaction |
+| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--account <label\|accountId>` | Account holding the position; default the active account |
+| `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 
-There is no `--liquidity` on either protocol: the amount is "everything". On V3 there is also no `--token0` / `--token1` and no `--deadline` — the pair comes from the position, and `collect` takes no deadline. A flag outside its protocol is `invalid_option`.
+Plus the [global options](../index.md#global-options-every-command). `--recipient` applies to V3 only; `--token0` / `--token1`, `--fee` and `--deadline` to V4 only. A flag given for the other protocol is `invalid_option`.
 
 ## Examples
 
+In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
+
+Collecting everything position #690 is owed. `Collected` is what the transaction's `Collect` event says arrived; `tokensAuto: true` in JSON means the pair was read from the position, not given:
+
 ```bash
-wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --dry-run --network nile
+echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --wait --password-stdin --account led --network nile
 ```
 
 ```console
-error [invalid_value]: position 686 has no fees to collect; sending this would spend a fee to receive nothing
+✅ Fees collected
+  Account    TXo8GVA3ao...Dzs4QRPB (led)
+  Protocol   V3
+  Position   #690
+  Collected  0.000004 USDT / 0.000699 WTRX
+  Recipient  TXo8GVA3aopDpmQ6c28ZABBaApDzs4QRPB
+  TxID       7e3a9c1f5d2b8e40a6c3f9d7b1e5a2c8d0f4b6e9a3c7d1f5b2e8a4c6d0f9b3e1
+  Block      #71,637,105
+  Energy     151,204
+  Fee        8.11 TRX
+  Status     success
 ```
-
-The contract says nothing is owed: nothing has traded against that position, so it has earned nothing. The dry run refuses exactly as sending would.
 
 ```bash
-wallet-cli sunswap collect-fees --protocol V4 --position-id 7 --dry-run --account demo --network nile
+echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --wait --password-stdin --account led --network nile -o json
 ```
 
-```console
-⏳ Dry run sunswap collect-fees
-  Account          TNmoJ3Be59...iL3G8HVB (demo)
-  Protocol         V4
-  Position         #7
-  Collected (est)  0.013974 TRX / 0.004108 USDT
-  Recipient        TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Fee (est)        ~33,730 energy
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.collect-fees","data":{"kind":"sunswap-collect-fees","account":"TXo8GVA3aopDpmQ6c28ZABBaApDzs4QRPB","protocol":"V3","positionManager":"TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R","nftTokenId":"690","tokensAuto":true,"recipient":"TXo8GVA3aopDpmQ6c28ZABBaApDzs4QRPB","token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"4"},"token1":{"address":"TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a","symbol":"WTRX","decimals":6,"amount":"699"},"stage":"confirmed","txId":"7e3a9c1f5d2b8e40a6c3f9d7b1e5a2c8d0f4b6e9a3c7d1f5b2e8a4c6d0f9b3e1","confirmed":true,"blockNumber":71637105,"feeSun":8110000,"energyUsed":151204,"energyFeeSun":7765000,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false},"meta":{"durationMs":11906,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-The pair was read from the position; nothing on the command line named it.
-
-## Reading the JSON
-
-Broadcast results include `amountsEstimated`: `false` when the reported token amounts were read from this transaction’s receipt, `true` when they still come from the pre-transaction estimate. Pending, failed, and estimated results use `(est)` labels in text output. A confirmed transaction can still carry estimated amounts if the receipt read is unavailable.
+## Output
 
 `kind` is `sunswap-collect-fees` in every mode.
 
-- `token0` / `token1` — `{address, symbol, decimals, amount}`. On V3, before the transaction, `amount` is what the contract's own static `collect` says is claimable — the same figure the transaction will move, so a preview promises what the receipt will report — and afterwards it is what the `Collect` event recorded, because a trade in between changes what was owed. On V4, before sending `amount` is the estimated fees owed. After confirmation it is the net amount paid to the recipient in this transaction, matched to the position and pool events; native TRX excludes network fees. When that read failed, `amount` is **absent**, not `"0"`.
-- `recipient` — always the **resolved** address, never a placeholder. On V3 this command can send money somewhere other than the account that signed, so where it went is a fact a script has to be able to read.
-- `tokensAuto` — always `true`: the pair is read from the position. On V4, tokens you pass are only checked against it.
-- `poolId`, `feeTier`, `tickSpacing`, `hooks`, `deadline` — the position's pool key and the call's deadline (V4).
-- `nftTokenId`, `positionManager`, and the usual `fee` estimate object.
+| Field | Type | Meaning |
+|---|---|---|
+| `account` / `recipient` | string | Who holds the position, and who receives the fees |
+| `protocol`, `nftTokenId` | string | The position |
+| `positionManager` | string | The contract the collection goes through |
+| `token0` / `token1` | object | `{address, symbol, decimals, amount}` — the fees owed (dry run), then collected (receipt), in base units |
+| `tokensAuto` | boolean | The pair came from the position rather than from `--token0` / `--token1` |
+| `poolId`, `feeTier`, `tickSpacing`, `hooks` | — | V4: the position's pool key |
+| `fee` / `feeCovers` | — | The estimated network cost; always `feeCovers: "all"`, since nothing is approved |
+
+The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+
+## Exit status
+
+`0` success (submitted, or built/estimated) · `1` execution failure (`position_not_found`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `tx_expired`) · `2` usage error (`missing_option` — no `--protocol` or `--position-id`; `invalid_value` — `V2` or another protocol, a position owed nothing, a position held by another account, a pair or fee that does not match the position; `invalid_option` — a flag outside its protocol, such as `--recipient` on V4; `invalid_address`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 
-[`sunswap remove-liquidity`](remove-liquidity.md) · [`sunswap add-liquidity`](add-liquidity.md) · [`sunswap position-info`](position-info.md) · [`sunswap position-list`](position-list.md) · [machine-interface.md](../../machine-interface.md)
-
-Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
-[TRON app settings](../../guide/ledger.md#tron-app-settings).
+[`sunswap remove-liquidity`](remove-liquidity.md) · [`sunswap position-info`](position-info.md) · [`sunswap position-list`](position-list.md) · [machine-interface.md](../../machine-interface.md)

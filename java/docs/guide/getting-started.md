@@ -28,7 +28,7 @@ $ java -jar wallet-cli.jar
 
 ## How to create account
 
-You can create accounts by transferring funds to non-existing accounts, or by initiating a transaction to create an account using the **CreateAccount** command. Either way the payer covers an on-chain account-creation fee — the sum of the chain parameters `getCreateAccountFee` and `getCreateNewAccountFeeInSystemContract`, about **1.1 TRX** on mainnet today. See [Account commands](../commands/account.md#how-to-create-account).
+You can create accounts by transferring funds to non-existing accounts, or by initiating a transaction to create an account using the **CreateAccount** command. Either way the payer burns `getCreateNewAccountFeeInSystemContract` (**1 TRX** on mainnet today); the transaction's bandwidth comes from the payer's staked bandwidth, and only if that is insufficient is `getCreateAccountFee` (**0.1 TRX**) burned as well — so 1 to 1.1 TRX in total. See [Account commands](../commands/account.md#how-to-create-account).
 
 See [commands/account](../commands/account.md) for the full `CreateAccount` example.
 

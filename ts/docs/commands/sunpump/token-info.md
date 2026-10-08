@@ -26,7 +26,7 @@ Reads the token's record from the SunPump launchpad service: its creator, status
 
 Plus the [global options](../index.md#global-options-every-command). No `--account`: it is rejected with `invalid_option`.
 
-## Example
+## Examples
 
 ```bash
 wallet-cli sunpump token-info TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --network tron
@@ -40,11 +40,19 @@ Creator         TW7ha4nFZ23tgxixzKYMcDTKRqbPzU1eVC
 Status          CREATED
 Curve progress  3%
 Created         2024-08-12 10:06 UTC
-Price           0.000039 TRX ($0.00001321)
-Market cap      $13,187.00
+Price           0.000039 TRX ($0.00001319)
+Market cap      $13,228.56
 24h change      0.00%
 Vol 24h         0 TRX
 Description     Justin Coin (JSTN) is a utility token designed to be at the heart of the Justin Ecosystem. The coin empowers users across various platforms, including social media, decentralized finance (DeFi), gaming, and more.
+```
+
+```bash
+wallet-cli sunpump token-info TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --network tron -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.token-info","data":{"token":{"address":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","symbol":"Justin","name":"JSTN","decimals":18,"totalSupply":"1000000000000000000000000000","status":"CREATED","owner":"TW7ha4nFZ23tgxixzKYMcDTKRqbPzU1eVC","market":{"marketCapUsd":"13228.556671387075041182","priceInTrx":"0.000039401440873005","priceChange24HrPercent":"0","volume24HrSun":"0","virtualLiquidity":"25793.621177656285440244","trxPriceInUsd":"0.334893381492","priceUsd":"0.000013195281769617"},"curve":{"pumpPercentage":"3","currentSold":"0","tokenReserve":"704921974422462489293331715","trxReserve":"3413.330531"},"createdAt":"2024-08-12 10:06","createTxHash":"f8054837d315e36489a188bdeb96cc4c3a921c810cf23c4787fdceade53f82d9","description":"Justin Coin (JSTN) is a utility token designed to be at the heart of the Justin Ecosystem. The coin empowers users across various platforms, including social media, decentralized finance (DeFi), gaming, and more. ","links":{"logo":"https://cdn.sunpump.meme/public/logo/Justin_TW7ha4_XtwZKmIMVAWo.png"}}},"meta":{"durationMs":1119,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
@@ -61,7 +69,7 @@ Amounts are decimal strings; keep them that way.
 
 ## Exit status
 
-`0` success · `1` execution failure (`launchpad_token_not_found`; `provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`invalid_address`; `invalid_option` — `--account`; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`launchpad_token_not_found`; `provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`missing_option` — no `<address>`; `invalid_address`; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
 
 ## See also
 

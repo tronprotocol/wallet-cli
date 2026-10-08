@@ -5,315 +5,289 @@ Deposit both sides of a pair into a SunSwap pool.
 ## Synopsis
 
 ```
-wallet-cli sunswap add-liquidity --protocol <V2|V3|V4> [--token0 <token> --token1 <token>]
-                                 [--position-id <id>] [--amount0 <n>] [--amount1 <n>]
-                                 [--min0 <n>] [--min1 <n>] [--fee <n>]
-                                 [--tick-lower <n>] [--tick-upper <n>]
+wallet-cli sunswap add-liquidity --protocol <V2|V3|V4>
+                                 [--token0 <token> --token1 <token>] [--position-id <id>]
+                                 [--amount0 <n>] [--amount1 <n>] [--min0 <n>] [--min1 <n>]
+                                 [--fee <n>] [--tick-lower <n>] [--tick-upper <n>]
                                  [--tick-spacing <n>] [--hooks <address>] [--slippage <decimal>]
                                  [--create-pool --sqrt-price <Q64.96>]
-                                 [--recipient <address>] [--deadline <timestamp>]
-                                 [--fee-limit <sun>]
-                                 [--dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                                 [--recipient <address>] [--deadline <timestamp>] [--fee-limit <sun>]
+                                 [--dry-run | --build-only | --wait [--wait-timeout <ms>]] [options]
 ```
 
 ## Description
 
-**V2** adds at the pool's current ratio and returns LP tokens. **V3** mints a position NFT over a price range, or adds to one you already hold with `--position-id` — which fixes the pair, the fee tier, the range and the holder, so those flags and `--recipient` are refused alongside it. **V4** also mints or adds to a position, but names its pool by the full pool key, and an increase takes the pair as well as `--position-id`; see [V4 below](#v4-a-pool-is-named-by-its-key).
+**V2** adds at the pool's current ratio and returns LP tokens. **V3** mints a position NFT over a price range, or adds to one you already hold with `--position-id`. **V4** also mints or adds to a position, but names its pool by its full key (below).
 
-Give one amount and the other is derived — from the pool's reserves on V2, from the range and the current price on V3 and V4. Give both to deposit exact amounts. A pool that holds nothing has no ratio to derive from, so the first deposit into one must name both sides.
+Works on **`tron` and `nile`**; on Shasta it fails with `unsupported_network_capability`, on an EVM network with `family_mismatch`.
 
-**On V3 your TRX becomes WTRX.** V3 pools are wrapped. On V2, TRX is deposited natively through `addLiquidityETH` and only the other side is approved. On V4, TRX is native again and travels as the call's value. Three protocols, three answers, and V3 is the one where what you typed is not what the pool receives.
+**Give one amount and the other is derived** — from the pool's reserves on V2, from the range and the current price on V3 and V4. Give both to deposit exact amounts. A pool that holds nothing has no ratio to derive from, so the first deposit into one must name both sides.
 
-On V2 and V3, each side is approved for **exactly the amount this deposit needs**, never an unbounded allowance. The approval is sent, confirmed, and the allowance re-read from the chain before the deposit follows — the two can never land out of order, and a token whose `approve` caps or refuses what it grants is caught before the deposit reverts for a reason the receipt could not explain.
+**On V3 your TRX becomes WTRX.** V3 pools are wrapped. On V2 and V4, TRX is deposited natively and travels as the call's value.
 
-`--dry-run` validates everything — balances, the pool, the amounts, the allowances — without a password, and works for a watch-only account.
+**Approvals come first.** On V2 and V3, each token side is approved for **exactly the amount this deposit needs**; the approval is sent, confirmed and re-read before the deposit follows. The router consumes it, so a repeat deposit needs a fresh one. V4 is different — see [Approvals on V4](#approvals-on-v4). A TRX side never needs approving. If an approval went out and a later step failed, its ID is in `error.details.approvalTxIds` and the approval stays on chain.
 
-**A new position's NFT id exists only in the confirmed receipt.** The manager assigns it during execution, so pass `--wait` to learn it; [`sunswap position-list`](position-list.md) is mainnet-only and cannot tell you afterwards on Nile. Once you have the id, [`sunswap position-info`](position-info.md) reads the position on either network.
+**A new position's id exists only in the confirmed receipt.** The contract assigns it during execution, so pass `--wait` to learn it ([`position-list`](position-list.md) is mainnet only). Once you have it, [`position-info`](position-info.md) reads the position on either network.
 
-## Two things about the fee estimate
+**A V3 deposit that rounds to zero liquidity is refused.** The command checks the computed liquidity, not the pool's trading history, and fails with `invalid_value` before estimating or sending. At the minimum or maximum representable tick, the message identifies the pool's price-bound state; otherwise it asks for a wider range or a larger deposit.
 
-**The estimate is a lower bound.** TRON prices a contract call by simulating it against current state, and the real execution writes storage the simulation does not. A measured example from Nile: a deposit estimated at 107,565 energy burned 120,426. That is true of every estimating command in this CLI, not something this one introduces, and it is why `--fee-limit` defaults to a constant (100000000 SUN) and is **never derived from the estimate** — a limit set from a lower bound can fail.
+**`--dry-run` validates everything** — balances, the pool, the amounts, the allowances — without a password, and works for a watch-only account. Until an approval is on chain the deposit itself cannot be simulated, so the dry run prices the approvals only (`Fee (est, approvals only)`, JSON `feeCovers: "approvals"`).
 
-**A deposit that needs approvals cannot have its own fee estimated in advance.** The estimate is a simulation, and before the allowance is on chain the router cannot pull the tokens, so simulating the deposit reverts. Rather than fail, the dry run prices the approvals alone and says so:
+### The price range (V3 and V4)
+
+`--tick-lower` / `--tick-upper` must each be a multiple of the pool's tick spacing; a tick you type is **checked**, never rounded. Omit both and the CLI chooses the current tick ± 100 spacings, marked `(default)` in text and `tickRangeAuto: true` in JSON. On V3 an omitted `--fee` defaults to `3000`, marked `feeAuto: true`.
+
+Adding to an existing position with `--position-id` keeps its pair, fee tier, range and holder, so `--tick-lower`, `--tick-upper` and `--recipient` are refused alongside it. On V3, `--fee`, `--token0` and `--token1` are also refused; on V4, `--fee` is an optional check against the position's fee tier.
+
+On V3, the receipt names `token0` / `token1` in the pool's on-chain order, which may differ from the order you typed; when adding to a position later, `--amount0` refers to the pool's `token0`.
+
+### V4: a pool is named by its key
+
+A V4 pool has no contract of its own — every pool lives inside one pool manager — so it is named by its five-part key:
 
 ```
-  Fee (est, approvals only)  ~45,105 energy
-⚠️ The deposit's own fee cannot be estimated until the approval is on-chain.
+--token0 <token> --token1 <token> --fee <n> --tick-spacing <n> [--hooks <address>]
 ```
 
-JSON carries `feeCovers: "approvals"` beside `fee`, so a script can tell the two states apart without reading English. When the allowances already suffice it is `feeCovers: "all"` and the deposit is priced for real.
+**A new V4 position needs both `--fee` and `--tick-spacing`, with no defaults.** On V3 the spacing follows from the fee tier; on V4 it does not, and two pools of the same pair at the same fee can differ only in spacing — on Nile, TRX/USDT at fee 500 exists at spacing 10 and at spacing 33. Get the value from [`sunswap pool-list --protocol V4`](pool-list.md) (`extra.tickSpacing` and `extra.hooks` in its JSON). `--hooks` defaults to none, which is what almost every pool has. The dry run prints the resulting `Pool` id so you can check you named the pool you meant.
 
-Note the interaction with exact-amount approvals: the router consumes the allowance it was granted, so a **repeat deposit needs fresh approvals just like the first one**. `feeCovers: "all"` is reached only when a larger allowance already exists from somewhere else — a bigger earlier deposit, or one granted by hand.
+**Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool; the tokens are checked against the pair it holds — **in the pool's own order** (its `currency0` / `currency1`, the order the dry run and `position-info` print) — and a mismatch or a reversed pair is refused with `invalid_value` rather than sent. If you swap the tokens round, swap `--amount0` / `--amount1` too. `--fee` is checked the same way when given; `--tick-spacing`, `--hooks`, the tick range, `--create-pool` and `--sqrt-price` are refused, since the position fixes them.
+
+**Creating a pool**: add `--create-pool` and `--sqrt-price` (the starting price in Q64.96 fixed point, not a decimal ratio) to the key. The pool is initialised and the position minted in one transaction. A key that already names a live pool is refused with `pool_already_exists`; deposit into it without `--create-pool`.
+
+**On V4 the bound is a ceiling, not a floor.** `--min0` / `--min1` are refused on V4. `--slippage` widens what the deposit may cost **upward**; with no `--slippage` the ceiling is exactly the computed amounts. On a native pair the ceiling is sent as the call's value and the remainder returned, so **the account must hold the ceiling**. (On [`remove-liquidity`](remove-liquidity.md), V4 `--slippage` works the other way.)
+
+### Approvals on V4
+
+The token side goes through Permit2 in two layers:
+
+- The token's allowance **to Permit2** is **unlimited**. An existing allowance that covers the deposit is reused; otherwise an unlimited approval is sent first, shown as `Allowance  unlimited`.
+- The **Permit2 grant** the deposit signs is for **exactly this deposit's ceiling** and lasts **one hour**. It travels inside the deposit's own transaction. JSON lists the grants under `permits[]`.
+
+Because the deposit carries its signed grant, **`--build-only` is refused** on a V4 deposit that still needs one, and a dry run cannot price the deposit itself (`feeCovers` is `approvals` or `none`, with `feeUnavailableReason`). **Ledger** signs the grant by hash; see [TRON app settings](../../guide/ledger.md#tron-app-settings).
 
 ## Options
 
 | Option | Description |
 |---|---|
 | `--protocol <V2\|V3\|V4>` | **Required** |
-| `--token0 <token>` / `--token1 <token>` | The pair, symbol or contract address. Not accepted with `--position-id` on V3; **required** with it on V4, where they select nothing and are checked against the pair the position holds. A symbol resolves against the official address book plus the [`token add`](../token/add.md) entries of the account the command uses (`--account`, else the active account); a symbol matching more than one entry is `ambiguous_token_symbol` (exit 2), and one marked `(from your token book)` in text came from that account's own entries |
+| `--token0 <token>` / `--token1 <token>` | The pair, symbol or contract address. Refused with `--position-id` on V3; **required** with it on V4, where they are checked against the position. A symbol resolves against the account's [token book](../token/index.md); one matching several entries is `ambiguous_token_symbol` |
 | `--position-id <id>` | Add to this existing position; must be held by this account (V3 and V4) |
 | `--amount0 <n>` / `--amount1 <n>` | Amounts in whole tokens. Give one, the other, or both |
-| `--min0 <n>` / `--min1 <n>` | Least to accept depositing. Default: V2 95% of the computed amount, V3 `0`. **Not accepted on V4**, which bounds from above — see `--slippage` |
-| `--fee <n>` | Fee tier, e.g. `500` or `3000`. Selects the pool on a V3 new position (default `3000`); **required with no default for a V4 new position**; on a V4 increase, optional and checked against the position's own |
+| `--min0 <n>` / `--min1 <n>` | Least to accept depositing. Default: V2 95% of the computed amount, V3 `0`. **Refused on V4** |
+| `--fee <n>` | Fee tier, e.g. `500` or `3000`. V3 new position: selects the pool, default `3000`. V4 new position: **required**. V4 increase: optional check |
 | `--tick-lower <n>` / `--tick-upper <n>` | Price range; each a multiple of the pool's tick spacing (V3 and V4 new position only) |
-| `--tick-spacing <n>` | **Required for a V4 new position, no default.** The pool's tick spacing — part of its identity. See below |
-| `--hooks <address>` | The pool's hook contract; default none, which is what almost every pool has (V4 only) |
-| `--slippage <decimal>` | Tolerance on the deposit **ceiling**, e.g. `0.005`; default none, so the ceiling is exactly the computed amounts (V4 only) |
-| `--create-pool` | Create the pool as part of this deposit; requires `--sqrt-price` on top of the pool key (V4 only) |
-| `--sqrt-price <Q64.96>` | The new pool's starting price in Q64.96 fixed point, **not** a decimal ratio (V4 `--create-pool` only) |
-| `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account. Not with `--position-id`: the position already has a holder. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
-| `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission. One already past is refused |
-| `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. See the note above |
-| `--dry-run` / `--build-only` / `--wait` | See [machine-interface.md](../../machine-interface.md) |
+| `--tick-spacing <n>` | **Required for a V4 new position**; no default |
+| `--hooks <address>` | The pool's hook contract; default none (V4 only) |
+| `--slippage <decimal>` | Tolerance on the deposit **ceiling**, e.g. `0.005`; default none (V4 only) |
+| `--create-pool` | Create the pool as part of this deposit; requires `--sqrt-price` (V4 only) |
+| `--sqrt-price <Q64.96>` | The new pool's starting price in Q64.96 fixed point (V4 `--create-pool` only) |
+| `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account. Not with `--position-id`: the position already has a holder |
+| `--deadline <timestamp>` | Unix seconds; default 30 minutes from now. One already past is refused |
+| `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The estimate is a lower bound, so a limit set from it can fail |
+| `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
+| `--build-only` | Emit the unsigned transactions in execution order (`data.transactions[]` as `{purpose, tx, hex}` when there are approvals); they share a one-hour lifetime. Send each approval and wait for it to confirm before the deposit |
+| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--account <label\|accountId>` | Account to deposit from; default the active account |
+| `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 
-`--sign-only` is **not offered** anywhere in this group: a flow of several transactions cannot guarantee offline what order its parts land in, or that the allowance is there when the deposit is.
-
-A flag outside its scenario is `invalid_option`, not silently ignored. Dropping `--fee` would deposit at a tier you did not choose; dropping `--tick-lower` on an increase would suggest a position's range can be changed, which it cannot.
-
-## The price range, on V3 and V4
-
-A tick you type is **checked** against the pool's tick-spacing grid, never rounded onto it. A range is a price opinion, and moving a boundary by one spacing changes what the position earns. Only a range the CLI chose is aligned — the current tick ± 100 spacings — and the receipt marks it `tickRangeAuto: true` so our choice is never mistaken for yours. The same holds for `feeAuto` when `--fee` was omitted.
-
-A pool that was **initialised and never traded** has no price: its tick sits at the representable floor, a default range collapses against it, and the amounts round to nothing. `mint` reverts on zero liquidity, so the command refuses before the node and names the state:
-
-```
-this pool has no established price — it was initialised at tick -887272 and never traded,
-so a deposit cannot be sized against it; choose a fee tier whose pool has traded
-```
-
-This is a real condition on Nile: the 3000 tier — the default — is in exactly that state, while 100, 500 and 10000 carry live prices.
-
-## V4: a pool is named by its key
-
-A V4 pool has no contract of its own — every pool lives inside one pool manager — so it is named by the five parts of its **pool key**: the two tokens, the fee, the **tick spacing** and the **hooks** contract. On this command that is:
-
-```
---token0 <token> --token1 <token> --fee <n> --tick-spacing <n> [--hooks <address>]
-```
-
-There is **no `--pool` flag**. A V4 pool id is a hash of that key; naming the key is the only way in.
-
-**V4 new positions require both `--fee` and `--tick-spacing`, with no defaults.** This also applies to `--create-pool`. Existing positions use their on-chain pool parameters. On V3 the spacing follows from the fee tier; on V4 it does not — it is part of the pool's identity. Measured on Nile: TRX/USDT at fee `500` exists **twice**, once at spacing `10` and once at spacing `12`, as two separate pools. A default taken from the V3 convention would name one of them for you, and if that pool exists your deposit goes into it silently. Omitting the flag is refused:
-
-```
-error [missing_option]: invalid --tick-spacing: --tick-spacing is required on V4 and has no default: two V4 pools at the SAME fee tier can have different tick spacings — measured, USDC/USDT at fee 500 has spacing 12 while TRX/USDT at fee 500 has spacing 10 — so it cannot be derived from --fee. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks
-```
-
-**Get the value from [`sunswap pool-list --protocol V4`](pool-list.md)**, which publishes each pool's `tickSpacing` and `hooks` under `extra` in its JSON (`-o json`). `--hooks` defaults to none, which is what almost every pool has.
-
-The same flags create a pool: add `--create-pool` and `--sqrt-price`, and the pool that is created is the pool that is then deposited into, because one key builder serves both.
-
-Creation initializes the pool and mints the position in one main transaction. Any required Permit2
-grants are forwarded between initialization and the deposit. A reverting deposit rolls back that
-transaction's initialization; earlier TRC20 approval transactions are separate and remain on-chain.
-The initial price must be within the contract's Q64.96 bounds. When no range is supplied, its tick
-is calculated from that price, then the default range extends 100 tick spacings on each side,
-aligned to the grid. The preview says so on one line,
-`Create pool  yes — initial sqrtPriceX96 <value> (≈ 1 <token0> = <price> <token1>)`; JSON carries
-`initialSqrtPriceX96` on creation plans and receipts. `initialPrice.token1PerToken0` expresses
-human token1 per human token0 (eight significant digits, rounded down) as a plain decimal string,
-never in scientific notation however small or large; `createPool: true`
-is published alongside the existing `poolCreated` field.
-
-A pool already initialized at planning time, or at the check after permit signing, is refused as
-`pool_already_exists`. These checks cannot reserve the pool until mining: the position manager's
-[`initializePool`](https://github.com/sun-protocol/sunswap-v4-periphery/blob/main/contracts/pool-cl/CLPositionManager.sol)
-catches initialization errors, including another transaction creating the pool first. A concurrent
-creation after the last check can therefore make the mint execute against that pool, subject to the
-deposit's amount ceilings. The requested initial price is not an on-chain guarantee in that race.
-
-**Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool, so the tokens select nothing — they are checked against the pair the position holds, and a mismatch is refused rather than sent. `--fee` is checked the same way when given. `--tick-spacing`, `--hooks`, the tick range, `--recipient`, `--create-pool` and `--sqrt-price` are refused with `invalid_option`: the position already fixes them.
-
-The tokens must match the position's `currency0` / `currency1` order, as with V4 mint. Reversed input is rejected. Set `--amount0` / `--amount1` for the corresponding assets in that order; when correcting the token order, adjust the amounts too.
-
-### On V4 the bound is a ceiling, not a floor
-
-On V2 and V3, `--min0` / `--min1` bound the deposit **from below**: the least you will accept depositing. **V4 bounds it from above**: the most the deposit may cost. `--min0` / `--min1` are refused on V4:
-
-```
-error [invalid_option]: invalid --min0: is not accepted on V4: a V4 deposit is bounded from ABOVE, by --slippage on the ceiling, not from below by a minimum
-```
-
-`--slippage` widens that ceiling **upward**. With no `--slippage`, the ceiling is exactly the computed amounts. Note that [`remove-liquidity`](remove-liquidity.md) also has a V4 `--slippage`, and there it works the other way — it lowers the floor on what comes back. The same flag name moves in opposite directions on the two commands.
-
-On a native pair the ceiling is sent as the call's value and the remainder is returned, so **the account must hold the ceiling, not the deposit**. The dry run says so.
-
-### Approvals on V4
-
-V4 is the one exception to exact approvals. The token side goes through **Permit2** in two layers:
-
-- The token's allowance **to Permit2** is checked against the deposit ceiling. A sufficient allowance (including a finite one) is reused; only an insufficient allowance triggers a new **unlimited** approval.
-- The **Permit2 grant** each deposit signs locally is for **exactly this deposit's ceiling**, and lives **one hour**. It travels inside the deposit's own call, so the signature and the transaction that spends it cannot be separated.
-
-The limit sits on the grant, not on the allowance — that is what Permit2 is for. The JSON lists the grants a deposit will sign under `permits`; a dry run checks standing grants and omits covered amounts from `permits` (empty or absent when fully covered). Live execution rechecks the grants before signing. A native TRX side needs neither.
-
-Because the deposit carries its signed grants, **`--build-only` is refused** on a V4 deposit that still needs one; it builds when nothing is left to sign. When a grant is still needed, a dry run cannot price the deposit itself: `fee` carries a note instead of an energy figure, and `feeCovers` is `approvals` when approval transactions are priced, or `none` when only
-an unsigned Permit2 grant prevents estimation. `feeUnavailableReason` explains this dependency. When standing grants and token allowances cover the deposit, the dry run estimates the main transaction and reports `feeCovers: "all"`.
-
-If the Permit2 grants already suffice but a TRC20 allowance is short, `--build-only` returns the unsigned approval transactions followed by the deposit in `transactions[]`. Sign and broadcast them in that order, confirming the approvals before the deposit. Only the approvals are estimated (`feeCovers: "approvals"`); building does not send them or require them to have landed.
+Plus the [global options](../index.md#global-options-every-command). A flag outside its protocol or scenario is `invalid_option`, never silently ignored. `--sign-only` is not offered in this group.
 
 ## Examples
 
+In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`. All of them were broadcast on Nile. To check a deposit before sending it, add `--dry-run`: it needs no password and shows the approvals it would send.
+
+**V2**, giving the USDT side. The TRX side is derived from the pool's ratio and deposited natively, so only USDT is approved — the approval is sent and confirmed before the deposit:
+
 ```bash
-wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --token1 WTRX --amount0 1 \
-  --dry-run --network nile
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --token1 TRX --amount0 1 \
+  --wait --password-stdin --network nile
 ```
 
 ```console
-⏳ Dry run sunswap add-liquidity
-  Account                    TNmoJ3Be59...iL3G8HVB (nile)
-  Protocol                   V2
-  Deposit                    1 USDT / 0.686044 WTRX
-  Min deposit                0.95 USDT / 0.651741 WTRX
-  LP received (est)          <0.000001
-  Recipient                  TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Deadline                   2026-09-23 18:24:45 UTC
-  Fee (est, approvals only)  ~45,105 energy
-  Spender 1                  TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy
-  Allowance 1                1 USDT  (approval tx will be sent first)
-  Spender 2                  TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy
-  Allowance 2                0.686044 WTRX  (approval tx will be sent first)
-
-⚠️ The deposit's own fee cannot be estimated until the approval is on-chain.
+✅ Liquidity added
+  Account        TMSgJxtPw2...UwbCToHJ (main)
+  Protocol       V2
+  Deposited      1 USDT / 0.693729 TRX
+  LP received    <0.000001
+  Recipient      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+  Pool reserves  8,920,609.853346 USDT / 6,188,486.743186 TRX
+  Approval tx 1  845728d8b92fbd71ac780064595f084673207caa81bde6e0bceaf59c3c9efcdf
+  TxID           1d21466d5e23f71e19303c665b7828a1d60502015c1bd861a552de0bc69f26ed
+  Block          #71,636,642
+  Energy         157,734
+  Fee            16.2522 TRX
+  Status         success
 ```
 
-`LP received (est)  <0.000001` is not a rounding failure. A V2 pair's LP token has 18 decimals while a stablecoin pair's reserves have 6, so the LP supply of such a pool lives around 1e12 base units and a one-token deposit mints a fraction far below display precision. The exact figure is in `lpAmountExpected`, with `lpDecimals` beside it.
+```bash
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --token1 TRX --amount0 1 \
+  --wait --password-stdin --network nile -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.add-liquidity","data":{"kind":"sunswap-add-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V2","router":"TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy","lpDecimals":18,"recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"1000000"},"token1":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6,"amount":"693729"},"approvalTxIds":["8768dbecd9f0f1e75d18f62af6026239dff2446a65a871cf05f82ab10f7c6604"],"stage":"confirmed","txId":"29313870a17282f24e85207149d34029818845a732ffda579b6c457efb9207e2","confirmed":true,"blockNumber":71636650,"feeSun":13466100,"energyUsed":129873,"energyFeeSun":12987100,"netFeeSun":479000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"lpAmount":"770874","reservesAfter":{"token0":"8920610853346","token1":"6188487436915"},"pool":"TKioHQsGLkaEWwBwkUB2T4Rm6nwGATtJyh"},"meta":{"durationMs":21616,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+```
+
+`LP received  <0.000001` is not a rounding failure: a V2 LP token has 18 decimals while this pair's reserves have 6, so a one-token deposit mints a fraction far below display precision. The exact figure is `lpAmount`, with `lpDecimals` beside it — keep it for [`remove-liquidity`](remove-liquidity.md).
+
+**V3**, a new position at fee 500 with the default range. Both sides are approved, exactly, and the position id is in the confirmed receipt:
 
 ```bash
-wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee 500 \
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee 500 --amount0 1 \
+  --wait --password-stdin --network nile
+```
+
+```console
+✅ Liquidity added
+  Account        TMSgJxtPw2...UwbCToHJ (main)
+  Protocol       V3
+  Position       #701 (new)
+  Fee tier       0.05%
+  Tick range     [-3650, -1650]  (default)
+  Deposited      1 USDT / 0.760632 WTRX
+  Liquidity      17,883,571
+  Recipient      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+  Approval tx 1  51ab05445286b730145e1d237bb2235e9a800c5df909ab9268b9de87ec0aae90
+  Approval tx 2  a9be3340818a2286ca8d80c4b0b979bb6da7a0c5b1dd0a081ca4ca75f7bf0426
+  TxID           72fee7dfa5e7988080c6b6de65ab10b2995af0b0996d2f0af5c06e3672f3bb87
+  Block          #71,636,664
+  Energy         370,547
+  Fee            37.6896 TRX
+  Status         success
+```
+
+```bash
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee 500 --amount0 1 \
+  --wait --password-stdin --network nile -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.add-liquidity","data":{"kind":"sunswap-add-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V3","positionManager":"TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"1000000"},"token1":{"address":"TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a","symbol":"WTRX","decimals":6,"amount":"760632"},"nftTokenId":"702","newPosition":true,"feeTier":500,"tickLower":-3650,"tickUpper":-1650,"liquidity":"17883571","tickRangeAuto":true,"approvalTxIds":["8d93460aad695407ccaf742795e9c334acf86c740cdb211809a52854eda7b512","c8969e1b46501f3e8a29fc3d5bbc86895b6db4fb4c4205c92ecd47772b35f1b5"],"stage":"confirmed","txId":"89857a751304e864b42965263ae74826374c2a3609113f6fe187ac9cf8ff2e66","confirmed":true,"blockNumber":71636673,"feeSun":36189600,"energyUsed":355547,"energyFeeSun":35554600,"netFeeSun":635000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"liquidityAfter":"17883571"},"meta":{"durationMs":25376,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+```
+
+Adding to position #701 — the pair, fee and range come from the position. The earlier approvals were consumed, so fresh ones are sent:
+
+```bash
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --position-id 701 --amount0 0.5 \
+  --wait --password-stdin --network nile
+```
+
+```console
+✅ Liquidity added
+  Account        TMSgJxtPw2...UwbCToHJ (main)
+  Protocol       V3
+  Position       #701
+  Fee tier       0.05%
+  Tick range     [-3650, -1650]
+  Deposited      0.5 USDT / 0.380316 WTRX
+  Liquidity      8,941,785
+  Recipient      TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+  Approval tx 1  eec993a5b76f3d9b2569f1fb6a5e94a45ca28e1e08125b56c50927d9e2370d6d
+  Approval tx 2  d55f5662d4e62d69692b554754fb860ede519861d6ef28b8f9d1c57cf31bd80f
+  TxID           a5226421f294efd0a4f35b98681bf1f19a39b5aab2934c707a41ba74da947909
+  Block          #71,636,686
+  Energy         193,268
+  Fee            19.8017 TRX
+  Status         success
+```
+
+**V4**, a new position in the TRX/USDT pool at fee 500, spacing 10. This account's USDT allowance to Permit2 already covered the deposit, so no approval transaction was needed; the one-hour Permit2 grant was signed and travelled inside the deposit (`permits[]` in JSON):
+
+```bash
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 \
   --amount0 1 --wait --password-stdin --network nile
 ```
 
 ```console
 ✅ Liquidity added
-  Account        TNmoJ3Be59...iL3G8HVB (nile)
-  Protocol       V3
-  Position       #686 (new)
-  Fee tier       0.05%
-  Tick range     [-8030, -6030]  (default)
-  Deposited      1 USDT / 0.493089 WTRX
-  Liquidity      14,398,816
-  Recipient      TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Approval tx 1  02ada75ce3392820c839da5575c68326a2cf752edc9c46dcdd096f007b85c0be
-  TxID           3c18630a7cf77656930e070a796fa638ae4140ba559a143f95b81b76775b1ce3
-  Block          #71,221,150
-  Energy         355,907
-  Fee            36.2257 TRX
-  Status         success
-```
-
-A V4 dry run for a new position in the TRX/USDT pool at fee 500, spacing 10:
-
-```bash
-wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 \
-  --tick-spacing 10 --amount0 1 --dry-run --account demo --network nile
-```
-
-```console
-⏳ Dry run sunswap add-liquidity
-  Account       TNmoJ3Be59...iL3G8HVB (demo)
+  Account       TMSgJxtPw2...UwbCToHJ (main)
   Protocol      V4
+  Position      #188
   Pool          977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
   Fee tier      0.05%
   Tick spacing  10
   Hooks         none
-  Range         [-11140, -9140]  (default)
-  Deposit       1 TRX / 0.362993 USDT
-  Liquidity     12,354,133
-  Recipient     TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Deadline      2026-09-29 08:51:48 UTC
-  Fee (est)     the main transaction cannot be estimated until the Permit2 authorization is signed
-
-⚠️ the main transaction cannot be estimated until the Permit2 authorization is signed
+  Range         [-11160, -9160]  (default)
+  Deposited     1 TRX / 0.358483 USDT
+  Liquidity     12,277,290
+  Recipient     TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+  TxID          7c03394283155b63f82b913de5fd762986f4a27a51e225124448f5aa181a354e
+  Block         #71,636,692
+  Energy        297,756
+  Fee           31.8865 TRX
+  Status        success
 ```
 
-Here the USDT allowance to Permit2 is already on chain, so no approval is left to price and the deposit cannot be priced before its Permit2 authorization is signed: `Fee (est)` carries the reason instead of a figure (`feeCovers: "none"`). When an approval is still needed, the row reads `Fee (est, approvals only)` with that approval's estimate, followed by `Spender` and `Allowance  unlimited` rows.
+```bash
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 \
+  --amount0 1 --wait --password-stdin --network nile -o json
+```
 
-`Pool` is the id the key hashes to — the same id [`pool-list`](pool-list.md) and [`position-info`](position-info.md) print — so you can confirm you named the pool you meant before anything is sent.
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.add-liquidity","data":{"kind":"sunswap-add-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V4","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","deadline":1791441436,"token0":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6,"amount":"1000000"},"token1":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"symbol":"USDT","amount":"358483"},"poolId":"977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a","feeTier":500,"tickSpacing":10,"hooks":"none","tickLower":-11160,"tickUpper":-9160,"liquidity":"12277290","newPosition":true,"tickRangeAuto":true,"permits":[{"token":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","amount":"358483","expiration":"1791443236"}],"positionManager":"TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP","stage":"confirmed","txId":"b3bac5b997d92b74d8bc748d979ec68061dc7a24b43016f7aa1eaa3c020c0d55","confirmed":true,"blockNumber":71636697,"feeSun":20819400,"energyUsed":187085,"energyFeeSun":18708400,"netFeeSun":2111000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"nftTokenId":"189"},"meta":{"durationMs":13680,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+```
 
-Adding to an existing V4 position, with a 1% ceiling:
+`Pool` is the id the key hashes to — the same id [`pool-list`](pool-list.md) and [`position-info`](position-info.md) print.
+
+Adding to V4 position #188 with a 1% ceiling. The tokens are checked against the position's pair; the ceiling only bounds what the deposit may cost, and the receipt shows what it actually took:
 
 ```bash
-wallet-cli sunswap add-liquidity --protocol V4 --position-id 7 --token0 TRX --token1 USDT \
-  --amount0 1 --slippage 0.01 --dry-run --account demo --network nile
+echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --position-id 188 --token0 TRX --token1 USDT \
+  --amount0 1 --slippage 0.01 --wait --password-stdin --network nile
 ```
 
 ```console
-⏳ Dry run sunswap add-liquidity
-  Account       TNmoJ3Be59...iL3G8HVB (demo)
+✅ Liquidity added
+  Account       TMSgJxtPw2...UwbCToHJ (main)
   Protocol      V4
-  Position      #7
+  Position      #188
   Pool          977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
   Fee tier      0.05%
   Tick spacing  10
   Hooks         none
-  Range         [-887270, 887270]
-  Deposit       1 TRX / 0.362794 USDT
-  Max deposit   1.01 TRX / 0.366421 USDT
-  Liquidity     602,323
-  Recipient     TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Deadline      2026-09-29 08:51:54 UTC
-  Fee (est)     the main transaction cannot be estimated until the Permit2 authorization is signed
-
-⚠️ This deposit locks 1.01 TRX as the transaction's value — about 1 TRX is expected to be deposited and the rest returned. The full amount must be available.
-
-⚠️ the main transaction cannot be estimated until the Permit2 authorization is signed
+  Range         [-11160, -9160]
+  Deposited     1 TRX / 0.358483 USDT
+  Liquidity     12,277,290
+  Recipient     TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ
+  TxID          5c53c990b1cb7fb1e6cc37ee9124406a26420b3c0c82a7433c2ad4c0f1afea84
+  Block         #71,636,707
+  Energy        125,275
+  Fee           14.4144 TRX
+  Status        success
 ```
 
-`Max deposit` is the ceiling — the deposit plus the slippage, **upward**. There is no `Min deposit` row on V4.
-
-## Reading the JSON
-
-Broadcast results include `amountsEstimated`: `false` when the reported token amounts were read from this transaction’s receipt, `true` when they still come from the pre-transaction estimate. Pending, failed, and estimated results use `(est)` labels in text output. A confirmed transaction can still carry estimated amounts if the receipt read is unavailable.
+## Output
 
 `kind` is `sunswap-add-liquidity` in every mode.
 
-**`fee` is the estimated cost, always** — the `{feeModel, energy, …}` object every dry run in this CLI carries. The V3 fee tier is `feeTier`, a number in hundredths of a basis point (`3000` = 0.3%). They are separate keys on purpose: one key whose meaning depended on the mode is how a script reads a tier as a cost.
+| Field | Type | Meaning |
+|---|---|---|
+| `mode` | string | `dry-run` or `build-only`; absent once sent (`stage` instead) |
+| `account` / `recipient` / `deadline` | string / string / number | Who deposits, who receives, and the deadline (Unix seconds) |
+| `protocol` | string | `V2`, `V3` or `V4` |
+| `token0` / `token1` | object | `{address, symbol, decimals, amount}` in base units, plus `amountMinimum` (V2 / V3) |
+| `router` (V2) / `positionManager` (V3, V4) | string | The contract the deposit goes through |
+| `lpAmountExpected` → `lpAmount`, `lpDecimals` | string / number | V2: LP tokens expected, then received |
+| `pool`, `reservesAfter` | string / object | V2, once confirmed: the pair contract, and its reserves read back after the deposit |
+| `newPosition`, `nftTokenId` | boolean / string | V3 / V4: whether a position is minted; its id (known in advance only when adding to one) |
+| `feeTier`, `tickLower`, `tickUpper`, `tickRangeAuto`, `feeAuto` | — | V3 / V4: the pool tier (`500` = 0.05%) and range; the `*Auto` flags mark values the CLI chose |
+| `liquidityExpected` → `liquidity`, `liquidityAfter` | string | V3 / V4: the position liquidity this deposit funds (expected, then actual), and the total afterwards. Not a token amount; carries no decimals |
+| `poolId`, `tickSpacing`, `hooks` | string / number / string | V4: the pool key and the id it hashes to |
+| `amount0Max` / `amount1Max`, `nativeLocked` | string | V4: the ceiling (only when `--slippage` raised it) and the TRX locked as the call's value |
+| `poolCreated`, `initialSqrtPriceX96` | boolean / string | V4 with `--create-pool` |
+| `approvals[]` | array | `{token, symbol, decimals, spender, amount, currentAllowance}` — the approvals to be sent first; `amount` is `"unlimited"` on V4 |
+| `permits[]` | array | V4: `{token, amount, expiration}` — the Permit2 grants the deposit will sign |
+| `fee` / `feeCovers` / `feeUnavailableReason` | — | The estimate and what it covers (`all`, `approvals` or `none`) |
+| `approvalTxIds[]` | string[] | Once sent: the approvals, in the order sent, beside the deposit's own `txId` |
+| `amountsEstimated` | boolean | Once sent: `false` when amounts were read from this transaction's receipt, `true` when they are still the pre-transaction estimate (text then labels them `(est)`) |
 
-**The contract is `router` on V2 and `positionManager` on V3 and V4**, under the same key in every mode (dry run, build and receipt).
+`fee` is always the estimated network cost; the V3 / V4 pool tier is the separate key `feeTier`. The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
 
-**Liquidity: `liquidityExpected` before, `liquidity` after.** A V3 / V4 dry run or build gives the liquidity the amounts are expected to fund as `liquidityExpected`. The confirmed receipt gives what the position actually gained as `liquidity`, plus `liquidityAfter` for what it holds now. They are separate keys so that an estimate is never read as a settlement.
+## Exit status
 
-**Amounts are base units and carry their scale.** Each side is `{address, symbol, decimals, amount}`, plus `amountMinimum` in the plan. `lpAmount` is accompanied by `lpDecimals`.
-
-**V4 adds the pool key and the ceiling.** `poolId`, `feeTier`, `tickSpacing` and `hooks` describe the pool; `nftTokenId` and `newPosition` the position. `amount0Max` / `amount1Max` are the ceiling, present only when `--slippage` moved it above the deposit; `nativeLocked`, beside them on a native pair, is the TRX locked as the call's value; `permits[]` lists the Permit2 grants the deposit will sign. On V4 the bound is the ceiling — `amountMinimum` does not bound a V4 deposit.
-
-V3 plans and receipts always name `token0` and `token1` in the pool's on-chain order, so the
-same names apply when adding to the position later. For a new position, input `--amount0` /
-`--min0` still correspond to the caller's `--token0` (and likewise for side 1); with
-`--position-id`, amounts correspond to the position's on-chain token order.
-
-**V2 confirmed amounts come from this transaction.** When `amountsEstimated` is `false`, `token0.amount`, `token1.amount`, and `lpAmount` are the Router return values. `reservesAfter` is a separate current-state read; concurrent swaps and transfers do not affect the reported deposit amounts. V3 reads token amounts and liquidity from the transaction's `IncreaseLiquidity` event. V4 matches the pool and position `ModifyLiquidity` events and reports token amounts as the account's net expenditure, including native refunds and any fees or hook adjustments settled during the deposit, but excluding network fees. A negative V4 amount means the account received a net credit on that side. V4 `liquidity` comes from the position event, so later position changes cannot alter what this deposit reports. `liquidityAfter` is a separate current-state read.
-
-`--build-only` with approvals returns `data.transactions[]` as `[{purpose, tx, hex}, …]` in execution order; without them it keeps the ordinary single-transaction shape.
+`0` success (submitted, or built/estimated) · `1` execution failure (`insufficient_balance`, `insufficient_token_balance`, `pool_not_found` — no pool for that pair to size a one-sided deposit against, `pool_already_exists` — `--create-pool` on a live pool, `position_not_found`, `same_token`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `tx_expired`) · `2` usage error (`missing_option` — no `--protocol`, or no `--fee` / `--tick-spacing` for a new V4 position; `invalid_option` — a flag outside its protocol or scenario, such as `--min0` on V4, or `--recipient` with `--position-id`, or `--fee` with `--position-id` on V3; `invalid_value` — a V3 deposit that rounds to zero liquidity, a position held by another account, V4 tokens that do not match the position's pair in its order, a tick off the spacing grid, a past `--deadline`; `invalid_amount`; `invalid_address`; `unsupported_token`, `ambiguous_token_symbol`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 
-[`sunswap remove-liquidity`](remove-liquidity.md) · [`sunswap collect-fees`](collect-fees.md) · [`sunswap position-list`](position-list.md) · [machine-interface.md](../../machine-interface.md)
-
-
-### Transaction lifetime and partial progress
-
-A multi-transaction `--build-only` result uses a one-hour transaction lifetime.
-Send the approvals in order and confirm them before
-sending the deposit. The lifetime starts at each transaction's timestamp, not when a later signer
-opens the file; contract deadlines and Permit2 expiry still apply independently.
-
-New TRON transactions signed with Ledger reserve at least ten minutes, or the configured device
-signing timeout plus one minute if longer, before signing. Imported transaction files and explicit
-expiration settings are preserved. If a transaction expires while being signed, the CLI returns
-`tx_expired` and does not broadcast it; rebuild and sign again.
-
-If approval transactions were submitted before a later step failed, their IDs appear in
-`error.details.approvalTxIds` and the text error. Check these transactions before retrying;
-they are not rolled back when the deposit or Permit2 signing fails.
-
-
-Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
-[TRON app settings](../../guide/ledger.md#tron-app-settings). On hash-signing paths the device
-displays hashes, not full transaction details; verify the CLI preview before approving. See
-[Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
-
-
-V4 JSON publishes an unbounded grant as `approvals[].amount: "unlimited"`; the on-chain approval
-payload still encodes MAX_UINT256.
+[`sunswap remove-liquidity`](remove-liquidity.md) · [`sunswap collect-fees`](collect-fees.md) · [`sunswap position-info`](position-info.md) · [`sunswap pool-list`](pool-list.md) · [machine-interface.md](../../machine-interface.md)

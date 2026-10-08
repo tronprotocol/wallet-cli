@@ -45,39 +45,37 @@ Plus the [global options](../index.md#global-options-every-command). No `--accou
 
 ## Examples
 
-```bash
-wallet-cli sunpump launch --name "My Token" --symbol MYT --description "a demo token" \
-  --dry-run --network tron
-```
-
-```console
-⏳ Dry run sunpump launch
-  Name         My Token
-  Symbol       MYT
-  Creator      assigned by SunPump, not your account
-  Description  a demo token
-
-! No logo given; the token will be created without one.
-```
-
-With a logo and a link:
+Creating a token with a logo and a website. Note the `Creator`: the address SunPump chose, not the local account:
 
 ```bash
 wallet-cli sunpump launch --name "My Token" --symbol MYT --description "a demo token" \
-  --image logo.png --website-url https://example.com --dry-run --network tron
+  --image logo.png --website-url https://example.com --network tron
 ```
 
 ```console
-⏳ Dry run sunpump launch
+✅ SunPump token created
   Name         My Token
   Symbol       MYT
-  Creator      assigned by SunPump, not your account
-  Logo         logo.png (70 bytes)
+  Address      TXQiBB5nCC7cewZ13pX6dwoHWxPZ2wK2Yz
+  Creator      TRYeDrXweRdBorzH9XE8KWMq3TinW4fmjd
+  Status       CREATED
+  Created      2026-10-08 06:12 UTC
+  Create tx    d06b9e3f5a2c8d17e4b0f6a9c3d5e82b1f7a4c0d9e6b3f2a8c5d1e7b4f0a9c36
+  Logo         https://cdn.sunpump.meme/public/logo/MYT_TRYeDr_Qm7vK2pXn4Ls.png
   Website      https://example.com
   Description  a demo token
 ```
 
-Without `--dry-run` the same command creates a real token. Its receipt, `✅ SunPump token created`, shows `Name`, `Symbol`, `Address`, `Creator` — the address SunPump chose — `Status`, `Created`, `Create tx`, the links it accepted and the description. The created token can then be read back with [`sunpump token-info`](token-info.md), which shows the same creator.
+```bash
+wallet-cli sunpump launch --name "My Token" --symbol MYT --description "a demo token" \
+  --image logo.png --website-url https://example.com --network tron -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.launch","data":{"kind":"sunpump-launch","token":{"address":"TXQiBB5nCC7cewZ13pX6dwoHWxPZ2wK2Yz","symbol":"MYT","name":"My Token","decimals":18,"totalSupply":"1000000000000000000000000000","status":"CREATED","owner":"TRYeDrXweRdBorzH9XE8KWMq3TinW4fmjd","market":{"marketCapUsd":"10982.080555299140726256","priceInTrx":"0.000032710280373832","priceChange24HrPercent":"0","volume24HrSun":"0","virtualLiquidity":"23501.65238834","trxPriceInUsd":"0.334866785815","priceUsd":"0.000010953586451892"},"curve":{"pumpPercentage":"0","currentSold":"0","tokenReserve":"800000000000000000000000000","trxReserve":"0"},"createdAt":"2026-10-08 06:12","createTxHash":"d06b9e3f5a2c8d17e4b0f6a9c3d5e82b1f7a4c0d9e6b3f2a8c5d1e7b4f0a9c36","description":"a demo token","links":{"logo":"https://cdn.sunpump.meme/public/logo/MYT_TRYeDr_Qm7vK2pXn4Ls.png","website":"https://example.com"}}},"meta":{"durationMs":3916,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+```
+
+The token can be read back with [`sunpump token-info`](token-info.md), which shows the same creator.
 
 ## Output
 
@@ -88,7 +86,7 @@ Without `--dry-run` the same command creates a real token. Its receipt, `✅ Sun
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error` — including a name or symbol the service refused; `provider_rate_limited`; `timeout`) · `2` usage error (`missing_option`, `invalid_option`, `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`provider_error` — including a name or symbol the service refused; `provider_rate_limited`; `timeout`) · `2` usage error (`missing_option`; `invalid_option` — `--account`, `--wait`, or both `--image` and `--image-base64`; `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
 
 ## See also
 

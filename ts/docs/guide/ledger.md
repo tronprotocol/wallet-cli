@@ -37,16 +37,11 @@ Nothing changes in the commands:
 wallet-cli tx send --to T... --amount 1 --network nile --account cold
 ```
 
-Instead of a password prompt, the Ledger asks you to approve. When the app decodes the transaction, verify its recipient and amount on the device; hash-only signing is described below. The transaction then broadcasts normally; confirm with [`tx status`](../commands/tx/status.md).
+Instead of a password prompt, the Ledger asks you to approve. When the TRON app can decode the transaction, its details appear **on the Ledger screen** — verify the recipient and amount there (that is the whole point of the device) and approve. Some contract operations are signed by hash instead; see [Hash signing](#hash-signing). The transaction then broadcasts normally; confirm with [`tx status`](../commands/tx/status.md).
+
+**Time to review.** A TRON transaction normally expires about 60 seconds after it is built, which a careful on-device review can outlast. For a new TRON transaction sent to a Ledger, the CLI therefore sets the expiration to at least ten minutes from signing — or the device timeout (`--timeout`) plus one minute, if longer. An expiration you set yourself is kept, and a transaction file that was already built or signed elsewhere is never changed. The expiration is checked again after the device signs: a transaction that expired while you were reviewing it fails with `tx_expired` and is not broadcast — rebuild and sign again.
 
 This is your best defense against address-swapping malware: what the device screen shows is what gets signed, regardless of what the host displays.
-
-For newly built TRON transactions sent directly to Ledger, the CLI reserves at least ten minutes
-for signing, or the configured device timeout plus one minute when longer. It preserves an explicit
-expiration and never extends imported or already signed transaction files. Expiration is checked
-again after signing; an expired transaction returns `tx_expired` instead of being broadcast.
-Multi-transaction SunSwap/SunPump `--build-only` batches use a one-hour transaction lifetime,
-though contract deadlines and Permit2 signatures may expire earlier.
 
 ## 3. When the device doesn't respond
 
@@ -56,44 +51,39 @@ Device calls are bounded by the same `--timeout` as RPC (default 60000 ms) and f
 2. Replug the cable; avoid USB hubs.
 3. Retry with a longer `--timeout` — on-device confirmation counts against it, so leave yourself time to read and press.
 
+The error code says what went wrong with the device itself:
+
+| Code | Meaning | What to do |
+|---|---|---|
+| `device_not_found` | No Ledger was detected | Connect and unlock it |
+| `device_unavailable` | A Ledger was detected but could not be opened | Close Ledger Live and any other app using the device, check USB access, reconnect |
+| `device_disconnected` | The connection was lost during the operation | Reconnect, unlock, reopen the right app, retry |
+| `ledger_unsupported` | The open app cannot sign this, or is not the right app | Open the right app and check its version |
+| `ledger_setting_required` | A TRON app setting is off | Enable the setting the message names — see [TRON app settings](#tron-app-settings) |
+| `signing_rejected` | You declined on the device | — |
+
+On a timeout or cancellation the CLI closes the device without waiting for it; if the next command cannot open it, reconnect it.
+
 More remedies: [Troubleshooting](../troubleshooting.md#timeout-exit-1).
-
-## TRON app settings
-
-Two settings under **TRON app → Settings** gate contract signing. Both default to *NOT Allowed*:
-
-- **Custom contracts**: every smart-contract call, including TRC20 approvals and SunPump trades.
-- **Sign by Hash**: TIP-712 typed data such as Permit2 grants, and transactions too large for the
-  device to display.
-
-The SunSwap and SunPump write commands need both. A missing setting fails with
-`ledger_setting_required`, which names the setting to enable. In a multi-step command, transactions
-sent before the failure stay on chain; their IDs appear in `error.details.approvalTxIds`.
-
-## Hash signing and recovery
-
-TRON Permit2 authorizations use TIP-712 hash signing. Some large contract transactions also fall
-back to hash signing when the Ledger SDK cannot encode their fields. These paths require
-**TRON app → Settings → Sign by Hash → Allowed**. The device displays hashes rather than the full
-token, amount and spender details; verify those in the CLI preview before approving. A hash-signing
-fallback emits a warning. This does not mean every swap uses hash-only transaction signing.
-
-On timeout or cancellation the CLI closes the underlying HID device without waiting for the
-pending APDU. Hardware behavior still depends on the device and USB driver; reconnect the device
-if the next operation cannot open it.
-
-- `device_disconnected`: reconnect, unlock and reopen the correct app before retrying.
-- `device_unavailable`: close Ledger Live and other applications using the device, check USB access,
-  then reconnect. This code does not prove another application owns the device.
-- `device_not_found`: no device was detected.
-- `ledger_unsupported`: open the correct app and check its version; the status alone does not prove
-  the app was closed.
-
-A `0x6985` rejection remains `signing_rejected`; it is not reclassified as a lock without evidence.
 
 ## Offline pattern
 
 Ledger already isolates keys, but you can still split build, sign and broadcast. For a device machine with no chain access: build the TRON unsigned hex with an explicit signing window on a connected machine (`--build-only --expiration 3600000`), sign it with `tx sign --offline` where the Ledger is attached, then broadcast the signed hex from a connected machine. The default TRON expiry is about 60 seconds — usually too short for a cross-machine workflow; the maximum is 24 hours. EVM artifacts have no expiration flag. See [Scripting → Sign here, broadcast there](scripting.md#sign-here-broadcast-there).
+
+## TRON app settings
+
+Two settings under **TRON app → Settings** gate contract signing, and both default to *Not allowed*:
+
+- **Custom contracts** — every smart-contract call, including TRC20 approvals and the SunSwap and SunPump trades.
+- **Sign by Hash** — TIP-712 typed data such as Permit2 grants, and transactions too large for the device to display.
+
+The [`sunswap`](../commands/sunswap/index.md) and [`sunpump`](../commands/sunpump/index.md) write commands need both. A missing setting fails with `ledger_setting_required`, naming the setting to enable. In a command that sends several transactions, any approval sent before the failure stays on chain; its ID is in `error.details.approvalTxIds`.
+
+<a id="hash-signing-and-recovery"></a>
+
+## Hash signing
+
+Permit2 grants (a router `sunswap swap` that spends a token, a V4 `sunswap add-liquidity`) are signed by hash, and so are contract transactions too large for the device to decode. The device then shows a **hash**, not the token, amount and spender — so check those in the CLI's preview (`--dry-run` shows them) before you approve. When a transaction falls back to hash signing, the CLI warns. Not every swap is signed by hash: a swap that spends TRX is an ordinary contract call the device can display.
 
 ## See also
 

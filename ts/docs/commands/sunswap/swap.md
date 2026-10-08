@@ -6,71 +6,98 @@ Exchange one token for another.
 
 ```
 wallet-cli sunswap swap <tokenIn> <tokenOut> <amountIn>
-                        [--quote [--all]]
-                        [--slippage <decimal>] [--fee-limit <sun>]
-                        [--dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                        [--quote [--all] | --dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                        [--slippage <decimal>] [--fee-limit <sun>] [options]
 ```
 
-## The market is chosen first
+## Description
 
-Before anything is priced, the command decides **which market** the trade belongs to, from on-chain state, and it decides identically in every mode:
+Spends `<amountIn>` whole tokens of `<tokenIn>` for as much `<tokenOut>` as the market gives.
 
-- Exactly one side is **TRX**, and the other is a **SunPump token that has not launched yet** → that token's **bonding curve**.
-- Anything else → the **SunSwap router**.
+**Mainnet only.** On Nile or Shasta the command fails with `unsupported_network_capability` (exit 2); on an EVM network, with `family_mismatch`.
 
-A pair with no native side is not asked about the curve at all, which also saves an ordinary TRC-20 pair a launchpad read it does not need.
+### The market is chosen first
 
-**If the curve's state cannot be read, the command stops** with `provider_error` rather than falling back to the router. A failed probe is not evidence about the market, and pricing on one market while filling on the other is the way this command loses money.
+Before anything is priced, the command decides **which market** the trade belongs to, from on-chain state, identically in every mode:
 
-The receipt names the market in every mode, because it changes what the numbers mean: on a curve the trading fee is SunPump's **platform fee**, there is one hop, and there is no price impact.
+- Exactly one side is **TRX** and the other is a **SunPump token that has not launched yet** → that token's **bonding curve**.
+- Anything else → the **SunSwap router**, which finds a route across V1, V2, V3 and V4 pools.
 
-## Naming the tokens
+The output names the market (`Market` in text, `market` in JSON), because it changes what the numbers mean: on a curve the trading fee is SunPump's **platform fee**, there is one hop, and there is no price impact. If the curve's state cannot be read, the command **stops** with `provider_error` rather than falling back to the router — a quote from one market and a fill on the other is how a swap loses money.
 
-`<tokenIn>` and `<tokenOut>` each take a contract address or a symbol. `TRX` and `WTRX` are built in. Any other symbol is looked up, case-insensitively, in the **token address book of the account this command uses** — the official entries plus the ones that account added with [`token add`](../token/add.md) — which is `--account` when given, else the active account. `--quote` reads the same book as the execution it previews, so both name the same token; with no account at all, only the official entries apply.
+[`sunpump buy`](../sunpump/buy.md) and [`sunpump sell`](../sunpump/sell.md) reach the same curve directly, with a 5% default slippage instead of this command's 0.5%.
 
-- A symbol that matches **more than one** entry is refused with `ambiguous_token_symbol` (exit 2), even when one of them is official. The message lists every candidate address; pass the one you mean. One is never picked for you: a user-added token calling itself `USDT` is exactly how an impersonation would reach a trade.
-- A symbol that matches nothing is `unsupported_token` (exit 2): pass its contract address in its place, or add it with `wallet-cli token add`.
+### Naming the tokens
 
-The contract each side resolved to is shown in every mode — `Token in` / `Token out` in text, `address` in JSON — and a side whose symbol came from the account's own book is marked `(from your token book)`.
+Each token is a contract address or a symbol. `TRX` and `WTRX` are built in; any other symbol is looked up, case-insensitively, in the [token address book](../token/index.md) of the account this command uses (`--account`, else the active account) — the official entries plus any added with [`token add`](../token/add.md). `--quote` reads the same book, so a quote and the execution it previews name the same token.
 
-## How a router swap is authorized
+- A symbol matching **more than one** entry is refused with `ambiguous_token_symbol` (exit 2), and the message lists every candidate address. One is never picked for you: a user-added token calling itself `USDT` is exactly how an impersonation would reach a trade.
+- A symbol matching nothing is `unsupported_token` (exit 2): pass the contract address, or add it with `token add`.
 
-A swap that spends **TRX** needs no permission: the TRX travels as the transaction's own value, and it is one transaction.
+Every mode shows the contract each side resolved to — `Token in` / `Token out` in text, `tokenIn.address` / `tokenOut.address` in JSON. A side whose symbol came from the account's own book is marked `(from your token book)`, and JSON lists those addresses under `fromTokenBook`.
 
-A swap that spends a **token** needs two, because the Universal Router does not move tokens itself — [Permit2](https://github.com/Uniswap/permit2) does, on its behalf:
+### Spending TRX vs spending a token
 
-1. A **TRC-20 approval to Permit2**, for **exactly this trade**.
-2. A **Permit2 grant** to the router, for exactly this trade, **lapsing in one hour** — signed as EIP-712 typed data, which costs nothing and is not a transaction.
+A router swap that spends **TRX** is one transaction: the TRX travels as the call's own value, and nothing needs approving.
 
-Then the swap itself. So a token swap is two transactions and one signature.
+A router swap that spends a **token** needs two grants, and neither is unlimited:
 
-**A standing Permit2 grant is used as it stands.** If the account already holds a Permit2 grant to the router that covers the trade — for example one left by another client built on the SunSwap SDK, whose swap planner grants `MAX_UINT160` for thirty days — no new grant is signed and the swap goes out without a permit, as the SDK itself encodes it. The TRC-20 allowance to Permit2 is a separate layer and is still checked and approved when short. The JSON then carries no `permit`.
+1. A TRC20 **approval to Permit2** for exactly this trade — a transaction, sent and confirmed first. Skipped when an existing allowance already covers the trade. Unlike the grant below, this allowance does not expire on its own.
+2. A **Permit2 grant** to the router for exactly this trade, **expiring in one hour** — a typed-data signature, which costs nothing and is not a transaction.
 
-**Neither grant is unlimited, and that took work.** The SDK's own swap planner asks for `MAX_UINT160` for **thirty days** in every authorizing mode, with no option to bound either figure. This command plans the authorization separately so the grant is exactly the trade and expires within the hour. The paths in this CLI that do grant unlimited allowances are elsewhere: the token allowance to Permit2 on a V4 deposit (see [`add-liquidity`](add-liquidity.md#approvals-on-v4)) and the approval to the SunPump launchpad when selling into the curve, whether through this command or [`sunpump sell`](../sunpump/sell.md). This is not one of them.
+If the account already holds a Permit2 grant to the router that covers the trade — for example one left by another SunSwap client, which typically grants far more for thirty days — no new grant is signed and the swap uses the standing one; `permit` is then absent from the output.
 
-### The balance is checked first
+Then the swap itself. Before the Permit2 grant is signed, its token, amount, spender, chain and expiry are checked; a mismatch fails with `permit_mismatch` without signing that grant. After signing, the recovered signer is checked; a mismatch fails with `signing_rejected`. The encoded swap is checked against the quote before it is sent; a mismatch fails with `router_call_mismatch` and the swap is not sent. If an approval went out before a later step failed, it remains on chain and its ID is in `error.details.approvalTxIds`; re-running reuses a sufficient allowance.
 
-Before the permit or the approval is planned, in every mode, the account must hold what the swap spends: the TRX for a swap spending TRX, the token for a swap spending a token. An account the chain has no record of is `account_not_active`; an activated one that holds too little is `insufficient_balance` (TRX) or `insufficient_token_balance` (a token), all exit 1. Checking first is what keeps an execute from paying for a Permit2 approval it can never use. The chain's own fee is not added — `--fee-limit` bounds that.
+**Ledger** signs the Permit2 grant by hash, so the device shows a hash rather than the token and amount — check those in the CLI's preview. The TRON app needs **Custom contracts** and **Sign by Hash** allowed; see [TRON app settings](../../guide/ledger.md#tron-app-settings).
 
-### What is checked, and when
+### What is checked before anything is spent
 
-The permit is a **bearer grant**: signed, it lets the router move the tokens with no transaction of ours in the way. So it is checked against the swap on both sides of being signed.
+In every mode except `--quote`, the account must hold what the swap spends: an account the chain has no record of fails with `account_not_active`, one holding too little with `insufficient_balance` (TRX) or `insufficient_token_balance` (a token) — all exit 1. Checking first is what keeps a real run from paying for an approval it can never use. The network fee is not part of this check; `--fee-limit` bounds that.
 
-**Before signing** — the typed data must name this token, exactly this amount, the Universal Router as spender, this chain, Permit2 as the verifying contract, a `PermitSingle` (never a `PermitBatch`, which would authorize several tokens at once), the exact EIP-712 field list, and an expiry no further out than the hour asked for. Any mismatch is `permit_mismatch` (exit 1) and **nothing is signed**.
+### Slippage and the floor
 
-**After signing** — the signature must recover to the account being traded for. This one cannot happen earlier: `PermitSingle` carries no owner field, so until a signature exists there is nothing to compare.
+`--slippage` (default `0.005`, i.e. 0.5%; from `0.0001` to `0.5`, in steps no finer than `0.0001`) sets the floor `Min received`: below it the trade reverts on chain. The floor is computed by the CLI from the chosen route and read back out of the encoded call before sending, so it is the one actually enforced.
 
-**Then the encoded call** — the minimum output, the recipient and the deadline live inside `execute(bytes,bytes[],uint256)` as ABI words and nowhere else. They are read back out and compared to what the receipt says, along with the permit's own amount and expiry, and an unlimited grant is refused by value. A mismatch is `router_call_mismatch` (exit 1).
+### Modes
 
-### The approval goes first, and that has a cost
+| Mode | Needs | What you get |
+|---|---|---|
+| `--quote` | nothing — no account, no password | The best route (highest output, then lowest fee, then fewest hops); `--all` lists every candidate. No floor is published — `--quote` refuses `--slippage` |
+| `--dry-run` | an account (watch-only works), no password | The chosen route, the floor, the grants it would ask for, and a fee estimate |
+| `--build-only` | an account, no password | The unsigned transaction. **Refused for a router swap that spends a token**: the transaction embeds the Permit2 signature, which does not exist yet |
+| default / `--wait` | a signing account (software password via stdin/TTY, or Ledger approval) | Sends. Returns at submission unless `--wait` |
 
-Permit2 cannot move the token until the allowance exists, so the approval is **broadcast before** the encoded call is checked. If that check then fails, the approval is on chain and the swap is not: a fee spent for nothing, leaving a TRC-20 allowance for exactly this trade that does not expire automatically; the one-hour expiry applies only to a newly signed Permit2 grant. Re-running recovers it — an allowance that already covers the trade is not approved again.
+For a swap spending **TRX** it prices the swap itself. For a swap spending a **token**, what it can price depends on what is already on chain, and `feeCovers` says which case applies:
 
-For the curve, [`sunpump buy`](../sunpump/buy.md) and [`sunpump sell`](../sunpump/sell.md) reach the same contract with the same two commands' worth of options.
+- **A standing Permit2 grant covers the trade** and the allowance to Permit2 suffices: it prices the swap itself (`feeCovers: "all"`).
+- **An approval to Permit2 is still needed:** it prices the **approval only** and says so — `Fee (est, approval only)` (`feeCovers: "approvals"`). The swap cannot be simulated before that allowance is on chain.
+- **Only a new Permit2 grant is needed:** nothing on chain is left to price, so `Fee (est)` carries the reason instead of a figure (`feeCovers: "none"`, with `feeUnavailableReason`). Encoding the swap needs the signature, and a dry run does not sign.
 
-## Quoting a router pair
+## Options
 
-`--quote` takes **no account and no password**, and publishes the **best** candidate — which is not the first one the service returns. Measured on mainnet, the service has answered with its worst output first; taking `route[0]` would have quoted 34.344609 USDT where 34.376047 was on offer. Best means **highest output**, then lowest fee, then fewest hops.
+| Option | Description |
+|---|---|
+| `<tokenIn>` | **Required.** Token to spend, symbol or contract address |
+| `<tokenOut>` | **Required.** Token to receive, symbol or contract address |
+| `<amountIn>` | **Required.** Amount of `<tokenIn>` to spend, in whole tokens, > 0 |
+| `--quote` | Price only. Excludes `--dry-run`, `--build-only`, `--wait` and `--slippage` |
+| `--all` | List every candidate route instead of the best one; only with `--quote` |
+| `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
+| `--build-only` | Emit the unsigned transaction(s) without signing them |
+| `--slippage <decimal>` | Tolerance, e.g. `0.005` for 0.5%; default `0.005` |
+| `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The dry run's estimate is a lower bound, so a limit set from it can fail |
+| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--account <label\|accountId>` | Account to trade from; default the active account. `--quote` reads the same account's token book |
+| `--password-stdin` | Master password from stdin (fd 0); needed only by the modes that sign |
+
+Plus the [global options](../index.md#global-options-every-command). `--sign-only` is not offered in this group.
+
+## Examples
+
+In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
+
+A quote needs no account:
 
 ```bash
 wallet-cli sunswap swap TRX USDT 100 --quote --network tron
@@ -81,120 +108,163 @@ Market  SunSwap
 Token in  T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
 Token out  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
 
-| Route      | Amount in | Amount out     | Trading fee | Price impact |
-| ---------- | --------- | -------------- | ----------- | ------------ |
-| TRX → USDT | 100 TRX   | 34.334861 USDT | 0.05 TRX    | 0.000000%    |
+| Route                   | Amount in | Amount out     | Trading fee  | Price impact |
+| ----------------------- | --------- | -------------- | ------------ | ------------ |
+| TRX → WTRX → JST → USDT | 100 TRX   | 33.503693 USDT | 0.349849 TRX | -0.000010%   |
 
 1 of 3 routes shown — --all lists them.
 ```
 
-`--all` lists every candidate, in the order the service returned them:
-
-```console
-| Route                    | Amount in | Amount out     | Trading fee  | Price impact |
-| ------------------------ | --------- | -------------- | ------------ | ------------ |
-| TRX → USDT               | 100 TRX   | 34.334861 USDT | 0.05 TRX     | 0.000000%    |
-| TRX → WTRX → USD1 → USDT | 100 TRX   | 34.33455 USDT  | 0.059994 TRX | -0.000010%   |
-| TRX → WTRX → USDT        | 100 TRX   | 34.322571 USDT | 0.05 TRX     | 0.000000%    |
+```bash
+wallet-cli sunswap swap TRX USDT 100 --quote --network tron -o json
 ```
 
-**A negative price impact is a real answer**, not a formatting slip: the route paid better than the service's reference price. It is published as measured rather than clamped to zero.
-
-A quote publishes **no minimum and no slippage**, anywhere in the payload — `--quote` refuses `--slippage`, so a floor would come from a default the caller never chose and nothing would enforce it. It is also why `--all` is refused without `--quote`: an execution takes one route, not a list.
-
-If the route service rate-limits the request (HTTP 429) the command fails with `provider_rate_limited` (exit 1, retry later), with `Retry-After` in `error.details.retryAfterSeconds` when sent. The request honours `--timeout` (`timeout`) and the CLI's response-size cap (`response_too_large`); any other failure is `provider_error`.
-
-**The floor is ours, not the service's.** The route service returns an `amountOutMinimum` field that is *equal to* `amountOut` even when slippage was requested, so it is never published and never used: reading it would report no protection where there is some. The minimum is computed from `--slippage` and then read back out of the encoded call to confirm it is the one being enforced.
-
-## Options
-
-| Option | Description |
-|---|---|
-| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only` and `--slippage` |
-| `--all` | List every candidate route instead of the best one. **Only with `--quote`** |
-| `--slippage <decimal>` | Tolerance, e.g. `0.005`. **Default 0.5%** — note that [`sunpump buy`](../sunpump/buy.md) and [`sell`](../sunpump/sell.md) reach the same curve with a **5%** default, because a command named after a meme-token market budgets for its volatility |
-| `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. The dry run's estimate is a **lower bound**, so a limit set from it can fail |
-| `--dry-run` / `--wait` | See [machine-interface.md](../../machine-interface.md) |
-| `--build-only` | **Refused** for a router swap that spends a token: the transaction embeds the Permit2 signature, so it cannot be built before that signature exists. A swap spending TRX has no permit and does build |
-
-`--sign-only` is not offered in this group.
-
-### What `--dry-run` can and cannot tell you
-
-For a swap spending **TRX** it prices the swap itself. For a swap spending a **token**, what it can price depends on what is already on chain, and `feeCovers` says which case applies:
-
-- **A standing Permit2 grant covers the trade** and the allowance to Permit2 suffices: it prices the swap itself (`feeCovers: "all"`).
-- **An approval to Permit2 is still needed:** it prices the **approval only** and says so — `Fee (est, approval only)` (`feeCovers: "approvals"`). The swap cannot be simulated before that allowance is on chain.
-- **Only a new Permit2 grant is needed:** nothing on chain is left to price, so `Fee (est)` carries the reason instead of a figure (`feeCovers: "none"`, with `feeUnavailableReason`). Encoding the swap needs the signature, and a dry run does not sign.
-
-When a new grant is needed it publishes the grant it *would* ask for, which is what a caller came to check:
-
-```console
-⏳ Dry run sunswap swap
-  Account                   TE9kPMtaMj...wx9EcJW8
-  Market                    SunSwap
-  Token in                  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
-  Token out                 T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
-  Spend                     1 USDT
-  Receive (est)             2.921823 TRX
-  Min received              2.907213 TRX
-  Slippage                  0.5%
-  Price impact (quote)      0.01%
-  Fee (est, approval only)  ~99,764 energy
-  Spender                   TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9
-  Allowance                 1000000  (approval tx will be sent first; exactly this trade)
-  Permit2                   TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9
-  Permit grants             1000000 to TQqgNg13s2...wZGvb7Y4
-  Permit expires            2026-09-24 06:48:26 UTC (1 hour)
-
-⚠️ The swap's own fee cannot be estimated until the Permit2 authorization is signed, which a dry run does not do.
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.swap","data":{"kind":"sunswap-swap","mode":"quote","market":"sunswap","routes":[{"amountIn":"100000000","amountOut":"33503693","inUsd":"33.482586577700000002","outUsd":"33.481091433293910662","priceImpactPercent":"-0.000010","tradingFee":"349849","containsUnverifiedHook":false,"path":[{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6},{"address":"TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR","symbol":"WTRX"},{"address":"TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9","symbol":"JST"},{"address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","symbol":"USDT","decimals":6}],"protocols":["V2","V2","V4"],"poolFees":["0","3000","500","0"]}],"routesAvailable":3},"meta":{"durationMs":3314,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
-## Availability
+`--all` lists every candidate, in the order the service returned them — the single quote above is the one with the highest output:
 
-**TRON mainnet only**, and it is a config question rather than a branch on the network's name: `swap` is registered where a network's config has **either** `sunpump.curve: true` **or** a `sunswap.routerApiBaseUrl`. Nile and Shasta have neither, so there it fails with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier still, on the family.
+```bash
+wallet-cli sunswap swap TRX USDT 100 --quote --all --network tron
+```
 
-## Reading the JSON
+```console
+Market  SunSwap
+Token in  T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+Token out  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+
+| Route                   | Amount in | Amount out     | Trading fee  | Price impact |
+| ----------------------- | --------- | -------------- | ------------ | ------------ |
+| TRX → USDT              | 100 TRX   | 33.491511 USDT | 0.3 TRX      | -0.000051%   |
+| TRX → WTRX → JST → USDT | 100 TRX   | 33.503693 USDT | 0.349849 TRX | -0.000010%   |
+| TRX → JST → USDT        | 100 TRX   | 33.501478 USDT | 0.349846 TRX | -0.000069%   |
+```
+
+A negative price impact is a real answer, not a formatting slip: the route paid better than the service's reference price.
+
+A token that is still on its SunPump curve is quoted on the curve:
+
+```bash
+wallet-cli sunswap swap TRX TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E 10 --quote --network tron
+```
+
+```console
+Market  SunPump bonding curve
+Token in  T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+Token out  TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E
+
+| Route        | Amount in | Amount out            | Platform fee |
+| ------------ | --------- | --------------------- | ------------ |
+| TRX → Justin | 10 TRX    | 251,195.108099 Justin | 0.1 TRX      |
+```
+
+Swapping 10 TRX for USDT. `--wait` returns the confirmed receipt, whose `Received` is what actually arrived, read from the transaction:
+
+```bash
+echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --wait --password-stdin --account lp --network tron
+```
+
+```console
+✅ Swapped 10 TRX for 3.351902 USDT
+  Account               TT2T17KZho...dkEWkU9N
+  Market                SunSwap
+  Token in              T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+  Token out             TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+  Spent                 10 TRX
+  Received              3.351902 USDT
+  Min received          3.335107 USDT
+  Slippage              0.5%
+  Price impact (quote)  -0.000001%
+  TxID                  4f1c9a7e3b2d8c50e6a1f9b7d34c2e8a0b5f6d1c7e9a3b4c2d8e0f1a6b5c9d7e
+  Block                 #86,922,731
+  Energy                405,118
+  Fee                   40.8534 TRX
+  Status                success
+```
+
+```bash
+echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --wait --password-stdin --account lp --network tron -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.swap","data":{"kind":"sunswap-swap","market":"sunswap","account":"TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N","amountIn":"10000000","tokenIn":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6},"tokenOut":{"address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"symbol":"USDT"},"route":{"path":[{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6},{"address":"TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR","symbol":"WTRX"},{"address":"TPFqcBAaaUMCSVRCqPaQ9QnzKhmuoLR6Rc","symbol":"USD1"},{"address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","symbol":"USDT","decimals":6}],"protocols":["V2","V3","V3"],"poolFees":["0","500","100","0"]},"tradingFee":"5999","amountOutExpected":"3351867","priceImpactPercent":"-0.000001","priceImpactEstimated":true,"amountOutMinimum":"3335107","slippage":"0.005","stage":"confirmed","txId":"4f1c9a7e3b2d8c50e6a1f9b7d34c2e8a0b5f6d1c7e9a3b4c2d8e0f1a6b5c9d7e","confirmed":true,"blockNumber":86922731,"feeSun":40853400,"energyUsed":405118,"energyFeeSun":40508400,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"amountOut":"3351902"},"meta":{"durationMs":9184,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+```
+
+Swapping 1 USDT for TRX. The Permit2 grant is signed locally and travels inside the swap; no approval transaction was needed, because the allowance to Permit2 already covered the trade:
+
+```bash
+echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --wait --password-stdin --account lp --network tron
+```
+
+```console
+✅ Swapped 1 USDT for 3.012871 TRX
+  Account               TT2T17KZho...dkEWkU9N
+  Market                SunSwap
+  Token in              TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+  Token out             T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb
+  Spent                 1 USDT
+  Received              3.012871 TRX
+  Min received          2.99794 TRX
+  Slippage              0.5%
+  Price impact (quote)  -0.002370%
+  Permit2               TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9
+  Permit grants         1000000 to TQqgNg13s2...wZGvb7Y4
+  Permit expires        2026-10-08 05:46:07 UTC (1 hour)
+  TxID                  b83e0d5a9c17f42e6b0a8d3c5f91e27d4a6c0b8e3f5d2a9c7e1b4f60d8a3c25e
+  Block                 #86,922,815
+  Energy                286,437
+  Fee                   28.9887 TRX
+  Status                success
+```
+
+```bash
+echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --wait --password-stdin --account lp --network tron -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.swap","data":{"kind":"sunswap-swap","market":"sunswap","account":"TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N","amountIn":"1000000","tokenIn":{"address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","decimals":6,"symbol":"USDT"},"tokenOut":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6},"route":{"path":[{"address":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","symbol":"USDT","decimals":6},{"address":"TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9","symbol":"JST"},{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6}],"protocols":["V4","V4"],"poolFees":["500","3000","0"]},"tradingFee":"3498","amountOutExpected":"3013006","priceImpactPercent":"-0.002370","priceImpactEstimated":true,"amountOutMinimum":"2997940","slippage":"0.005","approvals":[],"permit":{"permit2":"TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9","spender":"TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4","amount":"1000000","expiration":"1791438367"},"stage":"confirmed","txId":"b83e0d5a9c17f42e6b0a8d3c5f91e27d4a6c0b8e3f5d2a9c7e1b4f60d8a3c25e","confirmed":true,"blockNumber":86922815,"feeSun":28988700,"energyUsed":286437,"energyFeeSun":28643700,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"amountOut":"3012871"},"meta":{"durationMs":14327,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+```
+
+## Output
 
 `kind` is `sunswap-swap` in every mode, and `market` is `sunswap` or `sunpump`.
 
-`fromTokenBook` — present only when a symbol resolved from the account's own token book: the contract addresses that did, so a script can tell a user-added token from an official one.
+**`--quote`** returns `routes[]` — always an array, one element unless `--all` — with `routesAvailable` counting the candidates:
 
-A quote is **plural**: `routes` is an array whether one candidate came back or five, with `routesAvailable` counting how many exist, so an agent parses `--quote` and `--quote --all` the same way.
+| Field | Type | Meaning |
+|---|---|---|
+| `amountIn` / `amountOut` | string | Base units |
+| `tradingFee` | string | Base units of the **input** token — text shows it in that token too (`0.005 USDT` for a USDT sale); on the curve, SunPump's platform fee in TRX |
+| `priceImpactPercent` | string | As the service reports it, negative included. Absent on the curve |
+| `path[]` | array | `{address, symbol}` per token; the two ends also carry `decimals` |
+| `protocols[]` | string[] | One per pool hop, so one fewer than `path` (`SUNPUMP` on the curve) |
+| `poolFees[]` | string[] | Fee tiers, one per token in `path` — a trailing `0` past the last pool |
+| `inUsd` / `outUsd` | string | Present only when the service sends them |
+| `containsUnverifiedHook` | boolean | The route passes through an unverified V4 hook contract. The route is still offered; the CLI warns in every mode |
 
-Per route:
+**Every other mode** returns one chosen `route`, plus:
 
-- `amountIn` / `amountOut` — **base units**. The route service's own `amountIn` field is a human decimal and its `amountInRaw` is the base-unit one; the raw figures are what this publishes.
-- `tradingFee` — base units of the **input** token. **Derived**: the service sends the fee only as a human decimal, and has no raw field at all.
-- `priceImpactPercent` — as the service reports it, negative included.
-- `path` — `{address, symbol}` per token, with `decimals` on the **two ends**, which are the tokens this command resolved. An intermediate hop is published **without** `decimals` rather than with a guessed default. The ends are identified by position, not by ticker: two different contracts sharing a symbol is ordinary on TRON.
-- `protocols` — uppercase, **one per pool**, so one fewer than `path`.
-- `poolFees` — fee tiers as the service sends them, which is **one per token in `path`** — a trailing `0` past the last pool. Published unchanged rather than trimmed to a shape the service does not use.
-- `inUsd` / `outUsd` — present only when the service sends them.
-- `containsUnverifiedHook` — the route passes through a hook contract nobody has verified. A fact about the route, not a decode failure: the route is still offered and the caller decides, and it is warned about in **every** mode rather than only in the quote table.
+| Field | Type | Meaning |
+|---|---|---|
+| `account` | string | The trading address |
+| `amountIn` | string | Base units of `tokenIn` |
+| `tokenIn` / `tokenOut` | object | `{address, symbol, decimals}` |
+| `amountOutExpected` / `amountOutMinimum` | string | Expected output and the enforced floor, base units of `tokenOut` |
+| `slippage` | string | The tolerance the floor was computed from |
+| `tradingFee`, `priceImpactPercent` | string | Quoted figures; `priceImpactEstimated: true` marks the router's impact as a quote, not a measurement |
+| `approvals[]` | array | The TRC20 approval to Permit2, `{token, spender, amount, …}`; empty or absent when none is needed |
+| `permit` | object | `{permit2, spender, amount, expiration}` — the Permit2 grant (expiration in Unix seconds). Absent when spending TRX |
+| `fee` / `feeCovers` / `feeUnavailableReason` | — | The estimate and what it covers (`all`, `approvals` or `none`) |
+| `approvalTxIds[]` | string[] | Once sent: the approvals, in the order sent, beside the swap's own `txId` |
+| `amountOut` | string | Confirmed receipts only: what actually arrived, read from the transaction. `amountsEstimated: false` marks it as measured; if the receipt could not be read, `amountOutExpected` stands, `amountsEstimated` is `true` and a warning says why |
 
-Every other mode publishes one chosen `route` instead, with `amountOutExpected`, `amountOutMinimum` and `slippage` beside it, plus:
+The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
 
-- `approvals` — the TRC-20 approval to Permit2, `{token, spender, amount, …}`, absent when the allowance already covers the trade or the input is TRX.
-- `permit` — `{permit2, spender, amount, expiration}`: the grant that was authorized, not merely that one was. Absent for a TRX input, which needs none, and when a standing Permit2 grant already covers the trade.
-- `approvalTxIds` — in the order sent, beside the swap's own `txId`.
-- `feeCovers` — `"approvals"` when a dry run could only price the approval, `"none"` when an unsigned Permit2 grant prevents estimation and there are no on-chain approvals to price, and `"all"` when the complete transaction can be estimated.
+## Exit status
+
+`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`account_not_active`, `insufficient_balance`, `insufficient_token_balance`, `same_token` — the two sides are the same token, `no_matching_route` — no path for that pair (retry later), `launchpad_trading_closed`, `permit_mismatch`, `router_call_mismatch`, `slippage_exceeded`, `watch_only_no_signer` — a watch-only account in a mode that signs, `auth_failed`, `provider_error`, `provider_rate_limited` — the route service returned HTTP 429, with `details.retryAfterSeconds` when sent, `timeout`) · `2` usage error (`invalid_amount` — `<amountIn>` not a positive number; `invalid_value` — a `--slippage` outside 0.0001–0.5 or finer than 0.0001; `invalid_option` — two modes together, `--wait` with `--quote` / `--dry-run` / `--build-only`, `--slippage` with `--quote`, `--all` without `--quote`, `--build-only` for a token swap; `account_not_found`; `unsupported_token`, `ambiguous_token_symbol`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 
-[`sunpump buy`](../sunpump/buy.md) · [`sunpump sell`](../sunpump/sell.md) · [`sunswap price`](price.md) · [machine-interface.md](../../machine-interface.md)
-
-
-Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
-[TRON app settings](../../guide/ledger.md#tron-app-settings). On hash-signing paths the device
-displays hashes, not full transaction details; verify the CLI preview before approving. See
-[Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
-
-
-With `--wait`, a successful confirmed trade publishes `amountOut` from output-token Transfer logs
-or native TRX internal transfers to the recipient, net of outgoing transfers of that asset within
-the same transaction. Network fees are excluded. `amountsEstimated: false` identifies verified
-output; absent, malformed or unavailable receipt evidence keeps `amountOutExpected`, sets
-`amountsEstimated: true` and adds a warning. Concurrent account activity cannot alter these figures.
-`priceImpactPercent` on a router trade remains the route's quoted impact and is explicitly marked
-`priceImpactEstimated: true`; it is not a post-trade measurement. `tradingFee` remains quoted too.
+[`sunpump buy`](../sunpump/buy.md) · [`sunpump sell`](../sunpump/sell.md) · [`sunswap price`](price.md) · [`sunswap` group](index.md) · [machine-interface.md](../../machine-interface.md)

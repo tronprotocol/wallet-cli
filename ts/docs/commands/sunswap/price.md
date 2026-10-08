@@ -10,7 +10,7 @@ wallet-cli sunswap price [<token>] [options]
 
 ## Description
 
-Prices come from the SunSwap market data service. Give either a token **symbol** as the positional argument or a comma-separated list of **contract addresses** with `--address` — one or the other, never both.
+Prices come from the SunSwap market data service, which holds mainnet data only — on Nile or Shasta the command fails with `unsupported_network_capability`. Give either a token **symbol** as the positional argument or a comma-separated list of **contract addresses** with `--address` — one or the other, never both.
 
 A symbol is resolved locally, not by the service: `TRX` and `WTRX` are built in, and anything else is looked up in the **official** token address book for the network. The user layer of that book is per-account and this command takes no account, so a symbol added with [`token add`](../token/add.md) does **not** resolve here; pass its address instead.
 
@@ -35,8 +35,18 @@ wallet-cli sunswap price TRX --network tron
 ```console
 | Symbol | Address                            | Price (USD) | Quoted at (UTC)  |
 | ------ | ---------------------------------- | ----------- | ---------------- |
-| TRX    | T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb | $0.3428     | 2026-09-23 11:49 |
+| TRX    | T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb | $0.3350     | 2026-10-08 04:34 |
 ```
+
+```bash
+wallet-cli sunswap price TRX --network tron -o json
+```
+
+```json
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.price","data":{"prices":[{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","priceUsd":"0.335046040886","quotedAt":"2026-10-08 04:34"}]},"meta":{"durationMs":1427,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+```
+
+Several tokens by address:
 
 ```bash
 wallet-cli sunswap price --address T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb,TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7,TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4 --network tron
@@ -45,20 +55,12 @@ wallet-cli sunswap price --address T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb,TLa2f6VPqD
 ```console
 | Symbol | Address                            | Price (USD)   | Quoted at (UTC)  |
 | ------ | ---------------------------------- | ------------- | ---------------- |
-| WIN    | TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7 | $0.00003980   | 2026-09-23 11:49 |
-| TRX    | T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb | $0.3428       | 2026-09-23 11:49 |
-| BTT    | TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4 | $0.0000003830 | 2026-09-23 11:49 |
+| WIN    | TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7 | $0.00005557   | 2026-10-08 04:34 |
+| TRX    | T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb | $0.3350       | 2026-10-08 04:34 |
+| BTT    | TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4 | $0.0000003632 | 2026-10-08 04:34 |
 ```
 
 A price at or above a cent shows four decimals; below a cent it switches to four significant digits, truncated, so a sub-cent token does not collapse to `$0.0000`.
-
-```bash
-wallet-cli sunswap price TRX --network tron -o json
-```
-
-```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.price","data":{"prices":[{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","priceUsd":"0.342756916444","quotedAt":"2026-09-23 11:50"}]},"meta":{"durationMs":540,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
-```
 
 ## Output
 
@@ -72,7 +74,7 @@ Rows come back in the service's order, which need not match the order given; mat
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error`, `provider_rate_limited` — with `details.retryAfterSeconds` when the service sent a usable `Retry-After`, `timeout`) · `2` usage error (`missing_option` — neither the token argument nor `--address`; `invalid_option` — both; `unsupported_token` — the symbol does not resolve on this network; `invalid_address`; `unsupported_network_capability`).
+`0` success · `1` execution failure (`provider_error`, `provider_rate_limited` — with `details.retryAfterSeconds` when the service sent a usable `Retry-After`, `timeout`) · `2` usage error (`missing_option` — neither the token argument nor `--address`; `invalid_option` — both, or `--account`; `unsupported_token` — the symbol does not resolve on this network; `invalid_address`; `unsupported_network_capability`).
 
 ## See also
 
