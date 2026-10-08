@@ -64,7 +64,7 @@ The permit is a **bearer grant**: signed, it lets the router move the tokens wit
 
 ### The approval goes first, and that has a cost
 
-Permit2 cannot move the token until the allowance exists, so the approval is **broadcast before** the encoded call is checked. If that check then fails, the approval is on chain and the swap is not: a fee spent for nothing, leaving an allowance that is exactly this trade and lapses within the hour. Re-running recovers it — an allowance that already covers the trade is not approved again.
+Permit2 cannot move the token until the allowance exists, so the approval is **broadcast before** the encoded call is checked. If that check then fails, the approval is on chain and the swap is not: a fee spent for nothing, leaving a TRC-20 allowance for exactly this trade that does not expire automatically; the one-hour expiry applies only to a newly signed Permit2 grant. Re-running recovers it — an allowance that already covers the trade is not approved again.
 
 For the curve, [`sunpump buy`](../sunpump/buy.md) and [`sunpump sell`](../sunpump/sell.md) reach the same contract with the same two commands' worth of options.
 

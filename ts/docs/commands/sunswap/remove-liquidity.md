@@ -77,7 +77,7 @@ The tokens must match the position's `currency0` / `currency1` order. Reversed i
 
 The tokens always go to the **signing account**: `--recipient` is not accepted on V4.
 
-`--min0` / `--min1` are floors, defaulting to `0`. `--slippage` lowers the computed floors further and cannot be combined with them. That is the **opposite** direction to `--slippage` on a V4 [`add-liquidity`](add-liquidity.md), where it raises a ceiling.
+`--min0` / `--min1` are floors, defaulting to `0` without `--slippage`. When `--slippage` is given, it lowers each explicit minimum further; for a side without an explicit minimum, it lowers that side's estimated withdrawal amount instead. That is the **opposite** direction to `--slippage` on a V4 [`add-liquidity`](add-liquidity.md), where it raises a ceiling.
 
 ## Options
 
@@ -89,7 +89,7 @@ The tokens always go to the **signing account**: `--recipient` is not accepted o
 | `--position-id <id>` | **Required on V3 and V4**; refused on V2, where a pool has no positions. Must be held by this account |
 | `--fee <n>` | The pool's fee tier, checked against the one the position reports; it selects nothing (V4 only) |
 | `--min0 <n>` / `--min1 <n>` | Least to accept back. Default: V2 95% of the expected amount, V3 and V4 `0` |
-| `--slippage <decimal>` | Tolerance **below** the computed minimums, e.g. `0.005`; not combinable with `--min0` / `--min1` (V4 only) |
+| `--slippage <decimal>` | Tolerance **below** `--min0` / `--min1`, or the estimated amount for each side without an explicit minimum, e.g. `0.005` (V4 only) |
 | `--recipient <address>` | Who receives the tokens; default the account. On V3 the collected fees go here too. **Not accepted on V4**. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. The dry run's estimate is a **lower bound**, so a limit set from it can fail |

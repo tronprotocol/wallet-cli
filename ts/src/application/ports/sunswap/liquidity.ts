@@ -137,7 +137,7 @@ export interface LiquidityPort {
     spender: string,
   ): Promise<string>;
 
-  /** an ERC-20 approval for exactly `amount` — never an unbounded one on this path. */
+  /** A TRC20 approval for `amount`, which may be unlimited on V4. */
   approvalPayload(
     network: NetworkDescriptor,
     token: string,

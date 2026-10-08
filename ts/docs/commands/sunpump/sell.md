@@ -13,7 +13,7 @@ wallet-cli sunpump sell <token> --amount <tokens>
 
 ## Description
 
-The curve **pulls** the tokens, so the launchpad is approved first — and **for an unlimited amount**, unlike the liquidity commands, which approve exactly what they spend. The curve pulls on every sale and its contract is an upgradeable proxy that expects a standing allowance, so an exact approval would mean an approval transaction before every sale.
+The curve **pulls** the tokens, so the launchpad is approved first — and **for an unlimited amount**, unlike V2/V3 liquidity deposits, which approve exactly what they spend. The curve pulls on every sale and its contract is an upgradeable proxy that expects a standing allowance, so an exact approval would mean an approval transaction before every sale.
 
 The dry run names the spender and the ceiling for what they are:
 

@@ -63,7 +63,7 @@ const fields = z.object({
     .string()
     .optional()
     .describe(
-      "tolerance BELOW the computed minimums, e.g. 0.005; not combinable with --min0/--min1 (V4 only)",
+      "tolerance below --min0/--min1, or estimated amounts when omitted, e.g. 0.005 (V4 only)",
     ),
   min0: z
     .string()

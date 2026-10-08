@@ -30,7 +30,7 @@ export const sunpumpSellSpec: ChainSpec = {
     LEDGER_TRON_SETTINGS_NOTE +
     "Sell a token back to the curve for TRX, before it has launched.\n\n" +
     "The curve PULLS the tokens, so the launchpad is approved first — for an UNLIMITED amount,\n" +
-    "unlike the liquidity commands, because it pulls on every sale and its contract is an\n" +
+    "unlike V2/V3 liquidity deposits, because it pulls on every sale and its contract is an\n" +
     "upgradeable proxy that expects a standing allowance. The dry run names the spender and says\n" +
     "so; the approval is sent once per token, and later sales of the same token send none.\n\n" +
     "The platform fee comes out of the proceeds, so the minimum is applied to what you receive.\n\n" +

@@ -212,10 +212,10 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
   }
 
   /**
-   * The sale's approval, and the one place in this codebase where UNBOUNDED is correct.
+   * The sale's approval uses an unlimited allowance.
    *
    * The curve pulls the tokens on every sale, and SunPump's contract is an upgradeable proxy that
-   * expects a standing allowance — unlike the liquidity commands, where the amount is known and
+   * expects a standing allowance — unlike V2/V3 liquidity deposits, where the amount is known and
    * exact. The use case says so in the dry run rather than letting it pass unremarked.
    */
   approvalPayload(

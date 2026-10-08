@@ -416,8 +416,10 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     "ON V3 YOUR TRX BECOMES WTRX: V3 pools are wrapped. On V2, TRX is deposited natively.\n\n" +
     "Give one amount and the other is derived — from the pool's ratio on V2, from the range and\n" +
     "the current price on V3; give both to deposit exact amounts.\n\n" +
-    "Each side is approved for exactly the amount this deposit needs, never an unbounded\n" +
-    "allowance. An approval is sent, confirmed and re-read before the deposit follows, so the two\n" +
+    "On V2 and V3, each token side is approved for exactly the amount this deposit needs.\n" +
+    "On V4, an insufficient token allowance to Permit2 is replaced with an unlimited approval;\n" +
+    "each new Permit2 grant is limited to this deposit's ceiling and lasts one hour.\n" +
+    "An approval is sent, confirmed and re-read before the deposit follows, so the two\n" +
     "can never land out of order.\n\n" +
     "A new position's NFT id exists only in the confirmed receipt, so pass --wait to learn it;\n" +
     "'sunswap position-list' is mainnet-only and cannot tell you afterwards on Nile.\n\n" +
