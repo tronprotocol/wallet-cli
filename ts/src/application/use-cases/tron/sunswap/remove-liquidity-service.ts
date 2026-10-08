@@ -429,7 +429,7 @@ export class SunSwapRemoveLiquidityService {
     await this.#assertPositionOwned(network, position.tokenId, owner);
     // What the position could collect BEFORE the transaction. Afterwards the principal and the
     // fees have arrived together and nothing distinguishes them.
-    const owed = await this.#owedFees(scope, network, position.tokenId, plan.recipient);
+    const owed = await this.#owedFees(scope, network, position.tokenId, plan.recipient, owner);
 
     const main = await this.tx.run(scope, network, payload, {
       mode,
@@ -537,10 +537,11 @@ export class SunSwapRemoveLiquidityService {
     network: NetworkDescriptor,
     tokenId: string,
     recipient: string,
+    owner: string,
   ): Promise<{ amount0: string; amount1: string } | undefined> {
     let owed: { amount0: string; amount1: string } | undefined;
     await warnOnPostCheck(scope, "sunswap_owed_fees", async () => {
-      owed = await this.liquidity.v3OwedFees(network, tokenId, recipient);
+      owed = await this.liquidity.v3OwedFees(network, tokenId, recipient, owner);
       return undefined;
     });
     return owed;

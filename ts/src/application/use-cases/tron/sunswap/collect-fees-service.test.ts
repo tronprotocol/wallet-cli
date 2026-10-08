@@ -150,7 +150,7 @@ describe("collect-fees", () => {
 
   // This command routinely sends money somewhere other than the account that signed, so where it
   // went is the fact a script has to read — never a placeholder.
-  it("echoes the resolved recipient, and asks the contract about that address", async () => {
+  it("echoes the resolved recipient, and asks the contract about that address as the owner", async () => {
     const { service, scope, port } = makeHarness();
 
     const result = (await service.collectFees(scope, NETWORK, {
@@ -160,7 +160,7 @@ describe("collect-fees", () => {
     })) as Record<string, unknown>;
 
     expect(result.recipient).toBe(ELSEWHERE);
-    expect(port.v3OwedFees).toHaveBeenCalledWith(NETWORK, "686", ELSEWHERE);
+    expect(port.v3OwedFees).toHaveBeenCalledWith(NETWORK, "686", ELSEWHERE, OWNER);
   });
 
   it("defaults the recipient to the account, resolved rather than left absent", async () => {

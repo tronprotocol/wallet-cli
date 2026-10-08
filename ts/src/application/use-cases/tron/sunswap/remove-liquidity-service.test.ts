@@ -412,10 +412,18 @@ describe("remove-liquidity V3", () => {
 
 describe("remove-liquidity V3 — the principal and fee split", () => {
   it("subtracts what was owed before from what arrived", async () => {
-    const { service, scope } = makeHarness(makePort(), true);
+    const port = makePort();
+    const { service, scope } = makeHarness(port, true);
 
     const result = (await service.removeLiquidity(scope, NETWORK, V3)) as Record<string, never>;
 
+    // the owed figure is a static `collect`, which only the owner may call
+    expect(port.v3OwedFees).toHaveBeenCalledWith(
+      NETWORK,
+      expect.any(String),
+      expect.any(String),
+      OWNER,
+    );
     // Collected 1,001,199 with 1,200 owed beforehand: the rest is principal.
     expect(result.token0).toMatchObject({ amount: "999999", feeAmount: "1200" });
     expect(result.token1).toMatchObject({ amount: "493088", feeAmount: "800" });

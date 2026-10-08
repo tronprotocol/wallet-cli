@@ -161,7 +161,7 @@ export class SunSwapPositionInfoService {
     // What the contract itself says is claimable, read as the owner: `collect` is a static call
     // here, so it measures rather than moves.
     const owed = await this.#owed(scope, tokenId, () =>
-      this.liquidity.v3OwedFees(network, tokenId, position.owner),
+      this.liquidity.v3OwedFees(network, tokenId, position.owner, position.owner),
     );
     const [facts, nft] = await Promise.all([
       this.#pair(network, position.token0, position.token1),

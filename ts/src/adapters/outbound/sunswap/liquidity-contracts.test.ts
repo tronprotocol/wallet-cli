@@ -881,6 +881,40 @@ describe("the V4 owed-fees read", () => {
 });
 
 /**
+ * The V3 owed-fees read is a static `collect`, and `collect` is gated on the CALLER being the owner
+ * or approved for the token. From the zero address it passes only while the token has no
+ * approval, because an unset `getApproved` is also zero — so the read must be made as the owner.
+ */
+describe("the V3 owed-fees read", () => {
+  const OWNER = "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB";
+  const RECIPIENT = "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N";
+
+  it("simulates collect as the position's owner, not the default reader", async () => {
+    const callers: (string | undefined)[] = [];
+    const gateways = {
+      get: () => ({
+        triggerConstantContract: async (
+          _contract: string,
+          _method: string,
+          _parameters: unknown[],
+          owner?: string,
+        ) => {
+          callers.push(owner);
+          // a token approved to someone else: only the owner is authorised to collect
+          if (owner !== OWNER) throw new Error("REVERT opcode executed: Not approved");
+          return [uint(1200n) + uint(800n)];
+        },
+      }),
+    } as unknown as ChainGatewayProvider;
+
+    await expect(
+      new SunSwapLiquidityContracts(gateways).v3OwedFees(NILE, "686", RECIPIENT, OWNER),
+    ).resolves.toEqual({ amount0: "1200", amount1: "800" });
+    expect(callers).toEqual([OWNER]);
+  });
+});
+
+/**
  * The pool id, derived from the five parts `add-liquidity` now takes.
  *
  * This is the whole basis for naming a V4 pool by `--token0 --token1 --fee --tick-spacing --hooks`

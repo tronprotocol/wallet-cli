@@ -236,7 +236,7 @@ export class SunSwapCollectFeesService {
       this.liquidity.tokenFacts(network, position.token1),
       // What the contract itself says is claimable — the same figure the transaction will move,
       // so the dry run promises exactly what the receipt will report.
-      this.liquidity.v3OwedFees(network, position.tokenId, recipient),
+      this.liquidity.v3OwedFees(network, position.tokenId, recipient, owner),
     ]);
 
     return {

@@ -724,12 +724,14 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
    *
    * A static `collect` for the maximum: the contract computes what is owed and returns it
    * without moving anything, which is the only way to learn the figure before the transaction
-   * that would merge it with the principal.
+   * that would merge it with the principal. Made as `owner`, because `collect` only lets the
+   * owner or an approved address call it.
    */
   async v3OwedFees(
     network: NetworkDescriptor,
     tokenId: string,
     recipient: string,
+    owner: string,
   ): Promise<{ amount0: string; amount1: string }> {
     const raw = await this.#read(
       network,
@@ -741,6 +743,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
           value: [tokenId, evmAddress(recipient), MAX_UINT128, MAX_UINT128],
         },
       ],
+      owner,
     );
     return { amount0: word(raw, 0), amount1: word(raw, 1) };
   }
@@ -889,9 +892,10 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     contract: string,
     method: string,
     parameters: { type: string; value: unknown }[],
+    from?: string,
   ): Promise<string> {
     const gateway = this.gateways.get(network, "tron");
-    const result = await gateway.triggerConstantContract(contract, method, parameters);
+    const result = await gateway.triggerConstantContract(contract, method, parameters, from);
     const value = result[0];
     if (typeof value !== "string" || value === "") {
       throw new ChainError("provider_error", `${contract} did not answer ${method}`);

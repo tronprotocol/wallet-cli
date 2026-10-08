@@ -391,12 +391,14 @@ export interface LiquidityPort {
    * The fees the position can collect right now, read with a static call.
    *
    * Taken BEFORE the transaction, because afterwards principal and fees have arrived together
-   * and nothing distinguishes them: the split is what arrived minus what was owed.
+   * and nothing distinguishes them: the split is what arrived minus what was owed. Simulated as
+   * `owner`: `collect` rejects any caller that is not the owner or approved for the token.
    */
   v3OwedFees(
     network: NetworkDescriptor,
     tokenId: string,
     recipient: string,
+    owner: string,
   ): Promise<{ amount0: string; amount1: string }>;
 
   /** Amounts and liquidity from the transaction's IncreaseLiquidity event. */
