@@ -18,7 +18,7 @@ Ranks the launchpad's tokens by one of four fields, or lists one creator's token
 
 **There is no result total.** The service reports `0` for every total, including on pages that returned tokens, so `meta.pagination.total` is `null` rather than a number that would read as "no results". The only end-of-results signal is a page shorter than `--limit`.
 
-**`--owner` has a fixed order.** The by-creator listing is always newest first and ignores any requested order, so `--order-by` and `--sort` are refused alongside `--owner` rather than silently dropped. Newest first is this command's default anyway, so `--owner` on its own loses nothing.
+**`--owner` has a fixed order.** The by-creator listing is always newest first and ignores any requested order, so `--order-by` and `--sort` are refused alongside `--owner` rather than silently dropped — unless they name that fixed order (`--order-by created`, `--sort desc`), which is accepted. Newest first is this command's default anyway, so `--owner` on its own loses nothing.
 
 **Only orderings that work are offered.** The service accepts any sort field and silently falls back to its own order for one it does not honour, so `--order-by` is limited to the four fields verified to order the results: `created`, `market-cap`, `volume-24h` and `price-change-24h`.
 

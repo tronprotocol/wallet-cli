@@ -12,7 +12,7 @@ wallet-cli sunswap position-info --protocol <V3|V4> --position-id <id>
 
 Everything is read **from the chain** by the position's NFT id, so no account is needed and none is accepted — any position can be looked up, not just your own.
 
-**It works on Nile as well as mainnet.** The market data service that the six `sunswap` queries depend on holds mainnet data only, but this command does not depend on it for the position: it reads the position manager and the pool directly, so it works wherever the SunSwap contracts are configured — `tron` and `nile`. On Shasta it fails with `unsupported_network_capability`.
+**It works on Nile as well as mainnet.** The market data service that the six `sunswap` queries depend on holds mainnet data only, but this command does not depend on it for the position: it reads the position manager and the pool directly, so it works wherever a network's config has `sunswap.liquidity: true` — `tron` and `nile`. On Shasta it fails with `unsupported_network_capability`.
 
 **USD values need a price source, and only mainnet has one.** On a network without it, the USD fields are **absent** — not `"0"` — and a `sunswap_prices_unavailable` warning says why. The text shows `—` in the `Value` row. Everything else is the same on both networks.
 
@@ -82,7 +82,7 @@ Pool fee     0.05%
 
 `data.position`:
 
-- `nftTokenId`, `owner`, `protocol`, `status` (`IN_RANGE`, `OUT_RANGE` or `EMPTY`).
+- `nftTokenId`, `owner`, `protocol`, `status` (`IN_RANGE` or `OUT_RANGE`). The text output shows `EMPTY` for a position with no liquidity left; the JSON never does — read `extra.positionLiquidity === "0"` instead.
 - `poolAddress` — for V4, a 64-hex pool id, not a contract address.
 - `lpTokenName` / `lpTokenSymbol` — as the position manager itself reports them.
 - `lpBalanceAmount` — the position's liquidity; not a token amount and carries no decimals.
@@ -90,11 +90,11 @@ Pool fee     0.05%
 - `poolShare` — the position's share of the pool's **active** (in-range) liquidity. `OUT_RANGE` gives `"0"`, which is a measurement: an out-of-range position contributes no active liquidity. Absent when the pool's active liquidity is zero.
 - `poolFeeRate` — a decimal fraction, e.g. `"0.0005"` for 0.05%.
 - `tokens[]` — `{address, symbol, name, decimals, amount, rewardAmount}`, base units; `rewardAmount` is the unclaimed fees. `priceUsd` is added where there is a price source.
-- `extra` — `tickLower`, `tickUpper`, `minPrice`, `maxPrice`, `positionLiquidity`, `derivedToken0Amount` / `derivedToken1Amount` (the whole position valued at the pool price in one side of its own pair — not a USD figure), `tokenRewardUsd` where priced, and on V4 `isDynamicFee`, `parameters` and `hasSubscriber`.
+- `extra` — `tickLower`, `tickUpper`, `minPrice`, `maxPrice`, `positionLiquidity`, `derivedToken0Amount` / `derivedToken1Amount` (the whole position valued at the pool price in one side of its own pair — not a USD figure), `tokenRewardUsd` where priced, and on V4 `isDynamicFee`, `parameters`, `hasSubscriber`, and `hooksAddress` when the pool has a hook.
 
 ## Exit status
 
-`0` success · `1` execution failure (`position_not_found` — no position with that id under that protocol on this network; `invalid_node_response` — the node answered with data that cannot be decoded, worth retrying; `timeout`) · `2` usage error (`invalid_value` — a protocol other than `V3` / `V4`; `unsupported_network_capability`; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`position_not_found` — no position with that id under that protocol on this network; `pool_not_found` — the position names a pool that does not exist on chain; `invalid_node_response` — the node answered with data that cannot be decoded, worth retrying; `timeout`) · `2` usage error (`invalid_value` — a protocol other than `V3` / `V4`; `unsupported_network_capability`; `family_mismatch` on an EVM network).
 
 ## See also
 

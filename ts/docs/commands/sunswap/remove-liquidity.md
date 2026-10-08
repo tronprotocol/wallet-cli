@@ -58,7 +58,7 @@ On both, a withdrawal also pays out **every fee the position has accrued**, in t
    arrive than the estimate above.
 ```
 
-**V4** gets there because its `decreaseLiquidity` settles the pair itself, principal and accrued fees alike, in a single call. The V4 dry run does not print that warning, but the same thing happens.
+**V4** gets there because its `decreaseLiquidity` settles the pair itself, principal and accrued fees alike, in a single call. The V4 dry run prints the same warning.
 
 The receipt's `Received` line is the **total**, because that is the number a person is checking. JSON splits it: `amount` is the principal, `feeAmount` is the fees paid out alongside. The two protocols arrive at the split differently:
 
@@ -88,7 +88,7 @@ The tokens always go to the **signing account**: `--recipient` is not accepted o
 | `--token0 <token>` / `--token1 <token>` | **Required on V2**, where they name the pool; **required on V4**, where they are checked against the position; refused on V3. A symbol resolves against the official address book plus the [`token add`](../token/add.md) entries of the account the command uses (`--account`, else the active account); a symbol matching more than one entry is `ambiguous_token_symbol` (exit 2), and one marked `(from your token book)` in text came from that account's own entries |
 | `--position-id <id>` | **Required on V3 and V4**; refused on V2, where a pool has no positions. Must be held by this account |
 | `--fee <n>` | The pool's fee tier, checked against the one the position reports; it selects nothing (V4 only) |
-| `--min0 <n>` / `--min1 <n>` | Least to accept back. Default: V2 95% of the expected amount, V3 and V4 `0` |
+| `--min0 <n>` / `--min1 <n>` | Least to accept back. Default: V2 95% of the expected amount, V3 `0`, V4 `0` — or, with `--slippage`, the estimate lowered by it (see above) |
 | `--slippage <decimal>` | Tolerance **below** `--min0` / `--min1`, or the estimated amount for each side without an explicit minimum, e.g. `0.005` (V4 only) |
 | `--recipient <address>` | Who receives the tokens; default the account. On V3 the collected fees go here too. **Not accepted on V4**. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission |

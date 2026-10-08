@@ -46,7 +46,7 @@ Then the swap itself. So a token swap is two transactions and one signature.
 
 **A standing Permit2 grant is used as it stands.** If the account already holds a Permit2 grant to the router that covers the trade — for example one left by another client built on the SunSwap SDK, whose swap planner grants `MAX_UINT160` for thirty days — no new grant is signed and the swap goes out without a permit, as the SDK itself encodes it. The TRC-20 allowance to Permit2 is a separate layer and is still checked and approved when short. The JSON then carries no `permit`.
 
-**Neither grant is unlimited, and that took work.** The SDK's own swap planner asks for `MAX_UINT160` for **thirty days** in every authorizing mode, with no option to bound either figure. This command plans the authorization separately so the grant is exactly the trade and expires within the hour. [machine-interface.md](../../machine-interface.md) lists the two paths in this CLI that do grant unlimited allowances; this is not one of them.
+**Neither grant is unlimited, and that took work.** The SDK's own swap planner asks for `MAX_UINT160` for **thirty days** in every authorizing mode, with no option to bound either figure. This command plans the authorization separately so the grant is exactly the trade and expires within the hour. The paths in this CLI that do grant unlimited allowances are elsewhere: the token allowance to Permit2 on a V4 deposit (see [`add-liquidity`](add-liquidity.md#approvals-on-v4)) and the approval to the SunPump launchpad when selling into the curve, whether through this command or [`sunpump sell`](../sunpump/sell.md). This is not one of them.
 
 ### The balance is checked first
 
@@ -121,7 +121,13 @@ If the route service rate-limits the request (HTTP 429) the command fails with `
 
 ### What `--dry-run` can and cannot tell you
 
-For a swap spending **TRX** it prices the swap itself. For a swap spending a **token** it prices the **approval only** and says so — `Fee (est, approval only)` — because encoding the swap needs the signature and a dry run does not sign. It publishes the grant it *would* ask for, which is what a caller came to check:
+For a swap spending **TRX** it prices the swap itself. For a swap spending a **token**, what it can price depends on what is already on chain, and `feeCovers` says which case applies:
+
+- **A standing Permit2 grant covers the trade** and the allowance to Permit2 suffices: it prices the swap itself (`feeCovers: "all"`).
+- **An approval to Permit2 is still needed:** it prices the **approval only** and says so — `Fee (est, approval only)` (`feeCovers: "approvals"`). The swap cannot be simulated before that allowance is on chain.
+- **Only a new Permit2 grant is needed:** nothing on chain is left to price, so `Fee (est)` carries the reason instead of a figure (`feeCovers: "none"`, with `feeUnavailableReason`). Encoding the swap needs the signature, and a dry run does not sign.
+
+When a new grant is needed it publishes the grant it *would* ask for, which is what a caller came to check:
 
 ```console
 ⏳ Dry run sunswap swap
@@ -133,6 +139,7 @@ For a swap spending **TRX** it prices the swap itself. For a swap spending a **t
   Receive (est)             2.921823 TRX
   Min received              2.907213 TRX
   Slippage                  0.5%
+  Price impact (quote)      0.01%
   Fee (est, approval only)  ~99,764 energy
   Spender                   TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9
   Allowance                 1000000  (approval tx will be sent first; exactly this trade)
@@ -145,7 +152,7 @@ For a swap spending **TRX** it prices the swap itself. For a swap spending a **t
 
 ## Availability
 
-**TRON mainnet only**, and it is a config question rather than a branch on the network's name: `swap` is registered where a network's config carries **either** a SunPump launchpad address **or** a `sunswap.routerApiBaseUrl`. Nile and Shasta carry neither, so there it fails with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier still, on the family.
+**TRON mainnet only**, and it is a config question rather than a branch on the network's name: `swap` is registered where a network's config has **either** `sunpump.curve: true` **or** a `sunswap.routerApiBaseUrl`. Nile and Shasta have neither, so there it fails with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier still, on the family.
 
 ## Reading the JSON
 

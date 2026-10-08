@@ -60,7 +60,7 @@ The energy fee is **not** included in that check: it is paid in burned TRX or fr
 
 - `trxIn` — SUN spent, fee included.
 - `tokensOutExpected` — base units the curve quoted; `tokensOutMinimum` is the enforced floor, absent from a quote.
-- `platformFee` — SunPump's fee in SUN, with `platformFeePercent` beside it giving the rate it actually worked out to. Both are separate from `fee`, which is the chain's estimate.
+- `platformFee` and `platformFeePercent` — SunPump's fee in SUN and the rate it actually worked out to. `platformFeePercent` appears only when the 0.01 TRX floor pushed the rate above 1%. Both are separate from `fee`, which is the chain's estimate.
 - `tokenAddress`, `tokenSymbol`, `tokenDecimals` — read from the contract.
 - `slippage` — only where a floor is actually enforced.
 

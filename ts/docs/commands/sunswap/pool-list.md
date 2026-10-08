@@ -86,7 +86,7 @@ The highest-APR pools holding at least $100,000. Without `--min-tvl`, the top of
 | `farmApr` `feeApr` `totalApr` | string | Decimal fractions |
 | `transaction1d` `transactionRecentTotal` | number | Counts |
 | `createdAt` | string | UTC minute the pool was created |
-| `extra` | object | Protocol-specific and deliberately not normalised: V1/V1_5/V2 give `lpTokenDecimals` and `lpTokenTotalSupply`; V3 gives `tick`, `liquidity`, `sqrtPriceX96` and both protocol fee rates; V4 adds `parameters`, `isDynamicFee`, the derived amounts, and `hooksAddress` when the pool has a hook; CURVE gives `lpTokenAddress` |
+| `extra` | object | Protocol-specific and deliberately not normalised: V1/V1_5/V2 give `lpTokenDecimals` and `lpTokenTotalSupply`; V3 gives `tick`, `liquidity`, `sqrtPriceX96` and both protocol fee rates; V4 adds `parameters`, `isDynamicFee`, the derived amounts, `hooksAddress` when the pool has a hook, and two pool-key parts derived for [`add-liquidity`](add-liquidity.md): `tickSpacing` (decoded from `parameters`) and `hooks` (`"none"` when the pool has no hook); CURVE gives `lpTokenAddress` |
 | `pairPrices[]` | array | Only with `--token`: `{base, quote, price}`, `price` truncated at 18 decimal places |
 
 The service's raw `swapRateList` is not published: its orientation is an implementation detail, and `pairPrices` is the answer it was there to produce.

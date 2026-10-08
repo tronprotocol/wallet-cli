@@ -18,7 +18,7 @@ wallet-cli sunswap add-liquidity --protocol <V2|V3|V4> [--token0 <token> --token
 
 ## Description
 
-**V2** adds at the pool's current ratio and returns LP tokens. **V3** mints a position NFT over a price range, or adds to one you already hold with `--position-id` — which fixes the pair, the fee tier and the range, so those flags are refused alongside it. **V4** also mints or adds to a position, but names its pool by the full pool key, and an increase takes the pair as well as `--position-id`; see [V4 below](#v4-a-pool-is-named-by-its-key).
+**V2** adds at the pool's current ratio and returns LP tokens. **V3** mints a position NFT over a price range, or adds to one you already hold with `--position-id` — which fixes the pair, the fee tier, the range and the holder, so those flags and `--recipient` are refused alongside it. **V4** also mints or adds to a position, but names its pool by the full pool key, and an increase takes the pair as well as `--position-id`; see [V4 below](#v4-a-pool-is-named-by-its-key).
 
 Give one amount and the other is derived — from the pool's reserves on V2, from the range and the current price on V3 and V4. Give both to deposit exact amounts. A pool that holds nothing has no ratio to derive from, so the first deposit into one must name both sides.
 
@@ -61,7 +61,7 @@ Note the interaction with exact-amount approvals: the router consumes the allowa
 | `--slippage <decimal>` | Tolerance on the deposit **ceiling**, e.g. `0.005`; default none, so the ceiling is exactly the computed amounts (V4 only) |
 | `--create-pool` | Create the pool as part of this deposit; requires `--sqrt-price` on top of the pool key (V4 only) |
 | `--sqrt-price <Q64.96>` | The new pool's starting price in Q64.96 fixed point, **not** a decimal ratio (V4 `--create-pool` only) |
-| `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
+| `--recipient <address>` | Who receives the LP tokens or the position NFT; default the account. Not with `--position-id`: the position already has a holder. A malformed TRON address (an EVM `0x` address included) is `invalid_address` (exit 2), refused before any network call |
 | `--deadline <timestamp>` | Unix seconds; default 30 minutes from submission. One already past is refused |
 | `--fee-limit <sun>` | Max energy fee to burn; default `100000000`. See the note above |
 | `--dry-run` / `--build-only` / `--wait` | See [machine-interface.md](../../machine-interface.md) |
@@ -77,7 +77,7 @@ A tick you type is **checked** against the pool's tick-spacing grid, never round
 A pool that was **initialised and never traded** has no price: its tick sits at the representable floor, a default range collapses against it, and the amounts round to nothing. `mint` reverts on zero liquidity, so the command refuses before the node and names the state:
 
 ```
-position has no established price — it was initialised at tick -887272 and never traded,
+this pool has no established price — it was initialised at tick -887272 and never traded,
 so a deposit cannot be sized against it; choose a fee tier whose pool has traded
 ```
 
@@ -122,7 +122,7 @@ catches initialization errors, including another transaction creating the pool f
 creation after the last check can therefore make the mint execute against that pool, subject to the
 deposit's amount ceilings. The requested initial price is not an on-chain guarantee in that race.
 
-**Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool, so the tokens select nothing — they are checked against the pair the position holds, and a mismatch is refused rather than sent. `--fee` is checked the same way when given. `--tick-spacing`, `--hooks` and the tick range are not needed.
+**Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool, so the tokens select nothing — they are checked against the pair the position holds, and a mismatch is refused rather than sent. `--fee` is checked the same way when given. `--tick-spacing`, `--hooks`, the tick range, `--recipient`, `--create-pool` and `--sqrt-price` are refused with `invalid_option`: the position already fixes them.
 
 The tokens must match the position's `currency0` / `currency1` order, as with V4 mint. Reversed input is rejected. Set `--amount0` / `--amount1` for the corresponding assets in that order; when correcting the token order, adjust the amounts too.
 
@@ -211,21 +211,23 @@ wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 
 
 ```console
 ⏳ Dry run sunswap add-liquidity
-  Account                    TNmoJ3Be59...iL3G8HVB (demo)
-  Protocol                   V4
-  Pool                       977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
-  Fee tier                   0.05%
-  Tick spacing               10
-  Hooks                      none
-  Range                      [-11140, -9140]  (default)
-  Deposit                    1 TRX / 0.362993 USDT
-  Liquidity                  12,354,133
-  Recipient                  TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Deadline                   2026-09-29 08:51:48 UTC
-  Fee (est, approvals only)  not estimable until the approval is on-chain
+  Account       TNmoJ3Be59...iL3G8HVB (demo)
+  Protocol      V4
+  Pool          977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
+  Fee tier      0.05%
+  Tick spacing  10
+  Hooks         none
+  Range         [-11140, -9140]  (default)
+  Deposit       1 TRX / 0.362993 USDT
+  Liquidity     12,354,133
+  Recipient     TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
+  Deadline      2026-09-29 08:51:48 UTC
+  Fee (est)     the main transaction cannot be estimated until the Permit2 authorization is signed
 
-⚠️ The deposit's own fee cannot be estimated until the approval is on-chain.
+⚠️ the main transaction cannot be estimated until the Permit2 authorization is signed
 ```
+
+Here the USDT allowance to Permit2 is already on chain, so no approval is left to price and the deposit cannot be priced before its Permit2 authorization is signed: `Fee (est)` carries the reason instead of a figure (`feeCovers: "none"`). When an approval is still needed, the row reads `Fee (est, approvals only)` with that approval's estimate, followed by `Spender` and `Allowance  unlimited` rows.
 
 `Pool` is the id the key hashes to — the same id [`pool-list`](pool-list.md) and [`position-info`](position-info.md) print — so you can confirm you named the pool you meant before anything is sent.
 
@@ -238,24 +240,24 @@ wallet-cli sunswap add-liquidity --protocol V4 --position-id 7 --token0 TRX --to
 
 ```console
 ⏳ Dry run sunswap add-liquidity
-  Account                    TNmoJ3Be59...iL3G8HVB (demo)
-  Protocol                   V4
-  Position                   #7
-  Pool                       977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
-  Fee tier                   0.05%
-  Tick spacing               10
-  Hooks                      none
-  Range                      [-887270, 887270]
-  Deposit                    1 TRX / 0.362794 USDT
-  Max deposit                1.01 TRX / 0.366421 USDT
-  Liquidity                  602,323
-  Recipient                  TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
-  Deadline                   2026-09-29 08:51:54 UTC
-  Fee (est, approvals only)  not estimable until the approval is on-chain
+  Account       TNmoJ3Be59...iL3G8HVB (demo)
+  Protocol      V4
+  Position      #7
+  Pool          977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a
+  Fee tier      0.05%
+  Tick spacing  10
+  Hooks         none
+  Range         [-887270, 887270]
+  Deposit       1 TRX / 0.362794 USDT
+  Max deposit   1.01 TRX / 0.366421 USDT
+  Liquidity     602,323
+  Recipient     TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB
+  Deadline      2026-09-29 08:51:54 UTC
+  Fee (est)     the main transaction cannot be estimated until the Permit2 authorization is signed
 
 ⚠️ This deposit locks 1.01 TRX as the transaction's value — about 1 TRX is expected to be deposited and the rest returned. The full amount must be available.
 
-⚠️ The deposit's own fee cannot be estimated until the approval is on-chain.
+⚠️ the main transaction cannot be estimated until the Permit2 authorization is signed
 ```
 
 `Max deposit` is the ceiling — the deposit plus the slippage, **upward**. There is no `Min deposit` row on V4.

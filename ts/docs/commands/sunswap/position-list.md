@@ -31,7 +31,7 @@ Results are always ordered by LP value descending; there is no ordering flag and
 | `--limit <n>` | no | `20` | Maximum rows |
 | `--offset <n>` | no | `0` | Rows to skip; must be a multiple of `--limit`, and `--offset` + `--limit` may not exceed 1000 — the data service exposes only the first 1000 rows of this listing |
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command), including `--account` to select the address (see above).
 
 ## Examples
 
@@ -63,7 +63,7 @@ A drained V3 position, alongside one whose reported share exceeds 100%:
 | Field | Type | Meaning |
 |---|---|---|
 | `owner` | string | The holding address — echoed so results from several queries can be merged |
-| `poolAddress` `protocol` `poolType` | string | Which pool, and on which protocol |
+| `poolAddress` `protocol` `positionType` | string | Which pool, and on which protocol |
 | `nftTokenId` | string | The `--position-id` for the liquidity commands. **Absent** on V1/V1_5/V2/CURVE |
 | `status` | string | `IN_RANGE` or `OUT_RANGE` (that spelling, not `OUT_OF_RANGE`). The source value, untouched |
 | `poolShare` | string | Decimal fraction; occasionally above 1 in the source |

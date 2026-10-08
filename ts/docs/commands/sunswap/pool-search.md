@@ -47,7 +47,7 @@ Pools (showing 3 of 81)
 
 Same record shape as [`pool-list`](pool-list.md), without `pairPrices` — there is no chosen token to quote in. `meta.pagination.total` carries the real count; there is no `meta.query`, because the ordering is fixed.
 
-If the count cannot be read, `total` is `null` rather than a number that would be printed as fact.
+If the service answers the count with something that is not a non-negative integer, `total` is `null` rather than a number that would be printed as fact. A count request that fails outright fails the whole command.
 
 ## Exit status
 

@@ -2,7 +2,7 @@
 
 Manage liquidity and look up pools, positions and prices on SunSwap.
 
-This release ships six **queries** against the SunSwap market data service, `position-info`, which reads one position from the chain, three **liquidity** commands that sign and broadcast on V2, V3 and V4, and `swap`, which prices both markets and sends on the SunPump curve.
+This release ships six **queries** against the SunSwap market data service, `position-info`, which reads one position from the chain, three **liquidity** commands that sign and broadcast on V2, V3 and V4, and `swap`, which prices both the SunSwap router and the SunPump curve and signs and broadcasts on whichever it chooses.
 
 > **TRON only.** The six queries are additionally **mainnet only**: the market data service holds no testnet data, so on Nile or Shasta they fail with `unsupported_network_capability` (exit 2) and the message names the networks that do work. The three liquidity commands and `position-info` talk to contracts rather than to that service, so they work on **`tron` and `nile`** (`position-info` shows USD values on mainnet only). Availability is a config question, not a build one: a network gains the queries when its `sunswap.marketApiBaseUrl` is set, and the contract-based commands when its `sunswap.liquidity` is `true`. The contract addresses themselves come from the SunSwap SDK, not from config.
 
@@ -42,7 +42,7 @@ wallet-cli sunswap COMMAND
 
 **Amounts are strings.** Reserves, liquidity and prices carry up to 27 significant digits — well past what a float holds. They are decimal strings in JSON and must stay that way; `JSON.parse` in a consumer will damage them the same way it would here.
 
-**No account, no password.** None of the six queries, nor `position-info`, reads a wallet. They run against an empty `WALLET_CLI_HOME`. The liquidity commands need an account, and a password only in the modes that sign — `--dry-run` and `--build-only` unlock nothing and work for a watch-only account.
+**No password, and mostly no account.** Five of the six queries and `position-info` read no wallet and run against an empty `WALLET_CLI_HOME`. `position-list` is address-scoped: it lists the active account's positions, or those of `--account`, which also takes a bare TRON address — so with an empty `WALLET_CLI_HOME` it needs `--account <address>`. The liquidity commands need an account, and a password only in the modes that sign — `--dry-run` and `--build-only` unlock nothing and work for a watch-only account.
 
 ## Things worth knowing before you move money
 
@@ -52,7 +52,7 @@ wallet-cli sunswap COMMAND
 
 **V4 slippage bounds point opposite ways.** On a V4 deposit, `--slippage` raises a **ceiling** on what the deposit may cost; on a V4 withdrawal, it lowers a **floor** on what comes back.
 
-**Approvals are exact and are consumed.** Every approval this group sends is for precisely the amount its call needs, never unbounded — and the contract spends it, so the next call of the same shape needs a fresh one. The one exception is a V4 deposit, whose token allowance to Permit2 is unlimited while each Permit2 grant it signs is exact and short-lived; see [`add-liquidity`](add-liquidity.md#approvals-on-v4). That is why a dry run of a first deposit prices the approvals alone: the deposit itself cannot be simulated until its allowance is on chain. `feeCovers` in the JSON says which of the two states you are looking at.
+**Approvals are exact and are consumed.** Every approval this group sends is for precisely the amount its call needs, never unbounded — and the contract spends it, so the next call of the same shape needs a fresh one. There are two exceptions. A V4 deposit's token allowance to Permit2 is unlimited, while each Permit2 grant it signs is exact and short-lived; see [`add-liquidity`](add-liquidity.md#approvals-on-v4). A `swap` that sells a SunPump token into the curve approves the launchpad without limit, as [`sunpump sell`](../sunpump/sell.md) does. That is why a dry run of a first deposit prices the approvals alone: the deposit itself cannot be simulated until its allowance is on chain. `feeCovers` in the JSON says which of the two states you are looking at.
 
 **A fee estimate is a lower bound.** TRON prices a call by simulating it against current state, and the real execution writes storage the simulation does not. Measured: 107,565 energy estimated, 120,426 burned. `--fee-limit` defaults to a constant and is never derived from the estimate.
 

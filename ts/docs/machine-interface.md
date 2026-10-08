@@ -451,7 +451,7 @@ exit 1
 
 4. **Batch operations**: each command is one transaction with one exit code. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
 
-5. **A command may send several transactions.** The `sunswap` liquidity commands and `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `approvalTxIds`, in the order it was sent, beside the main `txId`. A failure between them leaves the approvals on chain and the main call unsent — which is recoverable by re-running, since an approval that already suffices is not repeated.
+5. **A command may send several transactions.** The `sunswap` liquidity commands, `sunswap swap` when it spends a token, and `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `approvalTxIds`, in the order it was sent, beside the main `txId`. A failure between them leaves the approvals on chain and the main call unsent — which is recoverable by re-running, since an approval that already suffices is not repeated.
 
 6. **One command writes without a transaction of ours.** `sunpump launch` asks SunPump to create a
 token; the service signs it, pays for it and chooses its owner. So there is no `stage`, no
@@ -472,6 +472,7 @@ A dry run's `fee` object is what the chain's own simulation predicts. Two things
 |---|---|---|
 | `"all"` | the whole operation | the allowances already suffice, or the command needs none |
 | `"approvals"` | the approvals only | an approval is still pending, so the main call is not estimable yet |
+| `"none"` | no figure — a `{feeModel, note}` object stating why, with `feeUnavailableReason` beside it | a Permit2 dry run with no approval left to price: the main call cannot be estimated until the Permit2 authorization is signed |
 
 `fee` is **never omitted** — a missing key reads as "free", and these transactions are not. When the main call cannot be priced, its own estimate is a `{feeModel, note}` object rather than a number, because a number obtained by pretending a precondition holds would be worse than none.
 
@@ -484,6 +485,21 @@ Every token amount in a JSON payload is **base units as a decimal string**, and 
 Token amount conversion supports integer `decimals` from **0 to 77**. SunSwap and SunPump validate this range in contract and market metadata; their market scientific notation expansion also limits exponents to **−1000 through 1000**. Values outside these supported bounds fail with `invalid_node_response` before scaling or expansion.
 
 The exception is a figure that is not a token amount at all: a SunSwap V3 / V4 position's `liquidity`, `liquidityAfter` and (in an add-liquidity dry run or build) `liquidityExpected` are numbers the contract keeps, denominated in neither token, and carry no decimals.
+
+### Verified trade output and Ledger failures
+
+Confirmed SunPump buy/sell receipts expose `tokensOut` / `trxOut`; confirmed SunSwap swaps expose
+`amountOut`, only when the transaction receipt verifies the received amount. `amountsEstimated`
+is false for verified output and true for the quote fallback. A failed receipt read becomes a
+warning, never a failure of an already confirmed trade. Router `priceImpactPercent` and trade fees
+remain quoted; router impact carries `priceImpactEstimated: true`.
+
+V4 unlimited approval plans use the string `"unlimited"`; transaction payloads continue to encode
+the uint256 value.
+
+Ledger errors distinguish `device_disconnected` (lost connection), `device_unavailable` (cannot
+open a detected or inaccessible device) and `device_not_found` (no device detected). All use exit 1.
+Native OS paths are not included in device-open errors.
 
 ## Stability promise (v1)
 
@@ -504,20 +520,3 @@ Not covered: text-mode output, `error.message` wording, field ordering, `meta.du
 - [Scripting guide](guide/scripting.md) — a gentler introduction
 - [Command reference](commands/index.md) — per-command `data` payloads
 - [Troubleshooting](troubleshooting.md) — human-facing remedies, keyed by the error codes above
-
-
-### Verified trade output and Ledger failures
-
-Confirmed SunPump buy/sell receipts expose `tokensOut` / `trxOut`; confirmed SunSwap swaps expose
-`amountOut`, only when the transaction receipt verifies the received amount. `amountsEstimated`
-is false for verified output and true for the quote fallback. A failed receipt read becomes a
-warning, never a failure of an already confirmed trade. Router `priceImpactPercent` and trade fees
-remain quoted; router impact carries `priceImpactEstimated: true`.
-
-Permit2 dry runs with no on-chain approvals to estimate publish `feeCovers: "none"` and
-`feeUnavailableReason`, not an approval-on-chain explanation. V4 unlimited approval plans use the
-string `"unlimited"`; transaction payloads continue to encode the uint256 value.
-
-Ledger errors distinguish `device_disconnected` (lost connection), `device_unavailable` (cannot
-open a detected or inaccessible device) and `device_not_found` (no device detected). All use exit 1.
-Native OS paths are not included in device-open errors.

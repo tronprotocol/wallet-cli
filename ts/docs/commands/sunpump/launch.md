@@ -34,14 +34,14 @@ The token starts in status `CREATED`, on the curve. It moves to SunSwap only onc
 | `--description <text>` | **Required.** Token description |
 | `--image <path>` | A logo image file, read and sent as base64. A missing file is `file_not_found` (exit 2) |
 | `--image-base64 <base64>` | The logo as a base64 string. Excludes `--image` |
-| `--twitter-url <url>` | Twitter URL |
-| `--telegram-url <url>` | Telegram URL |
-| `--website-url <url>` | Website URL |
+| `--twitter-url <url>` | Twitter URL; must start with `http://` or `https://` |
+| `--telegram-url <url>` | Telegram URL; must start with `http://` or `https://` |
+| `--website-url <url>` | Website URL; must start with `http://` or `https://` |
 | `--dry-run` | Validate and preview without sending |
 
 A logo is optional; without one the token is created without one, and the dry run says so. An option left out is omitted from the request, not sent empty.
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`, `--wait` or `--wait-timeout`: nothing is signed locally and no transaction comes back to wait for, so they are refused with `invalid_option`.
 
 ## Examples
 
@@ -88,7 +88,7 @@ Without `--dry-run` the same command creates a real token. Its receipt, `✅ Sun
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error` — including a name or symbol the service refused; `provider_rate_limited`; `timeout`) · `2` usage error (`missing_option`, `invalid_option`, `file_not_found`; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`provider_error` — including a name or symbol the service refused; `provider_rate_limited`; `timeout`) · `2` usage error (`missing_option`, `invalid_option`, `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
 
 ## See also
 

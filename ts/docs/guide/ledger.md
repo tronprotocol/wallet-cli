@@ -41,6 +41,13 @@ Instead of a password prompt, the Ledger asks you to approve. When the app decod
 
 This is your best defense against address-swapping malware: what the device screen shows is what gets signed, regardless of what the host displays.
 
+For newly built TRON transactions sent directly to Ledger, the CLI reserves at least ten minutes
+for signing, or the configured device timeout plus one minute when longer. It preserves an explicit
+expiration and never extends imported or already signed transaction files. Expiration is checked
+again after signing; an expired transaction returns `tx_expired` instead of being broadcast.
+Multi-transaction SunSwap/SunPump `--build-only` batches use a one-hour transaction lifetime,
+though contract deadlines and Permit2 signatures may expire earlier.
+
 ## 3. When the device doesn't respond
 
 Device calls are bounded by the same `--timeout` as RPC (default 60000 ms) and fail with `error.code: "timeout"`. In order:
@@ -50,23 +57,6 @@ Device calls are bounded by the same `--timeout` as RPC (default 60000 ms) and f
 3. Retry with a longer `--timeout` — on-device confirmation counts against it, so leave yourself time to read and press.
 
 More remedies: [Troubleshooting](../troubleshooting.md#timeout-exit-1).
-
-## Offline pattern
-
-Ledger already isolates keys, but you can still split build, sign and broadcast. For a device machine with no chain access: build the TRON unsigned hex with an explicit signing window on a connected machine (`--build-only --expiration 3600000`), sign it with `tx sign --offline` where the Ledger is attached, then broadcast the signed hex from a connected machine. The default TRON expiry is about 60 seconds — usually too short for a cross-machine workflow; the maximum is 24 hours. EVM artifacts have no expiration flag. See [Scripting → Sign here, broadcast there](scripting.md#sign-here-broadcast-there).
-
-## See also
-
-[`import ledger` help](../commands/import/index.md) · [Security model](../concepts/security.md) · [Getting started](getting-started.md)
-
-
-For newly built TRON transactions sent directly to Ledger, the CLI reserves at least ten minutes
-for signing, or the configured device timeout plus one minute when longer. It preserves an explicit
-expiration and never extends imported or already signed transaction files. Expiration is checked
-again after signing; an expired transaction returns `tx_expired` instead of being broadcast.
-Multi-transaction SunSwap/SunPump `--build-only` batches use a one-hour transaction lifetime,
-though contract deadlines and Permit2 signatures may expire earlier.
-
 
 ## TRON app settings
 
@@ -100,3 +90,11 @@ if the next operation cannot open it.
   the app was closed.
 
 A `0x6985` rejection remains `signing_rejected`; it is not reclassified as a lock without evidence.
+
+## Offline pattern
+
+Ledger already isolates keys, but you can still split build, sign and broadcast. For a device machine with no chain access: build the TRON unsigned hex with an explicit signing window on a connected machine (`--build-only --expiration 3600000`), sign it with `tx sign --offline` where the Ledger is attached, then broadcast the signed hex from a connected machine. The default TRON expiry is about 60 seconds — usually too short for a cross-machine workflow; the maximum is 24 hours. EVM artifacts have no expiration flag. See [Scripting → Sign here, broadcast there](scripting.md#sign-here-broadcast-there).
+
+## See also
+
+[`import ledger` help](../commands/import/index.md) · [Security model](../concepts/security.md) · [Getting started](getting-started.md)

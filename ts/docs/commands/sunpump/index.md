@@ -42,7 +42,7 @@ The state is never taken from an API. A stale answer would send a transaction th
 
 ## The platform fee is not the chain's fee
 
-SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%, and the receipt says the rate it actually worked out to.
+SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%. When it does, the `--quote` and `--dry-run` output warn with the rate it actually worked out to, and the JSON carries it as `platformFeePercent`.
 
 ```
 ⚠️ Platform fee is 29.2% of this sell (0.01 TRX minimum).

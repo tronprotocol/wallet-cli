@@ -61,7 +61,7 @@ Amounts are decimal strings; keep them that way.
 
 ## Exit status
 
-`0` success · `1` execution failure (`launchpad_token_not_found`; `provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`invalid_address`; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`launchpad_token_not_found`; `provider_error`, `provider_rate_limited`, `timeout`) · `2` usage error (`invalid_address`; `invalid_option` — `--account`; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
 
 ## See also
 

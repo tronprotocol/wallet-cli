@@ -85,7 +85,8 @@ An account that is not activated on chain fails with `account_not_active`, whate
 - `trxOutExpected` — SUN **net** of the platform fee, which is what arrives: the contract's quoted TRX, as quoted. `trxOutMinimum` is the floor applied to that net figure, absent from a quote.
 - `platformFee` and `platformFeePercent` — SunPump's fee in SUN and its share of the gross (`trxOutExpected + platformFee`), separate from `fee`, the chain's estimate. `platformFeePercent` appears only when the 0.01 TRX floor pushed the rate above 1%.
 - `tokenAddress`, `tokenSymbol`, `tokenDecimals` — read from the contract.
-- `approvals` — the unlimited grant, with the spender named, when one is needed. Absent on a later sale of the same token, because the standing allowance already covers it.
+- `approvals` — dry run only: the unlimited grant, with the spender named, when one is needed. Absent on a later sale of the same token, because the standing allowance already covers it.
+- `approvalTxIds` — when the sale is sent: the approval transaction's id, beside the main `txId`, when one was sent first. The approval is always confirmed before the sale goes out, with or without `--wait`.
 
 ## See also
 
