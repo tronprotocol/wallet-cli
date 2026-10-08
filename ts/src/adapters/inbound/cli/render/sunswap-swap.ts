@@ -287,10 +287,13 @@ function withNotes(body: string, value: SwapView): string {
     );
   }
   // The swap's own fee is unknowable until the permit is signed, and a dry run does not sign. Said
-  // rather than left to infer, as the liquidity commands do for a pending approval.
+  // rather than left to infer, as the liquidity commands do for a pending approval. With no permit
+  // a standing grant covers the swap, so only the pending approval stands in the way.
   if (value.feeUnavailableReason || value.feeCovers === "approvals") {
     notes.push(
-      `${warn()} The swap's own fee cannot be estimated until the Permit2 authorization is signed, which a dry run does not do.`,
+      value.market === "sunswap" && value.permit === undefined
+        ? `${warn()} The swap's own fee cannot be estimated until the approval is on-chain.`
+        : `${warn()} The swap's own fee cannot be estimated until the Permit2 authorization is signed, which a dry run does not do.`,
     );
   }
   // A hook nobody has verified is a fact about the route, and it belongs in every mode rather than

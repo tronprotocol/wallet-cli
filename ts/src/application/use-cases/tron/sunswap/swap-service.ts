@@ -303,13 +303,49 @@ export class SunSwapSwapService {
       ttlSeconds: PERMIT_TTL_SECONDS,
     });
     if (permit === undefined) {
-      // A standing Permit2 grant already covers this trade. Not reachable today — the grants this
-      // command creates are exact and expire in an hour, so one covering a later swap of the same size
-      // within the hour is the only case — and refusing is honest rather than guessing at a struct we
-      // never saw. The router call needs the permit IN its calldata, so there is nothing to send.
-      throw new ChainError(
-        "permit_mismatch",
-        "this account already has a Permit2 grant covering the amount, so the planner produced no permit to sign — and a router swap carries the permit inside its own calldata, so there is nothing to send without one. Wait for the existing grant to lapse, or revoke it",
+      // A standing Permit2 grant already covers this trade — typically one another SDK-built client
+      // left behind, since the SDK's own swap planner grants MAX_UINT160 for thirty days. The router
+      // pulls through Permit2 with or without a permit in the call, so nothing is signed and the call
+      // goes out bare, as the SDK encodes it. That covers the Permit2 layer only: the token's
+      // allowance TO Permit2 is separate, so it is still checked.
+      const approvals = await this.routerTx.planApprovals(
+        network,
+        owner,
+        this.liquidity.permit2Address(network),
+        [{ facts: tokenIn, amount: spending.amountIn }],
+      );
+      const encode = () =>
+        this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
+          amountIn: spending.amountIn,
+          nativeIn: false,
+        });
+      if (mode.dryRun) {
+        return {
+          ...view,
+          mode: "dry-run",
+          approvals: approvals.map(publishedApproval),
+          ...(await this.routerTx.priceWithoutSending(
+            scope,
+            network,
+            approvals,
+            await encode(),
+            mode,
+            feeLimit,
+          )),
+        };
+      }
+      return this.routerTx.withApprovals(
+        scope,
+        network,
+        approvals,
+        owner,
+        mode,
+        feeLimit,
+        async (approvalTxIds) =>
+          this.#send(scope, network, input, mode, await encode(), approvalTxIds, {
+            ...view,
+            approvals: approvals.map(publishedApproval),
+          }),
       );
     }
     const approvals = await this.routerTx.planApprovals(network, owner, permit.permit2, [

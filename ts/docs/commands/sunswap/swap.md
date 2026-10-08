@@ -44,6 +44,8 @@ A swap that spends a **token** needs two, because the Universal Router does not 
 
 Then the swap itself. So a token swap is two transactions and one signature.
 
+**A standing Permit2 grant is used as it stands.** If the account already holds a Permit2 grant to the router that covers the trade — for example one left by another client built on the SunSwap SDK, whose swap planner grants `MAX_UINT160` for thirty days — no new grant is signed and the swap goes out without a permit, as the SDK itself encodes it. The TRC-20 allowance to Permit2 is a separate layer and is still checked and approved when short. The JSON then carries no `permit`.
+
 **Neither grant is unlimited, and that took work.** The SDK's own swap planner asks for `MAX_UINT160` for **thirty days** in every authorizing mode, with no option to bound either figure. This command plans the authorization separately so the grant is exactly the trade and expires within the hour. [machine-interface.md](../../machine-interface.md) lists the two paths in this CLI that do grant unlimited allowances; this is not one of them.
 
 ### The balance is checked first
@@ -167,7 +169,7 @@ Per route:
 Every other mode publishes one chosen `route` instead, with `amountOutExpected`, `amountOutMinimum` and `slippage` beside it, plus:
 
 - `approvals` — the TRC-20 approval to Permit2, `{token, spender, amount, …}`, absent when the allowance already covers the trade or the input is TRX.
-- `permit` — `{permit2, spender, amount, expiration}`: the grant that was authorized, not merely that one was. Absent for a TRX input, which needs none.
+- `permit` — `{permit2, spender, amount, expiration}`: the grant that was authorized, not merely that one was. Absent for a TRX input, which needs none, and when a standing Permit2 grant already covers the trade.
 - `approvalTxIds` — in the order sent, beside the swap's own `txId`.
 - `feeCovers` — `"approvals"` when a dry run could only price the approval, `"none"` when an unsigned Permit2 grant prevents estimation and there are no on-chain approvals to price, and `"all"` when the complete transaction can be estimated.
 

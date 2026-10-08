@@ -238,6 +238,7 @@ function makeHarness(
   const liquidity = {
     balanceOf: vi.fn(async () => "99999999999999999999999999"),
     allowance: vi.fn(async () => granted),
+    permit2Address: vi.fn(() => PERMIT2),
     approvalPayload: vi.fn(
       (_n: NetworkDescriptor, token: string, spender: string, amount: string) => {
         granted = amount;
@@ -1065,26 +1066,59 @@ describe("--dry-run on a router swap", () => {
 /**
  * A standing Permit2 grant that already covers the trade.
  *
- * Measured on Nile: the planner answers `already-approved` and produces no permit. For a DEPOSIT that
- * is fine — the call goes out bare. For a router SWAP it is not, because the permit travels inside the
- * router's own calldata, so there is nothing to send without one. Refused rather than guessed at.
+ * The planner answers `already-approved` and produces no permit — the case for an account another
+ * SDK-built client has granted, since the SDK's own swap planner grants MAX_UINT160 for thirty days.
+ * The router pulls through Permit2 either way, so the call goes out with no permit in it, exactly as
+ * the SDK's own planner encodes it. Only the Permit2 layer is covered: the token's allowance TO
+ * Permit2 is a separate layer and is still checked.
  */
 describe("when the grant already covers the trade", () => {
-  it("refuses a router swap rather than sending a call with no permit", async () => {
+  const covered = () => {
     const harness = makeHarness(
       makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
       true,
       SIGNING_OWNER,
     );
-    vi.mocked(harness.permits.planPermit).mockResolvedValueOnce(undefined as never);
-    await expect(
-      harness.service.swap(harness.scope, NETWORK, {
-        tokenIn: "USDT",
-        tokenOut: "TRX",
-        amountIn: "100",
-      }),
-    ).rejects.toMatchObject({ code: "permit_mismatch" });
-    expect(harness.routerExec.buildSwapCall).not.toHaveBeenCalled();
+    vi.mocked(harness.permits.planPermit).mockResolvedValueOnce(undefined);
+    // A token input sends no TRX; the stock double assumes a call without a permit spends TRX.
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX) as never,
+    );
+    return harness;
+  };
+  const sell = async (harness: ReturnType<typeof makeHarness>, extra = {}) =>
+    (await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "USDT",
+      tokenOut: "TRX",
+      amountIn: "100",
+      ...extra,
+    })) as Record<string, unknown>;
+
+  it("sends the swap without a permit and signs nothing", async () => {
+    const harness = covered();
+    const result = await sell(harness);
+    expect(harness.signTypedData).not.toHaveBeenCalled();
+    const [, request] = vi.mocked(harness.routerExec.buildSwapCall).mock.calls[0]!;
+    expect(request.permit).toBeUndefined();
+    expect(result.permit).toBeUndefined();
+    expect(result.txId).toBe("tx:built:execute(bytes,bytes[],uint256)");
+  });
+
+  it("still approves the token to Permit2 when that allowance is short", async () => {
+    const result = await sell(covered());
+    expect(result.approvals).toEqual([
+      expect.objectContaining({ spender: PERMIT2, amount: "100000000" }),
+    ]);
+  });
+
+  it("prices the swap itself on a dry run once the allowance covers it", async () => {
+    const harness = covered();
+    vi.mocked(harness.liquidity.allowance).mockResolvedValue("100000000");
+    const result = await sell(harness, { dryRun: true });
+    expect(result.mode).toBe("dry-run");
+    expect(result.feeCovers).toBe("all");
+    expect(result.permit).toBeUndefined();
+    expect(harness.signTypedData).not.toHaveBeenCalled();
   });
 
   // And the spender is NAMED on every call, never defaulted: the same planner also grants to the V4

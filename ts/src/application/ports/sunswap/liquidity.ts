@@ -320,7 +320,7 @@ export interface LiquidityPort {
     },
   ): ContractCallPayload;
 
-  /** The Permit2 contract a V4 deposit approves its tokens to. */
+  /** The Permit2 contract a V4 deposit or a router swap approves its tokens to. */
   permit2Address(network: NetworkDescriptor): string;
 
   /** The V4 position manager: the contract the deposit is made through, and the permits' spender. */
@@ -550,7 +550,10 @@ export interface V4DepositRequest {
   /** The CEILING on each side, base units. Not a minimum — V4 bounds a deposit from above. */
   readonly amount0Max: string;
   readonly amount1Max: string;
-  readonly owner: string;
+  /** The recipient of the newly minted position NFT. */
+  readonly recipient: string;
+  /** The funding account whose signed Permit2 grants the multicall forwards. */
+  readonly permitOwner: string;
   /**
    * Where anything the pool does not take goes.
    *
@@ -569,7 +572,7 @@ export interface V4DepositRequest {
  * A V4 increase: which position, how much liquidity to add, and the ceiling it may cost.
  *
  * Deliberately NOT `V4DepositRequest` with an optional token id. The two carry different fields —
- * a mint has an owner and a range, an increase has a token id and neither — and one type covering
+ * a mint has an NFT recipient and a range, an increase has a token id and neither — and one type covering
  * both would make every field optional and let a mint be built with no range at all.
  */
 export interface V4IncreaseRequest {

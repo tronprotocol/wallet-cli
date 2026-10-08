@@ -122,6 +122,15 @@ describe("what a dry run admits it cannot do", () => {
     expect(out).toContain("cannot be estimated until the Permit2 authorization is signed");
   });
 
+  // A standing Permit2 grant means nothing is signed, so only the pending approval stands in the way.
+  it("blames the approval, not a signature, when a standing grant covers the swap", () => {
+    const out = render(
+      routerSwap({ mode: "dry-run", feeCovers: "approvals", fee: {}, permit: undefined }),
+    );
+    expect(out).toContain("cannot be estimated until the approval is on-chain");
+    expect(out).not.toContain("Permit2 authorization is signed");
+  });
+
   it("labels it plainly when the whole swap was priced", () => {
     const out = render({
       ...routerSwap({ mode: "dry-run", feeCovers: "all", fee: {} }),
