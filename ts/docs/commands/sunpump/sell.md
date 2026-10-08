@@ -92,9 +92,10 @@ An account that is not activated on chain fails with `account_not_active`, whate
 [`sunpump buy`](buy.md) · [`sunswap swap`](../sunswap/swap.md) · [machine-interface.md](../../machine-interface.md)
 
 
-Ledger Permit2 signing and transaction hash fallback require **TRON app → Settings → Sign by Hash → Allowed**.
-The device displays hashes on these paths, not full transaction details; verify the CLI preview
-before approving. See [Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
+Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
+[TRON app settings](../../guide/ledger.md#tron-app-settings). On hash-signing paths the device
+displays hashes, not full transaction details; verify the CLI preview before approving. See
+[Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).
 
 
 With `--wait`, a successful confirmed trade adds `trxOut` and `amountsEstimated: false` when the

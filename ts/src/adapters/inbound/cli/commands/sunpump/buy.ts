@@ -3,6 +3,7 @@ import { addressFieldsFor, allRefines, Schemas, slippageField } from "../../sche
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/tron/sunpump/curve-trade-service.js";
 import { TextFormatters } from "../../render/index.js";
+import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 import { CURVE_TRADE_NOTES, curveTradeFields, refuseQuoteWithSendingFlags } from "./shared.js";
 
 const fields = z.object({
@@ -26,6 +27,7 @@ export const sunpumpBuySpec: ChainSpec = {
   capability: "sunpump.curve",
   summary: "Buy a token on the SunPump bonding curve",
   description:
+    LEDGER_TRON_SETTINGS_NOTE +
     "Spend TRX to buy a token that has not yet launched.\n\n" +
     "The TRX travels as the call's value, so NOTHING is approved — a buy needs no allowance.\n" +
     "--trx is the total: the platform fee is taken out of it, not added to it.\n\n" +

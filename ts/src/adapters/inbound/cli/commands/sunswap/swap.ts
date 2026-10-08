@@ -3,6 +3,7 @@ import { allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapSwapService } from "../../../../../application/use-cases/tron/sunswap/swap-service.js";
 import { TextFormatters } from "../../render/index.js";
+import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 
 const fields = z.object({
   tokenIn: z.string().describe("token to spend, symbol or contract address"),
@@ -90,7 +91,7 @@ export const sunswapSwapSpec: ChainSpec = {
   capability: "sunswap.swap",
   summary: "Swap tokens through SunSwap or a SunPump curve",
   description:
-    "Ledger: Permit2 and hash-signing fallback require Settings > Sign by Hash > Allowed in the TRON app. The device displays hashes instead of full details; verify the CLI preview before approving.\n" +
+    LEDGER_TRON_SETTINGS_NOTE +
     "Exchange one token for another.\n\n" +
     "THE MARKET IS CHOSEN FIRST, from on-chain state, and identically in every mode. If exactly\n" +
     "one side is TRX and the other is a SunPump token that has not launched yet, the trade goes\n" +

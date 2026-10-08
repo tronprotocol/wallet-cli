@@ -3,6 +3,7 @@ import { addressFieldsFor, allRefines, Schemas, slippageField } from "../../sche
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/tron/sunpump/curve-trade-service.js";
 import { TextFormatters } from "../../render/index.js";
+import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 import { CURVE_TRADE_NOTES, curveTradeFields, refuseQuoteWithSendingFlags } from "./shared.js";
 
 const fields = z.object({
@@ -26,7 +27,7 @@ export const sunpumpSellSpec: ChainSpec = {
   capability: "sunpump.curve",
   summary: "Sell a token on the SunPump bonding curve",
   description:
-    "Ledger: Permit2 and hash-signing fallback require Settings > Sign by Hash > Allowed in the TRON app. The device displays hashes instead of full details; verify the CLI preview before approving.\n" +
+    LEDGER_TRON_SETTINGS_NOTE +
     "Sell a token back to the curve for TRX, before it has launched.\n\n" +
     "The curve PULLS the tokens, so the launchpad is approved first — for an UNLIMITED amount,\n" +
     "unlike the liquidity commands, because it pulls on every sale and its contract is an\n" +

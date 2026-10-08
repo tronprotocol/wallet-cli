@@ -109,3 +109,6 @@ Broadcast results include `amountsEstimated`: `false` when the reported token am
 ## See also
 
 [`sunswap remove-liquidity`](remove-liquidity.md) · [`sunswap add-liquidity`](add-liquidity.md) · [`sunswap position-info`](position-info.md) · [`sunswap position-list`](position-list.md) · [machine-interface.md](../../machine-interface.md)
+
+Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
+[TRON app settings](../../guide/ledger.md#tron-app-settings).

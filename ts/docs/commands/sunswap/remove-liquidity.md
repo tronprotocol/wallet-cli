@@ -190,3 +190,8 @@ Broadcast results include `amountsEstimated`: `false` when the reported token am
 ## See also
 
 [`sunswap add-liquidity`](add-liquidity.md) · [`sunswap collect-fees`](collect-fees.md) · [`sunswap position-info`](position-info.md) · [machine-interface.md](../../machine-interface.md)
+
+Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
+[TRON app settings](../../guide/ledger.md#tron-app-settings). On hash-signing paths the device
+displays hashes, not full transaction details; verify the CLI preview before approving. See
+[Ledger signing and recovery](../../guide/ledger.md#hash-signing-and-recovery).

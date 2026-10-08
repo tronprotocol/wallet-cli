@@ -68,6 +68,18 @@ Multi-transaction SunSwap/SunPump `--build-only` batches use a one-hour transact
 though contract deadlines and Permit2 signatures may expire earlier.
 
 
+## TRON app settings
+
+Two settings under **TRON app → Settings** gate contract signing. Both default to *NOT Allowed*:
+
+- **Custom contracts**: every smart-contract call, including TRC20 approvals and SunPump trades.
+- **Sign by Hash**: TIP-712 typed data such as Permit2 grants, and transactions too large for the
+  device to display.
+
+The SunSwap and SunPump write commands need both. A missing setting fails with
+`ledger_setting_required`, which names the setting to enable. In a multi-step command, transactions
+sent before the failure stay on chain; their IDs appear in `error.details.approvalTxIds`.
+
 ## Hash signing and recovery
 
 TRON Permit2 authorizations use TIP-712 hash signing. Some large contract transactions also fall

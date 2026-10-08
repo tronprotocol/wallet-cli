@@ -3,6 +3,7 @@ import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapRemoveLiquidityService } from "../../../../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
+import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 
 const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
@@ -219,6 +220,7 @@ export const sunswapRemoveLiquiditySpec: ChainSpec = {
   capability: "sunswap.liquidity",
   summary: "Withdraw liquidity from a pool",
   description:
+    LEDGER_TRON_SETTINGS_NOTE +
     "Take liquidity back out of a SunSwap pool.\n\n" +
     "V2 burns LP tokens and returns both sides at the pool's current ratio. The LP token itself\n" +
     "is approved to the router for exactly the amount being burned — not the pair's two tokens.\n\n" +

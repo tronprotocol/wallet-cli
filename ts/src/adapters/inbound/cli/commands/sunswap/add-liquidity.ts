@@ -5,6 +5,7 @@ import { resolveV4Pool } from "../../../../../domain/sunswap/v4-pool.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapLiquidityService } from "../../../../../application/use-cases/tron/sunswap/liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
+import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 
 const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
@@ -393,7 +394,7 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
   capability: "sunswap.liquidity",
   summary: "Add liquidity to a pool",
   description:
-    "Ledger: Permit2 and hash-signing fallback require Settings > Sign by Hash > Allowed in the TRON app. The device displays hashes instead of full details; verify the CLI preview before approving.\n" +
+    LEDGER_TRON_SETTINGS_NOTE +
     "Deposit both sides of a pair into a SunSwap pool.\n\n" +
     "V2 adds at the pool's current ratio and returns LP tokens. V3 mints a position NFT over a\n" +
     "price range, or adds to one you already hold with --position-id — which fixes the pair, the\n" +

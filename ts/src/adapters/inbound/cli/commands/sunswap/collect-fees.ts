@@ -3,6 +3,7 @@ import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapCollectFeesService } from "../../../../../application/use-cases/tron/sunswap/collect-fees-service.js";
 import { TextFormatters } from "../../render/index.js";
+import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 
 /** Flags V4 adds, and which mean nothing on V3 (PM 6.3.3's matrix). */
 const V4_ONLY = ["token0", "token1", "fee", "deadline"] as const;
@@ -145,6 +146,7 @@ export const sunswapCollectFeesSpec: ChainSpec = {
   capability: "sunswap.liquidity",
   summary: "Collect a position's earned fees",
   description:
+    LEDGER_TRON_SETTINGS_NOTE +
     "Take the fees a V3 or V4 position has earned, leaving its principal where it is.\n\n" +
     "It collects EVERYTHING owed — there is no partial option, because the contract does not\n" +
     "offer one. Nothing is approved and no Permit2 is involved: the position manager already\n" +

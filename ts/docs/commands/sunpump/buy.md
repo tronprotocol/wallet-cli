@@ -73,3 +73,6 @@ With `--wait`, a successful confirmed trade adds `tokensOut` and `amountsEstimat
 transaction's transfers verify the net output to the account. Native TRX output excludes network
 fees. Missing receipt evidence leaves the expected amount marked as estimated and emits a warning;
 the CLI never substitutes an account balance difference. `platformFee` remains the quoted fee.
+
+Ledger accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app; see
+[TRON app settings](../../guide/ledger.md#tron-app-settings).
