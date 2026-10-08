@@ -15,7 +15,7 @@ wallet-cli sunpump COMMAND
 | `sunpump token-info` | [token-info.md](token-info.md) | Full details of one token |
 | `sunpump token-search` | [token-search.md](token-search.md) | Search tokens by symbol or name |
 
-> **TRON mainnet only.** Availability is a config question, not a build one: a network gains this group when its `sunpump.launchpad` address is set, and only mainnet's is. On Nile or Shasta every command in the group fails with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier, on the family.
+> **TRON mainnet only.** Availability is a config question, not a build one: a network gains `buy` and `sell` when its `sunpump.curve` is `true`, and the catalogue and `launch` when its `sunpump.apiBaseUrl` is set; only mainnet has either. The launchpad address itself comes from the SunPump SDK, not from config. On Nile or Shasta every command in the group fails with `unsupported_network_capability` (exit 2) and the message names the network that works. An EVM network fails earlier, on the family.
 
 `buy` and `sell` sign and broadcast; `launch` creates a token through the SunPump service and signs nothing; the three queries read the launchpad service and need no account. The rest of this page is about trading.
 

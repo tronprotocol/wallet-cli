@@ -466,15 +466,7 @@ export class SunSwapV4Contracts {
     );
   }
 
-  /**
-   * The SDK's name for this network, and a check that we and it agree about V4.
-   *
-   * The contract addresses the read builders use come from the SDK's own chain config, not from ours.
-   * So our `v4PositionManager` entry is not what makes V4 work — which would make it decoration. It
-   * is a RECORD that has to agree: when it is present and differs from the address the builders will
-   * actually call, that is a configuration fault, and finding it here is far cheaper than finding it
-   * in a receipt that names a contract nobody expected.
-   */
+  /** The SDK's name for this network, which its V4 builders take. */
   #network(network: NetworkDescriptor): never {
     const name = SDK_NETWORKS[network.id];
     if (name === undefined || !isTronNetwork(network)) {
@@ -482,16 +474,6 @@ export class SunSwapV4Contracts {
         "unsupported_network",
         `network ${network.id} has no SunSwap V4 deployment`,
       );
-    }
-    const recorded = network.sunswap?.contracts?.v4PositionManager;
-    if (recorded !== undefined) {
-      const actual = String(getContractAddress(name as never, "sunswapV4PositionManager"));
-      if (recorded !== actual) {
-        throw new UsageError(
-          "invalid_config",
-          `network ${network.id} records the SunSwap V4 position manager as ${recorded} and the SDK will call ${actual}; one of the two is wrong and a deposit must not be sent on a guess`,
-        );
-      }
     }
     return name as never;
   }

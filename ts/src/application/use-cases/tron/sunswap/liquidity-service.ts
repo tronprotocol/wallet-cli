@@ -22,6 +22,7 @@ import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../../contracts/transaction-input.js";
 import type {
   ContractCallPayload,
+  LiquidityContractAddresses,
   LiquidityPort,
   TokenFacts,
   V2PairState,
@@ -64,7 +65,6 @@ import {
 } from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
-import { isTronNetwork } from "../../../../domain/types/network.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import {
@@ -1207,8 +1207,8 @@ export class SunSwapLiquidityService {
     await warnOnPostCheck(scope, "sunswap_liquidity_reserves", async () => {
       const after = await this.liquidity.v2PairState(
         network,
-        poolSideOf(network, plan.token0.address),
-        poolSideOf(network, plan.token1.address),
+        poolSideOf(this.liquidity.contracts(network), plan.token0.address),
+        poolSideOf(this.liquidity.contracts(network), plan.token1.address),
       );
       Object.assign(settled, {
         lpDecimals: after.lpDecimals,
@@ -1439,7 +1439,7 @@ export class SunSwapLiquidityService {
     owner: string,
     input: AddLiquidityInput,
   ): Promise<{ plan: LiquidityPlanView; liquidityBefore: string; poolOrder: boolean }> {
-    const manager = positionManagerOf(network);
+    const manager = this.liquidity.contracts(network).v3PositionManager;
     const deadline = resolveDeadline(input.deadline, Date.now());
     const scenario = await this.#v3Scenario(network, owner, input);
     const { pool, tickLower, tickUpper } = scenario;
@@ -1603,8 +1603,14 @@ export class SunSwapLiquidityService {
     }
     // On V3 a caller's TRX becomes WTRX — the pools are wrapped (PM 6.1.3). V2 is the protocol
     // where TRX stays native, and doing it silently is why help says so.
-    const address0 = wrapNative(network, this.tokens.resolve(network, input.token0, RESOLVED));
-    const address1 = wrapNative(network, this.tokens.resolve(network, input.token1, RESOLVED));
+    const address0 = wrapNative(
+      this.liquidity.contracts(network),
+      this.tokens.resolve(network, input.token0, RESOLVED),
+    );
+    const address1 = wrapNative(
+      this.liquidity.contracts(network),
+      this.tokens.resolve(network, input.token1, RESOLVED),
+    );
     if (address0 === address1) {
       throw new ChainError("same_token", "--token0 and --token1 are the same token");
     }
@@ -1777,7 +1783,7 @@ export class SunSwapLiquidityService {
     owner: string,
     input: AddLiquidityV2Input,
   ): Promise<{ plan: LiquidityPlanView; pair: V2PairState }> {
-    const router = routerOf(network);
+    const router = this.liquidity.contracts(network).v2Router;
     // Resolved BEFORE the comparison: `--token0 TRX --token1 TRX` and a symbol paired with its
     // own address are the same pair, and only the addresses show that.
     const address0 = this.tokens.resolve(network, input.token0, RESOLVED);
@@ -1793,8 +1799,8 @@ export class SunSwapLiquidityService {
     // looked up by the wrapped address while the receipt keeps naming TRX.
     const pair = await this.liquidity.v2PairState(
       network,
-      poolSideOf(network, token0.address),
-      poolSideOf(network, token1.address),
+      poolSideOf(this.liquidity.contracts(network), token0.address),
+      poolSideOf(this.liquidity.contracts(network), token1.address),
     );
     const amounts = this.#resolveAmounts(input, token0, token1, pair);
     const recipient = input.recipient ?? owner;
@@ -2000,21 +2006,8 @@ function atPriceBound(pool: V3PoolState): boolean {
 }
 
 /** V3 pools are wrapped: a caller's TRX is WTRX here, unlike on V2 (PM 6.1.3). */
-function wrapNative(network: NetworkDescriptor, address: string): string {
-  return isNative(address) ? poolSideOf(network, address) : address;
-}
-
-function positionManagerOf(network: NetworkDescriptor): string {
-  const manager = isTronNetwork(network)
-    ? network.sunswap?.contracts?.v3PositionManager
-    : undefined;
-  if (!manager) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no SunSwap V3 position manager configured`,
-    );
-  }
-  return manager;
+function wrapNative(contracts: LiquidityContractAddresses, address: string): string {
+  return isNative(address) ? poolSideOf(contracts, address) : address;
 }
 
 function isNative(address: string): boolean {
@@ -2023,27 +2016,8 @@ function isNative(address: string): boolean {
 
 /** The address the POOL is keyed by. Native TRX has no pool of its own; the router wraps it, so
  *  the pair to read is the WTRX one. */
-function poolSideOf(network: NetworkDescriptor, address: string): string {
-  if (!isNative(address)) return address;
-  const wtrx = isTronNetwork(network) ? network.sunswap?.contracts?.wtrx : undefined;
-  if (!wtrx) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no WTRX address configured, so a native TRX deposit cannot find its pool`,
-    );
-  }
-  return wtrx;
-}
-
-function routerOf(network: NetworkDescriptor): string {
-  const router = isTronNetwork(network) ? network.sunswap?.contracts?.v2Router : undefined;
-  if (!router) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no SunSwap V2 router configured`,
-    );
-  }
-  return router;
+function poolSideOf(contracts: LiquidityContractAddresses, address: string): string {
+  return isNative(address) ? contracts.wtrx : address;
 }
 
 /**

@@ -18,7 +18,7 @@ const NETWORK = {
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "728126428",
-  sunpump: { launchpad: LAUNCHPAD },
+  sunpump: { curve: true },
 } as unknown as NetworkDescriptor;
 
 const uint = (value: bigint | number) => BigInt(value).toString(16).padStart(64, "0");
@@ -246,9 +246,19 @@ describe("payloads", () => {
 });
 
 describe("network availability", () => {
-  it("refuses a network with no launchpad configured", () => {
+  it("takes the launchpad from the SDK where the curve is switched on", () => {
     const port = new SunPumpLaunchpadContracts(gatewayAnswering({}));
-    const nile = { ...NETWORK, sunpump: undefined } as unknown as NetworkDescriptor;
-    expect(() => port.launchpadAddress(nile)).toThrow(/no SunPump launchpad configured/);
+    expect(port.launchpadAddress(NETWORK)).toBe(LAUNCHPAD);
+  });
+
+  it("refuses a network whose curve is off, even though the SDK knows its launchpad", () => {
+    const port = new SunPumpLaunchpadContracts(gatewayAnswering({}));
+    const nile = {
+      ...NETWORK,
+      id: "tron:3448148188",
+      chainId: "3448148188",
+      sunpump: undefined,
+    } as unknown as NetworkDescriptor;
+    expect(() => port.launchpadAddress(nile)).toThrow(/no SunPump curve enabled/);
   });
 });

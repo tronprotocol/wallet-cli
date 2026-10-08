@@ -13,7 +13,6 @@ import { UsageError } from "../../../domain/errors/index.js";
 import { BUILTIN_ALIASES, BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import type { ChainFamily } from "../../../domain/family/index.js";
-import { TronAddress } from "../../../domain/address/index.js";
 
 export class ConfigLoader {
   /** bootstrap: must run before locating config.yaml. */
@@ -185,19 +184,10 @@ function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescr
     );
   }
   validSunSwapBlock(id, merged.sunswap);
+  validSunPumpBlock(id, merged.sunpump);
   // Traits are extras; having none is the normal case, not an error.
   return { capabilities: [], ...merged } as unknown as NetworkDescriptor;
 }
-
-const SUNSWAP_CONTRACT_KEYS = [
-  "permit2",
-  "universalRouter",
-  "v2Router",
-  "v3PositionManager",
-  "v4PositionManager",
-  "v4PoolManager",
-  "wtrx",
-] as const;
 
 /**
  * Validate a hand-written `sunswap` block.
@@ -211,38 +201,57 @@ const SUNSWAP_CONTRACT_KEYS = [
  * follows), so every field a network needs must be present in the user's own block.
  */
 function validSunSwapBlock(id: string, block: unknown): void {
+  validServiceBlock(id, "sunswap", block, ["marketApiBaseUrl", "routerApiBaseUrl"], ["liquidity"], {
+    contracts: "contract addresses now come from the SDK; set sunswap.liquidity: true instead",
+  });
+}
+
+/** Validate a hand-written `sunpump` block, for the same reason as `validSunSwapBlock`. */
+function validSunPumpBlock(id: string, block: unknown): void {
+  validServiceBlock(id, "sunpump", block, ["apiBaseUrl"], ["curve"], {
+    launchpad: "the launchpad address now comes from the SDK; set sunpump.curve: true instead",
+  });
+}
+
+function validServiceBlock(
+  id: string,
+  name: string,
+  block: unknown,
+  urls: readonly string[],
+  switches: readonly string[],
+  retired: Readonly<Record<string, string>>,
+): void {
   if (block === undefined) return;
   if (typeof block !== "object" || block === null || Array.isArray(block)) {
-    throw new UsageError("invalid_value", `network ${id} in config.yaml has an invalid sunswap`);
+    throw new UsageError("invalid_value", `network ${id} in config.yaml has an invalid ${name}`);
   }
-  const { marketApiBaseUrl, routerApiBaseUrl, contracts } = block as Record<string, unknown>;
-  for (const [field, value] of [
-    ["marketApiBaseUrl", marketApiBaseUrl],
-    ["routerApiBaseUrl", routerApiBaseUrl],
-  ] as const) {
+  const fields = block as Record<string, unknown>;
+  // A field this build no longer reads would otherwise be ignored in silence, and the feature it
+  // used to switch on would quietly disappear from that network.
+  for (const [field, hint] of Object.entries(retired)) {
+    if (fields[field] !== undefined) {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has ${name}.${field}, which is no longer read: ${hint}`,
+      );
+    }
+  }
+  for (const field of urls) {
+    const value = fields[field];
     if (value === undefined) continue;
     if (typeof value !== "string" || !isHttpUrl(value)) {
       throw new UsageError(
         "invalid_value",
-        `network ${id} in config.yaml has an invalid sunswap.${field}: expected an http(s) URL`,
+        `network ${id} in config.yaml has an invalid ${name}.${field}: expected an http(s) URL`,
       );
     }
   }
-  if (contracts === undefined) return;
-  if (typeof contracts !== "object" || contracts === null || Array.isArray(contracts)) {
-    throw new UsageError(
-      "invalid_value",
-      `network ${id} in config.yaml has an invalid sunswap.contracts`,
-    );
-  }
-  const codec = new TronAddress();
-  for (const key of SUNSWAP_CONTRACT_KEYS) {
-    const value = (contracts as Record<string, unknown>)[key];
-    if (value === undefined) continue;
-    if (typeof value !== "string" || !codec.validate(value)) {
+  for (const field of switches) {
+    const value = fields[field];
+    if (value !== undefined && typeof value !== "boolean") {
       throw new UsageError(
         "invalid_value",
-        `network ${id} in config.yaml has an invalid sunswap.contracts.${key}: expected a base58 TRON address`,
+        `network ${id} in config.yaml has an invalid ${name}.${field}: expected true or false`,
       );
     }
   }

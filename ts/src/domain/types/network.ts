@@ -51,9 +51,9 @@ export interface TronNetworkDescriptor extends NetworkBase {
   tronlinkHttpEndpoint?: string;
   /** Official GasFree service plus the immutable TIP-712 controller domain. */
   gasfree?: GasFreeNetworkConfig;
-  /** SunSwap services and on-chain contracts available on this network. */
+  /** SunSwap services and features enabled on this network. */
   sunswap?: SunSwapNetworkConfig;
-  /** SunPump's bonding-curve launchpad. Absent disables the curve trading commands. */
+  /** SunPump services and features enabled on this network. */
   sunpump?: SunPumpNetworkConfig;
 }
 
@@ -134,47 +134,39 @@ export interface GasFreeNetworkConfig {
 
 /**
  * Per-network SunSwap availability. Every field is optional because a network may offer some
- * services and not others: a capability is registered from the PRESENCE of the field it needs,
- * which is what lets a tester open a network by editing config.yaml instead of patching code.
+ * services and not others: a capability is registered from the field it needs, which is what
+ * lets a tester open a network by editing config.yaml instead of patching code.
+ *
+ * No contract addresses live here. They come from the SDK's own chain config, the same source its
+ * encoders use, so wallet-cli never keeps a second copy that can drift.
  */
 export interface SunSwapNetworkConfig {
   /** market/indexer API origin (HTTPS origin only; request paths are appended by the adapter). */
   marketApiBaseUrl?: string;
   /** swap route service origin. */
   routerApiBaseUrl?: string;
-  /** base58 addresses of the contracts the liquidity and swap commands call. */
-  contracts?: SunSwapContracts;
+  /** enables the liquidity commands and `position-info`, which call the SDK's contracts. */
+  liquidity?: boolean;
 }
 
 /**
- * SunPump's on-chain surface.
+ * Per-network SunPump availability.
  *
- * One address, because the curve contract is the whole of it: it holds the reserves, quotes both
- * directions, and is the spender a sale approves. The released binary carries it for mainnet
- * only (PM 3.1), and a tester opens another network by setting it in `config.yaml`.
+ * `curve` is an explicit switch rather than the presence of a launchpad address: the SDK knows
+ * Nile's launchpad, but the released binary offers the curve on mainnet only (PM 3.1). A tester
+ * opens another network by setting it in `config.yaml`.
  */
 export interface SunPumpNetworkConfig {
-  /** the bonding-curve launchpad, base58. */
-  launchpad?: string;
+  /** enables trading on the bonding curve: `sunpump buy`/`sell` and the curve branch of `swap`. */
+  curve?: boolean;
   /**
    * The launchpad's HTTP catalogue, e.g. `https://api-v2.sunpump.meme/pump-api`.
    *
-   * Separate from `launchpad` because the two are separate facts: a network can have the curve
+   * Separate from `curve` because the two are separate facts: a network can have the curve
    * contract and no catalogue. The SDK's chain config has `sunPump: null` for Nile, so there is
    * no testnet catalogue to point this at, and absent means the read-only commands are off.
    */
   apiBaseUrl?: string;
-}
-
-/** SunSwap contract addresses, base58. Absent members simply disable what needs them. */
-export interface SunSwapContracts {
-  permit2?: string;
-  universalRouter?: string;
-  v2Router?: string;
-  v3PositionManager?: string;
-  v4PositionManager?: string;
-  v4PoolManager?: string;
-  wtrx?: string;
 }
 
 /** price service config ; best-effort — failures never fail a balance read. */

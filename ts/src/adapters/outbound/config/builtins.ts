@@ -81,18 +81,12 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
       // The route service, from the SDK's own chain config. Nile's is null there, which matches
       // PM 3.1 — so the DEX branch stays off on Nile without a special case (D7).
       routerApiBaseUrl: "https://open.sun.io/apiv2/quote/swap",
-      contracts: {
-        v2Router: "TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq",
-        v3PositionManager: "TLSWrv7eC1AZCXkRjpqMZUmvgd99cj7pPF",
-        wtrx: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
-      },
+      liquidity: true,
     },
-    // Verified on chain before it was written here: `getTokenState` on this address returns 3 for
-    // PUSS (TX5eXdf8458bZ77fk8xdvUgiQmC3L93iv7), which has launched, and 0 for USDT, which was
-    // never a SunPump token. Mainnet only, per PM 3.1 — Nile's launchpad exists and is reachable,
-    // but the released binary does not offer the curve there.
     sunpump: {
-      launchpad: "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw",
+      // Mainnet only, per PM 3.1 — Nile's launchpad exists in the SDK's chain config and is
+      // reachable, but the released binary does not offer the curve there.
+      curve: true,
       // Mainnet only, and not by policy: the SDK's Nile `sunPump` endpoint is null, so there is
       // no testnet catalogue. A client built without this would answer with mainnet tokens.
       apiBaseUrl: "https://api-v2.sunpump.meme/pump-api",
@@ -115,19 +109,8 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
       verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
     },
     // No marketApiBaseUrl: the market service holds mainnet data only, so the read-only queries
-    // stay off here while the liquidity commands, which talk to these contracts, work.
-    sunswap: {
-      contracts: {
-        v2Router: "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy",
-        v3PositionManager: "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R",
-        wtrx: "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
-        // V4, supplied by the user as authoritative and agreeing with two other sources: the SDK's
-        // own Nile chain config, and — for the position manager — the address printed in PM 6.1.4's
-        // V4 receipt, which is how we know PM's V4 examples were taken from Nile.
-        v4PoolManager: "TVivLPeq7FMmTG8Z7HaiBgHTsMwCEcipKT",
-        v4PositionManager: "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP",
-      },
-    },
+    // stay off here while the liquidity commands, which talk to the SDK's contracts, work.
+    sunswap: { liquidity: true },
     feeModel: "tron-resource",
     capabilities: [],
   },

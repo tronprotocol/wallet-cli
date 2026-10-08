@@ -4,7 +4,7 @@ Manage liquidity and look up pools, positions and prices on SunSwap.
 
 This release ships six **queries** against the SunSwap market data service, `position-info`, which reads one position from the chain, three **liquidity** commands that sign and broadcast on V2, V3 and V4, and `swap`, which prices both markets and sends on the SunPump curve.
 
-> **TRON only.** The six queries are additionally **mainnet only**: the market data service holds no testnet data, so on Nile or Shasta they fail with `unsupported_network_capability` (exit 2) and the message names the networks that do work. The three liquidity commands and `position-info` talk to contracts rather than to that service, so they work on **`tron` and `nile`** (`position-info` shows USD values on mainnet only). Availability is a config question, not a build one: a network gains the queries when its `sunswap.marketApiBaseUrl` is set, and the contract-based commands when its `sunswap.contracts` block carries the routers and position managers.
+> **TRON only.** The six queries are additionally **mainnet only**: the market data service holds no testnet data, so on Nile or Shasta they fail with `unsupported_network_capability` (exit 2) and the message names the networks that do work. The three liquidity commands and `position-info` talk to contracts rather than to that service, so they work on **`tron` and `nile`** (`position-info` shows USD values on mainnet only). Availability is a config question, not a build one: a network gains the queries when its `sunswap.marketApiBaseUrl` is set, and the contract-based commands when its `sunswap.liquidity` is `true`. The contract addresses themselves come from the SunSwap SDK, not from config.
 
 ## Synopsis
 

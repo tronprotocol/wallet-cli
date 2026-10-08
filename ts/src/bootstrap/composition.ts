@@ -237,23 +237,20 @@ export function composeCliRuntime(options: BootstrapOptions) {
           key !== "sunswap.market" ||
           (isTronNetwork(network) && Boolean(network.sunswap?.marketApiBaseUrl)),
       )
-      // The liquidity commands need contracts to call, which is a different question from
-      // whether the market data service answers for this network: Nile has the contracts and no
-      // market API, and both facts are true at once.
+      // The liquidity commands call contracts, which is a different question from whether the
+      // market data service answers for this network: Nile has the contracts and no market API,
+      // and both facts are true at once. The addresses come from the SDK; this is only the switch.
       .filter(
         (key) =>
           key !== "sunswap.liquidity" ||
-          (isTronNetwork(network) &&
-            Boolean(network.sunswap?.contracts?.v2Router) &&
-            Boolean(network.sunswap?.contracts?.v3PositionManager)),
+          (isTronNetwork(network) && network.sunswap?.liquidity === true),
       )
-      // SunPump's curve is one contract, and it is the only thing these commands need. The
-      // released binary carries it for mainnet alone (PM 3.1); a tester opens another network by
-      // setting the address in config.yaml, which is what D7 exists for.
+      // An explicit switch, not the presence of an address: the SDK knows Nile's launchpad too,
+      // but the released binary offers the curve on mainnet alone (PM 3.1); a tester opens
+      // another network by setting it in config.yaml, which is what D7 exists for.
       .filter(
         (key) =>
-          key !== "sunpump.curve" ||
-          (isTronNetwork(network) && Boolean(network.sunpump?.launchpad)),
+          key !== "sunpump.curve" || (isTronNetwork(network) && network.sunpump?.curve === true),
       )
       // The catalogue is an HTTP service, which is a different question from whether the curve
       // contract is reachable: a network can have one and not the other, and reading one
@@ -271,14 +268,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
           key !== "sunpump.launch" ||
           (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
       )
-      // `swap` is available where EITHER market can be served: the curve needs a launchpad
-      // address, the router needs a route service. Deliberately its own key rather than sunpump's,
+      // `swap` is available where EITHER market can be served: the curve needs its switch on,
+      // the router needs a route service. Deliberately its own key rather than sunpump's,
       // so neither market switching on implies the other is available.
       .filter(
         (key) =>
           key !== "sunswap.swap" ||
           (isTronNetwork(network) &&
-            (Boolean(network.sunpump?.launchpad) || Boolean(network.sunswap?.routerApiBaseUrl))),
+            (network.sunpump?.curve === true || Boolean(network.sunswap?.routerApiBaseUrl))),
       )
       .map((key) => ({
         key,

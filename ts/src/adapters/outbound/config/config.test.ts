@@ -473,8 +473,8 @@ describe("alias targets are normalised to canonical ids", () => {
 describe("ConfigLoader sunswap network block", () => {
   const tronNetwork = (config: ReturnType<typeof ConfigLoader.load>, id: string) =>
     config.networks[id] as {
-      sunswap?: { marketApiBaseUrl?: string; routerApiBaseUrl?: string; contracts?: unknown };
-      sunpump?: { launchpad?: string; apiBaseUrl?: string };
+      sunswap?: { marketApiBaseUrl?: string; routerApiBaseUrl?: string; liquidity?: boolean };
+      sunpump?: { curve?: boolean; apiBaseUrl?: string };
     };
 
   it("ships the market API on mainnet and nowhere else", () => {
@@ -525,57 +525,75 @@ describe("ConfigLoader sunswap network block", () => {
     ).toThrow(/invalid sunswap\.routerApiBaseUrl/);
   });
 
-  it("rejects a contract address that is not base58 TRON", () => {
+  it("rejects a switch that is not true or false", () => {
+    expect(() =>
+      ConfigLoader.load(
+        envWithConfig("networks:\n  nile:\n    sunswap:\n      liquidity: 'yes'\n"),
+      ),
+    ).toThrow(/invalid sunswap\.liquidity: expected true or false/);
+    expect(() =>
+      ConfigLoader.load(envWithConfig("networks:\n  nile:\n    sunpump:\n      curve: 1\n")),
+    ).toThrow(/invalid sunpump\.curve: expected true or false/);
+  });
+
+  it("rejects a sunpump base URL that is not http(s)", () => {
+    expect(() =>
+      ConfigLoader.load(
+        envWithConfig("networks:\n  tron:\n    sunpump:\n      apiBaseUrl: htp://x\n"),
+      ),
+    ).toThrow(/invalid sunpump\.apiBaseUrl/);
+  });
+
+  // Contract addresses come from the SDK now. An old config that still carries them would
+  // otherwise be read without them and quietly lose the feature they used to switch on.
+  it("rejects the retired address fields, naming the switch that replaces each", () => {
     expect(() =>
       ConfigLoader.load(
         envWithConfig(
-          "networks:\n  tron:\n    sunswap:\n      contracts:\n        permit2: '0x1234'\n",
+          "networks:\n  nile:\n    sunswap:\n      contracts:\n        v2Router: TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy\n",
         ),
       ),
-    ).toThrow(/invalid sunswap\.contracts\.permit2/);
+    ).toThrow(/sunswap\.contracts, which is no longer read: .*sunswap\.liquidity: true/);
+    expect(() =>
+      ConfigLoader.load(
+        envWithConfig(
+          "networks:\n  nile:\n    sunpump:\n      launchpad: TLtTyEwqacNKc5CHLunKvxmqLB336R4Lrm\n",
+        ),
+      ),
+    ).toThrow(/sunpump\.launchpad, which is no longer read: .*sunpump\.curve: true/);
   });
 
   it("accepts a well-formed block", () => {
     const config = ConfigLoader.load(
       envWithConfig(
-        "networks:\n  tron:\n    sunswap:\n      marketApiBaseUrl: https://open.sun.io\n      contracts:\n        wtrx: TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR\n",
+        "networks:\n  nile:\n    sunswap:\n      routerApiBaseUrl: https://router.example.test\n      liquidity: true\n    sunpump:\n      curve: true\n",
       ),
     );
-    expect(tronNetwork(config, "tron:728126428").sunswap?.contracts).toEqual({
-      wtrx: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+    expect(tronNetwork(config, "tron:3448148188").sunswap).toEqual({
+      routerApiBaseUrl: "https://router.example.test",
+      liquidity: true,
     });
+    expect(tronNetwork(config, "tron:3448148188").sunpump).toEqual({ curve: true });
   });
 
   /**
    * Nile is the case that proves the two SunSwap capabilities are keyed on different fields: it
-   * has the contracts the liquidity commands call and no market API, and both are true at once.
+   * has the liquidity commands and no market API, and both are true at once.
    */
-  it("ships verified contracts on both TRON networks, and the market API on mainnet only", () => {
+  it("ships liquidity on both TRON networks, and the market API on mainnet only", () => {
     const config = ConfigLoader.load(envWithConfig(""));
     const mainnet = tronNetwork(config, "tron:728126428").sunswap;
     const nile = tronNetwork(config, "tron:3448148188").sunswap;
-    expect(mainnet?.contracts).toEqual({
-      v2Router: "TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq",
-      v3PositionManager: "TLSWrv7eC1AZCXkRjpqMZUmvgd99cj7pPF",
-      wtrx: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
-    });
-    expect(nile?.contracts).toEqual({
-      v2Router: "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy",
-      v3PositionManager: "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R",
-      // V4, supplied by the user and agreeing with the SDK's own Nile chain config; the position
-      // manager is also the address in PM 6.1.4's V4 receipt.
-      v4PoolManager: "TVivLPeq7FMmTG8Z7HaiBgHTsMwCEcipKT",
-      v4PositionManager: "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP",
-      wtrx: "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
-    });
-    expect(nile?.marketApiBaseUrl).toBeUndefined();
-    // Nile's route service is not public, so the SHIPPED build offers no router there. Enabling it
-    // for testing is a `config.yaml` job, not a builtin — see the deviation notes, item 9.
-    expect(nile?.routerApiBaseUrl).toBeUndefined();
+    expect(mainnet?.liquidity).toBe(true);
+    // Nothing but the switch: the addresses come from the SDK, never from wallet-cli. And no
+    // router — Nile's route service is not public, so enabling it for testing is a `config.yaml`
+    // job, not a builtin — see the deviation notes, item 9.
+    expect(nile).toEqual({ liquidity: true });
   });
 
   /**
-   * SunPump is mainnet-only in the shipped build, and Nile carries no launchpad of its own.
+   * SunPump is mainnet-only in the shipped build: Nile carries no switch for it, although the SDK
+   * knows Nile's launchpad.
    *
    * Enabling one for testing belongs in `config.yaml`, which layers over these builtins; putting it
    * here would ship a capability on a network no outside caller can use.
@@ -583,6 +601,7 @@ describe("ConfigLoader sunswap network block", () => {
   it("ships no SunPump block on Nile", () => {
     const config = ConfigLoader.load(envWithConfig(""));
     expect(tronNetwork(config, "tron:3448148188").sunpump).toBeUndefined();
+    expect(tronNetwork(config, "tron:728126428").sunpump?.curve).toBe(true);
   });
 
   it("rejects a sunswap block that is not a mapping", () => {

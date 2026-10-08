@@ -27,7 +27,7 @@ const NETWORK = {
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "3448148188",
-  sunswap: { contracts: { v2Router: ROUTER, v3PositionManager: MANAGER, wtrx: WTRX } },
+  sunswap: { liquidity: true },
 } as unknown as NetworkDescriptor;
 
 const FACTS: Record<string, { address: string; decimals: number; symbol: string }> = {
@@ -66,6 +66,7 @@ const resolver = {
 
 function makePort(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
   return {
+    contracts: vi.fn(() => ({ v2Router: ROUTER, v3PositionManager: MANAGER, wtrx: WTRX })),
     tokenFacts: vi.fn(async (_n: NetworkDescriptor, address: string) => FACTS[address]!),
     v2PairState: vi.fn(async () => PAIR),
     v2LiquidityResult: vi.fn(async () => undefined),

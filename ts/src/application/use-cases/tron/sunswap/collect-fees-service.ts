@@ -59,7 +59,6 @@ import { warnOnPostCheck } from "../../../services/post-check.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
-import { isTronNetwork } from "../../../../domain/types/network.js";
 import { resolveDeadline } from "../../../../domain/sunswap/liquidity.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { describeHooks } from "../../../../domain/sunswap/v4-pool.js";
@@ -230,7 +229,7 @@ export class SunSwapCollectFeesService {
     owner: string,
     input: CollectFeesInput,
   ): Promise<{ plan: CollectFeesView; position: V3Position }> {
-    const manager = positionManagerOf(network);
+    const manager = this.liquidity.contracts(network).v3PositionManager;
     const position = await this.#assertOwned(network, input.positionId, owner);
     const recipient = input.recipient ?? owner;
     const [token0, token1, owed] = await Promise.all([
@@ -663,17 +662,4 @@ function noFeesToCollect(tokenId: string): UsageError {
 
 function nothingOwed(plan: CollectFeesView): boolean {
   return BigInt(plan.token0.amount ?? "0") === 0n && BigInt(plan.token1.amount ?? "0") === 0n;
-}
-
-function positionManagerOf(network: NetworkDescriptor): string {
-  const manager = isTronNetwork(network)
-    ? network.sunswap?.contracts?.v3PositionManager
-    : undefined;
-  if (!manager) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no SunSwap V3 position manager configured`,
-    );
-  }
-  return manager;
 }

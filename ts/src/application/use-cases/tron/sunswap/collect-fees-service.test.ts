@@ -31,7 +31,7 @@ const NETWORK = {
   family: "tron",
   nativeSymbol: "TRX",
   chainId: "3448148188",
-  sunswap: { contracts: { v3PositionManager: MANAGER } },
+  sunswap: { liquidity: true },
 } as unknown as NetworkDescriptor;
 
 const FACTS: Record<string, { address: string; decimals: number; symbol: string }> = {
@@ -52,6 +52,7 @@ const POSITION = {
 
 function makePort(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
   return {
+    contracts: vi.fn(() => ({ v3PositionManager: MANAGER })),
     tokenFacts: vi.fn(async (_n: NetworkDescriptor, address: string) => FACTS[address]!),
     v3Position: vi.fn(async () => POSITION),
     v3OwedFees: vi.fn(async () => ({ amount0: "1200", amount1: "800" })),

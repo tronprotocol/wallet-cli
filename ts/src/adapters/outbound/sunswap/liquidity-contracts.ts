@@ -21,9 +21,13 @@ import {
   SqrtPriceMath,
   TickMath,
 } from "@sun-protocol/sun-sdk-sunswap-v3";
+import { getContractAddress } from "@sun-protocol/sun-sdk-chains";
+import type { ChainContracts } from "@sun-protocol/sun-sdk-chains";
+import type { Network } from "@sun-protocol/sun-sdk-core";
 import type {
   ContractCallPayload,
   LiquidityPort,
+  LiquidityContractAddresses,
   TokenFacts,
   V2AddLiquidityEthRequest,
   V2AddLiquidityRequest,
@@ -48,8 +52,8 @@ import type {
 } from "../../../application/ports/sunswap/liquidity.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import { SunSwapV4Contracts } from "./v4-contracts.js";
+import { sdkNetworkName } from "./sdk-runtime.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import {
   tronAddressBytes,
@@ -852,28 +856,32 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     return undefined;
   }
 
+  /**
+   * From the SDK's chain config — the same source its encoders and the V4 and router paths use —
+   * so wallet-cli keeps no second copy of an address that could drift from the SDK's.
+   */
+  contracts(network: NetworkDescriptor): LiquidityContractAddresses {
+    const name = sdkNetworkName(network) as Network;
+    const address = (key: keyof ChainContracts, label: string): string => {
+      const value = String(getContractAddress(name, key));
+      if (value.length === 0) {
+        throw new UsageError("unsupported_network", `network ${network.id} has no ${label}`);
+      }
+      return value;
+    };
+    return {
+      v2Router: address("sunswapV2Router", "SunSwap V2 router"),
+      v3PositionManager: address("sunswapV3PositionManager", "SunSwap V3 position manager"),
+      wtrx: address("wtrx", "WTRX address"),
+    };
+  }
+
   #positionManager(network: NetworkDescriptor): string {
-    const manager = isTronNetwork(network)
-      ? network.sunswap?.contracts?.v3PositionManager
-      : undefined;
-    if (!manager) {
-      throw new UsageError(
-        "unsupported_network",
-        `network ${network.id} has no SunSwap V3 position manager configured`,
-      );
-    }
-    return manager;
+    return this.contracts(network).v3PositionManager;
   }
 
   #router(network: NetworkDescriptor): string {
-    const router = isTronNetwork(network) ? network.sunswap?.contracts?.v2Router : undefined;
-    if (!router) {
-      throw new UsageError(
-        "unsupported_network",
-        `network ${network.id} has no SunSwap V2 router configured`,
-      );
-    }
-    return router;
+    return this.contracts(network).v2Router;
   }
 
   async #read(

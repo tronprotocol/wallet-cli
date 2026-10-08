@@ -29,6 +29,7 @@ import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../../contracts/transaction-input.js";
 import type {
   ContractCallPayload,
+  LiquidityContractAddresses,
   LiquidityPort,
   TokenFacts,
   V2PairState,
@@ -52,7 +53,6 @@ import {
 } from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
-import { isTronNetwork } from "../../../../domain/types/network.js";
 import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import {
   applyMinimumShare,
@@ -259,7 +259,7 @@ export class SunSwapRemoveLiquidityService {
     owner: string,
     input: RemoveLiquidityInput,
   ): Promise<{ plan: RemovalPlanView; pair: V2PairState }> {
-    const router = routerOf(network);
+    const router = this.liquidity.contracts(network).v2Router;
     if (input.positionId !== undefined) {
       throw new UsageError("invalid_option", "--position-id is not accepted on V2");
     }
@@ -277,8 +277,8 @@ export class SunSwapRemoveLiquidityService {
     ]);
     const pair = await this.liquidity.v2PairState(
       network,
-      poolSideOf(network, token0.address),
-      poolSideOf(network, token1.address),
+      poolSideOf(this.liquidity.contracts(network), token0.address),
+      poolSideOf(this.liquidity.contracts(network), token1.address),
     );
     if (!pair.exists || pair.totalSupply === "0") {
       throw new ChainError("pool_not_found", "no V2 pool exists for that pair");
@@ -386,8 +386,8 @@ export class SunSwapRemoveLiquidityService {
     await warnOnPostCheck(scope, "sunswap_removal_reserves", async () => {
       const after = await this.liquidity.v2PairState(
         network,
-        poolSideOf(network, plan.token0.address),
-        poolSideOf(network, plan.token1.address),
+        poolSideOf(this.liquidity.contracts(network), plan.token0.address),
+        poolSideOf(this.liquidity.contracts(network), plan.token1.address),
       );
       settled.reservesAfter = { token0: after.reserve0, token1: after.reserve1 };
       return undefined;
@@ -459,7 +459,7 @@ export class SunSwapRemoveLiquidityService {
     owner: string,
     input: RemoveLiquidityInput,
   ): Promise<{ plan: RemovalPlanView; position: V3Position; pool: V3PoolState }> {
-    const manager = positionManagerOf(network);
+    const manager = this.liquidity.contracts(network).v3PositionManager;
     if (input.token0 !== undefined || input.token1 !== undefined) {
       throw new UsageError(
         "invalid_option",
@@ -1030,38 +1030,6 @@ function isNative(address: string): boolean {
 }
 
 /** Native TRX has no pool of its own; the router wraps it, so the pair to read is the WTRX one. */
-function poolSideOf(network: NetworkDescriptor, address: string): string {
-  if (!isNative(address)) return address;
-  const wtrx = isTronNetwork(network) ? network.sunswap?.contracts?.wtrx : undefined;
-  if (!wtrx) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no WTRX address configured, so a native TRX pair cannot be found`,
-    );
-  }
-  return wtrx;
-}
-
-function routerOf(network: NetworkDescriptor): string {
-  const router = isTronNetwork(network) ? network.sunswap?.contracts?.v2Router : undefined;
-  if (!router) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no SunSwap V2 router configured`,
-    );
-  }
-  return router;
-}
-
-function positionManagerOf(network: NetworkDescriptor): string {
-  const manager = isTronNetwork(network)
-    ? network.sunswap?.contracts?.v3PositionManager
-    : undefined;
-  if (!manager) {
-    throw new UsageError(
-      "unsupported_network",
-      `network ${network.id} has no SunSwap V3 position manager configured`,
-    );
-  }
-  return manager;
+function poolSideOf(contracts: LiquidityContractAddresses, address: string): string {
+  return isNative(address) ? contracts.wtrx : address;
 }

@@ -69,9 +69,20 @@ export interface V4LiquidityResult {
   readonly balanceDelta1: string;
 }
 
+/** The V2/V3 contracts a liquidity plan names, base58. */
+export interface LiquidityContractAddresses {
+  readonly v2Router: string;
+  readonly v3PositionManager: string;
+  /** what a native TRX side becomes in a pool: pools are keyed by the wrapped token. */
+  readonly wtrx: string;
+}
+
 export interface LiquidityPort {
   /** SunSwap's own contracts — routers, the position manager, and Permit2 */
   readonly approvalDomain: "sunswap-contracts";
+
+  /** the SDK's V2/V3 addresses for this network; throws `unsupported_network` where it has none. */
+  contracts(network: NetworkDescriptor): LiquidityContractAddresses;
 
   /** decimals and symbol straight from the token contract. */
   tokenFacts(network: NetworkDescriptor, address: string): Promise<TokenFacts>;

@@ -30,7 +30,6 @@ import type { Permit2Plan, Permit2Port } from "../../../application/ports/sunswa
 import type { ContractParameter } from "../../../application/contracts/tron-contract-call.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { readOnlySdkRuntime, sdkNetworkName } from "./sdk-runtime.js";
 
@@ -59,10 +58,6 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
   }
 
   routerAddress(network: NetworkDescriptor): string {
-    const configured = isTronNetwork(network)
-      ? network.sunswap?.contracts?.universalRouter
-      : undefined;
-    if (configured) return configured;
     // The SDK's chain config is the same source the encoder itself uses, so taking the address from
     // anywhere else would risk checking one router and calling another.
     const address = this.#context(network, ZERO_READER).chain.contracts.universalRouter;

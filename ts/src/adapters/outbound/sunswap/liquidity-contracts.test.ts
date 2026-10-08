@@ -16,13 +16,7 @@ const NILE = {
   chainId: "3448148188",
   nativeSymbol: "TRX",
   capabilities: [],
-  sunswap: {
-    contracts: {
-      v2Router: "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy",
-      v3PositionManager: "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R",
-      wtrx: "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
-    },
-  },
+  sunswap: { liquidity: true },
 } as NetworkDescriptor;
 
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -228,12 +222,26 @@ describe("v2AddLiquidityPayload", () => {
     expect(payload).not.toHaveProperty("parameter");
   });
 
-  it("refuses a network with no router configured rather than guessing one", () => {
+  it("refuses a network the SDK has no deployment for rather than guessing one", () => {
     const port = new SunSwapLiquidityContracts(gatewayAnswering({}));
-    const bare = { ...NILE, sunswap: undefined } as NetworkDescriptor;
-    expect(() => port.v2AddLiquidityPayload(bare, request)).toThrow(
-      /has no SunSwap V2 router configured/,
+    const shasta = { ...NILE, id: "tron:2494104990", chainId: "2494104990" } as NetworkDescriptor;
+    expect(() => port.v2AddLiquidityPayload(shasta, request)).toThrow(
+      /SunSwap SDK has no configuration for tron:2494104990/,
     );
+  });
+
+  it("takes its addresses from the SDK, which match what the builtins used to carry", () => {
+    const port = new SunSwapLiquidityContracts(gatewayAnswering({}));
+    expect(port.contracts(NILE)).toEqual({
+      v2Router: "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy",
+      v3PositionManager: "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R",
+      wtrx: "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
+    });
+    expect(port.contracts({ ...NILE, id: "tron:728126428" } as NetworkDescriptor)).toEqual({
+      v2Router: "TNJVzGqKBWkJxJB5XYSqGAwUTV15U24pPq",
+      v3PositionManager: "TLSWrv7eC1AZCXkRjpqMZUmvgd99cj7pPF",
+      wtrx: "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+    });
   });
 });
 

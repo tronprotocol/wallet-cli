@@ -23,6 +23,8 @@ import {
   SELECTOR_TRC20_ALLOWANCE,
   SELECTOR_TRC20_BALANCE_OF,
 } from "@sun-protocol/sun-sdk-launchpad";
+import { getContractAddress } from "@sun-protocol/sun-sdk-chains";
+import type { Network } from "@sun-protocol/sun-sdk-core";
 import type {
   BuyQuote,
   BuyRequest,
@@ -38,6 +40,12 @@ import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import type { LaunchpadState } from "../../../domain/sunpump/curve.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
+
+/** The SDK's own network names. Ours are canonical ids, so the two are mapped explicitly. */
+const SDK_NETWORKS: Readonly<Record<string, Network>> = {
+  "tron:728126428": "mainnet",
+  "tron:3448148188": "nile",
+};
 
 export class SunPumpLaunchpadContracts implements LaunchpadPort {
   readonly approvalDomain = "sunpump-launchpad" as const;
@@ -161,15 +169,23 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return applySlippageMin(BigInt(expected), slippageBips).toString();
   }
 
+  /**
+   * The SDK's launchpad, and only where the network switches the curve on.
+   *
+   * The address comes from the SDK's chain config, so wallet-cli keeps no copy of it. The switch
+   * is checked here as well as at the capability gate because `swap` asks this method whether a
+   * curve exists at all: the SDK knows Nile's launchpad, and a router-only Nile must still answer
+   * "no curve" rather than consult it.
+   */
   launchpadAddress(network: NetworkDescriptor): string {
-    const launchpad = isTronNetwork(network) ? network.sunpump?.launchpad : undefined;
-    if (!launchpad) {
+    const name = SDK_NETWORKS[network.id];
+    if (!isTronNetwork(network) || network.sunpump?.curve !== true || name === undefined) {
       throw new UsageError(
         "unsupported_network",
-        `network ${network.id} has no SunPump launchpad configured`,
+        `network ${network.id} has no SunPump curve enabled`,
       );
     }
-    return launchpad;
+    return String(getContractAddress(name, "launchpad"));
   }
 
   buyPayload(network: NetworkDescriptor, request: BuyRequest): ContractCallPayload {
