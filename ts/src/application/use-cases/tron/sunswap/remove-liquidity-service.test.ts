@@ -738,19 +738,52 @@ describe("remove-liquidity V4 — the cross-checks", () => {
     ).rejects.toMatchObject({ message: expect.stringContaining(WTRX) as never });
   });
 
-  // The key's order is the pool's, not the caller's; the same two tokens name the same pool.
-  it("accepts the pair written the other way round", async () => {
-    const port = makeV4Port();
-    const { service, scope } = makeHarness(port);
+  it.each([6, 18])(
+    "refuses a reversed pair before sizing (second token decimals=%i)",
+    async (decimals) => {
+      const port = makeV4Port({
+        tokenFacts: vi.fn(async (_n, address) => ({
+          ...FACTS[address]!,
+          decimals: address === WTRX ? decimals : 6,
+        })),
+      });
+      const { service, scope, pipeline } = makeHarness(port);
+      const result = service.removeLiquidity(scope, NETWORK, {
+        ...V4,
+        token0: WTRX,
+        token1: USDT,
+        min0: "0.5",
+        dryRun: true,
+      });
+      await expect(result).rejects.toMatchObject({
+        code: "invalid_value",
+        message: expect.stringContaining(`--token0 ${USDT} --token1 ${WTRX}`),
+      });
+      await expect(result).rejects.toThrow("--min0 / --min1");
+      expect(port.v4AmountsForLiquidity).not.toHaveBeenCalled();
+      expect(port.v4RemovePayload).not.toHaveBeenCalled();
+      expect(pipeline.run).not.toHaveBeenCalled();
+    },
+  );
 
+  it("scales minimums by their assets when the pair is in position order", async () => {
+    const port = makeV4Port({
+      tokenFacts: vi.fn(async (_n, address) => ({
+        ...FACTS[address]!,
+        decimals: address === WTRX ? 18 : 6,
+      })),
+    });
+    const { service, scope } = makeHarness(port);
     await service.removeLiquidity(scope, NETWORK, {
       ...V4,
-      token0: WTRX,
-      token1: USDT,
+      min0: "0.5",
+      min1: "0.25",
       dryRun: true,
     });
-
-    expect(sentRequest(port)).toMatchObject({ pool: { currency0: USDT, currency1: WTRX } });
+    expect(sentRequest(port)).toMatchObject({
+      amount0Min: "500000",
+      amount1Min: "250000000000000000",
+    });
   });
 
   it("refuses a --fee that disagrees with the position's tier", async () => {

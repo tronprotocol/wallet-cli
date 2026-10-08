@@ -124,6 +124,8 @@ deposit's amount ceilings. The requested initial price is not an on-chain guaran
 
 **Adding to a V4 position** takes `--position-id` **and** `--token0` / `--token1`. The position already names its pool, so the tokens select nothing — they are checked against the pair the position holds, and a mismatch is refused rather than sent. `--fee` is checked the same way when given. `--tick-spacing`, `--hooks` and the tick range are not needed.
 
+The tokens must match the position's `currency0` / `currency1` order, as with V4 mint. Reversed input is rejected. Set `--amount0` / `--amount1` for the corresponding assets in that order; when correcting the token order, adjust the amounts too.
+
 ### On V4 the bound is a ceiling, not a floor
 
 On V2 and V3, `--min0` / `--min1` bound the deposit **from below**: the least you will accept depositing. **V4 bounds it from above**: the most the deposit may cost. `--min0` / `--min1` are refused on V4:

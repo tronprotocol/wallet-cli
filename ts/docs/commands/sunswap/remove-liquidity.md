@@ -73,6 +73,8 @@ If you want the fees **without** touching the principal, use [`sunswap collect-f
 
 A V4 withdrawal needs **both** `--position-id` and `--token0` / `--token1`. The position chooses the pool; the tokens select nothing and are checked against the pair the position holds, so a withdrawal from a position you did not mean is refused rather than sent. `--fee` is an optional check of the same kind.
 
+The tokens must match the position's `currency0` / `currency1` order. Reversed input is rejected. Set `--min0` / `--min1` for the corresponding assets in that order; when correcting the token order, adjust the minimums too.
+
 The tokens always go to the **signing account**: `--recipient` is not accepted on V4.
 
 `--min0` / `--min1` are floors, defaulting to `0`. `--slippage` lowers the computed floors further and cannot be combined with them. That is the **opposite** direction to `--slippage` on a V4 [`add-liquidity`](add-liquidity.md), where it raises a ceiling.

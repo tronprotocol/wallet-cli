@@ -1170,11 +1170,42 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     await expect(result).rejects.toThrow(WTRX);
   });
 
-  // The pool key's currency order is not the caller's, so the two sides the other way round name
-  // the same pool and must be accepted.
-  it("accepts the pair written the other way round", async () => {
-    const { result } = run({ ...BASE_V4, token0: "WTRX", token1: "USDT", dryRun: true });
-    await expect(result).resolves.toMatchObject({ nftTokenId: "12" });
+  it.each([6, 18])(
+    "refuses a reversed pair before sizing (second token decimals=%i)",
+    async (decimals) => {
+      const port = v4Port({
+        tokenFacts: vi.fn(async (_n, address) => ({
+          ...FACTS[address]!,
+          decimals: address === WTRX ? decimals : 6,
+        })),
+      });
+      const { result, pipeline } = run(
+        { ...BASE_V4, token0: "WTRX", token1: "USDT", amount0: "1", dryRun: true },
+        port,
+      );
+      await expect(result).rejects.toMatchObject({
+        code: "invalid_value",
+        message: expect.stringContaining(`--token0 ${USDT} --token1 ${WTRX}`),
+      });
+      await expect(result).rejects.toThrow("--amount0 / --amount1");
+      expect(port.v4Amounts).not.toHaveBeenCalled();
+      expect(port.v4IncreasePayload).not.toHaveBeenCalled();
+      expect(pipeline.run).not.toHaveBeenCalled();
+    },
+  );
+
+  it("scales amounts by their assets when the pair is in position order", async () => {
+    const port = v4Port({
+      tokenFacts: vi.fn(async (_n, address) => ({
+        ...FACTS[address]!,
+        decimals: address === WTRX ? 18 : 6,
+      })),
+    });
+    await run({ ...BASE_V4, amount0: "1", amount1: "2", dryRun: true }, port).result;
+    expect(port.v4Amounts).toHaveBeenCalledWith(POOL, expect.anything(), {
+      amount0: "1000000",
+      amount1: "2000000000000000000",
+    });
   });
 
   it("refuses a --fee that is not the tier the position's pool is in", async () => {

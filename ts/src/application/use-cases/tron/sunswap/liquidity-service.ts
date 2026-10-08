@@ -969,12 +969,8 @@ export class SunSwapLiquidityService {
   }
 
   /**
-   * The caller's pair against the position's own, as a set.
-   *
-   * Unordered on purpose: V4's currency order is the pool key's, not the caller's, and a caller who
-   * wrote the two sides the other way round has named the same pool. What this exists to catch is a
-   * deposit into a position the caller did not mean, and that is caught either way round. The same
-   * check, for the same reason, as `remove-liquidity`'s.
+   * Require the position's currency order: amount0/amount1 are sized in that order.
+   * Accepting a reversed pair would attach the caller's amounts to the wrong assets.
    */
   #assertV4PairMatches(
     network: NetworkDescriptor,
@@ -987,13 +983,11 @@ export class SunSwapLiquidityService {
       this.tokens.resolve(network, token1, RESOLVED),
     ];
     const held = [position.currency0, position.currency1];
-    const matches =
-      (given[0] === held[0] && given[1] === held[1]) ||
-      (given[0] === held[1] && given[1] === held[0]);
+    const matches = given[0] === held[0] && given[1] === held[1];
     if (!matches) {
       throw new UsageError(
         "invalid_value",
-        `--token0 ${given[0]} and --token1 ${given[1]} are not the pair position ${position.tokenId} holds, which is ${held[0]} and ${held[1]}`,
+        `--token0 ${given[0]} and --token1 ${given[1]} do not match position ${position.tokenId}'s currency order; use --token0 ${held[0]} --token1 ${held[1]} and set --amount0 / --amount1 for the corresponding assets`,
       );
     }
   }
