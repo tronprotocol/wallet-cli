@@ -119,7 +119,8 @@ export class ConfigLoader {
             );
           }
           seen.set(id, key);
-          networks[id] = validNetwork(id, { ...(networks[id] ?? {}), ...d, id });
+          const base = networks[id] ?? {};
+          networks[id] = validNetwork(id, { ...base, ...d, ...mergedFeatureBlocks(base, d), id });
         }
       }
     }
@@ -190,15 +191,37 @@ function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescr
 }
 
 /**
+ * The `sunswap` and `sunpump` blocks merge field by field over the builtin ones.
+ *
+ * An overlay that switches one feature on (say, a Nile `routerApiBaseUrl`) must not switch the
+ * builtin ones off; a field the user leaves out keeps its builtin value, and turning a feature off
+ * takes an explicit `false`. A block that is not a mapping is left as written, for validation to
+ * reject.
+ */
+function mergedFeatureBlocks(
+  base: Record<string, unknown>,
+  user: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const name of ["sunswap", "sunpump"]) {
+    const builtin = base[name];
+    const own = user[name];
+    if (isMapping(builtin) && isMapping(own)) merged[name] = { ...builtin, ...own };
+  }
+  return merged;
+}
+
+function isMapping(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
  * Validate a hand-written `sunswap` block.
  *
  * The block is what decides whether the SunSwap commands are offered at all, so a typo in it
  * has to be reported as a config mistake naming the field — silently registering a capability
  * whose base URL is "htp://open.sun.io" moves the failure to the first request, where it
  * surfaces as a provider error and looks like the service is down.
- *
- * A user block REPLACES the builtin one wholesale (the same rule every other service block
- * follows), so every field a network needs must be present in the user's own block.
  */
 function validSunSwapBlock(id: string, block: unknown): void {
   validServiceBlock(id, "sunswap", block, ["marketApiBaseUrl", "routerApiBaseUrl"], ["liquidity"], {
