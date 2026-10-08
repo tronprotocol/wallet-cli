@@ -279,7 +279,7 @@ export class SunSwapCollectFeesService {
     if (txId === undefined) return {};
     let settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_collected_postread", async () => {
-      const actual = await this.liquidity.v3CollectedAmounts(network, txId);
+      const actual = await this.liquidity.v3CollectedAmounts(network, txId, plan.nftTokenId);
       if (!actual) {
         return "the collection confirmed but its Collect event could not be read, so the receipt reports what was owed beforehand rather than what arrived";
       }

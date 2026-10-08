@@ -437,6 +437,18 @@ export class SunSwapLiquidityService {
       return { kind: KIND, mode: "dry-run", ...asPositionPreview(view), ...priced };
     }
 
+    if (mode.buildOnly) {
+      const built = await this.tx.buildOnly(
+        scope,
+        network,
+        plan.approvals ?? [],
+        this.#v4Payload(network, call, []),
+        mode,
+        input.feeLimit,
+      );
+      return { kind: KIND, ...asPositionPreview(view), ...built };
+    }
+
     // The TRC20 allowance to Permit2, UNLIMITED on this path. V4 liquidity is one of exactly two
     // paths that grant it, and it is the opposite of what `sunswap swap` does — decided per path,
     // not by analogy with the neighbouring code.
@@ -510,8 +522,7 @@ export class SunSwapLiquidityService {
         }
         return {
           kind: KIND,
-          // A build is still a preview, so its liquidity is the planned one.
-          ...(mode.buildOnly ? asPositionPreview(view) : withPositionManager(view)),
+          ...withPositionManager(view),
           ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
           ...outcomeData(main),
           // Last, so the liquidity the position actually gained replaces the one that was planned.

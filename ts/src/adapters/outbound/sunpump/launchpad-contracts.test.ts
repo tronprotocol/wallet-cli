@@ -262,3 +262,12 @@ describe("network availability", () => {
     expect(() => port.launchpadAddress(nile)).toThrow(/no SunPump curve enabled/);
   });
 });
+
+it.each([78, 255, 9999999999])("rejects unsupported token decimals %i", async (decimals) => {
+  const port = new SunPumpLaunchpadContracts(
+    gatewayAnswering({ "decimals()": uint(decimals), "symbol()": uint(32) + uint(0) }),
+  );
+  await expect(port.tokenFacts(NETWORK, TOKEN)).rejects.toMatchObject({
+    code: "invalid_node_response",
+  });
+});

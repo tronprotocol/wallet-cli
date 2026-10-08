@@ -85,13 +85,13 @@ describe("the position and its pool must agree", () => {
 
   /**
    * A mismatch means the decode is wrong, so nothing read out of it can be trusted — including the
-   * range a withdrawal would be sized against. It is a `provider_error`: the question was fine and
+   * range a withdrawal would be sized against. It is a `invalid_node_response`: the question was fine and
    * the answer does not hang together.
    */
   it("refuses a position whose key belongs to another pool", () => {
     const other = `0x${"11".repeat(32)}`;
     expect(() => assertPositionPool(decodeV4PositionInfo(INFO), other)).toThrow(
-      expect.objectContaining({ code: "provider_error" }),
+      expect.objectContaining({ code: "invalid_node_response" }),
     );
   });
 

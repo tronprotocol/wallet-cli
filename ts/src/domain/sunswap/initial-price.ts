@@ -1,6 +1,10 @@
 /** Human token1 per token0, rounded down to eight significant digits without floating point.
  *  Always a plain decimal string, never scientific notation, however extreme the value. */
+import { checkedTokenDecimals } from "../amounts/index.js";
+
 export function initialPrice(sqrtPriceX96: string, decimals0: number, decimals1: number): string {
+  checkedTokenDecimals(decimals0);
+  checkedTokenDecimals(decimals1);
   const n = BigInt(sqrtPriceX96) ** 2n * 10n ** BigInt(decimals0);
   const d = (1n << 192n) * 10n ** BigInt(decimals1);
   if (n === 0n) return "0";

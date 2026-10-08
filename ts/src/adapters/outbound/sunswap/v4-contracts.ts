@@ -513,7 +513,7 @@ function readPoolKey(words: readonly string[]): {
   const data = hex(words);
   if (data.length < 5 * 64) {
     throw new ChainError(
-      "provider_error",
+      "invalid_node_response",
       `a V4 pool key came back as ${data.length / 2} bytes, which cannot hold one`,
     );
   }
@@ -522,7 +522,7 @@ function readPoolKey(words: readonly string[]): {
   const tickSpacing = decoded.tickSpacing;
   if (typeof tickSpacing !== "number" || tickSpacing <= 0) {
     throw new ChainError(
-      "provider_error",
+      "invalid_node_response",
       `a V4 pool's parameters decoded to a tick spacing of ${String(tickSpacing)}, which no range can be aligned to`,
     );
   }
@@ -548,10 +548,8 @@ const hex = (words: readonly string[]): string => words.join("").replace(/^0x/, 
 /**
  * A position read that holds at least `count` words, or a refusal saying the node's answer was bad.
  *
- * Checked before decoding, because a short answer would otherwise reach `readPoolKey`'s
- * `provider_error` — which `position-read` takes to mean the position does not exist — or an
- * unclassified throw that surfaces as `internal_error`. It arrived with HTTP 200 and is worth
- * retrying: `invalid_node_response`.
+ * Checked before decoding so a short answer reports `invalid_node_response` with the method
+ * and expected length, instead of an unclassified decoding failure.
  */
 function assertWords(words: readonly string[], count: number, method: string): void {
   const data = hex(words);

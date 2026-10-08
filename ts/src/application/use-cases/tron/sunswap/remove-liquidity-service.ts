@@ -567,7 +567,7 @@ export class SunSwapRemoveLiquidityService {
     let settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_removal_postread", async () => {
       const [collected, after] = await Promise.all([
-        this.liquidity.v3CollectedAmounts(network, txId),
+        this.liquidity.v3CollectedAmounts(network, txId, plan.nftTokenId!),
         this.liquidity.v3Position(network, plan.nftTokenId ?? "0"),
       ]);
       if (!collected) {

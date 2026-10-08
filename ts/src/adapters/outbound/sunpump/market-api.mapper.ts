@@ -21,6 +21,7 @@
  * Numbers are moved as text throughout: they arrive as exact literals from the lossless parser,
  * and every step here either copies the characters or does BigInt arithmetic on them.
  */
+import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
 import type {
   SunPumpFarmRecord,
   SunPumpLinksRecord,
@@ -48,7 +49,7 @@ export function isTokenRow(raw: RawToken | null | undefined): raw is RawToken {
 }
 
 export function mapToken(raw: RawToken): SunPumpTokenRecord {
-  const decimals = Number(raw.decimals ?? 0);
+  const decimals = checkedTokenDecimals(Number(raw.decimals ?? 0));
   const trxPriceInUsd = plain(raw.trxPriceInUsd);
   const priceInTrx = plain(raw.priceInTrx);
   const launchedAt = utcMinuteFromSeconds(raw.tokenLaunchedInstant);

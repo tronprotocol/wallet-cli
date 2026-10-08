@@ -13,6 +13,7 @@
  * - Amounts cross as decimal strings and are parsed with `BigInt`. A `number` would silently
  *   round a balance past fifteen digits.
  */
+import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import {
@@ -201,7 +202,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     ]);
     return {
       address,
-      decimals: Number(BigInt(`0x${decimals}`)),
+      decimals: checkedTokenDecimals(Number(BigInt(`0x${decimals}`))),
       symbol: decodeString(symbol),
     };
   }
@@ -279,7 +280,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
       reserve0: sameOrder ? reserveA : reserveB,
       reserve1: sameOrder ? reserveB : reserveA,
       totalSupply: BigInt(`0x${supply}`).toString(),
-      lpDecimals: Number(BigInt(`0x${lpDecimals}`)),
+      lpDecimals: checkedTokenDecimals(Number(BigInt(`0x${lpDecimals}`))),
       exists: true,
     };
   }
@@ -801,22 +802,29 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   async v3CollectedAmounts(
     network: NetworkDescriptor,
     txId: string,
+    tokenId: string,
   ): Promise<{ amount0: string; amount1: string } | undefined> {
     const manager = this.#positionManager(network);
     const managerHex = tronHexAddress(manager).slice(2).toLowerCase();
     const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
-    const logs = Array.isArray(info.log) ? (info.log as TronLogEntry[]) : [];
+    if (info.receipt?.result !== "SUCCESS" || !Array.isArray(info.log)) return undefined;
+    const logs = info.log as TronLogEntry[];
     const topic = COLLECT_TOPIC.toLowerCase();
-    for (const entry of logs) {
+    const matches = logs.filter((entry) => {
       const topics = entry.topics ?? [];
-      if (String(entry.address ?? "").toLowerCase() !== managerHex) continue;
-      if (String(topics[0] ?? "").toLowerCase() !== topic) continue;
-      // Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1):
-      // only the id is indexed, so the two amounts are the second and third data words.
-      const data = String(entry.data ?? "");
-      return { amount0: word(data, 1), amount1: word(data, 2) };
-    }
-    return undefined;
+      return (
+        String(entry.address ?? "").toLowerCase() === managerHex &&
+        topics.length === 2 &&
+        String(topics[0]).toLowerCase() === topic &&
+        /^[0-9a-f]{64}$/i.test(String(topics[1])) &&
+        BigInt(`0x${topics[1]}`).toString() === tokenId
+      );
+    });
+    if (matches.length !== 1) return undefined;
+    // Only tokenId is indexed; recipient precedes the two amounts in the data.
+    const data = String(matches[0]!.data ?? "");
+    if (!/^[0-9a-f]{192}$/i.test(data)) return undefined;
+    return { amount0: word(data, 1), amount1: word(data, 2) };
   }
 
   /**

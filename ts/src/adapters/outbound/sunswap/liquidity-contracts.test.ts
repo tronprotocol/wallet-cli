@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
+import { readPosition } from "../../../application/use-cases/tron/sunswap/position-read.js";
 
 /** The sqrt price AT a tick — the lower edge of its band, which is what V3 sizes from. */
 const sqrtAt = (tick: number): string => TickMath.getSqrtRatioAtTick(tick).toString();
@@ -56,6 +57,20 @@ function gatewayAnswering(answers: Record<string, string>, seen: string[] = []) 
 }
 
 describe("tokenFacts", () => {
+  it.each([78, 255, 9999999999])(
+    "rejects unsupported token decimals %i before sizing",
+    async (decimals) => {
+      const port = new SunSwapLiquidityContracts(
+        gatewayAnswering({
+          "decimals()": uint(decimals),
+          "symbol()": uint(32) + uint(0),
+        }),
+      );
+      await expect(port.tokenFacts(NILE, USDT)).rejects.toMatchObject({
+        code: "invalid_node_response",
+      });
+    },
+  );
   // decimals converts a human amount into base units, so a wrong one moves the decimal point on
   // somebody's deposit. It comes from the token contract, never from a market DTO.
   it("reads decimals and symbol from the token contract itself", async () => {
@@ -1156,6 +1171,26 @@ describe("a position read the node answered with undecodable data", () => {
     } as unknown as ChainGatewayProvider);
   }
 
+  it.each([0, 12])(
+    "preserves V4 data integrity errors through position lookup (spacing=%i)",
+    async (spacing) => {
+      const info =
+        addressWord(HEX.usdt) +
+        addressWord(HEX.wtrx) +
+        uint(0) +
+        uint(500) +
+        uint(BigInt(spacing) << 16n) +
+        uint(0);
+      const port = v4({ info, liquidity: uint(1), owner: OWNER });
+      await expect(
+        readPosition("V4", "88", NILE, () => port.v4Position(NILE, "88")),
+      ).rejects.toMatchObject({
+        code: "invalid_node_response",
+        message: expect.stringMatching(spacing === 0 ? /tick spacing of 0/ : /two do not agree/),
+      });
+    },
+  );
+
   it.each([
     ["a pool key cut short", { info: "deadbeef", liquidity: uint(1), owner: OWNER }],
     ["no liquidity word", { info: uint(0).repeat(6), liquidity: "", owner: OWNER }],
@@ -1164,5 +1199,53 @@ describe("a position read the node answered with undecodable data", () => {
     await expect(v4(answers).v4Position(NILE, "88")).rejects.toMatchObject({
       code: "invalid_node_response",
     });
+  });
+});
+
+describe("V3 Collect receipt identity", () => {
+  const manager = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
+  const topic = new Interface([
+    "event Collect(uint256 indexed tokenId,address recipient,uint256 amount0,uint256 amount1)",
+  ])
+    .getEvent("Collect")!
+    .topicHash.slice(2);
+  const event = (id: number, recipient = manager) => ({
+    address: tronHexAddress(manager).slice(2),
+    topics: [topic, uint(id)],
+    data: addressWord(tronHexAddress(recipient).slice(2)) + uint(id) + uint(id * 2),
+  });
+  const port = (log: unknown[], result = "SUCCESS") =>
+    new SunSwapLiquidityContracts({
+      get: () => ({ getTransactionInfoById: async () => ({ receipt: { result }, log }) }),
+    } as never);
+
+  it("selects the requested tokenId even when another position emitted first", async () => {
+    await expect(
+      port([event(11), event(22)]).v3CollectedAmounts(NILE, "tx", "22"),
+    ).resolves.toEqual({ amount0: "22", amount1: "44" });
+  });
+  it("does not substitute another position's collection", async () => {
+    await expect(port([event(11)]).v3CollectedAmounts(NILE, "tx", "22")).resolves.toBeUndefined();
+  });
+  it("rejects duplicate matching events", async () => {
+    await expect(
+      port([event(22), event(22)]).v3CollectedAmounts(NILE, "tx", "22"),
+    ).resolves.toBeUndefined();
+  });
+  it.each([manager, USDT])(
+    "identifies the position independently of recipient %s",
+    async (recipient) => {
+      await expect(
+        port([event(22, recipient)]).v3CollectedAmounts(NILE, "tx", "22"),
+      ).resolves.toEqual({ amount0: "22", amount1: "44" });
+    },
+  );
+  it("ignores malformed event data and failed receipts", async () => {
+    await expect(
+      port([{ ...event(22), data: "dead" }]).v3CollectedAmounts(NILE, "tx", "22"),
+    ).resolves.toBeUndefined();
+    await expect(
+      port([event(22)], "REVERT").v3CollectedAmounts(NILE, "tx", "22"),
+    ).resolves.toBeUndefined();
   });
 });

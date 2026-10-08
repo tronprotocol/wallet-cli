@@ -1141,6 +1141,36 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     return { ...h, result: h.service.addLiquidity(h.scope, NETWORK, input as never) };
   }
 
+  it("builds unsigned approvals before the V4 deposit without checking that they landed", async () => {
+    const port = v4Port({ allowance: vi.fn(async () => "0") });
+    const { result, estimated, pipeline } = run({ ...BASE_V4, buildOnly: true }, port);
+    await expect(result).resolves.toMatchObject({
+      mode: "build-only",
+      liquidityExpected: SIZED.liquidity,
+      transactions: [
+        { purpose: "approval", hex: "0abc" },
+        { purpose: "approval", hex: "0abc" },
+        { purpose: "main", hex: "0abc" },
+      ],
+      feeCovers: "approvals",
+    });
+    expect(port.allowance).toHaveBeenCalledTimes(2);
+    expect(estimated.map((entry) => entry.method)).toEqual([APPROVE, APPROVE]);
+    expect(
+      vi.mocked(pipeline.run).mock.calls.every(([options]) => options.mode === "build-only"),
+    ).toBe(true);
+  });
+
+  it("builds a single V4 transaction when both allowance layers already suffice", async () => {
+    const { result } = run({ ...BASE_V4, buildOnly: true });
+    await expect(result).resolves.toMatchObject({
+      mode: "build-only",
+      hex: "0abc",
+      feeCovers: "all",
+    });
+    await expect(result).resolves.not.toHaveProperty("transactions");
+  });
+
   it("uses receipt settlement amounts and liquidity instead of planning and later position deltas", async () => {
     const port = v4Port({
       v4LiquidityResult: vi.fn(async () => ({

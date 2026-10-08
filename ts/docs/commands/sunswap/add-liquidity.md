@@ -150,6 +150,8 @@ The limit sits on the grant, not on the allowance — that is what Permit2 is fo
 Because the deposit carries its signed grants, **`--build-only` is refused** on a V4 deposit that still needs one; it builds when nothing is left to sign. When a grant is still needed, a dry run cannot price the deposit itself: `fee` carries a note instead of an energy figure, and `feeCovers` is `approvals` when approval transactions are priced, or `none` when only
 an unsigned Permit2 grant prevents estimation. `feeUnavailableReason` explains this dependency. When standing grants and token allowances cover the deposit, the dry run estimates the main transaction and reports `feeCovers: "all"`.
 
+If the Permit2 grants already suffice but a TRC20 allowance is short, `--build-only` returns the unsigned approval transactions followed by the deposit in `transactions[]`. Sign and broadcast them in that order, confirming the approvals before the deposit. Only the approvals are estimated (`feeCovers: "approvals"`); building does not send them or require them to have landed.
+
 ## Examples
 
 ```bash

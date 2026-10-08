@@ -481,6 +481,8 @@ Note the interaction with exact-amount approvals: the contract consumes the allo
 
 Every token amount in a JSON payload is **base units as a decimal string**, and the object that carries it also carries the `decimals` needed to read it — `{address, symbol, decimals, amount}`. Where an amount sits at the top of a payload rather than inside a side, its scale is beside it under a matching name (`lpAmount` / `lpDecimals`).
 
+Token amount conversion supports integer `decimals` from **0 to 77**. SunSwap and SunPump validate this range in contract and market metadata; their market scientific notation expansion also limits exponents to **−1000 through 1000**. Values outside these supported bounds fail with `invalid_node_response` before scaling or expansion.
+
 The exception is a figure that is not a token amount at all: a SunSwap V3 / V4 position's `liquidity`, `liquidityAfter` and (in an add-liquidity dry run or build) `liquidityExpected` are numbers the contract keeps, denominated in neither token, and carry no decimals.
 
 ## Stability promise (v1)

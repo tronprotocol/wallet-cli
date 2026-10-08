@@ -2,6 +2,26 @@ import { describe, expect, it } from "vitest";
 import { fromBaseUnits, toBaseUnits } from "./index.js";
 import { UsageError } from "../errors/index.js";
 
+describe("supported token precision", () => {
+  it.each([-1, 1.5, 78, 9999999999, NaN, Infinity])(
+    "rejects decimals %s in both directions",
+    (decimals) => {
+      for (const convert of [
+        () => fromBaseUnits("1", decimals),
+        () => toBaseUnits("1", decimals, "token"),
+      ]) {
+        expect(convert).toThrow(expect.objectContaining({ code: "invalid_node_response" }));
+      }
+    },
+  );
+
+  it.each([0, 77])("round trips the supported boundary %i", (decimals) => {
+    const raw = toBaseUnits("1", decimals, "token");
+    expect(raw).toBe("1" + "0".repeat(decimals));
+    expect(fromBaseUnits(raw, decimals)).toBe("1");
+  });
+});
+
 describe("fromBaseUnits", () => {
   it("converts base units to a trimmed human decimal", () => {
     expect(fromBaseUnits("1204560000", 6)).toBe("1204.56");

@@ -283,3 +283,28 @@ describe("mapPool", () => {
     expect(pool.extra).toEqual({});
   });
 });
+
+describe("market numeric bounds", () => {
+  it.each(["-1", "1.5", "78", "9999999999", "NaN", "Infinity"])(
+    "rejects unsupported API decimals %s",
+    (decimals) => {
+      for (const map of [mapPosition, mapPool]) {
+        expect(() =>
+          map({ tokenAddressList: ["token"], tokenDecimalList: [decimals] } as never),
+        ).toThrow(expect.objectContaining({ code: "invalid_node_response" }));
+      }
+      expect(() => mapToken({ tokenDecimal: decimals } as never)).toThrow(
+        expect.objectContaining({ code: "invalid_node_response" }),
+      );
+    },
+  );
+  it("rejects oversized exponent prices", () => {
+    expect(() =>
+      mapPosition({
+        tokenAddressList: ["token"],
+        tokenDecimalList: ["6"],
+        tokenPriceUsdList: ["1e9999999999"],
+      } as never),
+    ).toThrow(expect.objectContaining({ code: "invalid_node_response" }));
+  });
+});

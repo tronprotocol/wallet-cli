@@ -1,5 +1,18 @@
 import { expect, it } from "vitest";
 import { initialPrice } from "./initial-price.js";
+it.each([-1, 1.5, 78, 9999999999, NaN, Infinity])(
+  "refuses unsupported price decimals %s before exponentiation",
+  (decimals) => {
+    for (const pair of [
+      [decimals, 6],
+      [6, decimals],
+    ]) {
+      expect(() => initialPrice("79228162514264337593543950336", pair[0]!, pair[1]!)).toThrow(
+        expect.objectContaining({ code: "invalid_node_response" }),
+      );
+    }
+  },
+);
 it.each([
   ["79228162514264337593543950336", 6, 6, "1"],
   ["158456325028528675187087900672", 6, 6, "4"],

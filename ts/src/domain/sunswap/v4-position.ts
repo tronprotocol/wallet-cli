@@ -53,14 +53,14 @@ export function decodeV4PositionInfo(info: string): V4PositionInfo {
   const text = info.trim();
   if (!/^(0x[0-9a-fA-F]+|\d+)$/.test(text)) {
     throw new ChainError(
-      "provider_error",
+      "invalid_node_response",
       `the position manager returned ${JSON.stringify(info)} as a position's packed info, which is not a number`,
     );
   }
   const packed = BigInt(text);
   if (packed < 0n || packed >= 1n << 256n) {
     throw new ChainError(
-      "provider_error",
+      "invalid_node_response",
       `a position's packed info is ${text}, which does not fit in 256 bits`,
     );
   }
@@ -77,14 +77,14 @@ export function decodeV4PositionInfo(info: string): V4PositionInfo {
  * The position's pool, confirmed to be the pool we think it is.
  *
  * Cheap — a shift and a string compare — and it is the only thing standing between a decode error
- * and a withdrawal sized against another pool's reserves. A mismatch is a `provider_error` rather
- * than a usage error: the caller asked a reasonable question and the answer does not hang together.
+ * and a withdrawal sized against another pool's reserves. A mismatch is `invalid_node_response`:
+ * the caller asked a reasonable question and the answer does not hang together.
  */
 export function assertPositionPool(info: V4PositionInfo, poolId: string): void {
   const expected = (BigInt(prefixed(poolId)) >> POOL_ID_SHIFT).toString(16).padStart(50, "0");
   if (expected !== info.poolIdPrefix) {
     throw new ChainError(
-      "provider_error",
+      "invalid_node_response",
       `this position's own record names pool 0x${info.poolIdPrefix}… and the pool key it returned hashes to 0x${expected}…; the two do not agree, so the position's range and pair cannot be trusted`,
     );
   }

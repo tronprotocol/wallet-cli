@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { expandScientificNotation, toBaseUnitsTruncating } from "./amount.js";
 
 describe("toBaseUnitsTruncating", () => {
+  it.each([-1, 1.5, 78, 9999999999, NaN, Infinity])(
+    "rejects unsupported decimals %s",
+    (decimals) => {
+      expect(() => toBaseUnitsTruncating("1", decimals)).toThrow(
+        expect.objectContaining({ code: "invalid_node_response" }),
+      );
+    },
+  );
+
+  it("accepts the supported decimal boundaries", () => {
+    expect(toBaseUnitsTruncating("1", 0)).toBe("1");
+    expect(toBaseUnitsTruncating("1", 77)).toBe("1" + "0".repeat(77));
+  });
   it("scales a decimal amount to base units", () => {
     expect(toBaseUnitsTruncating("1070163.618808583559303388", 18)).toBe(
       "1070163618808583559303388",
@@ -48,6 +61,19 @@ describe("toBaseUnitsTruncating", () => {
 });
 
 describe("expandScientificNotation", () => {
+  it.each(["1e1001", "1e-1001", "1e9999999999", "1e-9999999999", "1e" + "9".repeat(400)])(
+    "rejects an oversized exponent in %s",
+    (value) => {
+      expect(() => expandScientificNotation(value)).toThrow(
+        expect.objectContaining({ code: "invalid_node_response" }),
+      );
+    },
+  );
+
+  it("accepts exponents at the expansion limit", () => {
+    expect(expandScientificNotation("1e1000")).toBe("1" + "0".repeat(1000));
+    expect(expandScientificNotation("1e-1000")).toBe("0." + "0".repeat(999) + "1");
+  });
   it("expands a small price the API sends in exponent form", () => {
     expect(expandScientificNotation("7.06e-05")).toBe("0.0000706");
     expect(expandScientificNotation("1e-7")).toBe("0.0000001");

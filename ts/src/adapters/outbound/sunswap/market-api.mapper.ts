@@ -10,6 +10,7 @@
  * step here either copies the characters or does string math on them, so a 25-digit value that
  * survived parsing survives mapping too.
  */
+import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
 import type {
   PositionRecord,
   PositionTokenRecord,
@@ -47,7 +48,7 @@ const NFT_PROTOCOLS = new Set(["V3", "V4"]);
 
 export function mapPosition(raw: RawPosition): PositionRecord {
   const protocol = raw.protocol ?? "";
-  const decimals = (raw.tokenDecimalList ?? []).map((value) => Number(value));
+  const decimals = (raw.tokenDecimalList ?? []).map((value) => checkedTokenDecimals(Number(value)));
   const rewards = readRewardAmounts(raw.extraInfo);
   const tokens = (raw.tokenAddressList ?? []).map((address, index): PositionTokenRecord => {
     const scale = decimals[index] ?? 0;
@@ -101,7 +102,7 @@ export function mapPosition(raw: RawPosition): PositionRecord {
  * `pairPrices` when a quote token was chosen.
  */
 export function mapPool(raw: RawPool): PoolRecord {
-  const decimals = (raw.tokenDecimalList ?? []).map((value) => Number(value));
+  const decimals = (raw.tokenDecimalList ?? []).map((value) => checkedTokenDecimals(Number(value)));
   const tokens = (raw.tokenAddressList ?? []).map((address, index): PoolTokenRecord => {
     const scale = decimals[index] ?? 0;
     return {
@@ -187,7 +188,7 @@ export function mapToken(raw: RawToken): TokenRecord {
     address: raw.tokenAddress ?? "",
     symbol: raw.tokenSymbol ?? "",
     name: raw.tokenName ?? "",
-    decimals: Number(raw.tokenDecimal ?? 0),
+    decimals: checkedTokenDecimals(Number(raw.tokenDecimal ?? 0)),
     logo: raw.tokenLogo ?? "",
     protocol: raw.protocol ?? "",
     priceUsd: plain(raw.tokenPriceUsd ?? ""),

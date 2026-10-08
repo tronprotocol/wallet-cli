@@ -10,6 +10,7 @@
  * the vendor describes the call, our gateway encodes it, and a retyped signature cannot drift
  * into a silent wrong-method bug.
  */
+import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
 import {
   applySlippageMin,
   createLaunchpadApproveAction,
@@ -84,7 +85,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     ]);
     return {
       address: token,
-      decimals: Number(BigInt(`0x${decimals}`)),
+      decimals: checkedTokenDecimals(Number(BigInt(`0x${decimals}`))),
       symbol: decodeString(symbol),
     };
   }

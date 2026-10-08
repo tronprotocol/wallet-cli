@@ -168,3 +168,12 @@ describe("shapes the service produces that must not become a token", () => {
     expect(utcMinuteFromSeconds("1724535408")).toBe("2024-08-24 21:36");
   });
 });
+
+it.each(["-1", "1.5", "78", "9999999999", "NaN", "Infinity"])(
+  "rejects unsupported API decimals %s",
+  (decimals) => {
+    expect(() =>
+      mapToken({ contractAddress: "token", decimals, totalSupply: "1" } as never),
+    ).toThrow(expect.objectContaining({ code: "invalid_node_response" }));
+  },
+);

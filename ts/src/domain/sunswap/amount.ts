@@ -5,11 +5,13 @@
  * error. That is right for a number a person typed: refusing to guess which digits they meant is
  * safer than dropping them. It is wrong for a number a market API sent, where extra places are
  * the indexer's own rounding artefact and refusing them would fail a read-only listing over a
- * digit nobody will ever spend. So this one truncates, and never throws.
+ * digit nobody will ever spend. So this one truncates; unsupported decimals still fail.
  *
  * String math throughout. These values reach 25 significant digits, and `number` silently
  * rewrites anything past 15 of them.
  */
+import { checkedTokenDecimals } from "../amounts/index.js";
+import { ChainError } from "../errors/index.js";
 
 /**
  * "7.06e-05" → "0.0000706". The market API sends small prices in scientific notation, and every
@@ -23,8 +25,16 @@ export function expandScientificNotation(value: string): string {
   const match = /^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/.exec(value.trim());
   if (!match) return value;
   const [, sign = "", whole = "0", fraction = "", exponent = "0"] = match;
+  const power = Number(exponent);
+  // Bound expansion before repeat/padEnd: a short remote literal can request gigabytes.
+  if (!Number.isSafeInteger(power) || Math.abs(power) > 1000) {
+    throw new ChainError(
+      "invalid_node_response",
+      "scientific notation exponent must be between -1000 and 1000",
+    );
+  }
   const digits = `${whole}${fraction}`;
-  const point = whole.length + Number(exponent);
+  const point = whole.length + power;
   let out: string;
   if (point <= 0) out = `0.${"0".repeat(-point)}${digits}`;
   else if (point >= digits.length) out = digits.padEnd(point, "0");
@@ -42,6 +52,7 @@ export function expandScientificNotation(value: string): string {
  * travels to the caller intact instead of becoming a wrong number here.
  */
 export function toBaseUnitsTruncating(value: string, decimals: number): string {
+  checkedTokenDecimals(decimals);
   const raw = value.trim();
   if (!/^-?\d+(\.\d+)?$/.test(raw)) return raw;
   const negative = raw.startsWith("-");

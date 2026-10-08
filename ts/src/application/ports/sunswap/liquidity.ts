@@ -412,6 +412,7 @@ export interface LiquidityPort {
   v3CollectedAmounts(
     network: NetworkDescriptor,
     txId: string,
+    tokenId: string,
   ): Promise<{ amount0: string; amount1: string } | undefined>;
 
   /**
