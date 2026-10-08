@@ -717,7 +717,8 @@ export class SunSwapLiquidityService {
           liquidity: sized.plan.liquidity,
           amount0Max: sized.amount0Max,
           amount1Max: sized.amount1Max,
-          owner: recipient,
+          recipient,
+          permitOwner: owner,
           // Back to the depositor. On a token pair this is inert — measured — and on a native pair it is
           // where the unspent part of the ceiling returns.
           sweepRecipient: owner,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Interface } from "ethers";
+import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
 
@@ -448,7 +448,8 @@ describe("the V4 deposit payload", () => {
     liquidity: "97941773",
     amount0Max: "1000000",
     amount1Max: "173468",
-    owner: OWNER,
+    recipient: OWNER,
+    permitOwner: OWNER,
     sweepRecipient: OWNER,
     deadline: 1790240000,
     permits: [],
@@ -547,6 +548,63 @@ describe("the V4 deposit payload", () => {
     const one = contracts.v4DepositPayload(NILE, { ...base, permits: [grant("1000000")] });
     expect(one.parameters[0]!.value as readonly string[]).toHaveLength(2);
   });
+
+  it.each([false, true])(
+    "keeps the permit owner and refund separate from the NFT recipient (native=%s)",
+    (native) => {
+      const abi = new Interface([
+        "function permit(address,((address,uint160,uint48,uint48),address,uint256),bytes)",
+        "function modifyLiquidities(bytes,uint256)",
+      ]);
+      const coder = AbiCoder.defaultAbiCoder();
+      const hex = (address: string) => `0x${tronHexAddress(address).slice(2)}`.toLowerCase();
+      const grants = [
+        ...(native ? [] : [grant(base.amount0Max)]),
+        grant(base.amount1Max, pool.currency1),
+      ];
+      for (const recipient of [OWNER, WTRX]) {
+        for (const permits of [[], grants]) {
+          const payload = contracts.v4DepositPayload(NILE, {
+            ...base,
+            pool: { ...pool, ...(native ? { currency0: pool.hooks } : {}) },
+            recipient,
+            permitOwner: OWNER,
+            permits,
+          });
+          let plannerPayload: string;
+          if (permits.length) {
+            const calls = payload.parameters[0]!.value as string[];
+            for (const call of calls.slice(0, -1)) {
+              expect(abi.decodeFunctionData("permit", call)[0].toLowerCase()).toBe(hex(OWNER));
+            }
+            plannerPayload = abi.decodeFunctionData("modifyLiquidities", calls.at(-1)!)[0];
+          } else {
+            plannerPayload = payload.parameters[0]!.value as string;
+          }
+          const [, params] = coder.decode(["bytes", "bytes[]"], plannerPayload);
+          const mint = coder.decode(
+            [
+              "tuple(address,address,address,uint24,bytes32)",
+              "int24",
+              "int24",
+              "uint256",
+              "uint128",
+              "uint128",
+              "address",
+              "bytes",
+            ],
+            params[0],
+          );
+          expect(mint[6].toLowerCase()).toBe(hex(recipient));
+          if (native) {
+            const [, refundRecipient] = coder.decode(["address", "address"], params.at(-1));
+            expect(refundRecipient.toLowerCase()).toBe(hex(OWNER));
+            expect(payload.callValueSun).toBe(base.amount0Max);
+          }
+        }
+      }
+    },
+  );
 
   // A token deposit sends no TRX, so the payload carries no call value at all rather than "0".
   it("sends no TRX for a token pair", () => {

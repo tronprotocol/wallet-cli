@@ -1468,6 +1468,22 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(preview.feeCovers).toBe("all");
     await expect(run({ ...BASE_V4, buildOnly: true }).result).resolves.toBeDefined();
   });
+  it.each([undefined, ROUTER])(
+    "separates the depositor from mint recipient %s",
+    async (recipient) => {
+      const port = v4Port();
+      const out = await run({ ...BASE_V4, recipient }, port).result;
+      expect(out.recipient).toBe(recipient ?? OWNER);
+      expect(port.v4DepositPayload).toHaveBeenCalledWith(
+        NETWORK,
+        expect.objectContaining({
+          recipient: recipient ?? OWNER,
+          permitOwner: OWNER,
+          sweepRecipient: OWNER,
+        }),
+      );
+    },
+  );
   it("uses an existing finite allowance when it covers the deposit ceiling", async () => {
     const port = v4Port({ allowance: vi.fn(async () => "4000000") });
     const out = await run({ ...BASE_V4, dryRun: true }, port).result;

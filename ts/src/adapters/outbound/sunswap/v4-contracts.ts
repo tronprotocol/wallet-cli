@@ -253,7 +253,7 @@ export class SunSwapV4Contracts {
       liquidity: request.liquidity,
       amount0Max: request.amount0Max,
       amount1Max: request.amount1Max,
-      owner: request.owner as never,
+      owner: request.recipient as never,
       deadline: String(request.deadline),
       sweepRecipient: request.sweepRecipient as never,
     });
@@ -267,7 +267,7 @@ export class SunSwapV4Contracts {
             sqrtPriceX96: request.initialSqrtPriceX96,
           });
     return this.#payload(
-      this.#liquidityCall(sdkNetwork, mint, request.owner, request.permits, initialize),
+      this.#liquidityCall(sdkNetwork, mint, request.permitOwner, request.permits, initialize),
     );
   }
 
@@ -308,7 +308,7 @@ export class SunSwapV4Contracts {
   #liquidityCall(
     sdkNetwork: never,
     action: ContractCallAction,
-    owner: string,
+    permitOwner: string,
     permits: readonly { readonly grant: unknown; readonly signature: string }[],
     initialize?: ContractCallAction,
   ): ContractCallAction {
@@ -319,7 +319,7 @@ export class SunSwapV4Contracts {
         ...(initialize === undefined ? [] : [encodeV4ContractCallAction(initialize)]),
         ...permits.map((permit) =>
           encodeV4Permit2ForwardCall({
-            owner: owner as never,
+            owner: permitOwner as never,
             permit: { ...(permit.grant as object), signature: permit.signature } as never,
           }),
         ),
