@@ -322,6 +322,13 @@ are preserved; text errors also list the IDs. These approvals are separate trans
 are not rolled back. A returned ID records submission, not a guarantee of successful execution;
 check its receipt before retrying.
 
+In broadcast mode, prerequisite approvals always wait for confirmation, even without `--wait`.
+Each approval uses `--wait-timeout` (default 60000 ms), so multiple approvals can extend the
+command's total runtime. A confirmation timeout returns `timeout` (exit 1), retains the
+submitted approval IDs, and stops before the next approval or main transaction. The approval
+may still confirm later; inspect its receipt before retrying. `--wait` continues to control
+whether the **main transaction** waits for confirmation.
+
 ### x402 and B.AI payment details
 
 A failed payment carries extra fields in `error.details` so a script can tell whether money may have moved:

@@ -255,15 +255,37 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     feeLimit: string | undefined,
   ): Promise<string[]> {
     const txIds: string[] = [];
+    // Approval confirmation is a prerequisite, independent of whether the caller wants to wait
+    // for the main transaction. Forward explicitly: CLI scopes have prototype methods and an
+    // account getter backed by private state, which object spread would lose.
+    const approvalScope: TransactionScope =
+      mode.mode === "broadcast"
+        ? {
+            get activeAccount() {
+              return scope.activeAccount;
+            },
+            timeoutMs: scope.timeoutMs,
+            wait: true,
+            waitTimeoutMs: scope.waitTimeoutMs,
+            resolveAddress: (family) => scope.resolveAddress(family),
+            emit: (event) => scope.emit(event),
+            warn: (message) => scope.warn(message),
+          }
+        : scope;
     try {
       for (const approval of approvals) {
-        const outcome = await this.run(scope, network, this.approvalPayload(network, approval), {
-          mode,
-          // An approval is a plain ERC-20 `approve`; it has no precondition of its own, so it is
-          // always priceable.
-          estimable: true,
-          feeLimit,
-        });
+        const outcome = await this.run(
+          approvalScope,
+          network,
+          this.approvalPayload(network, approval),
+          {
+            mode,
+            // An approval is a plain ERC-20 `approve`; it has no precondition of its own, so it is
+            // always priceable.
+            estimable: true,
+            feeLimit,
+          },
+        );
         const txId = outcomeTxId(outcome);
         if (txId) txIds.push(txId);
         // A receipt that says the approval failed is the reason, and it is reported as such:
@@ -273,6 +295,14 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
           throw new ChainError(
             "execution_reverted",
             `the approval for ${approval.symbol} failed on chain${result}; the main transaction was not sent`,
+          );
+        }
+        // The pipeline deliberately returns submitted on confirmation timeout. That is sufficient
+        // for a standalone transaction, but cannot authorize a dependent call or another approval.
+        if (mode.mode === "broadcast" && outcome.stage !== "confirmed") {
+          throw new ChainError(
+            "timeout",
+            `the approval for ${approval.symbol} was not confirmed within ${scope.waitTimeoutMs}ms; the main transaction was not sent; the approval may still confirm on chain`,
           );
         }
         await this.#assertAllowanceLanded(network, approval, owner);
