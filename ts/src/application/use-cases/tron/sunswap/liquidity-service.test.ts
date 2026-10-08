@@ -1274,7 +1274,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
    */
   it("builds the increase from the position's own pool key, verbatim", async () => {
     const port = v4Port();
-    const { result } = run({ ...BASE_V4, deadline: 1790240000 }, port);
+    const { result } = run({ ...BASE_V4, deadline: 4102444800 }, port);
     await result;
     expect(port.v4IncreasePayload).toHaveBeenCalledWith(NETWORK, {
       pool: {
@@ -1294,16 +1294,27 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
       owner: OWNER,
       // Set on both pairs, though it only bites on a native one.
       sweepRecipient: OWNER,
-      deadline: 1790240000,
+      deadline: 4102444800,
       permits: [],
     });
   });
+
+  it.each([1, 4102444800.5])(
+    "refuses --deadline %s before building the increase",
+    async (deadline) => {
+      const port = v4Port();
+      await expect(run({ ...BASE_V4, deadline }, port).result).rejects.toMatchObject({
+        code: "invalid_value",
+      });
+      expect(port.v4IncreasePayload).not.toHaveBeenCalled();
+    },
+  );
 
   /** A tolerance raises the ceiling UPWARD. A deposit is bounded from above; lowering it would
    *  revert every deposit it was meant to protect. */
   it("widens the ceiling upward when --slippage is given", async () => {
     const port = v4Port();
-    await run({ ...BASE_V4, slippage: "0.01", deadline: 1790240000 }, port).result;
+    await run({ ...BASE_V4, slippage: "0.01", deadline: 4102444800 }, port).result;
     const request = (port.v4IncreasePayload as unknown as { mock: { calls: unknown[][] } }).mock
       .calls[0]![1] as { amount0Max: string; amount1Max: string };
     expect(BigInt(request.amount0Max)).toBeGreaterThan(BigInt(SIZED.amount0));
@@ -1467,6 +1478,13 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(preview.permits ?? []).toEqual([]);
     expect(preview.feeCovers).toBe("all");
     await expect(run({ ...BASE_V4, buildOnly: true }).result).resolves.toBeDefined();
+  });
+  it.each([1, 4102444800.5])("refuses --deadline %s before building the mint", async (deadline) => {
+    const port = v4Port();
+    await expect(run({ ...BASE_V4, deadline }, port).result).rejects.toMatchObject({
+      code: "invalid_value",
+    });
+    expect(port.v4DepositPayload).not.toHaveBeenCalled();
   });
   it.each([undefined, ROUTER])(
     "separates the depositor from mint recipient %s",

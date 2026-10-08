@@ -69,7 +69,6 @@ import { toBaseUnits } from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import {
   applyMinimumShare,
-  DEFAULT_DEADLINE_MINUTES,
   DEFAULT_V2_MIN_BASIS_POINTS,
   expectedLpAmount,
   pairAmount,
@@ -689,8 +688,7 @@ export class SunSwapLiquidityService {
 
     const sized = await this.#sizeV4(network, owner, input, pool, range);
     const recipient = input.recipient ?? owner;
-    const deadline =
-      input.deadline ?? Math.floor(Date.now() / 1000) + DEFAULT_DEADLINE_MINUTES * 60;
+    const deadline = resolveDeadline(input.deadline, Date.now());
 
     return {
       plan: {
@@ -795,8 +793,7 @@ export class SunSwapLiquidityService {
     // The position's own range, never the caller's: `--tick-lower` / `--tick-upper` are refused above.
     const range = { tickLower: position.tickLower, tickUpper: position.tickUpper };
     const sized = await this.#sizeV4(network, owner, input, pool, range);
-    const deadline =
-      input.deadline ?? Math.floor(Date.now() / 1000) + DEFAULT_DEADLINE_MINUTES * 60;
+    const deadline = resolveDeadline(input.deadline, Date.now());
 
     return {
       plan: {
