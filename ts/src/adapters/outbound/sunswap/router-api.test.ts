@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SunSwapRouterApi } from "./router-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { tronHexAddress } from "../../../domain/address/index.js";
 
 const MAINNET = {
   id: "tron:728126428",
@@ -17,6 +18,20 @@ const REQUEST = {
   amountInRaw: "1000000",
 };
 
+const OTHER_TOKEN = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
+
+const ROUTE = {
+  amountInRaw: REQUEST.amountInRaw,
+  amountOutRaw: "343446",
+  fee: "0.05",
+  impact: "0",
+  tokens: [REQUEST.fromToken, REQUEST.toToken],
+  symbols: ["TRX", "USDT"],
+  poolFees: ["3000", "0"],
+  poolVersions: ["V2"],
+  containsUnverifiedHook: false,
+};
+
 /**
  * The adapter over a fetch that answers with one canned response.
  *
@@ -28,6 +43,72 @@ function apiServing(response: () => Promise<Response> | Response, timeoutMs = 1_
     fetchImpl: (async () => response()) as typeof globalThis.fetch,
   });
 }
+
+function routeResponse(route: Record<string, unknown>): Response {
+  return new Response(JSON.stringify({ code: 0, data: [route] }), { status: 200 });
+}
+
+function evmHex(address: string): string {
+  return `0x${tronHexAddress(address).slice(2)}`;
+}
+
+describe("SunSwapRouterApi request binding", () => {
+  it("accepts a route whose endpoints and input amount match the request", async () => {
+    const [route] = await apiServing(() => routeResponse(ROUTE)).routes(MAINNET, REQUEST);
+
+    expect(route).toMatchObject({
+      amountInRaw: REQUEST.amountInRaw,
+      path: [{ address: REQUEST.fromToken }, { address: REQUEST.toToken }],
+    });
+  });
+
+  it("accepts the SDK's equivalent 0x address representation", async () => {
+    const route = {
+      ...ROUTE,
+      amountInRaw: `000${REQUEST.amountInRaw}`,
+      tokens: [evmHex(REQUEST.fromToken), evmHex(REQUEST.toToken)],
+    };
+
+    await expect(
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+    ).resolves.toHaveLength(1);
+  });
+
+  it("accepts the SDK's equivalent 41-prefixed address representation", async () => {
+    const route = {
+      ...ROUTE,
+      tokens: [tronHexAddress(REQUEST.fromToken), tronHexAddress(REQUEST.toToken)],
+    };
+
+    await expect(
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+    ).resolves.toHaveLength(1);
+  });
+
+  it("rejects a route for a different output token", async () => {
+    const route = { ...ROUTE, tokens: [REQUEST.fromToken, OTHER_TOKEN] };
+
+    await expect(
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+    ).rejects.toMatchObject({ code: "provider_error" });
+  });
+
+  it("rejects a route for a different input token", async () => {
+    const route = { ...ROUTE, tokens: [OTHER_TOKEN, REQUEST.toToken] };
+
+    await expect(
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+    ).rejects.toMatchObject({ code: "provider_error" });
+  });
+
+  it("rejects a route for a different input amount", async () => {
+    const route = { ...ROUTE, amountInRaw: "999999" };
+
+    await expect(
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+    ).rejects.toMatchObject({ code: "provider_error" });
+  });
+});
 
 describe("SunSwapRouterApi error mapping", () => {
   it("maps HTTP 429 to provider_rate_limited and carries Retry-After", async () => {

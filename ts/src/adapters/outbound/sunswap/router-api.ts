@@ -24,6 +24,7 @@ import type { RouterPort, RouterRoute } from "../../../application/ports/sunswap
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
+import { tronHexAddress } from "../../../domain/address/index.js";
 import { createTimedFetch } from "../http/timed-fetch.js";
 import { RateLimited, rateLimitAware } from "./market-api.js";
 
@@ -90,7 +91,7 @@ export class SunSwapRouterApi implements RouterPort {
       );
     }
     const wire = Array.isArray(response.data) ? (response.data as WireRoute[]) : [];
-    return wire.map((route) => normalise(route));
+    return wire.map((route) => normalise(route, request));
   }
 }
 
@@ -123,7 +124,10 @@ function translate(error: unknown): CliError {
  * Every field is converted rather than passed through, so a rename upstream becomes a decode
  * failure here instead of a wrong number downstream.
  */
-function normalise(route: WireRoute): RouterRoute {
+function normalise(
+  route: WireRoute,
+  request: { fromToken: string; toToken: string; amountInRaw: string },
+): RouterRoute {
   const tokens = (route.tokens ?? []).map(String);
   const symbols = (route.symbols ?? []).map(String);
   if (tokens.length === 0 || tokens.length !== symbols.length) {
@@ -132,8 +136,10 @@ function normalise(route: WireRoute): RouterRoute {
       `the route service returned ${tokens.length} addresses and ${symbols.length} symbols for one route, which cannot be paired`,
     );
   }
+  const amountInRaw = integer(route.amountInRaw, "amountInRaw");
+  assertMatchesRequest(tokens, amountInRaw, request);
   return {
-    amountInRaw: integer(route.amountInRaw, "amountInRaw"),
+    amountInRaw,
     amountOutRaw: integer(route.amountOutRaw, "amountOutRaw"),
     // Human, and the only form the service sends.
     fee: String(route.fee ?? "0"),
@@ -152,6 +158,57 @@ function normalise(route: WireRoute): RouterRoute {
     // invalid fields", because a pool key's `fee` arrives as a LosslessNumber rather than a number.
     source: plainNumbers(route),
   };
+}
+
+/**
+ * A provider route may choose pools and intermediate tokens, but never either endpoint or the
+ * amount the caller authorised. The SDK accepts TRON base58, 20-byte `0x`, and 21-byte `41`
+ * addresses, so compare their decoded identities rather than their spelling.
+ */
+function assertMatchesRequest(
+  tokens: readonly string[],
+  amountInRaw: string,
+  request: { fromToken: string; toToken: string; amountInRaw: string },
+): void {
+  if (!sameInteger(amountInRaw, request.amountInRaw)) {
+    throw new ChainError(
+      "provider_error",
+      "the route service returned a route for a different input amount than requested",
+    );
+  }
+  if (!sameTronAddress(tokens[0]!, request.fromToken)) {
+    throw new ChainError(
+      "provider_error",
+      "the route service returned a route for a different input token than requested",
+    );
+  }
+  if (!sameTronAddress(tokens[tokens.length - 1]!, request.toToken)) {
+    throw new ChainError(
+      "provider_error",
+      "the route service returned a route for a different output token than requested",
+    );
+  }
+}
+
+/** Decimal integer equality without allocating a BigInt for a provider-controlled string. */
+function sameInteger(left: string, right: string): boolean {
+  if (!/^\d+$/.test(right)) return false;
+  return left.replace(/^0+(?=\d)/, "") === right.replace(/^0+(?=\d)/, "");
+}
+
+/** The address forms accepted by the route SDK, reduced to the same 20-byte identity. */
+function sameTronAddress(left: string, right: string): boolean {
+  try {
+    return tronIdentity(left) === tronIdentity(right);
+  } catch {
+    return false;
+  }
+}
+
+function tronIdentity(address: string): string {
+  if (/^0x[0-9a-fA-F]{40}$/.test(address)) return address.slice(2).toLowerCase();
+  if (/^41[0-9a-fA-F]{40}$/.test(address)) return address.slice(2).toLowerCase();
+  return tronHexAddress(address).slice(2).toLowerCase();
 }
 
 /**
