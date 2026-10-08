@@ -208,6 +208,7 @@ export const ERROR_CODES = {
   no_matching_route: { exit: 1, retry: "same", meaning: "the route service found no path for that pair" },
   launchpad_token_not_found: { exit: 1, retry: "never", meaning: "that address is not a SunPump token on this network" },
   launchpad_trading_closed: { exit: 1, retry: "never", meaning: "the token's bonding curve is closed: it is awaiting launch, or has already launched" },
+  launch_outcome_unknown: { exit: 1, retry: "never", meaning: "a token launch may have created a token, but no token came back to say so" },
   permit_mismatch: { exit: 1, retry: "never", meaning: "a Permit2 authorization did not match the swap it was planned for, so it was not signed" },
   router_call_mismatch: { exit: 1, retry: "never", meaning: "the encoded Universal Router call did not match the swap that was quoted, so it was not sent" },
   self_participation: { exit: 1, retry: "never", meaning: "the account cannot take both sides of this operation" },

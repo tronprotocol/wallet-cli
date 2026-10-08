@@ -245,9 +245,76 @@ describe("failures", () => {
     const error = await api(fetchImpl)
       .launchToken(MAINNET, { name: "T", symbol: "T", description: "d" })
       .catch((e: unknown) => e as CliError);
-    expect((error as CliError).code).toBe("provider_error");
+    expect(error).toMatchObject({
+      code: "launch_outcome_unknown",
+      details: { name: "T", symbol: "T" },
+    });
     expect((error as CliError).message).toMatch(/accepted the launch and returned no token/);
-    expect((error as CliError).message).toMatch(/token-list --owner/);
+    expect((error as CliError).message).toMatch(/sunpump token-search "T"/);
+  });
+
+  // The service deploys the token before it answers, so a timeout is not a failed launch. Reported
+  // as `timeout` it would carry retry "same", and a caller who obeyed would create a second token.
+  it("reports a timeout as an unknown outcome, not as a retryable timeout", async () => {
+    let sent = 0;
+    const fetchImpl = ((_input: unknown, init?: RequestInit) => {
+      sent += 1;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+      });
+    }) as typeof fetch;
+    const error = await new SunPumpLaunchApi(20, { fetchImpl })
+      .launchToken(MAINNET, { name: "WqaR111008", symbol: "WQ111008", description: "d" })
+      .catch((e: unknown) => e as CliError);
+    expect(sent).toBe(1);
+    expect(error).toBeInstanceOf(CliError);
+    expect(error).toMatchObject({
+      code: "launch_outcome_unknown",
+      details: { name: "WqaR111008", symbol: "WQ111008" },
+    });
+    expect((error as CliError).message).toMatch(/did not answer within 20 ms/);
+    expect((error as CliError).message).toMatch(/sunpump token-search "WQ111008"/);
+  });
+
+  // Anything short of the service saying no may have come after the deploy. Each of these is a
+  // failure the old code reported as retryable, and each could have left a token behind.
+  it.each([
+    [
+      "a 5xx",
+      () => new Response("bad gateway", { status: 502 }),
+      { failure: "provider_error", httpStatus: 502 },
+    ],
+    [
+      "a body that is not JSON",
+      () => new Response("<html>", { status: 200 }),
+      { failure: "provider_error", httpStatus: 200 },
+    ],
+    ["an empty body", () => new Response("", { status: 200 }), { failure: "provider_error" }],
+    [
+      "a dropped connection",
+      () => {
+        throw new TypeError("fetch failed");
+      },
+      { failure: "provider_error" },
+    ],
+  ])("reports %s as an unknown outcome", async (_label, answer, failure) => {
+    const fetchImpl = (async () => answer()) as typeof fetch;
+    const error = await api(fetchImpl)
+      .launchToken(MAINNET, { name: "T", symbol: "T", description: "d" })
+      .catch((e: unknown) => e as CliError);
+    expect(error).toMatchObject({
+      code: "launch_outcome_unknown",
+      details: { name: "T", symbol: "T", ...failure },
+    });
+    expect((error as CliError).message).toMatch(/may have created the token anyway/);
+  });
+
+  // A 4xx is the service refusing the request: nothing was created, so the failure stays as it is.
+  it("passes a 4xx through as the refusal it is", async () => {
+    const fetchImpl = (async () => new Response("bad request", { status: 400 })) as typeof fetch;
+    await expect(
+      api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }),
+    ).rejects.toMatchObject({ code: "provider_error", details: { httpStatus: 400 } });
   });
 
   it("names a rate limit as one", async () => {

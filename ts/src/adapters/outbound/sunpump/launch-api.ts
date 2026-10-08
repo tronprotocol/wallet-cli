@@ -14,6 +14,11 @@
  * - It refuses with HTTP 200 and a non-zero `code`. That is handled once, in `api-transport.ts`;
  *   an untranslated refusal here would be reported as a token that does not exist.
  *
+ * And one of ours: the service deploys the token BEFORE it answers, so a call that times out, or
+ * fails in any way short of the service saying no, has not failed — the token may well exist.
+ * That is `launch_outcome_unknown` (retry `never`), not `timeout` or `provider_error` (retry
+ * `same`), because resending creates a second, permanent token.
+ *
  * The response is mapped by the SAME mapper as the catalogue, so the receipt for a new token and
  * `sunpump token-info` for that token cannot drift apart in shape.
  */
@@ -23,7 +28,7 @@ import type {
   SunPumpTokenLaunchRequest,
 } from "../../../application/ports/sunpump/token-launch.js";
 import type { SunPumpTokenRecord } from "../../../application/ports/sunpump/market-data.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
 import { isTokenRow, mapToken } from "./market-api.mapper.js";
 import { rawTokenSchema, type RawToken } from "./market-api.schema.js";
 import { parseSunPumpShape, sunpumpRequest, type SunPumpApiDeps } from "./api-transport.js";
@@ -38,28 +43,84 @@ export class SunPumpLaunchApi implements SunPumpTokenLaunchPort {
     network: NetworkDescriptor,
     request: SunPumpTokenLaunchRequest,
   ): Promise<SunPumpTokenRecord> {
-    const payload = await sunpumpRequest(network, this.timeoutMs, this.deps, (client) =>
-      client.agentTokenLaunch({
-        name: request.name,
-        symbol: request.symbol,
-        description: request.description,
-        ...(request.imageBase64 === undefined ? {} : { imageBase64: request.imageBase64 }),
-        ...(request.twitterUrl === undefined ? {} : { twitterUrl: request.twitterUrl }),
-        ...(request.telegramUrl === undefined ? {} : { telegramUrl: request.telegramUrl }),
-        ...(request.websiteUrl === undefined ? {} : { websiteUrl: request.websiteUrl }),
-      }),
-    );
-    const parsed = parseSunPumpShape(rawTokenSchema, tokenBody(payload));
-    if (!isTokenRow(parsed)) {
-      // The request was ACCEPTED — the envelope said so — and we cannot name what was created.
-      // Said plainly, because the token may well exist and the caller has to go and look.
-      throw new ChainError(
-        "provider_error",
-        "SunPump accepted the launch and returned no token; check `sunpump token-list --owner` before creating another",
+    try {
+      const payload = await sunpumpRequest(network, this.timeoutMs, this.deps, (client) =>
+        client.agentTokenLaunch({
+          name: request.name,
+          symbol: request.symbol,
+          description: request.description,
+          ...(request.imageBase64 === undefined ? {} : { imageBase64: request.imageBase64 }),
+          ...(request.twitterUrl === undefined ? {} : { twitterUrl: request.twitterUrl }),
+          ...(request.telegramUrl === undefined ? {} : { telegramUrl: request.telegramUrl }),
+          ...(request.websiteUrl === undefined ? {} : { websiteUrl: request.websiteUrl }),
+        }),
+      );
+      const parsed = parseSunPumpShape(rawTokenSchema, tokenBody(payload));
+      if (!isTokenRow(parsed)) {
+        // The request was ACCEPTED — the envelope said so — and we cannot name what was created.
+        // Said plainly, because the token may well exist and the caller has to go and look.
+        throw outcomeUnknown("SunPump accepted the launch and returned no token", request);
+      }
+      return mapToken(inSeconds(parsed));
+    } catch (error) {
+      if (isRefusal(error)) throw error;
+      if (error instanceof CliError && error.code === "launch_outcome_unknown") throw error;
+      if (error instanceof CliError && error.code === "timeout") {
+        throw outcomeUnknown(
+          `SunPump did not answer within ${this.timeoutMs} ms and may have created the token anyway`,
+          request,
+        );
+      }
+      throw outcomeUnknown(
+        "the launch failed after it may have reached SunPump, which may have created the token anyway",
+        request,
+        failureOf(error),
       );
     }
-    return mapToken(inSeconds(parsed));
   }
+}
+
+/**
+ * A failure that proves no token was created — the only failures passed through as they are.
+ *
+ * A WHITE-list on purpose. The service deploys before it answers, so once the request may have
+ * left, every failure is "maybe created" unless the service said no: a refusal in its envelope
+ * (`apiCode`), an HTTP 4xx including a rate limit, or a usage error raised before anything was
+ * sent. A 5xx, a reset connection, a body that does not parse — none of those say the deploy did
+ * not happen, and treating one as a retryable failure is how a second permanent token gets made.
+ */
+function isRefusal(error: unknown): boolean {
+  if (!(error instanceof CliError)) return false;
+  if (error instanceof UsageError || error.code === "provider_rate_limited") return true;
+  const details = (error.details ?? {}) as Record<string, unknown>;
+  if (details.apiCode !== undefined) return true;
+  const status = details.httpStatus;
+  return typeof status === "number" && status >= 400 && status < 500;
+}
+
+/** what went wrong, for `details` — the code and status only, never a message or a body. */
+function failureOf(error: unknown): Record<string, unknown> {
+  if (!(error instanceof CliError)) return {};
+  const status = (error.details as Record<string, unknown> | undefined)?.httpStatus;
+  return { failure: error.code, ...(typeof status === "number" ? { httpStatus: status } : {}) };
+}
+
+/**
+ * A launch whose token may exist but was never named back to us.
+ *
+ * The lookup it points at is `token-search`, not `token-list --owner`: the owner is chosen by
+ * SunPump, so the caller has no owner address to filter by — the symbol is what they know.
+ */
+function outcomeUnknown(
+  reason: string,
+  request: SunPumpTokenLaunchRequest,
+  extra: Record<string, unknown> = {},
+): ChainError {
+  return new ChainError(
+    "launch_outcome_unknown",
+    `${reason}; run \`sunpump token-search ${JSON.stringify(request.symbol)}\` before launching again`,
+    { name: request.name, symbol: request.symbol, ...extra },
+  );
 }
 
 /**
