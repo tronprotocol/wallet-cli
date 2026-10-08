@@ -877,6 +877,10 @@ export class SunSwapLiquidityService {
       { token: pool.currency1, amount: amount1Max, facts: facts1 },
       // Native TRX has no allowance and no permit: it travels as the call's value.
     ].filter((side) => !isNative(side.token) && BigInt(side.amount) > 0n);
+    // Against the ceiling, before any approval or grant is signed. A V4 dry run cannot estimate the
+    // main call, so without this an uncovered side surfaces only after the Permit2 signature, as a
+    // bare revert of that call's estimate.
+    await this.#assertBalances(network, owner, permitsNeeded);
 
     const permit2 = await this.liquidity.permit2Address(network);
     const approvals = await this.tx.planApprovals(

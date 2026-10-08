@@ -1568,6 +1568,51 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     const out = await run({ ...BASE_V4, dryRun: true }, port).result;
     expect(out.approvals ?? []).toEqual([]);
   });
+
+  /**
+   * A TRC20 side the account cannot cover is refused in the plan, so a dry run reports it.
+   *
+   * Measured on Nile through a Ledger: with 9 USDT against a 60.74 USDT side, the dry run passed,
+   * the device signed the Permit2 grant, and only the main call's estimate then reverted with a
+   * bare `execution_reverted`. A V4 dry run cannot estimate that call, so this check is its only
+   * signal.
+   */
+  it("refuses a TRC20 side the account cannot cover in a dry run", async () => {
+    const port = v4Port({
+      balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
+        token === WTRX ? "173467" : "999999999999",
+      ),
+    } as Partial<LiquidityPort>);
+    await expect(run({ ...BASE_V4, dryRun: true }, port).result).rejects.toMatchObject({
+      code: "insufficient_token_balance",
+    });
+  });
+  it("refuses an uncovered TRC20 side before any approval or Permit2 signature", async () => {
+    const port = v4Port({
+      allowance: vi.fn(async () => "0"),
+      balanceOf: vi.fn(async () => "1"),
+    } as Partial<LiquidityPort>);
+    const permits = { planPermit: vi.fn(async () => ({})) };
+    const resolve = vi.fn(() => ({}));
+    const h = makeHarness(port, permits, { resolve });
+    await expect(h.service.addLiquidity(h.scope, NETWORK, BASE_V4)).rejects.toMatchObject({
+      code: "insufficient_token_balance",
+    });
+    expect(h.pipeline.run).not.toHaveBeenCalled();
+    expect(permits.planPermit).not.toHaveBeenCalled();
+    expect(resolve).not.toHaveBeenCalled();
+  });
+  // The ceiling is what Permit2 may pull, so it is what the balance must cover.
+  it("checks a TRC20 side against the ceiling, not the deposit", async () => {
+    const port = v4Port({
+      balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
+        token === USDT ? "1000000" : "999999999999",
+      ),
+    } as Partial<LiquidityPort>);
+    await expect(
+      run({ ...BASE_V4, slippage: "0.01", dryRun: true }, port).result,
+    ).rejects.toMatchObject({ code: "insufficient_token_balance" });
+  });
   it("compares finite allowance to the ceiling, and grants unlimited only to the short side", async () => {
     const port = v4Port({
       allowance: vi.fn(async (_n, token) => (token === USDT ? "1000000" : "4000000")),
