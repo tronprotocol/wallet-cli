@@ -8,7 +8,7 @@
  * Exercised through each spec's own fields and refine, which is what the shell composes.
  */
 import { describe, expect, it } from "vitest";
-import type { ZodIssue } from "zod";
+import type { z } from "zod";
 import type { ChainSpec } from "../../contracts/command.js";
 import { sunpumpTokenListSpec } from "./token-list.js";
 import { sunpumpTokenSearchSpec } from "./token-search.js";
@@ -17,7 +17,7 @@ import { sunpumpTokenInfoSpec } from "./token-info.js";
 interface SafeParse {
   success: boolean;
   data?: Record<string, unknown>;
-  error?: { issues: (ZodIssue & { params?: { errorCode?: string } })[] };
+  error?: { issues: (z.core.$ZodIssue & { params?: { errorCode?: string } })[] };
 }
 
 function schemaFor(spec: ChainSpec) {

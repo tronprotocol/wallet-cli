@@ -6,7 +6,7 @@
  * refine, which is exactly what the shell composes.
  */
 import { describe, expect, it } from "vitest";
-import type { ZodIssue } from "zod";
+import type { z } from "zod";
 import type { ZodObject, ZodRawShape } from "zod";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { composeRefines, parseInputSchema } from "../../shell/index.js";
@@ -20,7 +20,7 @@ const schema = (
 
 interface SafeParse {
   success: boolean;
-  error?: { issues: (ZodIssue & { params?: { errorCode?: string } })[] };
+  error?: { issues: (z.core.$ZodIssue & { params?: { errorCode?: string } })[] };
 }
 
 const V4 = {

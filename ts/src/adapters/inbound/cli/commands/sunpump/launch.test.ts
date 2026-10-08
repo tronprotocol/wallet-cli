@@ -7,8 +7,9 @@
  * link that is not a URL is therefore not an error but a permanent token with a broken link, and a
  * refusal that is not made here is never made at all.
  */
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { ZodIssue } from "zod";
+import type { z } from "zod";
 import { sunpumpLaunchSpec, sunpumpLaunchTronBinding } from "./launch.js";
 import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
 import type { NetworkDescriptor } from "../../../../../domain/types/index.js";
@@ -17,7 +18,7 @@ import type { ExecutionContext } from "../../contracts/execution-context.js";
 interface SafeParse {
   success: boolean;
   data?: Record<string, unknown>;
-  error?: { issues: (ZodIssue & { params?: { errorCode?: string } })[] };
+  error?: { issues: (z.core.$ZodIssue & { params?: { errorCode?: string } })[] };
 }
 
 const schema = (
@@ -179,7 +180,7 @@ describe("reading the logo file", () => {
 
   it("encodes the file's own bytes, and reports its size on disk", async () => {
     const { calls, binding } = bindingCapturing();
-    const path = new URL("./__fixtures__/logo.txt", import.meta.url).pathname;
+    const path = fileURLToPath(new URL("./__fixtures__/logo.txt", import.meta.url));
     await binding.run(ctx, net, { ...BASE, image: path, dryRun: true });
     expect(calls[0]).toMatchObject({
       image: { source: "file", path, bytes: 4, base64: Buffer.from("ABCD").toString("base64") },
