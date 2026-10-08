@@ -12,6 +12,7 @@ import { fail, ok, pending, receipt, table, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 import { formatFee } from "./tx.js";
 import { fromTokenBook, TOKEN_BOOK_MARK } from "./token-book.js";
+import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 
 interface Side {
   readonly address: string;
@@ -94,12 +95,12 @@ export const SunSwapSwapFormatters = {
     const tokenOut = value.tokenOut ?? UNKNOWN_SIDE;
     const out = value.amountOut ?? value.amountOutExpected;
     const spent =
-      value.market === "sunpump" && tokenIn.symbol === "TRX"
+      value.market === "sunpump" && tokenIn.address === NATIVE_TRX_ADDRESS
         ? `${amount(value.amountIn ?? "0", tokenIn)} (incl. ${formatAmount(value.tradingFee, 6)} TRX platform fee)`
         : amount(value.amountIn ?? "0", tokenIn);
     const received =
       value.market === "sunpump" &&
-      tokenOut.symbol === "TRX" &&
+      tokenOut.address === NATIVE_TRX_ADDRESS &&
       out !== undefined &&
       value.amountOut === undefined
         ? `${amount(out, tokenOut)} (after ${formatAmount(value.tradingFee, 6)} TRX platform fee)`
@@ -213,7 +214,9 @@ function quote(value: SwapView): string {
       // saying the fee twice invites a reader to add it on.
       amount(route.amountIn, first),
       amount(route.amountOut, last),
-      `${formatAmount(route.tradingFee, 6)} TRX`,
+      value.market === "sunpump"
+        ? `${formatAmount(route.tradingFee, 6)} TRX`
+        : amount(route.tradingFee, first),
     ];
     if (impact)
       cells.push(route.priceImpactPercent === undefined ? "—" : `${route.priceImpactPercent}%`);
@@ -301,12 +304,11 @@ function withNotes(body: string, value: SwapView): string {
   if (value.route?.containsUnverifiedHook) {
     notes.push(`${warn()} This route passes through an unverified hook contract.`);
   }
-  // A swap that failed on chain leaves the allowance and the permit behind it. Both are bounded to
-  // this trade and lapse within the hour, which is the reason they are bounded — but a reader should
-  // be told they exist rather than discover it.
+  // A failed swap leaves the TRC20 allowance in place without an expiry. Only the signed
+  // Permit2 grant has the expiry reported below.
   if (value.stage === "failed" && value.permit !== undefined) {
     notes.push(
-      `${warn()} The approval and the Permit2 grant are still in place; both are limited to this trade and expire at ${formatTimestamp(value.permit.expiration)}.`,
+      `${warn()} The TRC20 approval is still in place and does not expire automatically. The Permit2 grant is limited to this trade and expires at ${formatTimestamp(value.permit.expiration)}.`,
     );
   }
   return notes.length === 0 ? body : `${body}\n\n${notes.join("\n\n")}`;

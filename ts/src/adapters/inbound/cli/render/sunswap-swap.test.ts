@@ -62,6 +62,65 @@ const curveSwap = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+describe("quote fee units", () => {
+  it.each([
+    ["USDT", 6, "50000", "0.05 USDT"],
+    ["TOKEN18", 18, "50000000000000000", "0.05 TOKEN18"],
+    ["WHOLE", 0, "2", "2 WHOLE"],
+    ["TRX", 6, "50000", "0.05 TRX"],
+  ] as const)("renders a SunSwap fee in the input asset %s", (symbol, decimals, fee, expected) => {
+    const first = { ...TOKEN_SIDE, symbol, decimals };
+    const out = render({
+      mode: "quote",
+      market: "sunswap",
+      routes: [
+        { amountIn: "1000000", amountOut: "2921823", tradingFee: fee, path: [first, TRX_SIDE] },
+      ],
+    });
+    const row = out.split("\n").find((line) => line.startsWith(`| ${symbol} →`))!;
+    expect(row.split("|")[4]!.trim()).toBe(expected);
+    expect(out).toContain("Trading fee");
+  });
+
+  it.each(["buy", "sell"])("keeps SunPump %s platform fees in TRX", (direction) => {
+    const token = { ...TOKEN_SIDE, symbol: "TOKEN18", decimals: 18 };
+    const path = direction === "buy" ? [TRX_SIDE, token] : [token, TRX_SIDE];
+    const out = render({
+      mode: "quote",
+      market: "sunpump",
+      routes: [{ amountIn: "1000000", amountOut: "2921823", tradingFee: "10000", path }],
+    });
+    const row = out.split("\n").find((line) => line.startsWith(`| ${path[0]!.symbol} →`))!;
+    expect(row.split("|")[4]!.trim()).toBe("0.01 TRX");
+    expect(out).toContain("Platform fee");
+  });
+});
+
+describe("platform fee notes identify native TRX by address", () => {
+  const sameSymbolToken = { address: LAUNCHPAD, symbol: "TRX", decimals: 18 };
+
+  it("does not attach a native spending fee to a same-symbol token sale", () => {
+    const out = render(curveSwap({ mode: "dry-run", tokenIn: sameSymbolToken }));
+    expect(out).not.toContain("(incl.");
+    expect(out).toContain("(after 0.01 TRX platform fee)");
+  });
+
+  it("does not attach a native receiving fee to a same-symbol token purchase", () => {
+    const out = render(
+      curveSwap({
+        mode: "dry-run",
+        tokenIn: TRX_SIDE,
+        tokenOut: sameSymbolToken,
+        amountIn: "1000000",
+        amountOutExpected: "1000000000000000000",
+        approvals: undefined,
+      }),
+    );
+    expect(out).toContain("(incl. 0.01 TRX platform fee)");
+    expect(out).not.toContain("(after");
+  });
+});
+
 describe("the approval note follows the market, not the presence of approvals", () => {
   it("does not claim a router swap approves anything without limit", () => {
     const out = render(routerSwap({ mode: "dry-run", feeCovers: "approvals" }));
@@ -166,15 +225,15 @@ describe("an unverified hook", () => {
 
 describe("a swap that failed on chain", () => {
   /**
-   * The approval and the grant are still standing. Both are bounded to this trade and lapse within
-   * the hour — which is the reason they are bounded — but a reader should be told rather than find
-   * out later.
+   * The TRC20 approval has no expiry; only the newly signed Permit2 grant expires.
    */
   it("says the grant outlived the failed transaction, and when it lapses", () => {
     const out = render(routerSwap({ stage: "failed", txId: "abc", result: "REVERT" }));
     expect(out).toContain("still in place");
     expect(out).toContain("limited to this trade");
-    expect(out).toContain("expire at");
+    expect(out).toContain("does not expire automatically");
+    expect(out).toContain("expires at");
+    expect(out).not.toContain("both are limited to this trade and expire");
   });
 
   it("says nothing of the sort when there was no permit", () => {
