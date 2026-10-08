@@ -1,9 +1,9 @@
 /**
- * End-to-end coverage for Task 3 (scope import dedup to one source kind), exercised through real
+ * End-to-end coverage for scoping import dedup to one source kind, exercised through real
  * CLI dispatch rather than calling Keystore.import directly: import private-key, then import the
  * mnemonic that derives the SAME EVM address at account #0, and confirm both accounts survive
  * (list shows two) and a wallet-management command on that shared address refuses to guess
- * (ambiguous_account, per ADR — list/backup/delete/rename/derive never accept a family to narrow
+ * (ambiguous_account — list/backup/delete/rename/derive never accept a family to narrow
  * with). `import private-key` / `import mnemonic` are TTY-only, so this drives them through the
  * same fake-TTY prompter pattern wallet.test.ts and wallet.backup.test.ts already use instead of a
  * real PTY.

@@ -153,8 +153,8 @@ export interface SunSwapNetworkConfig {
  * Per-network SunPump availability.
  *
  * `curve` is an explicit switch rather than the presence of a launchpad address: the SDK knows
- * Nile's launchpad, but the released binary offers the curve on mainnet only (PM 3.1). A tester
- * opens another network by setting it in `config.yaml`.
+ * Nile's launchpad, but the released binary offers the curve on mainnet only. A tester opens
+ * another network by setting it in `config.yaml`.
  */
 export interface SunPumpNetworkConfig {
   /** enables trading on the bonding curve: `sunpump buy`/`sell` and the curve branch of `swap`. */

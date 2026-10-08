@@ -24,7 +24,7 @@ const NETWORK = {
   sunpump: { launchpad: LAUNCHPAD },
 } as unknown as NetworkDescriptor;
 
-/** The live mainnet quote for 1 TRX of the token PM's own example uses. */
+/** The live mainnet quote for 1 TRX of the example token. */
 const BUY_QUOTE = { tokenAmount: "25125337148664452174594", feeSun: "10000" };
 /**
  * A live Nile sale of 1000 tokens: the contract quoted `(22728, 10000)`, and the chain paid the
@@ -153,7 +153,7 @@ describe("the curve state gate", () => {
 });
 
 describe("--quote", () => {
-  // PM 2.11: no account, no password, no transaction. The harness throws if an address is
+  // No account, no password, no transaction. The harness throws if an address is
   // resolved, so this asserts the absence rather than trusting the code path.
   it("touches no account at all", async () => {
     const { service, scope, resolveAddress } = makeHarness(makePort(), false);

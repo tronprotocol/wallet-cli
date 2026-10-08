@@ -751,7 +751,7 @@ describe("the V4 owed-fees read", () => {
   const POOL_ID = "2f8c".padEnd(64, "a");
   const QUERY = { tokenId: "1", poolId: POOL_ID, tickLower: -1284, tickUpper: 1116 };
 
-  /** PM 6.3.4's own figures, so a pass here means the receipt's example is reproducible. */
+  /** The helper's two owed amounts, as one ABI-encoded answer. */
   const OWED = uint(13974n) + uint(4108n);
 
   function answering(answer: string, seen: string[] = []) {
@@ -892,7 +892,7 @@ describe("V2 transaction return amounts", () => {
     } as unknown as ChainGatewayProvider);
   }
 
-  it.each([false, true])("decodes the QA Nile withdrawal, nativeFirst=%s", async (nativeFirst) => {
+  it.each([false, true])("decodes a real Nile withdrawal, nativeFirst=%s", async (nativeFirst) => {
     // a03bee7941c545ecd0c2ae399b8dcc3f100e8f964bb0a43e74a9c17409dc4d01
     const raw =
       "000000000000000000000000000000000000000000000000000000004db8f50e00000000000000000000000000000000000000000000000000000000355c95ab";

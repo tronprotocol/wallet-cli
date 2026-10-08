@@ -141,10 +141,9 @@ export class HelpService {
       ["import", "Import a wallet", ""],
       ["list", "List wallets / accounts", ""],
     ] as const;
-    // Rows, order and wording follow the spec, with two deliberate departures recorded in
-    // needs-doc: `exchange` keeps a verb phrase (the spec's "On-chain Bancor exchange" is a
-    // noun phrase, which the verb-first rule forbids), and `contract` keeps "govern"
-    // (the spec's "send" drops any mention of the four governance sub-commands).
+    // `exchange` keeps a verb phrase ("On-chain Bancor exchange" would be a noun phrase, which
+    // the verb-first rule forbids), and `contract` keeps "govern" (a bare "send" would drop any
+    // mention of the four governance sub-commands).
     // Descriptions are verb summaries and must NOT name sub-commands — a TRON-only verb named
     // here (`chain`'s old "params") sends EVM readers hunting for a command they cannot run.
     const management = [
@@ -691,8 +690,8 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   gasfree:
     "Gas-free token transfers via the GasFree service (open.gasfree.io).\nFees are charged in the transferred token — a per-transfer service fee, plus a one-time\nactivation fee on the first transfer from an inactive GasFree address — so no TRX is needed.\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
   // Availability differs BETWEEN TRON networks (the market queries are mainnet-only), which the
-  // help deliberately does not state: PM 11.3 keeps that out of help text and leaves it to the
-  // refusal, which names the networks that do work.
+  // help deliberately does not state: that is left to the refusal, which names the networks that
+  // do work.
   sunswap:
     "Add, remove and collect fees on SunSwap liquidity, and look up pools, positions and prices.",
   sunpump: "Buy and sell SunPump tokens on their bonding curve, before they launch onto SunSwap.",

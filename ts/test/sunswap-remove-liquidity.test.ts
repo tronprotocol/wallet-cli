@@ -79,7 +79,7 @@ describe("protocol", () => {
 });
 
 /**
- * V4's own matrix (PM 6.2.3).
+ * V4's own flag matrix.
  *
  * All of it is decided at parse time, so none of these cases reaches a wallet or a node — which is
  * the point: a caller who named the wrong flags learns it without being asked for a password first.
@@ -148,9 +148,9 @@ describe("the V4 flag matrix", () => {
   });
 
   /**
-   * They COMBINE, and PM 6.2.3 says so: `--slippage` is a tolerance applied to `--min0`/`--min1`
-   * "further down". An earlier version refused the pair — which contradicted the spec and rejected
-   * the one shape a careful caller wants, a floor they chose with a little room under it.
+   * They COMBINE: `--slippage` is a tolerance applied to `--min0`/`--min1` "further down". An
+   * earlier version refused the pair — which rejected the one shape a careful caller wants, a
+   * floor they chose with a little room under it.
    *
    * Asserted through to the DRY RUN rather than only at the parser, so this cannot pass while the
    * service quietly discards one of them.

@@ -1,5 +1,5 @@
 /**
- * The flag × scenario matrix (PM 6.3.3), checked where it is decided.
+ * The flag × scenario matrix, checked where it is decided.
  *
  * These refusals depend on nothing remote, so they belong to the schema: they fire
  * deterministically, before a wallet is opened or a node is asked anything. Exercised through the
@@ -119,7 +119,7 @@ describe("sunswap collect-fees — V4's flags elsewhere", () => {
 });
 
 /**
- * A malformed `--recipient` is the caller's typo, not our crash (PM 6.0's shared codes).
+ * A malformed `--recipient` is the caller's typo, not our crash.
  *
  * Unchecked, it travelled to the ABI encoder and came back as `internal_error` ("Invalid checksum")
  * at exit 1 — after the position had already been read. Refused here, it is `invalid_address` at

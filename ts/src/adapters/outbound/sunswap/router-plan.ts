@@ -12,7 +12,7 @@
  *   building that action here is what makes the grant ours: exact, one hour, and the same struct the
  *   signature covers.
  *
- * The runtime it plans against is read-only and cannot sign or broadcast (D6). Everything that
+ * The runtime it plans against is read-only and cannot sign or broadcast. Everything that
  * touches a key or the chain happens in `TxPipeline` and `SignerResolver`.
  */
 import {

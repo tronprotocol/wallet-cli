@@ -246,8 +246,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
           (isTronNetwork(network) && network.sunswap?.liquidity === true),
       )
       // An explicit switch, not the presence of an address: the SDK knows Nile's launchpad too,
-      // but the released binary offers the curve on mainnet alone (PM 3.1); a tester opens
-      // another network by setting it in config.yaml, which is what D7 exists for.
+      // but the released binary offers the curve on mainnet alone; a tester opens another
+      // network by setting it in config.yaml.
       .filter(
         (key) =>
           key !== "sunpump.curve" || (isTronNetwork(network) && network.sunpump?.curve === true),

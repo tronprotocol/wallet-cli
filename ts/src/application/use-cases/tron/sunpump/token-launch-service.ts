@@ -97,8 +97,8 @@ export class SunPumpTokenLaunchService {
  * The body, with every absent option OMITTED rather than sent empty.
  *
  * This service ignores what it does not understand and accepts what it does, so an empty string
- * would become a token whose website is "". There is no flag for the SDK's `tweetUsername`: PM
- * lists no option for it, and a field nobody can set does not belong in the request.
+ * would become a token whose website is "". There is no flag for the SDK's `tweetUsername`, and a
+ * field nobody can set does not belong in the request.
  */
 function buildRequest(input: SunPumpLaunchInput): SunPumpTokenLaunchRequest {
   return {

@@ -93,19 +93,19 @@ import {
  */
 const RESOLVED = { caller: "liquidity" } as const;
 
-/** The receipt's `kind`, one value across every mode this command has (PM 2.9). */
+/** The receipt's `kind`, one value across every mode this command has. */
 const KIND = "sunswap-add-liquidity" as const;
 
 /**
  * The TRC20 allowance a V4 deposit grants to Permit2: UNLIMITED.
  *
- * PM 13.3 names V4 liquidity as one of exactly two paths where that is correct, and it is the OPPOSITE
- * of what `sunswap swap` does on its own Permit2 approval. Carried as a ruling rather than by analogy
- * with the neighbouring code — PM decides this per path, and the two paths sit one file apart.
+ * V4 liquidity is one of exactly two paths that grant Permit2 an unlimited allowance, and it is the
+ * OPPOSITE of what `sunswap swap` does on its own Permit2 approval. The allowance is decided per
+ * path, not by analogy with the neighbouring code — and the two paths sit one file apart.
  */
 const V4_TRC20_ALLOWANCE = (2n ** 256n - 1n).toString();
 
-/** How long a V4 deposit's Permit2 grants live. Exact amount, one hour — PM 6.1.4. */
+/** How long a V4 deposit's Permit2 grants live. Exact amount, one hour. */
 const V4_PERMIT_TTL_SECONDS = 3600;
 
 export interface AddLiquidityInput extends TransactionModeInput {
@@ -147,8 +147,8 @@ export interface AddLiquidityInput extends TransactionModeInput {
    * V4: tolerance on the deposit CEILING, as a decimal.
    *
    * The opposite of `min0` / `min1`. Unset means the ceiling is exactly the computed amounts, which
-   * is PM's default and is measured to work — a mint with an exact ceiling succeeded on Nile once the
-   * sizing used the pool's own price.
+   * is the default and is measured to work — a mint with an exact ceiling succeeded on Nile once
+   * the sizing used the pool's own price.
    */
   readonly slippage?: string;
 }
@@ -161,13 +161,13 @@ export type AddLiquidityV2Input = AddLiquidityInput & {
 
 /** What a caller is told before anything is signed, and what the receipt echoes afterwards. */
 export interface LiquidityPlanView {
-  /** the account the deposit comes out of — the text receipt leads with it (PM 2.10). */
+  /** the account the deposit comes out of — the text receipt leads with it. */
   readonly account: string;
   readonly protocol: "V2" | "V3" | "V4";
   /**
    * The contract this deposit is made through: the V2 router, or the V3 / V4 position manager.
    *
-   * Internal name only. V3 and V4 publish it as `positionManager` (PM 6.0) — see
+   * Internal name only. V3 and V4 publish it as `positionManager` — see
    * `withPositionManager` in `liquidity-transactions.ts`.
    */
   readonly router: string;
@@ -185,23 +185,22 @@ export interface LiquidityPlanView {
   // ── V3 ──────────────────────────────────────────────────────────────────────
   /** the position being added to; absent when this mints a new one. */
   readonly nftTokenId?: string;
-  /** true when this deposit creates the position rather than adding to one (PM 6.1.4). */
+  /** true when this deposit creates the position rather than adding to one. */
   readonly newPosition?: boolean;
   /**
    * The V3 fee tier, in hundredths of a basis point (3000 = 0.3%).
    *
-   * NOT `fee`: PM 2.10 gives that key to the estimated-cost object on every dry run in this
-   * version, and PM 6.1.4 also uses it for the tier. One key meaning two different things
-   * depending on mode is how a script reads a tier as a cost, so the tier is named for what it
-   * is and `fee` stays the estimate.
+   * NOT `fee`: that key belongs to the estimated-cost object on every dry run. One key meaning
+   * two different things depending on mode is how a script reads a tier as a cost, so the tier
+   * is named for what it is and `fee` stays the estimate.
    */
   readonly feeTier?: number;
   readonly tickLower?: number;
   readonly tickUpper?: number;
-  /** the liquidity these amounts fund. Published as `liquidityExpected` by a preview (PM 6.1.4). */
+  /** the liquidity these amounts fund. Published as `liquidityExpected` by a preview. */
   readonly liquidity?: string;
   /** set when the CLI chose the tier or the range, so a receipt says which values were used and
-   *  that they were not the caller's (PM 6.1.3). */
+   *  that they were not the caller's. */
   readonly feeAuto?: boolean;
   readonly tickRangeAuto?: boolean;
   /** the pool holds a price at the very edge of the representable range — it was initialised and
@@ -277,7 +276,7 @@ interface V4Sizing {
   readonly facts1: TokenFacts;
   /** what each side deposits, and the liquidity it funds. */
   readonly plan: { readonly amount0: string; readonly amount1: string; readonly liquidity: string };
-  /** the tolerance applied to the ceiling, in basis points. Zero is PM's default. */
+  /** the tolerance applied to the ceiling, in basis points. Zero is the default. */
   readonly bips: number;
   readonly amount0Max: string;
   readonly amount1Max: string;
@@ -439,9 +438,9 @@ export class SunSwapLiquidityService {
       return { kind: KIND, mode: "dry-run", ...asPositionPreview(view), ...priced };
     }
 
-    // The TRC20 allowance to Permit2, UNLIMITED on this path. PM 13.3 names V4 liquidity as one of
-    // exactly two paths where that is correct, and it is the opposite of what `sunswap swap` does —
-    // carried as a ruling rather than by analogy with the neighbouring code.
+    // The TRC20 allowance to Permit2, UNLIMITED on this path. V4 liquidity is one of exactly two
+    // paths that grant it, and it is the opposite of what `sunswap swap` does — decided per path,
+    // not by analogy with the neighbouring code.
     return this.tx.withApprovals(
       scope,
       network,
@@ -453,7 +452,7 @@ export class SunSwapLiquidityService {
         const permits = await this.#signV4Permits(scope, network, owner, pool, permitsNeeded);
 
         // Read the holder again, immediately before sending: a dry run can be minutes old, and an
-        // increase must not be sent against a position that changed hands in between (PM 6.1.3). The
+        // increase must not be sent against a position that changed hands in between. The
         // same guard V3's increase and the V4 withdrawal run, for the same reason.
         if (call.kind === "increase") {
           await this.#assertV4PositionOwned(network, call.request.tokenId, owner);
@@ -512,7 +511,7 @@ export class SunSwapLiquidityService {
         }
         return {
           kind: KIND,
-          // A build is still a preview, so its liquidity is the planned one (PM 6.1.4).
+          // A build is still a preview, so its liquidity is the planned one.
           ...(mode.buildOnly ? asPositionPreview(view) : withPositionManager(view)),
           ...(approvalTxIds.length === 0 ? {} : { approvalTxIds }),
           ...outcomeData(main),
@@ -533,7 +532,7 @@ export class SunSwapLiquidityService {
     const { plan } = await this.#planV2(network, owner, input);
     const mode = transactionMode(input);
 
-    // A dry run answers without a key: PM 13.1 requires it to work for a watch-only account, so
+    // A dry run answers without a key: it must work for a watch-only account, so
     // the signer assertion happens only on a path that will actually sign.
     if (transactionRequiresSigner(input)) {
       this.tx.assertCanSign(scope);
@@ -729,12 +728,12 @@ export class SunSwapLiquidityService {
   }
 
   /**
-   * A V4 deposit into a position that already exists (PM 6.1.3, the V4 追加 column).
+   * A V4 deposit into a position that already exists.
    *
    * The position is the authority on everything about the pool: which one it is, and the range the
    * deposit lands in. `--token0` / `--token1` are REQUIRED here and yet select nothing — they are a
    * CROSS-CHECK against the pair the position holds, which is the one place this command asks for more
-   * than V3's increase does. The asymmetry is deliberate on PM's part and the check is what earns it:
+   * than V3's increase does. The asymmetry is deliberate and the check is what earns it:
    * a caller who typed the wrong position id is refused rather than funded into a market they did not
    * mean. `--fee` is checked the same way when given. Both mirror `remove-liquidity`'s V4 path.
    */
@@ -835,7 +834,7 @@ export class SunSwapLiquidityService {
    * The sizing every V4 deposit shares: the amounts, the ceiling, the grants and the approvals.
    *
    * One implementation for the mint and the increase on purpose. The CEILING's default is the part
-   * that must not drift: with no `--slippage` it is EXACTLY the computed amounts, which is PM 6.1.3's
+   * that must not drift: with no `--slippage` it is EXACTLY the computed amounts, which is the
    * default and is measured to work — a Nile mint with zero tolerance succeeded once the sizing used
    * the pool's own `sqrtPriceX96`. Two copies of that rule is how one of them later gains a margin.
    */
@@ -1127,7 +1126,7 @@ export class SunSwapLiquidityService {
   }
 
   /**
-   * How much liquidity the position actually gained (PM 6.1.4).
+   * How much liquidity the position actually gained.
    *
    * Best-effort, like V3's: the deposit is already on chain, so a read that failed costs the figure
    * and not the position.
@@ -1274,7 +1273,7 @@ export class SunSwapLiquidityService {
       input.feeLimit,
       async (approvalTxIds) => {
         // Read again, immediately before sending: a dry run can be minutes old, and an increase must
-        // not be sent against a position that changed hands in between (PM 6.1.3).
+        // not be sent against a position that changed hands in between.
         if (plan.nftTokenId !== undefined && !plan.newPosition) {
           await this.#assertPositionOwned(network, plan.nftTokenId, owner);
         }
@@ -1287,7 +1286,7 @@ export class SunSwapLiquidityService {
 
         // A new position's id is assigned during execution, so nothing before the receipt can know
         // it — and on Nile `position-list` cannot tell a caller afterwards, which is why help says to
-        // pass --wait (PM 6.1.4).
+        // pass --wait.
         const minted = await this.#mintedPositionId(scope, network, plan, main);
         const settled = await this.#settleV3(
           scope,
@@ -1352,7 +1351,7 @@ export class SunSwapLiquidityService {
   }
 
   /**
-   * How much liquidity the position actually gained (PM 6.1.4).
+   * How much liquidity the position actually gained.
    *
    * The planned figure is what the amounts were worth a moment before the transaction; a V3 pool
    * takes them at its own price, so what it credits is routinely a little less. Reading the
@@ -1517,7 +1516,7 @@ export class SunSwapLiquidityService {
         symbol: scenario.token0.symbol,
         decimals: scenario.token0.decimals,
         amount: amount0,
-        // V3 floors default to 0, not to a share of the amount (PM 6.1.3).
+        // V3 floors default to 0, not to a share of the amount.
         amountMinimum: this.#v3Minimum(input.min0, scenario.token0),
       },
       token1: {
@@ -1545,7 +1544,7 @@ export class SunSwapLiquidityService {
    * Which of the two V3 scenarios this is, and everything that follows from it.
    *
    * An increase reads the pair, the tier and the range off the position. A mint takes them from
-   * the caller, with the defaults PM 6.1.3 sets when a value is omitted.
+   * the caller, with defaults filled in when a value is omitted.
    */
   async #v3Scenario(
     network: NetworkDescriptor,
@@ -1601,7 +1600,7 @@ export class SunSwapLiquidityService {
         "a new V3 position requires --token0 and --token1; use --position-id to add to an existing one",
       );
     }
-    // On V3 a caller's TRX becomes WTRX — the pools are wrapped (PM 6.1.3). V2 is the protocol
+    // On V3 a caller's TRX becomes WTRX — the pools are wrapped. V2 is the protocol
     // where TRX stays native, and doing it silently is why help says so.
     const address0 = wrapNative(
       this.liquidity.contracts(network),
@@ -1681,7 +1680,7 @@ export class SunSwapLiquidityService {
     };
   }
 
-  /** V3 floors default to zero (PM 6.1.3) — the dry run warns when they are. */
+  /** V3 floors default to zero — the dry run warns when they are. */
   #v3Minimum(explicit: string | undefined, facts: TokenFacts): string {
     return explicit === undefined ? "0" : base(explicit, facts, "--min");
   }
@@ -1850,7 +1849,7 @@ export class SunSwapLiquidityService {
         amountMinimum: this.#minimum(input.min1, amounts.amount1, token1),
       },
       // Omitted entirely when the allowances already suffice, so a reader is not shown an empty
-      // list and left wondering whether an approval is coming (PM 13.3).
+      // list and left wondering whether an approval is coming.
       ...(approvals.length === 0 ? {} : { approvals }),
     };
     return { plan, pair };
@@ -1889,7 +1888,7 @@ export class SunSwapLiquidityService {
     };
   }
 
-  /** an explicit floor, else 95% of what is being deposited (PM 6.1.3). */
+  /** an explicit floor, else 95% of what is being deposited. */
   #minimum(explicit: string | undefined, amount: string, facts: TokenFacts): string {
     if (explicit === undefined) return applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS);
     return base(explicit, facts, "--min");
@@ -1967,7 +1966,7 @@ function sideFacts(side: PlannedSide): TokenFacts {
 }
 
 /**
- * The receipt's view of a side (PM 6.0).
+ * The receipt's view of a side.
  *
  * `decimals` travels with it for the same reason it does in the plan: it is what turns these
  * base units back into the amount a person deposited. A receipt that dropped it printed
@@ -1975,7 +1974,7 @@ function sideFacts(side: PlannedSide): TokenFacts {
  */
 /**
  * A V3 / V4 plan as a dry run or a build publishes it: the liquidity it funds is an ESTIMATE, so
- * it is `liquidityExpected` (PM 6.1.4). `liquidity` belongs to the confirmed receipt, where it is
+ * it is `liquidityExpected`. `liquidity` belongs to the confirmed receipt, where it is
  * what the position measurably gained — one key for both would let a script read a plan as a
  * settlement.
  */
@@ -2005,7 +2004,7 @@ function atPriceBound(pool: V3PoolState): boolean {
   return pool.exists && (pool.currentTick <= MIN_TICK || pool.currentTick >= MAX_TICK);
 }
 
-/** V3 pools are wrapped: a caller's TRX is WTRX here, unlike on V2 (PM 6.1.3). */
+/** V3 pools are wrapped: a caller's TRX is WTRX here, unlike on V2. */
 function wrapNative(contracts: LiquidityContractAddresses, address: string): string {
   return isNative(address) ? poolSideOf(contracts, address) : address;
 }

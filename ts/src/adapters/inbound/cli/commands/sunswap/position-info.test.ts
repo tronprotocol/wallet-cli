@@ -55,8 +55,8 @@ describe("sunswap position-info — the spec", () => {
   /**
    * The gate is the CONTRACTS, not the market API.
    *
-   * PM 7.2.2 makes the command mainnet-only because the data API is; this implementation reads the
-   * chain, so it is gated the way the other contract-reading commands are and works on Nile too.
+   * The data API is mainnet-only; this implementation reads the chain instead, so it is gated the
+   * way the other contract-reading commands are and works on Nile too.
    * Using `sunswap.market` here would switch it off on every network but mainnet.
    */
   it("is gated on the liquidity contracts rather than on the market API", () => {

@@ -78,7 +78,7 @@ function refuseFlagsOutsideMode(value: Record<string, unknown>, ctx: RefinementC
 export const sunswapSwapSpec: ChainSpec = {
   path: ["sunswap", "swap"],
   network: "optional",
-  // `none` because `--quote` must work with no account at all (PM 2.11); the use case resolves
+  // `none` because `--quote` must work with no account at all; the use case resolves
   // the account itself on the paths that sign. An account is needed for every other mode.
   wallet: "none",
   auth: "conditional",

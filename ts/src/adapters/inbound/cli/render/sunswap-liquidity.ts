@@ -6,7 +6,7 @@
  * for a reason — what a dry run promises is what the receipt should show, and a reader comparing
  * the two should not have to translate between them.
  *
- * Contract addresses stay out of text and live in the JSON only (PM 6.0): the router is not a
+ * Contract addresses stay out of text and live in the JSON only: the router is not a
  * decision the reader makes, and putting it in the table crowds out what is.
  */
 import type { TextRenderContext } from "../contracts/command.js";
@@ -63,7 +63,7 @@ interface LiquidityView {
   readonly tickUpper?: number;
   /** what a confirmed deposit measurably added. */
   readonly liquidity?: string;
-  /** what a preview expects the deposit to fund (PM 6.1.4). */
+  /** what a preview expects the deposit to fund. */
   readonly liquidityExpected?: string;
   readonly poolHasNoPrice?: boolean;
   readonly reservesAfter?: { readonly token0: string; readonly token1: string };
@@ -90,7 +90,7 @@ const deadline = (seconds: number): string =>
 
 export const SunSwapLiquidityFormatters = {
   sunswapLiquidity: (value: LiquidityView, ctx: TextRenderContext): string => {
-    // PM 2.10's order: who pays, what goes out, what comes back, the floor, the rest of the
+    // The order: who pays, what goes out, what comes back, the floor, the rest of the
     // inputs. The same rows lead the execution receipt, so the two read as one document.
     if (value.mode === "dry-run" || value.mode === "build-only") {
       const rows: Pair[] = [
@@ -102,7 +102,7 @@ export const SunSwapLiquidityFormatters = {
         // when no tolerance moved it. Printing "Min deposit 0" on V4 said the opposite of the truth.
         ...(isV4(value) ? ceilingRows(value) : ([["Min deposit", minimumRow(value)]] as Pair[])),
         ["LP received (est)", lpRow(value, value.lpAmountExpected)],
-        // A preview's liquidity is an estimate, published as `liquidityExpected` (PM 6.1.4).
+        // A preview's liquidity is an estimate, published as `liquidityExpected`.
         [
           "Liquidity",
           value.liquidityExpected === undefined ? "" : formatInt(value.liquidityExpected),
@@ -149,7 +149,7 @@ function executed(value: LiquidityView, ctx: TextRenderContext): string {
     ...FAMILY_RENDER[renderFamily(ctx)].receiptSettlementRows(value as never, renderSymbol(ctx)),
   );
   // A reverted deposit is still a transaction that happened and was paid for, so it reports like
-  // one rather than like an error (PM 2.8).
+  // one rather than like an error.
   if (stage === "failed") {
     rows.push(["Status", "failed"]);
     if (value.result) rows.push(["Reason", String(value.result)]);
@@ -163,7 +163,7 @@ function executed(value: LiquidityView, ctx: TextRenderContext): string {
  * The V3 position rows: which position, and the range it occupies.
  *
  * A range is the position's whole economic shape — outside it the position earns nothing — so
- * the receipt states it even when the CLI chose it, and marks that it did (PM 6.1.3).
+ * the receipt states it even when the CLI chose it, and marks that it did.
  */
 function positionRows(value: LiquidityView): Pair[] {
   if (value.protocol === "V4") return v4Rows(value);
@@ -230,8 +230,8 @@ function dryRun(value: LiquidityView, rows: Pair[], ctx: TextRenderContext): str
     );
   }
   // A floor of zero accepts any output at all, which is a real choice and an unusual one, so it
-  // is said out loud before anything is signed — and only then (PM 6.0). It is the LAST line,
-  // whatever else was said (PM 2.10), because it is the one a caller must not miss.
+  // is said out loud before anything is signed — and only then. It is the LAST line, whatever
+  // else was said, because it is the one a caller must not miss.
   // NOT on V4: there is no minimum there by design, because the bound sits on the other side. Saying
   // "accepts any output amount" would tell a caller they are unprotected when the protection is a
   // ceiling — a warning that contradicts the command it is attached to.
@@ -296,7 +296,7 @@ function acceptsAnything(value: LiquidityView): boolean {
  * The approvals a plan will send, with what the router may move today.
  *
  * Omitted entirely when nothing needs approving, so an empty section never leaves a reader
- * wondering whether an approval is still coming (PM 13.3).
+ * wondering whether an approval is still coming.
  */
 function approvalRows(value: LiquidityView): Pair[] {
   if (!value.approvals?.length) return [];
@@ -366,7 +366,7 @@ function v4Rows(value: LiquidityView): Pair[] {
     // can know it — so the row is omitted rather than printed empty or as "new".
     ...(value.nftTokenId === undefined ? [] : ([["Position", `#${value.nftTokenId}`]] as Pair[])),
     ["Pool", value.poolId ?? ""],
-    // PM 6.1.3: a creation must say so explicitly, on one line, with the price it starts at.
+    // A creation says so explicitly, on one line, with the price it starts at.
     ...(value.initialSqrtPriceX96 === undefined
       ? []
       : ([

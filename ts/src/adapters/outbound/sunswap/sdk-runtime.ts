@@ -1,5 +1,5 @@
 /**
- * A read-only `@sun-protocol/sun-sdk-runtime` Runtime, and the ONLY file allowed to import it (D6).
+ * A read-only `@sun-protocol/sun-sdk-runtime` Runtime, and the ONLY file allowed to import it.
  *
  * Some SDK planners need a Runtime rather than a bare chain config — the Router's Permit2
  * planner, for instance, reads the Permit2Helper's "already approved?" answer and the Permit2
@@ -120,9 +120,9 @@ export function readOnlySdkRuntime(
  * The capability flags describe THIS CLI, because the planner's job is to pick the path the CLI
  * will actually take: it signs transactions and TIP-712 typed data, it never asks a wallet to
  * broadcast on its behalf, and it prompts on its own terms rather than the SDK's. Every signing
- * method then throws, which is the D6 guarantee: the planner may know what we can do, and may not
- * do any of it. Producing a signature is `TxPipeline`'s and `SignerResolver`'s job, where the
- * password flow, Ledger handling, dry-run and confirmation live.
+ * method then throws, which is the read-only guarantee: the planner may know what we can do, and
+ * may not do any of it. Producing a signature is `TxPipeline`'s and `SignerResolver`'s job, where
+ * the password flow, Ledger handling, dry-run and confirmation live.
  */
 function identityOnlyWallet(from: string): WalletAdapter {
   return {

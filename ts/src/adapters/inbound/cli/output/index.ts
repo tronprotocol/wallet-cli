@@ -108,8 +108,8 @@ function extractQuery(data: unknown): { data: unknown; query?: QueryEcho } {
  * narrow and explicit: a field belongs in `view` ONLY when a specification states that JSON must
  * not carry it. "We did not model it in the view type" is not a reason — model it and publish it.
  *
- * The one case today is `sunswap price`: PM 8.3.4 keeps the token symbol out of json because a
- * symbol is self-reported and proves nothing, so an agent must key on the address. Publishing it
+ * The one case today is `sunswap price`: the token symbol stays out of json because a symbol is
+ * self-reported and proves nothing, so an agent must key on the address. Publishing it
  * would re-introduce exactly what that rule removes.
  */
 function stripView(data: unknown): unknown {

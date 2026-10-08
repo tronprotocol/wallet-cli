@@ -63,7 +63,7 @@ describe("--quote excludes the flags that describe a transaction", () => {
     expect(r.json.error.message).toContain("which sends no transaction");
   });
 
-  // PM 2.11: a floor given to a quote would be accepted and then protect nothing.
+  // A floor given to a quote would be accepted and then protect nothing.
   it.each([
     ["buy", "--trx", "--slippage", "0.0001", "a tolerance"],
     ["sell", "--amount", "--min-out", "1", "a minimum"],
@@ -214,8 +214,8 @@ describe("required options", () => {
 
 describe("network availability", () => {
   /**
-   * PM 3.1: this group is mainnet only, and the gate is the network's own config block rather
-   * than a branch on its id. Nile's launchpad contract exists and is reachable, but the released
+   * This group is mainnet only, and the gate is the network's own config block rather than a
+   * branch on its id. Nile's launchpad contract exists and is reachable, but the released
    * binary does not carry its address — so a tester opens it in config.yaml and nothing in the
    * code has to change.
    */
@@ -290,7 +290,7 @@ describe("help", () => {
  *
  * `--quote` refuses `--slippage`, so a minimum would come from a default the caller never chose,
  * and nothing would enforce it because a quote produces no transaction. An agent reading it would
- * believe it had protection it does not have (PM 10.1.4).
+ * believe it had protection it does not have.
  *
  * These cases reach the chain — they are the one part of this file that does — because the
  * omission is a property of the real payload and asserting it against a stub would prove nothing.

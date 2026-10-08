@@ -1,5 +1,5 @@
 /**
- * The two symbols SunSwap resolves without asking anyone (PM 2.13).
+ * The two symbols SunSwap resolves without asking anyone.
  *
  * `TRX` and `WTRX` are not address-book entries: TRX is the native coin, which the market API
  * addresses by a fixed pseudo-address, and WTRX is a contract deployed once per network. Both are

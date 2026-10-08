@@ -3,9 +3,9 @@
  *
  * The contract's `getTrxAmountBySaleWithFee` answers `(trxAmount, fee)`, and `trxAmount` is
  * ALREADY what the seller receives: the fee is paid to the fee address separately, on top. A
- * Nile sale quoted at `(22728, 10000)` paid the seller 22728 SUN and the fee address 10000 SUN
- * (PRD 10.2.3). Subtracting the fee again understates every sale by the fee and loosens the floor
- * derived from it.
+ * Nile sale quoted at `(22728, 10000)` paid the seller 22728 SUN and the fee address 10000 SUN.
+ * Subtracting the fee again understates every sale by the fee and loosens the floor derived from
+ * it.
  *
  * Both commands sell on the same curve, so both refuse a too-small sale in the same words.
  */

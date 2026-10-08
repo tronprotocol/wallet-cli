@@ -1,5 +1,5 @@
 /**
- * The precision gate (D5/D5a).
+ * The precision gate: money-shaped numbers survive the market API digit for digit.
  *
  * A recorded mainnet body goes through the real SDK client and the real mapper, and the digits
  * that come out are compared against literals copied from that body by hand. These are values a

@@ -72,9 +72,9 @@ describe("sunswap remove-liquidity — V4's flag matrix", () => {
   });
 
   /**
-   * They COMBINE, and PM says so: 6.2.3 defines --slippage as a tolerance that lowers
-   * --min0/--min1 further. Refusing the pair would contradict the spec, and it would also refuse
-   * the one shape a careful caller wants — a floor they chose, with a little room under it.
+   * They COMBINE: --slippage is a tolerance that lowers --min0/--min1 further. Refusing the pair
+   * would refuse the one shape a careful caller wants — a floor they chose, with a little room
+   * under it.
    */
   it("accepts --slippage together with an explicit minimum", () => {
     expect(refusals({ ...V4, slippage: "0.005", min0: "1" })).toEqual([]);
@@ -108,7 +108,7 @@ describe("sunswap remove-liquidity — V4's flags elsewhere", () => {
 });
 
 /**
- * A malformed `--recipient` is the caller's typo, not our crash (PM 6.0's shared codes).
+ * A malformed `--recipient` is the caller's typo, not our crash.
  *
  * Unchecked, it travelled to the ABI encoder and came back as `internal_error` ("Invalid checksum")
  * at exit 1 — after the position had already been read. Refused here, it is `invalid_address` at

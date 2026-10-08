@@ -30,7 +30,7 @@ const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const OWNER = "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N";
 const POOL_ID = "61446c8062cdc7f165946650c5ca6b6aa1809d19fcdf69b58824b01dd581333e";
 
-/** PM 7.2.4's own position 88: the amounts, the fees and the liquidity it publishes. */
+/** Mainnet position 88: the amounts, the fees and the liquidity the market API reports for it. */
 const AMOUNT0 = "984154975046066985622761";
 const AMOUNT1 = "976580959229";
 const REWARD0 = "192392895141706307962";
@@ -38,7 +38,7 @@ const REWARD1 = "193934246";
 const LIQUIDITY = "392657176790371861588";
 
 /**
- * `sqrt(P) * 2^96` for the pool price PM 7.2.4's own derived amounts imply.
+ * `sqrt(P) * 2^96` for the pool price the market API's own derived amounts imply.
  *
  * Written out rather than computed, because the price (0.9999833482373381, in base units) has more
  * significant digits than a `number` literal may carry without losing some.
@@ -137,7 +137,7 @@ describe("position-info — V4", () => {
         poolAddress: POOL_ID,
         protocol: "V4",
         status: "IN_RANGE",
-        // read off the NFT contract, NOT PM's transcription of the market API's strings
+        // read off the NFT contract, NOT the market API's strings
         lpTokenName: "SunSwap V4 Positions NFT",
         lpTokenSymbol: "SUN-SWAP-V4-POSM",
         lpBalanceAmount: LIQUIDITY,
@@ -171,8 +171,9 @@ describe("position-info — V4", () => {
           maxPrice: "1.005014926708653",
           positionLiquidity: LIQUIDITY,
           tokenRewardUsd: "386.215279865955328950",
-          // PM 7.2.4's own derived pair, reproduced from the pool price they imply — the last digits
-          // differ only by the precision of the sqrt price this test can construct from a double
+          // the market API's derived pair, reproduced from the pool price it implies — the last
+          // digits differ only by the precision of the sqrt price this test can construct from a
+          // double
           derivedToken0Amount: "1960752196340212367546053",
           derivedToken1Amount: "1960719546359",
           isDynamicFee: false,
@@ -192,8 +193,8 @@ describe("position-info — V4", () => {
    * every structural check while quietly rewriting the figure: this sum has twenty-five
    * significant digits.
    *
-   * IT IS NOT PM 7.2.4's `lpBalanceUsd` (1960337.604921974103310348), and the gap is not a bug
-   * here. This figure is exactly `amount0 * priceUsd0 + amount1 * priceUsd1` from the values
+   * IT IS NOT the market API's `lpBalanceUsd` (1960337.604921974103310348), and the gap is not a
+   * bug here. This figure is exactly `amount0 * priceUsd0 + amount1 * priceUsd1` from the values
    * published alongside it, which is the only definition anyone can check; the market API's own
    * total does not reconcile with its own amounts and prices, and reproducing a figure we cannot
    * derive would mean copying it rather than computing it.
@@ -415,7 +416,7 @@ describe("position-info — V3", () => {
   }
 
   /**
-   * V3's `extra` carries NO V4 key (PM 7.2.4's closing note) — not a zero, not a false, not an
+   * V3's `extra` carries NO V4 key — not a zero, not a false, not an
    * empty string. The assertion is on the key SET, because a `derivedToken0Amount: undefined`
    * would pass any value check and still change the json.
    */

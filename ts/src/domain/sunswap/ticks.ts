@@ -21,7 +21,7 @@ export const V3_FEE_TIERS = {
 
 export type V3FeeTier = keyof typeof V3_FEE_TIERS;
 
-/** The tier a new position gets when the caller does not choose one (PM 6.1.3). */
+/** The tier a new position gets when the caller does not choose one. */
 export const DEFAULT_V3_FEE_TIER = 3000;
 
 /**
@@ -33,7 +33,7 @@ export const DEFAULT_V3_FEE_TIER = 3000;
 export const MIN_TICK = -887272;
 export const MAX_TICK = 887272;
 
-/** How many spacings a default range extends on each side of the current tick (PM 6.1.3). */
+/** How many spacings a default range extends on each side of the current tick. */
 export const DEFAULT_RANGE_SPACINGS = 100;
 
 export function tickSpacing(fee: number): number {

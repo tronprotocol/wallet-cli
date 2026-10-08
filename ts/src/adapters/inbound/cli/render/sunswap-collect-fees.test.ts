@@ -76,7 +76,6 @@ describe("collect-fees receipt — V4", () => {
     token1: { address: USDT, symbol: "USDT", decimals: 6, amount: "4108" },
   };
 
-  // PM 6.3.4's own example row.
   it("prints the amounts the fee read reported", () => {
     const out = render(PRICED);
     expect(out).toContain("Collected");

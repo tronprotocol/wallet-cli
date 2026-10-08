@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { icoPriceLabel, icoRate, icoTokensFor } from "./index.js";
 
 describe("TRC10 ICO rate", () => {
-  // The worked example from the spec: the same --price lands differently on chain
+  // The worked example: the same --price lands differently on chain
   // depending on --precision, which is the trap the flag exists to hide.
   it("scales the same price by precision", () => {
     expect(icoRate(1n, 100n, 6)).toEqual({ trxNum: 1, num: 100 });
@@ -10,7 +10,7 @@ describe("TRC10 ICO rate", () => {
   });
 
   // Live mainnet asset 1001875 (Colorpop): trx_num 1000000, num 1, precision 4 — i.e. 1 TRX buys
-  // 0.0001 whole tokens. Proves the formula against a real record rather than only the spec.
+  // 0.0001 whole tokens. Proves the formula against a real record, not only a worked example.
   it("reproduces a real on-chain rate", () => {
     expect(icoRate(10_000n, 1n, 4)).toEqual({ trxNum: 1_000_000, num: 1 });
   });

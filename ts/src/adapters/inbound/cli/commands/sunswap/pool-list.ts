@@ -43,7 +43,7 @@ function refuseBothFilters(value: { pool?: string; token?: string }, ctx: Refine
       // the path names the offending flag, which the parser puts in front of this message
       path: ["pool"],
       message: "cannot be combined with --token; narrow by one or by neither",
-      // invalid_option is the code for two flags that cannot be given together (PM 12.2). Left
+      // invalid_option is the code for two flags that cannot be given together. Left
       // undeclared, a refine arrives as invalid_value, which describes a bad VALUE rather than a
       // bad combination of flags that are each fine on their own.
       params: { errorCode: "invalid_option" },

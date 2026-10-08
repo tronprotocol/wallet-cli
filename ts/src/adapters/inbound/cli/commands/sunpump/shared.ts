@@ -5,7 +5,7 @@ import { Schemas } from "../../schemas/index.js";
  * The flags a curve trade shares in both directions.
  *
  * `--quote` is not a mode of the transaction pipeline: it answers from contract reads alone, with
- * no account and no password, so it excludes every flag that implies a transaction (PM 2.11).
+ * no account and no password, so it excludes every flag that implies a transaction.
  */
 export const curveTradeFields = {
   quote: z
@@ -49,7 +49,7 @@ const FLOOR_FLAGS = [
  *
  * A quote that also carried `--dry-run` would be two answers to one question, and a floor given to
  * a quote would be accepted and then protect nothing: a caller would believe they had set one
- * (PM 2.11; the wording is `sunswap swap`'s). `--wait` and `--wait-timeout` are global flags the
+ * (the wording is `sunswap swap`'s). `--wait` and `--wait-timeout` are global flags the
  * schema cannot see, so the spec's `rejectsWaitWith` refuses those. The pair of floor flags are
  * two ways of saying the same thing, so a caller who gave both does not know which they are
  * getting. Nothing silently wins.

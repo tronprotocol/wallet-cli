@@ -15,7 +15,7 @@ const fields = z.object({
 export const sunpumpBuySpec: ChainSpec = {
   path: ["sunpump", "buy"],
   network: "optional",
-  // `none` because `--quote` must work with no account at all (PM 2.11), and the framework
+  // `none` because `--quote` must work with no account at all, and the framework
   // resolves the active account up front for anything else. Every mode that signs resolves it in
   // the use case instead and fails with the same `missing_wallet_address` when there is none —
   // later, but identically.

@@ -119,7 +119,7 @@ export interface PoolListQuery extends ListWindow {
   readonly protocol?: string;
   readonly orderBy: string;
   readonly sort: string;
-  /** USD threshold on `reserveUsd`, as typed; applied before the window (PM 7.3.3). */
+  /** USD threshold on `reserveUsd`, as typed; applied before the window. */
   readonly minTvl?: string;
 }
 
@@ -135,8 +135,8 @@ export interface PoolListView {
   /**
    * Text-mode scaffolding, stripped before the JSON envelope is written.
    *
-   * The price column needs a heading naming the token it quotes in, but PM 7.3.4's json payload
-   * is `pools` and nothing else — a caller reads the quote token off `pairPrices[].quote`, which
+   * The price column needs a heading naming the token it quotes in, but the json payload is
+   * `pools` and nothing else — a caller reads the quote token off `pairPrices[].quote`, which
    * is an address rather than a symbol that proves nothing.
    */
   readonly view?: { quoteSymbol: string };
@@ -446,7 +446,7 @@ export class SunSwapMarketQueryService {
   }
 
   /**
-   * Exactly one of the symbol or the address list, per PM 8.3.
+   * Exactly one of the symbol or the address list.
    *
    * Taking one silently when both are given would answer a question the caller did not ask: they
    * would read a price believing it came from the symbol they typed.
@@ -468,7 +468,7 @@ export class SunSwapMarketQueryService {
     return [...new Set(listed)];
   }
 
-  /** Official layer only: neither caller takes an account (deviations 3.6 / 3.21). */
+  /** Official layer only: neither caller takes an account. */
   #resolveSymbol(
     network: NetworkDescriptor,
     symbol: string,

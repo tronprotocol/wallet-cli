@@ -178,7 +178,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
    * `--build-only`: the unsigned transactions, in the order a caller must send them.
    *
    * One approval-free call keeps the ordinary single-transaction shape every other
-   * `--build-only` produces. With approvals it becomes `transactions[]` (PM 2.12), because the
+   * `--build-only` produces. With approvals it becomes `transactions[]`, because the
    * caller has to sign and broadcast them in order and a single transaction cannot say that.
    */
   async buildOnly(
@@ -321,7 +321,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     });
   }
 
-  /** One approval per side that needs one, for exactly the amount, to `spender` (PM 13.3). */
+  /** One approval per side that needs one, for exactly the amount, to `spender`. */
   async planApprovals(
     network: NetworkDescriptor,
     owner: string,
@@ -414,7 +414,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
 }
 
 /**
- * A V3 / V4 plan as it is published: the contract is `positionManager`, in every mode (PM 6.0).
+ * A V3 / V4 plan as it is published: the contract is `positionManager`, in every mode.
  * `router` is V2's word for its own contract, and only V2 keeps it. The plans carry it as `router`
  * internally because one field serves all three protocols.
  */
@@ -437,7 +437,7 @@ export function outcomeFee(outcome: TxOutcome): FeeReport {
     : FEE_NOT_YET_ESTIMABLE;
 }
 
-/** What one element of `--build-only`'s `transactions[]` carries (PM 2.12), plus the hex the
+/** What one element of `--build-only`'s `transactions[]` carries, plus the hex the
  *  single-transaction shape has always given, because a caller has to broadcast these. */
 function builtTx(outcome: TxOutcome): Record<string, unknown> {
   return outcome.stage === "built" ? { tx: outcome.tx, hex: outcome.hex } : {};

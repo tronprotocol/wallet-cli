@@ -26,16 +26,16 @@ export const LAUNCHPAD_STATE = {
 export type LaunchpadState = (typeof LAUNCHPAD_STATE)[keyof typeof LAUNCHPAD_STATE];
 
 /**
- * The tolerance a curve trade accepts when the caller names none (PM 10.1.3).
+ * The tolerance a curve trade accepts when the caller names none.
  *
  * Ten times `swap`'s default, deliberately: a curve's price moves with the volume of the trade
  * itself, so a meme token's own commands budget for it. `sunswap swap` reaching the SAME curve
- * keeps ITS default of 0.5% (PM 5.1.2) — same market, different command, and inheriting the wrong
- * one is the easy mistake.
+ * keeps ITS default of 0.5% — same market, different command, and inheriting the wrong one is the
+ * easy mistake.
  */
 export const DEFAULT_CURVE_SLIPPAGE = "0.05";
 
-/** What `sunswap swap` accepts when the caller names none (PM 5.1.3), on either market. */
+/** What `sunswap swap` accepts when the caller names none, on either market. */
 export const DEFAULT_SWAP_SLIPPAGE = "0.005";
 
 /** The bounds `--slippage` accepts, as basis points: 0.01% to 50%. */
@@ -110,7 +110,7 @@ export function selectFloor(
  *
  * SunPump charges 1% with a 0.01 TRX floor, so a small trade pays a rate far above 1% — a
  * 0.1 TRX buy pays 10%. The rate is reported rather than the discrepancy, because the rate is
- * the thing a caller would otherwise not notice (PM 10.1.3).
+ * the thing a caller would otherwise not notice.
  */
 export function feeRatePercent(feeSun: string, trxSun: string): string | undefined {
   const fee = BigInt(feeSun);

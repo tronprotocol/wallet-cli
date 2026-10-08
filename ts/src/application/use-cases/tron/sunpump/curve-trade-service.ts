@@ -49,7 +49,7 @@ export interface CurveTradeInput extends TransactionModeInput {
   readonly amount: string;
   readonly slippage?: string;
   readonly minOut?: string;
-  /** read-only pricing: no account, no password, no transaction (PM 2.11). */
+  /** read-only pricing: no account, no password, no transaction. */
   readonly quote?: boolean;
   readonly feeLimit?: string;
 }
@@ -90,7 +90,7 @@ export class SunPumpCurveTradeService {
     // publishes NO floor. `--quote` refuses --slippage, so any minimum here would be derived from
     // a default the caller never chose, and nothing would ever enforce it because a quote
     // produces no transaction. An agent reading it would believe it had protection it does not
-    // have (PM 10.1.4). The scale stays, because it is what makes the estimate readable.
+    // have. The scale stays, because it is what makes the estimate readable.
     if (input.quote) {
       return {
         kind: "sunpump-buy" as const,

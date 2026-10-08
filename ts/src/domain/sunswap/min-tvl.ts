@@ -1,6 +1,6 @@
 /**
  * `pool-list --min-tvl`: the threshold, the test a pool must pass, and the local order used when
- * the qualifying set has to be sorted here rather than by the service (PM 7.3.3).
+ * the qualifying set has to be sorted here rather than by the service.
  *
  * Every comparison is exact. A TVL of 99999.999999999999999999 is below 100000, and two APRs a
  * double cannot tell apart still sort in a fixed order.

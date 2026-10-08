@@ -19,7 +19,7 @@ import {
 const SCOPE_LIST = SUNSWAP_SCOPES.join(", ");
 
 /**
- * The scope is always sent, never left to the service's default (PM A.3): omitting it makes the
+ * The scope is always sent, never left to the service's default: omitting it makes the
  * service mix statistic scopes and return the same token more than once.
  */
 export const protocolField = z.string().default("ALL").describe(`protocol scope: ${SCOPE_LIST}`);

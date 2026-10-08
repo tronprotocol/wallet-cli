@@ -100,8 +100,8 @@ export interface LiquidityPort {
   /**
    * What the position-manager NFT calls itself: its own `name()` and `symbol()`.
    *
-   * Read rather than transcribed. PM 7.2.4 quotes "SUNSWAP V4 POSITION" / "SUN-V4-POS" from the
-   * market API, and mainnet's contract answers "SunSwap V4 Positions NFT" / "SUN-SWAP-V4-POSM" —
+   * Read rather than transcribed. The market API reports "SUNSWAP V4 POSITION" / "SUN-V4-POS",
+   * and mainnet's contract answers "SunSwap V4 Positions NFT" / "SUN-SWAP-V4-POSM" —
    * so a hardcoded pair would be published under a network's name while naming a contract that
    * says otherwise.
    */
@@ -372,7 +372,7 @@ export interface LiquidityPort {
    *
    * `decreaseLiquidity` on its own only credits the position — it transfers nothing — so a user
    * who sent it would see a successful transaction and receive no tokens. The two are packed
-   * into a single `multicall`, which is this version's addition over upstream (PM 6.2.1).
+   * into a single `multicall`, which upstream does not do.
    */
   v3RemovePayload(network: NetworkDescriptor, request: V3RemoveRequest): ContractCallPayload;
 

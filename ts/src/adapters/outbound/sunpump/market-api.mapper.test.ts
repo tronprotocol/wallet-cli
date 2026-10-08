@@ -101,7 +101,7 @@ describe("a token still on the curve (BabyKnight)", () => {
     expect(token.curve.pumpPercentage).toBe("1");
     // whole tokens on the wire (775791072.79), base units here
     expect(token.curve.tokenReserve).toBe("775791072790000000000000000");
-    // TRX, in the service's own decimal unit — PM 9.0 keeps it that way
+    // TRX, kept in the service's own decimal unit
     expect(token.curve.trxReserve).toBe("810.21");
   });
 

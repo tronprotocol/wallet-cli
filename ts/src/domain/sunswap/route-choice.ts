@@ -37,8 +37,8 @@ export interface RouteCandidate {
  */
 export function bestRoute<T extends RouteCandidate>(routes: readonly T[]): T {
   if (routes.length === 0) {
-    // Exit 1, not 2: the caller asked a well-formed question and the market had no answer
-    // (PM 5.1.2 lists it among the execution failures).
+    // Exit 1, not 2: the caller asked a well-formed question and the market had no answer, which
+    // makes it an execution failure.
     throw new ChainError("no_matching_route", "the router found no route for this pair");
   }
   const ranked = routes

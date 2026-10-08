@@ -376,7 +376,8 @@ function makeV4Port(overrides: Partial<LiquidityPort> = {}) {
     v4Position: vi.fn(async () => V4_POSITION),
     v4PoolState: vi.fn(async () => V4_POOL),
     v4PositionManager: vi.fn(() => V4_MANAGER),
-    // PM 6.3.4's own figures, so the receipt's published example is what these cases reproduce.
+    // The documented example's figures, so the receipt's published example is what these cases
+    // reproduce.
     v4OwedFees: vi.fn(async () => ({ amount0: "13974", amount1: "4108" })),
     v4CollectPayload: vi.fn((_n: NetworkDescriptor, request: V4CollectRequest) => {
       requests.push(request);
@@ -851,7 +852,7 @@ describe("collect-fees — V4's cross-checks", () => {
   });
 
   /**
-   * PM 6.3.3 gives `--fee` a default of 500 and this version drops it, deliberately.
+   * `--fee` has no default (such as 500), deliberately.
    *
    * On V4 the position names its own pool, so the flag selects nothing and can only agree or
    * disagree. A default that can only disagree is a refusal waiting for everyone whose position is

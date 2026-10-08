@@ -384,7 +384,7 @@ describe("choosing the market", () => {
 
   /**
    * A failed probe is NOT evidence that the router is the right market. Falling back would put a
-   * quote and a fill in different places, which is exactly what PM 5.1.2 forbids.
+   * quote and a fill in different places, which is exactly what the single decision prevents.
    */
   it("stops with provider_error when the curve's state cannot be read", async () => {
     const port = makePort({
@@ -452,8 +452,8 @@ describe("the curve branch", () => {
 
   /**
    * Same curve, different command, different default. `sunpump buy` uses 5% because it is named
-   * after a meme-token market; `swap` uses 0.5% (PM 5.1.3), and inheriting the wrong one is the
-   * easy mistake. The figures below are PM 5.1.4's own, measured against the live curve.
+   * after a meme-token market; `swap` uses 0.5%, and inheriting the wrong one is the easy
+   * mistake. The figures below were measured against the live curve.
    */
   it("floors at swap's 0.5%, not sunpump's 5%", async () => {
     const { service, scope } = makeHarness();
@@ -469,7 +469,7 @@ describe("the curve branch", () => {
   });
 
   /**
-   * A quote is PLURAL and always an array (PM 5.1.4), even where one route is all there will ever
+   * A quote is PLURAL and always an array, even where one route is all there will ever
    * be. An agent then parses a quote the same way whether one candidate came back or five, and
    * `routesAvailable` says how many exist without asking for them.
    */
@@ -503,8 +503,8 @@ describe("the curve branch", () => {
     expect(routes[0]).not.toHaveProperty("priceImpactPercent");
   });
 
-  // Each hop carries its own scale. PM's path entries do not, and an amount whose scale lives
-  // nowhere in the payload is the defect this codebase has shipped three times.
+  // Each hop carries its own scale: an amount whose scale lives nowhere in the payload is the
+  // defect this codebase has shipped three times.
   it("gives every hop its decimals", async () => {
     const { service, scope } = makeHarness();
     const result = (await service.swap(scope, NETWORK, {
@@ -874,7 +874,7 @@ describe("sending a router swap", () => {
    *
    * The router never touches the token allowance; Permit2 does, and the router is only the spender
    * named inside the permit. An unlimited approval here is what the SDK's own swap planner does and
-   * what PM 13.3 reserves for two named paths, neither of which is this one.
+   * what this CLI reserves for two specific paths, neither of which is this one.
    */
   it("approves exactly the amount, to Permit2", async () => {
     const harness = sending();
@@ -1141,7 +1141,7 @@ describe("swap receipt output", () => {
 });
 
 /**
- * The balance a router swap spends is checked before anything else is planned (PRD 13.1).
+ * The balance a router swap spends is checked before anything else is planned.
  *
  * In every mode, and before the approval: an execute that found the shortfall afterwards would
  * already have paid for a Permit2 approval it can never use.

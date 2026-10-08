@@ -21,7 +21,7 @@ import {
  * The largest page this CLI asks for.
  *
  * A ceiling of our own: the service will serve a page of 200, but a listing that large is not a
- * CLI answer, and PM 9 fixes the limit at 50 for both commands.
+ * CLI answer, so the limit is 50 for both commands.
  */
 export const MAX_PAGE_SIZE = 50;
 
@@ -46,7 +46,7 @@ export const sortField = z
  *
  * `launched` is absent on purpose. It is a real field on every token and the service answers an
  * ordering by it with a 200 — having quietly sorted by market cap instead, while echoing the
- * field name back. PM 2.4 lists it; it cannot be served, so it is not offered.
+ * field name back. It cannot be served, so it is not offered.
  */
 export const orderByField = (fallback: (typeof SUNPUMP_ORDER_BY_NAMES)[number]) =>
   z.enum(SUNPUMP_ORDER_BY_NAMES).default(fallback).describe(`order by: ${ORDER_BY_LIST}`);

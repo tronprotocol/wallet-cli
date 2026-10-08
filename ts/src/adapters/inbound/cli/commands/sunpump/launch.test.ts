@@ -123,8 +123,8 @@ describe("what the command declares", () => {
     expect(flags).not.toContain("feeLimit");
   });
 
-  // PM's option table has no flag for the SDK's `tweetUsername`, so the command has none either.
-  it("offers no flag the PM does not name", () => {
+  // The SDK's `tweetUsername` is deliberately not exposed as a flag.
+  it("offers exactly the documented flags", () => {
     expect(Object.keys(sunpumpLaunchSpec.baseFields.shape).sort()).toEqual([
       "description",
       "dryRun",

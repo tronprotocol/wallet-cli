@@ -5,8 +5,9 @@
  * they stop:
  *
  * - `amountIn` and `amountOut` are HUMAN decimal strings. The base units are under `amountInRaw`
- *   and `amountOutRaw`. So the field whose NAME matches what PM asks for is the one PM does not
- *   mean, and using it would publish "100.000000" where a caller expects 100000000.
+ *   and `amountOutRaw`. So the field whose NAME matches the base-unit amount a caller wants is
+ *   the one that does not hold it, and using it would publish "100.000000" where a caller expects
+ *   100000000.
  * - There is no `feeRaw`. `fee` is human only, so a raw `tradingFee` has to be derived by the
  *   caller, which needs the input token's decimals — and the service sends no decimals either.
  * - `amountOutMinimum` equals `amountOut` unless slippage was requested, so by default it is not
@@ -148,7 +149,7 @@ function normalise(
     ...(route.inUsd === undefined ? {} : { inUsd: String(route.inUsd) }),
     ...(route.outUsd === undefined ? {} : { outUsd: String(route.outUsd) }),
     path: tokens.map((address, index) => ({ address, symbol: symbols[index]! })),
-    // Uppercase, because PM names protocols `V2` and the service sends `v2`.
+    // Uppercase, because this CLI names protocols `V2` and the service sends `v2`.
     protocols: (route.poolVersions ?? []).map((version) => String(version).toUpperCase()),
     poolFees: (route.poolFees ?? []).map(String),
     // A display flag, not a decode failure: the route is offered and the caller decides.

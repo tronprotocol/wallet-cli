@@ -19,7 +19,7 @@ const V4_ONLY = ["fee", "slippage"] as const;
 /**
  * Flags V4 does not have.
  *
- * `--recipient` is absent by design (PM 6.2.3): a V4 withdrawal settles to the signing account and
+ * `--recipient` is absent by design: a V4 withdrawal settles to the signing account and
  * nowhere else. Accepting the flag and ignoring it would send someone's money to the wrong place
  * while telling them otherwise.
  */
@@ -91,7 +91,7 @@ const fields = z.object({
 });
 
 /**
- * The flag × scenario matrix (PM 6.2.3).
+ * The flag × scenario matrix.
  *
  * A V2 withdrawal names the pair; a V3 one names the position, which already knows its pair, so
  * accepting both would let a caller believe the two could disagree. V4 is the exception and
@@ -171,7 +171,7 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
 }
 
 /**
- * V4's own matrix (PM 6.2.3).
+ * V4's own matrix.
  *
  * Both the position id AND the pair are required, which is the one place this command asks for more
  * than V3 does. The pair does not choose the pool — the position does — so it is checked against
@@ -244,7 +244,7 @@ export const sunswapRemoveLiquiditySpec: ChainSpec = {
     "password, and works for a watch-only account.",
   baseFields: fields,
   // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
-  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1 (PM 6.0).
+  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     {

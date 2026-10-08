@@ -11,7 +11,7 @@ const render = (
 ) => SunSwapFormatters.sunswapPrice({ prices, view: { symbols: Object.fromEntries(symbols) } });
 
 describe("sunswap price table", () => {
-  it("renders PM 8.3.4's example rows", () => {
+  it("renders the documented example rows", () => {
     const out = render(
       [
         { address: WIN, priceUsd: "0.000039609945", quotedAt: "2026-09-15 08:20" },
@@ -66,7 +66,7 @@ const renderList = (
 ) => SunSwapFormatters.sunswapTokenList({ tokens, pagination });
 
 describe("sunswap token table", () => {
-  it("renders PM 8.1.4's example row", () => {
+  it("renders the documented example row", () => {
     const out = renderList([token()]);
     expect(out).toContain("Tokens (limit 3, offset 0)");
     expect(out).toContain("$0.3377");
@@ -128,7 +128,7 @@ const renderPools = (
   });
 
 describe("sunswap pool table", () => {
-  it("renders PM 7.3.4's example row", () => {
+  it("renders a pool row", () => {
     const out = renderPools([pool()]);
     expect(out).toContain("Pools (limit 3, offset 0)");
     expect(out).toContain("WTRX/USDT");
@@ -188,7 +188,7 @@ const renderPositions = (
 ) => SunSwapFormatters.sunswapPositionList({ positions, pagination });
 
 describe("sunswap position table", () => {
-  it("renders PM 7.1.4's example row", () => {
+  it("renders a position row", () => {
     const out = renderPositions([position()]);
     expect(out).toContain("Positions (limit 4, offset 8)");
     expect(out).toContain("#88");
@@ -234,7 +234,7 @@ describe("sunswap position table", () => {
   });
 });
 
-/** PM 7.2.4's V4 position, as the single-position renderer receives it. */
+/** A V4 position, as the single-position renderer receives it. */
 const positionInfo = (over: Record<string, unknown> = {}) => ({
   position: {
     nftTokenId: "88",
@@ -270,12 +270,12 @@ const positionInfo = (over: Record<string, unknown> = {}) => ({
 
 describe("sunswap position detail", () => {
   /**
-   * PM 7.2.4's text block, line for line.
+   * The full text block, line for line.
    *
    * Every published field has a line here, so dropping one from the view — or rendering it from
    * the wrong side of the pair — fails this rather than quietly shrinking the output.
    */
-  it("renders PM 7.2.4's V4 example", () => {
+  it("renders every field of a V4 position", () => {
     const out = SunSwapFormatters.sunswapPositionInfo(positionInfo() as never);
     expect(out).toContain("Position     #88");
     expect(out).toContain("Owner        TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N");

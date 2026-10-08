@@ -83,11 +83,10 @@ function tokenBody(payload: unknown): unknown {
  * SECONDS, exactly as every query endpoint of the same service does. No rescaling is needed and
  * none is applied.
  *
- * An earlier version rescaled by 1000 on the strength of PM's claim that the create response uses
- * a different unit. It does not. The live create dated a token made that minute to
- * `+058709-10-27` — a date absurd enough to be caught, but only because someone looked: the JSON
- * still said `success: true`, and `token-info` read the SAME token back correctly, so the two paths
- * disagreed about one field while both looked healthy. That is the shape this version keeps finding.
+ * The create response does not use a different unit. Rescaling it by 1000 dates a token made that
+ * minute to `+058709-10-27` — a date absurd enough to be caught, but only if someone looks: the
+ * JSON still says `success: true`, and `token-info` reads the SAME token back correctly, so the two
+ * paths disagree about one field while both look healthy.
  *
  * Kept as a named no-op rather than deleted so the next reader finds the measurement instead of
  * re-deriving the assumption. `token-info` and `launch` now share one scale, which is the property

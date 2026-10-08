@@ -23,8 +23,8 @@ const TRON_INDEX_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"; // m/44'/195'/0'/0/0
 
 /** A keystore holding one seed whose account 1 still carries the pre-correction address —
  *  what a wallets.json written by 4.13.0 looks like after one `derive`. The address is written
- *  straight into the file because addAccount now derives the corrected path (and, after Task 5,
- *  refuses this wallet outright), so no API can still produce this shape. */
+ *  straight into the file because addAccount now derives the corrected path (and refuses this
+ *  wallet outright), so no API can still produce this shape. */
 function keystoreWithLegacyAccount(): Keystore {
   const root = mkdtempSync(join(tmpdir(), "legacy-"));
   const store = new AtomicFileStore();
@@ -47,7 +47,7 @@ function keystoreWithLegacyAccount(): Keystore {
 
 /** A keystore whose index-1 address matches neither the current nor the legacy template — the
  *  index-0 address borrowed into that slot, which no derivation at index 1 produces under either
- *  scheme. This is the same trick Task 2's `derivation-match.test.ts` uses for its own no-match
+ *  scheme. This is the same trick `derivation-match.test.ts` uses for its own no-match
  *  case, so both suites agree on what "mismatch" means: `wallets.json` and the vault disagree,
  *  which is a data-integrity fault distinct from `legacy_derivation` (a template match, just an
  *  old one) and must not be reported as the same thing. */

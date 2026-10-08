@@ -9,7 +9,7 @@ import { resolveTronAccount } from "../../../services/tron-account.js";
  * - V3 needs no approval at all: the position manager already holds the NFT.
  * - V3 is ONE transaction carrying a multicall of `decreaseLiquidity` + `collect`.
  *   `decreaseLiquidity` alone only credits the position and transfers nothing, so a user who
- *   sent it would see a successful transaction and receive no tokens (PM 6.2.1).
+ *   sent it would see a successful transaction and receive no tokens.
  * - V4 is ONE call and not a multicall, unlike V3: `decreaseLiquidity` settles the pair itself,
  *   so nothing has to be collected beside it. It also needs no approval and no Permit2 — the
  *   position manager already holds the position, so nothing needs authorising to move.
@@ -76,7 +76,7 @@ import {
  */
 const RESOLVED = { caller: "liquidity" } as const;
 
-/** The receipt's `kind`, one value across every mode this command has (PM 2.9). */
+/** The receipt's `kind`, one value across every mode this command has. */
 const KIND = "sunswap-remove-liquidity" as const;
 
 export interface RemoveLiquidityInput extends TransactionModeInput {
@@ -299,7 +299,7 @@ export class SunSwapRemoveLiquidityService {
     const amount1 = share(lpAmount, pair.reserve1, pair.totalSupply);
 
     // The LP TOKEN is what the router must be allowed to take — not the pair's two sides, which
-    // the pool already holds (PM 13.3).
+    // the pool already holds.
     const approvals = await this.tx.planApprovals(network, owner, router, [
       {
         facts: { address: pair.pairAddress, decimals: pair.lpDecimals, symbol: "LP" },
@@ -324,7 +324,7 @@ export class SunSwapRemoveLiquidityService {
     };
   }
 
-  /** an explicit floor, else 95% of what the current reserves say is coming back (PM 6.2.3). */
+  /** an explicit floor, else 95% of what the current reserves say is coming back. */
   #v2Minimum(explicit: string | undefined, amount: string, facts: TokenFacts): string {
     if (explicit === undefined) return applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS);
     return toBaseUnits(explicit, facts.decimals, facts.symbol, "--min");
@@ -428,7 +428,7 @@ export class SunSwapRemoveLiquidityService {
     // that changed hands in between must not be decreased on this account's behalf.
     await this.#assertPositionOwned(network, position.tokenId, owner);
     // What the position could collect BEFORE the transaction. Afterwards the principal and the
-    // fees have arrived together and nothing distinguishes them (PM 6.2.4).
+    // fees have arrived together and nothing distinguishes them.
     const owed = await this.#owedFees(scope, network, position.tokenId, plan.recipient);
 
     const main = await this.tx.run(scope, network, payload, {
@@ -505,7 +505,7 @@ export class SunSwapRemoveLiquidityService {
         deadline: resolveDeadline(input.deadline, Date.now()),
         nftTokenId: position.tokenId,
         liquidity: burn,
-        // V3 floors default to 0 (PM 6.2.3). The dry run says so out loud.
+        // V3 floors default to 0. The dry run says so out loud.
         token0: side(token0, expected.amount0, this.#v3Minimum(input.min0, token0)),
         token1: side(token1, expected.amount1, this.#v3Minimum(input.min1, token1)),
       },
@@ -547,7 +547,7 @@ export class SunSwapRemoveLiquidityService {
   }
 
   /**
-   * What arrived, split into principal and the fees collected alongside it (PM 6.2.4).
+   * What arrived, split into principal and the fees collected alongside it.
    *
    * One transaction brings both, so nothing in the receipt distinguishes them: the split is what
    * the `Collect` event reports minus what the position was owed beforehand. Text shows the
@@ -645,10 +645,10 @@ export class SunSwapRemoveLiquidityService {
      *
      * MEASURED on Nile, 2026-09-25, position 7: owed 4821 TRX / 3132 USDT before a partial
      * withdrawal, 0 / 0 after, while an untouched position's owed figure stood unchanged. So a V4
-     * withdrawal settles the fees alongside the principal exactly as V3's does. PM 6.2 says the
-     * opposite — that V4 leaves them for `collect-fees` — and reporting only the principal, as an
-     * earlier version did, understated what arrived by nearly four times and left a caller looking
-     * for money that had already been paid to them.
+     * withdrawal settles the fees alongside the principal exactly as V3's does, rather than leaving
+     * them for `collect-fees`. Reporting only the principal, as an earlier version did,
+     * understated what arrived by nearly four times and left a caller looking for money that had
+     * already been paid to them.
      */
     const owed = await this.#owedFeesV4(scope, network, plan);
 
@@ -788,9 +788,9 @@ export class SunSwapRemoveLiquidityService {
   /**
    * The FLOOR on one side: an explicit amount, a tolerance below the estimate, or zero.
    *
-   * Zero is PM's default on V3 and V4 alike. A tolerance only ever LOWERS the floor, because a floor
-   * raised above what the position is worth reverts the withdrawal it was meant to protect — the
-   * opposite direction to `--slippage` on the V4 deposit, where the bound is a ceiling.
+   * Zero is the default on V3 and V4 alike. A tolerance only ever LOWERS the floor, because a
+   * floor raised above what the position is worth reverts the withdrawal it was meant to protect —
+   * the opposite direction to `--slippage` on the V4 deposit, where the bound is a ceiling.
    */
   #v4Minimum(
     explicit: string | undefined,
@@ -798,10 +798,10 @@ export class SunSwapRemoveLiquidityService {
     expected: string,
     facts: TokenFacts,
   ): string {
-    // PM 6.2.3 defines --slippage as a tolerance that lowers --min0/--min1 FURTHER, so the two
-    // combine rather than compete: the explicit amount is the base when one is given, and the
-    // estimate is the base when none is. Either way the tolerance only ever moves the floor DOWN,
-    // which is the safe direction for a withdrawal — the bound protects against receiving less.
+    // --slippage is a tolerance that lowers --min0/--min1 FURTHER, so the two combine rather than
+    // compete: the explicit amount is the base when one is given, and the estimate is the base
+    // when none is. Either way the tolerance only ever moves the floor DOWN, which is the safe
+    // direction for a withdrawal — the bound protects against receiving less.
     const base =
       explicit === undefined
         ? expected

@@ -14,9 +14,9 @@
  *
  * The scales, all established against live responses rather than assumed. `totalSupply`,
  * `currentSold` and `tokenReserve` arrive as WHOLE TOKENS (a supply reads `1000000000` beside
- * `decimals: 18`) and are published as base units, per PM 2.2 rule 3. `volume24Hr` arrives as TRX
- * with six decimals and is published as SUN. `trxReserve` and `virtualLiquidity` keep the
- * service's own decimal unit, which is what PM 9.0 publishes.
+ * `decimals: 18`) and are published as base units. `volume24Hr` arrives as TRX with six decimals
+ * and is published as SUN. `trxReserve` and `virtualLiquidity` keep the service's own decimal
+ * unit.
  *
  * Numbers are moved as text throughout: they arrive as exact literals from the lossless parser,
  * and every step here either copies the characters or does BigInt arithmetic on them.

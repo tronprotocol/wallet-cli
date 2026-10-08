@@ -148,8 +148,8 @@ export interface ChainSpec<_I = any, O = any> {
   /** refuse `--account` outright, with this sentence as the reason. For a command that touches no
    *  account AND whose result is not the active account's: `sunpump launch` has its token created
    *  by a remote service, which picks the owner, so accepting an account flag would imply the new
-   *  token is that account's; the SunSwap / SunPump market queries read public data, and the PRD
-   *  requires each of them to refuse the flag rather than ignore it. `wallet: "none"` alone does
+   *  token is that account's; the SunSwap / SunPump market queries read public data, and each of
+   *  them refuses the flag rather than ignore it. `wallet: "none"` alone does
    *  not imply this — declare it on every command whose spec says it takes no account. */
   rejectsAccount?: string;
   /** refuse `--wait` / `--wait-timeout` outright, with this sentence as the reason. They are global,

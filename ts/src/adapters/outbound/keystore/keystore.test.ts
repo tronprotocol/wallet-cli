@@ -480,9 +480,9 @@ describe("lookup and secret-shape failures carry their own codes", () => {
 /**
  * Two accounts can legitimately hold the same key: a seed account and a privateKey account,
  * derived/imported independently, can share one family's address (import's own dedup only
- * catches the two easy paths — this fixture writes wallets.json directly to exercise the case
- * Task 2 unlocks). The two accounts here share one EVM address but hold DIFFERENT tron
- * addresses, which is what makes "which one" matter on a TRON command but not on an EVM one.
+ * catches the two easy paths — this fixture writes wallets.json directly to exercise the case).
+ * The two accounts here share one EVM address but hold DIFFERENT tron addresses, which is what
+ * makes "which one" matter on a TRON command but not on an EVM one.
  */
 const EVM_ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const TRON_ADDR_SEED = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
@@ -526,7 +526,7 @@ describe("resolving an address held by more than one account", () => {
 
   it("refuses an evm address when the family being acted on is tron, before any ambiguity check", () => {
     // EVM_ADDR is an evm address; asking for it under family "tron" now fails on the
-    // family mismatch itself (Task 1), before the scan that would otherwise find the two
+    // family mismatch itself, before the scan that would otherwise find the two
     // accounts sharing it and report ambiguous_account.
     const ks = keystoreWithDuplicateEvmAddress();
     expect(() => ks.resolveAccount(EVM_ADDR, "tron")).toThrowError(

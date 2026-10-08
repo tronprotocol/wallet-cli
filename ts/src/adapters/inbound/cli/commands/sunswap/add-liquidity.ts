@@ -11,7 +11,7 @@ const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
 const fields = z.object({
   // Deliberately NOT the shared txModeFields: that set includes --sign-only, which this group
-  // does not offer (brief 2.7). Declaring a flag the command will not honour is worse than
+  // does not offer. Declaring a flag the command will not honour is worse than
   // omitting it.
   dryRun: z
     .boolean()
@@ -78,8 +78,8 @@ const fields = z.object({
     .number()
     .optional()
     .describe("Unix seconds the transaction stops being valid; default 30 minutes from now"),
-  // PM 6.1.3's option table does not list this, but a TRON contract call cannot be built without
-  // one — the node refuses `triggerSmartContract` outright. Every other TRON write command in
+  // A TRON contract call cannot be built without a fee limit — the node refuses
+  // `triggerSmartContract` outright. Every other TRON write command in
   // this CLI exposes it with the same default, and hard-coding a spend cap on a command that
   // moves money is worse than an optional flag. The default is a constant and is never derived
   // from an estimate: TRON's estimate is a lower bound (see the reference page).
@@ -136,20 +136,20 @@ const V4_ONLY = ["createPool", "sqrtPrice", "tickSpacing", "hooks", "slippage"] 
  *
  * V2 and V3 bound a deposit from BELOW with `--min0` / `--min1`: at least this much must go in. V4
  * bounds it from ABOVE — the contract takes the liquidity and spends what it needs, up to a ceiling —
- * so a minimum is not a weaker version of the same protection, it is the opposite one. PM 6.1.3
- * marks both V4 columns as absent and gives `--slippage` in their place. Silently ignoring a
+ * so a minimum is not a weaker version of the same protection, it is the opposite one. V4 has no
+ * `--min0` / `--min1` and takes `--slippage` in their place. Silently ignoring a
  * `--min0` here would leave a caller believing they had set a floor on a path that has none.
  */
 const NOT_ON_V4 = ["min0", "min1"] as const;
 
 /**
- * Flags a V4 INCREASE cannot take, because the position already fixes them (PM 6.1.3).
+ * Flags a V4 INCREASE cannot take, because the position already fixes them.
  *
  * Not the same list as V3's: `--token0` / `--token1` are REQUIRED here rather than refused, and
  * `--fee` is accepted. See `refuseV4Flags`.
  *
- * `--tick-spacing` and `--hooks` are this CLI's own flags rather than PM's, and they are refused for
- * PM's reason: they describe a pool, and the position has already named one.
+ * `--tick-spacing` and `--hooks` are refused for the same reason: they describe a pool, and the
+ * position has already named one.
  */
 const NOT_WITH_V4_POSITION_ID = [
   "tickLower",
@@ -161,7 +161,7 @@ const NOT_WITH_V4_POSITION_ID = [
   "hooks",
 ] as const;
 
-/** Flags a V3 INCREASE cannot take, because the position already fixes them (PM 6.1.3). */
+/** Flags a V3 INCREASE cannot take, because the position already fixes them. */
 const NOT_WITH_POSITION_ID = [
   "token0",
   "token1",
@@ -172,24 +172,22 @@ const NOT_WITH_POSITION_ID = [
 ] as const;
 
 /**
- * V4's own matrix (PM 6.1.3).
+ * V4's own matrix.
  *
- * THREE scenarios, not two: a deposit into a pool that exists, one that creates the pool first, and —
- * since the V4 追加 column — a deposit into a position the caller already holds.
+ * THREE scenarios, not two: a deposit into a pool that exists, one that creates the pool first, and
+ * an increase — a deposit into a position the caller already holds.
  *
- * The increase is where V4 diverges from V3, and the divergence is PM's. On V3 an increase REFUSES
- * `--token0` / `--token1`, because the position already fixes the pair. On V4 PM marks both as
- * REQUIRED. They still select nothing — the position names its pool — so what they are is a
- * cross-check, run in the use case against the pair the position reports and refused with
- * `invalid_value` naming both when the two disagree. The same treatment `remove-liquidity` gives them
- * on the same protocol, and the same reason: a mistyped position id must not fund a market the caller
- * never named.
+ * The increase is where V4 diverges from V3. On V3 an increase REFUSES `--token0` / `--token1`,
+ * because the position already fixes the pair. On V4 both are REQUIRED. They still select nothing —
+ * the position names its pool — so what they are is a cross-check, run in the use case against the
+ * pair the position reports and refused with `invalid_value` naming both when the two disagree. The
+ * same treatment `remove-liquidity` gives them on the same protocol, and the same reason: a
+ * mistyped position id must not fund a market the caller never named.
  *
- * The range stays OPTIONAL on a mint, with the same default as V3, and the reasoning I first used for
- * making it required was wrong. I argued that V3 derives its default band from the spacing its FEE TIER
- * implies and V4 has no tier to derive from. The first half is right and the second does not follow: on
- * V4 the spacing is part of the pool's IDENTITY, which means it is KNOWN — read from the pool key, or
- * given with `--tick-spacing` on a creation. Different source, same number. A caller who omits the
+ * The range stays OPTIONAL on a mint, with the same default as V3. V3 derives its default band from
+ * the spacing its FEE TIER implies; V4 has no tier, but the spacing is part of the pool's IDENTITY,
+ * which means it is KNOWN — read from the pool key, or given with `--tick-spacing` on a creation.
+ * Different source, same number. A caller who omits the
  * range is asking for a sensible band around the price, and that question does not change with where
  * the spacing came from; answering it differently per protocol would make one command behave two ways.
  */
@@ -265,7 +263,7 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
 }
 
 /**
- * The V4 增倉 column, whose two halves point in opposite directions.
+ * The V4 increase scenario, whose two halves point in opposite directions.
  *
  * What the position fixes is REFUSED — its range, its holder, its pool. What the position is checked
  * AGAINST is REQUIRED — the pair. Neither half is something to ignore: a dropped `--tick-lower` would
@@ -309,7 +307,7 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * The flag × scenario matrix (PM 6.1.3). A flag outside its scenario is `invalid_option`, not
+ * The flag × scenario matrix. A flag outside its scenario is `invalid_option`, not
  * something to ignore: silently dropping `--fee` would deposit at a tier the caller did not
  * choose, and silently dropping `--tick-lower` on an increase would suggest a position's range
  * can be changed, which it cannot.
@@ -427,7 +425,7 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     "password, and works for a watch-only account.",
   baseFields: fields,
   // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
-  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1 (PM 6.0).
+  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     {

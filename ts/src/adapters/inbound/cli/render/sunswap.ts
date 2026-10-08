@@ -1,9 +1,9 @@
 /**
  * Text renderers for the SunSwap query commands.
  *
- * json always carries the full precision; these columns are what a person reads, so they follow
- * PM 2.7: a USD unit price keeps four decimals above a cent and four significant digits below
- * it, and anything the service did not answer is an em dash rather than a blank or a zero.
+ * json always carries the full precision; these columns are what a person reads, so a USD unit
+ * price keeps four decimals above a cent and four significant digits below it, and anything the
+ * service did not answer is an em dash rather than a blank or a zero.
  */
 import { formatAmount, formatDecimal, formatUsd, formatUsdPrice } from "./scalars.js";
 import { query as keyValues, table } from "./layout.js";
@@ -201,7 +201,7 @@ interface PositionInfoView {
   };
 }
 
-/** both sides joined the way PM 7.2.4 reads them: "984,154.975046 U / 976,580.959229 USDT". */
+/** both sides joined on one line: "984,154.975046 U / 976,580.959229 USDT". */
 function sides(
   tokens: readonly PositionTokenDetail[],
   pick: (token: PositionTokenDetail) => string | undefined,
@@ -249,7 +249,7 @@ export const SunSwapFormatters = {
   },
 
   /**
-   * One position, one field per line — the shape PM 7.2.4 prints.
+   * One position, one field per line.
    *
    * Every cell that could be absent is an em dash rather than a zero, and for the same reason it
    * is absent from the json: a USD value nobody could measure is not zero dollars, and unclaimed

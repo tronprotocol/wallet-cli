@@ -262,7 +262,7 @@ describe("pool listing usage errors", () => {
     expect(r.json.error.code).toBe("invalid_option");
   });
 
-  // PM 7.3.5: the help must say that --min-tvl filters first and that apr needs it.
+  // The help must say that --min-tvl filters first and that apr needs it.
   it("documents --min-tvl and the apr advice in help", () => {
     const out = run(["sunswap", "pool-list", "--help"]).stdout;
     expect(out).toContain("applied before --limit/--offset");
@@ -438,10 +438,9 @@ describe("discovery", () => {
  *
  * A stub market API answers the price call and fails the catalogue call, which is the one
  * arrangement that proves the degraded path end to end: the command still exits 0, the prices
- * are still there, and the notice lands in `meta.warnings` — the one place PM 8.3.4 puts it and
- * a caller reads. Asserting it off the ENVELOPE rather than a return value is the point:
- * publishing it in the wrong place is exactly the failure this guards, and that failure shipped
- * once already.
+ * are still there, and the notice lands in `meta.warnings` — the one place a caller reads it.
+ * Asserting it off the ENVELOPE rather than a return value is the point: publishing it in the
+ * wrong place is exactly the failure this guards, and that failure shipped once already.
  *
  * The stub runs out of process because `run` uses spawnSync, which blocks this process's event
  * loop — a server listening here would never get to accept the connection.

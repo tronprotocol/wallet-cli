@@ -604,7 +604,7 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
     expect(result.token1!.amount).toBe("493088");
   });
 
-  // PM 6.2.3: the floor defaults to zero on V3 and V4 alike.
+  // The floor defaults to zero on V3 and V4 alike.
   it("floors at zero when neither --min nor --slippage is given", async () => {
     const port = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -633,9 +633,9 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
   });
 
   /**
-   * The two COMBINE, and the combination is the whole point of PM's wording.
+   * The two COMBINE, and the combination is the whole point.
    *
-   * 6.2.3 calls `--slippage` a tolerance applied to `--min0`/`--min1` "再下调" — further down.
+   * `--slippage` is a tolerance applied to `--min0`/`--min1` that moves them further down.
    * So the explicit amount is the base and the tolerance moves it lower, which is the shape a
    * careful caller wants: a floor they chose, with a little room under it. Asserting acceptance at
    * the schema is not enough; what matters is that the number actually sent is below what they
@@ -819,9 +819,9 @@ describe("remove-liquidity V4 — the cross-checks", () => {
  * A V4 withdrawal pays the accrued fees out too, and the receipt has to say so.
  *
  * MEASURED on Nile, 2026-09-25, position 7: owed 4821 / 3132 before a partial withdrawal, 0 / 0
- * after, with an untouched position's figure unchanged as a control. PM 6.2 claims the opposite,
- * and an earlier version believed it — reporting only the principal, which understated what arrived
- * by nearly four times and sent the caller looking for money already paid to them.
+ * after, with an untouched position's figure unchanged as a control. An earlier version assumed
+ * V4 left the fees for `collect-fees` — reporting only the principal, which understated what
+ * arrived by nearly four times and sent the caller looking for money already paid to them.
  */
 describe("remove-liquidity V4 — the fees that arrive with the principal", () => {
   it("reports them beside the principal rather than folding them in or dropping them", async () => {
@@ -897,8 +897,8 @@ describe("V4 confirmed receipt amounts", () => {
 });
 
 /**
- * The entry resolves the pair against the account's own token book (PRD 2.13), through the real
- * resolver: a user-added symbol reaches the plan as its address, and the receipt says which.
+ * The entry resolves the pair against the account's own token book, through the real resolver:
+ * a user-added symbol reaches the plan as its address, and the receipt says which.
  */
 function bookResolver(): SunSwapTokenResolver {
   const tokens = {
@@ -926,8 +926,8 @@ describe("remove-liquidity — symbols from the account's token book", () => {
 });
 
 /**
- * PM 6.0: the contract a withdrawal goes through is `router` on V2 and `positionManager` on V3 and
- * V4 — in every mode, so a script reads the same key from a preview and from a receipt.
+ * The contract a withdrawal goes through is `router` on V2 and `positionManager` on V3 and V4 —
+ * in every mode, so a script reads the same key from a preview and from a receipt.
  */
 describe("remove-liquidity — the contract's key", () => {
   it.each([

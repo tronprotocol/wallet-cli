@@ -22,13 +22,13 @@ describe("rangeStatus", () => {
 
 describe("priceAtTick", () => {
   /**
-   * PM 7.2.4's own four bounds, to the digit.
+   * Four range bounds the market API published for mainnet positions, to the digit.
    *
    * This is the assertion that pins the double: an arbitrary-precision implementation would be
    * more accurate and would no longer agree with the `min_price` / `max_price` a caller reads
    * beside this command's output in `position-list`.
    */
-  it("reproduces PM 7.2.4's published range bounds", () => {
+  it("reproduces the market API's published range bounds", () => {
     expect(priceAtTick(-276374, 18, 6)).toBe("0.9950153585777257");
     expect(priceAtTick(-276274, 18, 6)).toBe("1.005014926708653");
     expect(priceAtTick(-12480, 6, 6)).toBe("0.28709629290133126");
@@ -62,14 +62,15 @@ describe("poolShare", () => {
 
 describe("derivedAmounts", () => {
   /**
-   * PM 7.2.4's V4 position, and the `positions-user-v4-88` fixture: the same position at two
-   * different moments, with different balances AND a different pool price. Both are reproduced
-   * from the pool price implied by their own figures, which is what established the meaning of
-   * these two fields in the first place.
+   * A V4 position the market API published, and the `positions-user-v4-88` fixture: the same
+   * position at two different moments, with different balances AND a different pool price. Both
+   * are reproduced from the pool price implied by their own figures, which is what established the
+   * meaning of these two fields in the first place.
    */
-  it("restates PM 7.2.4's position on each side of its own pair", () => {
-    // The pool price both fields imply, to the digit the two of them agree on. Taken from PM's own
-    // numbers rather than supplied: derived1 gives P, and derived0 then has to follow from it.
+  it("restates a published V4 position on each side of its own pair", () => {
+    // The pool price both fields imply, to the digit the two of them agree on. Taken from the
+    // published numbers rather than supplied: derived1 gives P, and derived0 then has to follow
+    // from it.
     const sqrt = sqrtPriceFor(0.9999833482373381, 18, 6);
     const out = derivedAmounts("984154975046066985622761", "976580959229", sqrt)!;
     expect(near(out.derived0, "1960752196340722557463933", 1e-9)).toBe(true);
@@ -121,7 +122,7 @@ describe("sumUsd", () => {
 });
 
 describe("feeRate / isDynamicFee", () => {
-  it("states a tier as the decimal fraction PM publishes", () => {
+  it("states a tier as a decimal fraction", () => {
     expect(feeRate(100)).toBe("0.0001");
     expect(feeRate(500)).toBe("0.0005");
     expect(feeRate(3000)).toBe("0.003");

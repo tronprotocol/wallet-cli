@@ -4,7 +4,7 @@
  * The withdrawal's own shape, not the deposit's mirrored: what a person checks after taking
  * money out is how much arrived, and on V3 the principal and the fees arrive in the same
  * transaction. Text gives the TOTAL — that is the number they are looking for — and `-o json`
- * separates the two (PM 6.2.4).
+ * separates the two.
  */
 import type { TextRenderContext } from "../contracts/command.js";
 import { formatAmount, formatInt, shorten } from "./scalars.js";
@@ -195,16 +195,16 @@ function dryRun(value: RemovalView, rows: Pair[], ctx: TextRenderContext): strin
   }
   // V3 AND V4 bring the accrued fees out in the same transaction — worth saying before it happens,
   // because the amount that arrives will be larger than the principal the plan quotes. V4 was left
-  // out of this once, on PM 6.2's claim that a V4 withdrawal leaves fees behind; measured on Nile it
-  // does not (position 7: owed 4821 / 3132 before, 0 / 0 after), so a V4 dry run was quoting only
-  // the principal and staying silent about the rest. Same behaviour, same warning.
+  // out of this once, on the assumption that a V4 withdrawal leaves fees behind; measured on Nile
+  // it does not (position 7: owed 4821 / 3132 before, 0 / 0 after), so a V4 dry run was quoting
+  // only the principal and staying silent about the rest. Same behaviour, same warning.
   if (value.protocol === "V3" || value.protocol === "V4") {
     lines.push(
       `${warn()} Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.`,
     );
   }
-  // LAST, whatever else was said (PM 2.10, 6.0): a floor of zero is the line a caller must not
-  // miss, so nothing is printed after it.
+  // LAST, whatever else was said: a floor of zero is the line a caller must not miss, so nothing
+  // is printed after it.
   if (value.token0.amountMinimum === "0" || value.token1.amountMinimum === "0") {
     lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
   }

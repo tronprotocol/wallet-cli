@@ -101,9 +101,9 @@ describe("protocol", () => {
   });
 
   /**
-   * `--pool` IS GONE. It was this CLI's own flag, never PM's, and it named a V4 pool by a 32-byte id
-   * that nothing here published — inconsistent with every other V4 money command, which locate by
-   * `--position-id`. An undeclared flag is refused by the parser, which is the right answer.
+   * `--pool` IS GONE. It named a V4 pool by a 32-byte id that nothing here published —
+   * inconsistent with every other V4 money command, which locate by `--position-id`. An
+   * undeclared flag is refused by the parser, which is the right answer.
    */
   it("no longer accepts --pool", () => {
     const r = run([
@@ -239,10 +239,10 @@ describe("the V3 increase scenario", () => {
 });
 
 /**
- * The V4 增倉 scenario (PM 6.1.3, the V4 追加 column).
+ * The V4 increase scenario: adding to an existing position.
  *
  * Its matrix is NOT V3's, and the difference is the point. On V3 an increase refuses the pair; on V4
- * PM requires it, because there the pair is a cross-check against what the position reports rather
+ * it is required, because there the pair is a cross-check against what the position reports rather
  * than a selector. Everything the position genuinely fixes — its range, its holder, its pool — is
  * still refused.
  */
@@ -366,10 +366,9 @@ describe("network availability", () => {
   /**
    * An EVM network fails EARLIER, and for a different reason: family resolution runs before the
    * capability gate, so a TRON-only command on an EVM network is `family_mismatch` — the same
-   * answer `stake`, `vote`, `gasfree` and `exchange` give. PM 12.2 asks for
-   * `unsupported_network_capability` here, but honouring that would mean special-casing the
-   * family check for this one group so the same user error reported differently in sunswap than
-   * everywhere else.
+   * answer `stake`, `vote`, `gasfree` and `exchange` give. Reporting
+   * `unsupported_network_capability` here instead would mean special-casing the family check for
+   * this one group so the same user error reported differently in sunswap than everywhere else.
    *
    * The pair of cases is the assertion worth keeping: it documents where the boundary sits.
    */

@@ -119,7 +119,7 @@ describe("symbol resolution", () => {
     expect(error.message).not.toContain("token add");
   });
 
-  // pool-list has no --address; its refusal names the flag it does have (deviation 3.21).
+  // pool-list has no --address; its refusal names the flag it does have.
   it("tells pool-list --token to pass the address with --token", async () => {
     const { service: s } = service();
     await expect(
@@ -524,7 +524,7 @@ describe("the 1000-row window", () => {
 });
 
 /**
- * `--min-tvl`, filtered before it is paged (PM 7.3.3).
+ * `--min-tvl`, filtered before it is paged.
  *
  * The fake market serves pages of an in-memory universe in whichever order is asked, and fails a
  * page past row 1000 the way the service does — so a scan that overruns the window fails the test

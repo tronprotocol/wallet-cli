@@ -1,5 +1,5 @@
 /**
- * The marker for a token resolved from the user's own token book (PRD 2.13).
+ * The marker for a token resolved from the user's own token book.
  *
  * A symbol the user added can shadow one they think of as official, so a receipt that resolved
  * one says so and names the contract it chose. The services publish those addresses as

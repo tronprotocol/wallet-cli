@@ -587,7 +587,7 @@ describe("ConfigLoader sunswap network block", () => {
     expect(mainnet?.liquidity).toBe(true);
     // Nothing but the switch: the addresses come from the SDK, never from wallet-cli. And no
     // router — Nile's route service is not public, so enabling it for testing is a `config.yaml`
-    // job, not a builtin — see the deviation notes, item 9.
+    // job, not a builtin.
     expect(nile).toEqual({ liquidity: true });
   });
 

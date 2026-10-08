@@ -51,8 +51,8 @@ export const sunswapPositionInfoSpec: ChainSpec = {
   /**
    * The CONTRACTS, not the market API.
    *
-   * PM 7.2.2 makes this command mainnet-only because the data API is. This implementation reads the
-   * position manager and the pool instead, and those exist on every network the liquidity commands
+   * The data API is mainnet-only. This implementation reads the position manager and the pool
+   * instead, and those exist on every network the liquidity commands
    * already work on — so the gate is the same one they use, and the USD fields are absent where
    * there is no price source rather than the whole command being refused.
    */

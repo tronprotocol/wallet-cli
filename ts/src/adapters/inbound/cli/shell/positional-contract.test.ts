@@ -191,8 +191,8 @@ describe("every registered positional command rejects its --<field> spelling", (
    * `main` — which no launch does, since SunPump picks the owner — and `sunswap position-info
    * --account main` would read as being about a position that account holds, when the command
    * reports whoever holds the id it was given. The SunSwap / SunPump market queries refuse it because
-   * the PRD says each takes no account. Derived from the registry, so any later command that
-   * declares the same intent is covered here too.
+   * each reads public data and takes no account. Derived from the registry, so any later command
+   * that declares the same intent is covered here too.
    */
   function accountRefusingCommands() {
     return newRuntime()
@@ -246,7 +246,7 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
-  // The same refusal scoped to one mode: a curve quote sends nothing to wait on (PM 2.11).
+  // The same refusal scoped to one mode: a curve quote sends nothing to wait on.
   it("refuses --wait and --wait-timeout with --quote on the commands that declare it", async () => {
     const commands = newRuntime()
       .registry.all()

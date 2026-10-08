@@ -77,7 +77,7 @@ module.exports = {
       name: "no-runtime-import",
       severity: "error",
       comment:
-        "@sun-protocol/sun-sdk-runtime can broadcast (sendAction) and build a wallet from a private key; exactly one file builds a read-only runtime over a TronClient that throws on both, and nothing else may reach for it (D6)",
+        "@sun-protocol/sun-sdk-runtime can broadcast (sendAction) and build a wallet from a private key; exactly one file builds a read-only runtime over a TronClient that throws on both, and nothing else may reach for it",
       from: { path: "^src/", pathNot: "^src/adapters/outbound/sunswap/sdk-runtime\\.ts$" },
       to: { path: "@sun-protocol/sun-sdk-runtime" },
     },

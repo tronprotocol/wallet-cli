@@ -30,7 +30,7 @@ function refusal(argv: Record<string, unknown>): CliError {
 }
 
 describe("sunswap add-liquidity — V4 pool refusals", () => {
-  // PM 6.1.2: --create-pool without --sqrt-price is missing_option, "and the reverse invalid_option".
+  // --create-pool without --sqrt-price is missing_option, and the reverse is invalid_option.
   it("refuses --sqrt-price without --create-pool as invalid_option", () => {
     const error = refusal({
       protocol: "V4",
@@ -88,7 +88,7 @@ describe("sunswap add-liquidity — V4 pool refusals", () => {
 });
 
 /**
- * A malformed `--recipient` is the caller's typo, not our crash (PM 6.0's shared codes).
+ * A malformed `--recipient` is the caller's typo, not our crash.
  *
  * Unchecked, it travelled to the ABI encoder and came back as `internal_error` ("Invalid checksum")
  * at exit 1 — after the position had already been read. Refused here, it is `invalid_address` at

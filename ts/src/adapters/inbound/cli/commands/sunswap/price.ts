@@ -7,8 +7,8 @@ import { TextFormatters } from "../../render/index.js";
  * One schema drives arity, validation, help and `--json-schema`.
  *
  * The two inputs are deliberately not merged into one "token or address" field. Which one the
- * caller meant decides whether a local lookup happens at all, and PM 8.3 requires giving both to
- * be an error rather than a silent preference.
+ * caller meant decides whether a local lookup happens at all, and giving both is an error rather
+ * than a silent preference.
  */
 const fields = z.object({
   token: z
@@ -53,8 +53,8 @@ export const sunswapPriceSpec: ChainSpec = {
 /**
  * The binding decides what the envelope publishes, and it is not the whole service result.
  *
- * `warnings` goes through `ctx.warn`, which is the only route to `meta.warnings` — the place PM
- * 8.3.4 puts it and the place a caller reads. Returning it inside the payload instead would put
+ * `warnings` goes through `ctx.warn`, which is the only route to `meta.warnings` — the place a
+ * caller reads. Returning it inside the payload instead would put
  * the notice somewhere nobody looks, which is how the degraded symbol lookup went silent.
  */
 export const sunswapPriceTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
@@ -64,8 +64,8 @@ export const sunswapPriceTronBinding = (service: SunSwapMarketQueryService): Fam
       ...(input.address === undefined ? {} : { addresses: input.address.split(",") }),
     });
     for (const warning of view.warnings) ctx.warn(warning);
-    // `view` is stripped before the JSON envelope is written: PM 8.3.4 keeps the symbol out of
-    // json because a symbol is self-reported and an agent must key on the address instead.
+    // `view` is stripped before the JSON envelope is written: the symbol stays out of json
+    // because a symbol is self-reported and an agent must key on the address instead.
     return { prices: view.prices, view: { symbols: Object.fromEntries(view.symbols) } };
   },
 });

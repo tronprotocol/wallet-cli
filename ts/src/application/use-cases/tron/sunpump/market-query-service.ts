@@ -70,7 +70,7 @@ export class SunPumpMarketQueryService {
    * contract but IGNORES a creator parameter and returns the whole catalogue with a 200;
    * `/token/search/by_owner` filters by creator but ignores a contract. Asking for both
    * therefore takes the contract route and drops any row whose creator is someone else — the
-   * intersection PM 9.1.3 asks for, computed where the service will not compute it.
+   * intersection of both filters, computed where the service will not compute it.
    */
   async tokenList(
     network: NetworkDescriptor,

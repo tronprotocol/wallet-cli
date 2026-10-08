@@ -1,27 +1,25 @@
 /**
  * `sunswap position-info` — one position, read from the chain.
  *
- * WHY IT IS CHAIN-FIRST. This command was dropped from v4.15.0 on 2026-09-23 because the SunSwap
- * market API has no by-id endpoint: none of its forty endpoints fetches one position, and
- * `/apiv2/positions/user`'s fuzzy `query` returns empty for an id it is given. That reasoning was
- * right about the API and is no longer the whole picture — the V3 and V4 work that landed since
- * reads a position DIRECTLY from the position manager by NFT id. So the position manager and the
- * pool are the source here, and the market API is asked for one thing only: USD prices.
+ * WHY IT IS CHAIN-FIRST. The SunSwap market API has no by-id endpoint: none of its forty
+ * endpoints fetches one position, and `/apiv2/positions/user`'s fuzzy `query` returns empty for an
+ * id it is given. The position manager, on the other hand, returns a position DIRECTLY by NFT id.
+ * So the position manager and the pool are the source here, and the market API is asked for one
+ * thing only: USD prices.
  *
- * WHICH MAKES IT WORK WHERE PM SAYS IT CANNOT. PM 7.2.2 restricts the command to mainnet because
- * the data API is mainnet-only. The contracts are not: Nile has them, and everything that comes off
- * the chain is readable there. So the command is gated on `sunswap.liquidity` — the contracts —
- * rather than on the market API, and the USD fields are simply ABSENT where there is no price
- * source. That is the documented deviation.
+ * WHICH MAKES IT WORK BEYOND MAINNET. The market API is mainnet-only; the contracts are not: Nile
+ * has them, and everything that comes off the chain is readable there. So the command is gated on
+ * `sunswap.liquidity` — the contracts — rather than on the market API, and the USD fields are
+ * simply ABSENT where there is no price source.
  *
- * WHAT IS NOT PUBLISHED, AND WHY NOTHING STANDS IN FOR IT. Two fields of PM 7.2.4 exist only in the
- * positions API and have no chain equivalent at all: `lastActiveAt` (the position's last change —
- * the manager stores no timestamp, and finding it would mean walking the NFT's whole event history)
+ * WHAT IS NOT PUBLISHED, AND WHY NOTHING STANDS IN FOR IT. Two fields exist only in the positions
+ * API and have no chain equivalent at all: `lastActiveAt` (the position's last change — the
+ * manager stores no timestamp, and finding it would mean walking the NFT's whole event history)
  * and each token's `logo` (a CDN URL held by an indexer). Their keys are omitted rather than
  * carried as null: a null invites a caller to render "unknown" for something that was never asked,
- * and a fabricated value would be worse. `positionType` — PM's constant "Liquidity Asset" — is the
- * market API's own classification of a row, not a fact about the position, and is omitted for the
- * same reason.
+ * and a fabricated value would be worse. `positionType` — the API's constant "Liquidity Asset" —
+ * is the market API's own classification of a row, not a fact about the position, and is omitted
+ * for the same reason.
  *
  * EVERY USD FIGURE IS A CLAIM. Prices come from the market API, and where it does not answer — Nile,
  * an unreachable service, a token it does not list — the USD keys are dropped. Never a zero, never a
@@ -65,7 +63,7 @@ export interface PositionInfoQuery {
   readonly positionId: string;
 }
 
-/** One side of the pair, as PM 7.2.4 publishes it minus the keys only an indexer holds. */
+/** One side of the pair, minus the keys only an indexer holds. */
 export interface PositionTokenView {
   readonly address: string;
   readonly symbol: string;
@@ -88,7 +86,7 @@ export interface PositionInfoView {
     readonly poolAddress: string;
     readonly protocol: "V3" | "V4";
     readonly status: RangeStatus;
-    /** what the position-manager NFT calls itself; read from it, not from PM's transcription. */
+    /** what the position-manager NFT calls itself; read from it, not from the market API. */
     readonly lpTokenName: string;
     readonly lpTokenSymbol: string;
     /** the position's liquidity — the same figure as `extra.positionLiquidity` on V3 and V4. */
@@ -185,7 +183,7 @@ export class SunSwapPositionInfoService {
       amounts,
       owed,
       range,
-      // V3's `extra` carries no V4 keys at all (PM 7.2.4's closing note).
+      // V3's `extra` carries no V4 keys at all.
       extra: {},
     });
   }
@@ -255,7 +253,7 @@ export class SunSwapPositionInfoService {
         // Only for a pool that HAS one: the zero address means "no hook", and on TRON that string
         // is also native TRX's, so printing it would say the pool is hooked to TRX.
         ...(hasHooks(pool.hooks) ? { hooksAddress: describeHooks(pool.hooks) } : {}),
-        // A fact about the position rather than a problem with it, and it is not in PM's shape —
+        // A fact about the position rather than a problem with it, and not a market API field —
         // it is published because the chain states it and a caller deciding whether to act on a
         // position needs to know a notifier is attached to it.
         hasSubscriber: position.hasSubscriber,
@@ -373,10 +371,10 @@ export class SunSwapPositionInfoService {
   /**
    * USD per whole token, for the networks that have a price source — and nothing for the rest.
    *
-   * The market API is mainnet-only, which PM 7.2.2 turns into "this command is mainnet-only". Here
-   * it is narrower: no price source means no USD keys, and everything the chain reports is still
-   * published. A price service that fails is treated the same way, with a warning, because a
-   * read-only query must not be refused over a figure that was decoration on top of the answer.
+   * The market API is mainnet-only, but that does not make this command mainnet-only: no price
+   * source means no USD keys, and everything the chain reports is still published. A price service
+   * that fails is treated the same way, with a warning, because a read-only query must not be
+   * refused over a figure that was decoration on top of the answer.
    */
   async #prices(
     scope: WarnScope,

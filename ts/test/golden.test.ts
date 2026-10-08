@@ -676,7 +676,7 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.json.error.message).toContain("'foo'");
   });
 
-  // Leaf/group help must carry the doc's user-value semantics, not a compressed one-liner: overwrite
+  // Leaf/group help must carry the full user-facing semantics, not a compressed one-liner: overwrite
   // semantics + TP math (vote cast), the 30-entry cap on --for, the 24h withdraw cap (reward
   // withdraw), the 0% reward-ratio warning (vote status), and the reward pointer (vote group).
   it("vote --help keeps the reward pointer (group 2nd line)", () => {
@@ -704,7 +704,7 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.stdout).toContain("at most once every 24 hours");
   });
 
-  // stake-query / chain / interactive-import leaf help must also carry the doc's fuller description,
+  // stake-query / chain / interactive-import leaf help must also carry the fuller description,
   // not the compressed one-line summary (same fix as vote/reward above).
   it("stake info --help lists the overview fields", () => {
     const r = run(["stake", "info", "--help"], { password: null });
@@ -1072,12 +1072,12 @@ describe("golden CLI — flags spelled like the command path", () => {
 });
 
 /**
- * The spec fixes what `networks` shows. The header is worth pinning because the column NAMES carry
- * meaning here: `Chain id` says the value is the second half of the canonical id (`eip155` + `1` =
- * `eip155:1`), which the shorter "Chain" left open to reading as the chain's name.
+ * The `networks` header is worth pinning because the column NAMES carry meaning here: `Chain id`
+ * says the value is the second half of the canonical id (`eip155` + `1` = `eip155:1`), which the
+ * shorter "Chain" left open to reading as the chain's name.
  */
 describe("golden CLI — networks table", () => {
-  it("names its columns as the spec specifies", () => {
+  it("names its columns as fixed", () => {
     const header = run(["networks"]).stdout.split("\n")[0];
 
     // the column NAME is the contract; its width follows whatever the widest value happens to be

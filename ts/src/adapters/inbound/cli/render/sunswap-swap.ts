@@ -190,7 +190,7 @@ export const SunSwapSwapFormatters = {
 };
 
 /**
- * A quote is a table, with the market named above it (PM 5.1.4).
+ * A quote is a table, with the market named above it.
  *
  * No minimum column and no slippage: `--quote` refuses `--slippage`, and a floor nothing will
  * enforce would read as protection the caller does not have. The fee column is labelled for the
@@ -210,7 +210,7 @@ function quote(value: SwapView): string {
     const cells = [
       route.path.map((hop) => hop.symbol).join(" → "),
       // Plain here, unlike the receipt's `Spent` row: this table has its own fee column, and
-      // saying the fee twice invites a reader to add it on (PM 5.1.4).
+      // saying the fee twice invites a reader to add it on.
       amount(route.amountIn, first),
       amount(route.amountOut, last),
       `${formatAmount(route.tradingFee, 6)} TRX`,

@@ -16,8 +16,8 @@ function issues(input: Record<string, unknown>) {
 }
 
 /**
- * PM 2.11: `--quote` sends no transaction, so it refuses every flag that describes one — the floor
- * flags included, since a floor given to a quote would be accepted and then protect nothing.
+ * `--quote` sends no transaction, so it refuses every flag that describes one — the floor flags
+ * included, since a floor given to a quote would be accepted and then protect nothing.
  */
 describe("--quote", () => {
   it.each([

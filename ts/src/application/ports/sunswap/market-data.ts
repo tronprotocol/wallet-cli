@@ -190,7 +190,7 @@ export interface PoolRecord {
    *
    * Raw input for `pairPrices`, and NOT part of the published payload: the rate's orientation
    * ("token0 per one token1") is a service detail nobody should have to know, so the use case
-   * turns it into a quoted price and drops this. See PM 7.3.4.
+   * turns it into a quoted price and drops this.
    */
   readonly rates: readonly string[];
 }

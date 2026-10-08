@@ -3,10 +3,10 @@
  *
  * 🔴 No token was ever created to write these: creating one on SunPump is permanent, public and
  * irreversible, and mainnet is the only network the service runs on. So the response bodies here
- * are built from PM §10.3.4 and the catalogue's own token shape — which the mapper is already
- * tested against in `market-api.mapper.test.ts` — and the CREATE-SPECIFIC parts are what these
- * cases exist for: the request body, the millisecond-÷-10^6 instants, and a refusal that arrives
- * with HTTP 200.
+ * are built from the create response's documented shape and the catalogue's own token shape —
+ * which the mapper is already tested against in `market-api.mapper.test.ts` — and the
+ * CREATE-SPECIFIC parts are what these cases exist for: the request body, the millisecond-÷-10^6
+ * instants, and a refusal that arrives with HTTP 200.
  *
  * The body is asserted WHOLE rather than field by field, so a dropped option and a misnamed one
  * both go red. That matters here more than anywhere else in this folder: this service ignores a
@@ -41,8 +41,8 @@ const NILE = {
  *
  * `tokenCreatedInstant` is PLAIN SECONDS, the same scale every query endpoint of this service uses.
  * MEASURED by creating a real token on mainnet 2026-09-28: the value came back `1790535759`, and
- * reading the SAME token through `token-info` gave the same figure. PM §10.3.4 says the create
- * response uses a different unit; it does not.
+ * reading the SAME token through `token-info` gave the same figure. The create response does not
+ * use a different unit.
  */
 const CREATED = {
   contractAddress: "TNfW9m6BzWpZ4gZ8y8sJQ8PjRKzvGx1a9x",
@@ -131,7 +131,7 @@ describe("the request body", () => {
     expect(calls[0]!.body).toEqual({ name: "Test Token", symbol: "TST", description: "demo" });
   });
 
-  // The SDK declares `tweetUsername`, PM declares no flag for it, and nothing may invent one.
+  // The SDK declares `tweetUsername`, the CLI has no flag for it, and nothing may invent one.
   it("has no field nobody can set", async () => {
     const { calls, fetchImpl } = transport(ok(CREATED));
     await api(fetchImpl).launchToken(MAINNET, {
@@ -180,10 +180,10 @@ describe("the created token", () => {
   /**
    * ONE scale for both paths, which is the property that matters.
    *
-   * An earlier version rescaled this field by 1000 on the strength of PM §10.3.4's claim. The live
-   * create then dated a token made that minute to `+058709-10-27`, while `token-info` read the same
-   * token back correctly — two paths disagreeing about one field, both answering `success: true`.
-   * The absurd year is what made it visible; a smaller error would not have been.
+   * Rescaling this field by 1000, as if the create response used a different unit, dates a token
+   * made that minute to `+058709-10-27`, while `token-info` reads the same token back correctly —
+   * two paths disagreeing about one field, both answering `success: true`. Only the absurd year
+   * makes that visible; a smaller error would not be.
    */
   it("reads the create endpoint's instants on the same scale as the query endpoints", async () => {
     const { fetchImpl } = transport(ok(CREATED));

@@ -11,8 +11,8 @@
  *
  * `tokenLaunchedInstant` is deliberately absent. It looks supported — it is a real field on every
  * token and the service answers 200 — but the rows come back in `marketCap` order, which happens
- * to resemble launch order at the top of the catalogue. PM 2.4 lists a `launched` ordering; it
- * cannot be served, so it is not offered.
+ * to resemble launch order at the top of the catalogue. A `launched` ordering cannot be served,
+ * so it is not offered.
  */
 import { UsageError } from "../errors/index.js";
 

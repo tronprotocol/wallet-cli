@@ -44,7 +44,7 @@ describe("sunswap remove-liquidity dry run — the fees that arrive with the pri
   });
 
   /**
-   * V4 behaves the same, and was once left out of this warning on PM 6.2's claim that a V4
+   * V4 behaves the same, and was once left out of this warning on the assumption that a V4
    * withdrawal leaves fees behind. Measured on Nile it does not — position 7 owed 4821 / 3132
    * before a partial withdrawal and 0 / 0 after — so a V4 dry run quoted only the principal and
    * said nothing about the rest.
@@ -60,8 +60,8 @@ describe("sunswap remove-liquidity dry run — the fees that arrive with the pri
 });
 
 /**
- * PM 2.10 and 6.0: when a floor is zero, the dry run ENDS on the No-minimum warning, whatever else
- * it has to say. It is the line a caller must not miss, so nothing may follow it.
+ * When a floor is zero, the dry run ENDS on the No-minimum warning, whatever else it has to
+ * say. It is the line a caller must not miss, so nothing may follow it.
  */
 describe("sunswap remove-liquidity dry run — the No-minimum warning comes last", () => {
   const NO_MINIMUM = "No minimum set — this transaction accepts any output amount.";

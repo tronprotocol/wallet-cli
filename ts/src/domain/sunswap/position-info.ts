@@ -14,7 +14,7 @@
 /**
  * Where the pool's price sits relative to the position's range.
  *
- * The spelling is `OUT_RANGE`, not `OUT_OF_RANGE` (PM 7.1.4): it is the value the market API
+ * The spelling is `OUT_RANGE`, not `OUT_OF_RANGE`: it is the value the market API
  * publishes, and this command's object is isomorphic with `position-list`'s.
  *
  * The upper bound is EXCLUSIVE, which is the pool's own rule: a position earns fees while
@@ -36,7 +36,7 @@ export function rangeStatus(
  *
  * THE ONE FLOAT IN THIS FILE, and it is here on purpose. A tick price is a DISPLAY bound on a
  * range — nobody settles anything with it — and computing it in double reproduces the market API's
- * own figures exactly: PM 7.2.4's four published bounds (`0.9950153585777257`,
+ * own figures exactly: four bounds it published for mainnet positions (`0.9950153585777257`,
  * `1.005014926708653`, `0.28709629290133126`, `0.3875336469344778`) are what this returns for
  * their ticks. An arbitrary-precision version would be MORE precise and would no longer match the
  * `min_price` / `max_price` a caller sees beside it in `position-list`.
@@ -78,8 +78,8 @@ const SHARE_DECIMALS = 18;
  *
  * This is what the market API publishes as `derived_token0_amount` / `derived_token1_amount`, and
  * the meaning was established rather than assumed — reproduced to the digit against two independent
- * snapshots of mainnet position 88 (PM 7.2.4's, and the `positions-user-v4-88` fixture, which were
- * taken at different prices and different balances):
+ * snapshots of mainnet position 88 (one published by the market API, and the
+ * `positions-user-v4-88` fixture, which were taken at different prices and different balances):
  *
  *     derived0 = amount0 + amount1 / P        derived1 = amount0 * P + amount1
  *
@@ -149,7 +149,7 @@ export function sumUsd(values: readonly (string | undefined)[]): string | undefi
   return `${whole}.${fraction.slice(0, USD_DECIMALS)}`;
 }
 
-/** Places a published USD figure carries — the scale PM 7.1.4 / 7.2.4 print. */
+/** Places a published USD figure carries, as `position-list` and `position-info` print it. */
 const USD_DECIMALS = 18;
 
 /**
@@ -166,7 +166,7 @@ export function isDynamicFee(fee: number): boolean {
 }
 
 /**
- * A fee tier as the DECIMAL fraction PM 7.1.4 publishes: 3000 → "0.003", 100 → "0.0001".
+ * A fee tier as a DECIMAL fraction: 3000 → "0.003", 100 → "0.0001".
  *
  * The contract's unit is hundredths of a basis point, i.e. millionths. A dynamic-fee pool has no
  * tier to state and reports "0", which is why `isDynamicFee` travels beside it.

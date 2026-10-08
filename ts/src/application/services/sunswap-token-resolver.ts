@@ -6,12 +6,12 @@
  * scaled by comes from whatever address this returns — so a resolver that disagreed with the one
  * the price came from would quote one token and deposit another.
  *
- * The order is PM 2.13's: the TRX/WTRX builtins, then the address book. Which layers of the book
- * are read depends on the caller. `swap` and the liquidity commands read the EFFECTIVE book —
- * official entries plus the user layer of the account the command uses — the same source
- * `tx send --token` resolves from. `price` and `pool-list --token` take no account, so they can
- * only read the official layer (deviations 3.6 / 3.21), and their refusals do not suggest
- * `token add`: adding a token would not make the symbol resolvable there.
+ * The order is: the TRX/WTRX builtins, then the address book. Which layers of the book are read
+ * depends on the caller. `swap` and the liquidity commands read the EFFECTIVE book — official
+ * entries plus the user layer of the account the command uses — the same source `tx send --token`
+ * resolves from. `price` and `pool-list --token` take no account, so they can only read the
+ * official layer, and their refusals do not suggest `token add`: adding a token would not make
+ * the symbol resolvable there.
  *
  * A symbol that matches more than one entry is refused, never resolved to one of them — not even
  * the official one. A user-added token calling itself `USDT` is how an impersonation reaches a

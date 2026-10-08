@@ -78,14 +78,14 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     },
     sunswap: {
       marketApiBaseUrl: "https://open.sun.io",
-      // The route service, from the SDK's own chain config. Nile's is null there, which matches
-      // PM 3.1 — so the DEX branch stays off on Nile without a special case (D7).
+      // The route service, from the SDK's own chain config. Nile's is null there, so the DEX
+      // branch stays off on Nile without a special case.
       routerApiBaseUrl: "https://open.sun.io/apiv2/quote/swap",
       liquidity: true,
     },
     sunpump: {
-      // Mainnet only, per PM 3.1 — Nile's launchpad exists in the SDK's chain config and is
-      // reachable, but the released binary does not offer the curve there.
+      // Mainnet only — Nile's launchpad exists in the SDK's chain config and is reachable, but
+      // the released binary does not offer the curve there.
       curve: true,
       // Mainnet only, and not by policy: the SDK's Nile `sunPump` endpoint is null, so there is
       // no testnet catalogue. A client built without this would answer with mainnet tokens.

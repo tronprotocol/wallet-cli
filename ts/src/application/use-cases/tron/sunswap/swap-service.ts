@@ -9,7 +9,7 @@ import { quoteCurveSale } from "../sunpump/curve-sale.js";
  * one failure in this command that costs money silently, so the decision is made once, from
  * on-chain state, and never inferred twice.
  *
- * The rule (PM 5.1.2): on TRON mainnet, if exactly one side is native TRX and the other is a
+ * The rule: on TRON mainnet, if exactly one side is native TRX and the other is a
  * SunPump token still TRADING on its curve, the trade goes through the curve. Everything else
  * goes to the Universal Router.
  *
@@ -360,7 +360,7 @@ export class SunSwapSwapService {
   }
 
   /**
-   * The amount a router swap spends must be there before anything is planned (PRD 13.1).
+   * The amount a router swap spends must be there before anything is planned.
    *
    * In every mode, and ahead of the permit and the approval on purpose: an execute that found the
    * shortfall later would already have paid for a Permit2 approval it can never use. Like the
@@ -658,7 +658,7 @@ export class SunSwapSwapService {
   /**
    * The curve's state, or a refusal.
    *
-   * A read that fails is reported as `provider_error` and stops the command (PM 5.1.2). It is not
+   * A read that fails is reported as `provider_error` and stops the command. It is not
    * treated as "not a curve token": that would route to the other market on the strength of a
    * failed request, and the quote and the fill could then land in different places.
    */
@@ -711,9 +711,9 @@ export class SunSwapSwapService {
     }
 
     // One hop, no pool fees, and no price impact: a curve has no pool to move against, so the key
-    // is absent rather than zero (PM 5.1.2). `decimals` on each hop is ours, added to PM's shape:
-    // an amount without its scale is the defect this codebase has shipped three times, and a
-    // quote's amounts are scaled by nothing else in the payload.
+    // is absent rather than zero. `decimals` on each hop is deliberate: an amount without its
+    // scale is the defect this codebase has shipped three times, and a quote's amounts are
+    // scaled by nothing else in the payload.
     const path = [
       { address: tokenIn.address, symbol: tokenIn.symbol, decimals: tokenIn.decimals },
       { address: tokenOut.address, symbol: tokenOut.symbol, decimals: tokenOut.decimals },
@@ -725,7 +725,7 @@ export class SunSwapSwapService {
     };
 
     /**
-     * A quote is PLURAL, and always an array (PM 5.1.4).
+     * A quote is PLURAL, and always an array.
      *
      * `routes` is an array whether one candidate came back or five, so an agent parses a quote the
      * same way either way, and `routesAvailable` says how many exist without being asked for them.

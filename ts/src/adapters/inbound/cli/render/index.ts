@@ -60,7 +60,7 @@ export const TextFormatters = {
   ...MultisigFormatters,
   ...GasFreeFormatters,
   ...SunSwapFormatters,
-  // The liquidity receipts keep addresses out of their rows (PM 6.0); a token resolved from the
+  // The liquidity receipts keep addresses out of their rows; a token resolved from the
   // user's own book is the exception, named in a note under the receipt.
   sunswapLiquidity: withTokenBookNotes(SunSwapLiquidityFormatters.sunswapLiquidity),
   sunswapRemoveLiquidity: withTokenBookNotes(

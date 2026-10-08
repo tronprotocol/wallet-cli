@@ -272,7 +272,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the approval decision", () 
       dryRun: true,
     })) as Record<string, unknown>;
 
-    // Absent, not empty: an empty list reads as "an approval is coming" (PM 13.3).
+    // Absent, not empty: an empty list reads as "an approval is coming".
     expect(result).not.toHaveProperty("approvals");
   });
 });
@@ -286,7 +286,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --dry-run", () => {
     expect(assertCanSign).not.toHaveBeenCalled();
   });
 
-  // PM 6.0: V2's contract is the router, and only V2 keeps that key.
+  // V2's contract is the router, and only V2 keeps that key.
   it("names its contract router", async () => {
     const { service, scope } = makeHarness();
 
@@ -716,7 +716,7 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
   });
 
   /**
-   * PM 6.0 and 6.1.4: a V3 deposit names its contract `positionManager` (`router` is V2's word),
+   * A V3 deposit names its contract `positionManager` (`router` is V2's word),
    * and a preview's liquidity is `liquidityExpected` — `liquidity` is what a confirmed receipt
    * measured, and one key for both would let a script read an estimate as a settlement.
    */
@@ -1058,11 +1058,11 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
 });
 
 /**
- * The V4 增倉 scenario: adding to a position that already exists (PM 6.1.3, V4 追加).
+ * The V4 increase scenario: adding to a position that already exists.
  *
  * The asymmetry with V3's increase is the thing under test. On V3 `--token0` / `--token1` are
- * REFUSED beside `--position-id`, because the position fixes the pair. On V4 PM REQUIRES them — and
- * they still select nothing, so what they are is a cross-check against the pair the position
+ * REFUSED beside `--position-id`, because the position fixes the pair. On V4 they are REQUIRED —
+ * and they still select nothing, so what they are is a cross-check against the pair the position
  * reports. These cases pin both halves: the check refuses a mismatch, and the position's own pool
  * and range are what the call is built from either way.
  */
@@ -1238,7 +1238,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     });
   });
 
-  // PM 6.0: V3 and V4 name their contract `positionManager` in every mode; `router` is V2's.
+  // V3 and V4 name their contract `positionManager` in every mode; `router` is V2's.
   it.each([
     ["a dry run", { dryRun: true }],
     ["a build", { buildOnly: true }],
@@ -1287,7 +1287,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
       },
       tokenId: "12",
       liquidity: SIZED.liquidity,
-      // The CEILING, and with no --slippage it is EXACTLY the computed amounts — PM 6.1.3's default,
+      // The CEILING, and with no --slippage it is EXACTLY the computed amounts — the default,
       // measured to work on Nile.
       amount0Max: SIZED.amount0,
       amount1Max: SIZED.amount1,
@@ -1368,10 +1368,10 @@ const noV4Signers = {
 /**
  * The V4 MINT scenario: a deposit into a pool named by its parts.
  *
- * `--pool`, a 32-byte id, used to be the only way to name a V4 pool here — a value PM never
- * specified and this CLI published nowhere. The pool is named by what it is made of now:
- * `--token0`, `--token1`, `--fee` and `--tick-spacing`, plus `--hooks` when there is one. The id is
- * derived from those, by the same hash the pool manager uses.
+ * `--pool`, a 32-byte id, used to be the only way to name a V4 pool here — a value no
+ * documentation specified and this CLI published nowhere. The pool is named by what it is made
+ * of now: `--token0`, `--token1`, `--fee` and `--tick-spacing`, plus `--hooks` when there is one.
+ * The id is derived from those, by the same hash the pool manager uses.
  */
 describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   const V4_MANAGER = "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP";
@@ -1867,7 +1867,7 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
 });
 
 /**
- * The entry resolves the pair against the account's own token book (PRD 2.13), through the real
+ * The entry resolves the pair against the account's own token book, through the real
  * resolver: a user-added symbol reaches the plan as its address, and the receipt says which.
  */
 function bookResolver(): SunSwapTokenResolver {

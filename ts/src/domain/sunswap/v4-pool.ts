@@ -36,8 +36,8 @@ import { NATIVE_TRX_ADDRESS } from "./tokens.js";
  * other concept.
  *
  * RESTATED, NOT MISSED. The vendor exports the same constant as `TRON_ZERO_ADDRESS`. It is duplicated
- * because `domain/` may not import the vendor SDK (decision log D13), and importing it here to remove
- * the duplication is the outcome this note exists to prevent.
+ * because `domain/` may not import the vendor SDK, and importing it here to remove the duplication
+ * is the outcome this note exists to prevent.
  */
 export const V4_NO_HOOKS = NATIVE_TRX_ADDRESS;
 

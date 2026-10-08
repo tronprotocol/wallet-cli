@@ -46,7 +46,7 @@ export interface RouterRoute {
    * The route passes through a hook contract nobody has verified.
    *
    * A fact about the route, not a decode failure: the route is still offered and the caller
-   * decides, with the minimum bounding the exposure (PM 5.1.3).
+   * decides, with the minimum bounding the exposure.
    */
   readonly containsUnverifiedHook: boolean;
   /**

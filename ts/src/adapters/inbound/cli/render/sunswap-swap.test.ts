@@ -183,8 +183,8 @@ it("keeps a confirmed swap quote labelled as an estimate", () => {
 });
 
 /**
- * Which contracts the symbols resolved to, and whether one came from the user's own token book
- * (PRD 2.13). A user-added token can shadow a familiar symbol, so the receipt names the contract.
+ * Which contracts the symbols resolved to, and whether one came from the user's own token book.
+ * A user-added token can shadow a familiar symbol, so the receipt names the contract.
  */
 describe("the resolved contracts", () => {
   it("shows both addresses on a dry run, unmarked when both are official", () => {

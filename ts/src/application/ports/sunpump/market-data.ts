@@ -38,7 +38,7 @@ export interface SunPumpCurveRecord {
   readonly currentSold: string;
   /** base units of the token still held by the curve. */
   readonly tokenReserve: string;
-  /** TRX held by the curve, decimal — the service's own unit, kept (PM 9.0). */
+  /** TRX held by the curve, decimal — the service's own unit, kept. */
   readonly trxReserve: string;
 }
 

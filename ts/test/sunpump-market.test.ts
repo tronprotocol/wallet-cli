@@ -63,7 +63,7 @@ describe("the page window must fall on a page boundary", () => {
     expect(r.json.error.message).toContain("must be a multiple of --limit (4)");
   });
 
-  // The CLI's own ceiling: the service would serve 200, but PM 9 fixes a page at 50.
+  // The CLI's own ceiling: the service would serve 200, but this CLI fixes a page at 50.
   it.each([
     ["token-list", ["sunpump", "token-list"]],
     ["token-search", ["sunpump", "token-search", "dog"]],

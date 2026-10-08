@@ -8,7 +8,7 @@
 import { UsageError } from "../errors/index.js";
 
 /**
- * The share of a computed amount a V2 deposit will accept by default (PM 6.1.3).
+ * The share of a computed amount a V2 deposit will accept by default.
  *
  * A V2 deposit must match the pool's current ratio, which moves between the moment the amounts
  * are computed and the moment the transaction lands. Without a floor the deposit reverts on any
@@ -16,7 +16,7 @@ import { UsageError } from "../errors/index.js";
  */
 export const DEFAULT_V2_MIN_BASIS_POINTS = 9500n;
 
-/** Minutes a transaction stays valid when the caller does not say (PM 6.1.3). */
+/** Minutes a transaction stays valid when the caller does not say. */
 export const DEFAULT_DEADLINE_MINUTES = 30;
 
 /**
@@ -26,7 +26,7 @@ export const DEFAULT_DEADLINE_MINUTES = 30;
  * same thing. This is duplicated because `domain/` may not import the vendor SDK: the rule is that the
  * load-bearing maths lives in the adapter where the vendor is allowed, and what domain restates is
  * policy. Do not "tidy this up" by importing the SDK here — that breaks the boundary the note exists
- * to protect (decision log D13).
+ * to protect.
  */
 export function applyMinimumShare(amount: string, basisPoints: bigint): string {
   return ((toBigInt(amount, "amount") * basisPoints) / 10000n).toString();
@@ -85,7 +85,7 @@ export function selectAmounts(
  * ratio would. That is the safe direction: it can only ever leave dust unspent, never overdraw.
  *
  * RESTATED, NOT MISSED. The vendor's `quoteV2LiquidityAmount` is the same formula. It is duplicated
- * because `domain/` may not import the vendor SDK — see `applyMinimumShare` and decision log D13.
+ * because `domain/` may not import the vendor SDK — see `applyMinimumShare`.
  * Importing the SDK here to remove the duplication is the outcome this note exists to prevent.
  */
 export function pairAmount(

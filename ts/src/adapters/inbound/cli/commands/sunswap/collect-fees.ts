@@ -5,7 +5,7 @@ import type { SunSwapCollectFeesService } from "../../../../../application/use-c
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 
-/** Flags V4 adds, and which mean nothing on V3 (PM 6.3.3's matrix). */
+/** Flags V4 adds, and which mean nothing on V3. */
 const V4_ONLY = ["token0", "token1", "fee", "deadline"] as const;
 
 /** Flags V4 does not have. A V4 collection settles to the signing account and nowhere else. */
@@ -53,7 +53,7 @@ const fields = z.object({
 });
 
 /**
- * The flag × scenario matrix (PM 6.3.3), and why V2 is absent.
+ * The flag × scenario matrix, and why V2 is absent.
  *
  * V2 is `invalid_value`, not an unknown protocol: a V2 pool's fees are real; they are simply not
  * separable — they accrue into the LP token's own value and come out when the liquidity does.
@@ -98,8 +98,8 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
 /**
  * V4's own matrix.
  *
- * The pair is OPTIONAL here, unlike on `remove-liquidity` — PM 6.3.3 makes it a cross-check a
- * caller may skip, because a collection cannot be sized wrong the way a withdrawal can. What it
+ * The pair is OPTIONAL here, unlike on `remove-liquidity` — it is a cross-check a caller may
+ * skip, because a collection cannot be sized wrong the way a withdrawal can. What it
  * cannot be is half-given: one side names no pair at all, and `--fee` on its own checks nothing.
  */
 function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void {
@@ -163,7 +163,7 @@ export const sunswapCollectFeesSpec: ChainSpec = {
     "command is for the case where the principal should stay in the pool.",
   baseFields: fields,
   // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
-  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1 (PM 6.0).
+  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     { cmd: "wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --dry-run" },

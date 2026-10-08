@@ -8,8 +8,7 @@ import { resolveTronAccount } from "../../../services/tron-account.js";
  *   value, so there is nothing to claim — which is a different statement from "V2 is not
  *   supported".
  * - There is no "how much" on either protocol. `collect` takes what the position is owed, and it
- *   is owed in full (PM 6.3.1). A partial option would suggest a choice the contract does not
- *   offer.
+ *   is owed in full. A partial option would suggest a choice the contract does not offer.
  * - Nothing is approved and no Permit2 is involved: the position manager already holds the
  *   position on both protocols.
  * - On V3, `remove-liquidity` already collects the fees alongside the principal, so this command
@@ -18,7 +17,7 @@ import { resolveTronAccount } from "../../../services/tron-account.js";
  * WHAT A V4 RECEIPT CLAIMS, AND WHEN. The V3 path reads what the contract itself says is owed
  * (`v3OwedFees`) and reports it, both in the dry run and — after the event — as what arrived. V4
  * now has its own read, `v4OwedFees`, over the LP fee helper, and the receipt carries the two
- * figures it returns (PM 6.3.4).
+ * figures it returns.
  *
  * That read is BEST EFFORT, and its failure is a third state rather than a zero. A dry run against
  * an unreachable node still previews the call, and a helper that cannot be read or decoded leaves
@@ -71,11 +70,11 @@ import { LiquidityTransactions, outcomeTxId } from "./liquidity-transactions.js"
  */
 const RESOLVED = { caller: "liquidity" } as const;
 
-/** The receipt's `kind`, one value across every mode this command has (PM 2.9). */
+/** The receipt's `kind`, one value across every mode this command has. */
 const KIND = "sunswap-collect-fees" as const;
 
 /**
- * The tier `--fee` means when the caller named the pair but not the tier (PM 6.3.3).
+ * The tier `--fee` means when the caller named the pair but not the tier.
  *
  * It selects nothing — the position names its own pool — so all this default can do is disagree
  * with the position, and a disagreement is refused rather than resolved.
@@ -117,7 +116,7 @@ export interface CollectFeesView {
    *
    * V4 accepts `--token0` / `--token1`, but they never SELECT anything — the position names its
    * own pool and the pair it reports is what is used. The flags are checked against it and
-   * discarded, so the pair on the receipt came from the chain either way (PM 6.3.4).
+   * discarded, so the pair on the receipt came from the chain either way.
    */
   readonly tokensAuto: true;
   /** the RESOLVED address the fees go to — never a placeholder, because a script has to know. */
@@ -464,11 +463,11 @@ export class SunSwapCollectFeesService {
       /**
        * `--fee` cross-checks ONLY when the caller gave one.
        *
-       * PM 6.3.3 gives it a default of 500, and that default is dropped here on purpose. On V4 the
-       * position names its own pool, so this flag selects nothing and can only ever AGREE or
-       * DISAGREE. A default that can only disagree is not a default — it is a refusal waiting for
-       * everyone whose position is not in the 500 tier, over a value they never typed. PM's 500 is
-       * right where it selects something, as on add-liquidity's new position; here it does not.
+       * It has no default of 500 here, on purpose. On V4 the position names its own pool, so this
+       * flag selects nothing and can only ever AGREE or DISAGREE. A default that can only disagree
+       * is not a default — it is a refusal waiting for everyone whose position is not in the 500
+       * tier, over a value they never typed. A 500 default is right where it selects something, as
+       * on add-liquidity's new position; here it does not.
        */
       if (input.fee !== undefined && input.fee !== position.fee) {
         throw new UsageError(

@@ -77,7 +77,7 @@ export function mapPosition(raw: RawPosition): PositionRecord {
       : { lpPriceUsd: plain(raw.lpPriceUsd) }),
     // Only V3 and V4 positions are NFTs. The service sends an EMPTY STRING rather than omitting
     // the field for the others, and publishing that would put a bare "#" in the id column and a
-    // meaningless key in the json; PM 7.1.4 says the key is absent for those protocols.
+    // meaningless key in the json, so the key is absent for those protocols.
     ...(raw.nftTokenId === undefined || raw.nftTokenId === ""
       ? {}
       : { nftTokenId: raw.nftTokenId }),
@@ -174,7 +174,7 @@ const prefixed = (word: string): string => (word.startsWith("0x") ? word : `0x${
 /**
  * A catalogue token.
  *
- * Three shape jobs, per PM 8.1.4: strip the redundant `token` prefix the service puts on half
+ * Three shape jobs: strip the redundant `token` prefix the service puts on half
  * its fields, rename the two `*List` members to what they hold, and drop `id`, which is an
  * internal row key no caller can use for anything.
  *

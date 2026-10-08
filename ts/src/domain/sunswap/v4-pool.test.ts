@@ -46,9 +46,9 @@ describe("naming a pool by its parts", () => {
   /**
    * The five parts, and the fourth is the one this used to be missing.
    *
-   * A V4 pool was named here by its 32-byte pool id — a value this CLI published nowhere and PM
-   * never specified. It is named by what it is made of now, which is also how `--create-pool`
-   * already named one, through the same builder.
+   * A V4 pool was named here by its 32-byte pool id — a value this CLI published nowhere. It is
+   * named by what it is made of now, which is also how `--create-pool` already named one, through
+   * the same builder.
    */
   const existing = {
     token0: NATIVE_TRX_ADDRESS,
