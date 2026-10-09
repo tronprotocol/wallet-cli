@@ -1,4 +1,4 @@
-import { TransportError } from "../../domain/errors/index.js";
+import { errorMessage, TransportError, UsageError } from "../../domain/errors/index.js";
 import { expect, it, vi } from "vitest";
 import { BaiRechargeFlow } from "./bai-recharge-flow.js";
 const input = {
@@ -60,6 +60,18 @@ it("does not contact binding endpoints during an already configured recharge", a
   expect(api.isBound).not.toHaveBeenCalled();
   expect(api.bind).not.toHaveBeenCalled();
 });
+it("preserves safe text and raw JSON when attaching recharge context", async () => {
+  const { flow, pay, api } = fixture();
+  pay.mockRejectedValue(
+    new UsageError("account_not_found", errorMessage`unknown account ${"missing\nFAKE_LOG"}`),
+  );
+  const error = await flow.execute(input).catch((error: unknown) => error);
+  expect(error).toBeInstanceOf(UsageError);
+  expect((error as UsageError).textMessage).toBe("unknown account missing\\nFAKE_LOG");
+  expect((error as UsageError).toEnvelope().message).toBe("unknown account missing\nFAKE_LOG");
+  expect(api.reportTxHash).not.toHaveBeenCalled();
+});
+
 it("does not pay if preorder creation fails", async () => {
   const { flow, api, pay } = fixture();
   api.createOrder.mockRejectedValue(new Error("unavailable"));

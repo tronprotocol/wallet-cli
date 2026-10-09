@@ -438,46 +438,73 @@ describe("x402 TRON auto approve keeps its evidence", () => {
     expect(warnings.some((w) => w.includes(broadcast[0]!))).toBe(true);
   });
 
-  it("includes the approval in a successful payment result", async () => {
-    const { key, address, broadcast, challenge } = harness("auto");
-    const sign = vi.fn(async (tx: unknown) => tronSignStrategy.sign(key, tx));
-    const signTypedData = vi.fn(async (p: TypedDataPayload) =>
-      tronSignStrategy.signTypedData(key, p),
-    );
-    const fetcher = vi.fn<typeof fetch>(async (request, init) => {
-      const req = new Request(request, init);
-      if (!req.headers.get("payment-signature"))
-        return Response.json(challenge, {
-          status: 402,
+  it.each(["text", "binary"])(
+    "retains the approval after a settled %s response",
+    async (contentType) => {
+      const { key, address, broadcast, challenge } = harness("auto");
+      const sign = vi.fn(async (tx: unknown) => tronSignStrategy.sign(key, tx));
+      const signTypedData = vi.fn(async (p: TypedDataPayload) =>
+        tronSignStrategy.signTypedData(key, p),
+      );
+      const fetcher = vi.fn<typeof fetch>(async (request, init) => {
+        const req = new Request(request, init);
+        if (!req.headers.get("payment-signature"))
+          return Response.json(challenge, {
+            status: 402,
+            headers: {
+              "payment-required": Buffer.from(JSON.stringify(challenge)).toString("base64"),
+            },
+          });
+        return new Response("ok", {
           headers: {
-            "payment-required": Buffer.from(JSON.stringify(challenge)).toString("base64"),
+            "content-type": contentType === "binary" ? "application/octet-stream" : "text/plain",
+            "payment-response": Buffer.from(
+              JSON.stringify({
+                success: true,
+                network: "tron:0xcd8690dc",
+                transaction: "a".repeat(64),
+              }),
+            ).toString("base64"),
           },
         });
-      return new Response("ok");
-    });
-    const client = new X402PaymentClient(
-      {
-        assertCanSign() {},
-        resolve: () => ({ kind: "software", address, sign, signTypedData }),
-      } as never,
-      fetcher,
-    );
-    const result = await client.pay(
-      { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
-      net,
-      input,
-    );
-    expect(broadcast).toHaveLength(1);
-    expect(result).toMatchObject({
-      delivered: true,
-      approval: {
+      });
+      const client = new X402PaymentClient(
+        {
+          assertCanSign() {},
+          resolve: () => ({ kind: "software", address, sign, signTypedData }),
+        } as never,
+        fetcher,
+      );
+      const pending = client.pay(
+        { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
+        net,
+        input,
+      );
+      const result = await pending.catch((error) => error);
+      expect(broadcast).toHaveLength(1);
+      const approval = {
         txId: broadcast[0],
         token: USDT_NILE,
         spender: PERMIT2_NILE,
         status: "confirmed",
-      },
-    });
-  });
+      };
+      if (contentType === "binary") {
+        expect(result).toMatchObject({
+          code: "invalid_option",
+          details: {
+            paymentStatus: "settled",
+            settled: true,
+            txHash: "a".repeat(64),
+            retryPayment: false,
+            approval,
+          },
+        });
+        expect(result.exitCode()).toBe(2);
+      } else {
+        expect(result).toMatchObject({ delivered: true, settled: true, approval });
+      }
+    },
+  );
 
   it("marks a sponsored approval as exported when the payment request then fails", async () => {
     const { key, address, broadcast, challenge } = harness("sponsored");

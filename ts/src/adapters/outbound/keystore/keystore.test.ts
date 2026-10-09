@@ -10,7 +10,7 @@ vi.mock(
 );
 import { mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Keystore, walletAddress } from "./index.js";
 import type { CliError } from "../../../domain/errors/index.js";
@@ -36,6 +36,28 @@ function freshKeystore() {
   const root = mkdtempSync(join(tmpdir(), "ks-"));
   return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
 }
+
+// Compare both the file set and exact persisted bytes, including unindexed blobs/verifiers.
+function storageSnapshot(root: string): Record<string, Buffer | null> {
+  const snapshot: Record<string, Buffer | null> = {};
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      snapshot[entry.name] = null;
+      for (const [relative, bytes] of Object.entries(storageSnapshot(path))) {
+        snapshot[join(entry.name, relative)] = bytes;
+      }
+    } else {
+      snapshot[entry.name] = readFileSync(path);
+    }
+  }
+  return snapshot;
+}
+
+const NEW_IMPORTS = [
+  { type: "seed", secret: MNEMONIC, passphrase: "distinct seed" },
+  { type: "privateKey", secret: EVM_KEY_OF_MNEMONIC_ACCOUNT_0 },
+] as const;
 
 describe("Keystore", () => {
   let ks: Keystore;
@@ -275,6 +297,73 @@ describe("Keystore", () => {
     expect(() => ks.import({ secret: pk, type: "privateKey", label: "main" })).toThrow(
       /already in use/,
     );
+  });
+
+  it.each(NEW_IMPORTS)("rejects a duplicate label without persisting a $type blob", (input) => {
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const active = ks.activeAccount();
+    const before = storageSnapshot(dirname(ks.walletsPath));
+
+    expect(() => ks.import({ ...input, label: " MAIN " })).toThrow(/already in use/);
+
+    expect(ks.activeAccount()).toBe(active);
+    expect(storageSnapshot(dirname(ks.walletsPath))).toEqual(before);
+  });
+
+  describe.each(["watch", "ledger"] as const)("with only a %s account", (type) => {
+    it.each(NEW_IMPORTS)(
+      "rejects a duplicate label without establishing a $type password",
+      (input) => {
+        if (type === "watch") {
+          ks.registerWatch({ family: "tron", address: TRON0, label: "main" });
+        } else {
+          ks.registerLedger({ family: "tron", path: LEDGER_PATH, address: TRON0, label: "main" });
+        }
+        const active = ks.activeAccount();
+        const before = storageSnapshot(dirname(ks.walletsPath));
+        expect(before["verifier.json"]).toBeUndefined();
+
+        expect(() => ks.import({ ...input, label: "main" })).toThrow(/already in use/);
+
+        expect(ks.activeAccount()).toBe(active);
+        expect(storageSnapshot(dirname(ks.walletsPath))).toEqual(before);
+      },
+    );
+  });
+
+  it.each(NEW_IMPORTS)(
+    "reactivates a duplicate $type before checking its requested label",
+    (input) => {
+      const original = ks.import({ ...input, label: "original" });
+      const watch = ks.registerWatch({ family: "tron", address: TRON0, label: "occupied" });
+      ks.setActive(watch.accountId);
+      const before = storageSnapshot(dirname(ks.walletsPath));
+      const registry = JSON.parse(before["wallets.json"]!.toString()) as WalletsFile;
+
+      expect(ks.import({ ...input, label: "occupied" })).toEqual({
+        accountId: original.accountId,
+        created: false,
+      });
+
+      expect(ks.activeAccount()).toBe(original.accountId);
+      registry.activeAccount = original.accountId;
+      before["wallets.json"] = Buffer.from(JSON.stringify(registry, null, 2) + "\n");
+      expect(storageSnapshot(dirname(ks.walletsPath))).toEqual(before);
+    },
+  );
+
+  it("keeps default labels numbered from one and skips occupied names", () => {
+    ks.import({ secret: MNEMONIC, type: "seed" });
+    ks.import({ secret: EVM_KEY_OF_MNEMONIC_ACCOUNT_0, type: "privateKey" });
+    ks.registerWatch({ family: "tron", address: TRON0, label: "wallet-4" });
+    ks.import({ secret: MNEMONIC, type: "seed", passphrase: "distinct seed" });
+
+    expect(ks.list().map((account) => account.label)).toEqual([
+      "wallet-1",
+      "wallet-2",
+      "wallet-4",
+      "wallet-5",
+    ]);
   });
 
   it("setActive switches the active account and reports the previous", () => {

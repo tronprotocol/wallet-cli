@@ -163,7 +163,7 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   error(err: CliError): void {
     // Errors that are a choice rather than a dead end append their candidate table (see
     // renderErrorDetails); everything else stays the single line it has always been.
-    const line = `error [${err.code}]: ${err.message}`;
+    const line = `error [${err.code}]: ${err.textMessage}`;
     const candidates = renderErrorDetails(err.details);
     this.streams.errorLine(sanitizeText(candidates ? `${line}\n${candidates}` : line));
   }

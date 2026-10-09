@@ -1,5 +1,5 @@
 import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
-import { UsageError } from "../../../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 
 export function readBoundedTextFile(path: string, maxBytes: number, label: string): string {
   let fd: number | undefined;
@@ -9,9 +9,13 @@ export function readBoundedTextFile(path: string, maxBytes: number, label: strin
       constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
     );
     const stat = fstatSync(fd);
-    if (!stat.isFile()) throw new UsageError("invalid_value", `${label} must be a regular file`);
+    if (!stat.isFile())
+      throw new UsageError("invalid_value", errorMessage`${label} must be a regular file`);
     if (stat.size > maxBytes)
-      throw new UsageError("invalid_value", `${label} exceeds the ${maxBytes}-byte limit`);
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`${label} exceeds the ${maxBytes}-byte limit`,
+      );
     // Trimmed, not stripped: a file saved by an editor, `echo` or `jq -r` always carries a
     // trailing newline, and every current caller (hex, JSON) treats surrounding whitespace as
     // insignificant — but the trim must stop at the edges. Removing *all* whitespace would
@@ -20,7 +24,10 @@ export function readBoundedTextFile(path: string, maxBytes: number, label: strin
     return readFileSync(fd, "utf8").trim();
   } catch (error) {
     if (error instanceof UsageError) throw error;
-    throw new UsageError("invalid_value", `could not read ${label}: ${(error as Error).message}`);
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`could not read ${label}: ${(error as Error).message}`,
+    );
   } finally {
     if (fd !== undefined) closeSync(fd);
   }

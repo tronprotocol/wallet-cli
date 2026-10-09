@@ -10,6 +10,8 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
+          // Bound the per-run process pool while leaving one CPU for the coordinator/OS.
+          maxWorkers: Math.min(10, Math.max(1, availableParallelism() - 1)),
           include: ["src/**/*.test.ts"],
           testTimeout: 20_000,
           hookTimeout: 20_000,

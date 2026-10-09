@@ -17,7 +17,7 @@ import {
   selectLedgerPath,
 } from "../../../../application/services/ledger-account.js";
 import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
-import { UsageError } from "../../../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 import { passwordPolicyErrors } from "../input/prompt/validators.js";
 import { readBoundedTextFile } from "./artifact.js";
 import { TextFormatters } from "../render/index.js";
@@ -97,12 +97,13 @@ const KEYSTORE_MAX_BYTES = 64 * 1024;
 /** the parsed JSON of a keystore file. Distinguishes "no such file" from "not a keystore" so the
  *  caller learns which of the two mistakes they made. */
 function readKeystoreFile(path: string): unknown {
-  if (!existsSync(path)) throw new UsageError("keystore_not_found", `no keystore file at ${path}`);
+  if (!existsSync(path))
+    throw new UsageError("keystore_not_found", errorMessage`no keystore file at ${path}`);
   const raw = readBoundedTextFile(path, KEYSTORE_MAX_BYTES, "keystore file");
   try {
     return JSON.parse(raw) as unknown;
   } catch {
-    throw new UsageError("invalid_keystore", `${path} is not valid JSON`);
+    throw new UsageError("invalid_keystore", errorMessage`${path} is not valid JSON`);
   }
 }
 

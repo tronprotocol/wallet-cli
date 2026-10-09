@@ -96,7 +96,9 @@ export class X402PaymentClient implements X402PaymentPort {
       method: input.method,
       headers,
       redirect: "error",
-      ...(input.body === undefined ? {} : { body: input.body }),
+      ...(input.body === undefined
+        ? {}
+        : { body: typeof input.body === "string" ? input.body : new Uint8Array(input.body) }),
     };
     scope.emit({
       type: "activity",
@@ -262,10 +264,38 @@ export class X402PaymentClient implements X402PaymentPort {
         await out.write(bytes);
         return { ...base, output: { path: out.path, bytes: bytes.byteLength } };
       }
-      const text = new TextDecoder().decode(bytes);
-      const contentType = response.headers.get("content-type") ?? "";
+      const contentType = (response.headers.get("content-type") ?? "")
+        .split(";", 1)[0]!
+        .trim()
+        .toLowerCase();
+      const responseDetails = {
+        phase: "response",
+        paymentStatus: signer ? "unknown" : "not_sent",
+        retryPayment: false,
+        httpStatus: response.status,
+        delivered: response.ok,
+        settled: false,
+      };
+      if (isBinaryContentType(contentType)) {
+        throw new UsageError(
+          "invalid_option",
+          "binary response requires --out to save its bytes; check payment details before any further payment",
+          responseDetails,
+        );
+      }
+      let text: string;
+      try {
+        // Missing or unfamiliar MIME types retain their text fallback, without replacing bytes.
+        text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      } catch {
+        throw new TransportError(
+          "invalid_x402_response",
+          "endpoint returned invalid UTF-8; --out is required to save raw bytes; check payment details before any further payment",
+          responseDetails,
+        );
+      }
       let body: unknown = text;
-      if (/json/i.test(contentType) && text !== "") {
+      if ((contentType === "application/json" || contentType.endsWith("+json")) && text !== "") {
         try {
           body = JSON.parse(text);
         } catch {
@@ -454,6 +484,15 @@ export class X402PaymentClient implements X402PaymentPort {
   }
 }
 
+function isBinaryContentType(contentType: string): boolean {
+  return (
+    /^(?:image|audio|video|font)\//.test(contentType) ||
+    /^application\/(?:octet-stream|pdf|zip|gzip|x-gzip|x-tar|x-bzip2|x-7z-compressed|x-rar-compressed|vnd\.rar|wasm|cbor|protobuf|x-protobuf)$/.test(
+      contentType,
+    )
+  );
+}
+
 interface PaymentAuthorization {
   /** A payment authorization (typed data or EVM payment transaction) has been signed. */
   signed: boolean;
@@ -465,7 +504,7 @@ interface PaymentAuthorization {
 function withApproval(error: CliError, approval: PaymentAuthorization["approval"]): CliError {
   if (!approval) return error;
   const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(error.code, error.message, { ...error.details, approval });
+  return new ErrorType(error.code, error, { ...error.details, approval });
 }
 
 interface OutputReservation {
@@ -724,7 +763,7 @@ function settlementError(
   if (!successfulSettlement(receipt, expectedNetwork)) return classified;
   const settlement = receipt as Record<string, unknown>;
   const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(classified.code, classified.message, {
+  return new ErrorType(classified.code, classified, {
     ...classified.details,
     phase: "response",
     paymentStatus: "settled",
