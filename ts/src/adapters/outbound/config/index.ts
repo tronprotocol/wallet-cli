@@ -119,7 +119,8 @@ export class ConfigLoader {
             );
           }
           seen.set(id, key);
-          networks[id] = validNetwork(id, { ...(networks[id] ?? {}), ...d, id });
+          const base = networks[id] ?? {};
+          networks[id] = validNetwork(id, { ...base, ...d, ...mergedFeatureBlocks(base, d), id });
         }
       }
     }
@@ -183,8 +184,109 @@ function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescr
       `network ${id} in config.yaml has an unsupported family: ${String(family)}`,
     );
   }
+  validSunSwapBlock(id, merged.sunswap);
+  validSunPumpBlock(id, merged.sunpump);
   // Traits are extras; having none is the normal case, not an error.
   return { capabilities: [], ...merged } as unknown as NetworkDescriptor;
+}
+
+/**
+ * The `sunswap` and `sunpump` blocks merge field by field over the builtin ones.
+ *
+ * An overlay that switches one feature on (say, a Nile `routerApiBaseUrl`) must not switch the
+ * builtin ones off; a field the user leaves out keeps its builtin value, and turning a feature off
+ * takes an explicit `false`. A block that is not a mapping is left as written, for validation to
+ * reject.
+ */
+function mergedFeatureBlocks(
+  base: Record<string, unknown>,
+  user: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const name of ["sunswap", "sunpump"]) {
+    const builtin = base[name];
+    const own = user[name];
+    if (isMapping(builtin) && isMapping(own)) merged[name] = { ...builtin, ...own };
+  }
+  return merged;
+}
+
+function isMapping(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Validate a hand-written `sunswap` block.
+ *
+ * The block is what decides whether the SunSwap commands are offered at all, so a typo in it
+ * has to be reported as a config mistake naming the field — silently registering a capability
+ * whose base URL is "htp://open.sun.io" moves the failure to the first request, where it
+ * surfaces as a provider error and looks like the service is down.
+ */
+function validSunSwapBlock(id: string, block: unknown): void {
+  validServiceBlock(id, "sunswap", block, ["marketApiBaseUrl", "routerApiBaseUrl"], ["liquidity"], {
+    contracts: "contract addresses now come from the SDK; set sunswap.liquidity: true instead",
+  });
+}
+
+/** Validate a hand-written `sunpump` block, for the same reason as `validSunSwapBlock`. */
+function validSunPumpBlock(id: string, block: unknown): void {
+  validServiceBlock(id, "sunpump", block, ["apiBaseUrl"], ["curve"], {
+    launchpad: "the launchpad address now comes from the SDK; set sunpump.curve: true instead",
+  });
+}
+
+function validServiceBlock(
+  id: string,
+  name: string,
+  block: unknown,
+  urls: readonly string[],
+  switches: readonly string[],
+  retired: Readonly<Record<string, string>>,
+): void {
+  if (block === undefined) return;
+  if (typeof block !== "object" || block === null || Array.isArray(block)) {
+    throw new UsageError("invalid_value", `network ${id} in config.yaml has an invalid ${name}`);
+  }
+  const fields = block as Record<string, unknown>;
+  // A field this build no longer reads would otherwise be ignored in silence, and the feature it
+  // used to switch on would quietly disappear from that network.
+  for (const [field, hint] of Object.entries(retired)) {
+    if (fields[field] !== undefined) {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has ${name}.${field}, which is no longer read: ${hint}`,
+      );
+    }
+  }
+  for (const field of urls) {
+    const value = fields[field];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !isHttpUrl(value)) {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has an invalid ${name}.${field}: expected an http(s) URL`,
+      );
+    }
+  }
+  for (const field of switches) {
+    const value = fields[field];
+    if (value !== undefined && typeof value !== "boolean") {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has an invalid ${name}.${field}: expected true or false`,
+      );
+    }
+  }
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function readConfigDocument(path: string) {

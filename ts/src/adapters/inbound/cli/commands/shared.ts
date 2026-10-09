@@ -9,6 +9,12 @@ import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 
+/** Help line for SunSwap/SunPump write commands: the TRON app settings a Ledger account needs.
+ *  Approvals and other contract calls need "Custom contracts"; Permit2 grants and transactions
+ *  too large for the device need "Sign by Hash". The error names the missing one at signing time. */
+export const LEDGER_TRON_SETTINGS_NOTE =
+  'Ledger: enable "Custom contracts" and "Sign by Hash" in the TRON app settings.\n';
+
 // ── execution-mode flags shared by every signing command ─────────────────────────
 /** Transaction execution fields; default (no mode flag) = sign and broadcast on-chain. */
 /** TRON multi-signature concepts: a permission group to sign under, and a longer expiry while

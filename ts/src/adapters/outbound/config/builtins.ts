@@ -13,7 +13,13 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 export const TRAIT_SUMMARIES: Record<string, string> = {};
 
 /** human-readable labels for command-backed capability keys (the keys commands declare via
- *  `capability`). Sibling of TRAIT_SUMMARIES; the runner resolves both the same way. */
+ *  `capability`). Sibling of TRAIT_SUMMARIES; the runner resolves both the same way.
+ *
+ *  Every SunSwap contract address below was called on-chain before it was written here, and each
+ *  answered as the type it claims to be: the V2 routers report a factory and a WETH that is the
+ *  WTRX beside them, the position managers report `Sunswap V3 Positions NFT-V1` / `SUN-V3-POS`,
+ *  and each WTRX reports `Wrapped TRX` / `WTRX` / 6 decimals. An address copied from a document
+ *  and never called is how funds reach the wrong place. */
 export const CAP_SUMMARIES: Record<string, string> = {
   "erc8004.identity.read": "Read ERC-8004 identities and operator approvals",
   "erc8004.identity.write": "Register and manage ERC-8004 identities",
@@ -48,6 +54,12 @@ export const CAP_SUMMARIES: Record<string, string> = {
   "gasfree.info": "GasFree account, fee and nonce information",
   "gasfree.transfer": "TIP-712 gas-free token transfer",
   "gasfree.trace": "track a GasFree transfer",
+  "sunswap.market": "SunSwap pool, token, price and position queries",
+  "sunswap.liquidity": "Add, remove and collect fees on SunSwap V2/V3 liquidity",
+  "sunpump.curve": "Buy and sell SunPump tokens on the bonding curve",
+  "sunpump.market": "SunPump launchpad token listings, details and search",
+  "sunpump.launch": "Create a new token on the SunPump launchpad, server-side",
+  "sunswap.swap": "Swap tokens, through a SunPump bonding curve where one applies",
 };
 
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
@@ -63,6 +75,21 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
       apiPrefix: "/tron",
       controllerChainId: "728126428",
       verifyingContract: "TFFAMQLZybALaLb4uxHA9RBE7pxhUAjF3U",
+    },
+    sunswap: {
+      marketApiBaseUrl: "https://open.sun.io",
+      // The route service, from the SDK's own chain config. Nile's is null there, so the DEX
+      // branch stays off on Nile without a special case.
+      routerApiBaseUrl: "https://open.sun.io/apiv2/quote/swap",
+      liquidity: true,
+    },
+    sunpump: {
+      // Mainnet only — Nile's launchpad exists in the SDK's chain config and is reachable, but
+      // the released binary does not offer the curve there.
+      curve: true,
+      // Mainnet only, and not by policy: the SDK's Nile `sunPump` endpoint is null, so there is
+      // no testnet catalogue. A client built without this would answer with mainnet tokens.
+      apiBaseUrl: "https://api-v2.sunpump.meme/pump-api",
     },
     feeModel: "tron-resource",
     capabilities: [],
@@ -81,6 +108,9 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
       controllerChainId: "3448148188",
       verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
     },
+    // No marketApiBaseUrl: the market service holds mainnet data only, so the read-only queries
+    // stay off here while the liquidity commands, which talk to the SDK's contracts, work.
+    sunswap: { liquidity: true },
     feeModel: "tron-resource",
     capabilities: [],
   },

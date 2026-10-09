@@ -51,6 +51,10 @@ export interface TronNetworkDescriptor extends NetworkBase {
   tronlinkHttpEndpoint?: string;
   /** Official GasFree service plus the immutable TIP-712 controller domain. */
   gasfree?: GasFreeNetworkConfig;
+  /** SunSwap services and features enabled on this network. */
+  sunswap?: SunSwapNetworkConfig;
+  /** SunPump services and features enabled on this network. */
+  sunpump?: SunPumpNetworkConfig;
 }
 
 /** EVM network. Reached over JSON-RPC; `chainId` is the EIP-155 chain id as a decimal string —
@@ -126,6 +130,43 @@ export interface GasFreeNetworkConfig {
   /** Decimal uint256 value to avoid passing chain identifiers through floating point. */
   controllerChainId: string;
   verifyingContract: string;
+}
+
+/**
+ * Per-network SunSwap availability. Every field is optional because a network may offer some
+ * services and not others: a capability is registered from the field it needs, which is what
+ * lets a tester open a network by editing config.yaml instead of patching code.
+ *
+ * No contract addresses live here. They come from the SDK's own chain config, the same source its
+ * encoders use, so wallet-cli never keeps a second copy that can drift.
+ */
+export interface SunSwapNetworkConfig {
+  /** market/indexer API origin (HTTPS origin only; request paths are appended by the adapter). */
+  marketApiBaseUrl?: string;
+  /** swap route service origin. */
+  routerApiBaseUrl?: string;
+  /** enables the liquidity commands and `position-info`, which call the SDK's contracts. */
+  liquidity?: boolean;
+}
+
+/**
+ * Per-network SunPump availability.
+ *
+ * `curve` is an explicit switch rather than the presence of a launchpad address: the SDK knows
+ * Nile's launchpad, but the released binary offers the curve on mainnet only. A tester opens
+ * another network by setting it in `config.yaml`.
+ */
+export interface SunPumpNetworkConfig {
+  /** enables trading on the bonding curve: `sunpump buy`/`sell` and the curve branch of `swap`. */
+  curve?: boolean;
+  /**
+   * The launchpad's HTTP catalogue, e.g. `https://api-v2.sunpump.meme/pump-api`.
+   *
+   * Separate from `curve` because the two are separate facts: a network can have the curve
+   * contract and no catalogue. The SDK's chain config has `sunPump: null` for Nile, so there is
+   * no testnet catalogue to point this at, and absent means the read-only commands are off.
+   */
+  apiBaseUrl?: string;
 }
 
 /** price service config ; best-effort — failures never fail a balance read. */

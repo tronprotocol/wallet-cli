@@ -118,7 +118,7 @@ describe("ContactService keeps names and addresses unique across the whole book"
   });
 
   // With names unique, removal is never ambiguous — no --family, no --network, no second
-  // positional. The disambiguation flag the spec called for stops being needed at all.
+  // positional.
   it("removes by name with nothing to disambiguate", () => {
     const { port, entries } = repo();
     const svc = new ContactService(port);

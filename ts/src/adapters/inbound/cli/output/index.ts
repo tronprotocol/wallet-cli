@@ -11,7 +11,7 @@
  */
 import type { NetworkDescriptor, OutputMode } from "../../../../domain/types/index.js";
 import type { ProgressEvent } from "../../../../application/contracts/index.js";
-import type { Pagination, StreamManager, TextFormatter } from "../contracts/index.js";
+import type { Pagination, QueryEcho, StreamManager, TextFormatter } from "../contracts/index.js";
 import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
@@ -46,11 +46,13 @@ abstract class BaseOutputFormatter {
 class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
   success(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
     // JSON mode always uses the envelope; the account label is a text-mode display nicety.
-    const paged = extractPagination(data);
+    const paged = extractPagination(stripView(data));
+    const ordered = extractQuery(paged.data);
     return toJson(
-      OutputEnvelope.success(command, net, paged.data, {
+      OutputEnvelope.success(command, net, ordered.data, {
         ...this.meta(),
         ...(paged.pagination ? { pagination: paged.pagination } : {}),
+        ...(ordered.query ? { query: ordered.query } : {}),
       }),
     );
   }
@@ -76,6 +78,47 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
  * in `data` while `backup --records` / `proposal show` moved to `meta` — the same envelope carrying
  * the same concept in two places, decided by whether a total happened to be knowable.
  */
+/**
+ * Lift `query` out of `data` and into `meta`, the same move `pagination` makes and for the same
+ * reason: how a listing was ordered is metadata about the window, not part of the payload, and a
+ * caller should find it in one place whatever the command returns. Text renderers keep reading it
+ * from their view model, which is why only this path moves it.
+ */
+function extractQuery(data: unknown): { data: unknown; query?: QueryEcho } {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return { data };
+  const source = data as Record<string, unknown>;
+  const value = source.query;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { data };
+  const { orderBy, sort } = value as Record<string, unknown>;
+  if (typeof orderBy !== "string" || typeof sort !== "string") return { data };
+  const rest = { ...source };
+  delete rest.query;
+  return { data: rest, query: { orderBy, sort } };
+}
+
+/**
+ * Remove the reserved `view` key before anything is published.
+ *
+ * `view` carries text-mode scaffolding ONLY — a value a renderer needs to draw a column that the
+ * spec says JSON must not carry. It is dropped, not relocated: unlike `pagination`, which moves
+ * from data to meta and is still published, nothing takes its place in the envelope.
+ *
+ * That makes this the one place where text mode can show something JSON mode cannot reach, which
+ * cuts against machine-interface's premise that JSON is the complete output. So the bar is
+ * narrow and explicit: a field belongs in `view` ONLY when a specification states that JSON must
+ * not carry it. "We did not model it in the view type" is not a reason — model it and publish it.
+ *
+ * The one case today is `sunswap price`: the token symbol stays out of json because a symbol is
+ * self-reported and proves nothing, so an agent must key on the address. Publishing it
+ * would re-introduce exactly what that rule removes.
+ */
+function stripView(data: unknown): unknown {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+  if (!("view" in (data as Record<string, unknown>))) return data;
+  const { view: _view, ...rest } = data as Record<string, unknown>;
+  return rest;
+}
+
 function extractPagination(data: unknown): { data: unknown; pagination?: Pagination } {
   if (!data || typeof data !== "object" || Array.isArray(data)) return { data };
   const source = data as Record<string, unknown>;

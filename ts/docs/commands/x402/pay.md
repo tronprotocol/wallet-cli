@@ -23,6 +23,8 @@ Sends the request. If the endpoint answers with a successful status (2xx), that 
 - `exact` — pays from the account's own token balance.
 - `exact_gasfree` — pays from the account's GasFree account (TRON). The GasFree balance must cover the price **plus** the maximum service fee, or it fails with `gasfree_insufficient_balance` before anything is sent; there is no fallback to the ordinary balance. `--gasfree-relay` chooses where the GasFree account data comes from: `official` (default, no credentials), `gasfree` (the GasFree Open API, which needs `gasfreeApiKey` / `gasfreeApiSecret` from [`config`](../config.md)), or an HTTPS URL of your own. `--max-gasfree-fee` caps the fee you authorize.
 
+**A first `exact` payment on TRON may send an approve first.** A `permit2` route pays through the Permit2 contract, which needs a token allowance. If the account has none and the endpoint does not sponsor the approval, `pay` signs and broadcasts `approve(Permit2, MaxUint256)` from the account before signing the payment: that transaction burns the account's own Energy or TRX, and it grants Permit2 an **unlimited** allowance on that token, which stays in place after the payment. If the endpoint sponsors the approval, the approve is signed into the payment package instead of being broadcast by the account. Either way the result reports it in `data.approval`; later payments in the same token reuse the allowance and skip this step.
+
 `--dry-run` stops after reading the challenge: it reports the route that would be paid, without signing.
 
 While it runs, `pay` prints progress lines starting with `⏳` on stderr (in JSON mode, `{"type":"activity",...}` lines); stdout carries only the result.
@@ -121,7 +123,7 @@ printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/provide
 {"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC","status":200,"delivered":true,"settled":true,"payer":{"address":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"paymentResponse":{"success":true,"transaction":"9b41c7e2d05f83a6e1c4b8d27f9a03e5c6d8b1f4a2e7c9d0b3f5a8e1c6d2b7f4","network":"tron:0x2b6653dc","payer":"0xe2e1a54926527fbb4e4420de4c6bab82beaee24d"},"output":{"path":"btc-quote.json","bytes":214}},"meta":{"durationMs":6412,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
-`Settled Yes` means the payment went through on chain; `Delivered Yes` means the paid response arrived and was written to `btc-quote.json`. `From` is the paying account and `Transaction` the payment's transaction ID (JSON: `data.payer.address` and `data.paymentResponse.transaction`). The facilitator submits the payment transaction and pays its energy, so the account spends only the quoted price.
+`Settled Yes` means the payment went through on chain; `Delivered Yes` means the paid response arrived and was written to `btc-quote.json`. `From` is the paying account and `Transaction` the payment's transaction ID (JSON: `data.payer.address` and `data.paymentResponse.transaction`). The facilitator submits the payment transaction and pays its energy, so the payment itself costs the account only the quoted price. This account already had a Permit2 allowance; on a first payment without one, see the Permit2 approve note above.
 
 ## Output
 

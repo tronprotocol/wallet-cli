@@ -630,7 +630,7 @@ describe("backup --keystore rescues an account on the old TRON path", () => {
   const TRON_INDEX_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
 
   /** harness() plus a hand-written pre-correction account 1 — the shape no API can produce any
-   *  more, because addAccount derives the corrected path and (Task 5) refuses this wallet. */
+   *  more, because addAccount derives the corrected path and refuses this wallet. */
   function legacyHarness() {
     const h = harness();
     h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });

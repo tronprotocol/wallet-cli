@@ -6,6 +6,7 @@
 import { z } from "zod";
 import type { ChainFamily } from "../../../../domain/types/index.js";
 import { addressCodec } from "../../../../domain/family/index.js";
+import { slippageToBips } from "../../../../domain/sunpump/curve.js";
 
 /** shared, reusable zod primitives (values). */
 export const Schemas = {
@@ -71,6 +72,40 @@ function validateAddressFields(
           },
         });
       }
+    }
+  };
+}
+
+/**
+ * Refine that validates a caller-supplied `--slippage` at PARSE time.
+ *
+ * The conversion to basis points is a pure function of the string, so it needs no chain state, no
+ * market decision and no quote — and doing it here rather than in the use case has two effects worth
+ * having. A bad tolerance is refused in milliseconds instead of after an on-chain read. And the
+ * refusal becomes DETERMINISTIC: behind a network read, a rate-limited node wins the race and the
+ * caller gets a provider error at exit 1 for input that was always going to be rejected at exit 2.
+ * That is what made the golden cases for it flake.
+ *
+ * The domain check stays where it is. It is still the check on the DEFAULT, which no caller typed,
+ * and it is the one that runs whatever calls the use case.
+ */
+export function slippageField(
+  field = "slippage",
+  flag = "--slippage",
+): (value: Record<string, unknown>, ctx: z.RefinementCtx) => void {
+  return (value, ctx) => {
+    const given = value[field];
+    if (typeof given !== "string") return;
+    try {
+      slippageToBips(given, flag);
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        path: [field],
+        // The domain's own words, so the same input produces the same message wherever it is caught.
+        message: error instanceof Error ? error.message.replace(`${flag} `, "") : "is not usable",
+        params: { errorCode: "invalid_value" },
+      });
     }
   };
 }
