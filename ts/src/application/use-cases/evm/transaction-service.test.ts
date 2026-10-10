@@ -668,7 +668,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     const mainnet = { ...SEPOLIA, id: "eip155:1", chainId: "1" };
 
     await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
-      // The spec's code; the dry run shares the guard the sign and submit paths use.
+      // The dry run shares the guard the sign and submit paths use.
       code: "chain_id_mismatch",
     });
   });
@@ -1020,7 +1020,7 @@ describe("EvmTransactionService.info", () => {
     expect(out.blockTime).toBeUndefined();
   });
 
-  // The ruling: decode `transfer(address,uint256)` and nothing else. Reporting the raw fields for
+  // Only `transfer(address,uint256)` is decoded, nothing else. Reporting the raw fields for
   // an ERC-20 transfer would name the CONTRACT as the recipient and the amount as zero.
   it("decodes an ERC-20 transfer to its real recipient and amount", async () => {
     // transfer(0xbBbB…, 5000000)

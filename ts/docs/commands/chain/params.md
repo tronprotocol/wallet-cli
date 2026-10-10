@@ -20,7 +20,7 @@ Frequently used keys:
 |---|---|
 | `getEnergyFee` | Energy unit price (SUN/energy) — the burn rate when you lack energy; core input to fee estimation |
 | `getTransactionFee` | Bandwidth unit price (SUN/byte) — the burn rate once free bandwidth is spent |
-| `getCreateAccountFee` | System-side account creation fee (SUN) — part of the extra cost of sending to a fresh address |
+| `getCreateAccountFee` | Burned (SUN) when creating an account and the payer lacks enough staked bandwidth for the transaction — otherwise staked bandwidth is used instead |
 | `getWitnessPayPerBlock` | SR reward per block produced (SUN) — feeds the voting-reward pool |
 | `getMaintenanceTimeInterval` | Maintenance cycle length (ms; 21,600,000 = 6 h) — the vote-tally / SR-ranking period |
 

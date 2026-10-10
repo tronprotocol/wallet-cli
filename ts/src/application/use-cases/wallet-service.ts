@@ -354,9 +354,8 @@ export class WalletService {
    * in what it becomes, so this delegates to the same `importSecret` path and inherits the same
    * dedup/clash behavior: idempotent against an existing `privateKey` account holding this key,
    * a new sibling account against an existing `seed`/`watch`/Ledger account at the same address.
-   * ADR-0007's promise not to overwrite a same-address account still holds — more strongly than
-   * before, since there is no longer an overwrite path here to refuse in the first place
-   * (ADR-0011).
+   * The promise not to overwrite a same-address account still holds — there is no overwrite path
+   * here to refuse in the first place.
    */
   importKeystore(file: unknown, keystorePassword: string, label?: string) {
     const privateKey = KeystoreV3.decrypt(file, keystorePassword);

@@ -7,7 +7,7 @@ Every command — including every subcommand — has its own page. Most follow t
 wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` selects one network of one family. Commands fall into these kinds:
 
 - **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
-- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
+- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange`, `gasfree`, `sunswap` and `sunpump` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call. `sunswap` and `sunpump` narrow further: `sunpump`, `sunswap swap` and the six `sunswap` market queries run on mainnet only, while `sunswap position-info` and the three liquidity commands run on `tron` and `nile`. Elsewhere they fail with **`unsupported_network_capability`**, and the message names the network that works. Availability is per network config, not per build: the market queries need `sunswap.marketApiBaseUrl`, `swap` needs `sunswap.routerApiBaseUrl` or `sunpump.curve: true`, `sunpump buy` / `sell` need `sunpump.curve: true`, the other `sunpump` commands need `sunpump.apiBaseUrl`, and the liquidity commands and `position-info` need `sunswap.liquidity: true`. Contract addresses come from the SunSwap / SunPump SDK, not from config.
 - **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the catalog, usage, and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
 - **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
@@ -156,6 +156,30 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `exchange show` | [exchange/show.md](exchange/show.md) |
 | `exchange list` | [exchange/list.md](exchange/list.md) |
 
+## SunSwap and SunPump
+
+| Command | Page |
+|---|---|
+| `sunswap` (group) | [sunswap/index.md](sunswap/index.md) |
+| `sunswap swap` | [sunswap/swap.md](sunswap/swap.md) |
+| `sunswap add-liquidity` | [sunswap/add-liquidity.md](sunswap/add-liquidity.md) |
+| `sunswap remove-liquidity` | [sunswap/remove-liquidity.md](sunswap/remove-liquidity.md) |
+| `sunswap collect-fees` | [sunswap/collect-fees.md](sunswap/collect-fees.md) |
+| `sunswap position-list` | [sunswap/position-list.md](sunswap/position-list.md) |
+| `sunswap position-info` | [sunswap/position-info.md](sunswap/position-info.md) |
+| `sunswap pool-list` | [sunswap/pool-list.md](sunswap/pool-list.md) |
+| `sunswap pool-search` | [sunswap/pool-search.md](sunswap/pool-search.md) |
+| `sunswap token-list` | [sunswap/token-list.md](sunswap/token-list.md) |
+| `sunswap token-search` | [sunswap/token-search.md](sunswap/token-search.md) |
+| `sunswap price` | [sunswap/price.md](sunswap/price.md) |
+| `sunpump` (group) | [sunpump/index.md](sunpump/index.md) |
+| `sunpump buy` | [sunpump/buy.md](sunpump/buy.md) |
+| `sunpump sell` | [sunpump/sell.md](sunpump/sell.md) |
+| `sunpump launch` | [sunpump/launch.md](sunpump/launch.md) |
+| `sunpump token-list` | [sunpump/token-list.md](sunpump/token-list.md) |
+| `sunpump token-info` | [sunpump/token-info.md](sunpump/token-info.md) |
+| `sunpump token-search` | [sunpump/token-search.md](sunpump/token-search.md) |
+
 ## Signing
 
 | Command | Page |
@@ -225,8 +249,8 @@ Fee and multi-sig flags are **family-scoped**, so they are not global:
 
 | Flags | Family | Where |
 |---|---|---|
-| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
-| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy` |
+| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast`, GasFree, or the `sunswap` and `sunpump` writes |
+| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, `sunswap swap` / `add-liquidity` / `remove-liquidity` / `collect-fees`, and `sunpump buy` / `sell` |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
 `--permission-id` selects the permission group to sign under (0=owner, 1=witness, 2-9=active) and `--expiration` extends the window for collecting co-signatures. An EVM transaction carries exactly one signature, so neither has a counterpart there: on a portable command they are tagged `(TRON only)` and refused on EVM with `invalid_option`.

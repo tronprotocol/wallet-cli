@@ -29,7 +29,12 @@ import { Derivation } from "../../../domain/derivation/index.js";
 import { familyOf, canonicalAddress, CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { SOURCE_KINDS, sourceFamily } from "../../../domain/sources/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
-import { ExecutionError, UsageError, WalletError } from "../../../domain/errors/index.js";
+import {
+  errorMessage,
+  ExecutionError,
+  UsageError,
+  WalletError,
+} from "../../../domain/errors/index.js";
 import {
   accountIndices,
   accountRefOf,
@@ -93,6 +98,7 @@ export class Keystore {
       const password = this.getPassword();
 
       let source: Source;
+      let plaintext: Bytes;
       const walletId = this.#freshId("wlt", file);
 
       if (p.type === "seed") {
@@ -113,20 +119,9 @@ export class Keystore {
           return { accountId: dup, created: false };
         }
         const vaultId = this.#freshId("vlt", file);
-        // global master-password invariant: establish/verify the sentinel inside the
-        // SAME lock as the blob write, so two parallel first-imports can't seed two passwords.
-        this.#assertPassword({ createIfAbsent: true });
         // persist passphrase inside the encrypted vault so decryptSeed reconstructs the SAME
         // seed (otherwise the displayed address and the signing key would diverge).
-        this.#writeBlob(
-          "vaults",
-          CryptoEnvelope.encrypt(
-            encodeVault(entropy, p.passphrase),
-            password,
-            vaultId,
-            "bip39-seed",
-          ),
-        );
+        plaintext = encodeVault(entropy, p.passphrase);
         source = { type: "seed", vaultId, addresses: { "0": addr0 } };
       } else {
         // hexToBytes throws its own Error on a non-hex character, which classifyError would turn
@@ -159,8 +154,7 @@ export class Keystore {
           return { accountId: dup, created: false };
         }
         const keyId = this.#freshId("key", file);
-        this.#assertPassword({ createIfAbsent: true }); // sentinel, inside this lock
-        this.#writeBlob("keys", CryptoEnvelope.encrypt(pk, password, keyId, "raw-privkey"));
+        plaintext = pk;
         source = { type: "privateKey", keyId, addresses: addr };
       }
 
@@ -169,6 +163,20 @@ export class Keystore {
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
       file.activeAccount = ref;
+      // Validate the new record before persisting anything: a rejected label must not leave
+      // an unindexed blob or establish the master password for a watch/ledger-only store.
+      // Keep the sentinel and blob writes in this same lock so parallel first imports cannot
+      // establish different master passwords.
+      this.#assertPassword({ createIfAbsent: true });
+      this.#writeBlob(
+        source.type === "seed" ? "vaults" : "keys",
+        CryptoEnvelope.encrypt(
+          plaintext,
+          password,
+          source.type === "seed" ? source.vaultId : source.keyId,
+          source.type === "seed" ? "bip39-seed" : "raw-privkey",
+        ),
+      );
       this.#write(file);
       return { accountId: ref, created: true };
     });
@@ -241,7 +249,8 @@ export class Keystore {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
-      if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${walletId}`);
+      if (!wallet)
+        throw new UsageError("account_not_found", errorMessage`unknown wallet ${walletId}`);
       // only seed wallets are HD: privateKey has no derivation, ledger must be re-imported per path.
       if (wallet.source.type !== "seed") {
         const hint =
@@ -331,7 +340,8 @@ export class Keystore {
     const ref = this.#toRef(file, refOrLabel, family);
     const [walletId, idxStr] = ref.split(".");
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new UsageError("account_not_found", `unknown account ${refOrLabel}`);
+    if (!wallet)
+      throw new UsageError("account_not_found", errorMessage`unknown account ${refOrLabel}`);
     this.#assertReadable(wallet, refOrLabel);
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
@@ -342,14 +352,14 @@ export class Keystore {
       if (known.length > 1) {
         throw new UsageError(
           "invalid_value",
-          `'${refOrLabel}' selects a multi-account seed wallet; specify an account ref, e.g. ${wallet.id}.${known[0]}`,
+          errorMessage`'${refOrLabel}' selects a multi-account seed wallet; specify an account ref, e.g. ${wallet.id}.${known[0]}`,
         );
       }
       index = known[0] ?? 0;
     } else {
       index = Number(idxStr);
       if (!Number.isInteger(index) || index < 0) {
-        throw new WalletError("invalid_value", `invalid account ref '${refOrLabel}'`);
+        throw new WalletError("invalid_value", errorMessage`invalid account ref '${refOrLabel}'`);
       }
     }
     return { wallet, index };
@@ -360,7 +370,8 @@ export class Keystore {
     const ref = this.#toRef(file, idOrLabel);
     const walletId = ref.split(".")[0]!;
     const wallet = file.wallets.find((w) => w.id === walletId);
-    if (!wallet) throw new UsageError("account_not_found", `unknown wallet ${idOrLabel}`);
+    if (!wallet)
+      throw new UsageError("account_not_found", errorMessage`unknown wallet ${idOrLabel}`);
     this.#assertReadable(wallet, idOrLabel);
     return wallet;
   }
@@ -459,7 +470,8 @@ export class Keystore {
       const ref = this.#toRef(file, refOrWallet);
       const [walletId, idxStr] = ref.split(".");
       const wallet = file.wallets.find((w) => w.id === walletId);
-      if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${refOrWallet}`);
+      if (!wallet)
+        throw new WalletError("invalid_value", errorMessage`unknown wallet ${refOrWallet}`);
       this.#assertReadable(wallet, refOrWallet);
 
       // account-level delete: a non-root HD sub-account ref (wlt_x.N, N>0) forgets just that index
@@ -468,7 +480,7 @@ export class Keystore {
       // cascades to the whole wallet (all children + secret) via the wallet-level branch below.
       if (wallet.source.type === "seed" && idxStr !== undefined && idxStr !== "0") {
         if (!(idxStr in wallet.source.addresses)) {
-          throw new WalletError("invalid_value", `unknown account ${refOrWallet}`);
+          throw new WalletError("invalid_value", errorMessage`unknown account ${refOrWallet}`);
         }
         delete wallet.source.addresses[idxStr];
         delete file.labels[ref];
@@ -697,7 +709,7 @@ export class Keystore {
     if (SOURCE_KINDS[wallet.source.type] !== undefined) return;
     throw new WalletError(
       "encoding_error",
-      `${input} uses a wallet format this version does not understand; upgrade wallet-cli to use it`,
+      errorMessage`${input} uses a wallet format this version does not understand; upgrade wallet-cli to use it`,
     );
   }
 
@@ -738,7 +750,7 @@ export class Keystore {
       if (family !== undefined && family !== addrFamily) {
         throw new UsageError(
           "family_mismatch",
-          `${input} is ${addrFamily === "evm" ? "an" : "a"} ${addrFamily} address, but this command runs on ${family}; address the account by its accountId or label to use it here`,
+          errorMessage`${input} is ${addrFamily === "evm" ? "an" : "a"} ${addrFamily} address, but this command runs on ${family}; address the account by its accountId or label to use it here`,
         );
       }
       // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and the CLI accepts an
@@ -758,7 +770,7 @@ export class Keystore {
         }
       }
       if (hits.length === 0)
-        throw new UsageError("account_not_found", `no account with address ${input}`);
+        throw new UsageError("account_not_found", errorMessage`no account with address ${input}`);
       const interchangeable =
         family === addrFamily && hits.every((h) => SOURCE_KINDS[h.wallet.source.type].hasSecret);
       if (hits.length > 1 && !interchangeable) {
@@ -766,7 +778,7 @@ export class Keystore {
         // `matches` carries the columns a human needs to actually pick one.
         throw new UsageError(
           "ambiguous_account",
-          `address ${input} matches ${hits.length} accounts; address it by accountId`,
+          errorMessage`address ${input} matches ${hits.length} accounts; address it by accountId`,
           {
             address: wanted,
             accountIds: hits.map((h) => h.ref),
@@ -790,11 +802,11 @@ export class Keystore {
     // The ambiguous cases below keep `invalid_value`: the reference IS valid, it just picks more
     // than one account, and the fix is to narrow it rather than to go looking for it.
     if (matches.length === 0)
-      throw new UsageError("account_not_found", `no account labelled '${input}'`);
+      throw new UsageError("account_not_found", errorMessage`no account labelled '${input}'`);
     if (matches.length > 1) {
       throw new UsageError(
         "invalid_value",
-        `label '${input}' is ambiguous: ${matches.map((m) => m[0]).join(", ")}`,
+        errorMessage`label '${input}' is ambiguous: ${matches.map((m) => m[0]).join(", ")}`,
       );
     }
     return matches[0]![0];
@@ -806,7 +818,10 @@ export class Keystore {
       throw new UsageError("invalid_value", "label must not start with 'wlt_'");
     for (const [k, existing] of Object.entries(file.labels)) {
       if (existing.trim().toLowerCase() === value.toLowerCase() && k !== ref) {
-        throw new UsageError("invalid_value", `label '${value}' already in use by ${k}`);
+        throw new UsageError(
+          "invalid_value",
+          errorMessage`label '${value}' already in use by ${k}`,
+        );
       }
     }
     file.labels[ref] = value;

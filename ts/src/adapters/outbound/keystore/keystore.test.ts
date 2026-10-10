@@ -10,7 +10,7 @@ vi.mock(
 );
 import { mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Keystore, walletAddress } from "./index.js";
 import type { CliError } from "../../../domain/errors/index.js";
@@ -36,6 +36,28 @@ function freshKeystore() {
   const root = mkdtempSync(join(tmpdir(), "ks-"));
   return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
 }
+
+// Compare both the file set and exact persisted bytes, including unindexed blobs/verifiers.
+function storageSnapshot(root: string): Record<string, Buffer | null> {
+  const snapshot: Record<string, Buffer | null> = {};
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      snapshot[entry.name] = null;
+      for (const [relative, bytes] of Object.entries(storageSnapshot(path))) {
+        snapshot[join(entry.name, relative)] = bytes;
+      }
+    } else {
+      snapshot[entry.name] = readFileSync(path);
+    }
+  }
+  return snapshot;
+}
+
+const NEW_IMPORTS = [
+  { type: "seed", secret: MNEMONIC, passphrase: "distinct seed" },
+  { type: "privateKey", secret: EVM_KEY_OF_MNEMONIC_ACCOUNT_0 },
+] as const;
 
 describe("Keystore", () => {
   let ks: Keystore;
@@ -277,6 +299,73 @@ describe("Keystore", () => {
     );
   });
 
+  it.each(NEW_IMPORTS)("rejects a duplicate label without persisting a $type blob", (input) => {
+    ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const active = ks.activeAccount();
+    const before = storageSnapshot(dirname(ks.walletsPath));
+
+    expect(() => ks.import({ ...input, label: " MAIN " })).toThrow(/already in use/);
+
+    expect(ks.activeAccount()).toBe(active);
+    expect(storageSnapshot(dirname(ks.walletsPath))).toEqual(before);
+  });
+
+  describe.each(["watch", "ledger"] as const)("with only a %s account", (type) => {
+    it.each(NEW_IMPORTS)(
+      "rejects a duplicate label without establishing a $type password",
+      (input) => {
+        if (type === "watch") {
+          ks.registerWatch({ family: "tron", address: TRON0, label: "main" });
+        } else {
+          ks.registerLedger({ family: "tron", path: LEDGER_PATH, address: TRON0, label: "main" });
+        }
+        const active = ks.activeAccount();
+        const before = storageSnapshot(dirname(ks.walletsPath));
+        expect(before["verifier.json"]).toBeUndefined();
+
+        expect(() => ks.import({ ...input, label: "main" })).toThrow(/already in use/);
+
+        expect(ks.activeAccount()).toBe(active);
+        expect(storageSnapshot(dirname(ks.walletsPath))).toEqual(before);
+      },
+    );
+  });
+
+  it.each(NEW_IMPORTS)(
+    "reactivates a duplicate $type before checking its requested label",
+    (input) => {
+      const original = ks.import({ ...input, label: "original" });
+      const watch = ks.registerWatch({ family: "tron", address: TRON0, label: "occupied" });
+      ks.setActive(watch.accountId);
+      const before = storageSnapshot(dirname(ks.walletsPath));
+      const registry = JSON.parse(before["wallets.json"]!.toString()) as WalletsFile;
+
+      expect(ks.import({ ...input, label: "occupied" })).toEqual({
+        accountId: original.accountId,
+        created: false,
+      });
+
+      expect(ks.activeAccount()).toBe(original.accountId);
+      registry.activeAccount = original.accountId;
+      before["wallets.json"] = Buffer.from(JSON.stringify(registry, null, 2) + "\n");
+      expect(storageSnapshot(dirname(ks.walletsPath))).toEqual(before);
+    },
+  );
+
+  it("keeps default labels numbered from one and skips occupied names", () => {
+    ks.import({ secret: MNEMONIC, type: "seed" });
+    ks.import({ secret: EVM_KEY_OF_MNEMONIC_ACCOUNT_0, type: "privateKey" });
+    ks.registerWatch({ family: "tron", address: TRON0, label: "wallet-4" });
+    ks.import({ secret: MNEMONIC, type: "seed", passphrase: "distinct seed" });
+
+    expect(ks.list().map((account) => account.label)).toEqual([
+      "wallet-1",
+      "wallet-2",
+      "wallet-4",
+      "wallet-5",
+    ]);
+  });
+
   it("setActive switches the active account and reports the previous", () => {
     const a = ks.import({ secret: MNEMONIC, type: "seed", label: "main" }).accountId;
     const pk = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
@@ -480,9 +569,9 @@ describe("lookup and secret-shape failures carry their own codes", () => {
 /**
  * Two accounts can legitimately hold the same key: a seed account and a privateKey account,
  * derived/imported independently, can share one family's address (import's own dedup only
- * catches the two easy paths — this fixture writes wallets.json directly to exercise the case
- * Task 2 unlocks). The two accounts here share one EVM address but hold DIFFERENT tron
- * addresses, which is what makes "which one" matter on a TRON command but not on an EVM one.
+ * catches the two easy paths — this fixture writes wallets.json directly to exercise the case).
+ * The two accounts here share one EVM address but hold DIFFERENT tron addresses, which is what
+ * makes "which one" matter on a TRON command but not on an EVM one.
  */
 const EVM_ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const TRON_ADDR_SEED = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
@@ -526,7 +615,7 @@ describe("resolving an address held by more than one account", () => {
 
   it("refuses an evm address when the family being acted on is tron, before any ambiguity check", () => {
     // EVM_ADDR is an evm address; asking for it under family "tron" now fails on the
-    // family mismatch itself (Task 1), before the scan that would otherwise find the two
+    // family mismatch itself, before the scan that would otherwise find the two
     // accounts sharing it and report ambiguous_account.
     const ks = keystoreWithDuplicateEvmAddress();
     expect(() => ks.resolveAccount(EVM_ADDR, "tron")).toThrowError(

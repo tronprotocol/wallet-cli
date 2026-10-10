@@ -165,7 +165,7 @@ describe("SignerResolver — resolving an address shared by two accounts", () =>
 
   it("refuses an evm address when signing on tron, before any ambiguity check", () => {
     // EVM_ADDR is an evm address; asking to sign with it under family "tron" now fails on the
-    // family mismatch itself (Task 1), before the scan that would otherwise find the two
+    // family mismatch itself, before the scan that would otherwise find the two
     // accounts sharing it and report ambiguous_account.
     const dupKs = keystoreWithDuplicateEvmAddress();
     const resolver = new SignerResolver(dupKs, {} as unknown as Ledger, {

@@ -1,5 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { classifyError, normalizeError, ChainError, UsageError } from "./index.js";
+import { classifyError, normalizeError, ChainError, UsageError, errorMessage } from "./index.js";
+
+describe("errorMessage trusted layout and external values", () => {
+  it("escapes input line separators while preserving authored multiline guidance", () => {
+    const input = "first\r\nsecond\u0085third\u2028fourth\u2029last";
+    const error = new UsageError("invalid_value", errorMessage`Invalid: ${input}\nTry again.`);
+    expect(error.textMessage).toBe(
+      "Invalid: first\\r\\nsecond\\u0085third\\u2028fourth\\u2029last\nTry again.",
+    );
+    expect(error.toEnvelope().message).toBe(`Invalid: ${input}\nTry again.`);
+  });
+
+  it("keeps ordinary paths, quotes, amounts, and plain authored messages unchanged", () => {
+    const path = "C:\\wallet's files\\tx.hex";
+    const error = new UsageError(
+      "invalid_value",
+      errorMessage`File '${path}' exceeds ${1024} bytes`,
+    );
+    expect(error.textMessage).toBe(error.message);
+    expect(new UsageError("invalid_value", "First line\nSecond line").textMessage).toBe(
+      "First line\nSecond line",
+    );
+  });
+});
 
 describe("classifyError (classify half of the classify↔render split)", () => {
   it("passes a CliError through unchanged (already canonical)", () => {

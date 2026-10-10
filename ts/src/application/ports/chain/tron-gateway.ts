@@ -294,6 +294,8 @@ export interface TronGateway extends Broadcaster {
   getBlock(number?: string): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
+  /** Net received amount, verified from this transaction's logs or internal native transfers. */
+  receivedAmount(txid: string, token: string, recipient: string): Promise<string | undefined>;
   getChainParameters(): Promise<Array<{ key: string; value?: number | string }>>;
   getEnergyPrices(): Promise<string>;
   getBandwidthPrices(): Promise<string>;

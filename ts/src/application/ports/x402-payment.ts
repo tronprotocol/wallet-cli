@@ -5,7 +5,7 @@ export interface X402PayInput {
   url: string;
   method: string;
   headers: string[];
-  body?: string;
+  body?: string | Uint8Array;
   token?: string;
   asset?: string;
   decimals?: number;
