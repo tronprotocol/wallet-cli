@@ -14,9 +14,18 @@ Golden tests build the CLI once and start a fresh process per invocation. A supp
 `WALLET_CLI_TEST_ENTRY` selects an independently built or installed artifact and skips the
 local build; callers must ensure that artifact is current.
 
-The golden project uses at most four workers because each worker also starts a full CLI
-process, and wallet operations run the production password KDF. Override with Vitest's
-`--maxWorkers` flag when measuring a different machine.
+Each Vitest invocation uses at most ten unit workers, leaving one available CPU core free
+(with a minimum of one worker). Remaining test files wait for a free worker. The golden
+project keeps its lower limit of four workers because each worker also starts a full CLI
+process, and wallet operations run the production password KDF. `npm test` runs unit and golden projects in
+sequence, so their worker pools do not overlap.
+
+These limits apply to test workers in a single Vitest invocation. They do not include the
+coordinator, CLI or fixture subprocesses, or workers from other terminals or agents. Run
+one test invocation at a time to avoid multiplying resource use. To reduce concurrency on a
+memory-constrained machine, use `VITEST_MAX_WORKERS=2 npm test` (or `npm run test:unit` /
+`npm run test:golden`). This overrides both project limits; keep the value at or below ten.
+The root `--maxWorkers` flag does not override these explicit project settings in Vitest 4.
 
 The main golden suite uses a shared harness that creates an encrypted seed fixture once
 per label, then copies it

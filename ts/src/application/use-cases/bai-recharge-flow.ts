@@ -36,7 +36,7 @@ export class BaiRechargeFlow {
       // Preserve classified payment failures and any settlement evidence.
       if (error instanceof CliError) {
         const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-        throw new ErrorType(error.code, error.message, {
+        throw new ErrorType(error.code, error, {
           paymentStatus: "unknown",
           ...error.details,
           retryPayment: false,

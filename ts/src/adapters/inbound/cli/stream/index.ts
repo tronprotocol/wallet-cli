@@ -63,12 +63,16 @@ export class StreamManager implements IStreamManager {
   }
 
   readStdinOnce(): string {
+    return this.readStdinBytesOnce().toString("utf8");
+  }
+
+  readStdinBytesOnce(): Buffer {
     if (this.#stdinRead) {
       throw new ExecutionError("secret_source_error", "stdin already consumed");
     }
     this.#stdinRead = true;
     try {
-      return readFileSync(0, "utf8");
+      return readFileSync(0);
     } catch {
       throw new ExecutionError("secret_source_error", "no data available on stdin");
     }

@@ -81,7 +81,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
       );
     if (!phase || details?.phase) return error;
     const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-    return new ErrorType(error.code, error.message, {
+    return new ErrorType(error.code, error, {
       ...error.details,
       phase,
       retryPayment: false,
@@ -254,7 +254,16 @@ export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliErro
   const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
   return new ErrorType(
     classified.code,
-    classified.message.replace(/; reconcile before paying again/g, "; no payment was sent"),
+    {
+      message: classified.message.replace(
+        /; reconcile before paying again/g,
+        "; no payment was sent",
+      ),
+      textMessage: classified.textMessage.replace(
+        /; reconcile before paying again/g,
+        "; no payment was sent",
+      ),
+    },
     { ...details, paymentStatus: "not_sent", retryPayment: false },
   );
 }

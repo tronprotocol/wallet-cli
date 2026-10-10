@@ -2,7 +2,7 @@ import type { ContactRepository } from "../ports/contact-repository.js";
 import type { ContactEntry, ContactListView, ContactView } from "../../domain/types/index.js";
 import { contactNameKey, createContact } from "../../domain/contact/index.js";
 import { CHAIN_FAMILIES, familyOf } from "../../domain/family/index.js";
-import { UsageError } from "../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../domain/errors/index.js";
 
 export class ContactService {
   constructor(private readonly contacts: ContactRepository) {}
@@ -20,7 +20,10 @@ export class ContactService {
     const value = address.trim();
     const family = familyOf(value);
     if (!family) {
-      throw new UsageError("invalid_address", `not a recognised chain address: ${address}`);
+      throw new UsageError(
+        "invalid_address",
+        errorMessage`not a recognised chain address: ${address}`,
+      );
     }
     const key = contactNameKey(name);
     const clash = this.#entries().find((e) => e.nameKey === key || e.address === value);
@@ -28,8 +31,8 @@ export class ContactService {
       throw new UsageError(
         "already_exists",
         clash.nameKey === key
-          ? `a contact named ${clash.name} already exists`
-          : `that address is already stored as ${clash.name}`,
+          ? errorMessage`a contact named ${clash.name} already exists`
+          : errorMessage`that address is already stored as ${clash.name}`,
       );
     }
     return publicContact(this.contacts.add(createContact(family, name, value, note)));
@@ -49,7 +52,7 @@ export class ContactService {
     const key = contactNameKey(name);
     const family = CHAIN_FAMILIES.find((f) => this.contacts.find(f, key));
     if (!family) {
-      throw new UsageError("contact_not_found", `contact not found: ${name}`);
+      throw new UsageError("contact_not_found", errorMessage`contact not found: ${name}`);
     }
     return publicContact(this.contacts.remove(family, key));
   }

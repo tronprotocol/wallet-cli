@@ -17,7 +17,7 @@ import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
 import type { SunPumpLaunchImage } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
-import { UsageError } from "../../../../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../../../../domain/errors/index.js";
 import { TextFormatters } from "../../render/index.js";
 
 /**
@@ -146,9 +146,9 @@ async function imageOf(input: {
     bytes = await readFile(path);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new UsageError("file_not_found", `image file not found: ${path}`);
+      throw new UsageError("file_not_found", errorMessage`image file not found: ${path}`);
     }
-    throw new UsageError("invalid_value", `cannot read image file: ${path}`);
+    throw new UsageError("invalid_value", errorMessage`cannot read image file: ${path}`);
   }
   return {
     image: { source: "file", path, bytes: bytes.byteLength, base64: bytes.toString("base64") },

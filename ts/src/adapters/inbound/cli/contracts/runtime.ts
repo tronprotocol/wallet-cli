@@ -12,6 +12,8 @@ export interface StreamManager {
   /** intermediate progress frame → stderr plain line; null is skipped (StreamManager). */
   event(frame: string | null): void;
   readStdinOnce(): string;
+  /** Raw input bytes; shares the single-consumption guard with readStdinOnce. */
+  readStdinBytesOnce(): Uint8Array;
   /** warnings accumulated for the JSON envelope's meta.warnings. */
   warnings(): WarningItem[];
 }
