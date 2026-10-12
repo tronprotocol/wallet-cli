@@ -36,8 +36,8 @@ if (help.status !== 0 || !help.stdout.includes("Usage:  wallet-cli")) {
 }
 
 // Loading the Ledger command forces the embedded node-hid N-API addon to load. CI normally reaches
-// `NoDevice`; a developer machine may instead enumerate a busy Ledger or complete the import. All
-// three outcomes prove the addon loaded, while binding/dynamic-library failures remain rejected.
+// `device_not_found`; a developer machine may instead complete the import. Match the stable error
+// code, not message wording. Reject `device_unavailable`, which can also wrap addon load failures.
 const isolatedHome = mkdtempSync(join(tmpdir(), "wallet-cli-standalone-"));
 try {
   const ledger = run(["import", "ledger", "--app", "tron", "--index", "0", "--output", "json"], {
@@ -53,10 +53,7 @@ try {
   }
   const imported = ledger.status === 0 && result?.success === true;
   const expectedDeviceError =
-    ledger.status === 1 &&
-    result?.success === false &&
-    typeof result?.error?.message === "string" &&
-    /NoDevice|cannot open device with path/.test(result.error.message);
+    ledger.status === 1 && result?.success === false && result?.error?.code === "device_not_found";
   if (!imported && !expectedDeviceError) {
     throw new Error(
       `Ledger native-addon smoke test failed: status=${ledger.status}, output=${JSON.stringify(output)}`,
