@@ -1,0 +1,149 @@
+{
+  "code": 0,
+  "msg": "SUCCESS",
+  "data": {
+    "list": [
+      {
+        "id": 2,
+        "protocol": "V3",
+        "poolAddress": "TSUUVjysXV8YqHytSNjfkNXnnB49QDvZpx",
+        "poolType": "2pool",
+        "contractIndex": 1,
+        "createBlockTimestamp": 1687879410000,
+        "createTxHash": "287a2bd4c78a944937cc31570de6bea6a63ad8bb0cebca254e07fd17c9e68fc6",
+        "feeRate": 0.0005,
+        "protocolFeeRate": 0.166666666666666667,
+        "tokenAddressList": [
+          "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+          "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        ],
+        "tokenAmountList": ["227424711.008461", "111326438.680799"],
+        "tokenAmountVol1dList": ["99066784.099966", "34065713.629774"],
+        "reserveUsd": 189490638.49182138410393413,
+        "reserveUsd1dRate": -0.004995,
+        "volumeUsd1d": 34074264.151524905414514284,
+        "volumeUsd1dRate": -0.074582,
+        "volumeUsd7d": 226574810.486765581169041337,
+        "volumeUsd7dRate": -0.005407,
+        "volumeUsd14d": 454381325.857642819250365655,
+        "transaction1d": 3542,
+        "transaction1dRate": -0.034877,
+        "transactionRecentTotal": 688459,
+        "feeUsd1d": 17037.132075762452707257,
+        "lpPriceUsd": 0,
+        "farmApr": 0,
+        "feeApr": 0.03161995,
+        "totalApr": 0.03161995,
+        "tokenNameList": ["Wrapped TRX", "Tether USD"],
+        "tokenSymbolList": ["WTRX", "USDT"],
+        "tokenDecimalList": [6, 6],
+        "tokenLogoList": [
+          "https://static.tronscan.org/production/upload/logo/TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR.png?t=1598430824415",
+          "https://static.tronscan.org/production/logo/usdtlogo.png"
+        ],
+        "tokenPriceUsdList": [0.343701904777, 0.999981077667],
+        "swapRateList": ["2.909173910769221638008798715979251686941"],
+        "extraInfo": {
+          "tick": -10680,
+          "liquidity": 1794640568248574,
+          "protocol_fee_rate_token0": 0.16666666666666666,
+          "protocol_fee_rate_token1": 0.16666666666666666,
+          "sqrt_price_x96": "46450965099123125644525184699"
+        }
+      },
+      {
+        "id": 21,
+        "protocol": "V2",
+        "poolAddress": "TFGDbUyP8xez44C76fin3bn3Ss6jugoUwJ",
+        "poolType": "2pool",
+        "contractIndex": 0,
+        "createBlockTimestamp": 1639475946000,
+        "createTxHash": "81cdd225892de262ea44212900b4549b5a36aaf09fcbba4c4a2e2a6f5c3d0079",
+        "feeRate": 0.003,
+        "protocolFeeRate": 0.166667,
+        "tokenAddressList": [
+          "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+          "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        ],
+        "tokenAmountList": ["138217860.839717", "47647608.096238"],
+        "tokenAmountVol1dList": ["2645514.107706", "909275.360404"],
+        "reserveUsd": 95011484.089626099187256218,
+        "reserveUsd1dRate": -0.008115,
+        "volumeUsd1d": 909647.336883540596423307,
+        "volumeUsd1dRate": 0.249842,
+        "volumeUsd7d": 4218462.27040203450903624,
+        "volumeUsd7dRate": -0.636103,
+        "volumeUsd14d": 15810916.379117945749129656,
+        "transaction1d": 398,
+        "transaction1dRate": -0.061321,
+        "transactionRecentTotal": 129250,
+        "feeUsd1d": 2728.94201065062178927,
+        "lpPriceUsd": 1830486914401.174773686353665095,
+        "farmApr": 0,
+        "feeApr": 0.00577065,
+        "totalApr": 0.00577065,
+        "tokenNameList": ["Wrapped TRX", "Tether USD"],
+        "tokenSymbolList": ["WTRX", "USDT"],
+        "tokenDecimalList": [6, 6],
+        "tokenLogoList": [
+          "https://static.tronscan.org/production/upload/logo/TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR.png?t=1598430824415",
+          "https://static.tronscan.org/production/logo/usdtlogo.png"
+        ],
+        "tokenPriceUsdList": [0.343701904777, 0.999981077667],
+        "swapRateList": ["2.900835243619079846"],
+        "extraInfo": { "lp_token_decimals": 18, "lp_token_total_supply": 5.1905033213913e-5 }
+      },
+      {
+        "id": 228971,
+        "protocol": "V4",
+        "poolAddress": "dda1d5819853f19f3e952da5d93aa2d572d95c72a8e6e4c2acab65384fd2557e",
+        "poolType": "2pool",
+        "contractIndex": 20,
+        "createBlockTimestamp": 1772370237000,
+        "createTxHash": "02e9c8b527e0ae09cc490b275ce46705d82a03f981a82eb96e98fb3eeca75803",
+        "feeRate": 0.0005,
+        "protocolFeeRate": 0,
+        "tokenAddressList": [
+          "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
+          "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        ],
+        "tokenAmountList": ["143278423.964224", "44433772.439381"],
+        "tokenAmountVol1dList": ["54321789.868159", "18692795.884583"],
+        "reserveUsd": 93677998.878692807913102175,
+        "reserveUsd1dRate": -0.006593,
+        "volumeUsd1d": 18696502.043742744180580953,
+        "volumeUsd1dRate": -0.029052,
+        "volumeUsd7d": 97711741.308868777336735518,
+        "volumeUsd7dRate": -0.063284,
+        "volumeUsd14d": 202024807.761740815228700183,
+        "transaction1d": 1107,
+        "transaction1dRate": 0.009116,
+        "transactionRecentTotal": 145443,
+        "feeUsd1d": 9348.25102187137209029,
+        "lpPriceUsd": 0,
+        "farmApr": 0,
+        "feeApr": 0.02743705,
+        "totalApr": 0.02743705,
+        "tokenNameList": ["TRX", "Tether USD"],
+        "tokenSymbolList": ["TRX", "USDT"],
+        "tokenDecimalList": [6, 6],
+        "tokenLogoList": [
+          "https://static.tronscan.org/production/upload/logo/TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR.png",
+          "https://static.tronscan.org/production/logo/usdtlogo.png"
+        ],
+        "tokenPriceUsdList": [0.343701904777, 0.999981077667],
+        "swapRateList": ["2.908714853663541245429742837702172836470"],
+        "extraInfo": {
+          "tick": -10678,
+          "liquidity": 1150158736455408,
+          "parameters": "00000000000000000000000000000000000000000000000000000000000a0000",
+          "is_dynamic_fee": false,
+          "derived_token0_amount": 272512765633981,
+          "derived_token1_amount": 93696051977529,
+          "sqrt_price_x96": "46454630429931115165820641209"
+        }
+      }
+    ],
+    "meta": { "pageNo": 1, "pageSize": 3, "returnSize": 3, "sort": "reserveUsd", "hasMore": true }
+  }
+}

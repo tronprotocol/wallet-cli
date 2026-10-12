@@ -178,3 +178,25 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
     expect(error.details.nodeMessage).not.toContain("SECRET123");
   });
 });
+
+describe("expired node responses", () => {
+  it.each([false, true])(
+    "maps expiration on either broadcast entry point (hex=%s)",
+    async (hex) => {
+      const client = new TronRpcClient("http://localhost:1", 200);
+      const rejected = {
+        result: false,
+        code: "TRANSACTION_EXPIRATION_ERROR",
+        message: Buffer.from("Transaction expired").toString("hex"),
+      };
+      client.tronweb.trx.sendRawTransaction = (() => Promise.resolve(rejected)) as never;
+      client.tronweb.trx.sendHexTransaction = (() => Promise.resolve(rejected)) as never;
+      await expect(
+        hex ? client.broadcastHex(SIGNED_HEX) : client.broadcast(SIGNED),
+      ).rejects.toMatchObject({
+        code: "tx_expired",
+        details: { nodeCode: "TRANSACTION_EXPIRATION_ERROR" },
+      });
+    },
+  );
+});

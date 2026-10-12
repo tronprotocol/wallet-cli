@@ -1,3 +1,4 @@
+import { decodeReceivedAmount } from "./received-amount.js";
 import { currentTronEnergyPrice } from "../../../../domain/amounts/tron-energy-price.js";
 /**
  * TronRpcClient — thin TRON node wrapper via tronweb HTTP fullHost. Implements the
@@ -232,7 +233,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       const reason = String(decodeTronMessage(res.message) || res.code || "rejected by node");
       // A recognised rejection gets a code an agent can branch on; everything else keeps the
       // node's own words under transaction_rejected (see node-errors.ts).
-      const known = classifyNodeRejection(reason);
+      const known = classifyNodeRejection(reason, res.code);
       // A classified rejection keeps the node's own words in the message, not just in
       // details.nodeMessage: text mode renders only `message`, so the category alone would tell
       // the reader what kind of problem it is and nothing about theirs. Redact BEFORE folding —
@@ -445,7 +446,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       );
       // Same rejections as broadcastTransaction, so the same classification: `tx broadcast --hex`
       // must not report insufficient_balance as a bare transaction_rejected.
-      const known = classifyNodeRejection(reason);
+      const known = classifyNodeRejection(reason, response.code);
       // Same reasoning as broadcast(): fold the redacted node text into the message so text mode
       // shows it, keeping details.nodeMessage for machine readers.
       throw new ChainError(
@@ -627,6 +628,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       parseTronTx(await this.#tw.trx.getTransaction(txid)),
     );
   }
+  async receivedAmount(
+    txid: string,
+    token: string,
+    recipient: string,
+  ): Promise<string | undefined> {
+    return decodeReceivedAmount(await this.getTransactionInfoById(txid), token, recipient);
+  }
+
   async getTransactionInfoById(txid: string): Promise<TronTxInfo> {
     // Full-node (unconfirmed) info: available ~one block after inclusion (~3s), not after
     // solidification (~19 blocks / ~60s). So `--wait` confirms at "mined in a block" rather than

@@ -14,7 +14,7 @@ import { sanitizeText } from "../render/scalars.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
 import { readFile } from "node:fs/promises";
-import { UsageError } from "../../../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 
 const url = z
   .string()
@@ -329,7 +329,7 @@ async function requestBody(
   ctx: Parameters<CommandDefinition["run"]>[0],
   inline?: string,
   path?: string,
-): Promise<string | undefined> {
+): Promise<string | Uint8Array | undefined> {
   if (!path) return inline;
   if (path === "-") {
     // Every `--<kind>-stdin` secret is bound to the same fd 0; reading it as the body would post
@@ -341,22 +341,22 @@ async function requestBody(
         `--body-file - cannot share stdin with --${claimed.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}-stdin`,
       );
     }
-    return checkedBody(ctx.streams.readStdinOnce(), "stdin");
+    return checkedBody(ctx.streams.readStdinBytesOnce(), "stdin");
   }
   try {
-    return checkedBody(await readFile(path, "utf8"), path);
+    return checkedBody(await readFile(path), path);
   } catch (error) {
     if (error instanceof UsageError) throw error;
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new UsageError("file_not_found", `request body file not found: ${path}`);
+      throw new UsageError("file_not_found", errorMessage`request body file not found: ${path}`);
     }
-    throw new UsageError("invalid_value", `cannot read request body file: ${path}`);
+    throw new UsageError("invalid_value", errorMessage`cannot read request body file: ${path}`);
   }
 }
 
-function checkedBody(body: string, source: string): string {
-  if (Buffer.byteLength(body) > 1_048_576) {
-    throw new UsageError("invalid_value", `request body from ${source} exceeds 1 MiB`);
+function checkedBody(body: Uint8Array, source: string): Uint8Array {
+  if (body.byteLength > 1_048_576) {
+    throw new UsageError("invalid_value", errorMessage`request body from ${source} exceeds 1 MiB`);
   }
   return body;
 }

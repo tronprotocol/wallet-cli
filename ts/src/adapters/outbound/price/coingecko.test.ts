@@ -131,10 +131,10 @@ describe("CoinGeckoPriceProvider — EVM", () => {
   /**
    * Testnets are no longer priced here at all.
    *
-   * The 2026-08-24 ruling: a test coin is not traded, so its holdings are worth ZERO — a fact,
-   * not a lookup. `TestnetZeroPriceProvider` answers before this class is reached, and the ids
-   * were removed from the maps so a future edit cannot quietly re-enable mainnet pricing for a
-   * chain whose coins are free.
+   * A test coin is not traded, so its holdings are worth ZERO — a fact, not a lookup.
+   * `TestnetZeroPriceProvider` answers before this class is reached, and the ids were removed from
+   * the maps so a future edit cannot quietly re-enable mainnet pricing for a chain whose coins are
+   * free.
    */
   it.each(["eip155:11155111", "eip155:97"])(
     "no longer prices the testnet %s at all",

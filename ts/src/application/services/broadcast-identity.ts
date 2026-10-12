@@ -20,7 +20,7 @@ export function authoritativeTxId(
   const nodeId = reported ?? "";
   if (!local) return nodeId;
   // Compared case-insensitively: hex case carries no meaning, and comparing the representation
-  // rather than the value is what made a valid keystore look like a wrong password (CR-033).
+  // rather than the value is what made a valid keystore look like a wrong password.
   if (nodeId && nodeId.toLowerCase() !== local.toLowerCase()) {
     warn(
       `the node reported transaction id ${nodeId} for a transaction whose id is ${local}; ` +

@@ -12,6 +12,7 @@
  * `details` verbatim.
  */
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
+import { singleLineErrorValue } from "../../../../domain/errors/index.js";
 import type { Obj } from "./layout.js";
 import { asObj, table } from "./layout.js";
 import { formatDecimal, formatInt, formatScalar, num } from "./scalars.js";
@@ -56,7 +57,7 @@ export function renderErrorDetails(details: unknown): string | null {
   const keys = Object.keys(objects[0] ?? {});
   if (keys.length === 0) return null;
   return table(
-    keys.map((k) => HEADERS[k] ?? k),
-    objects.map((row) => keys.map((k) => cell(k, row))),
+    keys.map((k) => singleLineErrorValue(HEADERS[k] ?? k)),
+    objects.map((row) => keys.map((k) => singleLineErrorValue(cell(k, row)))),
   );
 }

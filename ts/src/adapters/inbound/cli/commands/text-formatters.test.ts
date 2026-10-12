@@ -532,8 +532,8 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
 
   // `tx broadcast` carries the full approval view in json, but text projected none of it: the
   // dry-run receipt was a bare header plus a fee line, and the fee was printed twice whenever the
-  // multi-sign fee was non-zero (receiptRows pushed one row, the dry-run branch another). The QA
-  // pass missed the duplicate because its sample fee was 0, which is falsy.
+  // multi-sign fee was non-zero (receiptRows pushed one row, the dry-run branch another). A sample
+  // fee of 0 hides the duplicate because 0 is falsy.
   const broadcastApproval = {
     txId: "abc123",
     contractType: "TransferContract",

@@ -52,7 +52,10 @@ const RULES: Array<{ match: RegExp; rejection: NodeRejection }> = [
 ];
 
 /** the codes this table can produce; see EVM_REJECTION_CODES. */
-export const TRON_REJECTION_CODES: readonly string[] = RULES.map((r) => r.rejection.code);
+export const TRON_REJECTION_CODES: readonly string[] = [
+  ...RULES.map((r) => r.rejection.code),
+  "tx_expired",
+];
 
 /**
  * java-tron wraps an actuator's message in its own envelope before it reaches the wire, e.g.
@@ -63,7 +66,17 @@ const ENVELOPE =
   /^(?:Contract validate error\s*:\s*|Contract validate error\s*|contract validate error\s*:\s*)/i;
 
 /** the code and message a node rejection should surface as, or undefined to keep the default. */
-export function classifyNodeRejection(reason: string): NodeRejection | undefined {
+export function classifyNodeRejection(
+  reason: string,
+  nodeCode?: string | number,
+): NodeRejection | undefined {
+  if (
+    nodeCode === "TRANSACTION_EXPIRATION_ERROR" ||
+    nodeCode === 8 ||
+    reason.trim() === "TRANSACTION_EXPIRATION_ERROR"
+  ) {
+    return { code: "tx_expired", message: "transaction expired; rebuild and sign it again" };
+  }
   const text = reason.trim().replace(ENVELOPE, "").trim();
   return RULES.find((rule) => rule.match.test(text))?.rejection;
 }

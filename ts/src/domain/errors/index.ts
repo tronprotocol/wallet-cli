@@ -6,14 +6,48 @@
 import type { ExitCode } from "../types/primitives.js";
 import { ERROR_CODES, type ErrorCodeEntry } from "./codes.js";
 
+/** Keep source-authored layout separate from untrusted, single-line interpolations. */
+interface ErrorMessage {
+  readonly message: string;
+  readonly textMessage: string;
+}
+
+/** Escape physical line separators in one error field, before composing its text layout. */
+export function singleLineErrorValue(value: string): string {
+  return value.replace(/[\n\r\u0085\u2028\u2029]/g, (char) => {
+    if (char === "\n") return "\\n";
+    if (char === "\r") return "\\r";
+    return `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`;
+  });
+}
+
+/**
+ * Tag messages containing external values. JSON/Error.message retain the original data;
+ * text output escapes line separators in interpolations only, preserving authored guidance.
+ * Ordinary inputs keep their existing spelling (including quotes and path separators).
+ */
+export function errorMessage(strings: TemplateStringsArray, ...values: unknown[]): ErrorMessage {
+  let message = strings[0]!;
+  let textMessage = message;
+  for (const [index, value] of values.entries()) {
+    const raw = String(value);
+    const literal = strings[index + 1]!;
+    message += raw + literal;
+    textMessage += singleLineErrorValue(raw) + literal;
+  }
+  return { message, textMessage };
+}
+
 export abstract class CliError extends Error {
   abstract readonly kind: "usage" | "execution";
+  readonly textMessage: string;
   constructor(
     public readonly code: string,
-    message: string,
+    message: string | ErrorMessage,
     public readonly details?: object,
   ) {
-    super(message);
+    super(typeof message === "string" ? message : message.message);
+    this.textMessage = typeof message === "string" ? message : message.textMessage;
     this.name = new.target.name;
   }
   /**

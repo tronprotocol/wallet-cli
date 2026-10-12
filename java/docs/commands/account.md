@@ -4,11 +4,16 @@ Query and update on-chain accounts, manage account metadata, and view local reco
 
 ## How to create account
 
-You can create accounts by transferring funds to non-existing accounts, or by initiating a transaction to create an account using the **CreateAccount** command. Either way the payer covers an on-chain account-creation fee, which is the sum of two chain parameters — `getCreateAccountFee` and `getCreateNewAccountFeeInSystemContract`. On mainnet today that is 100,000 SUN + 1,000,000 SUN = **1.1 TRX**, but both are proposal-adjustable, so read them with `getchainparameters` instead of assuming a fixed value.
+You can create accounts by transferring funds to non-existing accounts, or by initiating a transaction to create an account using the **CreateAccount** command. Either way the payer covers the cost of creating the account, which has two parts:
+
+- `getCreateNewAccountFeeInSystemContract` — always burned from the payer's TRX balance (1,000,000 SUN = **1 TRX** on mainnet today).
+- The transaction's bandwidth — taken from the payer's **staked** bandwidth if there is enough of it (the free daily bandwidth does not count here). Only when staked bandwidth is insufficient does the chain burn `getCreateAccountFee` instead (100,000 SUN = **0.1 TRX** on mainnet today).
+
+So creating an account costs 1 TRX when the payer has enough staked bandwidth, and 1.1 TRX when it does not. Both parameters are proposal-adjustable; read them with `getchainparameters` instead of assuming fixed values.
 
 ## CreateAccount
 
-Create a new account with an inactive address. The payer covers the account-creation fee described above (about 1.1 TRX on mainnet today, `getCreateAccountFee` + `getCreateNewAccountFeeInSystemContract`).
+Create a new account with an inactive address. The payer covers the account-creation cost described above: `getCreateNewAccountFeeInSystemContract` (1 TRX on mainnet today), plus `getCreateAccountFee` (0.1 TRX) only if the payer lacks enough staked bandwidth.
 
 ```console
 > CreateAccount [OwnerAddress] Address

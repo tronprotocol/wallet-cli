@@ -2,6 +2,7 @@
  * Layout primitives — structural composition of label/value blocks and tables,
  * plus status glyphs. The "one field per line" vocabulary; no scalar or domain knowledge.
  */
+import stringWidth from "string-width";
 export type Obj = Record<string, unknown>;
 export type Pair = [string, string];
 
@@ -29,12 +30,28 @@ export function titled(title: string, pairs: Pair[]): string {
   return body ? `${title}\n${body}` : title;
 }
 
+/**
+ * A pipe table, aligned by DISPLAY width rather than by string length.
+ *
+ * The two differ wherever a value is not plain ASCII, and chain data routinely is not: a token
+ * named `波场人生` is four characters but eight terminal columns wide, and `padEnd` — which counts
+ * characters — leaves that row four columns too wide, bending every column to its right. An
+ * emoji in a token name does the same. The value comes from a contract, so no amount of care on
+ * our side keeps it ASCII.
+ */
 export function table(headers: string[], rows: string[][]): string {
   const all = [headers, ...rows];
-  const widths = headers.map((_, i) => Math.max(...all.map((row) => String(row[i] ?? "").length)));
+  const widths = headers.map((_, i) =>
+    Math.max(...all.map((row) => stringWidth(String(row[i] ?? "")))),
+  );
   const fmt = (row: string[]) =>
-    `| ${row.map((cell, i) => String(cell ?? "").padEnd(widths[i] ?? 0)).join(" | ")} |`;
+    `| ${row.map((cell, i) => pad(String(cell ?? ""), widths[i] ?? 0)).join(" | ")} |`;
   return [fmt(headers), fmt(widths.map((w) => "-".repeat(w))), ...rows.map(fmt)].join("\n");
+}
+
+/** right-pad to a column count, measuring what the terminal will actually show. */
+function pad(cell: string, width: number): string {
+  return cell + " ".repeat(Math.max(0, width - stringWidth(cell)));
 }
 
 export function asObj(v: unknown): Obj {

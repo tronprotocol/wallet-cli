@@ -1,0 +1,57 @@
+{
+  "code": 0,
+  "msg": "SUCCESS",
+  "data": {
+    "list": [
+      {
+        "positionType": "Liquidity Asset",
+        "protocol": "V4",
+        "poolAddress": "61446c8062cdc7f165946650c5ca6b6aa1809d19fcdf69b58824b01dd581333e",
+        "userAddress": "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N",
+        "poolFeeRate": 0.0001,
+        "tokenAddressList": [
+          "TFNirp6PbqYE1ZTtWuCMUKJWLNZkoCoeFJ",
+          "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        ],
+        "userTokenAmountList": ["1070163.618808583559303388", "890592.582622"],
+        "lpBalanceUsd": 1960034.158363120117210649,
+        "lpBalanceAmount": 392657176790371861588,
+        "lpPriceUsd": 0,
+        "nftTokenId": "88",
+        "extraInfo": {
+          "derived_token1_amount": 1960269724203,
+          "max_price": 1.005014926708653,
+          "min_price": 0.9950153585777257,
+          "tick_lower": -276374,
+          "derived_token0_amount": 1961161232999063830653955,
+          "token_reward_amount_list": ["252.809441421518969671", "245.748099"],
+          "is_dynamic_fee": false,
+          "tick_upper": -276274,
+          "token_reward_usd": 498.3832548463159,
+          "position_liquidity": 392657176790371861588,
+          "parameters": "0000000000000000000000000000000000000000000000000000000000010000"
+        },
+        "poolShare": 0.998509,
+        "status": "IN_RANGE",
+        "lpTokenSymbol": "SUN-V4-POS",
+        "lpTokenName": "SUNSWAP V4 POSITION",
+        "lastActiveBlockTime": "2026-03-31 16:10:12",
+        "tokenNameList": ["United Stables", "Tether USD"],
+        "tokenSymbolList": ["U", "USDT"],
+        "tokenDecimalList": [18, 6],
+        "tokenLogoList": [
+          "https://static.tronscan.org/production/upload/logo/new/TFNirp6PbqYE1ZTtWuCMUKJWLNZkoCoeFJ.png",
+          "https://static.tronscan.org/production/logo/usdtlogo.png"
+        ],
+        "tokenPriceUsdList": [0.999412711427, 0.999981077667]
+      }
+    ],
+    "meta": {
+      "pageNo": 1,
+      "pageSize": 10,
+      "returnSize": 1,
+      "sort": "lpBalanceUsd",
+      "hasMore": false
+    }
+  }
+}

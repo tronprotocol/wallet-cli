@@ -1,6 +1,7 @@
 import { baiApiError } from "./api-error.js";
 import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
+import { parse as parseLosslessJson } from "lossless-json";
 import type {
   BaiApi,
   BaiPageInput,
@@ -116,7 +117,13 @@ export class BaiClient implements BaiApi {
     }
     let decoded: unknown;
     try {
-      decoded = JSON.parse(await response.text());
+      const body = await response.text();
+      // Summary scalars are exposed as strings; preserve numeric literals before any rounding.
+      // Lists retain their existing numeric fields and pagination contract.
+      decoded =
+        procedure === "usage.summary"
+          ? parseLosslessJson(body, undefined, (value) => value)
+          : JSON.parse(body);
     } catch {
       const statusError = baiApiError(undefined, procedure, response.status);
       if (statusError) throw statusError;

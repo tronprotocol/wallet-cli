@@ -22,6 +22,8 @@ Creates a recharge order with B.AI, pays it from the active account (or `--accou
 
 The minimum is 1 for USDT and USDC; USDD has none.
 
+On TRON, a first `exact` recharge may also broadcast a one-time `approve(Permit2, MaxUint256)` from the account, which burns its Energy or TRX and grants an unlimited allowance — see [`x402 pay`](../x402/pay.md#description).
+
 **Who gets the credits.** Without `--to`, the account that owns the API key. With `--to`, the B.AI account behind that email or wallet address (EVM, TRON, or Solana); B.AI resolves it before the order is created.
 
 **Checked before an order is created:**

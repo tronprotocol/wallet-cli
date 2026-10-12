@@ -1,7 +1,7 @@
 /**
  * How deep a transaction is buried — the one number `--wait` does not answer.
  *
- * `--wait` stops at the receipt, which is inclusion, not finality. The spec leaves "how many
+ * `--wait` stops at the receipt, which is inclusion, not finality. This CLI leaves "how many
  * confirmations are enough" to the caller and gives them this to judge by, so it is reported
  * identically on every family rather than each computing its own variant.
  */
@@ -9,8 +9,8 @@
 /**
  * `head - block`, when both are known.
  *
- * The including block is NOT counted, so a transaction just mined reports 0 — the spec fixes the
- * arithmetic that way, and it is the reading that makes "0 confirmations" mean what it says.
+ * The including block is NOT counted, so a transaction just mined reports 0 — the arithmetic is
+ * fixed that way, because it is the reading that makes "0 confirmations" mean what it says.
  *
  * Absent rather than 0 when the head could not be read: "we could not ask" and "nothing has been
  * built on top yet" are different claims, and only the second is about the chain. A negative

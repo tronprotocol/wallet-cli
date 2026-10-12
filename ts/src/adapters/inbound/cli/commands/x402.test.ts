@@ -103,7 +103,7 @@ it("does not advertise unsupported provider type or facilitator waiting", () => 
  * `--password-stdin` let `--api-key-stdin` (or any other secret) be read as the request body and
  * posted to the endpoint. Every secret bound to stdin must refuse the body, before anything is read.
  */
-it.each(["password", "apiKey", "tx", "message"])(
+it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(
   "refuses --body-file - when --%s-stdin also claims stdin, without reading or sending",
   async (kind) => {
     const registry = new CommandRegistry();
@@ -111,9 +111,10 @@ it.each(["password", "apiKey", "tx", "message"])(
     registerX402Commands(registry, svc);
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     const readStdinOnce = vi.fn(() => "secret");
+    const readStdinBytesOnce = vi.fn(() => Buffer.from("secret"));
     const ctx = {
       secrets: { has: (k: string) => k === kind },
-      streams: { readStdinOnce },
+      streams: { readStdinOnce, readStdinBytesOnce },
     };
     await expect(
       pay.run(ctx as never, { id: "eip155:56" } as never, {
@@ -124,6 +125,7 @@ it.each(["password", "apiKey", "tx", "message"])(
       }),
     ).rejects.toMatchObject({ code: "invalid_option" });
     expect(readStdinOnce).not.toHaveBeenCalled();
+    expect(readStdinBytesOnce).not.toHaveBeenCalled();
     expect(svc.pay).not.toHaveBeenCalled();
   },
 );

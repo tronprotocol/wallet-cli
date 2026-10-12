@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BaiClient } from "./client.js";
+import { BaiService } from "../../../application/use-cases/bai-service.js";
+import { baiUsageText } from "../../inbound/cli/render/bai.js";
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -9,6 +11,35 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe("BaiClient", () => {
+  describe.each(["direct", "tRPC", "tRPC JSON"])("%s summary precision", (envelope) => {
+    it.each([
+      ["9007199254740991", "9007199254740991"],
+      ["9007199254740993", "9007199254740993"],
+      ["123.456789012345678901", "123.456789012345678901"],
+      ['"9007199254740993.123456789012345678901"', "9007199254740993.123456789012345678901"],
+    ])("preserves raw credits %s through JSON and text output", async (literal, expected) => {
+      // Construct raw HTTP JSON: converting the fixture to a JS number would lose precision first.
+      const summary = `{"points_balance":${literal},"monthly_spent":${literal},"monthly_chart":[{"month":"2026-09","points":${literal}}]}`;
+      const body =
+        envelope === "direct"
+          ? summary
+          : envelope === "tRPC"
+            ? `[{"result":{"data":${summary}}}]`
+            : `[{"result":{"data":{"json":${summary}}}}]`;
+      const client = new BaiClient({ baiApiKey: "test-key" }, 1000, async () => new Response(body));
+      const usage = await new BaiService(client).usage();
+      expect(JSON.parse(JSON.stringify(usage))).toEqual({
+        credits: expected,
+        thisMonth: { month: "2026-09", credits: expected },
+        trend: [{ month: "2026-09", credits: expected }],
+      });
+      const text = baiUsageText(usage);
+      expect(text).toContain(`Credit balance: ${expected}\n`);
+      expect(text).toContain(`Credits spent this month: ${expected}\n`);
+      expect(text).toContain(`credits: ${expected}`);
+    });
+  });
+
   it("uses the live B.AI origin and prevents credential-bearing redirects", async () => {
     const fetcher = vi.fn(async () =>
       response([
@@ -101,10 +132,34 @@ describe("BaiClient", () => {
 
     await expect(
       client.usageList({ page: 2, pageSize: 10, sortBy: "createdAt", sortOrder: "desc" }),
-    ).resolves.toMatchObject({ items: [{ id: "u1" }], page: 2, pageSize: 10, total: 11 });
+    ).resolves.toEqual({
+      items: [{ id: "u1", total_tokens: 42 }],
+      page: 2,
+      pageSize: 10,
+      total: 11,
+    });
     await expect(
       client.rechargeList({ page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" }),
     ).resolves.toMatchObject({ items: [{ id: "o1", status: "paid" }], page: 1, pageSize: 20 });
+  });
+
+  it.each([
+    ['[{"error":{"json":{"code":-32001,"data":{"code":"UNAUTHORIZED"}}}}]', 200, "bai_auth_failed"],
+    [
+      '[{"error":{"json":{"code":-32029,"data":{"code":"TOO_MANY_REQUESTS"}}}}]',
+      200,
+      "provider_rate_limited",
+    ],
+    ['{"error":{"json":{"code":-32603}}}', 500, "provider_error"],
+    ['{"points_balance":', 200, "provider_error"],
+    ['{"points_balance":', 503, "provider_error"],
+  ])("classifies summary response %s at HTTP %s as %s", async (body, status, code) => {
+    const client = new BaiClient(
+      { baiApiKey: "test-key" },
+      1000,
+      async () => new Response(body, { status }),
+    );
+    await expect(client.status()).rejects.toMatchObject({ code });
   });
 
   it("classifies missing credentials and rejected credentials without exposing the key", async () => {

@@ -48,6 +48,27 @@ jobs:
           cache: npm
           cache-dependency-path: ts/package-lock.json
 
+      # The SDK was resolved from a registry on a private network until 2026-09-28. A runner cannot
+      # reach one, and npm's own message for that reads as a proxy problem, which sent the last
+      # reader after the wrong thing entirely. This keeps the invariant checkable rather than
+      # rediscoverable.
+      - name: Check every dependency resolves from the public registry
+        run: |
+          offenders=$(node -e '
+            const lock = require("./package-lock.json");
+            const bad = Object.entries(lock.packages ?? {})
+              .filter(([, v]) => v.resolved && !v.resolved.startsWith("https://registry.npmjs.org/"))
+              .map(([k, v]) => `${k} -> ${v.resolved}`);
+            process.stdout.write(bad.join("\n"));
+          ')
+          if [ -n "$offenders" ]; then
+            echo "::error::These packages do not resolve from the public npm registry:"
+            echo "$offenders"
+            echo "::error::A GitHub-hosted runner cannot reach a private registry, so 'npm ci' will time out."
+            echo "::error::This is not a network fault and not a proxy problem."
+            exit 1
+          fi
+
       - name: Install locked dependencies
         run: npm ci
 

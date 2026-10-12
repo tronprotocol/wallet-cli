@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
-import { UsageError } from "../../../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
 import type { DeployConstructorArgs } from "../../../../application/ports/chain/gateway-provider.js";
 import type { EvmContractService } from "../../../../application/use-cases/evm/contract-service.js";
@@ -265,9 +265,9 @@ async function creationBytecode(input: { code?: string; codeFile?: string }): Pr
     text = await readFile(input.codeFile, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new UsageError("file_not_found", `code file not found: ${input.codeFile}`);
+      throw new UsageError("file_not_found", errorMessage`code file not found: ${input.codeFile}`);
     }
-    throw new UsageError("invalid_value", `cannot read code file: ${input.codeFile}`);
+    throw new UsageError("invalid_value", errorMessage`cannot read code file: ${input.codeFile}`);
   }
   return checkedCreationCode(text, `--code-file ${input.codeFile}`);
 }
@@ -309,7 +309,7 @@ function checkedCreationCode(raw: string, source: string): string {
   if (code === "" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
     throw new UsageError(
       "invalid_value",
-      `${source} must hold even-length hex creation bytecode, or exactly 0x to deploy empty code; it must not be empty`,
+      errorMessage`${source} must hold even-length hex creation bytecode, or exactly 0x to deploy empty code; it must not be empty`,
     );
   }
   return /^0x/i.test(code) ? `0x${hex}` : code;
@@ -340,22 +340,22 @@ async function readArtifact(path: string): Promise<DeploySource> {
     text = await readFile(path, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new UsageError("file_not_found", `artifact not found: ${path}`);
+      throw new UsageError("file_not_found", errorMessage`artifact not found: ${path}`);
     }
-    throw new UsageError("invalid_value", `cannot read artifact: ${path}`);
+    throw new UsageError("invalid_value", errorMessage`cannot read artifact: ${path}`);
   }
   let artifact: Record<string, any>;
   try {
     artifact = JSON.parse(text);
   } catch {
-    throw new UsageError("invalid_value", `artifact is not valid JSON: ${path}`);
+    throw new UsageError("invalid_value", errorMessage`artifact is not valid JSON: ${path}`);
   }
   const bytecode =
     artifact?.bytecode?.object ?? artifact?.bytecode ?? artifact?.evm?.bytecode?.object;
   if (typeof bytecode !== "string") {
     throw new UsageError(
       "invalid_value",
-      `artifact has no creation bytecode: ${path} (looked at .bytecode.object, .bytecode and .evm.bytecode.object)`,
+      errorMessage`artifact has no creation bytecode: ${path} (looked at .bytecode.object, .bytecode and .evm.bytecode.object)`,
     );
   }
   // solc emits "0x" for an interface or an abstract contract: a real artifact for something that
@@ -363,7 +363,7 @@ async function readArtifact(path: string): Promise<DeploySource> {
   if (bytecode.replace(/^0x/, "") === "") {
     throw new UsageError(
       "invalid_value",
-      `artifact holds no deployable bytecode: ${path} — an interface or abstract contract cannot be deployed`,
+      errorMessage`artifact holds no deployable bytecode: ${path} — an interface or abstract contract cannot be deployed`,
     );
   }
   return { bytecode, ...(artifact.abi === undefined ? {} : { abi: artifact.abi }) };
@@ -867,8 +867,14 @@ export const contractCreate2TronBinding = (svc: TronContractService): FamilyBind
       } catch (error) {
         const codeValue = (error as NodeJS.ErrnoException).code;
         if (codeValue === "ENOENT")
-          throw new UsageError("file_not_found", `code file not found: ${input.codeFile}`);
-        throw new UsageError("invalid_value", `cannot read code file: ${input.codeFile}`);
+          throw new UsageError(
+            "file_not_found",
+            errorMessage`code file not found: ${input.codeFile}`,
+          );
+        throw new UsageError(
+          "invalid_value",
+          errorMessage`cannot read code file: ${input.codeFile}`,
+        );
       }
     }
     return svc.create2(input.deployer, code!, input.salt);

@@ -3,7 +3,18 @@
  * near-identical `humanAmount`/`formatRawAmount` copies (which disagreed on negatives) and the
  * standalone `parseDecimalAmount`. All string math — no floating point.
  */
-import { UsageError } from "../errors/index.js";
+import { ChainError, UsageError } from "../errors/index.js";
+
+/** CLI-supported token precision; validate remote metadata before allocating scaled amounts. */
+export function checkedTokenDecimals(decimals: number): number {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 77) {
+    throw new ChainError(
+      "invalid_node_response",
+      `token decimals must be an integer from 0 to 77 supported by this CLI; received ${String(decimals)}`,
+    );
+  }
+  return decimals;
+}
 
 /**
  * Integer base-unit value → human decimal string (e.g. "1204560000", 6 → "1204.56").
@@ -11,6 +22,7 @@ import { UsageError } from "../errors/index.js";
  * returned unchanged (lenient passthrough for values that are already human-readable).
  */
 export function fromBaseUnits(value: string | number | bigint, decimals: number): string {
+  checkedTokenDecimals(decimals);
   const raw = String(value);
   if (!/^-?\d+$/.test(raw)) return raw;
   const neg = raw.startsWith("-");
@@ -38,6 +50,7 @@ export function toBaseUnits(
   unitLabel: string,
   flag = "--amount",
 ): string {
+  checkedTokenDecimals(decimals);
   const v = value.trim();
   if (!/^\d+(\.\d+)?$/.test(v)) {
     throw new UsageError(

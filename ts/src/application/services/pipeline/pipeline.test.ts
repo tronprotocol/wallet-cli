@@ -281,3 +281,94 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
     expect(warnings).toEqual([]);
   });
 });
+
+// Exercise the real TRON hooks through the shared pipeline; the gateway stand-in only
+// performs timestamp-relative preparation, just as the protobuf adapter does.
+import { tronTransactionHooks } from "../../use-cases/tron/multisig-authorization.js";
+import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+
+describe("TRON signing lifetime", () => {
+  it.each([false, true])(
+    "extends only a fresh device transaction without explicit expiration (explicit=%s)",
+    async (explicit) => {
+      const now = 1_900_000_000_000;
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+      const tx = { raw_data: { timestamp: now, expiration: now + 60_000, contract: [{}] } };
+      const prepare = vi.fn((value: typeof tx, options: { expiration?: number }) => ({
+        ...value,
+        raw_data: {
+          ...value.raw_data,
+          expiration:
+            options.expiration === undefined
+              ? value.raw_data.expiration
+              : value.raw_data.timestamp + options.expiration,
+        },
+      }));
+      const gateway = {
+        prepareTransaction: prepare,
+        encodeTransactionHex: () => "hex",
+      } as unknown as TronGateway;
+      const signer = {
+        kind: "device",
+        address: "TSender",
+        sign: vi.fn(async (value) => value),
+      } as unknown as Signer;
+      const signers = {
+        assertCanSign: () => {},
+        resolve: () => signer,
+      } as unknown as SignerResolver;
+      try {
+        await new TxPipeline(signers).run(
+          params(signer, {
+            ...tronTransactionHooks(gateway),
+            build: async () => tx,
+            ctx: scope({ timeoutMs: 300_000 }),
+            ...(explicit ? { expiration: 90_000 } : {}),
+          }),
+        );
+        const signed = vi.mocked(signer.sign).mock.calls[0]![0] as typeof tx;
+        expect(signed.raw_data.expiration).toBe(explicit ? now + 90_000 : now + 600_000);
+        expect(tx.raw_data.expiration).toBe(now + 60_000);
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
+  it("refuses a transaction that expires while signing instead of broadcasting or signing it again", async () => {
+    const now = 1_900_000_000_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const tx = { raw_data: { timestamp: now, expiration: now + 60_000, contract: [{}] } };
+    const gateway = {
+      prepareTransaction: (value: unknown) => value,
+      encodeTransactionHex: () => "hex",
+    } as unknown as TronGateway;
+    const signer = {
+      kind: "software",
+      address: "TSender",
+      sign: vi.fn(async (value) => {
+        clock.mockReturnValue(now + 60_001);
+        return value;
+      }),
+    } as unknown as Signer;
+    const broadcast = vi.fn(async () => ({ txId: "tx" }));
+    try {
+      await expect(
+        new TxPipeline({
+          assertCanSign: () => {},
+          resolve: () => signer,
+        } as unknown as SignerResolver).run(
+          params(signer, {
+            ...tronTransactionHooks(gateway),
+            build: async () => tx,
+            broadcast: true,
+            broadcaster: { broadcast },
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "tx_expired" });
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(signer.sign).toHaveBeenCalledTimes(1);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+});

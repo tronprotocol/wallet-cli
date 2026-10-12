@@ -1,0 +1,83 @@
+{
+  "code": 0,
+  "msg": "SUCCESS",
+  "data": {
+    "list": [
+      {
+        "protocol": "ALL",
+        "tokenAddress": "TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9",
+        "tokenName": "SUNOLD",
+        "tokenSymbol": "SUNOLD",
+        "tokenLogo": "https://static.tronscan.org/production/upload/logo/TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9.png",
+        "tokenDecimal": 18,
+        "tokenPriceUsd": 42.680541438165,
+        "tokenPriceUsd1dRate": -0.013217,
+        "reserveUsd": 1160858.043038489745565101,
+        "reserveUsd1dRate": -0.000876,
+        "volumeUsd1d": 198.153670905060892112,
+        "volumeUsd1dRate": 3.825612,
+        "volumeUsd7d": 401.8462590356368176,
+        "volumeUsd7dRate": -0.589827,
+        "volumeUsd14d": 1381.546312985083992742,
+        "transaction1d": 1,
+        "transaction1dRate": 0,
+        "transactionRecentTotal": 263,
+        "relevantPoolAddressList": [
+          "TUEYcyPAqc4hTg1fSuBCPc18vGWcJDECVw",
+          "TXBLiUHDEZMCWQFPc5rKc9eMu38SuBcDJ9",
+          "TV4aR94DKpBzffgQMJ2XTEhc5jxZQVKGSi",
+          "TJnp8FrxoBwLJbAuJGmwukkgxMz84je2dk"
+        ],
+        "relevantProtocolList": ["V1", "V2"],
+        "id": 1369
+      },
+      {
+        "protocol": "ALL",
+        "tokenAddress": "TUEYcyPAqc4hTg1fSuBCPc18vGWcJDECVw",
+        "tokenName": "SUNSWAP-SUNOLD-TRX",
+        "tokenSymbol": "S-SUNOLD-TRX",
+        "tokenLogo": "https://static.tronscan.org/production/logo/SUN-TRX-LP.png",
+        "tokenDecimal": 6,
+        "tokenPriceUsd": 0.005211666859646791,
+        "tokenPriceUsd1dRate": 0.010561,
+        "reserveUsd": 11290.058230638621460968,
+        "reserveUsd1dRate": -0.001009,
+        "volumeUsd1d": 0,
+        "volumeUsd1dRate": 0,
+        "volumeUsd7d": 307.767732247896356016,
+        "volumeUsd7dRate": 0,
+        "volumeUsd14d": 307.767732247896356016,
+        "transaction1d": 0,
+        "transaction1dRate": 0,
+        "transactionRecentTotal": 17,
+        "relevantPoolAddressList": ["TLH3xpyMqVM7Pfqzx5FYRiFiipR6P5V1yZ"],
+        "relevantProtocolList": ["V1"],
+        "id": 6648
+      },
+      {
+        "protocol": "ALL",
+        "tokenAddress": "TGBr8uh9jBVHJhhkwSJvQN2ZAKzVkxDmno",
+        "tokenName": "JustLend SUNOLD",
+        "tokenSymbol": "jSUNOLD",
+        "tokenLogo": "https://static.tronscan.org/production/logo/TGBr8uh9jBVHJhhkwSJvQN2ZAKzVkxDmno.png",
+        "tokenDecimal": 8,
+        "tokenPriceUsd": 0.176560682375307903,
+        "tokenPriceUsd1dRate": 0,
+        "reserveUsd": 38.935977281061441624,
+        "reserveUsd1dRate": -0.001009,
+        "volumeUsd1d": 0,
+        "volumeUsd1dRate": 0,
+        "volumeUsd7d": 0,
+        "volumeUsd7dRate": 0,
+        "volumeUsd14d": 0,
+        "transaction1d": 0,
+        "transaction1dRate": 0,
+        "transactionRecentTotal": 10,
+        "relevantPoolAddressList": ["TJjNtJ1U7zz8sKHN9gXPS8fuAdhXuKoFAm"],
+        "relevantProtocolList": ["V1"],
+        "id": 21144
+      }
+    ],
+    "meta": { "pageNo": 1, "pageSize": 3, "returnSize": 3, "sort": "reserveUsd", "hasMore": false }
+  }
+}

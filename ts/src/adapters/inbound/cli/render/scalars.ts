@@ -34,13 +34,35 @@ export function formatUsd(v: unknown): string {
   return usd(v, 2);
 }
 
+/** Number of significant digits kept for a price too small for four decimals to show. */
+const PRICE_SIGNIFICANT_DIGITS = 4;
+
 /**
- * A USD *unit price* — 4 decimals Prices need the extra precision valuations do not:
- * a stablecoin at $0.9998 rendered as "$1.00" hides a depeg, and a sub-cent token collapses to
- * "$0.00" entirely.
+ * A USD *unit price*. Prices need precision valuations do not: a stablecoin at $0.9998 rendered
+ * as "$1.00" hides a depeg.
+ *
+ * Two rules, because one does not cover the range. At or above a cent, four decimals: "0.3376".
+ * Below a cent, four decimals collapse every small token to "0.0000" — a meme token at
+ * $0.00003824 and one at $0.0000003279 would print identically, as nothing — so the price
+ * switches to four SIGNIFICANT digits instead, and keeps its trailing zeros so the precision
+ * shown is the precision meant.
+ *
+ * The small branch truncates rather than rounds, and does it on the digit string. A price is
+ * read to decide a trade, and a rounded-up last digit is a number the market never quoted.
  */
 export function formatUsdPrice(v: unknown): string {
-  return usd(v, 4);
+  const text = String(v ?? "").trim();
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return usd(v, 4);
+  const negative = text.startsWith("-");
+  const [whole = "0", fraction = ""] = (negative ? text.slice(1) : text).split(".");
+  if (/^0*$/.test(whole) && /^0*$/.test(fraction)) return "0.0000";
+  // below a cent: no integer part, and the first two decimals are zero
+  if (!/^0*$/.test(whole) || !fraction.startsWith("00")) return usd(v, 4);
+  const firstSignificant = fraction.search(/[1-9]/);
+  const kept = fraction
+    .slice(0, firstSignificant + PRICE_SIGNIFICANT_DIGITS)
+    .padEnd(firstSignificant + PRICE_SIGNIFICANT_DIGITS, "0");
+  return `${negative ? "-" : ""}0.${kept}`;
 }
 
 function usd(v: unknown, digits: number): string {

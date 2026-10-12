@@ -91,6 +91,25 @@ The node accepted the connection but rejected the request — a TRON API call, o
 - *Insufficient balance / bandwidth / energy*: fund the account, or stake for resources (`stake freeze`) — see [Networks](concepts/networks.md) for how resources work; on Nile use the faucet.
 - *TRC20 send reverting* (`estimateEnergy failed: REVERT opcode executed`): work through it in this order — (1) **the token balance is too low** for the amount you asked for, by far the most common cause: check it with `token balance --contract <address>`, and remember a TRX faucet does not give you tokens; (2) the recipient or the contract address is wrong; (3) only once both are ruled out, consider raising `--fee-limit` (default 100000000 SUN) — raising it does not fix an insufficient balance, it only lets a genuinely expensive call through.
 
+- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey`. (A 429 from the SunSwap or SunPump services is `provider_rate_limited` instead.)
+
+## `unsupported_network_capability` (exit 2)
+
+The command exists but the selected network does not support it. The message names the network that does.
+
+- `sunpump`, `sunswap swap` and the `sunswap` market queries (`pool-list`, `pool-search`, `position-list`, `token-list`, `token-search`, `price`) are **mainnet only**: run them with `--network tron`.
+- `sunswap position-info`, `add-liquidity`, `remove-liquidity` and `collect-fees` run on `tron` and `nile`, not Shasta.
+- `8004` does not run on `ethereum` or `sepolia`.
+
+## `ledger_setting_required` / `device_*` (exit 1)
+
+- `ledger_setting_required`: the Ledger TRON app has a setting off. Enable the one the message names — **Custom contracts** and/or **Sign by Hash**, under TRON app → Settings — and retry. Approvals sent before the failure are listed in `error.details.approvalTxIds`; they stay on chain and are reused on the retry.
+- `device_not_found`: no Ledger detected — connect and unlock it.
+- `device_unavailable`: detected but could not be opened — close Ledger Live and anything else using it, then reconnect.
+- `device_disconnected`: the connection dropped mid-operation — reconnect, unlock, reopen the app, retry.
+
+See [Ledger](guide/ledger.md#tron-app-settings).
+
 ## `internal_error` (exit 1)
 
 An unexpected failure. The message is intentionally generic (secret-redaction). Re-run with `--verbose` for stderr diagnostics; if reproducible, file an issue with the command shape (never include secrets).

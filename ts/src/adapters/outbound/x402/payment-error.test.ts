@@ -1,6 +1,26 @@
 import { expect, it } from "vitest";
-import { sdkPaymentError, providerPaymentError } from "./payment-error.js";
-import { UsageError, TransportError } from "../../../domain/errors/index.js";
+import { sdkPaymentError, providerPaymentError, unsentPaymentError } from "./payment-error.js";
+import { errorMessage, UsageError, TransportError } from "../../../domain/errors/index.js";
+
+it.each([
+  ["sdkPaymentError", sdkPaymentError],
+  ["unsentPaymentError", unsentPaymentError],
+] as const)(
+  "preserves safe text and raw JSON when adding payment context (%s)",
+  (_name, classify) => {
+    const original = new UsageError(
+      "account_not_found",
+      errorMessage`unknown account ${"missing\nFAKE_LOG"}; reconcile before paying again`,
+    );
+    const error = classify(original, "sign");
+    expect(error.textMessage).toContain("missing\\nFAKE_LOG");
+    expect(error.textMessage).not.toContain("\n");
+    expect(error.toEnvelope().message).toContain("missing\nFAKE_LOG");
+    expect(error.textMessage.endsWith("; no payment was sent")).toBe(
+      classify === unsentPaymentError,
+    );
+  },
+);
 it.each([403, 429, 502])(
   "reports HTTP %s and stage without leaking SDK request contents",
   (status) => {

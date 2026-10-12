@@ -72,7 +72,36 @@ describe("USD formatting", () => {
     expect(formatUsdPrice("2500")).toBe("2,500.0000");
   });
 
+  // Below a cent, four decimals would print every small token as nothing, so the price switches
+  // to four significant digits — trailing zeros kept, so the precision shown is the one meant.
   it("keeps a sub-cent price visible instead of collapsing it to zero", () => {
-    expect(formatUsdPrice("0.0001")).toBe("0.0001");
+    expect(formatUsdPrice("0.0001")).toBe("0.0001000");
+    expect(formatUsdPrice("0.00003824")).toBe("0.00003824");
+    expect(formatUsdPrice("0.000000327978")).toBe("0.0000003279");
+  });
+
+  // A price is read to decide a trade; a rounded-up last digit is a number never quoted.
+  it("truncates a sub-cent price rather than rounding it", () => {
+    expect(formatUsdPrice("0.000039609945")).toBe("0.00003960");
+    expect(formatUsdPrice("0.0000099999")).toBe("0.000009999");
+  });
+
+  it("prints an exact zero as four decimals", () => {
+    expect(formatUsdPrice("0")).toBe("0.0000");
+    expect(formatUsdPrice("0.000")).toBe("0.0000");
+  });
+
+  // A cent and above keeps the four-decimal form, including the boundary itself.
+  it("uses four decimals from one cent upward", () => {
+    expect(formatUsdPrice("0.01")).toBe("0.0100");
+    expect(formatUsdPrice("0.337556899071")).toBe("0.3376");
+  });
+
+  // Unchanged fallback for input that is not a plain decimal. Exponent form is NOT expanded
+  // here — the SunSwap adapter expands it before a price reaches the renderer — so a caller that
+  // passes "1e-7" straight in still gets the old collapsed "0.0000".
+  it("falls back for a value that is not a plain decimal", () => {
+    expect(formatUsdPrice("n/a")).toBe("n/a");
+    expect(formatUsdPrice("0.0000001")).toBe("0.0000001000");
   });
 });

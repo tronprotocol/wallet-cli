@@ -523,7 +523,7 @@ function actionLabel(kind: TxReceiptKind): string {
   }
 }
 
-function formatFee(fee: unknown, family: ChainFamily, symbol: string): string {
+export function formatFee(fee: unknown, family: ChainFamily, symbol: string): string {
   if (!fee) return "unknown";
   if (typeof fee === "object") {
     const f = asObj(fee);

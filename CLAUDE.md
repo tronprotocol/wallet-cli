@@ -54,9 +54,10 @@ Key points:
   `adapters/outbound/chain/<family>/`, and the family plugin under `bootstrap/families/`. Both
   `tron` and `evm` are registered unconditionally (`bootstrap/composition.ts`) and reachable: the
   builtin networks and aliases cover ETH, Sepolia, BSC, BSC testnet, Base and Base Sepolia alongside the TRON three.
-  There is no family-level feature gate. EVM simply binds a narrower command set (29 bindings:
-  account, block, chain, tx, token, contract, message/typed-data signing and eight ERC-8004 identity commands) against TRON's 78, which adds
-  stake, permission, proposal, asset, GasFree and TronLink multisig.
+  There is no family-level feature gate. EVM simply binds a narrower command set (30 bindings:
+  account, block, chain, tx, token, contract, message/typed-data signing, `bai recharge` and eight ERC-8004 identity commands) against TRON's 96, which adds
+  stake, permission, proposal, asset, GasFree, TronLink multisig, and the SunSwap and SunPump groups (17 commands).
+  The counts are the `families` tags in `wallet-cli --json-schema`.
 - **A single Zod schema per command** drives validation, yargs arity, help text, and JSON Schema.
 - **Secrets** (private keys, mnemonics, BIP39 passphrases) are encrypted at rest and never accepted
   from argv or env — only a dedicated stdin channel or hidden TTY prompt.

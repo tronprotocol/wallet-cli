@@ -49,6 +49,10 @@ export interface TxPipelineParams {
     tx: UnsignedTx,
     options: { permissionId: number; expiration?: number },
   ) => Promise<UnsignedTx> | UnsignedTx;
+  /** Extend a newly built unsigned device transaction before signing. Never used for imports. */
+  prepareForSigning?: (tx: UnsignedTx, timeoutMs: number) => Promise<UnsignedTx> | UnsignedTx;
+  /** Chain-specific expiry guard, including a second check after the signer returns. */
+  assertNotExpired?: (tx: UnsignedTx | SignedTx) => void;
   /** Complete transaction protobuf serializer, required for build-only. */
   artifact?: (tx: UnsignedTx | SignedTx) => string;
   /** Authorization check performed before software key decryption or Ledger interaction. May
@@ -133,8 +137,14 @@ export class TxPipeline {
         "resolved signer address changed during transaction construction",
       );
     }
+    if (signer.kind === "device" && p.expiration === undefined && p.prepareForSigning) {
+      tx = await p.prepareForSigning(tx, p.ctx.timeoutMs);
+    }
+    p.assertNotExpired?.(tx);
     const authorization = await p.preflight?.(tx, signer.address);
     const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(tx, opts));
+
+    p.assertNotExpired?.(signed);
 
     if (mode === "sign-only") {
       return {

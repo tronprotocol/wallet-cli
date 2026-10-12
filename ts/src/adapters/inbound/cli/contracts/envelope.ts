@@ -25,11 +25,19 @@ export interface Pagination {
   hasMore?: boolean;
   nextCursor?: string | null;
 }
+/** How a listing was ordered, echoed so a caller need not re-derive it from its own flags. */
+export interface QueryEcho {
+  orderBy: string;
+  /** "desc" is a constant where the service offers no direction, not always a caller's choice. */
+  sort: string;
+}
 export interface Meta {
   durationMs: number;
   warnings: WarningItem[];
   /** present on paginated reads only; lifted out of `data` by the json formatter. */
   pagination?: Pagination;
+  /** present on listings that accept an ordering; lifted out of `data` like `pagination`. */
+  query?: QueryEcho;
 }
 export interface ResultEnvelope {
   schema: "wallet-cli.result.v1";

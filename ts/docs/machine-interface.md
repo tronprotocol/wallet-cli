@@ -107,10 +107,23 @@ Schema id: `wallet-cli.result.v1`.
 | `error.details`   | object                   | optional            | Structured extras when available                                                 |
 | `meta.durationMs` | number                   | always              | Wall time                                                                        |
 | `meta.warnings`   | `(string \| {code, message})[]` | always     | Non-fatal notices; **elements are not uniformly typed** — see below              |
+| `meta.query`      | object                   | ordered listings only | `orderBy` / `sort`; present when the command accepts an ordering — see [`meta.query`](#metaquery) |
 | `meta.pagination` | object                   | windowed commands only | `offset` / `limit` / `total`; present when the command returns a pagination window — see [pagination](#pagination) |
 | `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command and on the local commands whose policy resolves a network — currently `backup`, `current` and `list`, which use the selected or default network as a family/display selector without contacting a node. Commands with `network: "none"` (`config`, `networks`, `contact`, `encoding`, `address`, `create`, `import`, …) omit it — its presence does **not** mean a node was contacted |
 
 Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Amounts backed by `bigint` or protocol int64 values are strings, but bounded counters and fees such as `feeSun`, `multiSignFeeSun`, `energyUsed` and `netUsed` may come back as JSON numbers. Follow each command's field table instead of coercing every amount to one type.
+
+**Token amounts carry their scale.** In the `sunswap` and `sunpump` payloads, every token amount is base units as a decimal string, and the object that carries it also carries the `decimals` needed to read it — `{address, symbol, decimals, amount}`. Where an amount sits at the top of a payload rather than inside a side, its scale is beside it under a matching name (`lpAmount` / `lpDecimals`, `tokensIn` / `tokenDecimals`). The exception is a SunSwap V3 / V4 position's `liquidity`, `liquidityAfter` and `liquidityExpected`: numbers the contract keeps, denominated in neither token, with no decimals. Token `decimals` from 0 to 77 are supported; SunSwap / SunPump contract or market metadata outside that range — or a market figure in scientific notation with an exponent beyond ±1000 — fails with `invalid_node_response` rather than being scaled.
+
+### Text can show what JSON does not
+
+A few text tables show a value the JSON deliberately leaves out. Both cases today are token **symbols** in `sunswap`: `sunswap price` fills its text `Symbol` column from the SunSwap catalogue, and `sunswap pool-list --token` names the quote token in its price column heading. A symbol is self-reported by the token contract and proves nothing — impersonations share real symbols — so the JSON stays address-keyed (`prices[].address`, `pairPrices[].quote`) and a caller identifies a token by its address.
+
+### `meta.query`
+
+A listing that accepts an ordering echoes it back as `{orderBy, sort}`, next to `meta.pagination`, so a caller reads the window and the ordering from one place. `orderBy` is the CLI's own name for the field (`tvl`, `market-cap`, …).
+
+`sort` is not always a choice: where the upstream service sorts in one direction only, the command has no `--sort` flag and `sort` reports the constant `"desc"` — `sunswap token-list` is that case. A listing with no ordering flag at all (`sunswap token-search`, `sunswap pool-search`, `sunswap position-list`) omits `meta.query`.
 
 ### Reading `meta.warnings`
 
@@ -128,7 +141,7 @@ Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.joi
 
 ### Pagination
 
-Commands that return an offset/limit window report it in `meta.pagination`, never inside `data`. The current set is `asset list`, `exchange list`, `proposal list`, `backup --records`, `x402 provider-list`, `bai recharge-orders`, and `bai usage-records`; a command may accept `--limit` merely as a result cap and then omit pagination metadata:
+Commands that return an offset/limit window report it in `meta.pagination`, never inside `data`. The current set is `asset list`, `exchange list`, `proposal list`, `backup --records`, `x402 provider-list`, `bai recharge-orders`, `bai usage-records`, `sunswap pool-list` / `pool-search` / `position-list` / `token-list` / `token-search`, and `sunpump token-list` / `token-search`; a command may accept `--limit` merely as a result cap and then omit pagination metadata:
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -150,6 +163,8 @@ while :; do
   offset=$((offset + 50))
 done
 ```
+
+The SunSwap market listings may add `hasMore` to `meta.pagination` when the service supplies it — whether rows exist past this window — and can reach only the **first 1000 rows** of any ordering, because the data service serves no page past them: a window whose `--offset` + `--limit` goes beyond 1000 is refused locally as `invalid_value` (exit 2) before any request. Their `--offset` must also be a multiple of `--limit`. `sunswap pool-list --min-tvl` filters before it pages; if more than 1000 pools qualify, a non-TVL ordering can come back short, with `hasMore: true` and a `sunswap_scan_truncated` warning. `sunpump` listings report `total: null` (the service reports no usable count); a page shorter than `--limit` is the end.
 
 Commands that page a local, bounded set ([`backup --records`](commands/backup.md)) or that fetch everything and window it client-side ([`proposal list`](commands/proposal/list.md)) do report a `total`.
 
@@ -175,7 +190,7 @@ Each entry is an object, not a bare string:
 
 `retry` answers "now what": `same` — retry the identical command right away (a node or service hiccup); `later` — the identical command will work, but not yet; back off first (a lock-up period, a withdrawal interval, a rate limit); `changed` — retry only after changing the request (raise the fee, rebuild with a new nonce); `never` — retrying as-is cannot succeed, something outside the command has to change. Every exit-`2` code is `never` by construction.
 
-`retry` describes the **error**, not the command. `timeout` and `rpc_error` are `same` because for most calls that is correct — the node never acted, so resending is free. But a command that may already have broadcast a transaction (`tx send`, and anything else on the submit path) can hit `timeout` or `rpc_error` **after the node accepted the transaction and before the response got back**. There the outcome is unknown, not failed, and resending does not retry the original request: it builds and signs a **new** transaction, which on TRON is a second, distinct transfer. `retry: "same"` is right for a `timeout`/`rpc_error` while resolving a network id or reading a balance; it is not a licence to resend a broadcast blind. Reconcile with [`tx status`](#script-safety-never-mistake-submitted-for-confirmed) before deciding.
+`retry` describes the **error**, not the command. `timeout` and `rpc_error` are `same` because for most calls that is correct — the node never acted, so resending is free. But a command that may already have broadcast a transaction (`tx send`, and anything else on the submit path) can hit `timeout` or `rpc_error` **after the node accepted the transaction and before the response got back**. There the outcome is unknown, not failed, and resending does not retry the original request: it builds and signs a **new** transaction, which on TRON is a second, distinct transfer. `retry: "same"` is right for a `timeout`/`rpc_error` while resolving a network id or reading a balance; it is not a licence to resend a broadcast blind. Reconcile with [`tx status`](#script-safety-never-mistake-submitted-for-confirmed) before deciding. `sunpump launch` is the one service-side write that does not leave this to the caller: a create call that fails in any way short of the service refusing it (a timeout, a 5xx, a dropped connection, a reply that does not parse or names no token) fails as `launch_outcome_unknown` (`retry: "never"`), because the service deploys the token before it replies.
 
 That index is the machine-readable catalog this build exposes. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code absent from `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
 
@@ -229,11 +244,13 @@ Common codes at exit **1** (execution — runtime failure):
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; an interactive import normally catches it at the prompt and asks again |
 | `token_metadata_unavailable` | Required token metadata could not be read from the selected network. This one crosses exit codes: most sites raise it at exit `1`, but `tx send` on TRON raises it at exit **2** when a contract answers no `decimals()` and the address book has no entry either — there the call itself has to change |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
+| `device_not_found` / `device_unavailable` / `device_disconnected` | No Ledger was detected; a Ledger was detected but could not be opened (another app such as Ledger Live may hold it, or USB access is denied); the Ledger disconnected during the operation. See [Ledger](guide/ledger.md#3-when-the-device-doesnt-respond) |
+| `ledger_setting_required` | A setting in the Ledger TRON app must be enabled — **Custom contracts** or **Sign by Hash**; the message names which. See [TRON app settings](guide/ledger.md#tron-app-settings) |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
 | `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, or an error status from GasFree / TronLink. TronLink reports **every** non-404 status this way, 429 included |
-| `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI: `error.details.httpStatus: 429`. TronLink's 429 is `provider_error` instead |
-| `tx_expired` | The transaction's expiration passed before signatures were collected (TRON) |
+| `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI, the SunSwap market and route services, and the SunPump API: `error.details.httpStatus: 429`, plus `error.details.retryAfterSeconds` from SunSwap / SunPump when a `Retry-After` header was sent. TronLink's 429 is `provider_error` instead |
+| `tx_expired` | The transaction expired before or during signing — including while waiting for a Ledger confirmation, checked again after the device signs — or the TRON node rejected it as expired. Rebuild and sign again |
 | `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `history_not_supported` | The selected network exposes no transaction history endpoint (`account history`, TRON) |
@@ -249,6 +266,14 @@ Common codes at exit **1** (execution — runtime failure):
 | `not_in_ico_window` / `self_participation` | TRC10 ICO participation conditions |
 | `no_frozen_supply` / `not_yet_unfreezable` | Nothing frozen, or nothing matured yet (`asset unfreeze`) |
 | `not_exchange_creator` / `token_not_in_exchange` / `exchange_closed` / `same_token` | Exchange-pair access and state conditions |
+| `pool_not_found` | No SunSwap pool exists for that pair, so there is no ratio to size a one-sided deposit against. Name both amounts, or create the pool first |
+| `pool_already_exists` | `sunswap add-liquidity --create-pool`: a V4 pool with that key (pair, fee, tick spacing, hooks) is already live. Deposit into it without `--create-pool` |
+| `position_not_found` | No SunSwap position with that id under that protocol on this network |
+| `no_matching_route` | The SunSwap route service found no path for that pair (`sunswap swap`). Retryable with the same input: routes appear and disappear with liquidity |
+| `permit_mismatch` / `router_call_mismatch` | `sunswap swap`: the Permit2 grant did not match the planned swap, so it was not signed; or the encoded router call did not match the quoted swap, so it was not sent |
+| `launchpad_token_not_found` | That address is not a SunPump token on this network (`sunpump buy` / `sell` / `token-info`) |
+| `launchpad_trading_closed` | The token's bonding curve is closed — it is awaiting launch, or it has launched and moved to SunSwap. The message distinguishes the two: one is a wait, the other a redirect to `sunswap swap` |
+| `launch_outcome_unknown` | `sunpump launch`: the create call failed without the service refusing it — a timeout, a 5xx, a dropped connection, or a reply that does not parse or names no token. The token may exist — look it up with `sunpump token-search <symbol>` (`error.details.symbol`) before launching again. `error.details.failure` / `httpStatus` say what went wrong, where known |
 | `insufficient_reserve` | `exchange withdraw`: more than that side of the pair holds |
 | `precision_loss` / `slippage_exceeded` / `exchange_trading_disabled` | Node rejections named from a narrow allowlist — an amount the reserve ratio cannot convert cleanly, a return below the floor, or a network that is not accepting Bancor trades at all |
 | `not_exportable` | The account holds no exportable secret (watch-only or Ledger) — `backup` |
@@ -391,7 +416,29 @@ echo "transaction outcome unknown after deadline: $txid" >&2
 exit 1
 ```
 
-4. **Batch operations**: each command is one transaction with one exit code. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
+4. **Batch operations**: each command is one transaction with one exit code — except the ones in rule 5. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
+
+5. **A command may send several transactions.** The `sunswap` liquidity commands, a router `sunswap swap` that spends a token, and a first `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `data.approvalTxIds`, in the order sent, beside the main `txId`. Approvals always wait for confirmation, even without `--wait` (which governs only the main transaction); each waits up to `--wait-timeout` (default 60000 ms), so several approvals lengthen the run, and one that does not confirm in time stops the command with `timeout` (exit 1) before the next step. If a later step fails — a confirmation timeout, another approval, the Permit2 signature, or the main call — the original error code is kept and `error.details.approvalTxIds` lists the approvals already submitted (text errors list them too). They are separate transactions and are not rolled back; a listed id records submission, not success, so check its receipt before retrying. Re-running is safe: an allowance that already suffices is not approved again.
+
+6. **One command writes without a transaction of ours.** `sunpump launch` asks SunPump to create a token; the service signs it, pays for it and chooses its owner. So there is no `stage`, no `confirmed`, no fee and no `--wait` — and `data.token.owner` is the creator the service picked, **not** the local account. Its `createTxHash` is the service's own: use `tx info` to find out whether it is on chain yet. A refusal from that service is `provider_error` (exit `1`), including a name or symbol it will not accept.
+
+7. **Trade receipts separate measured from quoted.** A confirmed `sunswap swap` reports `amountOut`, `sunpump buy` `tokensOut`, `sunpump sell` `trxOut`, and the liquidity commands their token amounts — read from the transaction's own transfers and events, excluding network fees, with `amountsEstimated: false`. If the receipt cannot be read, the pre-trade estimate stays, `amountsEstimated` is `true` and a warning says why; a failed receipt read never turns a confirmed trade into a failure. A router swap's `priceImpactPercent` and trading fee remain quoted figures (`priceImpactEstimated: true`).
+
+### `fee` is an estimate, and `feeCovers` says what it covers
+
+A dry run's `fee` is what the chain's own simulation predicts. Two things a script must know:
+
+**It is a lower bound.** TRON simulates against current state, and the real execution writes storage the simulation does not (measured on Nile: 107,565 energy estimated, 120,426 burned). A fee limit computed from an estimate can fail; the `sunswap` / `sunpump` `--fee-limit` defaults to a constant and is never derived from one.
+
+**It may cover only part of the operation.** A call whose allowance is not yet on chain, or that embeds a Permit2 signature not yet made, cannot be simulated. Rather than fail, the commands that approve first report what they can and say so in `feeCovers`:
+
+| `feeCovers` | `fee` is | When |
+|---|---|---|
+| `"all"` | the whole operation | the allowances already suffice, or the command needs none |
+| `"approvals"` | the approval transactions only | an approval is still pending, so the main call is not estimable yet |
+| `"none"` | a `{feeModel, note}` object, no figure | only an unsigned Permit2 grant stands in the way; there is no approval to price |
+
+When an unsigned Permit2 grant prevents estimation, `feeUnavailableReason` explains the dependency. `fee` is **never omitted** — a missing key would read as "free". Because SunSwap V2 / V3 approvals are exact and consumed, a repeat of the same operation usually needs a fresh approval and reports `"approvals"` again.
 
 ## Stability promise (v1)
 

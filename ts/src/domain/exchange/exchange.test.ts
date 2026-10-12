@@ -14,12 +14,12 @@ const TRX = 1_000_000n; // sun per TRX
 
 describe("bancor pricing", () => {
   /**
-   * The spec's worked example, in minimal units: a 10,000 TRX / 500,000 MyToken pool
-   * (precision 6), selling 100 TRX. The spec states the predicted return as 4,950 whole tokens —
+   * A worked example, in minimal units: a 10,000 TRX / 500,000 MyToken pool (precision 6),
+   * selling 100 TRX. The predicted return is 4,950 whole tokens —
    * an independent check on the port, since that number was written from the chain's behaviour and
    * not from this code.
    */
-  it("matches the spec's worked example", () => {
+  it("matches the worked example", () => {
     const out = bancorOutput(10_000n * TRX, 500_000n * 1_000_000n, 100n * TRX);
     expect(out / 1_000_000n).toBe(4950n);
   });
@@ -56,7 +56,7 @@ describe("bancor pricing", () => {
 });
 
 describe("slippage floor", () => {
-  it("rounds the floor down, matching the spec's 1% example", () => {
+  it("rounds the floor down, matching the 1% worked example", () => {
     // predicted 4,950 whole tokens → 1% → 4,900.5 → 4,900
     expect(slippageFloor(4950n, 1)).toBe(4900n);
   });

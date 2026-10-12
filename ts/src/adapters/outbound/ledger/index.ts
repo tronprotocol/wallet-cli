@@ -1,3 +1,4 @@
+import { hidHandle } from "./hid-handle.js";
 /**
  * Ledger — device transport plus per-chain app.
  *
@@ -131,7 +132,11 @@ function unwrap<T>(mod: unknown): T {
 }
 
 /** Open the device transport: Speculos HTTP when SPECULOS_PORT is set, else USB/HID. */
-async function openTransport(): Promise<{ transport: unknown; close: () => Promise<void> }> {
+async function openTransport(): Promise<{
+  transport: unknown;
+  close: () => Promise<void>;
+  abort: () => void;
+}> {
   const port = process.env.SPECULOS_PORT;
   if (port) {
     const Speculos = unwrap<any>(await import("@ledgerhq/hw-transport-node-speculos-http"));
@@ -139,11 +144,11 @@ async function openTransport(): Promise<{ transport: unknown; close: () => Promi
       baseURL: process.env.SPECULOS_HOST ?? "http://127.0.0.1",
       apiPort: port,
     });
-    return { transport, close: () => transport.close() };
+    return hidHandle(transport);
   }
   const Hid = unwrap<any>(await import("@ledgerhq/hw-transport-node-hid-noevents"));
   const transport = await Hid.open("");
-  return { transport, close: () => transport.close() };
+  return hidHandle(transport);
 }
 
 function errMessage(e: unknown): string {
@@ -182,6 +187,16 @@ function classifyDeviceError(e: unknown): CliError {
     return new ChainError("signing_rejected", "the operation was rejected on the device");
   // Its own code, not the generic device bucket: "connected but locked" has exactly one fix, and
   // `auth_required` would send the reader looking for a password this CLI never asked for.
+  if (
+    ["DisconnectedDevice", "DisconnectedDeviceDuringOperation"].includes(
+      (e as { name?: string })?.name ?? "",
+    )
+  ) {
+    return new WalletError(
+      "device_disconnected",
+      "the Ledger device disconnected; reconnect it, unlock it, open the correct app and retry",
+    );
+  }
   if (isLockedDevice(e))
     return new WalletError(
       "device_locked",
@@ -190,7 +205,7 @@ function classifyDeviceError(e: unknown): CliError {
   // 0x6d00 (INS_NOT_SUPPORTED) is a standard status word every Ledger app shares — the app version
   // does not implement this instruction, or the wrong app is open. Kept chain- and operation-agnostic
   // on purpose: classifyDeviceError fires for any family and any call.
-  if (status === 0x6d00) {
+  if (status === 0x6d00 || status === 0x6d02) {
     return new WalletError(
       "ledger_unsupported",
       "the Ledger app does not support this operation — make sure the correct app is open on the device and updated to its latest version",
@@ -209,7 +224,11 @@ function classifyDeviceError(e: unknown): CliError {
   }
   const setting = status === undefined ? undefined : APP_SETTING_REQUIRED[status];
   if (setting) return new WalletError("ledger_setting_required", setting);
-  return new ExecutionError("auth_required", `Ledger device error: ${errMessage(e)}`);
+  return new ExecutionError(
+    "auth_required",
+    "Ledger operation failed; reconnect the device, unlock it and open the correct app",
+    status === undefined ? undefined : { statusCode: status },
+  );
 }
 
 export class Ledger {
@@ -223,31 +242,21 @@ export class Ledger {
     }
   }
 
-  // Open a transport, run `fn` against the Trx app, then always close (cf. the demo's withDevice).
-  // Timeout wraps the run so a timed-out call surfaces as ChainError("timeout"); callers'
-  // classifyDeviceError passes CliError through, so it isn't remapped to auth_required. Unlike an
-  // HTTP RPC, an in-flight HID APDU is not self-canceling: onTimeout MUST close the transport, which
-  // rejects the pending APDU (so the run unwinds) and releases the native handle. Without this the
-  // handle leaks, pins libuv, and the process hangs after a timeout — breaking the deterministic-exit
-  // contract. close() may run twice (here and in the finally); both swallow errors so double-close is
-  // harmless.
-  //
-  // An optional `signal` gives callers the same lever the timeout uses: aborting closes the
-  // transport, which rejects the pending APDU and frees the native handle immediately instead of
-  // leaving it open until this method's own timeout expires.
+  // Always close a completed operation normally. On abort/timeout bypass the transport's
+  // APDU wait and close the native HID handle; an opener finishing late is cancelled too.
   #bound<A extends LedgerApp, T>(
     family: ChainFamily,
     fn: (app: A) => Promise<T>,
     signal?: AbortSignal,
   ): Promise<T> {
-    let handle: { transport: unknown; close: () => Promise<void> } | undefined;
+    let handle: { transport: unknown; close: () => Promise<void>; abort: () => void } | undefined;
     // `cancelled` matters because the abort can land before openTransport() resolves: at that
     // moment there is no handle to close, and a fire-once listener will not run again. Recording
     // it lets the opener close the transport it is about to receive instead of leaking it.
     let cancelled = false;
     const closeTransport = (): void => {
       cancelled = true;
-      handle?.close().catch(() => {});
+      handle?.abort();
     };
     const run = (async () => {
       const App = unwrap<new (transport: unknown) => LedgerApp>(await APP_LOADER[family]());
@@ -258,13 +267,18 @@ export class Ledger {
         // thing here — there is no credential to supply, the device simply is not there — and it
         // read the same as a locked device, whose fix is entirely different.
         if (isLockedDevice(e)) throw classifyDeviceError(e);
+        const noDevice =
+          (e as { id?: string })?.id === "NoDevice" ||
+          (e as { name?: string })?.name === "NoDevice";
         throw new WalletError(
-          "device_not_found",
-          `cannot reach a Ledger device — connect it, unlock it, and open the app: ${errMessage(e)}`,
+          noDevice ? "device_not_found" : "device_unavailable",
+          noDevice
+            ? "no Ledger device was found; connect it, unlock it and open the correct app"
+            : "cannot open the Ledger device; close Ledger Live and other applications using it, check USB access, reconnect it and retry",
         );
       }
       if (cancelled) {
-        await handle.close().catch(() => {});
+        handle.abort();
         throw new ChainError(
           "cancelled",
           "the Ledger operation was cancelled before it reached the device",
@@ -276,13 +290,23 @@ export class Ledger {
         await handle.close().catch(() => {});
       }
     })();
-    if (signal) {
-      if (signal.aborted) closeTransport();
-      else signal.addEventListener("abort", closeTransport, { once: true });
-    }
-    return withTimeout(run, this.timeoutMs, closeTransport).finally(() => {
-      signal?.removeEventListener("abort", closeTransport);
+    let rejectCancelled!: (error: ChainError) => void;
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      rejectCancelled = reject;
     });
+    const onAbort = () => {
+      closeTransport();
+      rejectCancelled(new ChainError("cancelled", "the Ledger operation was cancelled"));
+    };
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+    }
+    return withTimeout(Promise.race([run, cancellation]), this.timeoutMs, closeTransport).finally(
+      () => {
+        signal?.removeEventListener("abort", onAbort);
+      },
+    );
   }
 
   async getAddress(family: ChainFamily, path: string, opts?: GetAddressOpts): Promise<string> {
