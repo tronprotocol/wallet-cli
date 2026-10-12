@@ -1,16 +1,16 @@
 /**
  * Black-box checks for `sunswap swap`.
  *
- * The flag matrix and the network gate are refused before a request would be made. The market
- * decision and the pricing are covered by unit tests and by the live mainnet smoke, because both
- * markets' prices move with every trade — a curve's with every buy, the router's with every
- * block.
+ * The flag matrix and the network gate are refused before a request would be made. The
+ * router preconditions use a local RPC/API fixture: reaching those refusals requires market,
+ * token and route reads, which must not depend on mainnet availability or prices.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DETACHED } from "./detached.js";
 
 const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
@@ -19,20 +19,31 @@ const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
 
 const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
 
-let HOME: string;
+const RPC_FIXTURE = fileURLToPath(new URL("./sunswap-swap-preload.mjs", import.meta.url));
+
+let walletHome: string;
 beforeEach(() => {
-  HOME = mkdtempSync(join(tmpdir(), "wcli-swap-"));
+  walletHome = mkdtempSync(join(tmpdir(), "wcli-swap-"));
+});
+afterEach(() => {
+  rmSync(walletHome, { recursive: true, force: true });
 });
 
 function run(args: string[]) {
-  const env = { ...process.env, WALLET_CLI_HOME: HOME } as Record<string, string>;
+  const env = { ...process.env, WALLET_CLI_HOME: walletHome } as Record<string, string>;
   delete env.MASTER_PASSWORD;
-  const r = spawnSync(process.execPath, [...ENTRY_ARGS, ...args], {
+  const r = spawnSync(process.execPath, ["--import", RPC_FIXTURE, ...ENTRY_ARGS, ...args], {
     encoding: "utf8",
     env,
     timeout: 25_000,
     ...DETACHED,
   } as SpawnSyncOptionsWithStringEncoding);
+  if (r.error || r.signal) {
+    throw new Error(
+      `CLI subprocess failed: ${r.error?.message ?? r.signal}\nstdout: ${r.stdout}\nstderr: ${r.stderr}`,
+    );
+  }
+  expect(r.stderr).not.toContain("Unexpected fixture request");
   let json: any;
   try {
     json = JSON.parse(r.stdout);
@@ -197,14 +208,13 @@ describe("a router pair that spends a token", () => {
   });
 
   /**
-   * Every other sending mode needs an account — and REACHES THE NETWORK FIRST.
+   * Every other sending mode needs an account, after reading the market, token facts and route.
    *
    * The command declares `wallet: "none"` so that `--quote` works with no wallet at all, which means
    * the use case resolves the account itself. It cannot do that until it knows which market the pair
    * is on, and that is an on-chain read. So a caller with no account gets a launchpad read before the
-   * refusal. The ordering is deliberate — the market decision is made once, before anything else, so
-   * a quote and a fill cannot land on different markets — and the cost is one read on a path that was
-   * going to fail. Recorded here because the previous version of this comment claimed the opposite.
+   * refusal. The ordering is deliberate — the market decision is made once, before anything else,
+   * so a quote and a fill cannot land on different markets. The preload serves these reads locally.
    */
   it.each([
     ["execute", []],
