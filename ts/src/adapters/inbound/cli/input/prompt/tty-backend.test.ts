@@ -20,22 +20,51 @@ describe("defaultTtySource", () => {
     expect(defaultTtySource("darwin")).toBe(devTty);
   });
 
-  it("uses the console stdin on Windows, which has no /dev/tty", () => {
-    const stdin = fakeStream(true);
-    const src = defaultTtySource("win32", asStream(stdin));
-    expect(src.available()).toBe(true);
-    expect(src.open()).toBe(stdin);
-  });
-
-  it("reports no terminal on Windows when stdin is a pipe", () => {
-    expect(defaultTtySource("win32", asStream(fakeStream(false))).available()).toBe(false);
-  });
+  // Creating process.stdin switches fd 0 to non-blocking, so a later --password-stdin
+  // readFileSync(0) on a pipe whose writer has not written yet fails with EAGAIN.
+  it.each(["linux", "win32"] as const)(
+    "does not create process.stdin when the backend starts (%s)",
+    (platform) => {
+      const getter = vi.spyOn(process, "stdin", "get");
+      try {
+        new TtyBackend(defaultTtySource(platform)).isTTY();
+        expect(getter).not.toHaveBeenCalled();
+      } finally {
+        getter.mockRestore();
+      }
+    },
+  );
 });
 
 describe("consoleStdin", () => {
+  it("is available only when stdin is the console, and opens stdin itself", () => {
+    const stdin = fakeStream(true);
+    expect(
+      consoleStdin(
+        () => true,
+        () => asStream(stdin),
+      ).available(),
+    ).toBe(true);
+    expect(
+      consoleStdin(
+        () => false,
+        () => asStream(stdin),
+      ).available(),
+    ).toBe(false);
+    expect(
+      consoleStdin(
+        () => true,
+        () => asStream(stdin),
+      ).open(),
+    ).toBe(stdin);
+  });
+
   it("releases by pausing, never destroying the process's own stdin", () => {
     const stdin = fakeStream(true);
-    const src = consoleStdin(asStream(stdin));
+    const src = consoleStdin(
+      () => true,
+      () => asStream(stdin),
+    );
     src.release(src.open());
     expect(stdin.pause).toHaveBeenCalled();
     expect(stdin.destroy).not.toHaveBeenCalled();

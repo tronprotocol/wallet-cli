@@ -4,7 +4,7 @@
  * the terminal (/dev/tty, or the console stdin on Windows). Prompts/echo never touch stdout.
  */
 import { openSync, closeSync } from "node:fs";
-import { ReadStream } from "node:tty";
+import { ReadStream, isatty } from "node:tty";
 import * as readline from "node:readline";
 import { ExecutionError } from "../../../../../domain/errors/index.js";
 
@@ -182,22 +182,24 @@ export const devTty: TtySource = {
 /**
  * Windows has no /dev/tty: the console is reachable only through stdin, so prompts work only when
  * stdin is the console, not a pipe. The stream is the process's own stdin — pause it, never destroy.
+ * process.stdin is created lazily on the first prompt: creating it switches fd 0 to non-blocking,
+ * which breaks a later `--password-stdin` read from a pipe whose writer has not written yet.
  */
-export function consoleStdin(stdin: ReadStream): TtySource {
+export function consoleStdin(
+  isConsole: () => boolean = () => isatty(0),
+  stdin: () => ReadStream = () => process.stdin as ReadStream,
+): TtySource {
   return {
-    available: () => stdin.isTTY === true,
-    open: () => stdin,
+    available: isConsole,
+    open: stdin,
     release: (stream) => {
       stream.pause();
     },
   };
 }
 
-export function defaultTtySource(
-  platform: NodeJS.Platform = process.platform,
-  stdin: ReadStream = process.stdin as ReadStream,
-): TtySource {
-  return platform === "win32" ? consoleStdin(stdin) : devTty;
+export function defaultTtySource(platform: NodeJS.Platform = process.platform): TtySource {
+  return platform === "win32" ? consoleStdin() : devTty;
 }
 
 /** Real backend: reads the terminal, writes prompts to stderr (never stdout). */
