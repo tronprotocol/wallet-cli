@@ -242,6 +242,13 @@ export class TtyBackend implements PromptBackend {
     const input = this.#stream();
     if (!hidden) {
       const rl = readline.createInterface({ input, output: process.stderr, terminal: true });
+      // Raw mode turns Ctrl-C into a keypress; without this listener readline closes silently and
+      // the question never answers, so the command hangs.
+      rl.on("SIGINT", () => {
+        rl.close();
+        process.stderr.write("\n");
+        process.exit(130);
+      });
       return new Promise((resolve) => {
         rl.question(prompt, (ans) => {
           rl.close();

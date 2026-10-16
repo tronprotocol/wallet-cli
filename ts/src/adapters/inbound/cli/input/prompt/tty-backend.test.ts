@@ -104,4 +104,20 @@ describe("TtyBackend", () => {
     new TtyBackend(src).close();
     expect(src.release).not.toHaveBeenCalled();
   });
+
+  // readline puts the terminal in raw mode, so Ctrl-C arrives as a keypress, not a signal. Without
+  // a SIGINT listener readline just closes and the question never answers: the command hangs.
+  it("exits 130 on Ctrl-C at a visible prompt, like the hidden prompt does", () => {
+    const { src, stream } = source(true);
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    const err = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      void new TtyBackend(src).question("label: ", false);
+      stream.emit("keypress", "\x03", { name: "c", ctrl: true, sequence: "\x03" });
+      expect(exit).toHaveBeenCalledWith(130);
+    } finally {
+      exit.mockRestore();
+      err.mockRestore();
+    }
+  });
 });

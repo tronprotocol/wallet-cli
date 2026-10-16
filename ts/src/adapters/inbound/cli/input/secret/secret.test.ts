@@ -146,3 +146,18 @@ describe("primePassword reuses an already-primed password", () => {
     expect(r.masterPassword()).toBe(OTHER);
   });
 });
+
+describe("SecretResolver --api-key-stdin", () => {
+  // Creating process.stdin switches fd 0 to non-blocking, so the readFileSync(0) that follows
+  // fails with EAGAIN on a pipe whose writer has not written yet (e.g. `op read ... |`).
+  it("reads the key without creating process.stdin", () => {
+    const getter = vi.spyOn(process, "stdin", "get");
+    try {
+      const r = new SecretResolver(streams("sk-test\n"), { apiKey: "-" });
+      expect(r.read("apiKey")).toBe("sk-test");
+      expect(getter).not.toHaveBeenCalled();
+    } finally {
+      getter.mockRestore();
+    }
+  });
+});
