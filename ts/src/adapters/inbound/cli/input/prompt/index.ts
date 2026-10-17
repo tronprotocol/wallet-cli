@@ -1,10 +1,10 @@
 /**
  * Prompter — the single owner of interactive TTY I/O. Logic (validation loops,
  * confirm match, select navigation) is backend-agnostic; the real backend talks to
- * /dev/tty. Prompts/echo never touch stdout.
+ * the terminal (/dev/tty, or the console stdin on Windows). Prompts/echo never touch stdout.
  */
 import { openSync, closeSync } from "node:fs";
-import { ReadStream } from "node:tty";
+import { ReadStream, isatty } from "node:tty";
 import * as readline from "node:readline";
 import { ExecutionError } from "../../../../../domain/errors/index.js";
 
@@ -152,22 +152,66 @@ function dim(s: string): string {
   return process.env.NO_COLOR ? s : `\x1b[2m${s}\x1b[0m`;
 }
 
-/** Real backend: reads /dev/tty, writes prompts to /dev/tty (never stdout). */
+/** Where the terminal input comes from. */
+export interface TtySource {
+  /** whether an interactive terminal is reachable; must not hold it open. */
+  available(): boolean;
+  open(): ReadStream;
+  /** release a stream returned by open() so the event loop can drain. */
+  release(stream: ReadStream): void;
+}
+
+/** POSIX: the controlling terminal, reachable even when stdin is a pipe. */
+export const devTty: TtySource = {
+  available() {
+    try {
+      closeSync(openSync("/dev/tty", "r"));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  open() {
+    return new ReadStream(openSync("/dev/tty", "r"));
+  },
+  release(stream) {
+    stream.destroy();
+  },
+};
+
+/**
+ * Windows has no /dev/tty: the console is reachable only through stdin, so prompts work only when
+ * stdin is the console, not a pipe. The stream is the process's own stdin — pause it, never destroy.
+ * process.stdin is created lazily on the first prompt: creating it switches fd 0 to non-blocking,
+ * which breaks a later `--password-stdin` read from a pipe whose writer has not written yet.
+ */
+export function consoleStdin(
+  isConsole: () => boolean = () => isatty(0),
+  stdin: () => ReadStream = () => process.stdin as ReadStream,
+): TtySource {
+  return {
+    available: isConsole,
+    open: stdin,
+    release: (stream) => {
+      stream.pause();
+    },
+  };
+}
+
+export function defaultTtySource(platform: NodeJS.Platform = process.platform): TtySource {
+  return platform === "win32" ? consoleStdin() : devTty;
+}
+
+/** Real backend: reads the terminal, writes prompts to stderr (never stdout). */
 export class TtyBackend implements PromptBackend {
   #tty: boolean;
-  #fd?: number;
   #input?: ReadStream;
   #keyQueue: KeyEvent[] = [];
   #pendingKey?: (key: KeyEvent) => void;
   #keyListener?: (s: string, key: KeyEvent) => void;
-  constructor() {
-    // Probe for a controlling terminal without holding the fd; the real stream opens on first prompt.
-    try {
-      closeSync(openSync("/dev/tty", "r"));
-      this.#tty = true;
-    } catch {
-      this.#tty = false;
-    }
+  constructor(private readonly source: TtySource = defaultTtySource()) {
+    // Probe for a terminal without holding it; the real stream opens on first prompt.
+    this.#tty = source.available();
   }
   isTTY(): boolean {
     return this.#tty;
@@ -184,10 +228,7 @@ export class TtyBackend implements PromptBackend {
    * the runner calls close once at the end to release it so the process exits.
    */
   #stream(): ReadStream {
-    if (!this.#input) {
-      this.#fd = openSync("/dev/tty", "r");
-      this.#input = new ReadStream(this.#fd);
-    }
+    if (!this.#input) this.#input = this.source.open();
     return this.#input;
   }
 
@@ -201,6 +242,13 @@ export class TtyBackend implements PromptBackend {
     const input = this.#stream();
     if (!hidden) {
       const rl = readline.createInterface({ input, output: process.stderr, terminal: true });
+      // Raw mode turns Ctrl-C into a keypress; without this listener readline closes silently and
+      // the question never answers, so the command hangs.
+      rl.on("SIGINT", () => {
+        rl.close();
+        process.stderr.write("\n");
+        process.exit(130);
+      });
       return new Promise((resolve) => {
         rl.question(prompt, (ans) => {
           rl.close();
@@ -277,7 +325,7 @@ export class TtyBackend implements PromptBackend {
       this.#pendingKey = resolve;
     });
   }
-  /** Release the persistent /dev/tty stream so the event loop drains and the process exits. */
+  /** Release the persistent terminal stream so the event loop drains and the process exits. */
   close(): void {
     if (this.#input) {
       try {
@@ -285,10 +333,9 @@ export class TtyBackend implements PromptBackend {
       } catch {
         /* may already be closed */
       }
-      this.#input.destroy();
+      this.source.release(this.#input);
       this.#input = undefined;
     }
-    this.#fd = undefined;
   }
 }
 
