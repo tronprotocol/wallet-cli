@@ -6,6 +6,7 @@
  * There is NO env source (no MASTER_PASSWORD): secrets never sit in env/process-table/history.
  * Handlers must never touch process.stdin directly. Secrets never enter logs/envelopes.
  */
+import { isatty } from "node:tty";
 import type {
   SecretKind,
   SecretResolver as ISecretResolver,
@@ -197,7 +198,7 @@ export class SecretResolver implements ISecretResolver {
     }
     this.#stdinUsedBy = kind;
     if (!this.#byPath.has("-")) {
-      if (kind === "apiKey" && process.stdin.isTTY)
+      if (kind === "apiKey" && isatty(0))
         this.streams.diagnostic(
           "info",
           "Reading API key from stdin; finish input with Ctrl-D. Use a pipe for non-interactive input.",
