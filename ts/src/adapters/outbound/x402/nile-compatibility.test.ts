@@ -176,3 +176,63 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
   expect(warn).toHaveBeenCalledWith(expect.stringContaining("13000.00%"));
   expect(endpointRequests).toBe(2);
 });
+
+it.each([
+  ["tron:0xcd8690dc", "tron:3448148188"],
+  ["tron:3448148188", "tron:0xcd8690dc"],
+])("selects an affordable %s / %s offer under the default cap", async (first, affordable) => {
+  const key = Wallet.createRandom().privateKey;
+  const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
+  const signTypedData = vi.fn((payload: TypedDataPayload) =>
+    tronSignStrategy.signTypedData(key, payload),
+  );
+  const requirement = {
+    scheme: "exact",
+    network: first,
+    amount: "2000000",
+    asset: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+    payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+    maxTimeoutSeconds: 300,
+    extra: { assetTransferMethod: "permit2" },
+  };
+  let acceptedNetwork: string | undefined;
+  const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+    const request = new Request(input, init);
+    const signature = request.headers.get("payment-signature");
+    if (signature) {
+      acceptedNetwork = JSON.parse(Buffer.from(signature, "base64").toString()).accepted.network;
+      return new Response("delivered");
+    }
+    const challenge = {
+      x402Version: 2,
+      resource: { url: request.url },
+      accepts: [requirement, { ...requirement, network: affordable, amount: "1000000" }],
+    };
+    return Response.json(challenge, {
+      status: 402,
+      headers: { "payment-required": Buffer.from(JSON.stringify(challenge)).toString("base64") },
+    });
+  });
+  const client = new X402PaymentClient(
+    {
+      assertCanSign() {},
+      resolve: () => ({ kind: "software", address, signTypedData }),
+    } as never,
+    fetcher,
+  );
+  await expect(
+    client.pay(
+      { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
+      {
+        id: "tron:3448148188",
+        family: "tron",
+        chainId: "3448148188",
+        httpEndpoint: "http://127.0.0.1:1",
+      } as never,
+      { url: "https://payment.example", method: "GET", headers: [], token: "USDT" },
+    ),
+  ).resolves.toMatchObject({ delivered: true });
+  expect(acceptedNetwork).toBe(affordable);
+  expect(signTypedData).toHaveBeenCalledOnce();
+  expect(signTypedData.mock.calls[0]![0].message.permitted).toMatchObject({ amount: 1000000n });
+});

@@ -8,7 +8,7 @@ import { ChainError } from "../../../domain/errors/index.js";
 
 afterEach(() => vi.restoreAllMocks());
 
-it.each(["sufficient", "auto", "sponsored", "reverted"])(
+it.each(["sufficient", "sufficient-sponsored", "auto", "sponsored", "reverted"])(
   "handles TRON allowance through the installed SDK: %s",
   async (mode) => {
     const key = Wallet.createRandom().privateKey;
@@ -30,7 +30,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
           calls.push("allowance");
           return {
             result: { result: true },
-            constant_result: [mode === "sufficient" ? "f".repeat(64) : "0".repeat(64)],
+            constant_result: [mode.startsWith("sufficient") ? "f".repeat(64) : "0".repeat(64)],
           };
         }
         if (path === "wallet/triggersmartcontract") {
@@ -102,7 +102,9 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
           extra: { assetTransferMethod: "permit2" },
         },
       ],
-      ...(mode === "sponsored" ? { extensions: { [extension]: { info: { version: "1" } } } } : {}),
+      ...(["sponsored", "sufficient-sponsored"].includes(mode)
+        ? { extensions: { [extension]: { info: { version: "1" } } } }
+        : {}),
     };
     let payload: any;
     const fetcher = vi.fn<typeof fetch>(async (request, init) => {
@@ -147,8 +149,12 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
       expect(fetcher).toHaveBeenCalledOnce();
     } else {
       await expect(payment).resolves.toMatchObject({ delivered: true });
-      if (mode === "sufficient") expect(sign).not.toHaveBeenCalled();
+      if (mode.startsWith("sufficient")) expect(sign).not.toHaveBeenCalled();
       else expect(sign).toHaveBeenCalledOnce();
+      if (mode === "sufficient-sponsored") {
+        expect(payload.extensions ?? {}).not.toHaveProperty(extension);
+        expect(calls).not.toContain("approve-broadcast");
+      }
       if (mode === "auto")
         expect(calls).toEqual([
           "allowance",

@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
-import { x402Client, wrapFetchWithPayment } from "@bankofai/x402-fetch";
+import { x402Client } from "@x402/core/client";
+import { wrapFetchWithPayment } from "@x402/fetch";
 import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
 import { X402PaymentClient } from "./payment-client.js";
 
