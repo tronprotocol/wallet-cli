@@ -129,3 +129,51 @@ it.each([
   expect(signTypedData).toHaveBeenCalledOnce();
   expect(calls).toEqual(["/verify", "/settle"]);
 });
+
+it("pins a raw-amount roundtrip to the asset its own paywall serves", async () => {
+  const payer = "0x1111111111111111111111111111111111111111";
+  const transaction = "0x" + "a".repeat(64);
+  const signTypedData = vi.fn(async (payload) => ({
+    primaryType: payload.primaryType,
+    signature: "0x" + "a".repeat(130),
+  }));
+  const resolver = {
+    assertCanSign: vi.fn(),
+    resolve: () => ({ address: payer, kind: "software", signTypedData }),
+  } as unknown as SignerResolver;
+  const facilitator: typeof fetch = async (url) =>
+    Response.json(
+      String(url).endsWith("/verify")
+        ? { isValid: true, payer }
+        : { success: true, transaction, network: "eip155:56", payer },
+    );
+  const service = new X402Service(
+    new X402PaymentClient(resolver),
+    {} as ProviderCatalogPort,
+    {} as never,
+    new X402HttpServer(facilitator),
+  );
+  // No --token or --asset: the paywall's default token must still bound the raw limit.
+  const result = await service.roundtrip(
+    { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn() } as never,
+    { id: "eip155:56", chainId: "56", family: "evm" } as never,
+    {
+      host: "127.0.0.1",
+      port: 0,
+      payTo: "0x2222222222222222222222222222222222222222",
+      rawAmount: "10000000000000000",
+      scheme: "exact",
+      facilitatorUrl: "https://facilitator.example",
+    },
+  );
+  expect(result.pay).toMatchObject({
+    settled: true,
+    payment: {
+      asset: "0x55d398326f99059fF775485246999027B3197955",
+      token: "USDT",
+      amount: "0.01",
+      rawAmount: "10000000000000000",
+    },
+  });
+  expect(signTypedData).toHaveBeenCalledOnce();
+});
