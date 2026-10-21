@@ -150,12 +150,30 @@ it.skipIf(!entry).each(["usage-summary", "usage-records", "recharge-orders"])(
 it.skipIf(!entry).each([
   [["x402", "pay", "https://example.test", "--max-amount", "0"], "invalid_amount", 2],
   [
-    ["x402", "pay", "https://example.test", "--max-raw-amount", (1n << 256n).toString()],
+    [
+      "x402",
+      "pay",
+      "https://example.test",
+      "--max-raw-amount",
+      (1n << 256n).toString(),
+      "--token",
+      "USDT",
+    ],
     "invalid_amount",
     2,
   ],
   [
-    ["x402", "pay", "https://example.test", "--max-amount", "1", "--max-raw-amount", "1"],
+    [
+      "x402",
+      "pay",
+      "https://example.test",
+      "--max-amount",
+      "1",
+      "--max-raw-amount",
+      "1",
+      "--token",
+      "USDT",
+    ],
     "invalid_option",
     2,
   ],

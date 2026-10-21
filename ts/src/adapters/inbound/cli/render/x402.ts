@@ -104,12 +104,16 @@ export function providerEndpointsText(value: unknown): string {
   );
 }
 export function paymentText(value: unknown): string {
-  const p = asObj(value);
+  const p = asObj(value),
+    paid = asObj(p.payment);
+  const raw = typeof paid.rawAmount === "string" ? `${text(paid.rawAmount)} base units` : "";
   const details = query([
     ["URL", text(p.url)],
     ["Status", text(p.status)],
     ["Settled", p.settled === true ? "Yes" : "No"],
     ["Delivered", p.delivered === true ? "Yes" : "No"],
+    ["Amount", typeof paid.amount === "string" && raw ? `${text(paid.amount)} (${raw})` : raw],
+    ["Asset", text(paid.token ?? paid.asset)],
     ["From", text(asObj(p.payer).address)],
     ["Transaction", text(asObj(p.paymentResponse).transaction)],
     ["Approval", text(asObj(p.approval).txId)],

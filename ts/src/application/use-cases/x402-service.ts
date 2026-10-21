@@ -71,7 +71,10 @@ export class X402Service {
         token: input.token,
         scheme: input.scheme,
         expectedPayTo: input.payTo,
-        asset: input.asset,
+        // Pin the route to the asset this paywall serves; a raw limit has no unit of its own.
+        asset:
+          input.asset ??
+          (typeof handle.details.asset === "string" ? handle.details.asset : undefined),
         decimals: input.decimals,
         exactAmount: input.rawAmount === undefined ? (input.amount ?? "0.0001") : undefined,
         maxAmount: input.rawAmount === undefined ? (input.amount ?? "0.0001") : undefined,

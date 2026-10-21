@@ -16,7 +16,7 @@ wallet-cli x402 pay <url> [--method <m>] [--header "Name: value"]... [--body <s>
 
 Sends the request. If the endpoint answers with a successful status (2xx), that response is returned as-is and nothing is paid; any other status except `402` fails with `provider_error`, carrying `httpStatus` and `phase: "request"`. If it answers `402 Payment Required`, `pay` reads the payment routes it offers, picks one that matches the selected `--network` and your filters, signs a payment authorization with the active account (or `--account`), and sends the request again with it. The endpoint's facilitator settles the payment on chain.
 
-**Nothing is signed until a route matches.** Routes on other networks are ignored; `--token`, `--asset` and `--scheme` narrow the choice further, and `--max-amount` (whole tokens) or `--max-raw-amount` (smallest units) rules out a route priced above it. If no route matches, the command fails with `no_matching_requirement`; if the matching route is priced over the limit, with `amount_exceeds_limit`. Both are raised before signing, with `paymentStatus: "not_sent"`, and no password is asked for — with or without `--dry-run`. Without a limit of your own, a built-in ceiling of **$1 per payment** applies to the known stablecoins; a route priced above it also fails with `amount_exceeds_limit`, and passing `--max-amount` or `--max-raw-amount` replaces that ceiling with yours.
+**Nothing is signed until a route matches.** Routes on other networks are ignored; `--token`, `--asset` and `--scheme` narrow the choice further, and `--max-amount` (whole tokens) or `--max-raw-amount` (smallest units) rules out a route priced above it. If no route matches, the command fails with `no_matching_requirement`; if the matching route is priced over the limit, with `amount_exceeds_limit`. Both are raised before signing, with `paymentStatus: "not_sent"`, and no password is asked for — with or without `--dry-run`. A raw amount has no unit, so `--max-raw-amount` requires `--token` or `--asset` to name the token it counts (`invalid_option` otherwise). Without a limit of your own, only the known stablecoins are accepted, under a built-in ceiling of **$1 per payment**; a route priced above it also fails with `amount_exceeds_limit`. A limit of your own replaces that ceiling and the stablecoin restriction, but other tokens are still refused: `--max-amount` needs a token whose decimals are known (or `--asset` with `--decimals`), and `--max-raw-amount` pays only the token you pinned.
 
 **Two payment schemes:**
 
@@ -52,7 +52,7 @@ Requires an account, even for an endpoint that turns out to be free. The master 
 | `--body <string>` | Request body; excludes `--body-file` |
 | `--body-file <path>` | Read the request body from a file, or from stdin with `-`; excludes `--body` |
 | `--max-amount <n>` | Refuse a route priced above this, in whole tokens; excludes `--max-raw-amount` |
-| `--max-raw-amount <n>` | The same limit in smallest units |
+| `--max-raw-amount <n>` | The same limit in smallest units; requires `--token` or `--asset`, since a raw amount has no unit |
 | `--token <symbol>` | Accept only routes paying in this token |
 | `--asset <address>` | Accept only routes paying in this token contract |
 | `--decimals <n>` | Decimals of the `--asset` token; requires `--asset` |
@@ -114,6 +114,8 @@ URL          https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotat
 Status       200
 Settled      Yes
 Delivered    Yes
+Amount       0.000001 (1 base units)
+Asset        USDT
 From         TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6
 Transaction  9b41c7e2d05f83a6e1c4b8d27f9a03e5c6d8b1f4a2e7c9d0b3f5a8e1c6d2b7f4
 Output       btc-quote.json
@@ -124,10 +126,10 @@ printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/provide
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC","status":200,"delivered":true,"settled":true,"payer":{"address":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"paymentResponse":{"success":true,"transaction":"9b41c7e2d05f83a6e1c4b8d27f9a03e5c6d8b1f4a2e7c9d0b3f5a8e1c6d2b7f4","network":"tron:0x2b6653dc","payer":"0xe2e1a54926527fbb4e4420de4c6bab82beaee24d"},"output":{"path":"btc-quote.json","bytes":214}},"meta":{"durationMs":6412,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC","status":200,"delivered":true,"settled":true,"payer":{"address":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"paymentResponse":{"success":true,"transaction":"9b41c7e2d05f83a6e1c4b8d27f9a03e5c6d8b1f4a2e7c9d0b3f5a8e1c6d2b7f4","network":"tron:0x2b6653dc","payer":"0xe2e1a54926527fbb4e4420de4c6bab82beaee24d"},"output":{"path":"btc-quote.json","bytes":214},"payment":{"asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","token":"USDT","decimals":6,"amount":"0.000001","rawAmount":"1"}},"meta":{"durationMs":6412,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
-`Settled Yes` means the payment went through on chain; `Delivered Yes` means the paid response arrived and was written to `btc-quote.json`. `From` is the paying account and `Transaction` the payment's transaction ID (JSON: `data.payer.address` and `data.paymentResponse.transaction`). The facilitator submits the payment transaction and pays its energy, so the payment itself costs the account only the quoted price. This account already had a Permit2 allowance; on a first payment without one, see the Permit2 approve note above.
+`Settled Yes` means the payment went through on chain; `Delivered Yes` means the paid response arrived and was written to `btc-quote.json`. `Amount` and `Asset` are what was paid (JSON: `data.payment`). `From` is the paying account and `Transaction` the payment's transaction ID (JSON: `data.payer.address` and `data.paymentResponse.transaction`). The facilitator submits the payment transaction and pays its energy, so the payment itself costs the account only the quoted price. This account already had a Permit2 allowance; on a first payment without one, see the Permit2 approve note above.
 
 ## Output
 
@@ -138,6 +140,7 @@ printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/provide
 | `delivered` | boolean | Whether the final response was successful (2xx) |
 | `settled` | boolean | Whether a valid settlement receipt for the selected network came back |
 | `payer` | object | `{address}` of the paying account; present when a payment was signed |
+| `payment` | object | What the signed payment pays, present when one was created: `asset` (token contract), `token` (symbol, when the token is registered), `decimals` and `amount` (whole tokens, when the decimals are known), and `rawAmount` (smallest units) |
 | `paymentResponse` | object | The facilitator's settlement receipt, when the endpoint sent one: `success`, `transaction` (the payment's transaction ID), `network`, and `payer` — both as the facilitator writes them, e.g. `tron:0xcd8690dc` and a hex address |
 | `approval` | object | TRON only, when the payment needed a one-time Permit2 approve: `{txId, token, spender, allowance: "unlimited", feeLimitSun, status}`. `status` is `confirmed` (broadcast and mined before the payment was signed) or `exported` (signed into the payment package for the endpoint to sponsor). The same object appears in `error.details.approval` when anything after the approve fails |
 | `response` | any | The response body — parsed JSON, or text; absent with `--out` |
@@ -146,7 +149,7 @@ printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/provide
 
 ## Exit status
 
-`0` success, including a free response · `1` execution failure (`no_matching_requirement`, `amount_exceeds_limit` — both before signing, `paymentStatus: "not_sent"`; `gasfree_insufficient_balance` / `gasfree_not_activated`, `permit2_allowance_required` / `approval_reset_required`, `fee_cap_exceeded`, `payer_mismatch`, `invalid_settlement`, `invalid_x402_response`, `response_too_large`, `provider_rate_limited` — HTTP 429; `provider_error` — any other failed request or payment, with `error.details.phase` and `httpStatus`; `missing_wallet_address`; `auth_required` — a payment needs signing and no `--password-stdin` was given; `auth_failed`, `timeout`) · `2` usage error (`output_exists` — the `--out` file exists; `gasfree_credentials_missing`; `invalid_option` — a binary response without `--out`, two exclusive options, `--decimals` without `--asset`, or `--wait` / `--wait-timeout`, which this command does not take because the facilitator settles the payment; `invalid_amount` — a limit that is not a positive amount; `invalid_value` — e.g. a malformed `--header`, an unsupported `--method`, or a `--gasfree-relay` URL that is not HTTPS).
+`0` success, including a free response · `1` execution failure (`no_matching_requirement`, `amount_exceeds_limit` — both before signing, `paymentStatus: "not_sent"`; `gasfree_insufficient_balance` / `gasfree_not_activated`, `permit2_allowance_required` / `approval_reset_required`, `fee_cap_exceeded`, `payer_mismatch`, `invalid_settlement`, `invalid_x402_response`, `response_too_large`, `provider_rate_limited` — HTTP 429; `provider_error` — any other failed request or payment, with `error.details.phase` and `httpStatus`; `missing_wallet_address`; `auth_required` — a payment needs signing and no `--password-stdin` was given; `auth_failed`, `timeout`) · `2` usage error (`output_exists` — the `--out` file exists; `gasfree_credentials_missing`; `invalid_option` — a binary response without `--out`, two exclusive options, `--decimals` without `--asset`, `--max-raw-amount` without `--token` or `--asset`, or `--wait` / `--wait-timeout`, which this command does not take because the facilitator settles the payment; `invalid_amount` — a limit that is not a positive amount; `invalid_value` — e.g. a malformed `--header`, an unsupported `--method`, or a `--gasfree-relay` URL that is not HTTPS).
 
 ## See also
 

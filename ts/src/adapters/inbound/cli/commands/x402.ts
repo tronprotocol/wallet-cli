@@ -34,7 +34,9 @@ const payFields = z.object({
   decimals: integerLiteral(0, 18).optional().describe("decimals for an explicit asset"),
   scheme: z.enum(["exact", "exact_gasfree"]).optional(),
   maxAmount: paymentAmount.optional().describe("maximum payment in whole tokens"),
-  maxRawAmount: rawPaymentAmount.optional().describe("maximum payment in smallest units"),
+  maxRawAmount: rawPaymentAmount
+    .optional()
+    .describe("maximum payment in smallest units; requires --token or --asset"),
   dryRun: z.boolean().default(false).describe("inspect the payment challenge without signing"),
   gasfreeRelay: z
     .string()
@@ -58,6 +60,16 @@ const payInput = payFields.superRefine((value, context) => {
       params: { errorCode: "invalid_option" },
       path: ["maxAmount"],
       message: "cannot be combined with --max-raw-amount",
+    });
+  }
+  // A raw limit has no unit: unpinned, it would cap whatever token the seller names.
+  if (value.maxRawAmount !== undefined && !value.token && !value.asset) {
+    context.addIssue({
+      code: "custom",
+      params: { errorCode: "invalid_option" },
+      path: ["maxRawAmount"],
+      message:
+        "requires --token or --asset; a raw limit has no unit, so pin it to one token or use --max-amount",
     });
   }
   if (value.body !== undefined && value.bodyFile !== undefined) {

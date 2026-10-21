@@ -53,6 +53,7 @@ describe("x402 command surface", () => {
         header: [],
         maxAmount: "1",
         maxRawAmount: "1",
+        token: "USDT",
       }).success,
     ).toBe(false);
   });

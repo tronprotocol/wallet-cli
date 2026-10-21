@@ -72,6 +72,28 @@ it("separates response text while output-file receipts omit body", () => {
     "--- response ---",
   );
 });
+it("shows the paid asset and amount after a payment", () => {
+  const rendered = paymentText({
+    status: 200,
+    settled: true,
+    payment: {
+      asset: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      token: "USDT",
+      decimals: 6,
+      amount: "0.01",
+      rawAmount: "10000",
+    },
+  });
+  expect(rendered).toMatch(/^Amount\s+0\.01 \(10000 base units\)$/m);
+  expect(rendered).toMatch(/^Asset\s+USDT$/m);
+  const unregistered = paymentText({
+    status: 200,
+    payment: { asset: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", rawAmount: "5" },
+  });
+  expect(unregistered).toMatch(/^Amount\s+5 base units$/m);
+  expect(unregistered).toMatch(/^Asset\s+0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c$/m);
+  expect(paymentText({ status: 200 })).not.toMatch(/Amount|Asset/);
+});
 it("wraps a wide-character summary with aligned continuation lines", () => {
   const original = Object.getOwnPropertyDescriptor(process.stdout, "columns");
   Object.defineProperty(process.stdout, "columns", { value: 32, configurable: true });
