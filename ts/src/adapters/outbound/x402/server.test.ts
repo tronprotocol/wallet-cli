@@ -64,6 +64,24 @@ it("rejects malformed request URLs and keeps serving health requests", async () 
   });
 });
 
+it("closes the connection after a 402 challenge so the paid retry cannot reuse a stale socket", async () => {
+  await withServer({}, async (port) => {
+    const response = await new Promise<{ status?: number; connection?: string }>(
+      (resolve, reject) => {
+        const req = request({ hostname: "127.0.0.1", port, path: "/pay" }, (res) => {
+          res.resume();
+          res.on("end", () =>
+            resolve({ status: res.statusCode, connection: res.headers.connection }),
+          );
+        });
+        req.on("error", reject);
+        req.end();
+      },
+    );
+    expect(response).toEqual({ status: 402, connection: "close" });
+  });
+});
+
 it.each([
   [{ success: true, transaction: "", network: "tron:0xcd8690dc" }, 502],
   [{ success: true, transaction: "a".repeat(64), network: "eip155:1" }, 502],

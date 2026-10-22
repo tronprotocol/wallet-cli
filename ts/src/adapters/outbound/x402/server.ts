@@ -200,6 +200,10 @@ export class X402HttpServer implements X402ServerPort {
       if (pathname !== "/pay") return json(response, 404, { error: "not found" });
       const signature = request.headers["payment-signature"];
       if (!signature || Array.isArray(signature)) {
+        // The paid retry follows key decryption and signing, which can block the client's event
+        // loop past keepAliveTimeout (roundtrip runs both ends in one process). A reused socket
+        // would then be reset under the retry, so make the client open a fresh one.
+        response.setHeader("connection", "close");
         response.setHeader("payment-required", encodePaymentRequiredHeader(challenge as never));
         return json(response, 402, challenge);
       }
