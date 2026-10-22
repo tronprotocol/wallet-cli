@@ -86,6 +86,10 @@ describe("x402 SDK payer integration", () => {
 
 it("keeps the SDK on the requirement whose spend limit was checked", async () => {
   const { client, signTypedData } = fixture(false, true);
-  await client.pay(scope, network, { ...input, maxRawAmount: "10" });
+  await client.pay(scope, network, {
+    ...input,
+    maxRawAmount: "10",
+    asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  });
   expect(signTypedData.mock.calls[0]![0].message.value).toBe(1n);
 });

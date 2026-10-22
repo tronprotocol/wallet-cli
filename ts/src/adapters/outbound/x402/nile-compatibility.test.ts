@@ -165,6 +165,7 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
         scheme: "exact_gasfree",
         gasfreeRelay: "https://relay.example/nile",
         maxRawAmount: "10000",
+        asset,
       },
     ),
   ).resolves.toMatchObject({ delivered: true });

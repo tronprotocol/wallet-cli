@@ -43,6 +43,7 @@ import { toX402Wallet } from "./signer-bridge.js";
 import { createPayerSigner } from "../../../application/services/x402/payer-signer.js";
 import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
 import { toX402Network, sameX402Network } from "../../../domain/x402/network-id.js";
+import { fromBaseUnits } from "../../../domain/amounts/index.js";
 
 type PaidFetchFactory = (
   network: NetworkDescriptor,
@@ -159,7 +160,13 @@ export class X402PaymentClient implements X402PaymentPort {
         out,
         toX402Network(network),
       );
-      return authorization.approval ? { ...result, approval: authorization.approval } : result;
+      return {
+        ...result,
+        ...(authorization.requirement
+          ? { payment: paidAmount(network, authorization.requirement, input) }
+          : {}),
+        ...(authorization.approval ? { approval: authorization.approval } : {}),
+      };
     } catch (error) {
       await out?.release();
       const classified = authorization.signed
@@ -439,6 +446,10 @@ export class X402PaymentClient implements X402PaymentPort {
     client.onPaymentCreationFailure(async ({ error }) => {
       creationError = sdkPaymentError(error, "create_payment");
     });
+    // Report the requirement the SDK actually built the payment for, not an earlier candidate.
+    client.onAfterPaymentCreation(async ({ selectedRequirements }) => {
+      authorization.requirement = selectedRequirements;
+    });
     const boundedFetch = this.boundedFetch(scope, network, signer);
     let first: Response | undefined = initial;
     const fetchWithInitial: typeof fetch = (request, init) => {
@@ -498,6 +509,27 @@ interface PaymentAuthorization {
   signed: boolean;
   /** The one-time Permit2 approve, once signed, and how far the SDK has taken it. */
   approval?: SignedApproval & { status: "submitted" | "confirmed" | "exported" };
+  /** The requirement the created payment pays. */
+  requirement?: { asset: string; amount: string };
+}
+
+/** What the signed payment pays: the token (symbol when registered) and its amount. */
+function paidAmount(
+  network: NetworkDescriptor,
+  requirement: { asset: string; amount: string },
+  input: X402PayInput,
+) {
+  const known = metadata(network.id, requirement.asset);
+  // An explicit --decimals is only accepted beside --asset, which this requirement matched.
+  const decimals = known?.decimals ?? input.decimals;
+  return {
+    asset: requirement.asset,
+    ...(known ? { token: known.symbol } : {}),
+    ...(decimals === undefined
+      ? {}
+      : { decimals, amount: fromBaseUnits(requirement.amount, decimals) }),
+    rawAmount: requirement.amount,
+  };
 }
 
 /** Never lose the approve's evidence to whatever failed after it. */
@@ -624,6 +656,13 @@ function selectMatching<T extends OfferedRequirement>(
   network: NetworkDescriptor,
   input: X402PayInput,
 ): T[] {
+  // A raw limit has no unit; without a pinned token it would cap whatever asset the seller names.
+  if (input.maxRawAmount !== undefined && !input.asset && !input.token) {
+    throw new UsageError(
+      "invalid_option",
+      "--max-raw-amount requires --token or --asset; a raw limit has no unit, so pin it to one token or use --max-amount",
+    );
+  }
   const expectedNetwork =
     network.family === "tron" ? `tron:0x${BigInt(network.chainId).toString(16)}` : network.id;
   const matching = requirements.filter((requirement) => {

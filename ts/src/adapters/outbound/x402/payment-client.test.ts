@@ -594,7 +594,7 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
 );
 
 it.each([
-  [{ maxRawAmount: "99" }, "amount_exceeds_limit"],
+  [{ maxRawAmount: "99", token: "USDT" }, "amount_exceeds_limit"],
   [{ maxAmount: "0.000000000000000099" }, "amount_exceeds_limit"],
   [{ token: "USDD" }, "no_matching_requirement"],
   [{ scheme: "exact_gasfree" as const }, "no_matching_requirement"],
