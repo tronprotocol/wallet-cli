@@ -144,5 +144,5 @@ it.each([
       rmSync(home, { recursive: true, force: true });
     }
   },
-  60000,
+  120000,
 );

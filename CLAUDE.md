@@ -16,7 +16,7 @@ Everything below (except the TypeScript Implementation section) refers to the Ja
 
 ## TypeScript Implementation
 
-The `ts/` package is a self-contained, agent-first CLI (Node.js 20+, ESM, TypeScript). Every command
+The `ts/` package is a self-contained, agent-first CLI (Node.js 22.23.4+ / 24.22.1+ / 26.12.1+, ESM, TypeScript). Every command
 has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts
 are used only for secret input (create / import / backup / delete). **All `ts/` commands run from the
 `ts/` directory.**
