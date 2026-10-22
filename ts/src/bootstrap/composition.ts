@@ -2,7 +2,7 @@ import { MessageService } from "../application/use-cases/message-service.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
-import { setLogger, noopLogger } from "@bankofai/x402-core";
+import { setLogger, noopLogger } from "@bankofai/x402-tron";
 import { BaiWalletBinding, baiChain } from "../application/use-cases/bai-wallet-binding.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";

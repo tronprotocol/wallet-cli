@@ -9,23 +9,18 @@ import {
 } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
-import {
-  x402Client,
-  wrapFetchWithPayment,
-  decodePaymentResponseHeader,
-} from "@bankofai/x402-fetch";
-import { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";
-import {
-  createClientTronSigner,
-  registerToken,
-  PERMIT2_ADDRESSES,
-  type ClientTronSigner,
-} from "@bankofai/x402-tron";
-import { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";
-import { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
-import type { ClientEvmSigner } from "@bankofai/x402-evm";
-import type { Network } from "@bankofai/x402-core/types";
-import { decodePaymentRequiredHeader } from "@bankofai/x402-core/http";
+import { wrapFetchWithPayment } from "@x402/fetch";
+import { x402Client } from "@x402/core/client";
+import { decodePaymentResponseHeader } from "@x402/core/http";
+import { createTrc20ApprovalResourceSponsoringClientExtension } from "@bankofai/x402-tron-extensions/trc20-approval-resource-sponsoring/client";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import { createClientTronSigner, registerToken, PERMIT2_ADDRESSES } from "@bankofai/x402-tron";
+import { ExactTronScheme } from "@bankofai/x402-tron/exact/client";
+import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
+import { createGasFreeApiClients, GASFREE_API_BASE_URLS } from "@bankofai/x402-tron/gasfree";
+import type { ClientEvmSigner } from "@x402/evm";
+import type { Network } from "@x402/core/types";
+import { decodePaymentRequiredHeader } from "@x402/core/http";
 import { open, unlink, type FileHandle } from "node:fs/promises";
 import type { X402PayInput, X402PaymentPort } from "../../../application/ports/x402-payment.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
@@ -431,15 +426,24 @@ export class X402PaymentClient implements X402PaymentPort {
         ...(network.apiKey ? { apiKey: network.apiKey } : {}),
         allowanceMode: "auto",
       });
-      registerExactTronScheme(client, {
-        signer: tronSigner as ClientTronSigner,
-        networks: [network.id as Network],
+      client.registerExtension(createTrc20ApprovalResourceSponsoringClientExtension(tronSigner));
+      // Register every offered spelling of this chain so spend controls can retain
+      // an affordable offer before the CLI policy selects its exact terms.
+      const wireNetworks = new Set(
+        (await decodeChallenge(initial.clone())).accepts
+          .filter((offer) => sameX402Network(offer.network, network.id))
+          .map((offer) => offer.network as Network),
+      );
+      const exact = new ExactTronScheme(tronSigner);
+      const gasfree = new ExactGasFreeTronScheme(tronSigner, {
+        apiClients: relay
+          ? { [network.id]: relay }
+          : createGasFreeApiClients(GASFREE_API_BASE_URLS),
       });
-      registerExactGasFreeTronScheme(client, {
-        schemeOptions: relay ? { apiClients: { [network.id]: relay } } : undefined,
-        signer: tronSigner as ClientTronSigner,
-        networks: [network.id as Network],
-      });
+      for (const wireNetwork of wireNetworks) {
+        client.register(wireNetwork, exact);
+        client.register(wireNetwork, gasfree);
+      }
     }
     // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
     let creationError: unknown;

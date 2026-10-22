@@ -3,7 +3,7 @@ import { Interface, Wallet } from "ethers";
 import { TronWeb, providers, utils as tronUtils } from "tronweb";
 import { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";
 import type { FacilitatorTronSigner } from "@bankofai/x402-tron";
-import type { PaymentPayload, PaymentRequirements } from "@bankofai/x402-core/types";
+import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
