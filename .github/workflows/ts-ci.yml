@@ -32,6 +32,7 @@ jobs:
         node:
           - "22"
           - "24"
+          - "26"
 
     defaults:
       run:
@@ -45,6 +46,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
+          # The runner image can lag behind the security releases that `engines` requires.
+          check-latest: true
           cache: npm
           cache-dependency-path: ts/package-lock.json
 

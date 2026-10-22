@@ -48,7 +48,7 @@ The TRON ids used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) rem
 
 ## Install
 
-**Prerequisites**: [Node.js](https://nodejs.org) **20 or later** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON or Ethereum app installed — see the [Ledger guide](docs/guide/ledger.md).
+**Prerequisites**: [Node.js](https://nodejs.org) **22.23.4+, 24.22.1+ or 26.12.1+** — the October 2026 security releases (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON or Ethereum app installed — see the [Ledger guide](docs/guide/ledger.md).
 
 ```bash
 npm install -g @tron-walletcli/wallet-cli
