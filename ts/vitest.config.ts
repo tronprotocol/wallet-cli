@@ -30,7 +30,9 @@ export default defineConfig({
           sequence: { groupOrder: 1 },
           environment: "node",
           include: ["test/**/*.test.ts"],
-          testTimeout: 30_000,
+          // Cases that spawn the CLI several times with real scrypt have measured ~30s on a loaded
+          // 4-vCPU CI runner, so 30s left no headroom.
+          testTimeout: 60_000,
           hookTimeout: 30_000,
           // Build once, then every case spawns `node dist/index.js` instead of cold-transpiling
           // the whole CLI through tsx. `verify:package` sets WALLET_CLI_TEST_ENTRY to the
