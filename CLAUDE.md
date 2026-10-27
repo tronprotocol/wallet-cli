@@ -6,20 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The repository holds two independent implementations:
 
-- `java/` — the original REPL-first implementation, described by the rest of this file.
-- `ts/` — the agent-first TypeScript rewrite (npm package `@tron-walletcli/wallet-cli`). See the
-  **TypeScript Implementation** section below and `ts/README.md`.
+- `ts/` — the agent-first TypeScript rewrite (npm package `@tron-walletcli/wallet-cli`). See
+  [TypeScript](#typescript-ts) and `ts/README.md`.
+- `java/` — the original REPL-first implementation. See [Java](#java-java).
 
-Everything below (except the TypeScript Implementation section) refers to the Java implementation.
-**All Java paths are relative to `java/`, and all Java commands are run from that directory**
-(`cd java` first).
+## TypeScript (`ts/`)
 
-## TypeScript Implementation
-
-The `ts/` package is a self-contained, agent-first CLI (Node.js 22.23.4+ / 24.22.1+ / 26.12.1+, ESM, TypeScript). Every command
-has a stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts
-are used only for secret input (create / import / backup / delete). **All `ts/` commands run from the
-`ts/` directory.**
+A self-contained, agent-first CLI (Node.js 22.23.4+ / 24.22.1+ / 26.12.1+, ESM, TypeScript). Every command has a
+stable JSON envelope, deterministic exit codes, and discoverable schemas; interactive prompts are used only for
+secret input (create / import / backup / delete). **All `ts/` commands run from the `ts/` directory.**
 
 ```bash
 cd ts
@@ -28,50 +23,31 @@ npm run build          # bundle to dist/ via tsup (bin: wallet-cli -> dist/index
 npm run dev -- <args>  # run from source via tsx (e.g. npm run dev -- create --label main)
 npm test               # vitest (tests are co-located as *.test.ts)
 npm run typecheck      # tsc --noEmit
-npm run depcruise      # dependency-cruiser — enforces the architecture rules below
+npm run depcruise      # dependency-cruiser — enforces the layer rules
 ```
 
-### Architecture (hexagonal / ports & adapters)
+### Development rules
 
-Dependencies point inward, and the table below is the rule — read it before changing boundaries,
-ports, or command routing. `depcruise` enforces it in CI (`ts/.dependency-cruiser.cjs`).
-`ts/docs/machine-interface.md` is the source of truth for the JSON contract (envelope, exit codes,
-stdout/stderr discipline).
+The rules for `ts/` are in `ts/docs/dev/rules/`. They are the single source of truth; do not restate them here.
 
-| Area (`ts/src/…`) | Role | May depend on | Must NOT depend on |
-|---|---|---|---|
-| `domain` | Pure rules & values, zero I/O (address, amounts, derivation, wallet, family, errors) | Node / pure libs only | application, adapters, bootstrap |
-| `application` | Use cases, services, contracts, and **ports** (interfaces it owns) | `domain` | adapters, bootstrap |
-| `adapters/inbound` | CLI driving side — parse argv, route to use cases, render output | application, domain | adapters/outbound, bootstrap |
-| `adapters/outbound` | Implements application ports — keystore, TronWeb/Tron gateway, Ledger, price, config, persistence | application ports, domain | adapters/inbound, bootstrap |
-| `bootstrap` | Composition root + process lifecycle (`runner.ts`, `composition.ts`, `argv.ts`, `families/`) | all areas | — (assembly only) |
+@ts/docs/dev/rules/architecture.md
+@ts/docs/dev/rules/comments.md
 
-Key points:
-- **Ports live in `application/ports/`** (e.g. `wallet-repository`, `tron-gateway`, `ledger-device`,
-  `price-provider`); outbound adapters implement them (dependency inversion). Shared transaction input types live in
-  `application/contracts/`; ports must not import use cases or services (`ports-are-innermost`).
-- **Chain-family differences** are isolated per family — `application/use-cases/<family>/`,
-  `adapters/outbound/chain/<family>/`, and the family plugin under `bootstrap/families/`. Both
-  `tron` and `evm` are registered unconditionally (`bootstrap/composition.ts`) and reachable: the
-  builtin networks and aliases cover ETH, Sepolia, BSC, BSC testnet, Base and Base Sepolia alongside the TRON three.
-  There is no family-level feature gate. EVM simply binds a narrower command set (30 bindings:
-  account, block, chain, tx, token, contract, message/typed-data signing, `bai recharge` and eight ERC-8004 identity commands) against TRON's 96, which adds
-  stake, permission, proposal, asset, GasFree, TronLink multisig, and the SunSwap and SunPump groups (17 commands).
-  The counts are the `families` tags in `wallet-cli --json-schema`.
-- **A single Zod schema per command** drives validation, yargs arity, help text, and JSON Schema.
-- **Secrets** (private keys, mnemonics, BIP39 passphrases) are encrypted at rest and never accepted
-  from argv or env — only a dedicated stdin channel or hidden TTY prompt.
+Which commands each chain family supports: the `families` tags in `wallet-cli --json-schema`.
 
-### Adding a TypeScript command
+### Adding a command
 
 1. Add the command module under `adapters/inbound/cli/commands/` with its Zod schema.
-2. Route it to an application use case (`application/use-cases/…`, e.g. `tron/transaction-service.ts`);
-   do not put I/O or chain logic in the inbound layer.
-3. If it needs new I/O, define a **port** in `application/ports/` and implement it in
-   `adapters/outbound/`. Wire it in `bootstrap/composition.ts`.
+2. Route it to an application use case under `application/use-cases/`.
+3. If it needs new I/O, define a port in `application/ports/`, implement it in `adapters/outbound/`, and wire
+   it in `bootstrap/composition.ts`.
 4. Add co-located `*.test.ts` and run `npm run depcruise && npm run typecheck && npm test`.
 
-## Build & Run
+## Java (`java/`)
+
+**All Java paths are relative to `java/`, and all Java commands are run from that directory** (`cd java` first).
+
+### Build & Run
 
 ```bash
 # Build the project (generates protobuf sources into src/main/gen/)
@@ -96,7 +72,7 @@ Key points:
 
 Java 8 source/target compatibility. Protobuf sources are in `src/main/protos/` and generate into `src/main/gen/` — this directory is git-tracked but rebuilt on `clean`.
 
-## End-to-end coverage
+### End-to-end coverage
 
 `java/qa-repl/` drives the real interactive shell over a pty (`expect`) against a
 funded Nile account — wallet lifecycle, account queries, a signed 1 TRX transfer, and
@@ -110,11 +86,11 @@ cd java
 ./qa-repl/cli-boundary.sh build/libs/wallet-cli.jar    # entry point takes only --version/--help
 ```
 
-## Architecture
+### Architecture
 
 This is a **TRON blockchain CLI wallet** built on the [Trident SDK](https://github.com/tronprotocol/trident). It communicates with TRON nodes via gRPC.
 
-### One CLI Mode
+#### One CLI Mode
 
 **Interactive REPL** — `Client` class with JCommander `@Parameters` inner classes. Entry point:
 `org.tron.walletcli.Client`. Features tab completion, interactive prompts, and conversational
@@ -125,20 +101,20 @@ The shell is started one way only: a bare `java -jar wallet-cli.jar`. The entry 
 TypeScript CLI on stderr and exits 2. Non-interactive, scriptable and CI use belongs to `ts/`
 (npm `@tron-walletcli/wallet-cli`).
 
-### Request Flow
+#### Request Flow
 
 ```
 User Input → Client (JCommander) → WalletApiWrapper → WalletApi → Trident SDK → gRPC → TRON Node
 ```
 
-### Key Classes
+#### Key Classes
 
 - **`org.tron.walletcli.Client`** — REPL entry point and command dispatcher. Each command is a JCommander `@Parameters` inner class.
 - **`org.tron.walletcli.WalletApiWrapper`** — Orchestration layer between CLI and core wallet logic. Handles transaction construction, signing, and broadcasting.
 - **`org.tron.walletserver.WalletApi`** — Core wallet operations: account management, transaction creation, proposals, asset operations. Delegates gRPC calls to Trident.
 - **`org.tron.walletcli.ApiClientFactory`** — Creates gRPC client instances for different networks (mainnet, Nile testnet, Shasta testnet, custom).
 
-### Package Organization
+#### Package Organization
 
 | Package | Purpose |
 |---------|---------|
@@ -152,13 +128,13 @@ User Input → Client (JCommander) → WalletApiWrapper → WalletApi → Triden
 | `multi` | Multi-signature transaction handling |
 | `gasfree` | GasFree transaction API (transfer tokens without gas) |
 
-### Configuration
+#### Configuration
 
 - **Network config:** `src/main/resources/config.conf` (HOCON format via Typesafe Config)
 - **Logging:** `src/main/resources/logback.xml` (Logback, INFO level console + rolling file)
 - **Lombok:** `lombok.config` — uses `logger` as the log field name (not the default `log`)
 
-### Key Frameworks & Libraries
+#### Key Frameworks & Libraries
 
 - **Trident SDK 0.11.0** — All gRPC API calls to TRON nodes
 - **JCommander 1.82** — CLI argument parsing (interactive REPL)
