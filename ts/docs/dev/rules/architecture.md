@@ -20,8 +20,9 @@ An automated rule is turned on as soon as it is written, with a baseline of know
 (`depcruise-baseline`, or an ESLint baseline); a new violation fails at once, and known ones are removed by the
 refactor.
 
-Rules apply to production code. `*.test.ts` files follow the test exceptions stated in 1.1 and 1.5; every other
-rule applies to them as written.
+Section 1 constrains production modules only: a `*.test.ts` file may import whatever it needs to test its
+subject, including test frameworks, fixtures, and SDKs as reference implementations. Production modules never
+import test files or helpers. Every other section applies to tests as written.
 
 ## 1. Layers and dependency direction
 
@@ -33,8 +34,7 @@ rule applies to them as written.
 | `adapters/outbound` | What the app calls: implement ports, translate external data into port types, I/O, locks, encryption at rest | `application/ports`, `application/contracts`, `domain` |
 | `bootstrap` | Composition root and process lifecycle; assembly only, no decisions | everything |
 
-1.1 Dependencies point inward as in the table. **depcruise**. Rules on `application`, `adapters/inbound`, and
-`adapters/outbound` exempt `*.test.ts`, so an integration test may wire real adapters.
+1.1 Dependencies point inward as in the table. **depcruise**.
 
 1.2 Outbound adapters do not import `application/services` or `application/use-cases`. **depcruise**.
 
@@ -49,11 +49,12 @@ use case; shared logic moves to a helper module in the same directory, a service
 no SDK. `application` follows the same allowlist.
 
 Chain, device, and protocol SDKs (`tronweb`, `ethers`, `@sun-protocol/*`, `@bankofai/*`, `@ledgerhq/*`) and HTTP
-clients are used only in `adapters/outbound`. `*.test.ts` may use test frameworks, fixtures, and SDKs as
-reference implementations; production code never imports test helpers. **depcruise**.
+clients are used only in `adapters/outbound`. **depcruise**.
 
-1.6 Family-specific modules are those in a `tron/` or `evm/` directory, named `tron-*` or `evm-*`, or in
-`bootstrap/families/`. Every other module is family-neutral. A family-neutral module does not import a
+1.6 Family-specific modules are those in a `tron/` or `evm/` directory, named `tron-*` or `evm-*`, in
+`bootstrap/families/`, or in an outbound integration that serves one family only (for example `sunswap`,
+`sunpump`, `gasfree`, `tronlink`; the list lives in `ts/.dependency-cruiser.cjs`). Every other module is
+family-neutral. A family-neutral module does not import a
 family-specific module, in any layer; only `bootstrap` connects family implementations to neutral interfaces.
 One exception: an inbound command's family binding table (5.2) may `import type` the family use cases it binds.
 **depcruise** (type-only edges excepted for inbound).
@@ -67,7 +68,8 @@ asserts the rule reports it. **test**.
 `sunswap`, or `x402`. SDKs are imported only inside integrations, never in `bootstrap`. Integrations do not
 import each other: one that needs another's capability receives it through a port wired in `bootstrap`. Shared
 plumbing (`adapters/outbound/http/`, `adapters/outbound/persistence/`) may be imported by any integration and
-imports none. **depcruise**.
+imports none. A chain node integration lives in `chain/<family>/`; a protocol or service integration has its
+own directory, whichever families it serves. **depcruise**.
 
 1.10 Everything outside the process is reached through an adapter:
 - What the app calls (chain nodes, Ledger, HTTP services, and the files the app owns: keystore, config, books,
@@ -110,9 +112,10 @@ second definition of a command's arguments exists. **test**: every registered co
 ## 3. Ports
 
 3.1 Port types are closed: no index signatures, no `unknown`, no `Record<string, unknown>`, and no alias that
-resolves to one of them (such as `UnsignedTx = unknown`), crossing a port toward the inside. This covers
-`application/ports`, `application/contracts`, and `domain/types`. Data passed through for display uses the
-named raw type of 3.2. **lint**.
+resolves to one of them (such as `UnsignedTx = unknown`), crossing a port toward the inside. A map keyed by an
+identifier (`Record<Id, T>`, `Map<Id, T>`) is closed when `T` is. This covers `application/ports`,
+`application/contracts`, and `domain/types`. Data passed through for display uses the named raw type of 3.2.
+**lint**.
 
 3.2 Outbound adapters normalize external facts into port types once. Inner layers do not read raw node, SDK, or
 wire fields to derive a fact. This covers at least: transaction execution result, decoded token and account
@@ -126,7 +129,7 @@ base-unit string, or `{ raw: bigint, decimals }`). `number` is used only for val
 safe integers. A display-only float (such as a USD value) is named as such. **type**.
 
 3.4 Ports use operation-specific types, not argv structures or flag names. Raw text such as HTTP header lines
-is parsed before the port call. A storage port may accept a typed destination for a path the user chose; the
+is parsed before the port call. A storage port may accept the destination path the user chose; the
 adapter owns path resolution, file layout, permissions, and the no-overwrite rule. **review**.
 
 3.5 Repositories:
@@ -135,7 +138,8 @@ adapter owns path resolution, file layout, permissions, and the no-overwrite rul
 - Policy over stored data is a pure `domain` function that the adapter applies inside the lock.
 - Create data files before publishing a reference to them; remove the reference before deleting the files. A
   committed index never references missing data.
-- Each multi-file operation defines its commit point. A failure before it leaves the previous state; cleanup
+- Each multi-file operation defines its commit point. A failure before it, including the process being killed,
+  leaves the previous state; cleanup
   after it is reported truthfully. Write ordering alone is not rollback: full rollback needs a recovery design
   with fault tests.
 - Inbound reaches stored state only through application use cases, never through a repository port.
@@ -163,10 +167,11 @@ decision. **test**.
 
 ## 5. Families and capabilities
 
-5.1 Chain facts come only from `domain/family`: address format, address encoding conversion, transaction hash
-format, units, and the zero address. No other module writes them by hand. Addresses are compared and stored in
-the canonical form it defines. **lint** for case-folding comparisons and hand-written address or hash patterns
-outside `domain/family`, **review**.
+5.1 Chain facts are defined once in `domain`: address format, address encoding conversion, transaction hash
+format, units, and the zero address. Family-neutral code gets them through `domain/family`; family-specific code
+may use its own family's codec (for example `domain/address`) directly. No module writes them by hand.
+Addresses are compared and stored in the canonical form `domain/family` defines. **lint** for case-folding
+comparisons and hand-written address or hash patterns outside `domain`, **review**.
 
 5.2 When a feature behaves differently per family (for example x402 schemes, or which use case a command runs),
 the feature module holds one table from family to behavior. It does not branch on the family in several places.
@@ -174,7 +179,7 @@ the feature module holds one table from family to behavior. It does not branch o
 
 5.3 Family-specific code (1.6) stays in the layer that owns it: pure rules and codecs in `domain/<family>/`,
 ports, contracts, and services in `application/.../<family>/`, commands that exist for one family only in
-`adapters/inbound/cli/commands/<family>/`, integrations in `adapters/outbound/chain/<family>/`, and assembly in
+`adapters/inbound/cli/commands/<family>/`, integrations as in 1.9, and assembly in
 `bootstrap/families/`. A command shared by both families is family-neutral and binds each family's use case
 through its table (5.2). **depcruise**.
 
