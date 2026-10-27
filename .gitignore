@@ -13,8 +13,9 @@ node_modules
 tools
 graphify-out/
 
-# Claude
-.claude/
+# Claude — local settings stay untracked; shared project skills under .claude/skills/ are tracked.
+.claude/*
+!.claude/skills/
 .claude/settings.local.json
 
 .private/
