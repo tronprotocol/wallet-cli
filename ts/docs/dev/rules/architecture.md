@@ -22,7 +22,8 @@ refactor.
 
 Section 1 constrains production modules only: a `*.test.ts` file may import whatever it needs to test its
 subject, including test frameworks, fixtures, and SDKs as reference implementations. Production modules never
-import test files or helpers. Every other section applies to tests as written.
+import test files or helpers. A test lives next to its subject, so its location follows the subject's. Every
+other section applies to tests as written.
 
 ## 1. Layers and dependency direction
 
@@ -52,9 +53,9 @@ Chain, device, and protocol SDKs (`tronweb`, `ethers`, `@sun-protocol/*`, `@bank
 clients are used only in `adapters/outbound`. **depcruise**.
 
 1.6 Family-specific modules are those in a `tron/` or `evm/` directory, named `tron-*` or `evm-*`, in
-`bootstrap/families/`, or in an outbound integration that serves one family only (for example `sunswap`,
-`sunpump`, `gasfree`, `tronlink`; the list lives in `ts/.dependency-cruiser.cjs`). Every other module is
-family-neutral. A family-neutral module does not import a
+`bootstrap/families/`, or in a protocol module that serves one family only, in any layer (for example
+`domain/sunswap/`, `application/ports/sunswap/`, `adapters/outbound/gasfree/`; the protocol list lives in
+`ts/.dependency-cruiser.cjs`). Every other module is family-neutral. A family-neutral module does not import a
 family-specific module, in any layer; only `bootstrap` connects family implementations to neutral interfaces.
 One exception: an inbound command's family binding table (5.2) may `import type` the family use cases it binds.
 **depcruise** (type-only edges excepted for inbound).
