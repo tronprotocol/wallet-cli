@@ -62,7 +62,7 @@ const payInput = payFields.superRefine((value, context) => {
       message: "cannot be combined with --max-raw-amount",
     });
   }
-  // A raw limit has no unit: unpinned, it would cap whatever token the seller names.
+  // Pin raw limits to a token so the seller cannot choose their units.
   if (value.maxRawAmount !== undefined && !value.token && !value.asset) {
     context.addIssue({
       code: "custom",
@@ -344,8 +344,7 @@ async function requestBody(
 ): Promise<string | Uint8Array | undefined> {
   if (!path) return inline;
   if (path === "-") {
-    // Every `--<kind>-stdin` secret is bound to the same fd 0; reading it as the body would post
-    // the secret to the endpoint. Refuse before anything is read, whichever secret claims stdin.
+    // Reject shared stdin before reading to avoid posting a secret as the body.
     const claimed = SECRET_KINDS.find((kind) => ctx.secrets.has(kind));
     if (claimed !== undefined) {
       throw new UsageError(
@@ -379,7 +378,7 @@ async function providerResult(
 ) {
   ctx.emit({ type: "activity", message: "Loading provider catalog data…" });
   const { warnings, ...data } = await pending;
-  // Remote text on the diagnostic channel bypasses the result renderer's sanitizing; do it here.
+  // Sanitize remote warnings; the diagnostic channel bypasses the result renderer.
   if (Array.isArray(warnings))
     for (const warning of warnings)
       if (typeof warning === "string") ctx.warn(sanitizeText(warning));

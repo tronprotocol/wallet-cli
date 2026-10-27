@@ -99,11 +99,6 @@ it("does not advertise unsupported provider type or facilitator waiting", () => 
     expect(registry.resolveNeutral(["x402", command])!.supportsWait).toBe(false);
 });
 
-/**
- * `--body-file -` reads the same fd 0 a `--*-stdin` secret is bound to. Refusing only
- * `--password-stdin` let `--api-key-stdin` (or any other secret) be read as the request body and
- * posted to the endpoint. Every secret bound to stdin must refuse the body, before anything is read.
- */
 it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(
   "refuses --body-file - when --%s-stdin also claims stdin, without reading or sending",
   async (kind) => {
@@ -131,10 +126,6 @@ it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(
   },
 );
 
-/**
- * Catalog warnings come from a remote document and go to the terminal through the diagnostic
- * channel, which — unlike the result renderer — does not strip terminal control sequences.
- */
 it("strips terminal control sequences from remote catalog warnings before warning", async () => {
   const registry = new CommandRegistry();
   const svc = service();

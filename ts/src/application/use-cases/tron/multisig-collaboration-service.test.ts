@@ -78,8 +78,6 @@ function remote(
   };
 }
 
-/** A record whose transaction bytes this client cannot reconstruct — as an unknown contract type
- *  or an unrecognized provider encoding would be. */
 function undecodable(hex = unsignedHex()): TronLinkRemoteRecord {
   const record = remote(hex);
   return {
@@ -201,8 +199,6 @@ describe("TronLink multi-sign collaboration workflow", () => {
     });
   });
 
-  // A permission updated while an old transaction sat pending makes that record disagree with the
-  // chain forever. Listing must survive it: one stale row cannot cost the user the whole queue.
   it("lists a chain-disagreeing record as unverified instead of failing the whole page", async () => {
     const stale = remote(unsignedHex(), { threshold: 1 });
     const signedHex = encodeTransactionHex({
@@ -218,8 +214,6 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(result.transactions[1]!.unverifiedReason).toBeUndefined();
   });
 
-  // A record this client cannot reconstruct costs its own row, never the whole queue: one historical
-  // transaction carrying an encoding we do not understand must not hide every pending one.
   it("omits an undecodable record and counts it instead of failing the whole page", async () => {
     const result = await setup(undecodable(), remote()).service.list(NETWORK, A);
 
@@ -237,8 +231,6 @@ describe("TronLink multi-sign collaboration workflow", () => {
     ).resolves.toMatchObject({ action: "sign", accepted: true });
   });
 
-  // The reason belongs in the message: "TronLink sent something bad" sends the user to the wrong
-  // system when the truth is that this client could not reconstruct the bytes.
   it("names why the requested record could not be decoded", async () => {
     const { service } = setup(undecodable());
 
@@ -250,7 +242,6 @@ describe("TronLink multi-sign collaboration workflow", () => {
     });
   });
 
-  // "Could not check" is not "checked and disagreed" — a node outage must not read as a clean page.
   it("propagates a node failure rather than reporting every record as unverified", async () => {
     const { service, local } = setup();
     vi.mocked(local.approvals).mockRejectedValue(new ChainError("timeout", "node timed out"));
@@ -348,12 +339,8 @@ describe("TronLink multi-sign collaboration workflow", () => {
   });
 });
 
-// #verifyOnChain used to bind only the SIGNED address set and the aggregate weight, leaving unsigned
-// entries and every per-signer weight provider-controlled. A stale record (permission updated while
-// the transaction sat pending) or a hostile one could therefore name a signer the permission does
-// not contain, or misstate weights — and it all rendered as chain-validated.
 describe("TronLink signer roster is bound to the on-chain permission", () => {
-  const C = "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"; // not a key in the permission (keys are A and B)
+  const C = "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"; // Not an on-chain permission key.
   const unsigned = (address: string, weight: number) => ({
     address,
     weight,
@@ -365,8 +352,6 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
     return setup(remote(unsignedHex(), { signature_progress: progress }));
   }
 
-  // Listing shows a fabricated roster as unverified rather than refusing the page, but it is never
-  // presented as chain-validated and never as work waiting on this account.
   it("never presents a fabricated signer entry as verified", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
     const view = await service.list(NETWORK, A);
@@ -376,7 +361,6 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
 
   it("refuses to act for an account the permission does not contain", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
-    // C passes every provider-side consistency check because the provider invented its own entry
     const view = await service.list(NETWORK, C);
     expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
     await expect(

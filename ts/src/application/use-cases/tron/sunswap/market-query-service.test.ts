@@ -14,7 +14,6 @@ const MAINNET = {
 
 const ALIASES = { tron: "tron:728126428", nile: "tron:3448148188" };
 
-/** a scope for calls whose warnings the test does not read. */
 const SILENT = { warn: () => undefined };
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -104,11 +103,6 @@ describe("symbol resolution", () => {
     expect(asked[0]).toEqual([USDT]);
   });
 
-  /**
-   * The user layer of the book is keyed per account and this command takes none, so a symbol
-   * added with `token add` cannot resolve here. The refusal must therefore NOT suggest
-   * `token add` — telling someone to do something that will not work is worse than being brief.
-   */
   it("refuses an unknown symbol without suggesting token add", async () => {
     const { service: s } = service();
     const error = await s.prices(MAINNET, { token: "WIN" }).catch((e) => e);
@@ -119,7 +113,6 @@ describe("symbol resolution", () => {
     expect(error.message).not.toContain("token add");
   });
 
-  // pool-list has no --address; its refusal names the flag it does have.
   it("tells pool-list --token to pass the address with --token", async () => {
     const { service: s } = service();
     await expect(
@@ -139,8 +132,6 @@ describe("symbol resolution", () => {
     await expect(s.prices(nile, { token: "WIN" })).rejects.toThrow(/on nile;/);
   });
 
-  // WTRX has no known Nile-or-elsewhere deployment beyond the two we ship; inventing one would
-  // point a user at an address nobody has verified.
   it("refuses WTRX on a network with no known deployment", async () => {
     const other = { ...MAINNET, id: "tron:2494104990" } as NetworkDescriptor;
     const { service: s } = service({ official: [] });
@@ -156,7 +147,6 @@ describe("input shape", () => {
     await expect(s.prices(MAINNET, {})).rejects.toMatchObject({ code: "missing_option" });
   });
 
-  // Taking one silently would answer a question the caller did not ask.
   it("refuses both at once", async () => {
     const { service: s } = service();
     await expect(s.prices(MAINNET, { token: "TRX", addresses: [USDT] })).rejects.toMatchObject({
@@ -189,7 +179,6 @@ describe("symbol column", () => {
     expect(view.warnings).toEqual([]);
   });
 
-  // The column is decoration; losing it must not lose the prices the caller asked for.
   it("degrades to a warning and still succeeds when the catalogue fails", async () => {
     const { service: s } = service({
       symbols: async () => {
@@ -203,7 +192,6 @@ describe("symbol column", () => {
     expect(view.warnings[0]).toContain("Symbol");
   });
 
-  // "0" is a real answer for an address the service never indexed, not a failure.
   it("passes a zero price through", async () => {
     const { service: s } = service({
       prices: async () => [{ address: USDT, priceUsd: "0", quotedAt: "2026-09-23 08:09" }],
@@ -233,15 +221,12 @@ describe("token-list", () => {
     expect(tokenQueries[0]?.protocol).toBe("V1_5");
   });
 
-  // The service has a sort FIELD but no direction parameter, so the echo reports the constant it
-  // is rather than a choice the caller could have made.
   it("echoes the ordering with sort fixed at desc", async () => {
     const { service: s } = service();
     const view = await s.tokenList(MAINNET, listQuery);
     expect(view.query).toEqual({ orderBy: "tvl", sort: "desc" });
   });
 
-  // The service does not count; obtaining a total would mean fetching every record.
   it("reports the window with a null total", async () => {
     const { service: s } = service({ tokens: async () => ({ tokens: [], hasMore: true }) });
     const view = await s.tokenList(MAINNET, { ...listQuery, limit: 5, offset: 10 });
@@ -271,8 +256,6 @@ describe("token-search", () => {
     expect(tokenQueries[0]).toMatchObject({ keyword: "USDT", protocol: "ALL", pageNo: 1 });
   });
 
-  // An empty keyword reaches the service as "no filter" and returns the whole catalogue, which
-  // is a different question from the one that was asked.
   it("refuses an empty or whitespace keyword", async () => {
     const { service: s } = service();
     for (const keyword of ["", "   "]) {
@@ -282,7 +265,6 @@ describe("token-search", () => {
     }
   });
 
-  // Search takes no sort flag, so echoing an ordering would read as one the caller could change.
   it("reports no query echo", async () => {
     const { service: s } = service();
     const view = await s.tokenSearch(MAINNET, {
@@ -331,7 +313,6 @@ describe("pool-list", () => {
     });
   });
 
-  // The service will not match a pool id that still carries its 0x prefix.
   it("strips the 0x from a V4 pool id and leaves an address alone", async () => {
     const { service: s, poolQueries } = service();
     await s.poolList(SILENT, MAINNET, { ...poolQuery, pool: `0x${V4_ID}` });
@@ -348,7 +329,6 @@ describe("pool-list", () => {
     expect(poolQueries[1]?.token).toBe(WTRX);
   });
 
-  // TRX matches native-TRX pools; swapping it for WTRX here would answer about other pools.
   it("does not swap TRX for WTRX", async () => {
     const { service: s, poolQueries } = service();
     await s.poolList(SILENT, MAINNET, { ...poolQuery, token: "TRX" });
@@ -365,7 +345,6 @@ describe("pool-list", () => {
     expect(view.view).toEqual({ quoteSymbol: "USDT" });
   });
 
-  // Without a token to quote in there is no price to give, and no heading to name.
   it("omits pairPrices and the quote heading without --token", async () => {
     const { service: s } = service({ pools: async () => ({ pools: [onePool()] }) });
     const view = await s.poolList(SILENT, MAINNET, poolQuery);
@@ -376,7 +355,6 @@ describe("pool-list", () => {
 });
 
 describe("pool-search", () => {
-  // "showing 3 of 76" has to be 76 of the SAME set, or the sentence is a lie about which 76.
   it("asks for the count under the same filters as the page", async () => {
     const { service: s, poolQueries, countQueries } = service({ total: 81 });
     const view = await s.poolSearch(MAINNET, {
@@ -438,8 +416,6 @@ describe("position-list", () => {
     });
   });
 
-  // A listing that silently answered about whichever account happened to be active would be a
-  // different question from the one asked; this command takes no account at all.
   it("validates the owner rather than falling back to anything", async () => {
     const { service: s, positionQueries } = service();
     await expect(
@@ -448,7 +424,6 @@ describe("position-list", () => {
     expect(positionQueries).toHaveLength(0);
   });
 
-  // The server sorts by LP value and takes no ordering parameter, so there is nothing to echo.
   it("reports the window and no ordering", async () => {
     const { service: s } = service({ positions: async () => ({ positions: [], hasMore: true }) });
     const view = await s.positionList(MAINNET, { owner: OWNER, limit: 4, offset: 8 });
@@ -464,11 +439,6 @@ describe("position-list", () => {
   });
 });
 
-/**
- * The SunSwap market service exposes only the first 1000 rows of any ordering and answers a page
- * past them with code 4003. A window that ends past row 1000 can never be served, so it is refused
- * locally as a usage error before anything is asked.
- */
 describe("the 1000-row window", () => {
   const past = { limit: 20, offset: 1000 };
   const refusal = {
@@ -523,13 +493,6 @@ describe("the 1000-row window", () => {
   });
 });
 
-/**
- * `--min-tvl`, filtered before it is paged.
- *
- * The fake market serves pages of an in-memory universe in whichever order is asked, and fails a
- * page past row 1000 the way the service does — so a scan that overruns the window fails the test
- * rather than passing quietly.
- */
 type FakePool = {
   poolAddress: string;
   reserveUsd: string;
@@ -562,7 +525,7 @@ function scanService(universe: readonly FakePool[]) {
       if (q.pageNo * q.pageSize > 1000) {
         throw new Error("code 4003: Invalid param: total size exceeds");
       }
-      // Number is precise enough for the fake's own values; the service under test never uses it.
+      // These fixture sort values fit in Number; production sorting preserves decimal precision.
       const ordered = [...universe].sort((a, b) => {
         const diff = Number(a[q.sort]) - Number(b[q.sort]);
         return q.desc ? -diff : diff;
@@ -596,7 +559,6 @@ const addresses = (view: { pools: readonly { poolAddress: string }[] }) =>
   view.pools.map((pool) => pool.poolAddress);
 
 describe("pool-list --min-tvl", () => {
-  // 250 pools with TVL 250000 down to 1000; 150 of them are at 101000 or above.
   const ladder = Array.from({ length: 250 }, (_, i) => fakePool(i, String((250 - i) * 1000)));
 
   it("in the default order, stops at the first pool below the threshold", async () => {
@@ -604,7 +566,6 @@ describe("pool-list --min-tvl", () => {
     const view = await list({ minTvl: "101000", limit: 100, offset: 100 });
     expect(addresses(view)).toEqual(ladder.slice(100, 150).map((pool) => pool.poolAddress));
     expect(view.pagination).toEqual({ offset: 100, limit: 100, total: null, hasMore: false });
-    // page 2 holds the first pool below the threshold, so page 3 is never asked for
     expect(queries).toEqual([
       { sort: "reserveUsd", desc: true, pageNo: 1, pageSize: 100 },
       { sort: "reserveUsd", desc: true, pageNo: 2, pageSize: 100 },
@@ -620,10 +581,6 @@ describe("pool-list --min-tvl", () => {
     expect(queries).toHaveLength(1);
   });
 
-  /**
-   * A window that ends exactly on a page boundary must not report "no more" merely because the
-   * scan stopped there: a caller who pages until hasMore is false would miss the rest.
-   */
   it("reads past a full window to learn whether there is more", async () => {
     const { list, queries } = scanService(ladder);
     const view = await list({ minTvl: "101000", limit: 100, offset: 0 });
@@ -640,7 +597,6 @@ describe("pool-list --min-tvl", () => {
   });
 
   it("orders by apr from the first attempt when the window fills", async () => {
-    // a tiny pool on top, then qualifying pools among non-qualifying ones
     const pools = [
       fakePool(0, "10", "500"),
       fakePool(1, "150000", "2"),
@@ -658,11 +614,7 @@ describe("pool-list --min-tvl", () => {
     expect(warnings).toEqual([]);
   });
 
-  /**
-   * The qualifying pools all rank past row 1000 by APR, so the first attempt reaches the limit
-   * with nothing. Ordered by TVL they are all near the top, so the complete set is reachable and
-   * is sorted here instead — exactly, and with ties settled by address.
-   */
+  // Qualifying pools lie beyond the APR window but fit within one TVL page.
   it("falls back to the complete TVL set and sorts it locally", async () => {
     const tiny = Array.from({ length: 1200 }, (_, i) => fakePool(i, "1", "10"));
     const big = [
@@ -679,7 +631,6 @@ describe("pool-list --min-tvl", () => {
     const second = await list({ orderBy: "apr", minTvl: "100000", limit: 3, offset: 3 });
     expect(addresses(second)).toEqual(["TBig3", "TBig2"]);
     expect(second.pagination.hasMore).toBe(false);
-    // ten pages by APR, then one by TVL, which already holds the first pool below the threshold
     expect(queries.slice(0, 11).map((q) => [q.sort, q.pageNo])).toEqual([
       ...Array.from({ length: 10 }, (_, i) => ["totalApr", i + 1]),
       ["reserveUsd", 1],
@@ -689,7 +640,6 @@ describe("pool-list --min-tvl", () => {
   });
 
   it("warns, rather than failing silently, when even the TVL scan cannot reach the end", async () => {
-    // 1100 pools qualify, so the complete set lies past row 1000 of every ordering
     const qualifying = Array.from({ length: 1100 }, (_, i) =>
       fakePool(i, String(200000 + i), "0.01"),
     );
@@ -731,7 +681,6 @@ describe("pool-list --min-tvl", () => {
     },
   );
 
-  // Every pool has a TVL of at least zero, so a zero threshold is no threshold.
   it.each(["0", "0.00"])("treats --min-tvl %s as no threshold", async (minTvl) => {
     const { list, queries } = scanService(ladder);
     const view = await list({ minTvl, limit: 20, offset: 20 });

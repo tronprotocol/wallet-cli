@@ -1,4 +1,4 @@
-/** Current SUN/energy, preserving integer precision; invalid/missing prices stay unknown. */
+// Returns SUN per energy; invalid or missing prices stay unknown.
 export function currentTronEnergyPrice(value: unknown): string | undefined {
   if (typeof value !== "string") return;
   if (/^[1-9]\d*$/.test(value)) return value;

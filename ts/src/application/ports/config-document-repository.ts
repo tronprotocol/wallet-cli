@@ -1,4 +1,4 @@
-/** Atomic read-modify-write boundary for the user-owned configuration document. */
+// Atomic read-modify-write of the user configuration.
 export interface ConfigDocumentRepository {
   update<T>(
     change: (current: Record<string, unknown>) => {

@@ -18,19 +18,12 @@ describe("NullPriceProvider", () => {
 });
 
 describe("createPriceProvider", () => {
-  // `provider: none` is the user switching valuation off; anything else is CoinGecko behind the
-  // testnet layer, so the constructed provider is no longer the CoinGecko instance itself.
   it("provider:none → NullPriceProvider; default → a priced provider", () => {
     expect(createPriceProvider({ provider: "none" })).toBeInstanceOf(NullPriceProvider);
     expect(createPriceProvider(undefined).source).toBe("coingecko");
     expect(createPriceProvider({ provider: "coingecko" }).source).toBe("coingecko");
   });
 
-  /**
-   * A test network's coin is not traded, so its holdings are worth zero — and ZERO,
-   * not null. `null` means "we could not find out"; on a testnet there is nothing to find out,
-   * and the honest answer is that the money is not real.
-   */
   describe("testnet valuation", () => {
     const provider = createPriceProvider(undefined, undefined, new Set(["eip155:11155111"]));
 
@@ -43,7 +36,6 @@ describe("createPriceProvider", () => {
       expect([...prices.values()]).toEqual([0, 0]);
     });
 
-    // Unknown ≠ worthless: a chain nobody declared a testnet stays unpriced rather than zeroed.
     it("leaves an undeclared network to the real provider", async () => {
       expect(await provider.nativeUsd("evm:424242")).toBeNull();
     });

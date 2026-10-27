@@ -153,9 +153,6 @@ describe("local TRON multi-signature workflow", () => {
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
-  // `tx sign` verifies online by default precisely so these two never yield a signature. Producing
-  // one anyway is worse than failing: the hex looks fine and gets passed to the next co-signer,
-  // and only `tx broadcast` — possibly hours and several people later — rejects it.
   const spySigner = (address: string): Signer => ({
     kind: "software",
     address,
@@ -180,7 +177,7 @@ describe("local TRON multi-signature workflow", () => {
 
   it("refuses a repeat signature before producing a signature", async () => {
     const signer = spySigner(A);
-    // gateway reports A as already approved for any transaction carrying a signature
+    // The gateway maps any single signature to A, regardless of its bytes.
     const alreadySigned = encodeTransactionHex({
       ...decodeTransactionHex(unsignedHex()),
       signature: [SIG_B],

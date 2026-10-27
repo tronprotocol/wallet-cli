@@ -4,7 +4,7 @@ import { TronRpcClient } from "./tron.js";
 const CONTRACT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
 
 const word = (hex: string) => hex.padStart(64, "0");
-/** ABI encoding of a dynamic `string` return: offset, length, then padded utf8 bytes. */
+// Dynamic ABI string: offset, byte length, then padded UTF-8.
 const dynamicString = (text: string) => {
   const bytes = Buffer.from(text, "utf8").toString("hex");
   return (
@@ -13,21 +13,10 @@ const dynamicString = (text: string) => {
     bytes.padEnd(Math.ceil(bytes.length / 64) * 64, "0")
   );
 };
-/** Legacy `bytes32` return: right-padded utf8 in a single word. */
+// Legacy bytes32: right-padded UTF-8.
 const bytes32 = (text: string) => Buffer.from(text, "utf8").toString("hex").padEnd(64, "0");
 
-/**
- * Node response shapes, as measured against a live Nile node rather than assumed:
- *
- *   method implemented   → { result: { result: true } }, constant_result: ["<abi hex>"]
- *   method NOT there     → { result: { result: true, message: "REVERT opcode executed" } },
- *                          constant_result: [""]          ← still result:true
- *   address is no contract → { result: { code: "CONTRACT_VALIDATE_ERROR", … } }, no constant_result
- *   node unreachable     → the request itself rejects
- *
- * The second row is the one that matters: a missing view method is not an error at this layer, so
- * it needs no rescue — it decodes to undefined on its own.
- */
+// A missing view can return result:true with empty constant_result.
 const stub = (responses: Record<string, string>) => {
   const client = new TronRpcClient("http://localhost:1", 200);
   client.tronweb.transactionBuilder.triggerConstantContract = ((_contract: string, fn: string) => {
@@ -43,11 +32,6 @@ const stub = (responses: Record<string, string>) => {
   return client;
 };
 
-/**
- * No contract at that address. The node reports `CONTRACT_VALIDATE_ERROR` in a 200 body, but tronweb
- * turns that into a rejection rather than handing it back — verified against a live Nile node, where
- * an EOA address surfaces as `rpc_error`, not `execution_error`.
- */
 const notAContract = () => {
   const client = new TronRpcClient("http://localhost:1", 200);
   client.tronweb.transactionBuilder.triggerConstantContract = (() =>
@@ -55,7 +39,6 @@ const notAContract = () => {
   return client;
 };
 
-/** the request never reached a node. */
 const unreachable = () => {
   const client = new TronRpcClient("http://localhost:1", 200);
   client.tronweb.transactionBuilder.triggerConstantContract = (() =>
@@ -109,8 +92,6 @@ describe("TronRpcClient.getTokenInfo", () => {
     });
   });
 
-  // A node outage used to surface as "this token has no metadata", which GasFree then escalated to
-  // gasfree_integrity ("the provider is lying") and tx send reported as a usage error at exit 2.
   it("propagates a transport failure instead of reporting absent metadata", async () => {
     await expect(unreachable().getTokenInfo(CONTRACT)).rejects.toMatchObject({
       code: "rpc_error",
@@ -118,16 +99,6 @@ describe("TronRpcClient.getTokenInfo", () => {
     });
   });
 
-  /**
-   * "No contract at this address" is not a network fault, and it used to be reported as one
-   * (`rpc_error`) — which reads as "the node is broken" when the truth is "that address holds no
-   * token". It is now classified, and the code matches what the EVM side answers for the same
-   * situation so a caller can branch on one value across both families.
-   *
-   * The test above is the other half of the pair and must keep passing: a transport failure is
-   * still `rpc_error`. Classification here means naming two known node answers, not catching
-   * everything — the difference the getTokenInfo comment exists to protect.
-   */
   it("classifies 'no contract at this address' as missing token metadata", async () => {
     await expect(notAContract().getTokenInfo(CONTRACT)).rejects.toMatchObject({
       code: "token_metadata_unavailable",

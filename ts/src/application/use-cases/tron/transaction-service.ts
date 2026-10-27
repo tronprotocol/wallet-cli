@@ -107,11 +107,7 @@ export class TronTransactionService {
     };
   }
 
-  /**
-   * Sign a transaction built elsewhere. Deliberately does not inspect ownership or contract type —
-   * the caller decides what to sign; the wallet holds the key, not the policy. Payload integrity
-   * (txID must hash raw_data_hex) is enforced by the TRON sign strategy.
-   */
+  // Signs external transactions without checking ownership or contract type here.
   async sign(scope: TransactionScope, network: NetworkDescriptor, tx: unknown) {
     const outcome = await this.pipeline.signOnly({
       ctx: scope,
@@ -133,26 +129,15 @@ export class TronTransactionService {
 
   async status(network: NetworkDescriptor, txid: string): Promise<TxStatusView> {
     const gateway = this.gateways.get(network, "tron");
-    // Two endpoints, in parallel, because getTransactionInfo alone can't tell "unconfirmed" from
-    // "never existed" — it returns {} for both. getTransactionById distinguishes them: it knows a
-    // broadcast tx immediately (mempool), and throws "Transaction not found" for an unknown hash.
-    // getTransactionInfo (full-node unconfirmed view) fills in ~one block after inclusion (~3s),
-    // not after solidification — that's what promotes pending → confirmed/failed.
+    // Transaction info alone cannot distinguish pending from unknown transactions.
     const [exists, info, head] = await Promise.all([
       gateway.getTransactionById(txid).then(
         (tx) => tx?.txID !== undefined,
-        // tronweb throws "Transaction not found" for an unknown hash, so a rejection here cannot
-        // by itself separate "no such transaction" from "no such node". The info call below is
-        // what settles that: it RESOLVES ({} on Nile) for an unknown hash and only rejects when
-        // the node itself failed, so if we get past it the node answered and this rejection is a
-        // fact about the transaction.
+        // Treat lookup rejection as absent; the separate info request can still fail.
         () => false,
       ),
-      // NOT caught, deliberately. Swallowing a node failure here made `state` "not_found" at
-      // exit 0 — and `not_found` means "keep polling" in the four-state model, so a script would
-      // wait forever on an endpoint that is simply down.
+      // Propagate info-request failures instead of reporting not_found.
       gateway.getTransactionInfoById(txid),
-      // Best-effort, exactly as on the EVM side: it adds a field and must never cost the answer.
       headBlockNumber(gateway),
     ]);
     const confirmed = info.blockNumber !== undefined;
@@ -171,9 +156,7 @@ export class TronTransactionService {
 
   async info(network: NetworkDescriptor, txid: string): Promise<TxInfoView> {
     const gateway = this.gateways.get(network, "tron");
-    // The transaction is the source of truth for existence; the info (block/fee/energy) is
-    // enrichment. Mirror getContractMetadata's best-effort shape: a missing/failed info must not
-    // sink the command for a tx that exists (e.g. still pending, or a flaky solidity node).
+    // Info and head reads are optional enrichment; transaction lookup determines existence.
     const [transaction, info, head] = await Promise.all([
       gateway.getTransactionById(txid),
       gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
@@ -182,8 +165,6 @@ export class TronTransactionService {
     return {
       txid,
       ...(await this.enrichParties(gateway, gateway.decodeTransaction(transaction))),
-      // The node reports SUCCESS / REVERT / OUT_OF_ENERGY…; this CLI reports one case throughout.
-      // The comparisons that decide `failed` read the node's own value, not this field.
       status: lowerCaseStatus(info.receipt?.result ?? transaction.ret?.[0]?.contractRet),
       blockNumber: info.blockNumber,
       ...confirmationsOf(head, info.blockNumber),
@@ -318,13 +299,7 @@ export class TronTransactionService {
   }
 }
 
-/**
- * The chain's head height, or undefined when it could not be read.
- *
- * Only ever used to compute `confirmations`, so it swallows its own failure: a status query that
- * died because a second, optional call failed would be a worse answer than one without the extra
- * field.
- */
+// Head lookup is optional; failure omits confirmations.
 async function headBlockNumber(gateway: TronGateway): Promise<number | undefined> {
   try {
     const block = (await gateway.getBlock()) as
@@ -335,7 +310,6 @@ async function headBlockNumber(gateway: TronGateway): Promise<number | undefined
   }
 }
 
-/** the node's status word in the single case this CLI answers in. */
 function lowerCaseStatus(value: string | undefined): string | undefined {
   return value === undefined ? undefined : value.toLowerCase();
 }

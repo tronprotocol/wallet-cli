@@ -1,12 +1,4 @@
-/**
- * CryptoEnvelope — our private at-rest blob: scrypt → aes-128-ctr → keccak MAC.
- * Each blob carries its own salt+iv; one master password derives a distinct key per file.
- *
- * `version: 1` with a `type` tag is OUR wrapper, not the interoperable Web3 V3 file — a seed blob's
- * plaintext is an encoded vault, not a bare key. The shared construction lives in domain/keystore;
- * the exportable V3 format is `KeystoreV3` there. This wrapper is live on-disk data for every
- * existing wallet: it must not drift.
- */
+// Private version-1 envelope; seed plaintext is an encoded vault, not a Web3 V3 private key.
 import { randomBytes, bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import type {
   Bytes,

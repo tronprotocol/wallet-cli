@@ -1,45 +1,23 @@
-/**
- * What a Permit2 signature actually authorizes, checked before we produce one.
- *
- * A Permit2 `PermitSingle` is a bearer grant. Signed, it lets `spender` move `amount` of `token`
- * out of the signer's account until `expiration`, with no transaction of ours in the way. So the
- * question this file answers is not "did the planner succeed" but "is the thing in front of me the
- * thing I meant to authorize" — and it is asked of the typed data itself, not of the inputs we
- * handed the planner, because the planner is the code under suspicion.
- *
- * Everything here is checkable BEFORE signing except one thing: `PermitSingle` carries no owner
- * field. The owner IS the signer, so it can only be confirmed by recovering the address from the
- * finished signature — which is why `assertSignedBy` exists separately and must still be called.
- *
- * The shape is measured, not assumed. Taken from a live mainnet plan:
- *
- *   primaryType "PermitSingle"
- *   domain      { name: "Permit2", chainId: 728126428, verifyingContract: "0xbe3653…" }
- *   message     { details: { token, amount, expiration, nonce }, spender, sigDeadline }
- *
- * The domain carries no `version` and no `salt`, addresses are lowercase 20-byte EVM hex rather
- * than base58, and `chainId` is a number. Every integer arrives as a decimal string.
- */
+// Check planner output before signing; PermitSingle owner verification also requires signature recovery.
 import { tronHexAddress } from "../address/index.js";
 import { ChainError } from "../errors/index.js";
 
-/** What the caller believes it is authorizing. All addresses base58; all amounts base units. */
+// Expected addresses are base58; amounts are base units.
 export interface PermitExpectation {
   readonly token: string;
-  /** The contract allowed to pull the tokens — the Universal Router, never anything else. */
+  // Contract allowed to pull tokens.
   readonly spender: string;
-  /** The Permit2 contract, which is the typed data's `verifyingContract`. */
+  // Typed-data verifyingContract.
   readonly permit2: string;
   readonly chainId: string;
-  /** Exactly the amount being spent. A grant for more than the trade is not this trade. */
+  // Must match the spend exactly; larger grants are rejected.
   readonly amount: string;
-  /** Latest acceptable `sigDeadline` and `expiration`, unix seconds. */
+  // Latest sigDeadline and expiration, Unix seconds.
   readonly notAfter: number;
-  /** Now, unix seconds. Passed in so this stays pure and testable. */
+  // Unix seconds.
   readonly now: number;
 }
 
-/** The verified grant, in the forms a receipt publishes. */
 export interface PermitFacts {
   readonly token: string;
   readonly spender: string;
@@ -50,8 +28,7 @@ export interface PermitFacts {
   readonly sigDeadline: string;
 }
 
-/** The field lists a `PermitSingle` must declare, in order. A renamed or extra field changes the
- *  hash, and therefore changes what the signature authorizes. */
+// Field names, types, and order affect the signed hash.
 const REQUIRED_TYPES: Readonly<Record<string, readonly string[]>> = {
   PermitDetails: ["token:address", "amount:uint160", "expiration:uint48", "nonce:uint48"],
   PermitSingle: ["details:PermitDetails", "spender:address", "sigDeadline:uint256"],
@@ -59,26 +36,12 @@ const REQUIRED_TYPES: Readonly<Record<string, readonly string[]>> = {
 
 const PRIMARY_TYPE = "PermitSingle";
 
-/**
- * The typed data, verified against what we meant to authorize.
- *
- * Order is deliberate: the shape first, so later reads are of fields that exist; then the domain,
- * because a signature for another chain or another verifying contract is a different grant
- * entirely; then what is being granted, to whom, and for how long.
- *
- * A failure is `permit_mismatch` at exit 1, not a usage error: nothing the caller typed is wrong.
- * What went wrong is that a dependency produced an authorization we will not put a signature on,
- * which is the same class of fault as any other answer the CLI refuses to act on.
- */
 export function assertPermitAuthorizes(
   typedData: unknown,
   expected: PermitExpectation,
 ): PermitFacts {
   const payload = object(typedData, "the Permit2 typed data");
 
-  // Declared primary type, checked BEFORE signing rather than after. A `PermitBatch` would
-  // authorize several tokens at once, and the point of a guard is to refuse that while the
-  // signature does not yet exist.
   if (payload.primaryType !== PRIMARY_TYPE) {
     throw refuse(`its primary type is ${JSON.stringify(payload.primaryType)}, not ${PRIMARY_TYPE}`);
   }
@@ -121,14 +84,7 @@ export function assertPermitAuthorizes(
   };
 }
 
-/**
- * The signer, confirmed to be the account we are trading for.
- *
- * This is the owner check, and it cannot happen any earlier: `PermitSingle` has no owner field, so
- * until a signature exists there is nothing to compare. It is also the check that catches a signer
- * that hashed something other than what we inspected — a mismatched recovery means the digest we
- * verified is not the digest that was signed.
- */
+// PermitSingle has no owner field; verify the recovered signer after signing.
 export function assertSignedBy(recovered: string, owner: string, primaryType: string): void {
   if (primaryType !== PRIMARY_TYPE) {
     throw new ChainError(
@@ -161,7 +117,7 @@ function assertTypes(value: unknown): void {
   }
 }
 
-/** An address field, compared as 20-byte EVM hex because that is the form the typed data uses. */
+// Compare base58 expectations and typed-data addresses as 20-byte hex.
 function assertAddress(actual: unknown, expected: string, label: string): void {
   if (typeof actual !== "string") {
     throw refuse(`its ${label} is ${JSON.stringify(actual)}, which is not an address`);
@@ -171,13 +127,6 @@ function assertAddress(actual: unknown, expected: string, label: string): void {
   }
 }
 
-/**
- * A deadline that is in the future and no further out than we asked for.
- *
- * Both bounds matter. One in the past authorizes nothing and would waste the approval that
- * preceded it; one beyond our TTL leaves a grant standing long after the trade, which is the
- * standing-allowance problem Permit2 exists to avoid.
- */
 function deadline(value: unknown, label: string, expected: PermitExpectation): string {
   const text = integer(value, label);
   const seconds = Number(text);
@@ -192,7 +141,6 @@ function deadline(value: unknown, label: string, expected: PermitExpectation): s
   return text;
 }
 
-/** A non-negative integer as a decimal string, whatever form it arrived in. */
 function integer(value: unknown, label: string): string {
   if (typeof value === "bigint") return value.toString();
   if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
@@ -209,7 +157,7 @@ function object(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** Any TRON or EVM form of an address as lowercase 20-byte hex, for comparison only. */
+// Normalize to lowercase 20-byte hex for comparison.
 function evm(address: string): string {
   const text = address.trim();
   if (/^0x[0-9a-fA-F]{40}$/.test(text)) return text.slice(2).toLowerCase();

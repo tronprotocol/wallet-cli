@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched, and
-// the real KDF is covered by domain/keystore/keystore-v3.test.ts.
 vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../../adapters/outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
@@ -24,9 +22,8 @@ import { WalletService } from "./wallet-service.js";
 const MNEMONIC = "test test test test test test test test test test test junk";
 const PW = "masterpw123A";
 const RAW_KEY = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d";
-const NOW = Date.UTC(2026, 7, 5, 11, 40, 30, 123); // ms are dropped from the record's timestamp
+const NOW = Date.UTC(2026, 7, 5, 11, 40, 30, 123);
 
-/** captures what the writer was handed instead of touching the disk. */
 function fakeWriter() {
   const writes: Array<{
     accountId: string;
@@ -234,7 +231,7 @@ describe("WalletService derive selection", () => {
 
     h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
     h.service.derive({ seedId, index: 1 }, (message) => warnings.push(message));
-    expect(warnings).toEqual([]); // created-current and existing-current both need no warning
+    expect(warnings).toEqual([]);
 
     const store = new AtomicFileStore();
     const path = join(h.root, "wallets.json");
@@ -375,10 +372,9 @@ describe("WalletService.backupRecords", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "hot" });
     const address = h.keystore.describe(accountId).addresses.tron!;
     h.service.backup(accountId, "./hot.json");
-    h.service.backupRecords(); // no-op, keeps the log as written
+    h.service.backupRecords();
     h.keystore.rename(accountId, "renamed");
 
-    // logged under the OLD label; resolvable by the new one, by id, and by address.
     for (const ref of ["renamed", accountId, address]) {
       expect(h.service.backupRecords({ account: ref }).records.map((r) => r.label)).toEqual([
         "hot",
@@ -426,7 +422,6 @@ describe("WalletService.importKeystore", () => {
 
   it("re-encrypts under the MASTER password, so the file's password is not needed again", () => {
     const result = h.service.importKeystore(v3(RAW_KEY, "totally-different"), "totally-different");
-    // decryptKey uses the keystore's master password getter; it succeeding is the assertion.
     expect(
       bytesToHex(
         h.keystore.decryptKey(
@@ -472,9 +467,6 @@ describe("WalletService.importKeystore", () => {
   });
 
   it("rejects an out-of-range private key as invalid_private_key, not internal_error", () => {
-    // 32 zero bytes: well-formed as a V3 keystore payload (right shape, right length), but not a
-    // valid secp256k1 scalar — derivePrivAddresses() would otherwise throw a raw RangeError that
-    // classifyError redacts to internal_error, hiding the actionable cause.
     const zeroKey = "00".repeat(32);
     let err: any;
     try {
@@ -495,17 +487,6 @@ describe("WalletService.importKeystore", () => {
   });
 });
 
-/**
- * A backup is two side effects in order: the secret file is committed, then the export is recorded.
- * If the second throws — a lock held, a set-aside rename that fails, any local IO fault — the first
- * has already happened. The command reported a plain failure, so the caller learned neither that a
- * secret had been written nor where it went. Without `--out` that is a timestamped file in the
- * process's working directory, so "somewhere in whichever directory the agent happened to be in".
- * Retrying then writes a second copy.
- *
- * The export genuinely did not fully succeed, so it stays a failure — but the path it produced is
- * part of the error, because the caller has to be able to find and shred it.
- */
 describe("WalletService reports the file it wrote when the audit append fails", () => {
   const auditFails = (h: ReturnType<typeof harness>) =>
     new WalletService(
@@ -543,9 +524,6 @@ describe("WalletService reports the file it wrote when the audit append fails", 
   });
 });
 
-// The problem, restated: a seed account holds a DIFFERENT private key per family (derivation
-// puts TRON at coin 195 and EVM at coin 60). A V3 keystore holds exactly one key, so "export my
-// private key" has two answers and the wallet must be told which.
 describe("keystore export follows the selected network's family", () => {
   const MNEMONIC = "test test test test test test test test test test test junk";
   const seed = Derivation.mnemonicToSeed(MNEMONIC);
@@ -567,27 +545,18 @@ describe("keystore export follows the selected network's family", () => {
     expect(bytesToHex(KeystoreV3.decrypt(file, PW))).toBe(bytesToHex(expected));
   });
 
-  // The two keys are genuinely different, so exporting the wrong one hands the user an address
-  // their wallet has never shown them.
   it("exports two different keys for the two families", () => {
     expect(KeystoreV3.decrypt(exported("tron"), PW)).not.toEqual(
       KeystoreV3.decrypt(exported("evm"), PW),
     );
   });
 
-  // `address` is informational — every reader derives the real address from the key it decrypts
-  // (our own importer ignores it) — but writing the wrong family's encoding is still misleading.
   it("writes the address in the exported family's own encoding", () => {
     expect(exported("tron").address).toMatch(/^41[0-9a-f]{40}$/);
     expect(exported("evm").address).toMatch(/^0x[0-9a-fA-F]{40}$/);
   });
 });
 
-/**
- * The audit log answers "which key left this machine". A seed account holds a different key per
- * family, so filing an EVM export under the account's TRON address names the wrong key —
- * and the log's only job is to name the right one.
- */
 describe("WalletService.backupKeystore — what the audit log records", () => {
   it("files a keystore export under the exported family's address", () => {
     const h = harness();
@@ -597,13 +566,12 @@ describe("WalletService.backupKeystore — what the audit log records", () => {
     h.service.backupKeystore(accountId, undefined, PW, "evm");
     h.service.backupKeystore(accountId, undefined, PW, "tron");
 
-    const [tron, evm] = h.store.list(); // newest first
+    const [tron, evm] = h.store.list();
     expect(evm).toMatchObject({ family: "evm", account: account.addresses.evm });
     expect(tron).toMatchObject({ family: "tron", account: account.addresses.tron });
     expect(evm!.account).not.toBe(tron!.account);
   });
 
-  // A mnemonic is every family's key at once, so naming one would claim less than what left.
   it("records no family for a native backup", () => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
@@ -613,7 +581,6 @@ describe("WalletService.backupKeystore — what the audit log records", () => {
     expect(h.store.list()[0]).not.toHaveProperty("family");
   });
 
-  // Filtering used to compare the TRON address alone, which hid an account's own EVM exports.
   it("finds an EVM export when filtering by that account", () => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
@@ -629,8 +596,7 @@ describe("backup --keystore rescues an account on the old TRON path", () => {
   const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
   const TRON_INDEX_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
 
-  /** harness() plus a hand-written pre-correction account 1 — the shape no API can produce any
-   *  more, because addAccount derives the corrected path and refuses this wallet. */
+  // Inject a legacy-path account because the API derives the current template.
   function legacyHarness() {
     const h = harness();
     h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
@@ -649,9 +615,6 @@ describe("backup --keystore rescues an account on the old TRON path", () => {
     return { ...h, seedId: h.keystore.list()[0]!.seedId! };
   }
 
-  // This is the ONE place the binary may use a template it no longer produces, and its only
-  // purpose is to let the key leave. Exporting the current template's key would hand the user an
-  // empty address — while the refusal message told them to run exactly this command.
   it("exports the key that owns the stored address, not the current template's", () => {
     const h = legacyHarness();
 
@@ -711,8 +674,6 @@ describe("native backup warns about accounts the default recovery flow will not 
     expect(warnings[0]).toMatch(/--keystore/);
   });
 
-  // The warning is about the WALLET, not the account named on the command line: one mnemonic
-  // backs up every account of its seed, so backing up index 1 leaves the same gap.
   it("warns no matter which account of the wallet was named", () => {
     const h = legacyHarness();
     const warnings: string[] = [];

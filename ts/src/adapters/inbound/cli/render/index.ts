@@ -1,17 +1,3 @@
-/**
- * Text-mode renderers, split by command domain:
- *   family.ts  — FAMILY_RENDER per-family hook table (+ renderFamily)
- *   wallet.ts  — wallet create/import/list/… receipts
- *   account.ts — account/token queries (balance, info, history, portfolio, token book)
- *   tx.ts      — tx/stake/contract signing receipts + tx status/info
- *   stake.ts   — stake queries (info, delegated)
- *   vote.ts    — SR voting list/status views
- *   reward.ts  — voting/block reward views
- *   chain.ts   — chain queries (params, prices, node)
- *   sunswap.ts — SunSwap market queries (price)
- *   misc.ts    — config, networks, contract call/info, message sign, block
- * This barrel reassembles the one TextFormatters table command specs import.
- */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import { structuredText } from "./structured.js";
 import { ok } from "./layout.js";
@@ -60,8 +46,7 @@ export const TextFormatters = {
   ...MultisigFormatters,
   ...GasFreeFormatters,
   ...SunSwapFormatters,
-  // The liquidity receipts keep addresses out of their rows; a token resolved from the
-  // user's own book is the exception, named in a note under the receipt.
+  // Token-book notes identify user-resolved tokens omitted from the receipt rows.
   sunswapLiquidity: withTokenBookNotes(SunSwapLiquidityFormatters.sunswapLiquidity),
   sunswapRemoveLiquidity: withTokenBookNotes(
     SunSwapRemoveLiquidityFormatters.sunswapRemoveLiquidity,

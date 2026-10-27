@@ -1,10 +1,10 @@
-/** Trusted deployment settings injected by the composition root, not user configuration. */
+// Trusted deployment settings; not user configuration.
 export interface BaiRechargeConfig {
   readonly facilitatorUrl: string;
   readonly payTo: Readonly<Partial<Record<string, string>>>;
 }
 
-/** Confirmed credit recipient; distinct from the authenticated payer's wallet binding. */
+// Credit recipient, separate from the authenticated payer's wallet binding.
 export interface BaiRechargeTarget {
   input: { type: "personal"; identifier: string };
   confirmedTarget: { type: "personal"; targetId: string };
@@ -31,7 +31,6 @@ export interface BaiReportTransactionInput {
   chain: string;
   txHash: string;
   rechargeTarget?: BaiRechargeTarget;
-  /** Listed in the parameter table but omitted in the documentation's request example. */
   amount?: string;
 }
 export type BaiReportResult =
@@ -43,12 +42,11 @@ export interface BaiRechargeApi {
   ): Promise<{ type: "personal"; targetId: string; displayLabel: string }>;
   isBound(input: BaiWalletBindingInput): Promise<boolean>;
   bind(input: BaiBindWalletInput): Promise<{ userId: string; address: string; chain: string }>;
-  /** Response contract is not documented yet. Do not infer a payment destination. */
+  // Do not infer a payment destination from the untyped order response.
   createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>>;
   reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult>;
 }
 
-/** A payment implementation verified against B.AI's preorder destination and payer rules. */
 export interface BaiRechargePayment {
   pay(
     order: Record<string, unknown>,
@@ -60,7 +58,7 @@ export interface BaiRechargePayment {
   }>;
 }
 
-/** Pause between a fresh payment and its single report, so B.AI can index the transaction. */
+// Allow indexing between payment and its single report.
 export interface BaiReportDelay {
   readonly initialDelayMs: number;
   wait(ms: number): Promise<void>;

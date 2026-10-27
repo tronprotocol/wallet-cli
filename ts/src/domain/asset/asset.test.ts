@@ -2,15 +2,12 @@ import { describe, expect, it } from "vitest";
 import { icoPriceLabel, icoRate, icoTokensFor } from "./index.js";
 
 describe("TRC10 ICO rate", () => {
-  // The worked example: the same --price lands differently on chain
-  // depending on --precision, which is the trap the flag exists to hide.
   it("scales the same price by precision", () => {
     expect(icoRate(1n, 100n, 6)).toEqual({ trxNum: 1, num: 100 });
     expect(icoRate(1n, 100n, 0)).toEqual({ trxNum: 10_000, num: 1 });
   });
 
-  // Live mainnet asset 1001875 (Colorpop): trx_num 1000000, num 1, precision 4 — i.e. 1 TRX buys
-  // 0.0001 whole tokens. Proves the formula against a real record, not only a worked example.
+  // Mainnet asset 1001875: trx_num=1000000, num=1, precision=4.
   it("reproduces a real on-chain rate", () => {
     expect(icoRate(10_000n, 1n, 4)).toEqual({ trxNum: 1_000_000, num: 1 });
   });
@@ -21,9 +18,8 @@ describe("TRC10 ICO rate", () => {
   });
 
   it("rejects a rate that cannot fit in an int32 pair", () => {
-    // 1 TRX : 3 tokens at precision 0 → 3 / 1_000_000, already lowest terms and fine…
     expect(icoRate(1n, 3n, 0)).toEqual({ trxNum: 1_000_000, num: 3 });
-    // …but a large coprime numerator overflows and must be refused, not truncated.
+    // Coprime values cannot be reduced to fit int32.
     expect(() => icoRate(999_999_937n, 3n, 0)).toThrow(/32-bit integer/);
   });
 
@@ -37,7 +33,7 @@ describe("TRC10 ICO rate", () => {
   it("computes participation the way the chain does — multiply, then truncate", () => {
     const rate = icoRate(1n, 100n, 6); // 1 sun buys 100 minimal units
     expect(icoTokensFor(100_000_000n, rate)).toBe(10_000_000_000n); // 100 TRX → 10,000 tokens
-    // trxNum > 1 truncates, and the remainder is not refunded
+    // The chain does not refund the remainder.
     const coarse = { trxNum: 3, num: 1 };
     expect(icoTokensFor(10n, coarse)).toBe(3n);
     expect(() => icoTokensFor(0n, rate)).toThrow(/--pay/);

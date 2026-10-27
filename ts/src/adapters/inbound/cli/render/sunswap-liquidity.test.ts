@@ -1,9 +1,3 @@
-/**
- * The `sunswap add-liquidity` preview text.
- *
- * Two properties are pinned here: a preview reads the liquidity it funds from `liquidityExpected`,
- * and when a floor is zero the No-minimum warning is the LAST line.
- */
 import { describe, expect, it } from "vitest";
 import { SunSwapLiquidityFormatters } from "./sunswap-liquidity.js";
 

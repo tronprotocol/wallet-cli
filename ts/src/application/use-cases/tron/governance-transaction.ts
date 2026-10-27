@@ -28,7 +28,6 @@ export function governanceTransactionMode(
   return mode;
 }
 
-/** Canonical nested resource view required by governance JSON receipts. */
 export function transactionResource(
   data: Readonly<Record<string, unknown>>,
 ): Record<string, unknown> | undefined {

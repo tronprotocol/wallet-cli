@@ -1,18 +1,4 @@
 import { hidHandle } from "./hid-handle.js";
-/**
- * Ledger — device transport plus per-chain app.
- *
- * Transport is env-switchable so the same code path drives a real device or the Speculos
- * emulator (their only difference is the @ledgerhq transport; the hw-app-trx layer above is
- * identical). When SPECULOS_PORT is set we open the Speculos HTTP transport; otherwise we open
- * the USB/HID transport. Both @ledgerhq deps are imported lazily so the Speculos path works
- * without node-hid's native build present, and so unit tests that mock these methods never load
- * a native module.
- *
- * Only the TRON app is wired (hw-app-trx).
- *
- * This module never prints; callers print waiting prompts via StreamManager.
- */
 import { utils as tronUtils } from "tronweb";
 import { createHash } from "node:crypto";
 import { Transaction, TypedDataEncoder, type TransactionLike } from "ethers";
@@ -24,7 +10,6 @@ import type {
   UnsignedTx,
 } from "../../../domain/types/index.js";
 
-/** a Ledger app's reported version + readiness (returned by `appConfig`). */
 export interface AppConfig {
   version: string;
   ready: boolean;
@@ -34,12 +19,11 @@ import { ChainFamily, FAMILIES } from "../../../domain/family/index.js";
 import { withTimeout } from "../../../domain/async/index.js";
 
 export interface GetAddressOpts {
-  /** false = silent derive (import scan / precheck); true = show on-device for user confirmation. */
+  // Show the address on-device for confirmation; false derives silently.
   display?: boolean;
   onWait?: () => void;
 }
 
-/** Minimal shape of @ledgerhq/hw-app-trx's Trx we depend on (avoids a type-only dep at the seam). */
 interface TrxApp {
   getAddress(path: string, display?: boolean): Promise<{ publicKey: string; address: string }>;
   getAppConfiguration(): Promise<{ version: string }>;
@@ -53,8 +37,6 @@ interface TrxApp {
   ): Promise<string>;
 }
 
-/** Minimal shape of @ledgerhq/hw-app-eth's Eth we depend on. Unlike the TRON app it returns
- *  {v, r, s} components rather than a hex string, so the adapter assembles r||s||v itself. */
 interface EthApp {
   getAddress(path: string, display?: boolean): Promise<{ publicKey: string; address: string }>;
   getAppConfiguration(): Promise<{ version: string }>;
@@ -76,39 +58,21 @@ interface EthApp {
 
 type LedgerApp = TrxApp | EthApp;
 
-/**
- * Which @ledgerhq app module backs each family. Adding a family = one entry (plus its shape).
- *
- * Thunks with LITERAL specifiers, not `import(variable)`: a dynamic specifier cannot be
- * statically resolved, so the module load moves into the timed region (and `vi.mock`, which keys
- * off the specifier, may not apply at all). Both cost real behaviour — a slow first import ate
- * into the device timeout.
- */
+// Literal import specifiers allow static resolution and test mocking.
 const APP_LOADER: Record<ChainFamily, () => Promise<unknown>> = {
   tron: () => import("@ledgerhq/hw-app-trx"),
   evm: () => import("@ledgerhq/hw-app-eth"),
 };
 
-/**
- * {v, r, s} from the ethereum app -> Ethereum's 65-byte `r || s || v` hex.
- *
- * `v` is reduced to its PARITY BIT, because the app reports it differently per transaction type:
- * a typed transaction gives a bare parity (0/1), but a legacy one gives it already EIP-155
- * encoded — `chainId * 2 + 35 + parity`, which needs three bytes on Sepolia and cannot fit the
- * one byte a 65-byte signature has. Passing that through produced an over-long signature that
- * ethers rejected outright. Parity is the only part that is not recoverable from the
- * transaction itself, so ethers re-derives the rest from the chain id it already holds.
- */
+// Normalize parity or EIP-155-encoded v to 27/28 for a 65-byte r || s || v signature.
 function joinVrs(sig: { v: number | string; r: string; s: string }): string {
   const raw = typeof sig.v === "number" ? BigInt(sig.v) : BigInt(`0x${sig.v.replace(/^0x/, "")}`);
-  // 0/1 and 27/28 are already bare; anything larger is EIP-155 encoded (odd chainId*2+35+parity).
   const parity = raw < 27n ? raw & 1n : raw >= 35n ? (raw - 35n) & 1n : (raw - 27n) & 1n;
   const v = (27n + parity).toString(16);
   return `0x${sig.r.replace(/^0x/, "")}${sig.s.replace(/^0x/, "")}${v.padStart(2, "0")}`;
 }
 
-/** TRON's TIP-712 APDU returns parity (0/1); contract ecrecover expects 27/28.
- * Keep this separate from raw TRON transaction signatures, whose wire format is unchanged. */
+// TIP-712 returns parity 0/1; contract ecrecover requires 27/28, unlike raw transaction signatures.
 function normalizeTronTypedSignature(signature: string): string {
   if (!/^[0-9a-fA-F]{128}(?:00|01|1[bBcC])$/.test(signature)) {
     throw new ExecutionError(
@@ -121,17 +85,17 @@ function normalizeTronTypedSignature(signature: string): string {
   return `0x${signature.slice(0, 128)}${v.toString(16)}`;
 }
 
-/** hw-app-trx wants a BIP32 path WITHOUT the leading "m/" (e.g. 44'/195'/0'/0/0). */
+// Ledger paths omit the leading m/.
 function ledgerPath(path: string): string {
   return path.replace(/^m\//, "");
 }
 
-/** CJS-with-default interop under ESM/tsx: unwrap `.default` ourselves (cf. the demo's ledger.ts). */
+// Unwrap CommonJS default exports under ESM.
 function unwrap<T>(mod: unknown): T {
   return ((mod as { default?: T }).default ?? mod) as T;
 }
 
-/** Open the device transport: Speculos HTTP when SPECULOS_PORT is set, else USB/HID. */
+// Import transports lazily so Speculos does not require native HID.
 async function openTransport(): Promise<{
   transport: unknown;
   close: () => Promise<void>;
@@ -155,22 +119,14 @@ function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** TRON app settings that gate a whole class of signing, each surfaced as its own APDU status.
- *  Without this mapping they arrive as an opaque "UNKNOWN_ERROR (0x6a8c)" and the user has no way
- *  to know the fix is a toggle in the app's own settings menu. */
 const APP_SETTING_REQUIRED: Record<number, string> = {
-  // E_MISSING_SETTING_SIGN_BY_HASH — gates TIP-712 typed data and any hash-only signing.
   0x6a8c:
     'enable "Sign by Hash" in the Ledger TRON app settings (Settings › Sign by Hash › Allowed)',
-  // E_MISSING_SETTING_DATA_ALLOWED — gates transactions carrying extra data.
   0x6a8b:
     'enable "Transactions data" in the Ledger TRON app settings to sign a transaction with extra data',
-  // E_MISSING_SETTING_CUSTOM_CONTRACT — gates contracts the app cannot decode.
   0x6a8d: 'enable "Custom contracts" in the Ledger TRON app settings to sign this contract call',
 };
 
-/** 0x5515 (LOCKED_DEVICE) — the device is connected but its PIN has not been entered. hw-transport
- *  also raises a named `LockedDeviceError` on paths that never reach an APDU status word. */
 function isLockedDevice(e: unknown): boolean {
   return (
     (e as { statusCode?: number }).statusCode === 0x5515 ||
@@ -178,15 +134,11 @@ function isLockedDevice(e: unknown): boolean {
   );
 }
 
-/** Map a thrown device/app error to a typed CliError (user-rejection vs not-ready). */
 function classifyDeviceError(e: unknown): CliError {
   if (e instanceof CliError) return e;
-  // hw-transport surfaces APDU status as statusCode; 0x6985 = user declined on the device.
   const status = (e as { statusCode?: number }).statusCode;
   if (status === 0x6985)
     return new ChainError("signing_rejected", "the operation was rejected on the device");
-  // Its own code, not the generic device bucket: "connected but locked" has exactly one fix, and
-  // `auth_required` would send the reader looking for a password this CLI never asked for.
   if (
     ["DisconnectedDevice", "DisconnectedDeviceDuringOperation"].includes(
       (e as { name?: string })?.name ?? "",
@@ -202,20 +154,13 @@ function classifyDeviceError(e: unknown): CliError {
       "device_locked",
       "the Ledger device is locked — unlock it with your PIN and run the command again",
     );
-  // 0x6d00 (INS_NOT_SUPPORTED) is a standard status word every Ledger app shares — the app version
-  // does not implement this instruction, or the wrong app is open. Kept chain- and operation-agnostic
-  // on purpose: classifyDeviceError fires for any family and any call.
   if (status === 0x6d00 || status === 0x6d02) {
     return new WalletError(
       "ledger_unsupported",
       "the Ledger app does not support this operation — make sure the correct app is open on the device and updated to its latest version",
     );
   }
-  // 0x6a80 (E_INCORRECT_DATA) is what the TRON app answers when its parser cannot make sense of the
-  // payload — a contract type it does not implement (app-tron parse.c falls through to
-  // `default: return USTREAM_FAULT`) or a genuinely malformed transaction. The "Sign by Hash"
-  // fallback sits in the display switch, past a successful parse, so no app setting rescues this.
-  // Keep the wording covering both causes: the status word alone cannot tell them apart.
+  // 0x6a80 covers unsupported contract types and malformed payloads; settings cannot fix it.
   if (status === 0x6a80) {
     return new WalletError(
       "ledger_unsupported",
@@ -232,8 +177,6 @@ function classifyDeviceError(e: unknown): CliError {
 }
 
 export class Ledger {
-  // effective per-invocation timeout (--timeout, else config default); bounds every device call so an
-  // unresponsive device or an un-tapped on-device prompt can't hang the CLI. Mirrors TronChain for RPC.
   constructor(private readonly timeoutMs = 60_000) {}
 
   private assertWired(family: ChainFamily): void {
@@ -242,17 +185,14 @@ export class Ledger {
     }
   }
 
-  // Always close a completed operation normally. On abort/timeout bypass the transport's
-  // APDU wait and close the native HID handle; an opener finishing late is cancelled too.
+  // Abort bypasses the transport's APDU wait; completed operations close normally.
   #bound<A extends LedgerApp, T>(
     family: ChainFamily,
     fn: (app: A) => Promise<T>,
     signal?: AbortSignal,
   ): Promise<T> {
     let handle: { transport: unknown; close: () => Promise<void>; abort: () => void } | undefined;
-    // `cancelled` matters because the abort can land before openTransport() resolves: at that
-    // moment there is no handle to close, and a fire-once listener will not run again. Recording
-    // it lets the opener close the transport it is about to receive instead of leaking it.
+    // Remember early cancellation so a transport that opens later is still closed.
     let cancelled = false;
     const closeTransport = (): void => {
       cancelled = true;
@@ -263,9 +203,6 @@ export class Ledger {
       try {
         handle = await openTransport();
       } catch (e) {
-        // Nothing answered on USB/HID (or at the Speculos endpoint). `auth_required` said the wrong
-        // thing here — there is no credential to supply, the device simply is not there — and it
-        // read the same as a locked device, whose fix is entirely different.
         if (isLockedDevice(e)) throw classifyDeviceError(e);
         const noDevice =
           (e as { id?: string })?.id === "NoDevice" ||
@@ -331,8 +268,7 @@ export class Ledger {
   ): Promise<SignedTx> {
     this.assertWired(family);
     if (family === "evm") return this.#signEvmTransaction(path, tx, signal);
-    // The device signs raw_data_hex, so the same integrity rules the software strategy enforces
-    // apply here — a Ledger account must not be the weaker signer. See tx-integrity.ts.
+    // Validate the bytes the device will sign against the displayed transaction.
     assertTronTxIntegrity(tx);
     const rawTxHex = (tx as { raw_data_hex?: string }).raw_data_hex;
     if (!rawTxHex)
@@ -340,8 +276,7 @@ export class Ledger {
         "invalid_transaction",
         "TRON transaction is missing raw_data_hex for Ledger signing",
       );
-    // TRON multi-sig collects several signatures on one transaction, so an existing signature[]
-    // must be preserved and appended to — matching the software path (tronweb pushes).
+    // Preserve earlier signatures when adding a multisig approval.
     const existing = (tx as { signature?: unknown }).signature;
     const prior = Array.isArray(existing) ? existing : [];
     try {
@@ -352,7 +287,7 @@ export class Ledger {
           try {
             signature = await trx.signTransaction(ledgerPath(path), rawTxHex, []);
           } catch (error) {
-            // hw-app-trx throws this while packing protobuf fields, before sending any APDU.
+            // This packing error occurs before any APDU is sent.
             // Never retry a device rejection, transport failure, or cancelled operation as a hash.
             if (
               !(error instanceof Error) ||
@@ -371,7 +306,7 @@ export class Ledger {
             options?.onWarning?.(
               "Ledger transaction data exceeds the SDK field-size limit; falling back to hash signing. The device cannot display the URI or full transaction details. Verify the transaction on this computer before approving its hash.",
             );
-            // Recompute from the bytes after the same integrity checks as full transaction signing.
+            // Hash the validated bytes rather than trusting the supplied txID.
             const hash = createHash("sha256")
               .update(Buffer.from(rawTxHex.replace(/^0x/, ""), "hex"))
               .digest("hex");
@@ -411,13 +346,7 @@ export class Ledger {
     }
   }
 
-  /**
-   * TIP-712 structured-data signing. The TRON app exposes only the *hashed* variant, so the two
-   * EIP-712 hashes are computed here — in the adapter, where the SDK dependency already lives —
-   * and the device can display only those hashes, not the message. The port deliberately takes the
-   * whole payload rather than pre-computed hashes: the Ethereum app also offers a full
-   * clear-signing APDU, and a hash-shaped port would lock a future EVM adapter out of it.
-   */
+  // Hashed signing shows only hashes on-device, not the structured message.
   async signTypedData(
     family: ChainFamily,
     path: string,
@@ -467,10 +396,6 @@ export class Ledger {
     }
   }
 
-  /**
-   * The ethereum app signs the UNSIGNED typed-transaction serialisation and returns {v, r, s};
-   * ethers reassembles it into the raw transaction `eth_sendRawTransaction` accepts.
-   */
   async #signEvmTransaction(path: string, tx: UnsignedTx, signal?: AbortSignal): Promise<SignedTx> {
     let transaction: Transaction;
     try {
@@ -486,14 +411,10 @@ export class Ledger {
       return await this.#bound<EthApp, SignedTx>(
         "evm",
         async (eth) => {
-          // `resolution: null` on purpose — a non-null resolution makes hw-app-eth fetch
-          // clear-signing descriptors from Ledger's CDN mid-signature, and the CLI must not
-          // phone out while signing. The device shows the raw hash instead.
+          // Null resolution prevents the SDK from fetching CDN descriptors while signing.
           const signed = await eth.signTransaction(ledgerPath(path), unsignedHex, null);
           transaction.signature = joinVrs(signed);
-          // `{ raw, hash }`, matching the software strategy: the pipeline does not know which
-          // signer produced a transaction, and a bare string would lose the locally derived id
-          // that authoritativeTxId uses to refuse a node's claim about which tx it accepted.
+          // Retain the local hash so broadcast verification can reject a mismatched node txID.
           return { raw: transaction.serialized, hash: transaction.hash! };
         },
         signal,
@@ -509,10 +430,6 @@ export class Ledger {
     signal?: AbortSignal,
   ): Promise<TypedDataSignature> {
     const { domain, types, message } = payload;
-    // ethers' EIP-712 encoder rather than tronweb's TIP-712 one. The two agree on EVM input
-    // today (TIP-712 is a fork of this same code that also accepts TRON base58 addresses), so
-    // this is about coupling, not a current behavioural difference: EVM signing must not depend
-    // on a TRON SDK's typed-data implementation, which is free to diverge.
     const structTypes = Object.fromEntries(
       Object.entries(types as Record<string, unknown>).filter(([name]) => name !== "EIP712Domain"),
     ) as Record<string, Array<{ name: string; type: string }>>;

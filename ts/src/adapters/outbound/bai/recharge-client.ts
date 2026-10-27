@@ -19,7 +19,7 @@ const target = z.object({
   input: z.object({ type: z.literal("personal"), identifier: text }),
   confirmedTarget: z.object({ type: z.literal("personal"), targetId: text }),
 });
-// Only the external JSON API uses numbers; application ports carry decimal strings.
+// Convert decimal strings only at the numeric API boundary.
 const amount = z
   .string()
   .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
@@ -41,7 +41,7 @@ const amount = z
     return numeric;
   });
 const bindInput = wallet.extend({
-  // Preserve the exact bytes signed by the wallet, including surrounding whitespace.
+  // Trimming would change the signed bytes.
   message: z.string().refine((value) => value.trim().length > 0),
   signature: text,
   version: z.number().int().positive().optional(),
@@ -68,7 +68,7 @@ const report = z.discriminatedUnion("success", [
   z.object({ success: z.literal(false), code: z.string().regex(/^[A-Z][A-Z0-9_]{0,80}$/) }),
 ]);
 
-/** Documented non-batch tRPC recharge endpoints. Never signs, transfers, or retries mutations. */
+// Never retry mutations: their outcome may be unknown.
 export class BaiRechargeClient implements BaiRechargeApi {
   constructor(
     private readonly config: Pick<Config, "baiApiKey">,

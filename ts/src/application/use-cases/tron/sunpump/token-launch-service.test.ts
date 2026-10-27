@@ -1,10 +1,3 @@
-/**
- * `sunpump launch`'s use case: the body it assembles, and the preview that must equal it.
- *
- * The hard promise here is `--dry-run`: it reaches NO port at all. A dry run that sent the request
- * and threw the answer away would create a real token, permanently, on mainnet — so the fake below
- * fails the test if it is called, rather than merely recording that it was.
- */
 import { describe, expect, it } from "vitest";
 import { SunPumpTokenLaunchService } from "./token-launch-service.js";
 import type { SunPumpTokenRecord } from "../../../ports/sunpump/market-data.js";
@@ -55,7 +48,6 @@ function port() {
   return { sent, service: new SunPumpTokenLaunchService(launchpad) };
 }
 
-/** a port that must not be reached: being called at all is the failure. */
 const unreachable = new SunPumpTokenLaunchService({
   launchToken: async () => {
     throw new Error("the create endpoint was called during a dry run");
@@ -94,12 +86,6 @@ describe("creating a token", () => {
     expect(sent).toEqual([{ name: "Test Token", symbol: "TST", description: "demo" }]);
   });
 
-  /**
-   * The receipt is the token the service created, not the token we asked for.
-   *
-   * `owner` in particular: it is SunPump's choice and no local account, so it has to come from the
-   * answer. Echoing the request back would show an owner we invented.
-   */
   it("publishes the token the service answered with", async () => {
     const { service } = port();
     const view = await service.launch(MAINNET, { ...BASE, dryRun: false });
@@ -134,12 +120,10 @@ describe("--dry-run", () => {
       symbol: "TST",
       description: "demo",
       image: { source: "file", path: "./logo.png", bytes: 12_345 },
-      // no `twitter` key: an option nobody gave is absent, not empty
       links: { website: "https://example.com", telegram: "https://t.me/example" },
     });
   });
 
-  // A base64 logo has no path and no size on disk; its length is the only honest measure of it.
   it("previews a base64 logo by its length, with no path", async () => {
     const view = await unreachable.launch(MAINNET, {
       ...BASE,

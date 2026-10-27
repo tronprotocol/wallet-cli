@@ -28,7 +28,6 @@ export const TxFormatters = {
   txReceipt: ((r, ctx?: TextRenderContext) =>
     renderTxReceipt(r, ctx)) satisfies TextFormatter<TxReceiptView>,
   txStatus: ((r) => {
-    // `state` is computed by the command (tron: getTransactionById + receipt result) — no family branch.
     const status = {
       confirmed: `confirmed ${ok()}`,
       failed: `failed ${fail()}`,
@@ -39,8 +38,6 @@ export const TxFormatters = {
       ["TxID", r.txid],
       ["Status", status],
       ["Block", r.blockNumber === undefined ? "" : `#${formatInt(r.blockNumber)}`],
-      // `--wait` stops at the receipt, so how deep is enough is the caller's call to make.
-      // Empty rows are dropped, so this is absent while pending and on an unreadable head.
       ["Confirmations", r.confirmations === undefined ? "" : formatInt(r.confirmations)],
     ]);
   }) satisfies TextFormatter<TxStatusView>,
@@ -49,14 +46,11 @@ export const TxFormatters = {
   }) satisfies TextFormatter<TxInfoView>,
 };
 
-/** Default-mode broadcast/dry-run/sign-only receipt for tx/stake/contract signing commands.
- *  Narrows on the typed `kind`; the active family comes from `ctx.net` (see renderFamily) — no
- *  `family` in the payload, no stringly command-id matching, no alias probing. */
 function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const family = renderFamily(ctx);
   const symbol = renderSymbol(ctx);
   if (r.mode === "dry-run") {
-    // receiptRows already states a multi-sign fee; only estimated fees need their own row here.
+    // Multi-sign fees have their own row; do not repeat them as estimates.
     const body = receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
       ...receiptRows(r),
       ...(r.multiSignFeeSun === undefined
@@ -64,11 +58,8 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
         : []),
       ["Tx", summarizeTx(r.tx ?? r.transaction)],
     ]);
-    // `tx broadcast --dry-run` resolves the full approval state to decide broadcastability; show
-    // it rather than leaving text with a fee line while json carries permission and progress.
     if (r.transaction) return `${body}\n\n${renderApproval(r.transaction as TxApprovalView)}`;
-    // Families without an approval model (EVM) report which pre-broadcast checks actually ran —
-    // "skipped" is the row that matters, since a check that did not run proves nothing.
+    // Show skipped pre-broadcast checks; an unperformed check proves nothing.
     return r.checks?.length ? `${body}\n\n${renderChecks(r.checks)}` : body;
   }
   if (r.mode === "build-only") {
@@ -82,7 +73,6 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   }
   if (r.mode === "sign-only") {
     if (r.hex) return r.hex;
-    // kv() drops empty rows, so a fee-less signature (tx sign estimates nothing) omits the Fee line.
     return receipt(ok(), `Signed ${actionLabel(r.kind)}`, [
       ["Address", r.address ?? ""],
       ["TxID", String(r.txId ?? "")],
@@ -96,7 +86,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   const pairs: Pair[] = [...receiptRows(r), ...FAMILY_RENDER[family].receiptIdentityRows(r)];
   if (txid) pairs.push(["TxID", txid]);
 
-  // submitted (default, non-blocking): txid only, no fee/energy yet — those need confirmation.
+  // Settlement costs are only available after confirmation.
   if (stage === "submitted") {
     pairs.push(["Status", submittedStatus(r.kind)]);
     const body = receipt(pending(), summary, pairs);
@@ -104,12 +94,8 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     return txid ? `${body}\n! Track it: wallet-cli tx info${networkFlag} --txid ${txid}` : body;
   }
 
-  // confirmed / failed (after --wait): real on-chain block / fee / energy / result.
   if (r.blockNumber !== undefined && r.blockNumber !== null)
     pairs.push(["Block", `#${formatInt(r.blockNumber)}`]);
-  // What the transaction actually consumed, in the terms its own family bills in. Reading only
-  // TRON's fields here left an EVM receipt with no Fee line at all: the amounts were in the JSON,
-  // and the person who had just spent them could not see them.
   pairs.push(...FAMILY_RENDER[family].receiptSettlementRows(r, symbol));
   if (r.kind === "stake-unfreeze")
     pairs.push(["Withdrawable", "after the unlock period — then run `stake withdraw`"]);
@@ -144,7 +130,6 @@ function successStatus(kind: TxReceiptKind): string {
   }
 }
 
-/** the verb-phrase summary for a broadcast receipt, by action kind. */
 function receiptSummary(r: TxReceiptView, family: ChainFamily, symbol: string): string {
   const stakeAmt = r.amountSun !== undefined ? `${formatSun(r.amountSun)} TRX` : "TRX";
   const resource = r.resource ? String(r.resource) : "";
@@ -200,8 +185,6 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily, symbol: string): 
     }
     case "broadcast":
       return "Broadcast";
-    // `tx sign` never broadcasts, so it never reaches a broadcast summary; the case keeps the
-    // switch total over TxReceiptKind.
     case "sign":
       return "Signed";
     case "permission-update":
@@ -229,14 +212,13 @@ function receiptSummary(r: TxReceiptView, family: ChainFamily, symbol: string): 
   }
 }
 
-/** `<amount> <LABEL>` for one side of a pair, in whole tokens. */
+// Raw amounts are base units; display whole tokens.
 function pairAmount(raw: unknown, decimals: unknown, label: unknown): string {
   if (raw === undefined || raw === null || raw === "") return "";
   const whole = formatDecimal(fromBaseUnits(String(raw), num(decimals, 0)));
   return label ? `${whole} ${String(label)}` : whole;
 }
 
-/** `1,000 TRX / 50,000 MyToken` — both sides of a pair on one line, in --pair order. */
 function bothSides(
   r: TxReceiptView,
   a: [unknown, unknown, unknown],
@@ -247,13 +229,11 @@ function bothSides(
   return left && right ? `${left} / ${right}` : left || right;
 }
 
-/** Bancor receipt rows, by action. */
 function exchangeRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = [["Exchange id", r.exchangeId === undefined ? "" : formatInt(r.exchangeId)]];
   if (r.kind === "exchange-trade") {
     rows.push(["Trader", String(r.traderAddress ?? "")]);
     rows.push(["Sold", pairAmount(r.soldQuant, r.soldDecimals, r.soldLabel)]);
-    // the realised amount comes from the receipt; before that we can only state an estimate
     if (r.receivedQuant !== undefined) {
       rows.push(["Received", pairAmount(r.receivedQuant, r.receivedDecimals, r.receivedLabel)]);
     } else {
@@ -299,14 +279,13 @@ function exchangeRows(r: TxReceiptView): Pair[] {
   return rows;
 }
 
-/** `<amount> <NAME>` in whole tokens — TRC10 quantities travel in minimal units. */
+// TRC10 quantities are in minimal units.
 function assetAmount(raw: unknown, precision: unknown, name: unknown): string {
   if (raw === undefined || raw === null || raw === "") return "";
   const whole = formatDecimal(fromBaseUnits(String(raw), num(precision, 0)));
   return name ? `${whole} ${String(name)}` : whole;
 }
 
-/** `MyToken (id 1000123)` — object identity for a named object with an id. */
 function assetLabel(r: TxReceiptView): string {
   const name = r.name ? String(r.name) : "";
   const id = r.assetId === undefined ? "" : `id ${String(r.assetId)}`;
@@ -314,10 +293,6 @@ function assetLabel(r: TxReceiptView): string {
   return name || id;
 }
 
-/**
- * TRC10 receipt rows. `asset issue` echoes every term it locked in, because issuance is
- * irreversible and the receipt is the only complete record of what was fixed.
- */
 function assetRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = [["Asset", assetLabel(r)]];
   if (r.kind === "asset-participate") {
@@ -356,18 +331,15 @@ function assetRows(r: TxReceiptView): Pair[] {
   return rows;
 }
 
-/** `1 TRX = 100 MyToken`, from the `<trx>:<tokens>` pair the service already reduced. */
 function assetPrice(r: TxReceiptView): string {
   const [trx, tokens] = String(r.price ?? "").split(":");
   if (!trx || !tokens) return "";
   return `${formatInt(trx)} TRX = ${formatInt(tokens)} ${r.name ? String(r.name) : "tokens"}`;
 }
 
-/** action-specific extra rows (To/From/Address/Contract), by kind. */
 function receiptRows(r: TxReceiptView): Pair[] {
   const rows: Pair[] = [];
-  // `undefined` means "not a multi-sig broadcast"; 0 is a real answer (single signature,
-  // no extra fee) and must still be stated rather than silently dropped as falsy.
+  // A zero multi-sign fee is known; undefined means no fee was reported.
   if (r.multiSignFeeSun !== undefined)
     rows.push(["Multi-sign fee", `${formatSun(r.multiSignFeeSun)} TRX`]);
   if (r.kind.startsWith("asset-")) rows.push(...assetRows(r));
@@ -393,9 +365,6 @@ function receiptRows(r: TxReceiptView): Pair[] {
     rows.push(["To", r.toContact ? `${r.toContact} (${address})` : address]);
   }
   if (r.kind === "contract-send") rows.push(["Contract", String(r.contract ?? "")]);
-  // approve(address,uint256): the two facts the caller cannot verify from what they typed — the
-  // uint256 on the command line is scaled by the token's decimals, and its maximum is 78 digits.
-  // Present in the dry run too, which is where an approval most wants checking.
   if (r.identity) {
     if (r.identity.agentId !== undefined) rows.push(["Agent ID", r.identity.agentId]);
     if (r.identity.operator !== undefined) rows.push(["Operator", r.identity.operator]);
@@ -414,7 +383,7 @@ function receiptRows(r: TxReceiptView): Pair[] {
   return rows;
 }
 
-/** `1 USDC` / `unlimited` / the bare base-unit integer when the token's decimals were unreadable. */
+// Allowance is already scaled when decimals are known; otherwise it is a raw integer.
 function allowanceLabel(r: TxReceiptView): string {
   const value = String(r.allowance);
   if (value === "unlimited") return value;
@@ -423,8 +392,6 @@ function allowanceLabel(r: TxReceiptView): string {
   return symbol ? `${amount} ${symbol}` : amount;
 }
 
-/** broadcast-receipt amount: token-aware (symbol/decimals when known, else the contract/asset-id
- *  identifier for raw-amount sends), native smallest-unit → coin only when no token is involved. */
 function receiptAmount(r: TxReceiptView, family: ChainFamily, symbol: string): string {
   if (r.rawAmount !== undefined && r.rawAmount !== null && r.rawAmount !== "") {
     const raw = String(r.rawAmount);
@@ -444,20 +411,17 @@ function receiptAmount(r: TxReceiptView, family: ChainFamily, symbol: string): s
   return "";
 }
 
-/** Pre-broadcast checks from a dry run, one row each. */
 function renderChecks(checks: NonNullable<TxReceiptView["checks"]>): string {
   const mark = { ok: "✓", warning: "!", skipped: "–" } as const;
   return ["Checks", ...checks.map((c) => `  ${mark[c.status]} ${c.name}: ${c.detail}`)].join("\n");
 }
 
-/** human label for an action kind, e.g. "send" → "tx send" (for dry-run/sign-only headers). */
 function actionLabel(kind: TxReceiptKind): string {
   switch (kind) {
     case "send":
       return "tx send";
     case "broadcast":
       return "tx broadcast";
-    // reads as "Signed transaction"; "tx sign" would render as "Signed tx sign".
     case "sign":
       return "transaction";
     case "stake-freeze":
@@ -529,22 +493,14 @@ export function formatFee(fee: unknown, family: ChainFamily, symbol: string): st
     const f = asObj(fee);
     if (f.feeSun) return `${formatSun(f.feeSun)} TRX`;
     if (f.bandwidthBurnSunIfNoFreeze) return `${formatSun(f.bandwidthBurnSunIfNoFreeze)} TRX`;
-    // account activate: the fee is derived from two chain parameters rather than quoted by the
-    // node, so it arrives as its components plus their sum. Show the sum — the same single total
-    // the confirmed receipt prints — and leave the breakdown to json.
     if (f.minimumFeeSun !== undefined) return `${formatSun(f.minimumFeeSun)} TRX`;
-    // energy estimate (TRC20/contract via estimateResources): no sun figure — staked energy may
-    // cover it. Report the estimated energy + whether the account's available energy covers it.
     if (f.energy !== undefined) {
       const energy = Number(f.energy);
       const avail = f.availableEnergy === undefined ? undefined : Number(f.availableEnergy);
       const covered = avail !== undefined && avail >= energy ? " (covered by staked energy)" : "";
       return `~${energy.toLocaleString()} energy${covered}`;
     }
-    // EVM fee plan: gasLimit × the per-gas ceiling. It is the most this transaction CAN cost,
-    // not what it will, so it is labelled as a ceiling (`≤` says the same
-    // thing without implying an estimate could land above it) and, when the components are known,
-    // states what that ceiling is made of — the same shape as a confirmed receipt's Fee row.
+    // maxCostWei is a fee ceiling, not the eventual cost.
     if (f.maxCostWei !== undefined) {
       const total = `\u2264 ${FAMILY_RENDER[family].feeFallback(f.maxCostWei, symbol)}`;
       return f.gasLimit === undefined || f.maxPerGasWei === undefined
@@ -552,18 +508,13 @@ export function formatFee(fee: unknown, family: ChainFamily, symbol: string): st
         : `${total}  (${formatInt(f.gasLimit)} gas × ${formatGwei(f.maxPerGasWei)} gwei max)`;
     }
     if (f.note) return String(f.note);
-    // An unrecognised fee object must not reach feeFallback: that formats a scalar sun amount and
-    // would stringify the object into "[object Object]". Saying "unknown" is honest, and it keeps
-    // a fee shape added later from silently rendering as garbage instead of failing visibly.
+    // Do not pass unknown objects to the scalar fee formatter.
     return "unknown";
   }
   return FAMILY_RENDER[family].feeFallback(fee, symbol);
 }
 
-/** Signatures are the whole point of a sign-only receipt and the user has to copy them somewhere,
- *  so they are never shortened — unlike the dry-run `Tx` row, which only identifies a blob the
- *  command did not produce. TRON carries `signature[]` (several when co-signing a multi-sig
- *  transaction); a family whose signed form is one opaque string shows that string instead. */
+// Keep signatures complete so they can be copied and used.
 function signatureRows(signed: unknown): Pair[] {
   if (typeof signed === "string") return [["Signed", signed]];
   const sigs = (signed as { signature?: unknown } | null)?.signature;

@@ -2,10 +2,10 @@ import { endpointHost, type NetworkDescriptor } from "../../../domain/types/inde
 import { UsageError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 
-/** TRON blocks every ~3s; a head older than 3 intervals means the node lags the chain. */
+// Nine seconds is about three TRON block intervals.
 const IN_SYNC_WINDOW_MS = 9_000;
 
-/** "ts:price,ts:price,…" (node price timeline) → structured history; current = last segment. */
+// Node format: timestamp:price pairs; the final pair is current.
 function parsePriceTimeline(raw: string): {
   currentSunPerUnit: number;
   history: Array<{ since: number; price: number }>;
@@ -15,13 +15,10 @@ function parsePriceTimeline(raw: string): {
     .map((seg) => seg.split(":"))
     .filter((p) => p.length === 2)
     .map(([since, price]) => ({ since: Number(since), price: Number(price) }))
-    // Drop malformed segments so a bad node fragment can't leak NaN into the output; `?? 0`
-    // only guards `undefined`, not NaN.
     .filter((p) => Number.isFinite(p.since) && Number.isFinite(p.price));
   return { currentSunPerUnit: history.at(-1)?.price ?? 0, history };
 }
 
-/** getnodeinfo "Num:84120345,ID:…" → 84120345 (null if unparsable). */
 function blockNum(s: unknown): number | null {
   const m = /Num:(\d+)/.exec(String(s ?? ""));
   return m ? Number(m[1]) : null;
@@ -65,9 +62,7 @@ export class TronChainService {
     const solidNumber = blockNum(info.solidityBlock);
     const codeVersion = info.configNodeInfo?.codeVersion;
     return {
-      // HOST only: a configured endpoint can carry an API key in its path, and this command's
-      // output is the one people paste into issues and CI logs. `config networks.<id>.httpEndpoint`
-      // is where a full URL is handed over, because there it was asked for by name.
+      // Endpoint paths and queries may contain API keys.
       endpoint: endpointHost(network.httpEndpoint) || null,
       version: codeVersion ? `java-tron ${codeVersion}` : null,
       p2pVersion: info.configNodeInfo?.p2pVersion ?? null,

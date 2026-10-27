@@ -1,13 +1,3 @@
-/**
- * The EVM gas fee model — pure arithmetic over numbers the gateway supplies.
- *
- * The mode decision is the load-bearing part. Measured on the four builtin chains:
- *   ethereum / sepolia → baseFeePerGas non-zero
- *   bsc / bsc-testnet  → baseFeePerGas PRESENT BUT ZERO
- * so "the field is non-zero" would misclassify BSC. A zero base fee is not the absence of
- * EIP-1559: it is EIP-1559 where the whole fee is the tip, which is exactly BSC's model — and
- * the 1559 arithmetic degenerates to the legacy one on its own, with no second code path.
- */
 import { describe, it, expect } from "vitest";
 import { evmFeeMode, gweiToWei, planEvmFee } from "./evm-gas.js";
 
@@ -26,8 +16,6 @@ describe("evmFeeMode", () => {
     expect(evmFeeMode(undefined)).toBe("legacy");
   });
 
-  // The escape hatch: a chain that advertises a base fee but refuses type-2 transactions can be
-  // pinned through the network's own feeModel rather than by patching the detection.
   it("lets a network force legacy despite reporting a base fee", () => {
     expect(evmFeeMode("155315168", "legacy")).toBe("legacy");
   });
@@ -67,7 +55,6 @@ describe("planEvmFee — EIP-1559", () => {
   });
 
   it("clamps a suggested tip that exceeds a user-supplied maxFee", () => {
-    // maxPriorityFeePerGas > maxFeePerGas is rejected by nodes; the user's ceiling wins.
     const plan = planEvmFee({
       ...base,
       suggestedPriorityWei: "900",
@@ -90,7 +77,6 @@ describe("planEvmFee — EIP-1559", () => {
     ).toBe("90000");
   });
 
-  // BSC: base fee zero means the whole fee is the tip, and the formula produces exactly that.
   it("degenerates to a tip-only fee when the base fee is zero", () => {
     const plan = planEvmFee({
       baseFeeWei: "0",
@@ -118,7 +104,6 @@ describe("planEvmFee — legacy", () => {
     expect(planEvmFee(legacy).maxCostWei).toBe(String(21000n * 3000000000n));
   });
 
-  // Silently dropping a fee flag the chain cannot honour would misreport what was signed.
   it("refuses a 1559 override on a legacy chain", () => {
     expect(() => planEvmFee({ ...legacy, overrides: { maxFeeWei: "500" } })).toThrow(
       /legacy|1559|not support/i,
@@ -141,12 +126,9 @@ describe("gweiToWei", () => {
     expect(gweiToWei("0.000000001")).toBe("1");
   });
 
-  // The reason this is string arithmetic and not `parseFloat(x) * 1e9`: past 2^53 a float cannot
-  // represent consecutive integers, so the scaled result would come back off by one wei — and a
-  // fee ceiling is not a place to silently lose the last digit.
   it("stays exact for a value whose wei amount exceeds Number.MAX_SAFE_INTEGER", () => {
     expect(gweiToWei("9007199.254740993")).toBe("9007199254740993");
-    expect(Number("9007199254740993")).toBe(9007199254740992); // what a float would have given
+    expect(Number("9007199254740993")).toBe(9007199254740992);
   });
 
   it("rejects a value finer than one wei rather than rounding it away", () => {
@@ -157,16 +139,12 @@ describe("gweiToWei", () => {
     expect(() => gweiToWei("fast")).toThrow();
   });
 
-  // The spec promised `cast`-style suffixes. Only the one that names this flag's own unit is honoured:
-  // it cannot change the value, and refusing it only punishes a copied `cast` line.
   it("accepts a gwei suffix as a synonym for the bare number", () => {
     expect(gweiToWei("25gwei")).toBe("25000000000");
     expect(gweiToWei("25 GWEI")).toBe("25000000000");
     expect(gweiToWei("0.05gwei")).toBe(gweiToWei("0.05"));
   });
 
-  // The reason the other suffixes stay out: one flag spanning nine orders of magnitude means a
-  // typo costs a billion times the fee. Refused by name, not silently reinterpreted.
   it("refuses any other unit by name", () => {
     for (const bad of ["0.01ether", "25wei", "25 eth"]) {
       expect(() => gweiToWei(bad)).toThrow(/read in gwei/);
@@ -174,14 +152,6 @@ describe("gweiToWei", () => {
   });
 });
 
-/**
- * The two ways a fee plan can be quietly wrong.
- *
- * Both produce a signable transaction, and neither raises an error anywhere downstream: the node
- * accepts what it is given, and the transaction simply never gets mined — or gets mined paying a
- * tip the caller did not choose. An error would be wrong (the caller may mean it); silence was
- * worse.
- */
 describe("planEvmFee — warnings", () => {
   const chain = {
     baseFeeWei: "1000000000",
@@ -203,7 +173,6 @@ describe("planEvmFee — warnings", () => {
     expect(plan.warnings?.join(" ")).toMatch(/cannot be included until the base fee falls/);
   });
 
-  // An explicit tip is the caller's decision, not something to report back at them.
   it("does not warn about a tip the caller chose", () => {
     const plan = planEvmFee({
       ...chain,

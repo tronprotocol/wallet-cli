@@ -31,13 +31,9 @@ const NETWORK = {
   sunswap: { liquidity: true },
 } as unknown as NetworkDescriptor;
 
-/** The address the market API and this CLI use for native TRX. Not a TRC-20 contract. */
 const TRX = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
-/** Symbols resolve through the shared resolver; here it is scripted rather than backed by a
- *  token repository, because what the service owes is using it at all. */
 const resolver = {
-  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
   resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) =>
     ({ USDT, WTRX, TRX })[value.toUpperCase()] ?? value,
@@ -50,7 +46,7 @@ const FACTS: Record<string, { address: string; decimals: number; symbol: string 
   [WTRX]: { address: WTRX, decimals: 6, symbol: "WTRX" },
 };
 
-/** A funded pair, reserves already in the caller's token order (the adapter does that swap). */
+// Reserves are in caller token order, as returned by the adapter.
 const PAIR = {
   pairAddress: "TKioHQsGLkaEWwBwkUB2T4Rm6nwGATtJyh",
   reserve0: "8971373980412",
@@ -128,7 +124,6 @@ interface PipelineParams {
 
 function makeHarness(
   port: LiquidityPort = makePort(),
-  /** the V4 collaborators, which most cases never reach — see `noV4Permits`. */
   permits: unknown = noV4Permits,
   signers: unknown = noV4Signers,
   tokens: SunSwapTokenResolver = resolver,
@@ -189,7 +184,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — planning", () => {
     })) as Record<string, Record<string, string>>;
 
     expect(result.token0).toMatchObject({ amount: "1000000", amountMinimum: "950000" });
-    // 1 USDT against the live-shaped reserves, truncated toward leaving dust unspent.
     expect(result.token1).toMatchObject({ amount: "686044", amountMinimum: "651741" });
   });
 
@@ -201,8 +195,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — planning", () => {
       dryRun: true,
     })) as Record<string, unknown>;
 
-    // The two sides disagree — 780259 from token0, 780258 from token1 — and the pair credits the
-    // smaller. Verified against the arithmetic by hand, not against this function.
+    // The two sides yield 780259 and 780258 LP units; minting uses the smaller.
     expect(result.lpAmountExpected).toBe("780258");
   });
 
@@ -272,7 +265,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the approval decision", () 
       dryRun: true,
     })) as Record<string, unknown>;
 
-    // Absent, not empty: an empty list reads as "an approval is coming".
     expect(result).not.toHaveProperty("approvals");
   });
 });
@@ -286,7 +278,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --dry-run", () => {
     expect(assertCanSign).not.toHaveBeenCalled();
   });
 
-  // V2's contract is the router, and only V2 keeps that key.
   it("names its contract router", async () => {
     const { service, scope } = makeHarness();
 
@@ -322,8 +313,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --dry-run", () => {
     })) as { fee: Record<string, unknown>; feeCovers: string };
 
     expect(result.feeCovers).toBe("approvals");
-    // Two approvals at 1000 energy each. The deposit is absent from the total, and absent from
-    // the estimate log entirely: estimating it would return the energy burned reaching a revert.
     expect(result.fee).toMatchObject({ energy: 2000 });
     expect(estimated.map((call) => call.method)).toEqual([APPROVE, APPROVE]);
   });
@@ -384,7 +373,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --build-only", () => {
 
 describe("SunSwapLiquidityService.addLiquidityV2 — broadcasting", () => {
   it("re-reads the allowance after each approval and refuses to deposit if it fell short", async () => {
-    // The approval's receipt says it succeeded; the allowance it left behind says otherwise.
     const port = makePort({ allowance: vi.fn(async () => "0") as never });
     const { service, scope } = makeHarness(port);
 
@@ -399,7 +387,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — broadcasting", () => {
       allowance: vi.fn(async () => allowance) as never,
     });
     const { service, scope, gateway, pipeline } = makeHarness(port);
-    // Every approval lands: the re-read after it sees the full amount.
     (pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
       async (p: PipelineParams) => {
         const tx = (await p.build(OWNER)) as { txID: string };
@@ -443,7 +430,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — symbols", () => {
     expect(result.token1.address).toBe(WTRX);
   });
 
-  // A symbol and its own address are the same token, and only the resolved form shows that.
   it("refuses a symbol paired with its own address", async () => {
     const { service, scope } = makeHarness();
 
@@ -473,13 +459,9 @@ describe("SunSwapLiquidityService.addLiquidityV2 — native TRX", () => {
     const methods = gateway.triggerSmartContract.mock.calls.map((call) => call[2]);
     expect(methods).toContain(ADD_LIQUIDITY_ETH);
     expect(methods).not.toContain(ADD_LIQUIDITY);
-    // The TRX amount reaches the builder as the call's VALUE and untouched: it is the one number
-    // here that nothing may round, default or infer. Derived from the pool's ratio, so it is
-    // compared against the plan rather than to a constant.
     const deposit = methods.indexOf(ADD_LIQUIDITY_ETH);
     expect(BigInt(result.token0.amount)).toBeGreaterThan(0n);
     expect(callValues[deposit]).toBe(result.token0.amount);
-    // The approval before it carries no value at all.
     expect(callValues[methods.indexOf(APPROVE)]).toBe("0");
   });
 
@@ -503,9 +485,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — native TRX", () => {
       dryRun: true,
     })) as Record<string, Record<string, string>>;
 
-    // The router wraps TRX, so the pair that exists is the WTRX one.
     expect(port.v2PairState).toHaveBeenCalledWith(NETWORK, WTRX, USDT);
-    // ...but the receipt names what the caller deposited.
     expect(result.token0).toMatchObject({ address: TRX, symbol: "TRX" });
   });
 
@@ -537,7 +517,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — native TRX", () => {
 });
 
 describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () => {
-  /** A harness whose every transaction confirms. */
   function confirming(port: LiquidityPort) {
     const harness = makeHarness(port);
     (
@@ -561,7 +540,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
       allowance: vi.fn(async () => "999999999999") as never,
       v2PairState: vi.fn(async () => {
         pairReads += 1;
-        // A concurrent swap also changes reserves; those deltas cannot price our deposit.
         return pairReads === 1
           ? PAIR
           : { ...PAIR, reserve0: "8971374980412", reserve1: "6154766461060" };
@@ -574,9 +552,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
 
     const result = (await service.addLiquidityV2(scope, NETWORK, BASE)) as Record<string, never>;
 
-    // decimals travels with the amount. Without it a receipt prints base units beside a symbol —
-    // "Deposited 1,000,000 USDT" for a 1 USDT deposit — which a live run caught and no assertion
-    // on the amount alone would have.
     expect(result.token0).toMatchObject({ amount: "900000", symbol: "USDT", decimals: 6 });
     expect(result.token1).toMatchObject({ amount: "686044", symbol: "WTRX", decimals: 6 });
     expect(result.lpAmount).toBe("780258");
@@ -610,7 +585,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
 
     expect(result).not.toHaveProperty("lpAmount");
     expect(result).not.toHaveProperty("reservesAfter");
-    // The requested amount stands, under the name that means requested.
     expect(result.token0).toMatchObject({ amount: "1000000" });
   });
 
@@ -631,7 +605,6 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
     });
     const { service, scope } = confirming(port);
 
-    // The deposit is on chain; a follow-up read that fails must not turn it into an error.
     const result = (await service.addLiquidityV2(scope, NETWORK, BASE)) as Record<string, unknown>;
 
     expect(result.token0).toMatchObject({ amount: "900000" });
@@ -660,7 +633,6 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
     })) as Record<string, unknown>;
 
     expect(result.feeTier).toBe(3000);
-    // tick -7032 aligned to the 3000 tier's spacing of 60, then 100 spacings either side.
     expect(result.tickLower).toBe(-13020);
     expect(result.tickUpper).toBe(-1020);
     expect(result.feeAuto).toBe(true);
@@ -681,7 +653,6 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
     expect(result).not.toHaveProperty("tickRangeAuto");
   });
 
-  // Silently rounding a boundary would move someone's position without telling them.
   it("refuses a tick off the tier's grid rather than rounding it on", async () => {
     const { service, scope } = makeHarness();
 
@@ -715,11 +686,6 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
     expect(result.token1!.amountMinimum).toBe("0");
   });
 
-  /**
-   * A V3 deposit names its contract `positionManager` (`router` is V2's word),
-   * and a preview's liquidity is `liquidityExpected` — `liquidity` is what a confirmed receipt
-   * measured, and one key for both would let a script read an estimate as a settlement.
-   */
   it.each([
     ["a dry run", { dryRun: true }],
     ["a build", { buildOnly: true }],
@@ -760,8 +726,6 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
     expect(result.approvals.every((approval) => approval.spender === MANAGER)).toBe(true);
   });
 
-  // A pool with no liquidity at all mints nothing; `mint` reverts on it, and the estimate's bare
-  // "REVERT opcode executed" says nothing a caller could act on.
   it("refuses a deposit that would hold no liquidity, naming the reason", async () => {
     const port = makePort({
       v3Amounts: vi.fn(() => ({ amount0: "0", amount1: "0", liquidity: "0" })) as never,
@@ -822,13 +786,10 @@ describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
     expect(result.tickUpper).toBe(-6030);
     expect(result.nftTokenId).toBe("1846");
     expect(result.newPosition).toBe(false);
-    // Nothing was defaulted: the position supplied all of it.
     expect(result).not.toHaveProperty("feeAuto");
     expect(result).not.toHaveProperty("tickRangeAuto");
   });
 
-  // increaseLiquidity does not check the caller, so a mistyped id would fund a stranger's
-  // position and the transaction would succeed.
   it("refuses a position the account does not hold, naming the owner", async () => {
     const port = makePort({
       v3Position: vi.fn(async (_n: NetworkDescriptor, tokenId: string) => ({
@@ -852,7 +813,6 @@ describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
     });
   });
 
-  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
   it("reports an id that was never minted as position_not_found", async () => {
     const port = makePort({
       v3Position: vi.fn(async () => {
@@ -865,7 +825,6 @@ describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
     ).rejects.toMatchObject({ code: "position_not_found" });
   });
 
-  // A dry run can be minutes old by the time someone runs the real thing.
   it("re-reads the owner immediately before sending, not only in the dry run", async () => {
     const { service, scope, port } = makeHarness();
     (port.allowance as unknown as { mockResolvedValue: (v: string) => void }).mockResolvedValue(
@@ -874,8 +833,7 @@ describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
 
     await service.addLiquidity(scope, NETWORK, INCREASE);
 
-    // Once while planning, once on the way to the node, once after it confirmed to read back
-    // what the position actually gained.
+    // Planning, pre-send ownership check, then post-confirmation liquidity read.
     expect((port.v3Position as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
       3,
     );
@@ -920,7 +878,6 @@ describe("SunSwapLiquidityService — the minted position's id", () => {
     expect(result.newPosition).toBe(true);
   });
 
-  // The position exists on chain either way, so an unreadable log costs the id, not the deposit.
   it("warns rather than fails when the log cannot be read", async () => {
     const port = makePort({
       allowance: vi.fn(async () => "999999999999") as never,
@@ -993,10 +950,6 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
     });
   });
 
-  // A V3 pool takes the amounts at its own price, so it credits a little less than the plan
-  // predicted. A live Nile run found the receipt reporting the planned figure: two deposits of
-  // 14,398,816 each read back as 28,793,272 on chain, not 28,797,632 — and that figure is what a
-  // later remove-liquidity --liquidity has to be given.
   it("reads the position back rather than echoing what was planned", async () => {
     let reads = 0;
     const port = makePort({
@@ -1011,7 +964,6 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
           fee: 500,
           tickLower: -8030,
           tickUpper: -6030,
-          // before the deposit, then after it
           liquidity: reads <= 2 ? "14398816" : "28793272",
         };
       }) as never,
@@ -1057,21 +1009,11 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
   });
 });
 
-/**
- * The V4 increase scenario: adding to a position that already exists.
- *
- * The asymmetry with V3's increase is the thing under test. On V3 `--token0` / `--token1` are
- * REFUSED beside `--position-id`, because the position fixes the pair. On V4 they are REQUIRED —
- * and they still select nothing, so what they are is a cross-check against the pair the position
- * reports. These cases pin both halves: the check refuses a mismatch, and the position's own pool
- * and range are what the call is built from either way.
- */
 describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
   const V4_MANAGER = "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP";
   const PERMIT2 = "TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax";
   const MODIFY = "modifyLiquidities(bytes,uint256)";
   const POOL_ID = "2f8c".padEnd(64, "a");
-  /** The pool's own `parameters` word — spacing 12, as a real Nile pool reports it. */
   const PARAMETERS = `0x${"0".repeat(58)}0c0000`;
 
   const POOL = {
@@ -1096,8 +1038,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     fee: 500,
     tickSpacing: 12,
     hooks: TRX,
-    // NOT the default band around the current tick: a position's range is its own, and a plan that
-    // reported the default would be reporting a range this deposit does not land in.
+    // Use a nondefault range to detect accidental replacement with the pool default.
     tickLower: -1284,
     tickUpper: 1116,
     liquidity: "5000000",
@@ -1117,14 +1058,11 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
       v4DepositPayload: vi.fn(() => {
         throw new Error("an increase must not build a mint");
       }),
-      // The standing TRC20 allowance already covers it, so no approval transaction is planned and
-      // these cases are about the deposit rather than about the approval sequence.
       allowance: vi.fn(async () => MAX_UINT256),
       ...overrides,
     } as Partial<LiquidityPort>);
   }
 
-  /** Every grant already stands, so nothing needs signing and the call builds. */
   const standingGrants = { planPermit: vi.fn(async () => undefined) };
   const signers = { resolve: vi.fn(() => ({})) };
 
@@ -1196,7 +1134,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     const { result } = run({ ...BASE_V4, token1: USDT, dryRun: true });
     await expect(result).rejects.toMatchObject({ code: "invalid_value" });
     await expect(result).rejects.toThrow(POSITION.tokenId);
-    // Both the given pair and the held pair, so a caller can see which one they got wrong.
     await expect(result).rejects.toThrow(WTRX);
   });
 
@@ -1251,7 +1188,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     await expect(result).rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
   it("reports an id that was never minted as position_not_found", async () => {
     const port = v4Port({
       v4Position: vi.fn(async () => {
@@ -1262,11 +1198,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     await expect(result).rejects.toMatchObject({ code: "position_not_found" });
   });
 
-  /**
-   * Defensive restatements of what the command schema refuses at parse time. The use case is also
-   * reachable directly, and each of these accepted-and-ignored would misstate what was sent — a
-   * recipient the NFT never goes to, or a range a position cannot be given.
-   */
   it.each([
     ["--recipient", { recipient: ROUTER }],
     ["--tick-lower", { tickLower: -120 }],
@@ -1293,13 +1224,11 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
       tickUpper: 1116,
       feeTier: 500,
       tickSpacing: 12,
-      // The word for it, never the zero address — which on TRON is also native TRX's.
       hooks: "none",
       liquidityExpected: SIZED.liquidity,
     });
   });
 
-  // V3 and V4 name their contract `positionManager` in every mode; `router` is V2's.
   it.each([
     ["a dry run", { dryRun: true }],
     ["a build", { buildOnly: true }],
@@ -1319,20 +1248,12 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     expect(result).not.toHaveProperty("router");
   });
 
-  // The range came from the position, so nothing here chose it and saying "(default)" would be a
-  // lie about where it came from.
   it("does not mark the range as chosen by the CLI", async () => {
     await expect(run({ ...BASE_V4, dryRun: true }).result).resolves.not.toHaveProperty(
       "tickRangeAuto",
     );
   });
 
-  /**
-   * EVERY VALUE THIS PLAN SETS REACHES THE CALL.
-   *
-   * The request is asserted whole rather than field by field, so a value silently dropped on the way
-   * to the port fails here — which is the one failure mode a mock port cannot otherwise catch.
-   */
   it("builds the increase from the position's own pool key, verbatim", async () => {
     const port = v4Port();
     const { result } = run({ ...BASE_V4, deadline: 4102444800 }, port);
@@ -1343,17 +1264,13 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
         currency1: WTRX,
         hooks: TRX,
         fee: 500,
-        // VERBATIM from the pool, never re-encoded from the tick spacing.
         parameters: PARAMETERS,
       },
       tokenId: "12",
       liquidity: SIZED.liquidity,
-      // The CEILING, and with no --slippage it is EXACTLY the computed amounts — the default,
-      // measured to work on Nile.
       amount0Max: SIZED.amount0,
       amount1Max: SIZED.amount1,
       owner: OWNER,
-      // Set on both pairs, though it only bites on a native one.
       sweepRecipient: OWNER,
       deadline: 4102444800,
       permits: [],
@@ -1371,8 +1288,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     },
   );
 
-  /** A tolerance raises the ceiling UPWARD. A deposit is bounded from above; lowering it would
-   *  revert every deposit it was meant to protect. */
   it("widens the ceiling upward when --slippage is given", async () => {
     const port = v4Port();
     await run({ ...BASE_V4, slippage: "0.01", deadline: 4102444800 }, port).result;
@@ -1382,8 +1297,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     expect(BigInt(request.amount1Max)).toBeGreaterThan(BigInt(SIZED.amount1));
   });
 
-  // And the plan says so only then: a ceiling row equal to the deposit above it teaches a reader to
-  // skip the section.
   it("publishes the ceiling only when a tolerance moved it", async () => {
     await expect(run({ ...BASE_V4, dryRun: true }).result).resolves.not.toHaveProperty(
       "amount0Max",
@@ -1393,25 +1306,16 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     ).resolves.toHaveProperty("amount0Max");
   });
 
-  /**
-   * ON A NATIVE PAIR THE ACCOUNT MUST HOLD THE CEILING, not the deposit.
-   *
-   * The ceiling is sent as the call's value and the remainder is swept back, so an account holding
-   * exactly the deposit cannot send it. Measured on the mint, and an increase is a deposit.
-   */
   it("checks the native balance against the ceiling", async () => {
     const port = v4Port({
       v4Position: vi.fn(async () => ({ ...POSITION, currency0: TRX })),
       v4PoolState: vi.fn(async () => ({ ...POOL, currency0: TRX })),
-      // 1% above the 1000000 deposit is 1010000; the account holds only the deposit.
       nativeBalance: vi.fn(async () => SIZED.amount0),
     } as Partial<LiquidityPort>);
     const { result } = run({ ...BASE_V4, token0: "TRX", slippage: "0.01", dryRun: true }, port);
     await expect(result).rejects.toMatchObject({ code: "insufficient_balance" });
   });
 
-  // The holder is read AGAIN immediately before sending: a dry run can be minutes old, and a
-  // position that changed hands in between must not be added to on this account's behalf.
   it("re-reads the holder before sending", async () => {
     const port = v4Port();
     await run(BASE_V4, port).result;
@@ -1419,13 +1323,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
   });
 });
 
-/**
- * The V4 collaborators, which these cases do not exercise.
- *
- * They THROW rather than returning a plausible nothing: a double that quietly answers is how a test
- * passes while the path it names is broken, which is the mistake the TRX token-facts fixture taught.
- * Anything here reaching them is a test that has escaped its own subject.
- */
 const noV4Permits = {
   planPermit: () => {
     throw new Error("V4 Permit2 planning is not part of this test");
@@ -1437,14 +1334,6 @@ const noV4Signers = {
   },
 } as never;
 
-/**
- * The V4 MINT scenario: a deposit into a pool named by its parts.
- *
- * `--pool`, a 32-byte id, used to be the only way to name a V4 pool here — a value no
- * documentation specified and this CLI published nowhere. The pool is named by what it is made
- * of now: `--token0`, `--token1`, `--fee` and `--tick-spacing`, plus `--hooks` when there is one.
- * The id is derived from those, by the same hash the pool manager uses.
- */
 describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   const V4_MANAGER = "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP";
   const PERMIT2 = "TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax";
@@ -1569,14 +1458,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(out.approvals ?? []).toEqual([]);
   });
 
-  /**
-   * A TRC20 side the account cannot cover is refused in the plan, so a dry run reports it.
-   *
-   * Measured on Nile through a Ledger: with 9 USDT against a 60.74 USDT side, the dry run passed,
-   * the device signed the Permit2 grant, and only the main call's estimate then reverted with a
-   * bare `execution_reverted`. A V4 dry run cannot estimate that call, so this check is its only
-   * signal.
-   */
   it("refuses a TRC20 side the account cannot cover in a dry run", async () => {
     const port = v4Port({
       balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
@@ -1602,7 +1483,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(permits.planPermit).not.toHaveBeenCalled();
     expect(resolve).not.toHaveBeenCalled();
   });
-  // The ceiling is what Permit2 may pull, so it is what the balance must cover.
   it("checks a TRC20 side against the ceiling, not the deposit", async () => {
     const port = v4Port({
       balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
@@ -1737,13 +1617,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     );
   });
 
-  /**
-   * The grant's expiry in the preview is the grant's, not the transaction's.
-   *
-   * The signed grant lasts `V4_PERMIT_TTL_SECONDS` (an hour); the transaction deadline is thirty
-   * minutes. An earlier version printed the deadline as the grant's `expiration`, so the preview said
-   * the authorisation lapsed half an hour before it actually did.
-   */
   it("previews each grant expiring an hour out, not at the transaction deadline", async () => {
     const before = Math.floor(Date.now() / 1000);
     const h = makeHarness(v4Port(), { planPermit: async () => ({}) }, signers);
@@ -1760,13 +1633,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     }
   });
 
-  /**
-   * A V4 deposit publishes NO minimum, because it has none.
-   *
-   * It is bounded from above. The shared plan type keeps a minimum for V2 and V3, which need one
-   * when they send, and V4's placeholder `"0"` used to leak into the JSON — telling an agent the
-   * deposit accepted any amount, when a ceiling caps it.
-   */
   it("publishes no amountMinimum on either side of a V4 deposit", async () => {
     const out = (await run({ ...BASE_V4, dryRun: true }).result) as {
       token0: Record<string, unknown>;
@@ -1774,17 +1640,9 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     };
     expect(out.token0).not.toHaveProperty("amountMinimum");
     expect(out.token1).not.toHaveProperty("amountMinimum");
-    // The amount itself is still there; only the meaningless floor is gone.
     expect(out.token0).toHaveProperty("amount");
   });
 
-  /**
-   * A confirmed V4 mint reports the position it created.
-   *
-   * It is the one figure a caller needs afterwards — every later command names the position by it —
-   * and on Nile `position-list` cannot recover it. An earlier version returned `{}` from the mint
-   * branch, so a real Nile mint (position 178) confirmed with no id anywhere but a raw log.
-   */
   it("publishes the new position's id once the mint confirms", async () => {
     const port = v4Port();
     await expect(run({ ...BASE_V4 }, port).result).resolves.toMatchObject({
@@ -1794,7 +1652,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(port.v4MintedPositionId).toHaveBeenCalledTimes(1);
   });
 
-  // Nothing has been minted on a dry run, so there is nothing to look for.
   it("does not look for a minted id on a dry run", async () => {
     const port = v4Port();
     const out = await run({ ...BASE_V4, dryRun: true }, port).result;
@@ -1802,12 +1659,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(port.v4MintedPositionId).not.toHaveBeenCalled();
   });
 
-  /**
-   * An id we could not read is ABSENT and WARNED, never guessed.
-   *
-   * The deposit is already on chain by then, so failing the command would misreport a success; but
-   * inventing an id would send the caller to act on a position that is not theirs.
-   */
   it("warns and omits the id when the log cannot be read", async () => {
     const port = v4Port({ v4MintedPositionId: vi.fn(async () => undefined) as never });
     const h = run({ ...BASE_V4 }, port);
@@ -1816,7 +1667,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(h.scope.warn).toHaveBeenCalled();
   });
 
-  /** The four flags become a key, the key becomes an id, and the id is what the pool is read by. */
   it("derives the pool id from the parts and reads that pool", async () => {
     keysAsked.length = 0;
     idsAsked.length = 0;
@@ -1829,19 +1679,11 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
       token1: WTRX,
       fee: 500,
       tickSpacing: 12,
-      // Defaulted, and to the zero address rather than to nothing: it is part of the key either way.
       hooks: TRX,
     });
     expect(idsAsked).toEqual([POOL_ID]);
   });
 
-  /**
-   * SYMBOLS RESOLVE ON EVERY PATH.
-   *
-   * `--token0 TRX --create-pool` used to fail with `invalid --pool: Invalid checksum` — the pair
-   * ordering ran on the symbol, in the schema, before anything had resolved it. The key the port is
-   * asked for must hold ADDRESSES whichever path built it.
-   */
   it("resolves symbols on the creating path too", async () => {
     keysAsked.length = 0;
     await run(
@@ -1859,13 +1701,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     expect(keysAsked[0]).toMatchObject({ token0: USDT, token1: WTRX });
   });
 
-  /**
-   * CREATING A POOL THAT EXISTS IS REFUSED.
-   *
-   * The creating path sizes the deposit at the caller's `--sqrt-price`, not the pool's, so on a pool
-   * that is already live it planned amounts for a price the pool does not have and published
-   * `poolCreated: true` for a pool nobody created. Measured on Nile: TRX/USDT at fee 500, spacing 10.
-   */
   it("refuses --create-pool on a key that already names a live pool", async () => {
     const { result } = run({
       ...BASE_V4,
@@ -1879,14 +1714,6 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     await expect(result).rejects.toThrow(/without --create-pool/);
   });
 
-  /**
-   * A key that hashes to no pool says so — and points at the spacing.
-   *
-   * The equivalent used to be `provider_error: a V4 pool's parameters decoded to a tick spacing of
-   * 0`, an internal detail of decoding an empty answer. A wrong `--tick-spacing` is the likeliest
-   * cause of an id nothing has initialised, because it is the one part of the key that cannot be
-   * guessed from the pair and the tier.
-   */
   it("says a pool does not exist, and names the flag most likely to be wrong", async () => {
     const port = v4Port({
       v4PoolState: vi.fn(async () => ({ ...POOL, exists: false, sqrtPriceX96: "0" })),
@@ -1895,12 +1722,10 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     await expect(result).rejects.toMatchObject({ code: "pool_not_found" });
     await expect(result).rejects.toThrow(/--tick-spacing/);
     await expect(result).rejects.toThrow(/tick spacing 12/);
-    // The hook is named as the word, never as the zero address that also means TRX.
     await expect(result).rejects.toThrow(/hooks none/);
     await expect(result).rejects.toThrow(POOL_ID);
   });
 
-  // The spacing has no default, on either path: a V4 pool at one fee tier may have any of several.
   it.each([
     ["--tick-spacing", { tickSpacing: undefined }],
     ["--fee", { fee: undefined }],
@@ -2006,10 +1831,6 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
   );
 });
 
-/**
- * The entry resolves the pair against the account's own token book, through the real
- * resolver: a user-added symbol reaches the plan as its address, and the receipt says which.
- */
 function bookResolver(): SunSwapTokenResolver {
   const tokens = {
     official: () => [],

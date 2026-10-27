@@ -21,12 +21,6 @@ describe("slippageToBips", () => {
     expect(slippageToBips(value)).toBe(bips);
   });
 
-  /**
-   * The reason this is text arithmetic and not `Number(value) * 10000`.
-   *
-   * `0.0003 * 10000` is 2.9999999999999996 in binary floating point and floors to 2 — a caller
-   * asking for 0.03% would silently get 0.02%. Upstream computes it that way; this does not.
-   */
   it("is exact where floating point is not", () => {
     expect(slippageToBips("0.0003")).toBe(3);
     expect(Math.floor(0.0003 * 10000)).toBe(2);
@@ -61,8 +55,6 @@ describe("selectFloor", () => {
     expect(DEFAULT_CURVE_SLIPPAGE).toBe("0.05");
   });
 
-  // Two ways of saying the same thing. A caller who gave both does not know which they are
-  // getting, so neither silently wins.
   it("refuses both flags together", () => {
     expect(() => selectFloor("0.05", "1000")).toThrow(/at most one of/);
   });
@@ -80,11 +72,6 @@ describe("selectFloor", () => {
 });
 
 describe("feeRatePercent", () => {
-  /**
-   * SunPump charges 1% with a 0.01 TRX floor, so the floor is what a small trade actually pays.
-   * A 0.1 TRX buy pays 0.01 TRX — ten percent — and the rate is what a caller would otherwise
-   * not notice.
-   */
   it("reports the rate only when the floor pushed it above one percent", () => {
     expect(feeRatePercent("10000", "100000")).toBe("10");
     expect(feeRatePercent("10000", "1000000")).toBeUndefined();
@@ -101,11 +88,6 @@ describe("feeRatePercent", () => {
 });
 
 describe("LAUNCHPAD_STATE", () => {
-  /**
-   * Four values, not three. Upstream's enum omits READY_TO_LAUNCH, so a LAUNCHED token's on-chain
-   * `3` reads as something else and the token passes a check it should fail — into a transaction
-   * that must revert.
-   */
   it("has the four the contract has", () => {
     expect(LAUNCHPAD_STATE).toEqual({
       NOT_EXIST: 0,

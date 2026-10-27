@@ -26,8 +26,6 @@ describe("tx sign spec", () => {
     expect(txSignSpec.baseFields.safeParse({ hex: "abcd", offline: true }).success).toBe(true);
   });
 
-  // The online permission/approval check is the default; --offline opts out of it.
-  // --check is gone: it was the inverted spelling and never shipped in a release.
   it("exposes --offline and no longer exposes --check", () => {
     expect(Object.keys(txSignSpec.baseFields.shape)).toContain("offline");
     expect(Object.keys(txSignSpec.baseFields.shape)).not.toContain("check");
@@ -38,7 +36,6 @@ describe("tx sign spec", () => {
     expect(parsed.offline).toBe(false);
   });
 
-  // the payload is not a secret, so argv is the only channel — no --tx-stdin on this command.
   it("declares no stdin channel", () => {
     expect(txSignSpec.stdin).toBeUndefined();
   });
@@ -99,9 +96,6 @@ describe("tx sign binding", () => {
     },
   };
 
-  // Default: verify signer permission and resulting weight online. A co-signer who is
-  // not in the permission group, or who already signed, must fail before a signature is produced —
-  // not silently emit a hex that only `tx broadcast` will reject, after it has been passed on.
   it("routes hex signing through the multisig authorization service by default", async () => {
     await expect(
       txSignTronBinding(
@@ -189,9 +183,6 @@ describe("EVM tx sign binding", () => {
   });
 });
 
-// `tx sign --transaction <json>` was once the only form, and that contract must survive the
-// multisig work: the JSON route still returns the transaction service's result verbatim, and the
-// newer `kind:"tx-sign"` shape appears only for --hex/--file.
 describe("tx sign legacy JSON compatibility", () => {
   it("returns the transaction service result unwrapped and unannotated", async () => {
     const legacy = {
@@ -217,8 +208,6 @@ describe("tx sign legacy JSON compatibility", () => {
   });
 });
 
-// tx send carries both flavours, and conflating them would be a new lie in the help:
-// the amount pair is jointly required, the asset trio is not (omit all three → native TRX).
 describe("tx send exclusive groups", () => {
   const groups = () => Object.fromEntries((txSendSpec.exclusive ?? []).map((g) => [g.flags[0], g]));
 
@@ -231,8 +220,6 @@ describe("tx send exclusive groups", () => {
   });
 
   it("marks the asset selector optional, since omitting it sends the native coin", () => {
-    // `--asset-id` is TRON-only and is declared on that binding. An exclusive group is
-    // spec-level and therefore shared by every family, so it may only name flags they all have.
     expect(groups().token).toEqual({
       label: "which asset to send; omit for the network's native coin",
       flags: ["token", "contract"],
@@ -265,9 +252,6 @@ describe("tx broadcast binding", () => {
     expect(txBroadcastSpec.baseFields.safeParse({ file: "tx.hex" }).success).toBe(true);
   });
 
-  // The exclusive group is the single source of truth for "pick exactly one of these four",
-  // on both the human help and the --json-schema catalog. Restating it inside a field
-  // description is a second copy that drifts the moment an input is added or renamed.
   it("declares every input in one exclusive group and nowhere else", () => {
     expect(txBroadcastSpec.exclusive).toEqual([
       {

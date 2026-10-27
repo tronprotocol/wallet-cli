@@ -6,7 +6,7 @@ import { tronHexAddress } from "../../../domain/address/index.js";
 
 const EVM_ADDRESS = "0xaB5801a7D398351b8bE11C439e05C5B3259aeC9B";
 const TRON_ADDRESS = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
-// The same TRON address in the 41-prefixed hex form a counterparty may send instead.
+// TRON_ADDRESS in 41-prefixed hex.
 const TRON_HEX = "4119e7e376e7c213b7e7e7e46cc70a5dd086daff2a";
 
 it.each([
@@ -61,9 +61,6 @@ const permitPayload = (user: string, maxFee: string): TypedDataPayload => ({
   message: { user, maxFee },
 });
 
-// Same structs as permitPayload/evmPayload but with `primaryType` OMITTED — the shape a well-formed
-// single-root payload is allowed to arrive in (see domain/typed-data). The bridge must still resolve
-// the root and run every guard against it, not skip the guards because the field is absent.
 const permitPayloadNoPrimaryType = (user: string, maxFee: string): TypedDataPayload => ({
   domain: { name: "GasFreeController" },
   types: {
@@ -86,8 +83,6 @@ describe("toX402Wallet", () => {
     expect(toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm" }).getAddress()).toBe(EVM_ADDRESS);
   });
 
-  // Finding 2: TRON's scheme (createClientTronSigner) calls getAddress(); EVM's (toClientEvmSigner)
-  // reads a viem-account-shaped `address` property. Both spellings must carry the same value.
   it("exposes the payer's address under both spellings the two schemes read, for evm", () => {
     const wallet = toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm" });
     expect(wallet.address).toBe(wallet.getAddress());
@@ -165,8 +160,6 @@ describe("toX402Wallet", () => {
     });
   });
 
-  // Finding 4: BigInt(maxGasfreeFeeRaw) used to sit outside the try block, so an unparseable
-  // ceiling threw a bare, uncoded SyntaxError instead of a ChainError.
   it("refuses a PermitTransfer when the policy's own fee ceiling will not parse", async () => {
     const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
       family: "tron",
@@ -189,9 +182,6 @@ describe("toX402Wallet", () => {
     });
   });
 
-  // Finding 1: an absent `primaryType` must not disable the guards. `declaredPayer`,
-  // `assertFeeWithinCap` and `assertSignedTheRequest` all branched on `payload.primaryType`
-  // directly, so a payload that simply omitted the field slipped past every one of them.
   it("still rejects a payer mismatch and an over-cap fee when primaryType is omitted", async () => {
     const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
     const wallet = toX402Wallet(payer, { family: "tron", maxGasfreeFeeRaw: "100" });
@@ -272,15 +262,9 @@ it("warns about an uncapped high GasFree fee before requesting the signature", a
   );
 });
 
-/**
- * A human-unit fee ceiling (`--max-gasfree-fee 1`) has no meaning until the token is known, and
- * the token is only known once the SDK has chosen the requirement and filled the PermitTransfer.
- * Converting the ceiling up front, with whichever candidate the CLI saw first, let a 1 USDD
- * (18 decimals) ceiling authorise 1.3 USDT (6 decimals) of fees.
- */
 describe("toX402Wallet converts a human fee ceiling with the SIGNED token's precision", () => {
   const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-  const USDT_HEX = "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c"; // the same address as TIP-712 spells it
+  const USDT_HEX = "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c"; // TIP-712 form of USDT
   const withToken = (maxFee: string, token = USDT_HEX): TypedDataPayload => ({
     ...permitPayload(TRON_ADDRESS, maxFee),
     message: { user: TRON_ADDRESS, maxFee, token },
@@ -316,13 +300,6 @@ describe("toX402Wallet converts a human fee ceiling with the SIGNED token's prec
   });
 });
 
-/**
- * A payment authorization carries its own deadline (Permit2 `deadline`, EIP-3009 `validBefore`,
- * GasFree `deadline`). The SDK computes it before waiting for an approve to confirm, so by the
- * time it asks for the signature — or by the time a device returns one — the window can already
- * be gone. An expired authorization must be refused before it reaches the device, and a signature
- * that expired while the device was open must not be handed on to be sent.
- */
 describe("toX402Wallet refuses expired payment authorizations", () => {
   const EVM = "0x1111111111111111111111111111111111111111";
   const NOW = 1_700_000_000;
@@ -396,13 +373,6 @@ describe("toX402Wallet refuses expired payment authorizations", () => {
   });
 });
 
-/**
- * The x402 TRON approve is the one transaction this wallet signs that a remote RPC built. The
- * generic integrity check proves the JSON and the bytes are the same transaction — not that it is
- * the approve that was asked for. A compromised RPC can return any self-consistent, owner-only
- * transaction and the signature is handed over. The bridge therefore only ever signs the exact
- * `approve(Permit2, MaxUint256)` the SDK requested, checked before any device prompt.
- */
 describe("toX402Wallet signs only the Permit2 approve it was asked for (TRON)", () => {
   const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
   const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";

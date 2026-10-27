@@ -1,21 +1,11 @@
-/**
- * Arity adapter — derive the minimal arity hints yargs needs from a command's zod `fields`
- * (boolean→switch, else takes a value). Validation/types/defaults/cross-field checks stay in
- * zod only — single source of truth. [replaces FlagSpecRegistry]
- */
+// Derive yargs arity from Zod; validation stays in Zod.
 import type { Argv } from "yargs";
 import { z, type ZodObject, type ZodRawShape, type ZodType } from "zod";
 
-// ── account-ref brand ─────────────────────────────────────────────────────────
-// A `string` field that names an existing account (accountId/label/address). Branded so the
-// TTY gap-fill can offer an arrow-select of existing accounts instead of free text. The brand
-// lives on the FINAL schema instance (zod methods clone), so accountRef applies min+describe
-// itself and must be the terminal call — no further chaining.
+// Do not chain after accountRef: Zod clones lose the brand used by the account picker.
 const ACCOUNT_REF = new WeakSet<object>();
 export function accountRef(describe: string, opts: { optional?: boolean } = {}): ZodType {
   const base = z.string().min(1).describe(describe);
-  // The brand must sit on the instance stored in `fields`, so an optional ref is wrapped HERE —
-  // chaining `.optional()` at the call site would clone away the brand and silently lose the picker.
   const s = opts.optional ? base.optional() : base;
   ACCOUNT_REF.add(s);
   return s;
@@ -24,11 +14,7 @@ export function isAccountRef(schema: unknown): boolean {
   return typeof schema === "object" && schema !== null && ACCOUNT_REF.has(schema);
 }
 
-// ── case-insensitive enum ──────────────────────────────────────────────────────
-// TRON brands its resources/networks in canonical case (ENERGY/BANDWIDTH, Nile, TRON), so an
-// exact-match z.enum rejects the casing users most naturally type. ciEnum lower-cases the input
-// before matching; `values` must therefore be the lowercase literals. --help still shows those
-// literals — enumOptions() descends the preprocess pipe to find them.
+// Supply lowercase literals; input is lowercased before matching.
 export function ciEnum<const T extends readonly [string, ...string[]]>(values: T) {
   return z.preprocess((v) => (typeof v === "string" ? v.toLowerCase() : v), z.enum(values));
 }
@@ -37,13 +23,11 @@ export interface FieldInfo {
   name: string;
   kebab: string;
   baseType: string;
-  /** the field collects a repeated flag into an array (`--for a --for b`) — drives yargs `array`. */
+  // Repeated flags collect array elements.
   isArray: boolean;
   optional: boolean;
   hasDefault: boolean;
-  /** the default value (when hasDefault) — surfaced verbatim in --help. */
   defaultValue?: unknown;
-  /** literal options when the field is an enum — surfaced as `<a|b>` in --help. */
   choices?: string[];
   description?: string;
 }
@@ -71,7 +55,7 @@ function unwrap(schema: ZodType): {
     if (s.def.type === "optional" || s.def.type === "nullable") optional = true;
     if (s.def.type === "default") {
       hasDefault = true;
-      defaultValue = s.def.defaultValue; // zod v4: plain value
+      defaultValue = s.def.defaultValue;
     }
     description ??= s.description;
     s = s.def.innerType;
@@ -80,9 +64,7 @@ function unwrap(schema: ZodType): {
   return { base: s, optional, hasDefault, defaultValue, description };
 }
 
-/** the type name shown as `<...>` in --help. Descends a preprocess pipe (ciEnum) to its output
- *  and an array to its per-entry element, so a repeatable `z.array(z.string())` reads as
- *  `<string>` — never the internal "pipe"/"array". */
+// Help shows the value type, not the pipe or array wrapper.
 function displayBaseType(base: ZodType): string {
   let def: any = (base as any)?.def;
   if (def?.type === "pipe") def = def.out?.def;
@@ -90,7 +72,6 @@ function displayBaseType(base: ZodType): string {
   return def?.type ?? "unknown";
 }
 
-/** true when the field collects a repeated flag into an array (after unwrapping optional/default). */
 function isArrayField(base: ZodType): boolean {
   let def: any = (base as any)?.def;
   if (def?.type === "pipe") def = def.out?.def;
@@ -115,7 +96,6 @@ export function introspectFields(fields: ZodObject<ZodRawShape>): FieldInfo[] {
   });
 }
 
-/** literal options of an enum field (after unwrapping optional/default), else undefined. */
 export function enumOptions(schema: ZodType): string[] | undefined {
   const { base } = unwrap(schema as ZodType);
   let def = (
@@ -123,27 +103,25 @@ export function enumOptions(schema: ZodType): string[] | undefined {
       def?: { type?: string; entries?: Record<string, string>; out?: { def?: any } };
     }
   ).def;
-  // ciEnum() wraps the enum in a preprocess pipe; the literals live on the pipe's output side.
+  // Preprocessed enums store their literals on the output schema.
   if (def?.type === "pipe") def = def.out?.def;
   if (def?.type !== "enum" || !def.entries) return undefined;
   return Object.values(def.entries);
 }
 
-/** apply one command's zod fields as yargs options (arity only; requiredness stays in zod). */
 function applyArity(y: Argv, fields: ZodObject<ZodRawShape>): Argv {
   for (const f of introspectFields(fields)) {
     y.option(f.kebab, {
       type: f.baseType === "boolean" ? "boolean" : "string",
       ...(f.kebab === "body-file" ? { nargs: 1 } : {}),
-      ...(f.isArray ? { array: true } : {}), // repeatable flag → yargs collects into an array
+      ...(f.isArray ? { array: true } : {}),
       describe: f.description,
-      demandOption: false, // requiredness is enforced by zod, not yargs
+      demandOption: false, // Zod enforces required fields.
     });
   }
   return y;
 }
 
-/** union the arity hints of every command in a namespace group (single source = zod). */
 export function applyCommands(y: Argv, fields: ZodObject<ZodRawShape>[]): Argv {
   for (const f of fields) applyArity(y, f);
   return y;

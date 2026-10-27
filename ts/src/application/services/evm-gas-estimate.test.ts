@@ -16,11 +16,6 @@ describe("resolveGasLimit", () => {
     expect(gateway.estimateGas).not.toHaveBeenCalled();
   });
 
-  /**
-   * The regression this exists for: the estimate used to be swallowed and replaced with 21000 —
-   * the intrinsic cost of a plain value transfer — so an ERC-20 transfer was signed with a gas
-   * limit that cannot execute it, and the failure surfaced only at broadcast.
-   */
   it("never substitutes a guess for a failed estimate", async () => {
     const gateway = {
       estimateGas: vi.fn(async () => {
@@ -33,11 +28,6 @@ describe("resolveGasLimit", () => {
     expect(error.message).not.toContain("21000");
   });
 
-  /**
-   * The second regression: every failure here used to be reported as `invalid_option` — exit 2,
-   * "fix your invocation". A timeout, an HTTP 503 and an unreachable endpoint all landed there, so
-   * a caller that retries on exit 1 and gives up on exit 2 gave up on a transient network fault.
-   */
   it("keeps a typed failure's own code and exit class, adding only the way out", async () => {
     const gateway = {
       estimateGas: vi.fn(async () => {
@@ -52,8 +42,6 @@ describe("resolveGasLimit", () => {
     expect(error.message).toMatch(/--gas-limit/);
   });
 
-  // An untyped throw would otherwise be redacted to a bare internal_error at the top level,
-  // taking the node's words with it.
   it("reports an untyped failure as rpc_error rather than letting it be redacted", async () => {
     const gateway = {
       estimateGas: vi.fn(async () => {

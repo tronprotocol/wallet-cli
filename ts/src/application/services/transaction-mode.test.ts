@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { transactionMode } from "./transaction-mode.js";
 
-/** assert fn throws a CliError carrying the given .code. */
 function expectCode(fn: () => unknown, code: string) {
   expect(fn).toThrowError();
   try {

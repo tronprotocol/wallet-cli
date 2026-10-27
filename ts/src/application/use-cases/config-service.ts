@@ -39,29 +39,18 @@ export interface ConfigCommandInput {
   value?: string;
 }
 
-/**
- * What a user may configure ON a network — as opposed to what the network IS (family, chainId,
- * feeModel, gasfree…), which `wallet-cli networks` and `chain node` report.
- *
- * `config` renders exactly this set, so a field added here surfaces in the whole-config view, the
- * `networks` listing, the single-network read and `--output json` at once, with no display site
- * to update per view.
- */
 export const NETWORK_CONFIG_FIELDS = ["httpEndpoint", "apiKeyHeader", "apiKey"] as const;
 export type NetworkConfigField = (typeof NETWORK_CONFIG_FIELDS)[number];
 
-/** `networks.<id-or-alias>` (the whole network) or `networks.<id-or-alias>.<field>` (one field). */
 const NETWORK_KEY = /^networks\.(.+)\.([^.]+)$/;
 
 interface NetworkKey {
   networkRef: string;
-  /** absent → the caller addressed the network itself, not one of its fields. */
+  // Absent selects the whole network.
   field?: string;
 }
 
-/** A canonical id holds a colon, never a dot (`tron:3448148188`), so the last dot — when there is one —
- *  always separates the field. An alias containing a dot would be misread as `<ref>.<field>`; the
- *  book is hand-written and no builtin does that. */
+// The last dot separates the field; dotted aliases cannot be addressed unambiguously.
 function parseNetworkKey(key: string): NetworkKey | null {
   const match = NETWORK_KEY.exec(key);
   if (match) return { networkRef: match[1]!, field: match[2]! };
@@ -81,14 +70,10 @@ export class ConfigService {
       defaultOutput: effective.defaultOutput,
       timeoutMs: effective.timeoutMs,
       waitTimeoutMs: effective.waitTimeoutMs,
-      // canonical id -> its configurable fields. A LISTING keeps the endpoint trimmed to its host:
-      // the full URL may carry an API key in its path, and this is output people paste whole.
-      // Naming one network (`config networks.<id>`) is the deliberate act that reveals it.
+      // Listings hide endpoint paths that may contain API keys; explicit network reads reveal them.
       networks: Object.fromEntries(
         Object.entries(effective.networks).map(([id, n]) => [id, networkView(n, false)]),
       ),
-      // Read-only, and the book's only visibility surface: there is no `config set aliases.*`,
-      // so without this the only way to see what a short name resolves to is to open config.yaml.
       aliases: effective.aliases,
       tronlinkSecretId: maskSecret(effective.tronlinkSecretId),
       tronlinkSecretKey: maskSecret(effective.tronlinkSecretKey),
@@ -136,8 +121,6 @@ export class ConfigService {
     }));
   }
 
-  /** `networks.<id-or-alias>.<field>` — the key's network ref is normalised to its canonical
-   *  id before writing, so config.yaml can never hold the same network under two names. */
   private setNetworkField(
     { networkRef, field }: NetworkKey,
     value: string,
@@ -147,14 +130,12 @@ export class ConfigService {
     const id = networks.resolve(networkRef).id;
     const key = `networks.${id}.${configurable}`;
     const normalized = normalizeNetworkValue(configurable, value, key);
-    // The key never travels back out, in the receipt or in the echoed input.
+    // Never echo the API key, including in the input field.
     const secret = configurable === "apiKey";
     return this.documents.update((current) => {
       const existing =
         (current as { networks?: Record<string, Record<string, unknown>> }).networks ?? {};
-      // The document may hold this network under an alias key. Carrying that entry's fields over
-      // and dropping its key is what keeps one network out of two keys — a shape the loader
-      // refuses outright rather than picking a winner.
+      // Fold alias entries into the canonical ID; duplicate network keys are invalid.
       const sameNetwork = (candidate: string): boolean => {
         try {
           return networks.resolve(candidate).id === id;
@@ -236,13 +217,6 @@ function maskSecret(value: string | undefined): string | undefined {
   return value ? "********" : undefined;
 }
 
-/**
- * One network's configurable fields, or a single field of it — addressed by alias or canonical id
- * alike, and answered with the effective value rather than only what config.yaml happens to hold.
- *
- * Naming ONE network is as deliberate as naming its endpoint leaf, so both reveal the endpoint in
- * full; only the breadth-first listings (`config`, `config networks`) trim it to the host.
- */
 function readNetworkField(
   { networkRef, field }: NetworkKey,
   effective: Config,
@@ -261,7 +235,6 @@ function readNetworkField(
   };
 }
 
-/** the configurable sub-keys; named in the error so a typo says which ones are supported. */
 function assertConfigurableNetworkField(field: string | undefined): NetworkConfigField {
   if (!(NETWORK_CONFIG_FIELDS as readonly string[]).includes(field ?? "")) {
     throw new UsageError(
@@ -272,7 +245,6 @@ function assertConfigurableNetworkField(field: string | undefined): NetworkConfi
   return field as NetworkConfigField;
 }
 
-/** the user-configurable half of a network; `full` reveals an endpoint URL that may carry a key. */
 function networkView(
   network: { httpEndpoint?: string; apiKeyHeader?: string; apiKey?: string },
   full: boolean,
@@ -285,7 +257,6 @@ function networkView(
   });
 }
 
-/** an unset field is absent, not an empty line: the view says what IS configured. */
 function omitUndefined(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined));
 }
@@ -296,13 +267,7 @@ function normalizeNetworkValue(field: NetworkConfigField, value: string, key: st
   return credentialValue(value, key);
 }
 
-/**
- * An HTTP field name per RFC 9110 — the token production, which excludes whitespace, `:` and CR/LF.
- *
- * This value is written verbatim into a request's header list, so accepting a newline here would
- * let config.yaml smuggle in a second header (or a request line): header injection sourced from a
- * file the user edits by hand.
- */
+// HTTP token syntax excludes separators and control characters that permit header injection.
 function headerName(value: string, key: string): string {
   const name = value.trim();
   if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/.test(name)) {

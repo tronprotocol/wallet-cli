@@ -3,7 +3,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import { warnOnPostCheck } from "../../services/post-check.js";
 
-/** A failed post-read must not turn an already confirmed trade into an execution failure. */
+// A failed post-read must preserve the confirmed trade receipt.
 export async function tradeOutput(
   scope: TransactionScope,
   network: NetworkDescriptor,

@@ -22,14 +22,7 @@ const fields = z.object({
   offset: offsetField,
 });
 
-/**
- * `--owner` answers from a different endpoint, and that endpoint does not order.
- *
- * `/token/search/by_owner` returns newest-created first whatever `sort` it is given — it does not
- * reject the parameter, it drops it. Accepting `--order-by market-cap` alongside `--owner` would
- * therefore print a creation-ordered list under a market-cap heading, so the combination is
- * refused instead. Ordering a creator's tokens is not available; listing them is.
- */
+// The owner endpoint ignores sort and always returns newest-created first.
 function refuseOrderingWithOwner(value: Record<string, unknown>, ctx: RefinementCtx): void {
   if (value.owner === undefined) return;
   for (const flag of ["orderBy", "sort"] as const) {

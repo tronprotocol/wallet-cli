@@ -15,7 +15,7 @@ function ctxWith(output: "text" | "json", overrides: Partial<Globals> = {}) {
   );
   const formatter = createOutputFormatter(output, sm, 0);
   const globals = { output, verbose: false, ...overrides } as Globals;
-  // only streams + formatter are exercised by emit(); the rest is lazily used elsewhere.
+  // These tests do not resolve a stored account.
   const deps = { config: { timeoutMs: 1 }, streams: sm, formatter } as unknown as RuntimeDeps;
   return { ctx: buildExecutionContext(globals, deps), out, err };
 }
@@ -44,10 +44,6 @@ describe("ExecutionContext direct address target", () => {
   });
 });
 
-// The single-family guard used to live in TargetResolver, firing when a NETWORK was resolved.
-// That was the wrong moment: `current` resolves one (to choose which family's QR to draw) yet
-// never demands a single family's address, and was refused for a condition that did not apply to
-// it. The guard now fires here — where an address is actually demanded — still before any RPC.
 describe("resolveAddress on a family the account does not have", () => {
   const EVM = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -83,8 +79,6 @@ describe("resolveAddress on a family the account does not have", () => {
     expect(code).toBe("family_mismatch");
   });
 
-  // This is the one error where the user has done nothing wrong — the account simply lives on
-  // another chain — so the message has to carry the way out.
   it("names the account's own family and how to switch", () => {
     expect(() => ctxForEvmWatch().resolveAddress("tron")).toThrow(/evm/);
     expect(() => ctxForEvmWatch().resolveAddress("tron")).toThrow(/--network|defaultNetwork/);

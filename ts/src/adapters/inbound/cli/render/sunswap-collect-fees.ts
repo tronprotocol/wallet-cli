@@ -1,10 +1,3 @@
-/**
- * Text receipts for `sunswap collect-fees`.
- *
- * The shortest of the three: what was collected, and where it went. The recipient row is not
- * decoration — this command is the one that routinely sends money somewhere other than the
- * account that signed, so where it went is the fact a reader is checking.
- */
 import type { TextRenderContext } from "../contracts/command.js";
 import { formatAmount, formatInt, shorten } from "./scalars.js";
 import { fail, ok, pending, receipt } from "./layout.js";
@@ -13,7 +6,7 @@ import { formatFee } from "./tx.js";
 
 interface Side {
   readonly symbol: string;
-  /** absent when the read behind it did not answer; never a stand-in zero. */
+  // Absent means unavailable, not zero; amounts are in base units.
   readonly amount?: string;
   readonly decimals?: number;
 }
@@ -41,14 +34,6 @@ const amount = (side: Side): string =>
     ? side.symbol
     : `${formatAmount(side.amount, side.decimals ?? 0)} ${side.symbol}`;
 
-/**
- * Whether the figure is known at all.
- *
- * V3 reads what the contract says is owed and then what its Collect event paid out; V4 reads the
- * LP fee helper. Either read can fail, and then the row names the two sides and says plainly that
- * the amount is not known — rather than printing a zero, which would say the position earned
- * nothing. A zero that DID come from a read prints as a zero, because that is a measurement.
- */
 const priced = (value: CollectView): boolean =>
   value.token0.amount !== undefined || value.token1.amount !== undefined;
 

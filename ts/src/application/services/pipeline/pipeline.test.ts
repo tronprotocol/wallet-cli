@@ -5,7 +5,6 @@ import type { Signer } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { ChainError } from "../../../domain/errors/index.js";
 
-/** Minimal TransactionScope for pipeline tests. */
 function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   return {
     timeoutMs: 20,
@@ -40,7 +39,6 @@ describe("TxPipeline device-sign timeout", () => {
       kind: "device",
       address: "TSender",
       precheck: vi.fn(async () => {}),
-      // never resolves — models a device that is never tapped.
       sign: (_tx, opts) => {
         captured = opts.signal;
         return new Promise(() => {});
@@ -53,7 +51,7 @@ describe("TxPipeline device-sign timeout", () => {
     await expect(new TxPipeline(signers).run(params(signer))).rejects.toMatchObject({
       code: "timeout",
     });
-    expect(captured?.aborted).toBe(true); // the abort is wired so the device prompt is cancelled
+    expect(captured?.aborted).toBe(true);
   });
 
   it("build-only uses the public address and never resolves or unlocks a signer", async () => {
@@ -133,7 +131,7 @@ describe("TxPipeline device-sign timeout", () => {
         }),
       ),
     ).rejects.toMatchObject({ code: "not_authorized" });
-    expect(broadcast).not.toHaveBeenCalled(); // the node is never asked to reject it
+    expect(broadcast).not.toHaveBeenCalled();
   });
 
   it("lets sign-only past the gate so a partial multi-signature can be collected", async () => {
@@ -160,9 +158,6 @@ describe("TxPipeline device-sign timeout", () => {
 });
 
 describe("TxPipeline build-only", () => {
-  // The guarantee that matters: NO signer is resolved. That is what lets --build-only run from a
-  // watch-only or Ledger account and hand the unsigned hex to co-signers. It does estimate, and
-  // reports `fee` — documented for every command offering the flag (docs/commands/tx/send.md).
   it("builds from the public address without resolving a signer", async () => {
     const resolve = vi.fn(() => {
       throw new Error("signer must not be resolved");
@@ -198,8 +193,6 @@ describe("TxPipeline build-only", () => {
     expect(assertCanSign).not.toHaveBeenCalled();
   });
 
-  // Producing the unsigned hex IS the point of the mode, so an adapter that cannot serialise one has
-  // nothing to return — refused up front rather than yielding a hex-less "built" outcome.
   it("refuses when the adapter cannot produce transaction hex", async () => {
     const signers = { resolve: vi.fn(), assertCanSign: vi.fn() } as unknown as SignerResolver;
     await expect(
@@ -214,11 +207,6 @@ describe("TxPipeline build-only", () => {
   });
 });
 
-/**
- * `--permission-id` / `--expiration` need someone to bind them into the transaction, and that
- * someone is the `prepare` hook. An adapter that offers no hook cannot apply either option, so the
- * pipeline refuses rather than silently dropping them.
- */
 describe("TxPipeline permission/expiration binding guard", () => {
   const buildOnly = {
     buildOnly: true,
@@ -238,12 +226,6 @@ describe("TxPipeline permission/expiration binding guard", () => {
   });
 });
 
-/**
- * The pipeline's own broadcast path settles the same question as stageTronBroadcast: the id we
- * derived from the signed bytes outranks the one the node echoes back, and a disagreement is
- * surfaced rather than swallowed. Kept here as well as at the adapter because every family's
- * writes come through this method, so the rule travels with the Broadcaster port.
- */
 describe("TxPipeline reports the transaction id derived from the signed bytes", () => {
   const LOCAL = "defbf1e676a7b53c03a30ec3e17e455175231dcf6165ae2a762d2d973f81dbc9";
   const OTHER = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
@@ -282,8 +264,6 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
   });
 });
 
-// Exercise the real TRON hooks through the shared pipeline; the gateway stand-in only
-// performs timestamp-relative preparation, just as the protobuf adapter does.
 import { tronTransactionHooks } from "../../use-cases/tron/multisig-authorization.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 

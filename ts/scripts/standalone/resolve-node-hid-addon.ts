@@ -15,7 +15,7 @@ interface ResolvedNodeHidAddon {
   transportPackageJson: string;
 }
 
-/** Resolve the native addon through the exact dependency tree visible to Ledger transport. */
+// Resolve through Ledger transport so its addon version matches.
 export function resolveNodeHidAddon(
   options: ResolveNodeHidAddonOptions = {},
 ): ResolvedNodeHidAddon {

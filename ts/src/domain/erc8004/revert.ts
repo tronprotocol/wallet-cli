@@ -7,7 +7,7 @@ const errors = new Interface([
   "error ERC721InvalidApprover(address approver)",
 ]);
 
-/** Classify explicit contract evidence; an unrelated RPC failure stays unchanged. */
+// Classifies decoded contract reverts; preserves other errors.
 export function agentWriteError(error: unknown): unknown {
   const value = error as { details?: { revertData?: unknown }; data?: unknown } | null;
   const data = value?.details?.revertData ?? value?.data;
@@ -25,7 +25,7 @@ export function agentWriteError(error: unknown): unknown {
         "the selected account is not authorized for this Agent operation",
       );
   } catch {
-    /* Preserve undecodable and unrelated errors. */
+    // Preserve undecodable errors.
   }
   return error;
 }

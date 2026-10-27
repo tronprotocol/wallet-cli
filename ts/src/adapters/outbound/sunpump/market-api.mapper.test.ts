@@ -1,11 +1,3 @@
-/**
- * What the published token object is made of.
- *
- * Each case names a field a caller acts on and the literal it must equal, copied out of a
- * recorded mainnet body by hand. A mapping that dropped a field, or moved a value onto the wrong
- * key, or left an amount on the service's scale, fails here rather than reaching a reader as a
- * confident number in the wrong unit.
- */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -36,8 +28,6 @@ describe("a launched token (PUSS), from the detail endpoint", () => {
     expect(token.status).toBe("LAUNCHED");
   });
 
-  // The service reports a supply of 1000000000 beside `decimals: 18` — whole tokens, not base
-  // units. Published unscaled it would understate the supply by eighteen orders of magnitude.
   it("puts the supply and the curve's token figures in base units", () => {
     expect(token.totalSupply).toBe("1000000000000000000000000000");
     expect(token.curve.currentSold).toBe("0");
@@ -48,7 +38,6 @@ describe("a launched token (PUSS), from the detail endpoint", () => {
     expect(token.market.marketCapUsd).toBe("3955402.894154087954857341");
     expect(token.market.priceInTrx).toBe("0.011538978919347204");
     expect(token.market.trxPriceInUsd).toBe("0.340814453508");
-    // priceInTrx × trxPriceInUsd, by decimal arithmetic rather than by float
     expect(token.market.priceUsd).toBe("0.003932650794437649");
     expect(token.market.priceChange24HrPercent).toBe("0");
     expect(token.market.volume24HrSun).toBe("0");
@@ -79,8 +68,6 @@ describe("a launched token (PUSS), from the detail endpoint", () => {
     });
   });
 
-  // The service names every exchange it knows about and leaves the URL blank for the ones this
-  // token is not on; forwarding the map verbatim would claim thirteen listings where there are six.
   it("keeps only the exchanges the token is actually listed on", () => {
     expect(token.listOn?.MEXC).toBe("https://www.mexc.com/exchange/PUSS_USDT?_from=market");
     expect(Object.values(token.listOn ?? {})).not.toContain("");
@@ -99,14 +86,12 @@ describe("a token still on the curve (BabyKnight)", () => {
   it("reports the curve's progress and both reserves", () => {
     expect(token.status).toBe("CREATED");
     expect(token.curve.pumpPercentage).toBe("1");
-    // whole tokens on the wire (775791072.79), base units here
+    // 775791072.79 whole tokens on the wire.
     expect(token.curve.tokenReserve).toBe("775791072790000000000000000");
-    // TRX, kept in the service's own decimal unit
+    // TRX in the service response.
     expect(token.curve.trxReserve).toBe("810.21");
   });
 
-  // Before launch there is no pool, no launch time and no launch transaction. The service sends
-  // "" and null for them; a key present with an empty value would read as a pool with no address.
   it("omits every launch fact rather than publishing an empty one", () => {
     expect(token).not.toHaveProperty("swapPoolAddress");
     expect(token).not.toHaveProperty("launchedAt");
@@ -125,8 +110,6 @@ describe("a search result", () => {
     expect(tokens[0]?.market.priceUsd).toBeUndefined();
   });
 
-  // The search endpoint sends `stakeApy` and omits `stakeAddress`. A farm with an APY and no
-  // contract to stake at is not something a caller can use, so no farm is published.
   it("publishes no farm without a farm contract", () => {
     for (const token of tokens) expect(token).not.toHaveProperty("farm");
   });
@@ -151,7 +134,7 @@ describe("shapes the service produces that must not become a token", () => {
         contractAddress: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
         decimals: 18,
         priceInTrx: "7.0681158928211e-05",
-        // TRX with six decimals on the wire; SUN once published
+        // TRX on the wire; SUN in the result.
         volume24Hr: "17690.568387",
         pumpPercentage: "100.0",
       }),

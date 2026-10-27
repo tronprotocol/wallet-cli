@@ -30,7 +30,6 @@ const scope: TransactionScope = {
   },
 };
 
-/** TRX:MyToken, 10,000 TRX / 500,000 tokens at precision 6 — the worked-example pool. */
 function pool(over: Partial<TronExchange> = {}): TronExchange {
   return {
     exchangeId: 12,
@@ -69,7 +68,6 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
   );
 }
 
-/** capture what the service asked the gateway to build. */
 function capturing(gateway: Partial<TronGateway>) {
   const calls: unknown[][] = [];
   const record = (...args: unknown[]) => {
@@ -98,7 +96,6 @@ describe("exchange create", () => {
   it("keeps the pair in the order the user typed", async () => {
     const { svc, calls } = capturing({});
     await svc.create(scope, NET, { pair: "TRX:1000123", amounts: "10000:500000" });
-    // owner, firstTokenId, firstBalance, secondTokenId, secondBalance
     expect(calls[0]).toEqual([
       OWNER,
       "_",
@@ -176,7 +173,6 @@ describe("exchange inject / withdraw", () => {
   });
 
   it("refuses an amount whose counterpart rounds to zero", async () => {
-    // 1,000,000 sun of TRX against a single unit of the other side: the ratio floors to 0
     const svc = service({ getExchangeById: async () => pool({ secondTokenBalance: "1" }) });
     await expect(svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "1" })).rejects.toThrow(
       /too small for this pair's current ratio/,
@@ -204,10 +200,8 @@ describe("exchange trade", () => {
   it("prices the trade and derives the floor from --slippage", async () => {
     const svc = service({ getExchangeById: async () => pool() });
     const result = await svc.trade(scope, NET, { ...base, slippage: 1 });
-    // the worked example predicts 4,950 whole tokens predicted, 1% below → 4,900
     expect(BigInt(result.estimatedReceivedQuant) / 1_000_000n).toBe(4950n);
     expect(BigInt(result.minReceivedQuant) / 1_000_000n).toBe(4900n);
-    // and the exact minimal-unit figures, so a change in the curve port is visible
     expect(result.estimatedReceivedQuant).toBe("4950495049");
     expect(result.minReceivedQuant).toBe("4900990098");
   });
@@ -219,8 +213,6 @@ describe("exchange trade", () => {
     });
   });
 
-  // The rejection has to point at --min-received, not at --amount: the caller would otherwise go
-  // and correct an option they never passed (and which carries a different meaning on this command).
   it("blames --min-received, not --amount, for an over-precise floor", async () => {
     const svc = service({ getExchangeById: async () => pool() });
     await expect(

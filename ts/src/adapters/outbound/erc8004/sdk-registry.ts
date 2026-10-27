@@ -91,7 +91,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
               "error Error(string)",
             ]).parseError(revert)?.name === "ERC721NonexistentToken";
         } catch {
-          /* preserve unknown failures */
+          // Preserve the original failure when revert decoding fails.
         }
       }
       if (

@@ -11,17 +11,13 @@ import {
 import { type Obj, type Pair, asObj, query, receipt, table, ok, fail, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 
-/** humanize a raw base-unit balance: scale by `decimals` when known, else show the raw integer.
- *  Scaling goes through `formatAmount`, so a balance obeys the same display rule here as
- *  everywhere else text prints an amount — without it an 18-decimal coin printed in full. */
 function humanBalance(d: Obj): string {
   return d.decimals !== undefined
     ? formatAmount(d.balance ?? "0", num(d.decimals, 0))
     : formatScalar(d.balance);
 }
 
-/** a portfolio row's balance. `holding()` reports the base-unit integer alongside the scaled
- *  string, so the column can format from `rawBalance` rather than reprinting the pre-scaled one. */
+// rawBalance is in base units; balance is already scaled.
 function holdingBalance(h: Obj): string {
   return h.rawBalance !== undefined && h.rawBalance !== null && h.decimals !== undefined
     ? formatAmount(h.rawBalance, num(h.decimals, 0))
@@ -119,15 +115,6 @@ export const AccountFormatters = {
   }) satisfies TextFormatter,
 };
 
-/**
- * `account info` — family-shaped.
- *
- * TRON returns the node's account object (permissions, resources, stakes); EVM has no equivalent
- * RPC and returns a flat `{balance, nonce, type, codeSize?}`. These are not the same field set with
- * different values, so the rows come from the family table rather than from one formatter reading
- * whichever keys happen to be present — the TRON reader applied to an EVM payload found nothing
- * and printed "Balance 0 TRX" for an account holding ETH.
- */
 function renderAccountInfo(d: Obj, ctx: TextRenderContext): string {
   const pairs: Pair[] = [];
   if (ctx.accountLabel) pairs.push(["Label", ctx.accountLabel]);
@@ -153,14 +140,10 @@ function historyRow(r: Obj): string[] {
   ];
 }
 
-/** account display id for receipts: the centrally-injected --account label when present,
- *  else the full on-chain address. Callers add their own quoting where wanted. */
 function acct(ctx: TextRenderContext, address: unknown): string {
   return ctx.accountLabel ?? String(address ?? "");
 }
 
-/** identity field pair: prefer the account label, else show the full address — the field
- *  name tracks the value's real meaning. */
 function identity(ctx: TextRenderContext, address: unknown): Pair {
   return ctx.accountLabel ? ["Label", ctx.accountLabel] : ["Address", String(address ?? "")];
 }

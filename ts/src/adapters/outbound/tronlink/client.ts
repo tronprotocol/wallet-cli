@@ -41,7 +41,6 @@ interface SocketLike {
 
 type SocketFactory = (url: URL, options: SocketOptions) => SocketLike;
 
-/** Bounded Java-compatible adapter for walletadapter.org's multi-sign REST/WebSocket protocol. */
 export class TronLinkClient implements TronLinkCollaborationPort {
   constructor(
     private readonly config: Config,
@@ -60,7 +59,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     const credentials = this.#credentials();
     const path = "/multi/list";
     const auth = tronLinkAuthParameters(credentials, this.clock, this.uuid);
-    // Java signs only auth + address for GET; filter and pagination fields are unsigned by protocol.
+    // GET signatures cover auth and address; filters and pagination remain unsigned.
     const signed = { ...auth, address };
     const sign = signTronLinkRequest("GET", path, signed, credentials.secretKey).signature;
     const parameters: Record<string, string> = {
@@ -144,7 +143,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
         try {
           onMessage(normalizeLossless(parseLosslessJson(bytes.toString("utf8"))));
         } catch {
-          // The Java client ignores non-JSON frames. Keep the connection alive.
+          // Ignore parse or callback errors and keep the connection alive.
         }
       });
       socket.once("error", () => {
@@ -311,7 +310,7 @@ function unwrapBusinessResponse(value: unknown): unknown {
   const root = record(value, "response");
   const code = safeInteger(root.code, "code", 0);
   if (code !== 0) {
-    // The code alone does not separate a rejected signature from a bad parameter or a stale one.
+    // Include provider wording to distinguish rejection causes.
     const providerMessage = boundedProviderMessage(root.message);
     throw new ChainError("provider_error", "TronLink collaboration service rejected the request", {
       providerCode: code,
@@ -321,7 +320,7 @@ function unwrapBusinessResponse(value: unknown): unknown {
   return root.data;
 }
 
-/** Provider-controlled text reaching our output: strip control characters and bound the length. */
+// Sanitize provider text before exposing it in error details.
 function boundedProviderMessage(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const cleaned = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, "").trim();

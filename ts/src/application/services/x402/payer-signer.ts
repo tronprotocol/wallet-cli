@@ -1,11 +1,4 @@
-/**
- * createPayerSigner — the active account, as an x402 payer.
- *
- * `assertCanSign` runs FIRST so a watch-only account fails before any keystore decrypt or network
- * call, the same ordering every write command uses. The keystore itself is still untouched at this
- * point: `SoftwareSigner` decrypts lazily on its first signature, so a dry-run path that builds a
- * payer and never signs never prompts for the master password.
- */
+// Reject watch-only accounts before payment work; resolving the signer does not decrypt keys.
 import type { ChainFamily } from "../../../domain/family/chain-family.js";
 import type { PayerSigner } from "../../contracts/x402-payer.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";

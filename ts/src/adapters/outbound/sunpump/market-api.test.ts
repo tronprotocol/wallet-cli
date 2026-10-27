@@ -1,12 +1,3 @@
-/**
- * What this adapter puts on the wire, and what it refuses to publish.
- *
- * 🔴 The parameter names are the subject of most of these cases, because this service does not
- * reject an unknown one: it ignores it and answers 200 with an UNFILTERED list. A misspelled
- * search parameter therefore returns the whole catalogue and looks entirely healthy. The fake
- * transport below serves the filtered body ONLY when the exact parameter is present and the
- * unfiltered catalogue otherwise, so a test that checks the rows cannot pass on a wrong name.
- */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -32,7 +23,6 @@ const MAINNET = {
   sunpump: { apiBaseUrl: "https://api-v2.sunpump.meme/pump-api" },
 } as NetworkDescriptor;
 
-/** Nile: the SDK's chain config has no SunPump endpoint at all, so there is nothing to ask. */
 const NILE = {
   id: "tron:3448148188",
   family: "tron",
@@ -41,7 +31,6 @@ const NILE = {
   capabilities: [],
 } as NetworkDescriptor;
 
-/** records every URL asked for and answers from a table keyed on what the URL must contain. */
 function transport(answer: (url: string) => string) {
   const urls: string[] = [];
   const fetchImpl = (async (input: unknown) => {
@@ -58,9 +47,6 @@ function transport(answer: (url: string) => string) {
 const api = (fetchImpl: typeof globalThis.fetch) => new SunPumpMarketApi(5_000, { fetchImpl });
 
 describe("searchTokens", () => {
-  // `keyword`, `symbol`, `name` and `search` are all accepted and ignored by this service; only
-  // `query` filters. The fixture the fake serves differs between the two cases, so a wrong
-  // parameter name comes back as the catalogue and this assertion fails.
   it("filters with `query`, and would return the whole catalogue with any other name", async () => {
     const { urls, fetchImpl } = transport((url) =>
       url.includes("query=Knight") ? KNIGHT : UNFILTERED,
@@ -90,7 +76,6 @@ describe("searchTokens", () => {
     expect(urls[0]).not.toContain("/token/search?");
   });
 
-  // Verified live: each of these three narrows the result set, with these exact spellings.
   it("sends each filter under the name the service actually reads", async () => {
     const { urls, fetchImpl } = transport(() => KNIGHT);
     await api(fetchImpl).searchTokens(MAINNET, {
@@ -155,14 +140,11 @@ describe("listTokens", () => {
     });
     expect(page.tokens).toHaveLength(2);
     expect(page).not.toHaveProperty("total");
-    // and the fixture really does claim zero while returning rows
     expect(JSON.parse(LIST).data.metadata.total).toBe(0);
   });
 });
 
 describe("tokensByOwner", () => {
-  // `/token` accepts `ownerAddress` and ignores it, returning the whole catalogue; this endpoint
-  // rejects `ownerAddress` and reads `address`. The fake answers the catalogue for anything else.
   it("asks by_owner with `address`", async () => {
     const { urls, fetchImpl } = transport((url) => (url.includes("address=T") ? BY_OWNER : LIST));
     const page = await api(fetchImpl).tokensByOwner(MAINNET, {
@@ -176,8 +158,6 @@ describe("tokensByOwner", () => {
     expect(page.tokens.map((token) => token.symbol)).toEqual(["SBT", "SBC", "PUSS"]);
   });
 
-  // The endpoint answers tokenCreatedInstant:DESC whatever it is given. Sending a sort it drops
-  // would be a request that implies a choice the caller does not have.
   it("sends no ordering, because the endpoint has none", async () => {
     const { urls, fetchImpl } = transport(() => BY_OWNER);
     await api(fetchImpl).tokensByOwner(MAINNET, {
@@ -197,8 +177,6 @@ describe("getToken", () => {
     expect(token?.symbol).toBe("PUSS");
   });
 
-  // An address the launchpad never indexed is answered with HTTP 200 and `code: 0`. Publishing
-  // that as success would hand back a token object whose every field is null.
   it("answers null for the 200-with-no-token the service sends for an unknown address", async () => {
     const empty = '{"code":0,"msg":"SUCCESS","data":null}';
     const shell = '{"code":0,"msg":"SUCCESS","data":{"contractAddress":null,"symbol":null}}';

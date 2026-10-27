@@ -54,7 +54,7 @@ describe("TronAccountService.portfolio native USD conversion", () => {
       balance: "1983.993",
       priceUsd: 0.12,
     });
-    expect(native.valueUsd).toBe(238.07916); // 1983.993 × 0.12, rounded to 6 dp
+    expect(native.valueUsd).toBe(238.07916);
     expect(result.totalValueUsd).toBe(238.07916);
     expect(result.priceSource).toBe("test");
   });
@@ -106,20 +106,16 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
 
   it("one unreadable token degrades to a stable reason without leaking the raw error (I-06)", async () => {
     const result = await serviceWithFailingToken().portfolio(scope, net);
-    // native still resolved
     const native = result.holdings.find((h) => h.kind === "native")!;
-    expect(native.balance).toBe("1"); // 1_000_000 sun / 1e6
-    // the failing token is present but degraded, not thrown
+    expect(native.balance).toBe("1");
     const token = result.holdings.find((h) => h.symbol === "USDT")!;
     expect(token.rawBalance).toBeNull();
     expect(token.balance).toBeNull();
     expect(token.valueUsd).toBeNull();
-    // stable enum, and the raw downstream message must NOT survive into the payload
     expect(token.balanceUnavailable).toBe(true);
     expect(token.reason).toBe("rpc_error");
     expect(JSON.stringify(token)).not.toContain("HTTP 500");
-    // total counts only the readable holdings (native), not the degraded token
-    expect(result.totalValueUsd).toBe(0.1); // 1 × 0.1
+    expect(result.totalValueUsd).toBe(0.1);
   });
 
   it("a failing price source degrades to a stable reason without leaking the raw error (I-06)", async () => {
@@ -363,13 +359,9 @@ describe("TronAccountService account lifecycle writes", () => {
     ).resolves.toMatchObject({ field: "id", value: "账".repeat(10) });
   });
 
-  // The post-check runs AFTER the fee is paid and the transaction is confirmed. A lagging node or a
-  // transient RPC failure there must never replace the confirmed txid with a command failure —
-  // callers would retry an operation that already succeeded.
   describe("post-check never overwrites a confirmed receipt", () => {
     const CONFIRMED = { stage: "confirmed", txId: "tx-confirmed", failed: false };
 
-    /** first call is the pre-check, second is the post-check. */
     function twoReads(
       first: () => Promise<Record<string, unknown>>,
       second: () => Promise<Record<string, unknown>>,
@@ -486,12 +478,7 @@ describe("TronAccountService account lifecycle writes", () => {
     expect(gateway.getAccount).not.toHaveBeenCalled();
   });
 
-  // The Ledger TRON app parses a fixed set of contract types (app-tron src/parse.c). AccountCreate
-  // and SetAccountId are not among them: the device answers 0x6a80 after the user has already been
-  // sent to fetch, unlock and open the app. These must be refused up front like contract deploy and
-  // cancel-all-unfreeze already are. AccountUpdate IS parsed, so `set --name` must stay available.
   describe("contract types the Ledger TRON app cannot parse", () => {
-    /** stands in for the real SignerResolver rule: a Ledger account fails a software-only gate. */
     function ledgerAccount(pipeline: TxPipeline) {
       vi.mocked(pipeline.assertCanSign).mockImplementation((_account, _family, opts) => {
         if (opts?.requireSoftware) {

@@ -33,20 +33,15 @@ describe("assertNoTailFlags", () => {
     ).not.toThrow();
   });
 
-  // Only a whole flag name counts: `--arguments` is someone else's flag, not this one.
   it("does not match a longer flag that merely starts with a tail key", () => {
     expect(() => assertNoTailFlags(["x", "--arguments", "1", "--verbose"])).not.toThrow();
   });
 
-  // A value that happens to spell a flag is a value.
   it("stops scanning at a bare --", () => {
     expect(() => assertNoTailFlags(["x", "--", "--args", "y"])).not.toThrow();
   });
 });
 
-// The blanket rejection above is only safe while no command wants these names as real flags.
-// If one ever does, this fails and points at the trade-off rather than letting the flag be
-// silently unreachable.
 describe("no command declares a field named after a yargs tail key", () => {
   let previousHome: string | undefined;
 

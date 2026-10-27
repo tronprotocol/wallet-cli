@@ -1,6 +1,6 @@
 import { TransportError } from "../../../domain/errors/index.js";
 
-/** Only documented or observed identifiers are exposed; never forward server prose. */
+// Expose only allowlisted identifiers; never forward server prose.
 const BUSINESS_ERRORS: Record<string, string> = {
   WalletInvalidSignature:
     "B.AI rejected the binding signature. Rebuild the BAI binding message with the correct origin, address, chain ID, expiration and nonce, then sign it with the selected wallet",

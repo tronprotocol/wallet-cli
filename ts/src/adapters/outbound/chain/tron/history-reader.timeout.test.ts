@@ -10,7 +10,6 @@ afterEach(() => {
 
 describe("TronGridHistoryReader timeout", () => {
   it("aborts a hung fetch at timeoutMs instead of hanging", async () => {
-    // hangs unless an abort signal is wired — a missing signal must fail the test, not pass it.
     vi.stubGlobal(
       "fetch",
       (_url: string, init?: RequestInit) =>

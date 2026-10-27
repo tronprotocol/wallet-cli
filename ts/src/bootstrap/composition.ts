@@ -78,12 +78,10 @@ export interface BootstrapOptions {
   readonly startedAt: number;
 }
 
-/** Fully wired process-scoped dependencies. No command side effect runs during construction. */
 export function composeCliRuntime(options: BootstrapOptions) {
-  // SDK console logs must not corrupt the CLI result envelope or expose request URLs.
+  // Suppress SDK logs to protect the result envelope and request URLs.
   setLogger(noopLogger);
   const config = ConfigLoader.load();
-  // effective per-invocation RPC/device timeout: --timeout wins over the config default.
   const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
   const streams = new StreamManager(output, options.globals.verbose);
@@ -109,8 +107,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const priceProvider = createPriceProvider(
     config.price,
     timeoutMs,
-    // Declared per network, never inferred from the id: a user-configured chain we know
-    // nothing about stays unpriced (null = unknown), which is not the same as worth nothing.
+    // Only explicitly marked testnets receive testnet pricing.
     new Set(
       Object.values(config.networks)
         .filter((n) => n.testnet === true)
@@ -196,9 +193,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     sunpumpLaunch: new SunPumpLaunchApi(timeoutMs),
     sunswapRouter: new SunSwapRouterApi(timeoutMs),
     sunswapRouterPlanner: routerPlanner,
-    // The SAME instance, under both ports. It memoises the chain clock per command, so two instances
-    // would read that clock twice and could disagree about the deadline — which is the mismatch the
-    // memo exists to remove.
+    // Share the cached chain clock so router and permit deadlines agree.
     sunswapPermits: routerPlanner,
     aliases: config.aliases,
     recipients: recipientResolver,
@@ -229,48 +224,33 @@ export function composeCliRuntime(options: BootstrapOptions) {
         (key) =>
           !key.startsWith("gasfree.") || (isTronNetwork(network) && Boolean(network.gasfree)),
       )
-      // Keyed on the exact field each service needs, not on the `sunswap.` prefix: the later
-      // swap and liquidity capabilities hang off different fields of the same block, and a
-      // prefix test would switch them all on the moment any one of them is configured.
+      // Market data, liquidity, and swaps require independent capability gates.
       .filter(
         (key) =>
           key !== "sunswap.market" ||
           (isTronNetwork(network) && Boolean(network.sunswap?.marketApiBaseUrl)),
       )
-      // The liquidity commands call contracts, which is a different question from whether the
-      // market data service answers for this network: Nile has the contracts and no market API,
-      // and both facts are true at once. The addresses come from the SDK; this is only the switch.
+      // Contract liquidity can be available without a market API.
       .filter(
         (key) =>
           key !== "sunswap.liquidity" ||
           (isTronNetwork(network) && network.sunswap?.liquidity === true),
       )
-      // An explicit switch, not the presence of an address: the SDK knows Nile's launchpad too,
-      // but the released binary offers the curve on mainnet alone; a tester opens another
-      // network by setting it in config.yaml.
+      // Curve access requires explicit configuration, even when SDK addresses exist.
       .filter(
         (key) =>
           key !== "sunpump.curve" || (isTronNetwork(network) && network.sunpump?.curve === true),
       )
-      // The catalogue is an HTTP service, which is a different question from whether the curve
-      // contract is reachable: a network can have one and not the other, and reading one
-      // network's tokens under another network's name is the failure this prevents.
       .filter(
         (key) =>
           key !== "sunpump.market" ||
           (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
       )
-      // Creating a token is the same HTTP service as the catalogue, and deliberately its own key:
-      // one is a read and the other mints something permanent, so a network that may be listed is
-      // not thereby a network tokens may be created on.
       .filter(
         (key) =>
           key !== "sunpump.launch" ||
           (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
       )
-      // `swap` is available where EITHER market can be served: the curve needs its switch on,
-      // the router needs a route service. Deliberately its own key rather than sunpump's,
-      // so neither market switching on implies the other is available.
       .filter(
         (key) =>
           key !== "sunswap.swap" ||
@@ -281,8 +261,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
         key,
         summary: CAP_SUMMARIES[key] ?? key,
       }));
-    // Neutral commands are absent from capabilityKeysByFamily; the payment adapter
-    // supports both wallet network families and validates the offered scheme itself.
+    // Family-neutral commands are absent from capabilityKeysByFamily.
     commandCapabilities.push({
       key: "x402.pay",
       summary: "Inspect or pay an x402 endpoint using the selected wallet network",
@@ -332,7 +311,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
 
 export type CliRuntime = ReturnType<typeof composeCliRuntime>;
 
-/** Pause before reporting a fresh recharge payment; tests spawn the real CLI and set this to 0. */
 function baiReportDelayMs(): number {
   const raw = process.env.WALLET_CLI_BAI_REPORT_DELAY_MS;
   return raw !== undefined && /^\d{1,7}$/.test(raw) ? Number(raw) : 15_000;

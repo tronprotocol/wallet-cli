@@ -1,8 +1,3 @@
-/**
- * The `backup` mode switch and `import keystore`, exercised through real dispatch — the parts that
- * only exist there: which envelope `command` a mode reports, whether a password is demanded, whether
- * the TTY is asked to pick an account, and the flag combinations each mode refuses.
- */
 import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,7 +19,7 @@ import { KeystoreV3 } from "../../../../domain/keystore/index.js";
 import { registerWalletCommands } from "./wallet.js";
 import type { SessionRef } from "../contracts/index.js";
 
-// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
+// Use a cheap KDF for test fixtures.
 vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
@@ -55,7 +50,6 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
     isTTY: () => opts.tty,
     async question(prompt: string, _hidden: boolean) {
       asked.push(prompt);
-      // the keystore file's own password is a distinct prompt from the master password
       return /keystore/i.test(prompt) ? KEYSTORE_PW : VALID_PASSWORD;
     },
     async readKey() {
@@ -108,7 +102,6 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
   return { shellOpts, keystore, secrets, spyPrime, spySelect, root, asked, writes, envelope };
 }
 
-/** an account whose secret can be exported, with the master password already established. */
 async function seedWallet(
   f: ReturnType<typeof fixture>,
   secret = VALID_MNEMONIC,
@@ -215,8 +208,6 @@ describe("backup --records", () => {
     expect(f.envelope().command).toBe("backup.records");
   });
 
-  // The service returns `pagination` inside its view; the json formatter lifts it into envelope
-  // `meta` (and removes it from `data`) whenever it carries a full offset/limit/total triple.
   it("returns records, with pagination lifted into envelope meta", async () => {
     const f = fixture({
       tty: false,
@@ -235,8 +226,6 @@ describe("backup --records", () => {
       ["backup", "--records", "--keystore"],
       ["backup", "--records", "--out", "./x.json"],
     ]) {
-      // BUG-V413-033: --keystore/--out describe an export, so combining either with --records is
-      // a flag conflict (invalid_option), not a bad value.
       await expect(buildCli(f.shellOpts).parseAsync(argv)).rejects.toMatchObject({
         code: "invalid_option",
       });

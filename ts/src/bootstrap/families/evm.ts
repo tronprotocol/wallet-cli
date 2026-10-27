@@ -17,18 +17,6 @@ import {
   operatorCheckSpec,
   operatorCheckEvmBinding,
 } from "../../adapters/inbound/cli/commands/erc8004.js";
-/**
- * The EVM family plugin — the composition root's entry for `evm`.
- *
- * The plugin supplies the family's identity, signing strategy and gateway factory;
- * `registerEvmChainCommands` binds the commands EVM can serve. Paths with no binding here still
- * refuse cleanly at dispatch (`family_mismatch`).
- *
- * Twenty-nine commands are bound: eight ERC-8004 identity commands, the two signing commands (which need nothing from the chain —
- * the family difference lives entirely inside `evmSignStrategy` — and so reuse the very binding
- * objects the TRON family registers), plus the account, block, chain, tx, token and contract
- * commands that sit on the JSON-RPC gateway.
- */
 import { FAMILIES } from "../../domain/family/index.js";
 import { evmSignStrategy } from "../../adapters/outbound/chain/evm/signing-strategy.js";
 import { EvmRpcClient } from "../../adapters/outbound/chain/evm/evm.js";
@@ -114,11 +102,9 @@ export interface EvmChainCommandDependencies {
   agents: AgentService;
   signers: SignerResolver;
   gateways: ChainGatewayProvider;
-  /** the family-neutral native-balance service, shared with every other family. */
   balances: AccountBalanceService;
   tokens: TokenRepository;
   prices: PriceProvider;
-  /** the family-neutral address-book listing, shared with every other family. */
   tokenBook: TokenBookService;
   transactions: TxPipeline;
   recipients: RecipientResolver;

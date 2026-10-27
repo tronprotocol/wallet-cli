@@ -19,8 +19,6 @@ const fields = z.object({
 export const sunswapPositionListSpec: ChainSpec = {
   path: ["sunswap", "position-list"],
   network: "optional",
-  // Read-only and address-scoped, like `account balance`: the active account by default, and
-  // `--account` takes a label, an account id, or any TRON address.
   wallet: "optional",
   auth: "none",
   capability: "sunswap.market",

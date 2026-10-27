@@ -1,8 +1,3 @@
-/**
- * TokenBook — the token address-book: official builtin layer (per network) +
- * user layer (`tokens.json`, per network+account). `effective` is the union both `token list`
- * and portfolio walk. Atomic writes under lock (same store as wallets.json). No secrets.
- */
 import { join } from "node:path";
 import { TOKENS_VERSION } from "../../../domain/migration/tokens-v2.js";
 import type {
@@ -16,7 +11,6 @@ import { UsageError } from "../../../domain/errors/index.js";
 import { OFFICIAL_TOKENS } from "./builtins.js";
 import type { TokenRepository } from "../../../application/ports/token-repository.js";
 
-/** scope key for the user layer — a token list is owned by one (network, account) pair. */
 const scopeKey = (networkId: string, ref: AccountRef): string => `${networkId}|${ref}`;
 const sameToken = (a: { kind: string; id: string }, b: { kind: string; id: string }): boolean =>
   a.kind === b.kind && a.id === b.id;
@@ -30,7 +24,6 @@ export class TokenBook implements TokenRepository {
     this.tokensPath = join(root, "tokens.json");
   }
 
-  // ── reads ──────────────────────────────────────────────────────────────────
   official(networkId: string): TokenEntry[] {
     return OFFICIAL_TOKENS[networkId] ?? [];
   }
@@ -40,7 +33,6 @@ export class TokenBook implements TokenRepository {
     return file.entries[scopeKey(networkId, ref)] ?? [];
   }
 
-  /** official first, then user-only; deduped by kind+id; each row tagged with its source. */
   effective(networkId: string, ref: AccountRef): EffectiveTokenEntry[] {
     const official = this.official(networkId).map((t) => ({ ...t, source: "official" as const }));
     const userOnly = this.user(networkId, ref)
@@ -49,8 +41,6 @@ export class TokenBook implements TokenRepository {
     return [...official, ...userOnly];
   }
 
-  // ── writes ─────────────────────────────────────────────────────────────────
-  /** add to the user layer. official dup → token_already_listed; user dup → idempotent refresh. */
   add(networkId: string, ref: AccountRef, entry: TokenEntry): "added" | "refreshed" {
     if (this.official(networkId).some((o) => sameToken(o, entry))) {
       throw new UsageError(
@@ -72,7 +62,6 @@ export class TokenBook implements TokenRepository {
     });
   }
 
-  /** remove from the user layer only. official → token_is_official; absent → token_not_in_book. */
   remove(networkId: string, ref: AccountRef, kind: TokenEntry["kind"], id: string): TokenEntry {
     if (this.official(networkId).some((o) => sameToken(o, { kind, id }))) {
       throw new UsageError("token_is_official", `cannot remove an official token: ${id}`);
@@ -93,7 +82,6 @@ export class TokenBook implements TokenRepository {
     });
   }
 
-  // ── internals ──────────────────────────────────────────────────────────────
   #read(): TokensFile {
     return (
       this.store.readJson<TokensFile>(this.tokensPath) ?? { version: TOKENS_VERSION, entries: {} }

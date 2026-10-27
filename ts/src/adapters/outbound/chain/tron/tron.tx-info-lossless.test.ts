@@ -1,16 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 
-/**
- * `--wait` receipts report what the chain actually did. The realised quantities among them are
- * protocol int64 and, on a high-supply TRC10, genuinely large: the amount released by
- * `asset unfreeze` or returned by an `exchange trade` can exceed 2^53 even though a fee never
- * will. They reached us through tronweb's plain `JSON.parse`, so those were rounded before any
- * downstream `String(...)` could preserve them.
- *
- * Fees and resource counters deliberately stay numbers: 2^53 sun is nine billion TRX, so widening
- * them would change the machine contract of every `--wait` receipt to buy nothing.
- */
 function nodeReturns(body: string) {
   const calls: Array<{ url: string; body: unknown }> = [];
   vi.stubGlobal(

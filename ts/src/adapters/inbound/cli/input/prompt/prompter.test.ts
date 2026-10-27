@@ -28,7 +28,7 @@ class FakeBackend implements PromptBackend {
 
 describe("Prompter.setInteractive", () => {
   it("forces isTTY false when interaction is disabled, even on a real TTY", () => {
-    const p = new Prompter(new FakeBackend()); // FakeBackend.isTTY() === true
+    const p = new Prompter(new FakeBackend());
     expect(p.isTTY()).toBe(true);
     p.setInteractive(false);
     expect(p.isTTY()).toBe(false);

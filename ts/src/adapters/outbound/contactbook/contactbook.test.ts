@@ -104,9 +104,6 @@ describe("ContactBook holds every family", () => {
   const TRON = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
   const EVM = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
 
-  // The on-disk shape was ALREADY family-keyed (`entries` is Partial<Record<ChainFamily, …>> and
-  // every entry carries its own `family`), so nothing here is a migration — the loader simply
-  // stopped refusing anything that was not tron.
   it("round-trips contacts from both families", () => {
     const book = new ContactBook(root(), new AtomicFileStore());
     book.add(createContact("tron", "tron-friend", TRON));
@@ -131,7 +128,7 @@ describe("ContactBook holds every family", () => {
     book.add(createContact("evm", "evm-friend", EVM));
     const path = join(dir, "contacts.json");
     const doc = JSON.parse(readFileSync(path, "utf8"));
-    doc.entries.tron = doc.entries.evm; // an EVM address filed under tron
+    doc.entries.tron = doc.entries.evm;
     delete doc.entries.evm;
     writeFileSync(path, JSON.stringify(doc));
 

@@ -22,7 +22,6 @@ describe("activeTronAccount", () => {
     expect(account.balance).toBe("5");
   });
 
-  // A node answers an address it has never seen with an empty object, not an error.
   it("refuses an address the chain has no record of as account_not_active", async () => {
     await expect(activeTronAccount(gatewaysAnswering({}), NETWORK, OWNER)).rejects.toMatchObject({
       code: "account_not_active",

@@ -25,7 +25,6 @@ import { tronTransactionHooks } from "./multisig-authorization.js";
 const MAX_VOTE_ITEMS = 30;
 const MAX_REWARDED_RANK = 127;
 const ELECTED_SR_COUNT = 27;
-/** cap on concurrent getBrokerage RPCs so `vote list --limit 127` doesn't open 127 sockets at once. */
 const BROKERAGE_CONCURRENCY = 8;
 
 export interface VoteCastInput extends TransactionModeInput {
@@ -40,11 +39,10 @@ export interface VoteListInput {
 interface VoteReadScope {
   readonly activeAccount: TransactionScope["activeAccount"];
   resolveAddress(family: "tron"): string;
-  /** surface a non-fatal warning (→ meta.warnings + stderr), same channel as --wait warnings. */
   warn(message: string): void;
 }
 
-/** per-request brokerage cache: dedupes repeat addresses (a current vote's SR also in the list). */
+// Share in-flight brokerage reads within one request.
 type BrokerageCache = Map<string, Promise<number | null>>;
 
 interface WitnessView {
@@ -70,8 +68,7 @@ export class TronVoteService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
-    /** voting power (TP) is read authoritatively from the node via the stake service —
-     *  the same source `stake info` uses — rather than recomputed from raw account balances. */
+    // Read voting power from node resources, not raw account balances.
     private readonly stake: TronStakeService,
   ) {}
 
@@ -160,7 +157,6 @@ export class TronVoteService {
         };
       },
     );
-    // zero-reward-ratio votes earn nothing: warn via the standard channel (→ meta.warnings + stderr).
     for (const vote of votes) {
       if (vote.rewardRatioPct === 0) scope.warn(zeroRatioWarning(vote));
     }
@@ -240,8 +236,6 @@ function zeroRatioWarning(vote: CurrentVoteView): string {
   return `${vote.count} votes on ${vote.witness} (${vote.name}) earn nothing: reward ratio is 0%`;
 }
 
-/** getBrokerage with a per-request cache — a given SR is fetched at most once, and failures
- *  degrade to null (unknown reward ratio). */
 function brokerageOf(
   gateway: TronGateway,
   address: string,
@@ -255,8 +249,7 @@ function brokerageOf(
   return pending;
 }
 
-/** map with bounded concurrency (results keep input order), so a large witness list doesn't
- *  fan out one socket per item. */
+// Bound RPC fan-out while preserving input order.
 async function mapWithLimit<T, R>(
   items: T[],
   limit: number,

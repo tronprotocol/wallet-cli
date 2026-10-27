@@ -4,7 +4,6 @@ import { Prompter, type PromptBackend, type KeyEvent } from "../prompt/index.js"
 import { StreamManager } from "../../stream/index.js";
 
 function streams(stdin = ""): StreamManager {
-  // out/err captured to no-op; readStdinOnce returns the provided value
   const sm = new StreamManager(
     "text",
     false,
@@ -37,8 +36,6 @@ class Backend implements PromptBackend {
 const PW = "Abcdef1!";
 
 describe("resolveSecret (TTY-only)", () => {
-  // mnemonic / private key have NO --*-stdin source; they are entered via a hidden TTY prompt,
-  // which re-prompts until the value validates.
   it("prompts (hidden) and validates the mnemonic, retrying until valid", async () => {
     const valid = "legal winner thank year wave sausage worth useful legal winner thank yellow";
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend(["bad phrase", valid])));
@@ -103,14 +100,13 @@ describe("primePassword", () => {
 
 describe("hasMasterPassword", () => {
   it("hasMasterPassword is false with no source/primed even under a TTY (lazy guard must fail fast)", () => {
-    const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], /* tty */ true)));
+    const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], true)));
     expect(r.hasMasterPassword()).toBe(false);
   });
 });
 
 describe("clearPrimed (CP-08)", () => {
   it("drops the cached password so it is no longer readable", async () => {
-    // prime via TTY (no --password source), so a cleared cache leaves nothing behind
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend([PW, PW])));
     await r.primePassword({ mode: "set" });
     expect(r.masterPassword()).toBe(PW);
@@ -118,16 +114,13 @@ describe("clearPrimed (CP-08)", () => {
     r.clearPrimed();
 
     expect(r.hasMasterPassword()).toBe(false);
-    expect(() => r.masterPassword()).toThrow(); // cache gone, no source → auth_required
+    expect(() => r.masterPassword()).toThrow();
   });
 });
 
 describe("primePassword reuses an already-primed password", () => {
-  // The migration gate primes the master password before the command runs. Without
-  // this, an interactive run prompts TWICE for the same password: once for the gate, once for
-  // the command.
   it("does not prompt again when the password is already primed", async () => {
-    const backend = new Backend([PW]); // exactly ONE answer available
+    const backend = new Backend([PW]);
     const r = new SecretResolver(streams(), {}, new Prompter(backend));
 
     await r.primePassword({ mode: "verify", verify: (pw) => pw === PW });
@@ -148,8 +141,7 @@ describe("primePassword reuses an already-primed password", () => {
 });
 
 describe("SecretResolver --api-key-stdin", () => {
-  // Creating process.stdin switches fd 0 to non-blocking, so the readFileSync(0) that follows
-  // fails with EAGAIN on a pipe whose writer has not written yet (e.g. `op read ... |`).
+  // Creating process.stdin makes fd 0 nonblocking and can cause EAGAIN on delayed pipes.
   it("reads the key without creating process.stdin", () => {
     const getter = vi.spyOn(process, "stdin", "get");
     try {

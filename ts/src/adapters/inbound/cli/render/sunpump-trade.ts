@@ -1,14 +1,4 @@
-/**
- * Text receipts for `sunpump buy` and `sunpump sell`.
- *
- * One renderer for both directions, because a reader checking either is checking the same four
- * things: what went out, what came back, what floor protects it, and what it cost.
- *
- * The two fees are never merged. `platformFee` is SunPump's own, taken out of the TRX on both
- * sides and reported on the line it came out of; the chain's cost is the `Fee` row. Merging them
- * is the commonest misreading of a money receipt, and here they are not even the same currency
- * of concern — one is the market's cut, the other is what the transaction burned.
- */
+// Platform fees are included in spent TRX or deducted from received TRX; chain fees are separate.
 import type { TextRenderContext } from "../contracts/command.js";
 import { formatAmount, formatSun, shorten } from "./scalars.js";
 import { fail, ok, pending, receipt, warn } from "./layout.js";
@@ -31,12 +21,10 @@ interface TradeView {
   readonly slippage?: string;
   readonly platformFee: string;
   readonly platformFeePercent?: string;
-  /** buy */
   readonly trxIn?: string;
   readonly tokensOutExpected?: string;
   readonly tokensOut?: string;
   readonly tokensOutMinimum?: string;
-  /** sell */
   readonly tokensIn?: string;
   readonly trxOutExpected?: string;
   readonly trxOut?: string;
@@ -117,12 +105,6 @@ export const SunPumpTradeFormatters = {
   },
 };
 
-/**
- * What went out and what comes back, with the platform fee on the line it came out of.
- *
- * A buy's fee is inside the TRX spent; a sale's is taken off the TRX received. Saying so beside
- * the amount is what stops a reader adding it on top of what they already paid.
- */
 function tradeRows(value: TradeView): Pair[] {
   if (isBuy(value)) {
     return [
@@ -172,12 +154,6 @@ function tradeRows(value: TradeView): Pair[] {
   ];
 }
 
-/**
- * The footers a preview carries.
- *
- * The fee rate is stated only when the 0.01 TRX floor pushed it above 1% — which is exactly when
- * a caller would not have expected it, and the reason a 0.1 TRX buy pays ten percent.
- */
 function withFooters(body: string, value: TradeView): string {
   const lines = [body];
   if (value.platformFeePercent !== undefined) {
@@ -192,8 +168,6 @@ function approvalRows(value: TradeView): Pair[] {
   if (!value.approvals?.length) return [];
   return value.approvals.flatMap((approval): Pair[] => [
     ["Spender", approval.spender],
-    // Named for what it is. "unlimited" is the honest word for an allowance with no ceiling, and
-    // saying the spender is upgradeable is what makes it a decision rather than a formality.
     [
       "Allowance",
       `${approval.amount}  (approval tx will be sent first; spender is an upgradeable proxy)`,
@@ -210,7 +184,7 @@ const submittedSummary = (value: TradeView) => (isBuy(value) ? "Buy submitted" :
 const failedSummary = (value: TradeView) =>
   isBuy(value) ? "Buy failed on chain" : "Sale failed on chain";
 
-/** `0.05` reads as `5` in a percent column. */
+// Slippage is a fraction; display it as a percentage.
 function percent(slippage: string): string {
   const scaled = (Number(slippage) * 100).toFixed(2);
   return scaled.replace(/\.?0+$/, "");

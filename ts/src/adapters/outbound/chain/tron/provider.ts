@@ -1,15 +1,3 @@
-/**
- * RpcProvider — owns per-network caching of the concrete chain clients. Construction is
- * injected per family (the factory map comes from FAMILY_REGISTRY), so this
- * stays free of any `family === …` switch and infrastructure never imports the bootstrap registry. The descriptor stays
- * pure data; the live client is reached here, keyed by network id.
- *
- * Two access modes:
- *   - tron(net): guarded, family-typed — for family-specific command files that need the
- *     full concrete client API. The guard fails fast on a composition mismatch (internal_error).
- *   - client(net): family-agnostic — for generic callers that only touch a shared method
- *     (e.g. getNativeBalance). The pipeline reaches broadcast via the Broadcaster role below.
- */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { ChainFamily } from "../../../../domain/family/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
@@ -29,7 +17,6 @@ export class ChainGatewayRegistry implements ChainGatewayProvider {
     private readonly timeoutMs: number,
   ) {}
 
-  /** family-agnostic accessor: the concrete client typed as the union (call shared methods only). */
   client(net: NetworkDescriptor): AnyChainGateway {
     const hit = this.#cache.get(net.id);
     if (hit) return hit;

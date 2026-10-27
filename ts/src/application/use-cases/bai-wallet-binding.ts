@@ -20,7 +20,7 @@ export function requireBaiChain(network: NetworkDescriptor): string {
   );
 }
 
-/** Signs only after recharge has checked the live binding status and signing credentials. */
+// Caller must check live binding status and signing credentials first.
 export class BaiWalletBinding {
   constructor(
     private readonly messages: Pick<MessageService, "sign">,

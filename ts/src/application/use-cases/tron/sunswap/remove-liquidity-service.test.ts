@@ -56,7 +56,6 @@ const POSITION = {
 };
 
 const resolver = {
-  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
   resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) =>
     ({ USDT, WTRX, TRX })[value.toUpperCase()] ?? value,
@@ -170,13 +169,10 @@ describe("remove-liquidity V2", () => {
       dryRun: true,
     })) as Record<string, Record<string, string>>;
 
-    // 0.5 LP (500,000 base units) of a 7,000,000,000,000 supply, against the live-shaped
-    // reserves. Worked by hand: 500000 * 8971373980412 / 7000000000000, then 95% of it.
     expect(result.token0).toMatchObject({ amount: "640812", amountMinimum: "608771" });
     expect(result.token1).toMatchObject({ amount: "439626", amountMinimum: "417644" });
   });
 
-  // The pool already holds the pair's two tokens; what the router needs taking is the LP token.
   it("approves the LP token to the router, not the pair's two sides", async () => {
     const { service, scope } = makeHarness();
 
@@ -234,10 +230,8 @@ describe("remove-liquidity V2 — gross native receipts", () => {
   ])(
     "reports received TRX on %s to %s (received %s, fee %s)",
     async (side, recipient, received, fee) => {
-      // Nile a03bee79…: router pays 895.260075 TRX; the sender's balance only
-      // grows by 875.186475 because the same transaction costs 20.073600 TRX.
       const before = 1000000000n;
-      // An unrelated incoming transfer lands while the removal confirms.
+      // Include an unrelated transfer so balance deltas cannot stand in for receipts.
       const after = before + BigInt(received) - (recipient === OWNER ? BigInt(fee) : 0n) + 1000000n;
       const port = makePort({
         v2LiquidityResult: vi.fn(async () => ({
@@ -317,8 +311,6 @@ describe("remove-liquidity V3", () => {
     expect(result).not.toHaveProperty("approvalTxIds");
   });
 
-  // decreaseLiquidity alone credits the position and transfers nothing; the collect beside it is
-  // what moves the tokens. One transaction is the whole point of this command's shape.
   it("never sends a bare decreaseLiquidity", async () => {
     const { service, scope, port } = makeHarness();
 
@@ -332,7 +324,6 @@ describe("remove-liquidity V3", () => {
 
     await service.removeLiquidity(scope, NETWORK, { ...V3, dryRun: true });
 
-    // 1000, not 1000 scaled by any token's decimals.
     expect(port.v3AmountsForLiquidity).toHaveBeenCalledWith(
       expect.anything(),
       { tickLower: -8030, tickUpper: -6030 },
@@ -373,7 +364,6 @@ describe("remove-liquidity V3", () => {
     });
   });
 
-  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
   it("reports an id that was never minted as position_not_found", async () => {
     const port = makePort({
       v3Position: vi.fn(async () => {
@@ -386,7 +376,6 @@ describe("remove-liquidity V3", () => {
     ).rejects.toMatchObject({ code: "position_not_found" });
   });
 
-  // A dry run can be minutes old by the time the real thing runs.
   it("re-reads the owner immediately before sending", async () => {
     const { service, scope, port } = makeHarness();
 
@@ -417,20 +406,17 @@ describe("remove-liquidity V3 — the principal and fee split", () => {
 
     const result = (await service.removeLiquidity(scope, NETWORK, V3)) as Record<string, never>;
 
-    // the owed figure is a static `collect`, which only the owner may call
     expect(port.v3OwedFees).toHaveBeenCalledWith(
       NETWORK,
       expect.any(String),
       expect.any(String),
       OWNER,
     );
-    // Collected 1,001,199 with 1,200 owed beforehand: the rest is principal.
     expect(result.token0).toMatchObject({ amount: "999999", feeAmount: "1200" });
     expect(result.token1).toMatchObject({ amount: "493088", feeAmount: "800" });
     expect(result.liquidityAfter).toBe(POSITION.liquidity);
   });
 
-  // A split invented from nothing would be worse than no split.
   it("reports the whole arrival as principal when the owed figure could not be read", async () => {
     const port = makePort({
       v3OwedFees: vi.fn(async () => {
@@ -455,12 +441,7 @@ describe("remove-liquidity V3 — the principal and fee split", () => {
 });
 
 describe("remove-liquidity V2 — the burned amount reads the same before and after", () => {
-  // A live Nile run printed "LP burned 766,634" on the receipt for a burn the dry run had shown
-  // as a fraction: the confirmed path published lpAmount without lpDecimals, and the renderer's
-  // fallback of zero printed base units. The two shapes must carry the same fields.
   it("publishes lpDecimals in every mode, not only in the plan", async () => {
-    // Allowance already in place, so the burn goes straight through and both shapes can be
-    // compared without the approval sequence in the way.
     const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
     const { service, scope } = makeHarness(port);
 
@@ -475,8 +456,6 @@ describe("remove-liquidity V2 — the burned amount reads the same before and af
     expect(sent.lpAmount).toBe(planned.lpAmount);
   });
 });
-
-// ── V4 ────────────────────────────────────────────────────────────────────────
 
 const V4_MANAGER = "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP";
 const POOL_ID = "0x" + "ab".repeat(32);
@@ -511,7 +490,6 @@ const V4_POSITION = {
   hasSubscriber: false,
 };
 
-/** What the position is worth, rounded DOWN — the port's own helper does the rounding. */
 const V4_WORTH = { amount0: "999999", amount1: "493088" };
 
 function makeV4Port(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
@@ -535,15 +513,12 @@ const V4 = {
   liquidity: "1000",
 };
 
-/** The request the port was handed, which is the only place the planned values become real. */
 function sentRequest(port: LiquidityPort): Record<string, never> {
   const call = (port.v4RemovePayload as unknown as { mock: { calls: unknown[][] } }).mock.calls[0];
   return call![1] as Record<string, never>;
 }
 
 describe("remove-liquidity V4 — what reaches the payload", () => {
-  // Every value the plan decides is asserted HERE rather than only on the receipt: a payload that
-  // silently ignored one would still produce a receipt that looked right.
   it("carries the pool key, the position, the liquidity, the floors, the recipient and the deadline", async () => {
     const port = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -558,7 +533,6 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
 
     const request = sentRequest(port);
     expect(request).toMatchObject({
-      // The pool's OWN key, verbatim — the `parameters` word especially, which is never re-encoded.
       pool: {
         currency0: USDT,
         currency1: WTRX,
@@ -567,9 +541,7 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
         parameters: V4_POOL.parameters,
       },
       tokenId: "12",
-      // Raw: a position's liquidity is not a token amount and is not scaled by anything.
       liquidity: "1000",
-      // 0.5 USDT at 6 decimals. Explicit floors are scaled; the liquidity above is not.
       amount0Min: "500000",
       amount1Min: "0",
       recipient: OWNER,
@@ -587,12 +559,6 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
     expect(sentRequest(port).deadline as never as number).toBe(at);
   });
 
-  /**
-   * The rule this whole path turns on, asserted rather than described.
-   *
-   * A withdrawal bounds from BELOW, so its estimate must err DOWNWARD. The rounding lives in the
-   * port, and using the deposit's ceiling helper here would quote a figure the pool will not pay.
-   */
   it("sizes with the rounding-down helper and never with the deposit's ceiling", async () => {
     const port = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -612,7 +578,6 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
     expect(result.token1!.amount).toBe("493088");
   });
 
-  // The floor defaults to zero on V3 and V4 alike.
   it("floors at zero when neither --min nor --slippage is given", async () => {
     const port = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -622,11 +587,6 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
     expect(sentRequest(port)).toMatchObject({ amount0Min: "0", amount1Min: "0" });
   });
 
-  /**
-   * `--slippage` LOWERS the floors, which is the opposite of what it does on a V4 deposit.
-   *
-   * A tolerance that raised them would revert the withdrawals it was meant to protect.
-   */
   it("applies --slippage downward from the estimate", async () => {
     const port = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -634,21 +594,11 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
     await service.removeLiquidity(scope, NETWORK, { ...V4, slippage: "0.005", dryRun: true });
 
     const request = sentRequest(port);
-    // 0.5% below 999,999 and 493,088, in integer arithmetic.
     expect(request).toMatchObject({ amount0Min: "994999", amount1Min: "490622" });
     expect(BigInt(request.amount0Min as never as string)).toBeLessThan(BigInt(V4_WORTH.amount0));
     expect(BigInt(request.amount1Min as never as string)).toBeLessThan(BigInt(V4_WORTH.amount1));
   });
 
-  /**
-   * The two COMBINE, and the combination is the whole point.
-   *
-   * `--slippage` is a tolerance applied to `--min0`/`--min1` that moves them further down.
-   * So the explicit amount is the base and the tolerance moves it lower, which is the shape a
-   * careful caller wants: a floor they chose, with a little room under it. Asserting acceptance at
-   * the schema is not enough; what matters is that the number actually sent is below what they
-   * typed, and below what a tolerance off the estimate would have produced.
-   */
   it("applies --slippage below an explicit --min, not instead of it", async () => {
     const port = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -660,18 +610,11 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
       dryRun: true,
     });
 
-    // 0.5 token0 at 6 decimals is 500000; 0.5% under it is 497500.
     const request = sentRequest(port);
     expect(request).toMatchObject({ amount0Min: "497500" });
     expect(BigInt(request.amount0Min as never as string)).toBeLessThan(500000n);
   });
 
-  /**
-   * ONE call, not V3's multicall of two.
-   *
-   * V4's `decreaseLiquidity` settles the pair itself, so a collect beside it would be a second
-   * transaction doing nothing — and a second fee.
-   */
   it("sends one transaction and never a collect beside it", async () => {
     const port = makeV4Port();
     const { service, scope, pipeline } = makeHarness(port);
@@ -680,7 +623,6 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
 
     expect(pipeline.run).toHaveBeenCalledTimes(1);
     expect(port.v4CollectPayload).not.toHaveBeenCalled();
-    // Nothing is approved either: the position manager already holds the position.
     expect(port.approvalPayload).not.toHaveBeenCalled();
   });
 
@@ -700,8 +642,6 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
 });
 
 describe("remove-liquidity V4 — native TRX stays native", () => {
-  // V4 does not wrap, so a native side is the pool key's own currency and its facts are not read
-  // from a contract — there is none to ask.
   it("keeps TRX as the pool's currency and prices it at six decimals", async () => {
     const pool = { ...V4_POOL, currency0: TRX };
     const port = makeV4Port({
@@ -720,18 +660,12 @@ describe("remove-liquidity V4 — native TRX stays native", () => {
     expect(result.token0).toMatchObject({ address: TRX, symbol: "TRX", decimals: 6 });
     expect(sentRequest(port)).toMatchObject({
       pool: { currency0: TRX },
-      // 1% below 999,999 — a floor in TRX's own base units, computed the same way as a token's.
       amount0Min: "989999",
     });
   });
 });
 
 describe("remove-liquidity V4 — the cross-checks", () => {
-  /**
-   * The failure this prevents: withdrawing from a position the caller did not mean.
-   *
-   * V4 takes the pair AND the position id, unlike V3, and the pair is checked rather than used.
-   */
   it("refuses a pair that is not the one the position holds, naming both", async () => {
     const { service, scope } = makeHarness(makeV4Port());
 
@@ -813,7 +747,6 @@ describe("remove-liquidity V4 — the cross-checks", () => {
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
   it("reports an id that was never minted as position_not_found", async () => {
     const port = makeV4Port({
       v4Position: vi.fn(async () => {
@@ -834,8 +767,6 @@ describe("remove-liquidity V4 — the cross-checks", () => {
     ).rejects.toMatchObject({ code: "invalid_amount" });
   });
 
-  // The command schema refuses this at parse time; the use case is also reachable directly, and a
-  // recipient silently dropped is money sent somewhere the caller did not ask for.
   it("refuses --recipient", async () => {
     const { service, scope } = makeHarness(makeV4Port());
 
@@ -856,14 +787,6 @@ describe("remove-liquidity V4 — the cross-checks", () => {
   });
 });
 
-/**
- * A V4 withdrawal pays the accrued fees out too, and the receipt has to say so.
- *
- * MEASURED on Nile, 2026-09-25, position 7: owed 4821 / 3132 before a partial withdrawal, 0 / 0
- * after, with an untouched position's figure unchanged as a control. An earlier version assumed
- * V4 left the fees for `collect-fees` — reporting only the principal, which understated what
- * arrived by nearly four times and sent the caller looking for money already paid to them.
- */
 describe("remove-liquidity V4 — the fees that arrive with the principal", () => {
   it("reports them beside the principal rather than folding them in or dropping them", async () => {
     const port = makeV4Port({
@@ -876,12 +799,10 @@ describe("remove-liquidity V4 — the fees that arrive with the principal", () =
       Record<string, unknown>
     >;
 
-    // Principal and fees stay SEPARATE: a caller has to be able to tell which is which.
     expect(result.token0).toMatchObject({ amount: V4_WORTH.amount0, feeAmount: "4821" });
     expect(result.token1).toMatchObject({ amount: V4_WORTH.amount1, feeAmount: "3132" });
   });
 
-  // A figure we could not read must not stop a withdrawal, and must not be published as a zero.
   it("publishes no feeAmount when the read failed, rather than a zero", async () => {
     const port = makeV4Port({ v4OwedFees: vi.fn(async () => undefined) as never });
     const { service, scope } = makeHarness(port, true);
@@ -937,10 +858,6 @@ describe("V4 confirmed receipt amounts", () => {
   });
 });
 
-/**
- * The entry resolves the pair against the account's own token book, through the real resolver:
- * a user-added symbol reaches the plan as its address, and the receipt says which.
- */
 function bookResolver(): SunSwapTokenResolver {
   const tokens = {
     official: () => [],
@@ -966,10 +883,6 @@ describe("remove-liquidity — symbols from the account's token book", () => {
   });
 });
 
-/**
- * The contract a withdrawal goes through is `router` on V2 and `positionManager` on V3 and V4 —
- * in every mode, so a script reads the same key from a preview and from a receipt.
- */
 describe("remove-liquidity — the contract's key", () => {
   it.each([
     ["dry run", { dryRun: true }],

@@ -51,7 +51,7 @@ export class ContactBook implements ContactRepository {
     );
   }
 
-  /** Names are unique book-wide, so a scan across buckets has exactly one answer. */
+  // Return the first match in CHAIN_FAMILIES order; names are unique only within each family.
   findAnywhere(nameKey: string): ContactEntry | undefined {
     const document = this.#read();
     for (const family of CHAIN_FAMILIES) {
@@ -118,8 +118,7 @@ export class ContactBook implements ContactRepository {
         ) {
           throw corrupt();
         }
-        // Re-validated against the family whose bucket it was found in, so an address filed
-        // under the wrong key is caught here rather than surfacing as an unusable recipient.
+        // Validate against the bucket's family, not the entry's claimed family.
         const validated = createContact(family, item.name, item.address, item.note ?? undefined);
         if (
           item.nameKey !== validated.nameKey ||
@@ -135,7 +134,7 @@ export class ContactBook implements ContactRepository {
     return result;
   }
 
-  /** Open with O_NOFOLLOW, then validate the opened inode to avoid lstat/read TOCTOU. */
+  // Validate the opened inode with O_NOFOLLOW to avoid a path-check/read race.
   #readSecureJson(): unknown | null {
     let descriptor: number | undefined;
     try {

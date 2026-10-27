@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 
-// Cheap KDF for keystore encryption in this suite. Production untouched.
 vi.mock(
   "@noble/hashes/scrypt.js",
   async () =>
@@ -21,10 +20,7 @@ const PW = "masterpw123A";
 const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
 const TRON_INDEX_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"; // m/44'/195'/0'/0/0
 
-/** A keystore holding one seed whose account 1 still carries the pre-correction address —
- *  what a wallets.json written by 4.13.0 looks like after one `derive`. The address is written
- *  straight into the file because addAccount now derives the corrected path (and refuses this
- *  wallet outright), so no API can still produce this shape. */
+// Inject a legacy-path address because the import API uses the current derivation template.
 function keystoreWithLegacyAccount(): Keystore {
   const root = mkdtempSync(join(tmpdir(), "legacy-"));
   const store = new AtomicFileStore();
@@ -45,12 +41,7 @@ function keystoreWithLegacyAccount(): Keystore {
   return new Keystore(root, store, () => PW);
 }
 
-/** A keystore whose index-1 address matches neither the current nor the legacy template — the
- *  index-0 address borrowed into that slot, which no derivation at index 1 produces under either
- *  scheme. This is the same trick `derivation-match.test.ts` uses for its own no-match
- *  case, so both suites agree on what "mismatch" means: `wallets.json` and the vault disagree,
- *  which is a data-integrity fault distinct from `legacy_derivation` (a template match, just an
- *  old one) and must not be reported as the same thing. */
+// Put the index-0 address at index 1 so neither derivation template matches.
 function keystoreWithMismatchedAccount(): Keystore {
   const root = mkdtempSync(join(tmpdir(), "mismatch-"));
   const store = new AtomicFileStore();
@@ -71,7 +62,6 @@ function keystoreWithMismatchedAccount(): Keystore {
   return new Keystore(root, store, () => PW);
 }
 
-// Constructor order is (keystore, ledger, signStrategies) — see SignerResolver's declaration.
 function resolverFor(ks: Keystore): SignerResolver {
   return new SignerResolver(ks, {} as LedgerDevice, { tron: tronSignStrategy } as never);
 }
@@ -81,8 +71,6 @@ function seedId(ks: Keystore): string {
 }
 
 describe("signing an account left on the old TRON template", () => {
-  // Resolving must stay free of the keystore: `tx send --dry-run` and `--build-only` resolve a
-  // signer and never sign, and they take no master password. Throwing here would break them.
   it("resolves the signer without touching the seed", () => {
     const ks = keystoreWithLegacyAccount();
     const signer = resolverFor(ks).resolve(`${seedId(ks)}.1`, "tron");
@@ -99,7 +87,6 @@ describe("signing an account left on the old TRON template", () => {
     });
   });
 
-  // The message identifies the real path and sends the user to the complete, ordered recovery.
   it("names the legacy path and the recovery guide", async () => {
     const ks = keystoreWithLegacyAccount();
     const signer = resolverFor(ks).resolve(`${seedId(ks)}.1`, "tron");
@@ -123,8 +110,6 @@ describe("signing an account left on the old TRON template", () => {
     expect(err.message).not.toContain(TRON_LEGACY_1);
   });
 
-  // An unaffected account must not be dragged into the rescue flow: index 0 is the same path
-  // under both templates, which is most users who never ran derive.
   it("signs an index-0 account normally, both templates agreeing there", async () => {
     const ks = keystoreWithLegacyAccount();
     const signer = resolverFor(ks).resolve(`${seedId(ks)}.0`, "tron");
@@ -132,10 +117,6 @@ describe("signing an account left on the old TRON template", () => {
     await expect(signer.signMessage("hello", {} as never)).resolves.toBeTypeOf("string");
   });
 
-  // A different failure from legacy_derivation: no template matches at all, so the seed cannot
-  // produce this address under any scheme. This is wallets.json and the vault disagreeing — a
-  // hand-edited file or a wallet pointing at the wrong vault — not an account this CLI once
-  // derived and now derives differently, so it must not be collapsed into the legacy code.
   it("throws derivation_mismatch when no template produces the stored address", async () => {
     const ks = keystoreWithMismatchedAccount();
     const signer = resolverFor(ks).resolve(`${seedId(ks)}.1`, "tron");

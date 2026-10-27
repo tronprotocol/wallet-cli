@@ -50,7 +50,7 @@ export class TronContractService {
     input: GovernanceTransactionInput & {
       contract: string;
       method: string;
-      /** disambiguates standards that share a write signature. */
+      // Distinguishes token allowances from NFT approvals with the same signature.
       approvalKind?: ApprovalKind;
       parameters: TronContractParameter[];
       callValueSun: string;
@@ -59,9 +59,7 @@ export class TronContractService {
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
-    // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a dry
-    // run of an approve exists to confirm. TRC20 shares the method and the hazard with ERC-20, so
-    // it shares the receipt.
+    // Resolve approval details before the pipeline so dry runs include the allowance.
     const approval = await approveRows({
       method: input.method,
       params: input.parameters,
@@ -71,7 +69,7 @@ export class TronContractService {
           decimals: info.decimals ?? info.precision,
           symbol: typeof info.symbol === "string" ? info.symbol : undefined,
         })),
-      // A TRON address may arrive as 41-hex from a caller pasting what a node returned.
+      // Node addresses may use 41-prefixed hex.
       displayAddress: tronHexToBase58,
       fromBaseUnits,
     });
@@ -120,7 +118,7 @@ export class TronContractService {
       parameters: unknown[];
     },
   ) {
-    // Ledger TRON app firmware cannot sign a CreateSmartContract tx — reject before any device I/O.
+    // Ledger cannot sign CreateSmartContract; reject before device I/O.
     if (transactionRequiresSigner(input)) {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
@@ -134,9 +132,7 @@ export class TronContractService {
       broadcaster: gateway,
       ...transactionMode(input),
       ...hooks,
-      // TRON derives the deployed address from the final txID, and `prepare` recomputes that txID
-      // when it binds --permission-id / --expiration. Read the address from the prepared
-      // transaction, never from the builder output, or we report a contract nobody deploys.
+      // Preparation changes txID and therefore the deployed address.
       prepare: (transaction, options) => {
         const prepared = hooks.prepare(transaction, options);
         const hex = (prepared as { contract_address?: string }).contract_address;
@@ -234,10 +230,7 @@ export class TronContractService {
     fields: Record<string, unknown>,
   ) {
     const gateway = this.gateways.get(network, "tron");
-    // ClearABIContract / UpdateEnergyLimitContract / UpdateSettingContract are all absent from the
-    // Ledger TRON app's contract-type allowlist, so the device cannot parse any of them (APDU
-    // 0x6a80). Refuse before the unlock prompt and before any RPC. `send` above is
-    // deliberately ungated: TriggerSmartContract IS allowlisted.
+    // Ledger cannot sign ClearABIContract, UpdateEnergyLimitContract, or UpdateSettingContract.
     const mode = governanceTransactionMode(this.pipeline, scope, input, { requireSoftware: true });
     const owner = scope.resolveAddress("tron");
     let metadata;

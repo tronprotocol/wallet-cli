@@ -2,9 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { utils as tronUtils } from "tronweb";
 import { Ledger } from "./index.js";
 
-// The @ledgerhq transport/app modules are imported lazily inside the adapter, so hoisted vi.mock
-// applies. closeSpy stands in for the native HID handle: the real bug is that a timed-out device
-// call leaks this handle (it is never closed), pinning libuv so the process can't exit.
 const { closeSpy, transactionSignSpy, hashSignSpy, tip712Calls, failures } = vi.hoisted(() => ({
   closeSpy: vi.fn(async () => {}),
   transactionSignSpy: vi.fn(
@@ -28,7 +25,6 @@ vi.mock("@ledgerhq/hw-transport-node-hid-noevents", () => ({
     },
   },
 }));
-// Every device APDU never resolves — models an on-device prompt that is never tapped.
 vi.mock("@ledgerhq/hw-app-trx", () => ({
   default: class {
     async signPersonalMessage(): Promise<string> {
@@ -46,8 +42,6 @@ vi.mock("@ledgerhq/hw-app-trx", () => ({
     async getAppConfiguration(): Promise<{ version: string }> {
       return new Promise(() => {});
     }
-    // Unlike the others this one resolves: the TIP-712 tests assert what reaches the device,
-    // which a never-settling promise cannot show.
     async signTIP712HashedMessage(
       path: string,
       domainHash: string,
@@ -62,8 +56,7 @@ vi.mock("@ledgerhq/hw-app-trx", () => ({
 }));
 
 const PATH = "m/44'/195'/0'/0/0";
-// Must be a self-consistent transaction: signTransaction now enforces payload integrity before
-// reaching the device, so a bare {raw_data_hex} stub would fail there instead of timing out.
+// Valid bytes and txID let timeout tests reach the device instead of failing integrity checks.
 const RAW_TX = (() => {
   const raw = {
     contract: [
@@ -100,8 +93,6 @@ describe("Ledger adapter timeout", () => {
     });
   });
 
-  // Regression: on timeout the adapter must close the transport, otherwise the pending APDU keeps
-  // the native HID handle open and the process hangs (violates the deterministic-exit CLI contract).
   it("closes the transport when a hung signMessage times out", async () => {
     closeSpy.mockClear();
     await expect(new Ledger(20).signMessage("tron", PATH, "hi")).rejects.toMatchObject({
@@ -210,8 +201,6 @@ describe("Ledger transaction signing", () => {
     expect(closeSpy).toHaveBeenCalled();
   });
 
-  // A Ledger account must not be the weaker signer: the device signs raw_data_hex, so the same
-  // integrity rules apply. Before this, `tx sign --account <ledger>` skipped the check entirely.
   it("refuses a transaction whose txID does not hash its raw_data_hex, before reaching the device", async () => {
     const tampered = { ...(RAW_TX as object), txID: "00".repeat(32) };
     await expect(
@@ -223,15 +212,10 @@ describe("Ledger transaction signing", () => {
 });
 
 describe("Ledger abort signal", () => {
-  // The signal must do real work, not sit in the parameter list: an in-flight HID APDU is not
-  // self-cancelling, so the only way to release the device is to close the transport. Without
-  // this the handle stays open until the adapter's own (much longer) timeout expires.
   it("closes the transport when the caller aborts a pending signMessage", async () => {
     closeSpy.mockClear();
     const ac = new AbortController();
-    // long adapter timeout: if the abort did nothing, this test would hang rather than pass early.
-    // capture the rejection before aborting: an unhandled window here is reported as a stray
-    // unhandled rejection even though the test later asserts on it.
+    // Attach the rejection handler before aborting to avoid an unhandled rejection.
     const settled = new Ledger(60_000).signMessage("tron", PATH, "hi", ac.signal).catch((e) => e);
     ac.abort();
     await vi.waitFor(() => expect(closeSpy).toHaveBeenCalled(), { timeout: 1000 });
@@ -265,9 +249,6 @@ describe("Ledger abort signal", () => {
 });
 
 describe("Ledger app-setting errors", () => {
-  // Verified against Speculos running the real TRON app 0.7.6: with "Sign by Hash" disabled (its
-  // default) the device answers 0x6a8c, which otherwise surfaces as "UNKNOWN_ERROR (0x6a8c)" and
-  // leaves the user with no idea the fix is a toggle in the app's own settings menu.
   it("maps a missing app setting to an actionable error", async () => {
     const apdu = Object.assign(new Error("Ledger device: UNKNOWN_ERROR (0x6a8c)"), {
       statusCode: 0x6a8c,
@@ -288,9 +269,6 @@ describe("Ledger app-setting errors", () => {
 });
 
 describe("Ledger unsupported instruction (0x6d00)", () => {
-  // 0x6d00 (INS_NOT_SUPPORTED) is a standard Ledger/ISO status word shared by every app, not
-  // TRON-specific: the installed app version does not implement the instruction, or the wrong app is
-  // open. It must map to a generic hint, not the opaque "auth_required / …(0x6d00)".
   it("maps INS_NOT_SUPPORTED to a generic, chain-agnostic ledger_unsupported error", async () => {
     const apdu = Object.assign(new Error("Ledger device: INS_NOT_SUPPORTED (0x6d00)"), {
       statusCode: 0x6d00,
@@ -311,18 +289,11 @@ describe("Ledger unsupported instruction (0x6d00)", () => {
     const m = err as { code?: string; message: string };
     expect(m.code).toBe("ledger_unsupported");
     expect(m.message).toMatch(/does not support this operation/i);
-    // The message must not leak a chain or operation name — it fires for any app and any call.
     expect(m.message).not.toMatch(/tip-?712|tron|typed[- ]?data|eip-?712/i);
   });
 });
 
 describe("Ledger incorrect data (0x6a80)", () => {
-  // The TRON app parses a fixed set of contract types (app-tron src/parse.c); anything else — e.g.
-  // AccountCreateContract, SetAccountIdContract — hits the parser's `default: return USTREAM_FAULT`,
-  // which the sign handler answers with E_INCORRECT_DATA (0x6a80). The "Sign by Hash" fallback lives
-  // in the *display* switch and is only reached after a successful parse, so no setting rescues it.
-  // Unmapped, this surfaced as auth_required + a raw "UNKNOWN_ERROR (0x6a80)" — the wrong category
-  // and an unreadable message.
   it("maps E_INCORRECT_DATA to ledger_unsupported instead of auth_required", async () => {
     const apdu = Object.assign(new Error("Ledger device: UNKNOWN_ERROR (0x6a80)"), {
       statusCode: 0x6a80,
@@ -342,8 +313,6 @@ describe("Ledger incorrect data (0x6a80)", () => {
     }
     const m = err as { code?: string; message: string };
     expect(m.code).toBe("ledger_unsupported");
-    // 0x6a80 also covers a malformed payload (bad protobuf, out-of-range permission id), so the
-    // message must not claim the contract type is the only cause.
     expect(m.message).toMatch(/could not decode/i);
     expect(m.message).toMatch(/unsupported|malformed/i);
   });
@@ -365,13 +334,11 @@ describe("Ledger TIP-712", () => {
     const out = await new Ledger(2000).signTypedData("tron", PATH, { domain, types, message });
 
     expect(tip712Calls).toHaveLength(1);
-    // hw-app-trx wants the path without the leading "m/"; its hexBuffer accepts bare hex.
     expect(tip712Calls[0]!.path).toBe("44'/195'/0'/0/0");
     expect(tip712Calls[0]!.domainHash).toBe(encoder.hashDomain(domain).replace(/^0x/, ""));
     expect(tip712Calls[0]!.messageHash).toBe(
       encoder.hashStruct("Order", types, message).replace(/^0x/, ""),
     );
-    // TIP-712 consumers such as Permit2 require the contract-compatible recovery byte.
     expect(out.signature).toBe(`0x${"aa".repeat(64)}1b`);
     expect(out.primaryType).toBe("Order");
     expect(out.digest).toBe(encoder.hash(domain, types, message));
@@ -424,13 +391,6 @@ describe("Ledger TIP-712", () => {
   });
 });
 
-/**
- * The two device states a user hits most, and they used to arrive as the same code.
- *
- * `auth_required` for an unplugged device claims a credential is missing when nothing is
- * connected, and it read identically to a connected-but-locked device — whose fix (enter the PIN)
- * has nothing to do with the other one (plug it in). The error-code index names them separately for that reason.
- */
 describe("Ledger device states", () => {
   it("reports an unreachable device as device_not_found, not auth_required", async () => {
     failures.open = Object.assign(new Error("NoDevice"), { id: "NoDevice" });

@@ -31,7 +31,6 @@ describe("CapabilityRegistry.check", () => {
     expect(() => caps.check(poolList, undefined)).not.toThrow();
   });
 
-  // The refusal answers "then where?", because that is the next thing the reader needs.
   it("names the one supporting network by its alias", () => {
     const caps = new CapabilityRegistry(ALIASES);
     caps.register(MAINNET, market);
@@ -41,8 +40,6 @@ describe("CapabilityRegistry.check", () => {
     );
   });
 
-  // Computed from registry state rather than stored on the command: a tester who opens Nile in
-  // config.yaml gets a message that says so, without anyone editing a string.
   it("lists every supporting network, in registration order", () => {
     const caps = new CapabilityRegistry(ALIASES);
     caps.register(MAINNET, market);
@@ -72,8 +69,6 @@ describe("CapabilityRegistry.check", () => {
     );
   });
 
-  // Nothing supports it anywhere (a capability whose service is configured on no network), so
-  // there is no "then where?" to answer and the generic message is the honest one.
   it("keeps the generic message when the registry knows no supporter", () => {
     const caps = new CapabilityRegistry(ALIASES);
     caps.register(NILE, []);

@@ -68,7 +68,7 @@ describe("StreamManager", () => {
   it("event writes an intermediate frame as a plain line to stderr, never stdout", () => {
     const { sm, out, err } = capture("json");
     sm.event('{"type":"signed"}');
-    expect(out).toEqual([]); // stdout stays reserved for the single terminal frame
+    expect(out).toEqual([]);
     expect(err).toEqual(['{"type":"signed"}\n']);
   });
 
@@ -77,7 +77,7 @@ describe("StreamManager", () => {
     sm.event(null);
     expect(err).toEqual([]);
     sm.event('{"type":"broadcasting"}');
-    sm.result("{}"); // still allowed: events are not terminal frames
+    sm.result("{}");
     expect(out).toEqual(["{}\n"]);
     expect(err).toEqual(['{"type":"broadcasting"}\n']);
   });
@@ -106,7 +106,6 @@ describe("AtomicFileStore", () => {
     const p = join(dir, "x.json");
     const r = fs.withLock(p, () => 42);
     expect(r).toBe(42);
-    // lock released → can acquire again
     expect(fs.withLock(p, () => "ok")).toBe("ok");
   });
 
@@ -114,7 +113,6 @@ describe("AtomicFileStore", () => {
     const dir = mkdtempSync(join(tmpdir(), "afs-"));
     const fs = new AtomicFileStore();
     const p = join(dir, "y.json");
-    // simulate a crashed holder: a lockfile owned by a PID that is not alive
     writeFileSync(`${p}.lock`, "999999999\n");
     const r = fs.withLock(p, () => "recovered", { timeoutMs: 2000 });
     expect(r).toBe("recovered");

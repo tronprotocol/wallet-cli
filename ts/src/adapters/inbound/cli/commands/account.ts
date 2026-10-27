@@ -113,7 +113,6 @@ export const accountBalanceSpec: ChainSpec = {
   auth: "none",
   capability: "account.balance.native",
   summary: "Show the native coin balance",
-  // Which coin, and how much of it, depend entirely on the selected network.
   description: "Show the native coin balance for the selected network",
   baseFields: z.object({}),
   examples: [
@@ -123,8 +122,6 @@ export const accountBalanceSpec: ChainSpec = {
   formatText: TextFormatters.accountBalance,
 };
 
-/** Shared by every family: the balance read is family-neutral, so one binding serves them all
- *  and the family comes from the selected network. */
 export const accountBalanceBinding = (svc: AccountBalanceService): FamilyBinding => ({
   run: async (ctx, net) => svc.balance(ctx, net, net.family),
 });
@@ -135,8 +132,6 @@ export const accountInfoSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   summary: "Show the account's on-chain state",
-  // The field SETS differ by family — not the same fields with different values — so the
-  // help says which fields to expect rather than leaving the reader to discover it.
   description:
     "Show the account's on-chain state for the selected network. Fields differ by\n" +
     "family: TRON reports staked amounts, resources and permissions; EVM reports the\n" +

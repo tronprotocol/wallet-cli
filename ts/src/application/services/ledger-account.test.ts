@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { resolveLedgerPath } from "./ledger-account.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
 
-/** a fake device: every path derives a deterministic address; some paths are pinned. */
 function fakeLedger(pinned: Record<string, string> = {}): LedgerDevice {
   return {
     async getAddress(_family: string, path: string): Promise<string> {
@@ -30,13 +29,6 @@ describe("resolveLedgerPath", () => {
     });
   });
 
-  /**
-   * A malformed path and a wrong-coin path are different mistakes.
-   *
-   * Both used to answer "--path coin_type ? does not match --app tron", which describes a mismatch
-   * the caller never had. And the old check matched only the `m/44'/<coin>'/` prefix, so a path
-   * with rubbish after it was accepted and sent to the device.
-   */
   it("rejects a value that is not a derivation path with invalid_path", async () => {
     for (const bad of ["notapath", "m/44'/195'/garbage", "m/44'/195'", "44'/195'/0'/0/0", ""]) {
       await expect(

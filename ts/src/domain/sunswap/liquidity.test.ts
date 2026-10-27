@@ -36,7 +36,6 @@ describe("resolveDeadline", () => {
     expect(resolveDeadline(future, now)).toBe(future);
   });
 
-  // The contract would reject it, and the fee would be spent finding that out.
   it("refuses a deadline already past", () => {
     expect(() => resolveDeadline(Math.floor(now / 1000) - 1, now)).toThrow(
       /--deadline is already in the past/,
@@ -59,7 +58,6 @@ describe("selectAmounts", () => {
     });
   });
 
-  // There is nothing to derive a deposit from, so this is a question rather than a guess.
   it("refuses when neither side was given", () => {
     expect(() => selectAmounts(undefined, undefined)).toThrow(/requires --amount0 or --amount1/);
   });
@@ -70,7 +68,6 @@ describe("pairAmount", () => {
     expect(pairAmount("1000000", "2000000", "4000000")).toBe("2000000");
   });
 
-  // Truncation can only leave dust unspent; rounding up would try to deposit more than intended.
   it("truncates the derived side rather than rounding up", () => {
     expect(pairAmount("3", "2", "3")).toBe("4");
     expect(pairAmount("1", "3", "1")).toBe("0");
@@ -92,8 +89,6 @@ describe("pairAmount", () => {
 });
 
 describe("expectedLpAmount", () => {
-  // UniswapV2Pair.mint credits the SMALLER of the two ratios: whichever side is proportionally
-  // less is the one that actually gets paired.
   it("credits the smaller of the two sides' ratios", () => {
     expect(expectedLpAmount("100", "100", "1000", "2000", "500")).toBe("25");
     expect(expectedLpAmount("100", "200", "1000", "2000", "500")).toBe("50");
@@ -103,8 +98,6 @@ describe("expectedLpAmount", () => {
     expect(expectedLpAmount("3", "3", "2", "2", "1")).toBe("1");
   });
 
-  // An empty pool mints by a different formula for a scenario this command refuses; answering
-  // with this one would be answering wrongly.
   it("declines to answer for a pool with no supply or no reserves", () => {
     expect(expectedLpAmount("100", "100", "1000", "2000", "0")).toBeUndefined();
     expect(expectedLpAmount("100", "100", "0", "2000", "500")).toBeUndefined();

@@ -37,8 +37,6 @@ function command(
   if (!current || isChainCommand(current)) {
     throw new Error("current command missing");
   }
-  // ExecutionContext always carries these; --qr now reads the selected network to choose which
-  // family's address to encode, so a fixture without them represents no real invocation.
   const tronNet = {
     id: "tron:728126428",
     family: "tron",
@@ -71,8 +69,6 @@ describe("current --qr", () => {
     });
   });
 
-  // json gets the answer --qr was asked for, and no terminal art: the QR is the only text-shaped
-  // part of this command, so it is the only part the output format decides.
   it("gives JSON the receive address and never builds terminal art", async () => {
     const fixture = command({ output: "json" });
     const result = await fixture.current.run(fixture.context as never, fixture.tronNet as never, {
@@ -97,7 +93,6 @@ describe("current --qr", () => {
 
 const EVM_ADDRESS = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
 
-/** the same fixture, but with the network selector the QR now reads. */
 function withNetwork(
   addresses: Record<string, string>,
   selected: string | undefined,
@@ -120,18 +115,12 @@ function withNetwork(
     output: "text" as "text" | "json",
     warn: vi.fn(),
   };
-  // the shell resolves --network (else config.defaultNetwork) and hands it to run().
-  // A namespace is not a family — `eip155` addresses the EVM family — so this maps the two
-  // builtin namespaces by hand. Production never parses an id for this: it reads the
-  // descriptor's own `family` field.
+  // Fixture mapping: eip155 is the EVM namespace; runtime uses the network descriptor.
   const familyOf = (id: string) => (id.startsWith("eip155:") ? "evm" : "tron");
   const network = net(selected ? familyOf(selected) : defaultFamily);
   return { current, context, network, qr };
 }
 
-// --qr encodes the address for the SELECTED NETWORK's family. Handing someone a receive
-// code for a different chain is a fund-loss shape, so this never falls back to whatever the
-// account happens to have.
 describe("current --qr picks the address by network family", () => {
   const both = { tron: ADDRESS, evm: EVM_ADDRESS };
 
@@ -177,9 +166,6 @@ describe("current --qr picks the address by network family", () => {
     expect(f.qr.encode).not.toHaveBeenCalled();
   });
 
-  // The regression this replaces: the family check sat behind `output === "text"`, so the same
-  // command exited 2 with family_mismatch for a human and 0 with success for an agent — and the
-  // agent is the one that cannot see the QR it was supposedly refusing to draw.
   it("refuses under -o json too, not just in text", async () => {
     const f = withNetwork({ evm: EVM_ADDRESS }, "tron:3448148188");
     f.context.output = "json";
@@ -190,8 +176,6 @@ describe("current --qr picks the address by network family", () => {
     expect(f.qr.encode).not.toHaveBeenCalled();
   });
 
-  // The error is scoped to --qr. Looking at an account is local and must not depend on which
-  // network happens to be selected.
   it("still shows a mismatched single-family account when --qr is absent", async () => {
     const f = withNetwork({ evm: EVM_ADDRESS }, "tron:3448148188");
 

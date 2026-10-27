@@ -28,7 +28,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
 
     expect(JSON.parse(readFileSync(a, "utf8"))).toBe("new-A");
     expect(JSON.parse(readFileSync(b, "utf8"))).toBe("new-B");
-    // no leftover .tmp / .bak files
     expect(readdirSync(root).filter((f) => f.endsWith(".tmp") || f.includes(".bak"))).toEqual([]);
   });
 
@@ -42,7 +41,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
     const store = new AtomicFileStore();
     let installs = 0;
     store.commitRename = (from: string, to: string) => {
-      // installs move a staged temp into place; fail the 2nd so A commits, then B fails
       if (from.includes(".tmp")) {
         installs++;
         if (installs === 2) throw EIO();
@@ -57,7 +55,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
       ]),
     ).toThrow();
 
-    // both files must be back on their OLD contents, and no residue left behind
     expect(JSON.parse(readFileSync(a, "utf8"))).toBe("old-A");
     expect(JSON.parse(readFileSync(b, "utf8"))).toBe("old-B");
     expect(readdirSync(root).filter((f) => f.endsWith(".tmp") || f.includes(".bak"))).toEqual([]);
@@ -75,9 +72,9 @@ describe("AtomicFileStore.writeJsonAll", () => {
     store.commitRename = (from: string, to: string) => {
       if (from.includes(".tmp")) {
         installs++;
-        if (installs === 2) throw EIO(); // B install fails
+        if (installs === 2) throw EIO();
       }
-      if (from.includes(".bak")) throw EIO(); // restore of A from its backup fails too
+      if (from.includes(".bak")) throw EIO();
       renameSync(from, to);
     };
 
@@ -88,7 +85,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
       ]),
     ).toThrowError(expect.objectContaining({ code: "io_error" }));
 
-    // A's old blob survives as a .bak for manual recovery
     expect(readdirSync(root).some((f) => f.includes(".bak"))).toBe(true);
     expect(existsSync(a)).toBe(true);
   });
@@ -108,7 +104,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
       { path: b, value: "B" },
     ]);
 
-    // both temps land before the single directory barrier that publishes the renames
     expect(calls).toEqual(["file:tmp", "file:tmp", "dir:root"]);
   });
 
@@ -120,16 +115,13 @@ describe("AtomicFileStore.writeJsonAll", () => {
     const store = new AtomicFileStore();
     store.fsyncDir = () => {
       throw EIO();
-    }; // the post-commit durability barrier fails
+    };
 
-    // the commit already succeeded, so this must NOT be masked as a clean rollback
     expect(() => store.writeJsonAll([{ path: a, value: "new-A" }])).toThrowError(
       expect.objectContaining({ code: "io_error" }),
     );
 
-    // new blob is installed and readable — the state was NOT reverted
     expect(JSON.parse(readFileSync(a, "utf8"))).toBe("new-A");
-    // the old blob is retained as a .bak for recovery instead of being cleaned up
     expect(readdirSync(root).some((f) => f.includes(".bak"))).toBe(true);
   });
 
@@ -147,7 +139,7 @@ describe("AtomicFileStore.writeJsonAll", () => {
     store.commitRename = (from: string, to: string) => {
       if (from.includes(".tmp")) {
         installs++;
-        if (installs === 2) throw EIO(); // A commits, then B install fails → clean rollback
+        if (installs === 2) throw EIO();
       }
       renameSync(from, to);
     };
@@ -159,7 +151,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
       ]),
     ).toThrow();
 
-    // the restore renames must be durably landed (dir fsynced) before the error surfaces
     expect(dirSyncs).toContain(root);
     expect(JSON.parse(readFileSync(a, "utf8"))).toBe("old-A");
   });
@@ -174,17 +165,16 @@ describe("AtomicFileStore.writeJsonAll", () => {
     const store = new AtomicFileStore();
     store.fsyncDir = () => {
       throw EIO();
-    }; // durability barrier fails on the rollback path too
+    };
     let installs = 0;
     store.commitRename = (from: string, to: string) => {
       if (from.includes(".tmp")) {
         installs++;
-        if (installs === 2) throw EIO(); // A commits, then B install fails → clean rollback
+        if (installs === 2) throw EIO();
       }
       renameSync(from, to);
     };
 
-    // rollback succeeded (A restored) but its fsync failed → a precise io_error, not a bare EIO
     expect(() =>
       store.writeJsonAll([
         { path: a, value: "new-A" },
@@ -209,7 +199,6 @@ describe("AtomicFileStore.writeJsonAll", () => {
     store.writeJsonAll([{ path: a, value: "new-A" }]);
 
     expect(bakTargets).toHaveLength(1);
-    // 128-bit hex suffix, not `<pid>.<counter>.bak` — so a leftover .bak can never be reused/overwritten
     expect(bakTargets[0]).toMatch(/\.[0-9a-f]{32}\.bak$/);
   });
 });

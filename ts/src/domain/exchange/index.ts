@@ -1,49 +1,21 @@
-/**
- * Bancor exchange — TRON's protocol-level automatic market maker for TRX and TRC10.
- *
- * `bancorOutput` is a port of java-tron's `ExchangeProcessor` (chainbase, `capsule/`), which prices
- * a trade in two stages against a notional supply of 1e18:
- *
- *     relay = trunc( -SUPPLY × (1 − (1 + q/(sellReserve+q))^0.0005) )
- *     out   = trunc(  buyReserve × ((1 + relay/SUPPLY)^2000 − 1) )
- *
- * **This is an estimate, never a gate.** The chain evaluates those powers with Java's
- * `StrictMath.pow`; JavaScript's `Math.pow` is not specified to produce identical bits, so our
- * result may differ from the node's in the last unit. That is fine for deriving a percentage
- * slippage floor or showing a `--dry-run` preview, and unacceptable as a reason to refuse a
- * transaction — a local rejection that is one unit wrong blocks a trade the chain would accept,
- * with no override.
- *
- * The proportional helpers below are different in kind: `proportionalOther` is the exact integer
- * arithmetic the inject/withdraw actuators perform, so it *is* safe to reject on.
- */
 import { UsageError } from "../errors/index.js";
 
-/** the notional supply both java-tron processors are built around. */
+// java-tron uses a notional supply of 1e18.
 const SUPPLY = 1e18;
-/** TRON stores TRX's token id as a single underscore. */
 export const TRX_TOKEN_ID = "_";
 
-/**
- * Tokens received for selling `sellQuant` into a pair, at the given reserves.
- * Returns an **estimate** — see the module note. Zero when the trade is too small to move the
- * curve by a whole unit.
- */
+// Estimate in minimal units; Math.pow can differ from Java StrictMath.pow.
 export function bancorOutput(sellReserve: bigint, buyReserve: bigint, sellQuant: bigint): bigint {
   if (sellReserve <= 0n || buyReserve <= 0n) return 0n;
   if (sellQuant <= 0n) return 0n;
   const newBalance = Number(sellReserve + sellQuant);
-  // Both stages mirror java-tron's own double arithmetic, including the truncating casts.
+  // Match java-tron double arithmetic and truncation in both stages.
   const relay = Math.trunc(-SUPPLY * (1 - Math.pow(1 + Number(sellQuant) / newBalance, 0.0005)));
   const out = Math.trunc(Number(buyReserve) * (Math.pow(1 + relay / SUPPLY, 2000) - 1));
   return out > 0 ? BigInt(out) : 0n;
 }
 
-/**
- * The floor to send on chain for a percentage slippage tolerance: the predicted output less
- * `percent`, rounded down. Clamped to at least 1 because the protocol rejects a non-positive
- * `expected`.
- */
+// Floor after percentage slippage; the protocol requires a positive expected output.
 export function slippageFloor(predicted: bigint, percent: number): bigint {
   if (!(percent > 0 && percent < 100)) {
     throw new UsageError("invalid_value", "--slippage must be greater than 0 and less than 100");
@@ -54,15 +26,7 @@ export function slippageFloor(predicted: bigint, percent: number): bigint {
       "this trade is too small to return anything at the current reserves",
     );
   }
-  // Millionths of a percent keep the percentage in integer arithmetic while staying fine enough
-  // that every precision a person types is exact. Basis points were not: they can only express two
-  // decimal places, so anything finer was rounded to the NEAREST one, in either direction — 1.006%
-  // silently became 1.01% and accepted a return below the floor that was asked for, while 1.004%
-  // became 1.00% and refused one the user would have taken. Under 0.005% the floor snapped to the
-  // prediction itself, which is an estimate (see bancorOutput) and so cannot be demanded exactly.
-  //
-  // Below this resolution the TOLERANCE rounds down, never up: that can only raise the floor, and
-  // handing back a stronger guarantee than asked for is the only safe direction to err in.
+  // Floor tolerance to millionths of a percent, so rounding cannot weaken the output guarantee.
   const MICRO_PERCENT = 1_000_000;
   const micro = BigInt(Math.floor(percent * MICRO_PERCENT));
   const scale = BigInt(100 * MICRO_PERCENT);
@@ -70,11 +34,7 @@ export function slippageFloor(predicted: bigint, percent: number): bigint {
   return floor > 0n ? floor : 1n;
 }
 
-/**
- * The other side's quantity when injecting or withdrawing, exactly as the actuators compute it:
- * `floor(otherReserve × quant / thisReserve)` in integer arithmetic. Exact, so callers may reject
- * on it.
- */
+// Exact minimal-unit counterpart for inject/withdraw; safe for rejection checks.
 export function proportionalOther(
   thisReserve: bigint,
   otherReserve: bigint,
@@ -84,13 +44,7 @@ export function proportionalOther(
   return (otherReserve * quant) / thisReserve;
 }
 
-/**
- * java-tron's withdraw-only "Not precise enough" rule: the exact quotient, rounded to 4 decimal
- * places, may exceed the truncated integer by no more than 0.01% of it.
- *
- * Reproduced here for documentation and messages only — the check itself is left to the node,
- * because which of the two hardfork variants is active cannot be read from an RPC.
- */
+// Models one node precision rule for messages only; the active variant is not exposed by RPC.
 export function withdrawIsPrecise(
   thisReserve: bigint,
   otherReserve: bigint,
@@ -98,19 +52,15 @@ export function withdrawIsPrecise(
 ): boolean {
   const other = proportionalOther(thisReserve, otherReserve, quant);
   if (other <= 0n) return false;
-  // quotient at 4 dp, half-up, in integer arithmetic: round(otherReserve*quant*10^4 / thisReserve)
+  // Round the quotient half-up to four decimal places.
   const scaled = otherReserve * quant * 10_000n;
   const quotient4dp = (scaled + thisReserve / 2n) / thisReserve;
   const remainder4dp = quotient4dp - other * 10_000n;
-  // remainder > other * 0.0001  ⇔  remainder4dp > other  (both sides scaled by 10^4)
+  // Scaling both sides by 10^4 makes this a 0.01% tolerance check.
   return remainder4dp <= other;
 }
 
-/**
- * Accept `TRX` in any case, the literal `_`, or a numeric TRC10 id; normalise to the on-chain form.
- * Names are deliberately not accepted in this group: a TRC10 name may contain `:`, which would make
- * `--pair A:B:1000123` ambiguous.
- */
+// Accepts TRX or numeric ids; token names can contain the pair separator (:).
 export function normalizeTokenId(input: string): string {
   const value = input.trim();
   if (value.toUpperCase() === "TRX" || value === TRX_TOKEN_ID) return TRX_TOKEN_ID;
@@ -121,12 +71,10 @@ export function normalizeTokenId(input: string): string {
   );
 }
 
-/** `TRX` for the native side, otherwise the numeric id — the display form of a token id. */
 export function tokenIdLabel(tokenId: string): string {
   return tokenId === TRX_TOKEN_ID ? "TRX" : tokenId;
 }
 
-/** split a `<a>:<b>` pair flag into its two halves. */
 export function splitPair(value: string, flag: string): [string, string] {
   const parts = value.split(":");
   if (parts.length !== 2 || !parts[0]?.trim() || !parts[1]?.trim()) {

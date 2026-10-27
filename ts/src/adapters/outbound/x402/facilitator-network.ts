@@ -5,7 +5,7 @@ import { TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
 import { sdkPaymentError } from "./payment-error.js";
 
-/** Negotiate TRON's wire representation before advertising or signing any requirement. */
+// Use a TRON network ID advertised by the facilitator.
 export async function facilitatorNetwork(
   network: NetworkDescriptor,
   scheme: string,
@@ -40,7 +40,7 @@ export async function facilitatorNetwork(
   try {
     data = await response.json();
   } catch {
-    /* handled below */
+    // Report invalid JSON below.
   }
   const kinds = data && typeof data === "object" ? (data as { kinds?: unknown }).kinds : undefined;
   if (!Array.isArray(kinds))
@@ -57,7 +57,6 @@ export async function facilitatorNetwork(
       typeof kind.network === "string" &&
       sameX402Network(kind.network, network.id),
   );
-  // Prefer canonical decimal if supported; otherwise use the facilitator's exact advertised ID.
   const selected = candidates.find((kind) => kind.network === network.id) ?? candidates[0];
   if (!selected)
     throw new UsageError(

@@ -60,7 +60,7 @@ export class AgentService {
       const agentId = txId ? await this.registry.registeredAgentId(network, txId) : undefined;
       if (agentId !== undefined) return { ...result, identity: { ...result.identity, agentId } };
     } catch {
-      /* Keep the confirmed transaction even when receipt enrichment fails. */
+      // Preserve the confirmed transaction when receipt enrichment fails.
     }
     scope.warn(
       "Registration confirmed, but the minted Agent ID could not be read; do not resubmit the transaction.",
@@ -212,7 +212,6 @@ export class AgentService {
     method: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<unknown> {
-    // Registry selection and ABI decoding are supplied by the published SDK adapter.
     return this.registry.read(network, method, params);
   }
 

@@ -5,7 +5,7 @@ import { sanitizeText } from "./scalars.js";
 import { asObj, query, table, receipt, ok, warn, type Pair } from "./layout.js";
 import { fromX402Network } from "../../../../domain/x402/network-id.js";
 
-// Keep untrusted text on its own line/cell and never emit terminal controls.
+// Sanitize untrusted text and flatten it to prevent forged terminal rows or cells.
 function text(value: unknown): string {
   if (value !== null && typeof value === "object") return "";
   return sanitizeText(String(value ?? ""))

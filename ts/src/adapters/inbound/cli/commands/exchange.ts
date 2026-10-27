@@ -1,14 +1,3 @@
-/**
- * `exchange` — TRON's protocol-level Bancor market maker for TRX and TRC10.
- *
- * Four facts that run against intuition, and shape every command here:
- *   - only the pair's creator may inject or withdraw; this is private market-making, not a pool
- *     anyone can join, and the binding cannot be transferred;
- *   - TRX's on-chain token id is `_`; we accept `TRX`, `_` or a numeric TRC10 id;
- *   - `--min-received` is a floor that reverts the trade, not an expected return;
- *   - the protocol takes no fee — only `create` costs anything beyond bandwidth.
-
- */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronExchangeService } from "../../../../application/use-cases/tron/exchange-service.js";

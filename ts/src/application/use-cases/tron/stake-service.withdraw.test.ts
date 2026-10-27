@@ -15,8 +15,6 @@ const net = {
 const OWNER = "TQkDWJimyBEhkFcqEfCWNbb6tMDwmH1234";
 const scope = { activeAccount: {}, resolveAddress: () => OWNER } as never;
 
-// A pipeline stub that exercises the build callback (where the pre-flight guard lives) exactly as
-// the real pipeline does: build → return a submitted receipt.
 function stubPipeline() {
   return {
     assertCanSign: () => {},
@@ -42,7 +40,6 @@ describe("TronStakeService.withdraw pre-flight", () => {
     await expect(svc(gateway).withdraw(scope, net, {})).rejects.toMatchObject({
       code: "nothing_to_withdraw",
     });
-    // never builds/broadcasts a doomed tx → no phantom txid.
     expect(buildWithdrawExpireUnfreeze).not.toHaveBeenCalled();
   });
 

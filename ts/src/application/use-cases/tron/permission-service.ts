@@ -56,9 +56,7 @@ export class TronPermissionService {
       gateway.getUpdateAccountPermissionFee(),
       gateway.getNativeBalance(address),
     ]);
-    // dry-run is included: its whole job is to answer "would this work", and an unfunded account
-    // makes the answer no. sign-only/build-only are not — those artifacts broadcast later, by which
-    // time the account can have been funded.
+    // Offline artifacts may be funded later; broadcast and dry-run require funds now.
     const paysNow = mode.mode === "broadcast" || mode.mode === "dry-run";
     if (paysNow && BigInt(balanceSun) < BigInt(feeSun)) {
       throw new ChainError(

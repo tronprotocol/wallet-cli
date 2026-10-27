@@ -86,8 +86,6 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
   });
 
-  // The service authenticates POSTs over exactly this key set; one extra signed field is rejected
-  // with code 4000, so pin the signed set rather than only the body.
   it("signs POSTs over the fixed auth set plus address, and nothing else", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
       response({ code: 0, data: {} }),
@@ -185,8 +183,6 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(messages).toEqual([[{ state: 0, is_sign: 0 }]]);
   });
 
-  // The business code alone cannot tell a rejected signature (4000) from a bad parameter (20004)
-  // or a stale signature (20305). Carry the service's own wording through to the caller.
   it("carries the service's rejection message into the error details", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
       response({ code: 4000, message: "Authentication failed." }),

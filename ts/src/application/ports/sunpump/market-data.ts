@@ -1,56 +1,44 @@
-/**
- * SunPumpMarketDataPort — the read-only SunPump catalogue, as the application needs it.
- *
- * The launchpad's HTTP catalogue, NOT the curve contract. `status` here is what the indexer
- * recorded (`CREATED` / `LAUNCHED`); whether a trade is possible is a question for
- * `LaunchpadPort.tokenState`, which asks the chain. The two disagree while the indexer catches
- * up, and acting on this one would send a transaction that must revert.
- *
- * Every money- or amount-shaped field is a `string` carrying exact digits. A token's supply is
- * 10^27 base units and a price carries eighteen decimals; `number` rewrites both without saying
- * so. Units are named where the field name cannot carry them — see each member.
- */
+// Catalogue data may lag on-chain trading state; monetary values retain exact decimal digits.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-/** What the catalogue says about a token's market. Never a claim about what a trade would get. */
 export interface SunPumpMarketRecord {
-  /** US dollars, decimal. */
+  // Decimal USD.
   readonly marketCapUsd: string;
-  /** TRX per whole token, decimal; the service sends small ones in scientific notation. */
+  // TRX per whole token; may use scientific notation.
   readonly priceInTrx: string;
-  /** ALREADY a percentage: "-0.70" is −0.70%, not −70%. */
+  // Percentage: "-0.70" means -0.70%.
   readonly priceChange24HrPercent: string;
-  /** 24h turnover in SUN. The service reports TRX with six decimals; this is that, scaled. */
+  // SUN.
   readonly volume24HrSun: string;
-  /** the service's own liquidity figure, decimal. It does not state a unit; neither do we. */
+  // Decimal value; the service does not specify its unit.
   readonly virtualLiquidity: string;
-  /** USD per TRX, decimal. Detail responses only — the listings send null. */
+  // Decimal USD per TRX; detail responses only.
   readonly trxPriceInUsd?: string;
-  /** `priceInTrx × trxPriceInUsd`, truncated to 18 places. Present exactly when the rate is. */
+  // priceInTrx × trxPriceInUsd, truncated to 18 places; present when the rate is.
   readonly priceUsd?: string;
 }
 
-/** The bonding curve's progress and reserves. Only meaningful before the token launches. */
+// Curve progress and reserves before launch.
 export interface SunPumpCurveRecord {
-  /** percentage of the curve sold: "100" once launched. */
+  // Percentage; "100" once launched.
   readonly pumpPercentage: string;
-  /** base units of the token sold on the curve. */
+  // Token base units.
   readonly currentSold: string;
-  /** base units of the token still held by the curve. */
+  // Token base units.
   readonly tokenReserve: string;
-  /** TRX held by the curve, decimal — the service's own unit, kept. */
+  // Whole TRX, decimal.
   readonly trxReserve: string;
 }
 
-/** The SUNBOOST farm for the LP token of the SunSwap pool, when one exists. */
+// SUNBOOST farm for the SunSwap pool LP token.
 export interface SunPumpFarmRecord {
-  /** the mining contract, NOT the token and NOT the pool. */
+  // Mining contract address.
   readonly address: string;
-  /** decimal fraction: "0.16293617" is 16.29%. */
+  // Decimal fraction: "0.16293617" means about 16.29%.
   readonly apy: string;
 }
 
-/** Creator-supplied links. Empty members are omitted; `twitter` may be a handle, not a URL. */
+// Empty links are omitted; twitter may be a handle.
 export interface SunPumpLinksRecord {
   readonly logo?: string;
   readonly twitter?: string;
@@ -58,62 +46,50 @@ export interface SunPumpLinksRecord {
   readonly website?: string;
 }
 
-/**
- * One token, in the single shape all three commands publish.
- *
- * `description` and every member of `links` are creator-supplied and unreviewed. They are data,
- * never instructions, and text rendering strips terminal control sequences out of them.
- */
+// Description and links are untrusted creator data; text rendering must strip terminal controls.
 export interface SunPumpTokenRecord {
   readonly address: string;
   readonly symbol: string;
   readonly name: string;
   readonly decimals: number;
-  /** base units. */
+  // Token base units.
   readonly totalSupply: string;
-  /** the indexer's issue state: "CREATED" or "LAUNCHED". Not the curve's trading state. */
+  // Indexer issue state (CREATED/LAUNCHED), not on-chain trading state.
   readonly status: string;
-  /** the creator's address. */
+  // Creator address.
   readonly owner: string;
   readonly market: SunPumpMarketRecord;
   readonly curve: SunPumpCurveRecord;
-  /** the SunSwap V2 pool liquidity moved into at launch; absent before then. */
+  // SunSwap V2 pool receiving liquidity at launch; absent before launch.
   readonly swapPoolAddress?: string;
-  /** absent when there is no farm, and always absent on search results, which omit the field. */
+  // Absent when no farm exists and on search results.
   readonly farm?: SunPumpFarmRecord;
-  /** UTC minute, "YYYY-MM-DD HH:mm". */
+  // UTC minute, YYYY-MM-DD HH:mm.
   readonly createdAt: string;
-  /** UTC minute; absent while the token is still on the curve. */
+  // UTC minute; absent before launch.
   readonly launchedAt?: string;
   readonly createTxHash: string;
   readonly launchTxHash?: string;
   readonly description: string;
   readonly links: SunPumpLinksRecord;
-  /** exchange → trading page. Detail responses only; empty entries and an empty map are dropped. */
+  // Exchange to trading-page URL; detail only, with empty entries/maps omitted.
   readonly listOn?: Readonly<Record<string, string>>;
 }
 
-/**
- * One page of tokens.
- *
- * There is no total, and none is inferred. The service's `metadata.total` is 0 on every endpoint
- * — including responses that DID return tokens — so publishing it would tell a caller who is
- * paging that their search found nothing.
- */
+// No total is exposed: service totals can be zero even for nonempty results.
 export interface SunPumpTokenPage {
   readonly tokens: readonly SunPumpTokenRecord[];
 }
 
-/** The service's own paging: 1-based page number and size. */
+// 1-based pages.
 export interface SunPumpPageWindow {
   readonly pageNo: number;
   readonly pageSize: number;
 }
 
 export interface SunPumpListQuery extends SunPumpPageWindow {
-  /** an exact token contract address. */
   readonly contractAddress?: string;
-  /** `<field>:<DIRECTION>`, already whitelisted by the domain. Always sent. */
+  // <field>:<DIRECTION>, already validated; always sent.
   readonly sort: string;
 }
 
@@ -122,35 +98,24 @@ export interface SunPumpOwnerQuery extends SunPumpPageWindow {
 }
 
 export interface SunPumpSearchQuery extends SunPumpPageWindow {
-  /** non-empty; an empty one reaches the service as "no filter" and returns the catalogue. */
+  // Must be nonempty; an empty keyword removes the API filter.
   readonly keyword: string;
   readonly sort: string;
-  /** only tokens already listed on SunSwap. */
+  // Only tokens listed on SunSwap.
   readonly onSunSwap?: boolean;
   readonly twitterLaunch?: boolean;
   readonly sunAgentLaunch?: boolean;
 }
 
 export interface SunPumpMarketDataPort {
-  /**
-   * The catalogue, optionally narrowed to one contract.
-   *
-   * It cannot be narrowed by creator: `/token` accepts `ownerAddress` and ignores it, returning
-   * the whole catalogue with a 200. `tokensByOwner` is the endpoint that answers that question.
-   */
+  // Use tokensByOwner for creator filtering; the catalogue endpoint ignores ownerAddress.
   listTokens(network: NetworkDescriptor, query: SunPumpListQuery): Promise<SunPumpTokenPage>;
 
-  /**
-   * The tokens one address created.
-   *
-   * Ordering is not a parameter here: the endpoint answers `tokenCreatedInstant:DESC` whatever
-   * `sort` is set to, so the port does not take one rather than accepting a value it would drop.
-   */
+  // Fixed tokenCreatedInstant:DESC order; the endpoint ignores sort.
   tokensByOwner(network: NetworkDescriptor, query: SunPumpOwnerQuery): Promise<SunPumpTokenPage>;
 
-  /** one token's full detail, or null when the address is not a SunPump token. */
   getToken(network: NetworkDescriptor, address: string): Promise<SunPumpTokenRecord | null>;
 
-  /** symbol/name substring search, or an exact contract address. */
+  // Symbol/name substring or exact contract address.
   searchTokens(network: NetworkDescriptor, query: SunPumpSearchQuery): Promise<SunPumpTokenPage>;
 }

@@ -1,8 +1,3 @@
-/**
- * Keystore — wallet-centric storage: encrypted vault/key blobs plus wallets.json.
- * registry + root labels + selection (--account/--wallet). Atomic writes under lock.
- * BIP39 passphrase plumbed. Data shapes live in SharedTypes.
- */
 import { WALLETS_VERSION } from "../../../domain/migration/wallets-v2.js";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
@@ -50,8 +45,6 @@ import {
   viewAddresses,
 } from "../../../domain/wallet/index.js";
 
-// public data-model helpers used by upper layers (signer/context) — re-exported here so they
-// keep importing from the keystore barrel.
 export {
   accountIndices,
   accountRef,
@@ -79,19 +72,16 @@ export class Keystore {
     this.walletsPath = join(root, "wallets.json");
   }
 
-  // ── registry IO ───────────────────────────────────────────────────────────
   #read(): WalletsFile {
     const f = this.store.readJson<WalletsFile>(this.walletsPath);
-    // Absent = a fresh keystore, so it is born CURRENT. This default is persisted on the first
-    // write, so a literal version here would stamp every new keystore stale.
+    // The default version is persisted on the first write.
     return f ?? { version: WALLETS_VERSION, activeAccount: null, wallets: [], labels: {} };
   }
-  /** caller must already hold the wallets.json lock (mutators wrap in withLock). */
+  // Caller must hold the wallets.json lock.
   #write(f: WalletsFile): void {
     this.store.writeJson(this.walletsPath, f);
   }
 
-  // ── import ───────────────────────────────────────────────────────────────
   import(p: ImportParams): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
@@ -103,9 +93,6 @@ export class Keystore {
 
       if (p.type === "seed") {
         const mnemonic = p.secret.trim();
-        // Its own code, not the generic bucket: the phrase is entered at a hidden prompt, so the
-        // envelope carries no field path to say WHICH value was wrong — the code is all the
-        // caller gets, and `invalid_value` says nothing it did not already know.
         if (!Derivation.validateMnemonic(mnemonic)) {
           throw new WalletError("invalid_mnemonic", "invalid BIP39 mnemonic");
         }
@@ -119,14 +106,11 @@ export class Keystore {
           return { accountId: dup, created: false };
         }
         const vaultId = this.#freshId("vlt", file);
-        // persist passphrase inside the encrypted vault so decryptSeed reconstructs the SAME
-        // seed (otherwise the displayed address and the signing key would diverge).
+        // Store the passphrase so decryption reproduces the same seed.
         plaintext = encodeVault(entropy, p.passphrase);
         source = { type: "seed", vaultId, addresses: { "0": addr0 } };
       } else {
-        // hexToBytes throws its own Error on a non-hex character, which classifyError would turn
-        // into a REDACTED internal_error — the two ways to mistype a private key would then answer
-        // with two different codes, one of them wrong. Both are the same mistake, so both say so.
+        // Map decoder failures to invalid_private_key.
         let pk: Uint8Array;
         try {
           pk = hexToBytes(p.secret.trim().replace(/^0x/, ""));
@@ -138,12 +122,7 @@ export class Keystore {
         }
         if (pk.length !== 32)
           throw new WalletError("invalid_private_key", "private key must be 32 bytes");
-        // Same reasoning as the hex/length checks above: a scalar outside secp256k1's valid range
-        // `[1, n-1]` (all-zero, or at/past the curve order — 64 `f`s included) is a third way to
-        // mistype a private key, and it would otherwise sail past both checks above and blow up
-        // inside derivePrivAddresses(), where classifyError redacts it to internal_error. That
-        // would make the SAME mistake (a bad private key) answer with a third, wrong code instead
-        // of the one the caller can act on.
+        // A 32-byte value can still be outside the secp256k1 scalar range.
         if (!Derivation.isValidPrivateKey(pk))
           throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
         const addr = derivePrivAddresses(pk);
@@ -163,10 +142,7 @@ export class Keystore {
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
       file.activeAccount = ref;
-      // Validate the new record before persisting anything: a rejected label must not leave
-      // an unindexed blob or establish the master password for a watch/ledger-only store.
-      // Keep the sentinel and blob writes in this same lock so parallel first imports cannot
-      // establish different master passwords.
+      // Validate labels before writes; keep sentinel and blob writes under the wallets.json lock.
       this.#assertPassword({ createIfAbsent: true });
       this.#writeBlob(
         source.type === "seed" ? "vaults" : "keys",
@@ -190,8 +166,7 @@ export class Keystore {
   }): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
-      // ledger is single-chain watch-only; the dedup key is (family, path), not address
-      // (a hardware account stays distinct from a software one sharing the same key).
+      // Keep hardware and software accounts distinct even when they share an address.
       const dup = findBySource(
         file,
         (s) => s.type === "ledger" && s.family === p.family && s.path === p.path,
@@ -202,7 +177,6 @@ export class Keystore {
         return { accountId: dup, created: false };
       }
       const walletId = this.#freshId("wlt", file);
-      // no encrypted blob: ledger holds no secret locally, only family+path+address.
       const wallet: Wallet = {
         id: walletId,
         source: { type: "ledger", family: p.family, path: p.path, address: p.address },
@@ -219,18 +193,14 @@ export class Keystore {
   registerWatch(p: { family: ChainFamily; address: string; label?: string }): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
-      // watch is secret-less; like ledger it stays distinct from a software account with the
-      // same address — the dedup key is (family, address), see findWatchByAddress.
+      // Deduplicate only against watch accounts.
       const dup = findBySource(
         file,
         (s) => s.type === "watch" && s.family === p.family && s.address === p.address,
       );
-      // Registering a watch account does NOT make it active: it holds no key, so making
-      // it the active account turns the next write command into `watch_only_no_signer` for a
-      // reason the user never chose. `use <account>` is how the active account changes.
+      // Do not activate a watch account implicitly: it cannot sign.
       if (dup) return { accountId: dup, created: false };
       const walletId = this.#freshId("wlt", file);
-      // no encrypted blob: a watch account holds no secret, only family+address.
       const wallet: Wallet = {
         id: walletId,
         source: { type: "watch", family: p.family, address: p.address },
@@ -243,15 +213,13 @@ export class Keystore {
     });
   }
 
-  /** Derive an HD sub-account. `index` picks an explicit slot (idempotent if already derived);
-   *  omitted → the next free index. `created` is false when the index was already derived. */
+  // Omitted index appends after the highest slot; an existing slot is verified and activated.
   addAccount(walletId: string, index?: number): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
       if (!wallet)
         throw new UsageError("account_not_found", errorMessage`unknown wallet ${walletId}`);
-      // only seed wallets are HD: privateKey has no derivation, ledger must be re-imported per path.
       if (wallet.source.type !== "seed") {
         const hint =
           wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
@@ -264,17 +232,13 @@ export class Keystore {
       const key = String(next);
       let created = false;
       if (!wallet.source.addresses[key]) {
-        // Guarding here, not above: `--index <existing>` is a documented no-op that re-activates
-        // the slot, so refusing it would answer a request that asked for no new key with a
-        // message saying none can be derived. Only an actual derivation can mix templates.
+        // Check for mixed templates only when deriving a new key.
         const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
         this.#assertDerivable(file, wallet, seed);
         wallet.source.addresses[key] = deriveSeedAddresses(seed, next);
         created = true;
       } else {
-        // An existing slot is still a no-op for derivation, including a historical one, but its
-        // cached addresses must be verified before this method persists the selection change.
-        // Otherwise WalletService can report derivation_mismatch only after activeAccount changed.
+        // Verify cached addresses before persisting the selection change.
         const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
         this.#assertAccountMatches(wallet, next, seed);
       }
@@ -285,16 +249,7 @@ export class Keystore {
     });
   }
 
-  /**
-   * Refuse to derive a new key into a wallet whose existing accounts this build cannot account
-   * for. A wallet must never mix templates: once a legacy and a current account sit in one
-   * addresses map, nothing on disk tells them apart — both are `{ tron, evm }` under a numeric
-   * key — so every later reader is left guessing.
-   *
-   * The two failures are kept apart, as they are everywhere else: `legacy` means the account is
-   * stranded on the old path and has a rescue; no match at all means wallets.json and the vault
-   * disagree, which is a different problem with a different fix.
-   */
+  // Do not mix derivation templates: stored addresses do not identify their template.
   #assertDerivable(file: WalletsFile, wallet: Wallet, seed: Bytes): void {
     if (wallet.source.type !== "seed") return;
     for (const existing of accountIndices(wallet.source)) {
@@ -319,7 +274,7 @@ export class Keystore {
     }
   }
 
-  /** Verify one existing slot without rejecting a known historical template. */
+  // Accept either known derivation template for an existing slot.
   #assertAccountMatches(wallet: Wallet, index: number, seed: Bytes): void {
     if (wallet.source.type !== "seed") return;
     const ref = accountRefOf(wallet, index);
@@ -333,8 +288,7 @@ export class Keystore {
     }
   }
 
-  // ── selection / lookup ─────────────────────────────────────────────────────
-  /** index is meaningful only for seed wallets; privateKey/ledger report -1. */
+  // Non-seed wallets return index -1.
   resolveAccount(refOrLabel: string, family?: ChainFamily): { wallet: Wallet; index: number } {
     const file = this.#read();
     const ref = this.#toRef(file, refOrLabel, family);
@@ -346,8 +300,7 @@ export class Keystore {
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
     if (idxStr === undefined) {
-      // wallet-layer selection of a seed: unambiguous only when it has exactly one account.
-      // Multi-account → hard error (the signing path never guesses which account).
+      // Never guess which account to sign with in a multi-account wallet.
       const known = accountIndices(wallet.source);
       if (known.length > 1) {
         throw new UsageError(
@@ -405,33 +358,26 @@ export class Keystore {
     const file = this.#read();
     const views: AccountDescriptor[] = [];
     for (const w of file.wallets) {
-      // A source.type this build does not recognise (older/newer format) is skipped rather than
-      // failing the whole listing: SOURCE_KINDS[w.source.type] would be undefined and every
-      // consumer below (isHD/hasSecret/label, enumerateAddresses) assumes a known kind. One
-      // unreadable account should not make every readable one unreachable — see unreadable().
+      // Skip unknown source kinds so readable accounts remain accessible.
       if (SOURCE_KINDS[w.source.type] === undefined) continue;
-      // seed → one view per known index; privateKey/ledger → a single index-less view.
       const indices = w.source.type === "seed" ? accountIndices(w.source) : [null];
       for (const index of indices) views.push(this.#describe(file, w, index));
     }
     return views;
   }
 
-  /** ids of wallets whose source.type this build does not know, skipped by list() rather than
-   *  failing it — surfaced so the command layer can warn the user to upgrade. */
+  // IDs of unknown source kinds skipped by list().
   unreadable(): string[] {
     const file = this.#read();
     return file.wallets.filter((w) => SOURCE_KINDS[w.source.type] === undefined).map((w) => w.id);
   }
 
-  /** the full max-disclosure descriptor of one account (resolves accountId/label/address). */
   describe(refOrLabel: string): AccountDescriptor {
     const file = this.#read();
     const { wallet, index } = this.resolveAccount(refOrLabel);
     return this.#describe(file, wallet, index < 0 ? null : index);
   }
 
-  /** shared descriptor builder — the single shape `list`/`describe` and every command return. */
   #describe(file: WalletsFile, w: Wallet, index: number | null): AccountDescriptor {
     const ref = accountRefOf(w, index);
     const s = w.source;
@@ -447,7 +393,7 @@ export class Keystore {
     if (family) d.family = family;
     if (s.type === "ledger") d.path = s.path;
     if (s.type === "seed") {
-      d.seedId = w.id; // the seed id `derive --seed` takes; also the `list` HD group header.
+      d.seedId = w.id;
     }
     d.derivationPath = derivationPathsOf(s, index);
     return d;
@@ -457,8 +403,6 @@ export class Keystore {
     return this.#read().activeAccount;
   }
 
-  /** delete an account/wallet. Reports what scope was removed, whether a secret blob was
-   *  destroyed, and the active account afterwards (re-pointed if the old active is gone). */
   delete(refOrWallet: string): {
     accountId: AccountRef;
     scope: "account" | "wallet";
@@ -474,10 +418,7 @@ export class Keystore {
         throw new WalletError("invalid_value", errorMessage`unknown wallet ${refOrWallet}`);
       this.#assertReadable(wallet, refOrWallet);
 
-      // account-level delete: a non-root HD sub-account ref (wlt_x.N, N>0) forgets just that index
-      // (re-derivable from the seed). The vault/secret survives until the wallet itself is deleted.
-      // The root (index 0) anchors the group and is the seed's labelled account — deleting it
-      // cascades to the whole wallet (all children + secret) via the wallet-level branch below.
+      // Deleting seed index 0 removes the whole wallet, including its vault.
       if (wallet.source.type === "seed" && idxStr !== undefined && idxStr !== "0") {
         if (!(idxStr in wallet.source.addresses)) {
           throw new WalletError("invalid_value", errorMessage`unknown account ${refOrWallet}`);
@@ -487,7 +428,6 @@ export class Keystore {
         const remaining = accountIndices(wallet.source);
         let secretRemoved = false;
         if (remaining.length === 0) {
-          // the last known account is gone → drop the now-empty wallet and its vault.
           file.wallets = file.wallets.filter((w) => w.id !== walletId);
           delete file.labels[walletId!];
           this.#removeBlobFiles(wallet.source);
@@ -510,7 +450,6 @@ export class Keystore {
         };
       }
 
-      // wallet-level delete: remove the wallet, all its accounts/labels and its secret blob.
       file.wallets = file.wallets.filter((w) => w.id !== walletId);
       for (const k of Object.keys(file.labels)) {
         if (k === walletId || k.startsWith(`${walletId}.`)) delete file.labels[k];
@@ -531,12 +470,10 @@ export class Keystore {
     });
   }
 
-  // ── password sentinel queries (read-only; never throw) ──────────────────────
-  /** true once the keystore-wide master password has been established. */
   isInitialized(): boolean {
     return existsSync(this.#verifierPath());
   }
-  /** true iff `pw` decrypts the sentinel; false when absent or wrong (never throws). */
+  // False for an absent sentinel or failed decryption; file-read errors propagate.
   verifyPassword(pw: string): boolean {
     const blob = this.store.readJson<KeystoreBlob>(this.#verifierPath());
     if (!blob) return false;
@@ -548,8 +485,6 @@ export class Keystore {
     }
   }
 
-  /** verify old → decrypt every software blob → re-encrypt with new → staged write incl. verifier.
-   *  Ledger/watch wallets hold no blob and are untouched. */
   changePassword(oldPassword: string, newPassword: string): { wallets: string[]; count: number } {
     return this.store.withLock(this.walletsPath, () => {
       const verifier = this.store.readJson<KeystoreBlob>(this.#verifierPath());
@@ -584,7 +519,7 @@ export class Keystore {
             value: CryptoEnvelope.encrypt(plaintext, newPassword, id, blob.type),
           });
         } finally {
-          plaintext.fill(0); // scrub the decrypted secret from memory as soon as it is re-wrapped
+          plaintext.fill(0);
         }
         labels.push(file.labels[accountRefOf(w, s.type === "seed" ? 0 : null)] ?? w.id);
       }
@@ -598,10 +533,8 @@ export class Keystore {
       try {
         this.store.writeJsonAll(entries);
       } catch (e) {
-        // An explicit ExecutionError (e.g. automatic rollback failed → manual recovery needed)
-        // is already accurate; let it through unmasked.
+        // Preserve rollback failures that require manual recovery.
         if (e instanceof ExecutionError) throw e;
-        // Otherwise writeJsonAll rolled back cleanly: every keystore file is unchanged.
         throw new ExecutionError(
           "io_error",
           "failed to write re-encrypted keystores; rolled back, the old password remains in effect",
@@ -612,7 +545,6 @@ export class Keystore {
     });
   }
 
-  // ── secrets ────────────────────────────────────────────────────────────────
   decryptSeed(vaultId: string): Bytes {
     return this.#decryptSeedFromVault(vaultId);
   }
@@ -623,8 +555,6 @@ export class Keystore {
     const pw = this.getPassword();
     return CryptoEnvelope.decrypt(blob, pw); // MAC mismatch → auth_failed
   }
-  /** recover the BIP39 mnemonic from a seed vault (for `wallet backup`); also report whether a
-   *  BIP39 passphrase ("25th word") is set, without exposing its value. */
   revealMnemonic(vaultId: string): { mnemonic: string; passphraseSet: boolean } {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
     if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
@@ -633,7 +563,6 @@ export class Keystore {
     return { mnemonic: Derivation.entropyToMnemonic(entropy), passphraseSet: !!passphrase };
   }
 
-  // ── internals ────────────────────────────────────────────────────────────
   #decryptSeedFromVault(vaultId: string): Bytes {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
     if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
@@ -642,18 +571,10 @@ export class Keystore {
     return Derivation.mnemonicToSeed(Derivation.entropyToMnemonic(entropy), passphrase);
   }
 
-  // ── global master-password sentinel  ───────────────────────────────
   #verifierPath(): string {
     return join(this.root, "verifier.json");
   }
-  /**
-   * The keystore-wide invariant that every encrypted blob shares ONE master password.
-   * Only the encrypting import paths call with createIfAbsent:true (first import defines the
-   * password, later imports verify) — so the master password is *born* solely at `wallet
-   * create` / `import-mnemonic` / `import-private-key`. Decrypt paths call with false (verify
-   * only, never write): every blob this keystore writes is preceded by the sentinel in the same
-   * lock, so a present blob always has a matching sentinel — no backfill path exists.
-   */
+  // Import verifies or creates the password sentinel under the wallets.json lock.
   #assertPassword(opts: { createIfAbsent: boolean }): void {
     const password = this.getPassword();
     const existing = this.store.readJson<KeystoreBlob>(this.#verifierPath());
@@ -678,7 +599,6 @@ export class Keystore {
     this.store.writeJson(this.#blobPath(dir, blob.id), blob);
   }
   #removeBlobFiles(source: Source): void {
-    // ledger keeps no local blob; nothing to unlink.
     const path =
       source.type === "seed"
         ? this.#blobPath("vaults", source.vaultId)
@@ -689,22 +609,12 @@ export class Keystore {
       try {
         unlinkSync(path);
       } catch {
-        /* best-effort */
+        // Blob removal is best-effort.
       }
     }
   }
 
-  /**
-   * A source kind this build does not know. `list` skips it and warns, but a command that NAMES
-   * one has to answer for it — every accessor below (SOURCE_KINDS, enumerateAddresses) reads
-   * fields the kind may not have, and reaching one produces a redacted `internal_error` instead
-   * of a diagnosis.
-   *
-   * Called before the operation starts, not while assembling its result: `delete` used to remove
-   * the wallet, write the file, and only then read `SOURCE_KINDS[...].hasSecret` for its receipt
-   * — so the account was already gone from disk when the throw arrived, and the caller was told
-   * the command had failed.
-   */
+  // Reject unknown source kinds before mutating storage.
   #assertReadable(wallet: Wallet, input: string): void {
     if (SOURCE_KINDS[wallet.source.type] !== undefined) return;
     throw new WalletError(
@@ -721,48 +631,24 @@ export class Keystore {
     }
   }
 
-  /** ref|address|label → canonical account ref (exact ref, unique address, or unique label).
-   *
-   *  `family` is the chain the caller is about to act on. It matters only when one address is
-   *  held by more than one account — which the wallet allows, because a seed account and a
-   *  privateKey account can legitimately hold the same key, and a watch/ledger account can be
-   *  registered against an address a software account already holds (registerWatch's dedup is
-   *  scoped to other watch entries, not across types). Two accounts matching one address in one
-   *  family are interchangeable on that chain ONLY when both actually hold that family's key
-   *  locally (`hasSecret`) — a watch account holds nothing to sign with, and a ledger's key lives
-   *  on the device under a DIFFERENT account, so "pick either" would silently swap in an account
-   *  that cannot sign. So the take-first shortcut requires every hit to have a secret; otherwise
-   *  this refuses rather than guesses, the same rule the multi-account seed branch of
-   *  resolveAccount already follows. */
+  // Multiple address matches are interchangeable only within one family and with local keys.
   #toRef(file: WalletsFile, input: string, family?: ChainFamily): AccountRef {
     const v = input.trim();
     if (v.startsWith("wlt_")) return v;
-    // address form (T… / 0x…): match the unique account holding it in its cache.
     const addrFamily = familyOf(v);
     if (addrFamily !== undefined) {
-      // An address names ONE chain. When a chain is being acted on, `--account <address>` can
-      // only mean "this address" — resolving it to the same account's address on a different
-      // chain would act on something the caller never typed, which on a send is funds leaving
-      // an address they did not name. Checked before the scan so a registered and an
-      // unregistered cross-chain address get the same answer: it is the same mistake.
-      // Wallet commands (backup/delete/rename/derive/use) pass no family — they have no chain,
-      // so there an address is just a handle and the lookup below is right.
+      // Reject cross-family addresses before lookup; wallet-only commands omit the family.
       if (family !== undefined && family !== addrFamily) {
         throw new UsageError(
           "family_mismatch",
           errorMessage`${input} is ${addrFamily === "evm" ? "an" : "a"} ${addrFamily} address, but this command runs on ${family}; address the account by its accountId or label to use it here`,
         );
       }
-      // Canonicalised on BOTH sides: enumerateAddresses already yields EIP-55, and the CLI accepts an
-      // all-lower or all-upper EVM address as input. Comparing raw strings would refuse to find an
-      // account by the very spelling the user was told is valid.
+      // Normalize EVM input to match cached checksummed addresses.
       const wanted = canonicalAddress(v);
       const hits: Array<{ ref: AccountRef; wallet: Wallet; index: number | null }> = [];
       for (const w of file.wallets) {
-        // Skipped for the same reason list() skips it: enumerateAddresses reads fields a kind
-        // this build does not know may not have. Scanning it would make ONE unreadable account
-        // cost every OTHER account its address lookup — and an address the caller can see in
-        // `list` has to keep resolving.
+        // Unknown source kinds must not prevent lookup of readable accounts.
         if (SOURCE_KINDS[w.source.type] === undefined) continue;
         for (const { index, addr } of enumerateAddresses(w)) {
           if (addr[addrFamily] === wanted)
@@ -774,8 +660,6 @@ export class Keystore {
       const interchangeable =
         family === addrFamily && hits.every((h) => SOURCE_KINDS[h.wallet.source.type].hasSecret);
       if (hits.length > 1 && !interchangeable) {
-        // `accountIds` is the machine-readable answer ("which accountId do I re-run with?");
-        // `matches` carries the columns a human needs to actually pick one.
         throw new UsageError(
           "ambiguous_account",
           errorMessage`address ${input} matches ${hits.length} accounts; address it by accountId`,
@@ -796,11 +680,6 @@ export class Keystore {
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),
     );
-    // This is the code for exactly this case. `invalid_value` is the bucket every malformed
-    // option lands in; "that account does not exist here" has one obvious next step (`list`), and
-    // an agent can only take it if the code says so — the message is not something to match on.
-    // The ambiguous cases below keep `invalid_value`: the reference IS valid, it just picks more
-    // than one account, and the fix is to narrow it rather than to go looking for it.
     if (matches.length === 0)
       throw new UsageError("account_not_found", errorMessage`no account labelled '${input}'`);
     if (matches.length > 1) {
@@ -828,7 +707,7 @@ export class Keystore {
   }
 
   #defaultLabel(file: WalletsFile): string {
-    // called AFTER the new wallet is pushed, so length already counts it: 1st wallet → "wallet-1".
+    // The wallet count already includes the new wallet.
     let n = file.wallets.length;
     const used = new Set(Object.values(file.labels).map((l) => l.toLowerCase()));
     while (used.has(`wallet-${n}`)) n++;
@@ -836,17 +715,7 @@ export class Keystore {
   }
 }
 
-/**
- * The BIP44 path behind each of an account's addresses.
- *   - seed: computed per family from the index when every path is unambiguous. If any family has
- *     a historical candidate (`Derivation.legacyPaths`, today TRON at index >= 1), the whole value
- *     is null: a partial object would misleadingly make this generic, password-free descriptor
- *     look like a derivation query. Commands that open the seed replace null with verified paths.
- *     Asking `legacyPaths` keeps that rule in the one place that owns it, so a future historical
- *     template cannot be added there and forgotten here.
- *   - ledger: the single path the user picked on the device, for its one family.
- *   - watch / privateKey: never derived, so `null` rather than an empty object.
- */
+// Without opening the seed, report no paths if any family has multiple possible templates.
 function derivationPathsOf(source: Source, index: number | null): Record<string, string> | null {
   if (source.type === "seed" && index !== null) {
     if (CHAIN_FAMILIES.some((family) => Derivation.legacyPaths(family, index).length > 0))

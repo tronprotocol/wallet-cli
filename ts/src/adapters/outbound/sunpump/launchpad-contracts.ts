@@ -1,15 +1,3 @@
-/**
- * LaunchpadPort over the TRON gateway's contract calls.
- *
- * Shape and encoding only. Whether a trade is allowed, what floor it carries and how a receipt
- * reads are decisions, and they live in the use case above.
- *
- * Every signature and every parameter order here comes from `@sun-protocol/sun-sdk-launchpad` rather than
- * being retyped. Its `SELECTOR_*` constants are full method signatures, and its action factories
- * return exactly the `{target, method, parameters, callValue}` shape `TxPipeline` builds from — so
- * the vendor describes the call, our gateway encodes it, and a retyped signature cannot drift
- * into a silent wrong-method bug.
- */
 import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
 import {
   applySlippageMin,
@@ -42,7 +30,6 @@ import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import type { LaunchpadState } from "../../../domain/sunpump/curve.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
 
-/** The SDK's own network names. Ours are canonical ids, so the two are mapped explicitly. */
 const SDK_NETWORKS: Readonly<Record<string, Network>> = {
   "tron:728126428": "mainnet",
   "tron:3448148188": "nile",
@@ -53,14 +40,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
 
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  /**
-   * The curve's state, from the contract.
-   *
-   * Never from an HTTP `status` field: the API can be stale, and a stale "trading" sends a
-   * transaction that must revert. A value the contract returns that we do not recognise is an
-   * error rather than a guess — the enum grew from three to four once already, and treating an
-   * unknown fifth as "tradeable" is how a launched token gets a doomed transaction.
-   */
+  // Read contract state directly; the HTTP status can be stale.
   async tokenState(network: NetworkDescriptor, token: string): Promise<LaunchpadState> {
     const raw = await this.#read(
       network,
@@ -110,7 +90,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return word(raw, 0);
   }
 
-  /** `(tokenAmount, fee)` — the fee is already inside the TRX the caller named. */
+  // The fee is included in the requested TRX amount.
   async quoteBuy(network: NetworkDescriptor, token: string, trxSun: string): Promise<BuyQuote> {
     const raw = await this.#read(
       network,
@@ -124,10 +104,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return { tokenAmount: word(raw, 0), feeSun: word(raw, 1) };
   }
 
-  /**
-   * `(trxAmount, fee)` — `trxAmount` is what the seller receives, already net: the curve pays the
-   * fee to its fee address beside it. A Nile sale quoted `(22728, 10000)` paid the seller 22728.
-   */
+  // trxAmount is net SUN paid to the seller; the fee is paid separately.
   async quoteSell(
     network: NetworkDescriptor,
     token: string,
@@ -145,13 +122,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return { trxAmountSun: word(raw, 0), feeSun: word(raw, 1) };
   }
 
-  /**
-   * The token amount whose net proceeds are one SUN — the smallest sale that pays the seller.
-   *
-   * Read from the contract's own inverse quote rather than derived here, so it follows the
-   * curve and any change to the fee. Not the inverse of `minTxFee()`: that is where the seller's
-   * net EQUALS the fee, roughly twice the true minimum.
-   */
+  // Quote the token amount needed for one SUN of net proceeds.
   async minimumSellAmount(network: NetworkDescriptor, token: string): Promise<string> {
     const inverse = await this.#read(
       network,
@@ -165,19 +136,11 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return word(inverse, 0);
   }
 
-  /** The SDK's own integer arithmetic: `expected * (10000 - bips) / 10000`, no float anywhere. */
   applyFloor(expected: string, slippageBips: number): string {
     return applySlippageMin(BigInt(expected), slippageBips).toString();
   }
 
-  /**
-   * The SDK's launchpad, and only where the network switches the curve on.
-   *
-   * The address comes from the SDK's chain config, so wallet-cli keeps no copy of it. The switch
-   * is checked here as well as at the capability gate because `swap` asks this method whether a
-   * curve exists at all: the SDK knows Nile's launchpad, and a router-only Nile must still answer
-   * "no curve" rather than consult it.
-   */
+  // Require the curve feature even when the SDK knows the network address.
   launchpadAddress(network: NetworkDescriptor): string {
     const name = SDK_NETWORKS[network.id];
     if (!isTronNetwork(network) || network.sunpump?.curve !== true || name === undefined) {
@@ -190,7 +153,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
   }
 
   buyPayload(network: NetworkDescriptor, request: BuyRequest): ContractCallPayload {
-    // TRX travels as the call's VALUE, which is why a buy approves nothing.
+    // TRX is sent as call value, so buys need no token approval.
     return fromAction(
       createLaunchpadBuyAction({
         launchpad: this.launchpadAddress(network),
@@ -212,13 +175,6 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     );
   }
 
-  /**
-   * The sale's approval uses an unlimited allowance.
-   *
-   * The curve pulls the tokens on every sale, and SunPump's contract is an upgradeable proxy that
-   * expects a standing allowance — unlike V2/V3 liquidity deposits, where the amount is known and
-   * exact. The use case says so in the dry run rather than letting it pass unremarked.
-   */
   approvalPayload(
     network: NetworkDescriptor,
     token: string,
@@ -229,7 +185,6 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return fromAction(createLaunchpadApproveAction(token, spender, amount));
   }
 
-  /** What an unbounded approval is, taken from the SDK rather than written out. */
   static readonly UNLIMITED = MAX_UINT256.toString();
 
   async #read(
@@ -250,13 +205,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
 
 const KNOWN_STATES = new Set<number>(Object.values(LAUNCHPAD_STATE));
 
-/**
- * The SDK's action, as the payload our pipeline builds from.
- *
- * A guard rather than a cast: the SDK's parameter values are optional in its own types, and a
- * missing one would encode a zero minimum — a trade with no slippage protection at all, which
- * would succeed and look normal.
- */
+// Reject missing SDK parameters: a missing minimum would remove slippage protection.
 function fromAction(action: {
   target: string;
   functionSelector: string;
@@ -286,12 +235,12 @@ function fromAction(action: {
   };
 }
 
-/** the 32-byte word at `index` of an ABI return, as a decimal string. */
+// ABI hex word to a decimal string.
 function word(data: string, index: number): string {
   return BigInt(`0x${data.slice(index * 64, (index + 1) * 64)}`).toString();
 }
 
-/** a dynamic `string` return: offset, length, then the bytes. */
+// ABI string: offset word, length word, then UTF-8 bytes.
 function decodeString(data: string): string {
   const length = Number(BigInt(`0x${data.slice(64, 128)}`));
   const bytes = data.slice(128, 128 + length * 2);

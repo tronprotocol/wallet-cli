@@ -1,10 +1,4 @@
-/**
- * Black-box checks for `sunswap swap`.
- *
- * The flag matrix and the network gate are refused before a request would be made. The
- * router preconditions use a local RPC/API fixture: reaching those refusals requires market,
- * token and route reads, which must not depend on mainnet availability or prices.
- */
+// Router preconditions use local RPC/API fixtures to avoid live prices and availability.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -48,7 +42,7 @@ function run(args: string[]) {
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
@@ -72,11 +66,6 @@ describe("the flag matrix", () => {
     expect(r.json.error.code).toBe("invalid_option");
   });
 
-  /**
-   * A tolerance only means something when a floor will be enforced, and a quote enforces none —
-   * so accepting `--slippage` here would let a caller believe the number they typed did
-   * something.
-   */
   it("refuses --slippage alongside --quote", () => {
     const r = run([
       "sunswap",
@@ -140,11 +129,6 @@ describe("the flag matrix", () => {
 });
 
 describe("network availability", () => {
-  /**
-   * `swap` has its OWN capability key rather than sharing SunPump's: this release serves only the
-   * curve branch, so it is available where a curve is — but it must not be switched on merely
-   * because SunPump is configured once the router branch lands.
-   */
   it.each([["nile"], ["shasta"]])("refuses %s and names where it does work", (network) => {
     const r = run([
       "sunswap",
@@ -182,12 +166,6 @@ describe("network availability", () => {
 });
 
 describe("a router pair that spends a token", () => {
-  /**
-   * `--build-only` cannot be served: the transaction embeds a Permit2 signature, so it does not
-   * exist until one does. The refusal lands BEFORE the account requirement, which is why this case
-   * passes with an empty wallet home — it does not depend on who is trading, so a caller should get
-   * the reason rather than be asked for an account first.
-   */
   it("refuses --build-only and says why, with no wallet configured", () => {
     const r = run([
       "sunswap",
@@ -207,15 +185,7 @@ describe("a router pair that spends a token", () => {
     expect(r.json.error.message).toContain("a swap that spends TRX has no permit and does build");
   });
 
-  /**
-   * Every other sending mode needs an account, after reading the market, token facts and route.
-   *
-   * The command declares `wallet: "none"` so that `--quote` works with no wallet at all, which means
-   * the use case resolves the account itself. It cannot do that until it knows which market the pair
-   * is on, and that is an on-chain read. So a caller with no account gets a launchpad read before the
-   * refusal. The ordering is deliberate — the market decision is made once, before anything else,
-   * so a quote and a fill cannot land on different markets. The preload serves these reads locally.
-   */
+  // The preload serves the market, token and route reads that precede account resolution.
   it.each([
     ["execute", []],
     ["dry-run", ["--dry-run"]],
@@ -232,17 +202,10 @@ describe("a router pair that spends a token", () => {
       "-o",
       "json",
     ]);
-    // Exit 1, not 2: a missing account is a runtime failure, not a malformed request. The same
-    // command works unchanged once an account exists.
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("missing_wallet_address");
   });
 
-  /**
-   * A swap that spends TRX carries no permit, so `--build-only` is NOT refused for it — it gets as
-   * far as needing an account. The pair of cases is the interesting assertion: it documents that the
-   * refusal is about the permit rather than about the command.
-   */
   it("does not refuse --build-only when the swap spends TRX", () => {
     const r = run([
       "sunswap",
@@ -267,11 +230,7 @@ describe("help", () => {
     expect(r.stdout).toContain("--quote");
     expect(r.stdout).toContain("--all");
     expect(r.stdout).toContain("--slippage");
-    // The two facts a caller cannot infer: how the market is chosen, and that the default differs
-    // from the sunpump commands reaching the same curve.
     expect(r.stdout).toContain("THE MARKET IS CHOSEN FIRST");
-    // The two grants a token swap makes, and that neither is unlimited, belong in help rather than
-    // only in the docs: it is the part a caller is consenting to.
     expect(r.stdout).toContain("Permit2");
     expect(r.stdout).toContain("0.5%");
     expect(r.stdout).toContain("5%");

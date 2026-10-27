@@ -15,8 +15,6 @@ const net = {
 const OWNER = "TQkDWJimyBEhkFcqEfCWNbb6tMDwmH1234";
 const scope = { activeAccount: {}, resolveAddress: () => OWNER } as never;
 
-// Mirrors the real pipeline's ordering: build runs before the dry-run early return, so a guard
-// placed in the build callback covers --dry-run too.
 function stubPipeline() {
   return {
     assertCanSign: () => {},
@@ -46,8 +44,6 @@ describe("TronStakeService.unfreeze pre-flight", () => {
     expect(buildUnfreezeV2).not.toHaveBeenCalled();
   });
 
-  // frozenV2 omits `type` for BANDWIDTH (default enum), so a naive filter would read the
-  // bandwidth stake as zero and reject every legitimate bandwidth unstake.
   it("counts the untyped frozenV2 entry as bandwidth stake", async () => {
     const buildUnfreezeV2 = vi.fn(async () => ({ txID: "tx" }));
     const gateway = {

@@ -10,9 +10,7 @@ import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
 const fields = z.object({
-  // Deliberately NOT the shared txModeFields: that set includes --sign-only, which this group
-  // does not offer. Declaring a flag the command will not honour is worse than
-  // omitting it.
+  // Do not use txModeFields: this command does not support sign-only.
   dryRun: z
     .boolean()
     .default(false)
@@ -78,11 +76,6 @@ const fields = z.object({
     .number()
     .optional()
     .describe("Unix seconds the transaction stops being valid; default 30 minutes from now"),
-  // A TRON contract call cannot be built without a fee limit — the node refuses
-  // `triggerSmartContract` outright. Every other TRON write command in
-  // this CLI exposes it with the same default, and hard-coding a spend cap on a command that
-  // moves money is worse than an optional flag. The default is a constant and is never derived
-  // from an estimate: TRON's estimate is a lower bound (see the reference page).
   createPool: z
     .boolean()
     .default(false)
@@ -120,37 +113,13 @@ const fields = z.object({
     ),
 });
 
-/** Flags that belong only to a V3 position: rejected on V2, where there is no range to describe. */
 const V3_ONLY = ["positionId", "fee", "tickLower", "tickUpper"] as const;
 
-/**
- * Flags that belong only to V4.
- *
- * A V4 pool's identity includes the tick spacing and the hook on top of the pair and the tier, which
- * is why naming one — existing or new — takes more flags than a fee tier.
- */
 const V4_ONLY = ["createPool", "sqrtPrice", "tickSpacing", "hooks", "slippage"] as const;
 
-/**
- * Flags V4 does not have, because its bound points the other way.
- *
- * V2 and V3 bound a deposit from BELOW with `--min0` / `--min1`: at least this much must go in. V4
- * bounds it from ABOVE — the contract takes the liquidity and spends what it needs, up to a ceiling —
- * so a minimum is not a weaker version of the same protection, it is the opposite one. V4 has no
- * `--min0` / `--min1` and takes `--slippage` in their place. Silently ignoring a
- * `--min0` here would leave a caller believing they had set a floor on a path that has none.
- */
+// V4 bounds deposit costs from above; min0/min1 express floors and cannot apply.
 const NOT_ON_V4 = ["min0", "min1"] as const;
 
-/**
- * Flags a V4 INCREASE cannot take, because the position already fixes them.
- *
- * Not the same list as V3's: `--token0` / `--token1` are REQUIRED here rather than refused, and
- * `--fee` is accepted. See `refuseV4Flags`.
- *
- * `--tick-spacing` and `--hooks` are refused for the same reason: they describe a pool, and the
- * position has already named one.
- */
 const NOT_WITH_V4_POSITION_ID = [
   "tickLower",
   "tickUpper",
@@ -161,7 +130,6 @@ const NOT_WITH_V4_POSITION_ID = [
   "hooks",
 ] as const;
 
-/** Flags a V3 INCREASE cannot take, because the position already fixes them. */
 const NOT_WITH_POSITION_ID = [
   "token0",
   "token1",
@@ -171,26 +139,6 @@ const NOT_WITH_POSITION_ID = [
   "recipient",
 ] as const;
 
-/**
- * V4's own matrix.
- *
- * THREE scenarios, not two: a deposit into a pool that exists, one that creates the pool first, and
- * an increase — a deposit into a position the caller already holds.
- *
- * The increase is where V4 diverges from V3. On V3 an increase REFUSES `--token0` / `--token1`,
- * because the position already fixes the pair. On V4 both are REQUIRED. They still select nothing —
- * the position names its pool — so what they are is a cross-check, run in the use case against the
- * pair the position reports and refused with `invalid_value` naming both when the two disagree. The
- * same treatment `remove-liquidity` gives them on the same protocol, and the same reason: a
- * mistyped position id must not fund a market the caller never named.
- *
- * The range stays OPTIONAL on a mint, with the same default as V3. V3 derives its default band from
- * the spacing its FEE TIER implies; V4 has no tier, but the spacing is part of the pool's IDENTITY,
- * which means it is KNOWN — read from the pool key, or given with `--tick-spacing` on a creation.
- * Different source, same number. A caller who omits the
- * range is asking for a sensible band around the price, and that question does not change with where
- * the spacing came from; answering it differently per protocol would make one command behave two ways.
- */
 function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void {
   for (const flag of NOT_ON_V4) {
     if (value[flag] !== undefined) {
@@ -207,17 +155,7 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
     refuseV4IncreaseFlags(value, ctx);
     return;
   }
-  /**
-   * How the pool is named, resolved HERE so the refusal is deterministic.
-   *
-   * `resolveV4Pool` is pure — a pool key is five flags and a starting price is a number — so none of
-   * it needs chain state. Left to the use case it would sit behind the account requirement, and a caller
-   * who forgot `--sqrt-price` would be asked for an account first: the same flake the `--slippage`
-   * bounds had, for the same reason.
-   *
-   * The domain keeps the check. It is still what runs for anything calling the use case directly, and
-   * it is the one implementation — this calls it rather than restating its rules.
-   */
+  // Validate the pure pool-key rules before wallet resolution.
   try {
     resolveV4Pool({
       createPool: value.createPool === true,
@@ -229,14 +167,8 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
       ...(value.hooks === undefined ? {} : { hooks: String(value.hooks) }),
     });
   } catch (error) {
-    /**
-     * The domain's code is kept, whatever it is.
-     *
-     * A usage code rides the issue. An exit-1 code cannot — `parseInputSchema` turns any declared
-     * code that is not a usage code into `invalid_value` — so it is rethrown as it was raised:
-     * `same_token` is exit 1 here as it is on V2 and on every other command. Only when nothing
-     * earlier has been refused, so the first refusal is still the one reported.
-     */
+    // Rethrow exit-1 domain errors: schema issues preserve only usage codes.
+    // Keep any earlier validation refusal first.
     if (error instanceof CliError && error.exitCode() === 1) {
       if (ctx.issues.length === 0) throw error;
       return;
@@ -244,35 +176,18 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
     const code = (error as { code?: string }).code;
     ctx.addIssue({
       code: "custom",
-      // Pointed at the flag the message is about, where the message names one, so the error reads as
-      // being about that flag rather than about the command.
       path: [flagFrom(error) ?? "token0"],
-      /**
-       * The domain's message, whole.
-       *
-       * The framework prefixes the path's flag, so this reads slightly redundantly —
-       * "invalid --sqrt-price: --sqrt-price is required with --create-pool". Stripping the leading
-       * flag was tried and is worse: these messages are written to be read standalone, so
-       * "--token0 and --token1 are the wrong way round" becomes "and --token1 are the wrong way
-       * round". Redundant beats ungrammatical, and neither of them misleads.
-       */
+      // Keep whole messages: removing a leading flag can break compound subjects.
       message: messageOf(error),
       params: { errorCode: code ?? "invalid_value" },
     });
   }
 }
 
-/**
- * The V4 increase scenario, whose two halves point in opposite directions.
- *
- * What the position fixes is REFUSED — its range, its holder, its pool. What the position is checked
- * AGAINST is REQUIRED — the pair. Neither half is something to ignore: a dropped `--tick-lower` would
- * suggest a position's range can be moved, and a dropped `--token0` would remove the only guard
- * against adding to a position the caller did not mean.
- */
+// The pair cross-check prevents funding a mistyped position ID.
 function refuseV4IncreaseFlags(value: Record<string, unknown>, ctx: RefinementCtx): void {
   for (const flag of NOT_WITH_V4_POSITION_ID) {
-    // `--create-pool` is a boolean with a default, so "not given" is `false` rather than undefined.
+    // An omitted createPool defaults to false.
     if (value[flag] !== undefined && value[flag] !== false) {
       ctx.addIssue({
         code: "custom",
@@ -295,7 +210,6 @@ function refuseV4IncreaseFlags(value: Record<string, unknown>, ctx: RefinementCt
   }
 }
 
-/** The flag a domain refusal is about, taken from its own message rather than re-derived. */
 function flagFrom(error: unknown): string | undefined {
   const named = /--([a-z0-9-]+)/.exec(messageOf(error))?.[1];
   if (named === undefined) return undefined;
@@ -306,17 +220,6 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * The flag × scenario matrix. A flag outside its scenario is `invalid_option`, not
- * something to ignore: silently dropping `--fee` would deposit at a tier the caller did not
- * choose, and silently dropping `--tick-lower` on an increase would suggest a position's range
- * can be changed, which it cannot.
- *
- * V4's flags ARE declared now, so a V2 or V3 deposit that carries one is refused here by name — and
- * refused first, because a caller who passed `--tick-spacing` to V3 has the wrong protocol rather
- * than a stray flag, and hearing about the flag alone would send them hunting for a V3 setting that
- * does not exist.
- */
 function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: RefinementCtx): void {
   const protocol = String(value.protocol).toUpperCase();
   if (!PROTOCOLS.includes(protocol as (typeof PROTOCOLS)[number])) {
@@ -328,9 +231,7 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
     });
     return;
   }
-  // V4's flags on a V2 or V3 deposit, said before anything else: a caller who passed --tick-spacing
-  // to V3 has the wrong protocol rather than a stray flag, and hearing about the flag first would
-  // send them looking for a V3 setting that does not exist.
+  // Report protocol mismatches before other scenario errors.
   if (protocol !== "V4") {
     for (const flag of V4_ONLY) {
       if (value[flag] !== undefined && value[flag] !== false) {
@@ -426,8 +327,7 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     "--dry-run validates everything — balances, the pool, the amounts, the allowances — without a\n" +
     "password, and works for a watch-only account.",
   baseFields: fields,
-  // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
-  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1.
+  // Reject unsupported flags before validating recipient addresses.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     {
@@ -476,10 +376,6 @@ export const sunswapAddLiquidityTronBinding = (
       ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
-      // V4's own. Forwarded explicitly like the rest rather than by spreading `input`, so a flag that
-      // is declared but never passed on is a visible omission instead of a silent one — which is
-      // exactly what happened here: the flags parsed, the help advertised them, and the service saw
-      // none of them until this block named them.
       ...(input.createPool === undefined ? {} : { createPool: input.createPool }),
       ...(input.sqrtPrice === undefined ? {} : { sqrtPrice: input.sqrtPrice }),
       ...(input.tickSpacing === undefined ? {} : { tickSpacing: input.tickSpacing }),

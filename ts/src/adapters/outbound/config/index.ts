@@ -1,8 +1,3 @@
-/**
- * ConfigLoader / NetworkRegistry — resolve the root dir, layer-merge config,
- * build the network registry, and resolve canonical network ids. The descriptor stays pure data;
- * live RPC clients are owned by the chain gateway provider, not attached here.
- */
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -15,7 +10,6 @@ import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import type { ChainFamily } from "../../../domain/family/index.js";
 
 export class ConfigLoader {
-  /** bootstrap: must run before locating config.yaml. */
   static resolveRoot(env: NodeJS.ProcessEnv = process.env): string {
     return env.WALLET_CLI_HOME && env.WALLET_CLI_HOME.trim() !== ""
       ? env.WALLET_CLI_HOME
@@ -26,7 +20,7 @@ export class ConfigLoader {
     return join(ConfigLoader.resolveRoot(env), "config.yaml");
   }
 
-  /** builtins < config.yaml (env/flag overrides for runtime values applied by caller). */
+  // config.yaml overrides builtins; callers apply runtime environment and flag overrides.
   static load(env: NodeJS.ProcessEnv = process.env): Config {
     const networks: Record<string, NetworkDescriptor> = {};
     for (const [id, d] of Object.entries(BUILTIN_NETWORKS)) networks[id] = { ...d };
@@ -51,8 +45,7 @@ export class ConfigLoader {
         (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "") ||
         (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "") ||
         (typeof raw.baiApiKey === "string" && raw.baiApiKey !== "") ||
-        // A network's RPC apiKey is a credential too, and it sits NESTED under `networks`; a gate
-        // that only inspected top-level keys would hand out a 644 file holding one.
+        // Nested RPC API keys require the same file permissions as service credentials.
         holdsNetworkApiKey(raw.networks)
       ) {
         assertSecretConfigPermissions(path);
@@ -63,8 +56,6 @@ export class ConfigLoader {
       if (raw.defaultOutput === "json" || raw.defaultOutput === "text")
         defaultOutput = raw.defaultOutput;
       if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
-      // Same rule ConfigService enforces on write — a hand-edited file must not slip through
-      // negative or fractional values into the effective config.
       if (Number.isInteger(raw.waitTimeoutMs) && raw.waitTimeoutMs >= 0)
         waitTimeoutMs = raw.waitTimeoutMs;
       if (raw.price && typeof raw.price === "object") {
@@ -79,22 +70,13 @@ export class ConfigLoader {
       if (validCredential(raw.gasfreeApiKey)) gasfreeApiKey = raw.gasfreeApiKey;
       if (validCredential(raw.gasfreeApiSecret)) gasfreeApiSecret = raw.gasfreeApiSecret;
       if (validCredential(raw.baiApiKey)) baiApiKey = raw.baiApiKey;
-      // aliases first: a network key may be written as an alias, and normalising it needs the
-      // book the same file may have just extended.
+      // Load aliases before networks so alias-keyed network overrides resolve correctly.
       if (raw.aliases && typeof raw.aliases === "object" && !Array.isArray(raw.aliases)) {
         for (const [alias, target] of Object.entries(raw.aliases as Record<string, unknown>)) {
           if (typeof target === "string") aliases[alias.toLowerCase()] = target;
         }
-        // A target may itself be an alias — most often a legacy id the book still forwards.
-        // Resolution is single-hop, so fold the target here rather than leave an entry resolve()
-        // cannot follow. One hop only: the book is hand-written, and a chain of two is a mistake
-        // to surface, not a feature to support.
-        //
-        // A canonical id is a TERMINAL target, never a hop. Without that stop the fold reaches
-        // BACKWARDS into the built-in book: a config keyed on `tron:3448148188` — accepted,
-        // because resolve() consults ids before the book, so such an entry is merely dead —
-        // would rewrite the built-in `nile -> tron:3448148188` to that key's own target, and
-        // `--network nile` would build, sign and broadcast on mainnet.
+        // Fold alias targets here because registry resolution follows only one hop.
+        // Canonical targets must stop folding to prevent an alias from redirecting a builtin network.
         for (const [alias, target] of Object.entries(aliases)) {
           const key = target.toLowerCase();
           if (networks[key] !== undefined) continue;
@@ -103,13 +85,10 @@ export class ConfigLoader {
         }
       }
       if (raw.networks && typeof raw.networks === "object") {
-        const seen = new Map<string, string>(); // canonical id -> the key that claimed it
+        const seen = new Map<string, string>();
         for (const [key, d] of Object.entries(
           raw.networks as Record<string, Record<string, unknown>>,
         )) {
-          // A hand-edited alias key must configure the network it names, not create a new one.
-          // Silently ignoring it is the failure to avoid: the file looks configured and
-          // does nothing.
           const id = aliases[key.toLowerCase()] ?? key;
           const claimedBy = seen.get(id);
           if (claimedBy !== undefined) {
@@ -151,22 +130,6 @@ function validCredential(value: unknown): value is string {
   );
 }
 
-/**
- * Read config.yaml, reporting the condition rather than the underlying error.
- *
- * Both failures carry material we must not surface: a YAML parse error quotes the offending line,
- * which may sit right beside `gasfreeApiSecret`, and a read error carries whatever the OS put in
- * its message. Classifying here also keeps the user out of the generic `internal_error` they would
- * otherwise get from the bootstrap boundary for what is simply a broken file.
- */
-/**
- * A network from config.yaml, checked before it can travel.
- *
- * The merge is a bare cast, so anything missing used to survive until something dereferenced it:
- * an absent `capabilities` crashed composition with "Cannot read properties of undefined" before
- * any command ran, surfacing as a bare internal_error. A config mistake has to be reported as a
- * config mistake, naming the network and the field, at the moment the file is read.
- */
 function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescriptor {
   const require = (field: string): unknown => {
     const value = merged[field];
@@ -186,18 +149,10 @@ function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescr
   }
   validSunSwapBlock(id, merged.sunswap);
   validSunPumpBlock(id, merged.sunpump);
-  // Traits are extras; having none is the normal case, not an error.
   return { capabilities: [], ...merged } as unknown as NetworkDescriptor;
 }
 
-/**
- * The `sunswap` and `sunpump` blocks merge field by field over the builtin ones.
- *
- * An overlay that switches one feature on (say, a Nile `routerApiBaseUrl`) must not switch the
- * builtin ones off; a field the user leaves out keeps its builtin value, and turning a feature off
- * takes an explicit `false`. A block that is not a mapping is left as written, for validation to
- * reject.
- */
+// Merge feature fields so omitted settings retain their builtin values.
 function mergedFeatureBlocks(
   base: Record<string, unknown>,
   user: Record<string, unknown>,
@@ -215,21 +170,12 @@ function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/**
- * Validate a hand-written `sunswap` block.
- *
- * The block is what decides whether the SunSwap commands are offered at all, so a typo in it
- * has to be reported as a config mistake naming the field — silently registering a capability
- * whose base URL is "htp://open.sun.io" moves the failure to the first request, where it
- * surfaces as a provider error and looks like the service is down.
- */
 function validSunSwapBlock(id: string, block: unknown): void {
   validServiceBlock(id, "sunswap", block, ["marketApiBaseUrl", "routerApiBaseUrl"], ["liquidity"], {
     contracts: "contract addresses now come from the SDK; set sunswap.liquidity: true instead",
   });
 }
 
-/** Validate a hand-written `sunpump` block, for the same reason as `validSunSwapBlock`. */
 function validSunPumpBlock(id: string, block: unknown): void {
   validServiceBlock(id, "sunpump", block, ["apiBaseUrl"], ["curve"], {
     launchpad: "the launchpad address now comes from the SDK; set sunpump.curve: true instead",
@@ -249,8 +195,6 @@ function validServiceBlock(
     throw new UsageError("invalid_value", `network ${id} in config.yaml has an invalid ${name}`);
   }
   const fields = block as Record<string, unknown>;
-  // A field this build no longer reads would otherwise be ignored in silence, and the feature it
-  // used to switch on would quietly disappear from that network.
   for (const [field, hint] of Object.entries(retired)) {
     if (fields[field] !== undefined) {
       throw new UsageError(
@@ -289,6 +233,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+// Do not expose YAML or OS errors: they can contain credentials.
 function readConfigDocument(path: string) {
   let text: string;
   try {
@@ -303,7 +248,6 @@ function readConfigDocument(path: string) {
   }
 }
 
-/** true when any network in the document carries a non-empty `apiKey`. */
 function holdsNetworkApiKey(networks: unknown): boolean {
   if (!networks || typeof networks !== "object") return false;
   return Object.values(networks as Record<string, unknown>).some((network) => {
@@ -332,7 +276,6 @@ export class NetworkRegistry implements INetworkRegistry {
   #byId = new Map<string, NetworkDescriptor>();
 
   constructor(private readonly config: Config) {
-    // Keys are lower-cased so canonical ids remain case-insensitive.
     for (const d of Object.values(config.networks)) {
       this.#byId.set(d.id.toLowerCase(), d);
     }
@@ -351,8 +294,7 @@ export class NetworkRegistry implements INetworkRegistry {
       throw new UsageError("missing_network", "this command requires --network <id>");
     }
     const key = id.toLowerCase();
-    // Canonical FIRST, book second: an alias can never shadow a real network id,
-    // whatever a hand-edited config.yaml contains.
+    // Resolve canonical ids before aliases so aliases cannot redirect a real network id.
     const direct = this.#byId.get(key);
     if (direct) return { ...direct };
 
@@ -362,8 +304,6 @@ export class NetworkRegistry implements INetworkRegistry {
     }
     const aliased = this.#byId.get(target.toLowerCase());
     if (!aliased) {
-      // Aliases are hand-edited, so name the entry AND its target — otherwise the user hunts for
-      // a network they never asked for instead of the alias line they mistyped.
       throw new UsageError(
         "unsupported_network",
         `alias "${id}" points at unknown network ${target}`,
@@ -372,7 +312,6 @@ export class NetworkRegistry implements INetworkRegistry {
     return { ...aliased };
   }
 
-  /** default target for all chain commands when --network is omitted. */
   resolveDefault(): NetworkDescriptor {
     return this.resolve(this.config.defaultNetwork ?? DEFAULT_CONFIG.defaultNetwork);
   }

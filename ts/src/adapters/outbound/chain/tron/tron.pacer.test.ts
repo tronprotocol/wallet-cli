@@ -2,23 +2,19 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 import type { HttpTransport } from "../../http/index.js";
 
-// A virtual clock, so the spacing asserted here is the spacing the client asked for rather than
-// whatever the machine managed under load.
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 const ADDRESS = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
-/** the client's configured spacing; asserted against rather than restated per test */
 const INTERVAL_MS = 400;
 
-/** Run the virtual clock out so `work` can finish, without orphaning a rejection while it runs. */
+// Handle rejections while advancing the fake clock to avoid unhandled promises.
 const settle = async <T>(work: Promise<T>): Promise<T> => {
   work.catch(() => {});
   await vi.runAllTimersAsync();
   return work;
 };
 
-/** Records when each request starts and how many are in flight, whichever path it took. */
 const tracker = () => {
   const starts: number[] = [];
   let active = 0;
@@ -53,9 +49,7 @@ describe("TronRpcClient request pacing", () => {
     expect(t.gaps()).toEqual([INTERVAL_MS, INTERVAL_MS]);
   });
 
-  /** tronweb has its own axios client, so the pacer is installed on its providers. Stubbing the
-   *  axios instance underneath leaves that wrapper in place, which is exactly what is under test —
-   *  and this drives it through a real gateway method rather than the provider directly. */
+  // Stub below the provider wrapper so pacing remains under test.
   it("paces tronweb-backed methods too", async () => {
     const t = tracker();
     const client = new TronRpcClient("http://localhost:1", 30_000);
@@ -92,15 +86,11 @@ describe("TronRpcClient request pacing", () => {
     );
     expect(t.starts).toHaveLength(4);
     expect(t.peak()).toBeLessThanOrEqual(2);
-    // one shared budget: starts are spaced across both transports, not per transport
     expect(t.gaps()).toEqual([INTERVAL_MS, INTERVAL_MS, INTERVAL_MS]);
   });
 
-  /** The pacer's wait is self-imposed, so it must not be charged against --timeout: a fan-out that
-   *  spends longer queued than the whole budget still has to complete. */
   it("does not let pacing spend the caller's timeout budget", async () => {
     const transport: HttpTransport = { requestText: async () => "{}" };
-    // a budget far shorter than the 3 x 400ms of pacing this fan-out needs
     const client = new TronRpcClient("http://localhost:1", 500, transport);
     const started = Date.now();
     await expect(
@@ -109,14 +99,12 @@ describe("TronRpcClient request pacing", () => {
     expect(Date.now() - started).toBe(3 * INTERVAL_MS);
   });
 
-  /** A caller that has already been told it timed out must not have its request sent later: the
-   *  node budget is spent on nobody, and on the broadcast path it would submit an abandoned tx. */
   it("does not send requests whose deadline expired while they were queued", async () => {
     let sent = 0;
     const transport: HttpTransport = {
       async requestText() {
         sent += 1;
-        await new Promise((resolve) => setTimeout(resolve, 600)); // outlives the 500ms budget
+        await new Promise((resolve) => setTimeout(resolve, 600));
         return "{}";
       },
     };
@@ -125,13 +113,10 @@ describe("TronRpcClient request pacing", () => {
       Promise.allSettled(Array.from({ length: 4 }, () => client.getAccount(ADDRESS))),
     );
     expect(results.every((r) => r.status === "rejected")).toBe(true);
-    // only the two that took a permit reached the wire; the queued pair were dropped
+    // The two queued requests expire before obtaining permits.
     expect(sent).toBe(2);
   });
 
-  /** setHeader/setFullNode and friends each install a brand-new HttpProvider, dropping any patch
-   *  held on the old instance. Nothing calls them today, so without this the pacer would silently
-   *  stop applying the first time someone does. */
   it("keeps pacing after tronweb swaps its providers", async () => {
     const t = tracker();
     const client = new TronRpcClient("http://localhost:1", 30_000);

@@ -84,7 +84,7 @@ export class BaiService {
       facilitatorUrl: this.rechargeConfig.facilitatorUrl,
     };
     this.payments.validate(network, paymentInput);
-    // Resolve the signing account before binding checks, including ambiguous address selectors.
+    // Reject ambiguous account selectors before binding checks.
     this.accounts?.resolveAccount(scope.activeAccount, network.family);
     const payer = scope.resolveAddress(network.family);
     scope.emit({ type: "activity", message: "Checking B.AI wallet binding…" });

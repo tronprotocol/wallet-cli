@@ -67,8 +67,6 @@ describe("tokenList routing", () => {
     expect(market.tokensByOwner).not.toHaveBeenCalled();
   });
 
-  // `/token` accepts `ownerAddress` and ignores it, so a creator question asked there comes back
-  // as the whole catalogue — every row a token somebody else created.
   it("uses the by-creator endpoint when a creator was named", async () => {
     const market = port();
     await new SunPumpMarketQueryService(market).tokenList(MAINNET, {
@@ -83,9 +81,6 @@ describe("tokenList routing", () => {
     expect(market.listTokens).not.toHaveBeenCalled();
   });
 
-  // Neither endpoint can apply both filters, so the intersection is computed here: the contract
-  // narrows the request, and a row created by someone else is dropped rather than published
-  // under a creator who has nothing to do with it.
   it("intersects contract and creator itself, because no endpoint does", async () => {
     const market = port({
       listTokens: vi.fn(async () => ({ tokens: [token({ owner: SOMEONE_ELSE })] })),
@@ -122,8 +117,6 @@ describe("the window and what is published about it", () => {
     expect(view.query).toEqual({ orderBy: "market-cap", sort: "asc" });
   });
 
-  // The service's own `metadata.total` is 0 on every endpoint, including pages that returned
-  // rows. Publishing it would tell a caller who is paging that their query matched nothing.
   it("publishes no total, ever", async () => {
     const service = new SunPumpMarketQueryService(port());
     const list = await service.tokenList(MAINNET, listQuery);
@@ -174,8 +167,6 @@ describe("tokenSearch", () => {
     });
   });
 
-  // An empty keyword is "no filter" to this service, which answers with the whole catalogue at
-  // HTTP 200 — indistinguishable from a search that matched everything.
   it("refuses a blank keyword rather than sending it", async () => {
     const market = port();
     await expect(

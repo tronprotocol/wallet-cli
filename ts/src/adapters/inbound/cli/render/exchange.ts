@@ -9,7 +9,6 @@ function whole(raw: unknown, decimals: unknown): string {
     : formatDecimal(fromBaseUnits(String(raw), num(decimals, 0)));
 }
 
-/** `MyToken (id 1000123)`, or plain `TRX` for the native side. */
 function sideLabel(tokenId: unknown, label: unknown): string {
   const id = String(tokenId ?? "");
   if (id === "_") return "TRX";
@@ -36,15 +35,11 @@ export const ExchangeFormatters = {
       ] as Pair[],
       "    ",
     );
-    // No price is derived: the reserve ratio is a quoted rate, not what a trade returns. Price a
-    // specific amount with `exchange trade --dry-run`.
+    // Reserve ratios are not executable trade quotes.
     return `${head}\n  Reserves\n${reserves}`;
   }) satisfies TextFormatter,
 
-  /**
-   * One RPC, so no token names or precisions are available — ids and minimal units,
-   * with the column labelled so the numbers cannot be mistaken for whole tokens.
-   */
+  // List reserves are in minimal units; token precisions are unavailable.
   exchangeList: ((data) => {
     const d = asObj(data);
     const rows = Array.isArray(d.exchanges) ? (d.exchanges as Obj[]) : [];

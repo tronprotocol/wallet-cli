@@ -167,13 +167,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
   },
 );
 
-/**
- * The approve above is built by the RPC, not locally. A compromised RPC can answer the SDK's
- * approve request with a different, self-consistent transaction (owner-only types need nothing
- * but our address): txID, raw_data_hex and raw_data all agree, so the integrity check passes
- * and — before this guard — the wallet signed and the SDK broadcast (auto) or exported
- * (sponsored) it. The bridge must refuse before the signer sees it.
- */
+// The substituted transaction has consistent txID, raw_data_hex and raw_data.
 it.each([
   ["auto", "WithdrawBalanceContract"],
   ["sponsored", "WithdrawBalanceContract"],
@@ -280,8 +274,7 @@ it.each([
     code: "signed_payload_mismatch",
     details: { retryPayment: false },
   });
-  // The sponsored flow has the SDK sign the payment authorization before it builds the approve;
-  // that signature never leaves the process. The auto flow fails before any signature at all.
+  // Sponsored approval construction follows payment signing; auto approval precedes it.
   if (mode === "auto") {
     expect(error).toMatchObject({ details: { paymentStatus: "not_sent" } });
     expect(calls).toEqual([]);
@@ -292,13 +285,6 @@ it.each([
   expect(fetcher).toHaveBeenCalledOnce();
 });
 
-/**
- * The auto approve is a real, irreversible side effect (an unlimited allowance, broadcast and
- * confirmed by the SDK) that happens BEFORE the payment authorization is signed. When anything
- * after it fails — a device rejection, an expired deadline, a settlement error — the caller must
- * still get that approval's evidence, and must not be told the payment is "unknown" when no
- * payment authorization was ever produced.
- */
 describe("x402 TRON auto approve keeps its evidence", () => {
   const PERMIT2_NILE = "TYQuuhGbEMxF7nZxUHV3uHJxAVVAegNU9h";
   const USDT_NILE = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";

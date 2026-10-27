@@ -1,10 +1,3 @@
-/**
- * AccountBalanceService — native balance, for any family.
- *
- * Nothing here is chain-specific: the gateway's neutral `client()` reads the balance, the family
- * table supplies the base unit's decimals, and the SYMBOL comes off the network. That last split
- * is the point of the test below — `eip155:1` and `eip155:56` are one family with two different coins.
- */
 import { describe, it, expect } from "vitest";
 import { AccountBalanceService } from "./account-balance-service.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
@@ -54,8 +47,6 @@ describe("AccountBalanceService.balance", () => {
     expect(out).toMatchObject({ decimals: 6, symbol: "TRX" });
   });
 
-  // The trap this whole split exists for: BNB and ETH are the same FAMILY. A symbol read off the
-  // family table would label a BNB balance "ETH" — a wallet naming the wrong currency.
   it("takes the symbol from the network, not the family", async () => {
     const bsc = await new AccountBalanceService(gateways("5")).balance(
       scope,

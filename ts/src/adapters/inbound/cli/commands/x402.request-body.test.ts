@@ -12,7 +12,7 @@ import { StreamManager } from "../stream/index.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { SignerResolver } from "../../../../application/services/signer/index.js";
 
-// Replace only the operating-system stdin boundary; exercise the real StreamManager and CLI.
+// Mock stdin reads while exercising the real stream and command handling.
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof fs>();
   return { ...actual, readFileSync: vi.fn(actual.readFileSync) };
@@ -80,7 +80,7 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
       assertCanSign: vi.fn(),
       resolve: vi.fn(() => ({ address: "0x1111111111111111111111111111111111111111" })),
     } as unknown as SignerResolver;
-    // The injected payment boundary uses a fixed test header; no real signer, RPC or payment.
+    // Use a fixed payment header; no real signing or payment occurs.
     const paidFetch: typeof fetch = async (url, init) => {
       const initial = await fetch(url, init);
       if (initial.status !== 402) return initial;
@@ -119,7 +119,7 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
   }
 
   it.each([1_048_576, 1_048_577])("checks the raw-byte limit for %i bytes", async (length) => {
-    // These bytes would triple in size if first decoded to replacement characters.
+    // UTF-8 replacement characters would triple these bytes on re-encoding.
     const bytes = Buffer.alloc(length, 0xff);
     const directory = await mkdtemp(join(tmpdir(), "x402-body-limit-"));
     const path = join(directory, "body.bin");

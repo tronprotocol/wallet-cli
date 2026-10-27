@@ -36,7 +36,7 @@ function render(error: CliError, mode: "text" | "json"): string {
     (s) => frames.push(s),
     (s) => frames.push(s),
   );
-  // Runner normalizes before formatting; the original CliError must keep its safe text view.
+  // Match the runner's normalize-then-format path.
   createOutputFormatter(mode, streams, 0).error(normalizeError(error));
   return frames.join("");
 }

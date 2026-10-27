@@ -74,7 +74,7 @@ for (const [network, prefix] of [
   restrictedAddresses.addSubnet(network, prefix, "ipv6");
 }
 
-/** Loads untrusted ERC-8004 registration metadata without exposing transport details. */
+// Untrusted metadata failures return sanitized warnings.
 export class RegistrationLoader {
   readonly #timeoutMs: number;
 

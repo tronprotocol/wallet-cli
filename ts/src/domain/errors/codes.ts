@@ -1,23 +1,7 @@
-/**
- * The error-code index.
- *
- * The requirements call this table "the only error-code index … no code outside it may
- * appear". That promise is worth keeping — an agent branches on `error.code`, and a code it has
- * never seen documented is a code it cannot handle — but a hand-maintained table drifts the moment
- * someone adds an error. So the index lives here, next to the errors themselves, and
- * `codes.test.ts` fails the build when a code is produced without an entry (or an entry outlives
- * the code it described). The `--json-schema` catalog publishes it, so discovery is one call.
- *
- * Each entry is one line: what happened, from the caller's side. Not what to do about it — that
- * belongs in the message, which can name the file, flag or address involved.
- */
-
-/** 1 = the operation failed, 2 = the command was written wrong (a retry fails the same way).
- *  "either" is reserved for the codes the docs explicitly allow it for. */
+// 1 = execution failure; 2 = usage failure; either = use the error class.
 export type ErrorExit = 1 | 2 | "either";
 
-/** what the caller should do next: retry as-is, retry as-is but after a delay, retry after
- *  changing the request, or stop. */
+// same/later retry unchanged; changed requires a new request; never stops retries.
 export type ErrorRetry = "same" | "changed" | "later" | "never";
 
 export interface ErrorCodeEntry {
@@ -27,7 +11,6 @@ export interface ErrorCodeEntry {
 }
 
 export const ERROR_CODES = {
-  // ── invocation: the command line itself (exit 2) ──────────────────────────
   usage_error: { exit: 2, retry: "never", meaning: "the command line could not be parsed" },
   unknown_command: { exit: 2, retry: "never", meaning: "no such command path, including under --help / --json-schema" },
   invalid_option: { exit: 2, retry: "never", meaning: "an option is not accepted here, or contradicts another one" },
@@ -36,7 +19,6 @@ export const ERROR_CODES = {
   unknown_parameter: { exit: 2, retry: "never", meaning: "no chain parameter by that name" },
   limit_exceeded: { exit: 2, retry: "never", meaning: "a bounded input (file size, list length, page size) was over its limit" },
 
-  // ── selection: account, network, family ───────────────────────────────────
   family_mismatch: { exit: 2, retry: "never", meaning: "the account, recipient, raw transaction or command does not belong to the selected network's chain" },
   missing_network: { exit: 2, retry: "never", meaning: "the command needs a network and none was selected or configured" },
   unsupported_network: { exit: 2, retry: "never", meaning: "no network by that id or alias" },
@@ -59,7 +41,6 @@ export const ERROR_CODES = {
     meaning: "the account's stored address matches no derivation path of its seed",
   },
 
-  // ── secrets, keystore, local files ────────────────────────────────────────
   auth_required: { exit: 1, retry: "never", meaning: "the master password is needed and was not available" },
   auth_failed: { exit: 1, retry: "never", meaning: "the master password was wrong" },
   weak_password: { exit: 2, retry: "never", meaning: "the proposed master password does not meet the strength rule" },
@@ -80,11 +61,9 @@ export const ERROR_CODES = {
   io_error: { exit: 1, retry: "same", meaning: "a local read or write failed" },
   encoding_error: { exit: 1, retry: "never", meaning: "data on disk or on the wire is not in the form its format requires" },
 
-  // ── configuration ─────────────────────────────────────────────────────────
   invalid_config: { exit: 2, retry: "never", meaning: "the config file is malformed, or a network in it is missing a required field" },
   insecure_config: { exit: 2, retry: "never", meaning: "the config file's permissions or contents are unsafe to load" },
 
-  // ── address book & token book ─────────────────────────────────────────────
   contact_not_found: { exit: 2, retry: "never", meaning: "no contact by that name, and the value is not an address either" },
   invalid_address: { exit: 2, retry: "never", meaning: "the value is not a valid address for the relevant chain" },
   already_exists: { exit: 2, retry: "never", meaning: "a contact with that name or address is already stored" },
@@ -97,7 +76,6 @@ export const ERROR_CODES = {
   ambiguous_asset_name: { exit: 1, retry: "never", meaning: "the TRC10 name matches more than one asset; address it by id" },
   ambiguous_account: { exit: 2, retry: "never", meaning: "the address matches more than one account; address it by accountId" },
 
-  // ── transaction construction & signing ────────────────────────────────────
   invalid_transaction: { exit: 1, retry: "never", meaning: "the transaction is malformed, or already carries a signature" },
   invalid_payload: { exit: 2, retry: "never", meaning: "the payload does not decode as what the flag says it is" },
   invalid_amount: { exit: 2, retry: "never", meaning: "the amount is not positive, or is finer than the asset's precision" },
@@ -116,7 +94,6 @@ export const ERROR_CODES = {
   not_approved: { exit: 1, retry: "never", meaning: "the transaction has not gathered the approvals it needs" },
   tx_expired: { exit: 1, retry: "changed", meaning: "the transaction's expiration has passed" },
 
-  // ── broadcast & confirmation ──────────────────────────────────────────────
   transaction_rejected: { exit: 1, retry: "never", meaning: "the node refused the transaction, in its own words" },
   nonce_too_low: { exit: 1, retry: "changed", meaning: "nonce already used; the account has moved on" },
   nonce_too_high: { exit: 1, retry: "changed", meaning: "nonce is ahead of the account; an earlier transaction is missing" },
@@ -130,7 +107,6 @@ export const ERROR_CODES = {
   execution_error: { exit: 1, retry: "never", meaning: "the transaction ran on-chain and failed" },
   not_found: { exit: 1, retry: "never", meaning: "the transaction, block or record does not exist at this node" },
 
-  // ── node & external services ──────────────────────────────────────────────
   rpc_error: { exit: 1, retry: "same", meaning: "the node answered with an error" },
   invalid_node_response: { exit: 1, retry: "same", meaning: "the node's answer was not in the shape the API defines" },
   provider_error: { exit: 1, retry: "same", meaning: "an external service failed" },
@@ -159,7 +135,6 @@ export const ERROR_CODES = {
   bai_credentials_missing: { exit: 2, retry: "never", meaning: "no B.AI API key is configured" },
   tronlink_credentials_missing: { exit: 2, retry: "never", meaning: "no TronLink multi-sig service credentials are configured" },
 
-  // ── hardware wallet ───────────────────────────────────────────────────────
   device_not_found: { exit: 1, retry: "never", meaning: "no Ledger device answered" },
   device_disconnected: { exit: 1, retry: "never", meaning: "the Ledger disconnected during an operation" },
   device_unavailable: { exit: 1, retry: "never", meaning: "the Ledger could not be opened; it may be in use or inaccessible" },
@@ -169,7 +144,6 @@ export const ERROR_CODES = {
   ledger_address_not_found: { exit: 1, retry: "never", meaning: "the address was not found within the scanned derivation range" },
   wrong_device_seed: { exit: 1, retry: "never", meaning: "the device holds a different seed than the account was registered with" },
 
-  // ── TRON: resources, staking, voting, rewards ─────────────────────────────
   account_not_active: { exit: 1, retry: "never", meaning: "the account is not activated on-chain" },
   account_already_active: { exit: 1, retry: "never", meaning: "the account is already activated on-chain" },
   insufficient_stake: { exit: 1, retry: "never", meaning: "the staked amount cannot cover this operation" },
@@ -184,7 +158,6 @@ export const ERROR_CODES = {
   name_already_set: { exit: 1, retry: "never", meaning: "the account's on-chain name is already set" },
   id_already_set: { exit: 1, retry: "never", meaning: "the account's on-chain id is already set" },
 
-  // ── TRON: assets, proposals, exchanges, contracts ─────────────────────────
   asset_not_found: { exit: 1, retry: "never", meaning: "no TRC10 asset by that id or name" },
   invalid_asset_name: { exit: 2, retry: "never", meaning: "the TRC10 name is not of an acceptable form" },
   already_issued_asset: { exit: 1, retry: "never", meaning: "the account has already issued a TRC10 asset" },
@@ -216,7 +189,6 @@ export const ERROR_CODES = {
   contract_not_found: { exit: 1, retry: "never", meaning: "no contract at that address" },
   not_contract_deployer: { exit: 1, retry: "never", meaning: "the account did not deploy this contract" },
 
-  // ── last resort ───────────────────────────────────────────────────────────
   port_in_use: { exit: 1, retry: "never", meaning: "the requested server port is already in use" },
   agent_not_found: { exit: 1, retry: "never", meaning: "the agent token does not exist" },
   provider_not_found: { exit: 1, retry: "never", meaning: "the requested provider does not exist" },

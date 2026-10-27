@@ -16,19 +16,11 @@ describe("normaliseProtocol", () => {
     expect(normaliseProtocol(" curve ")).toBe("CURVE");
   });
 
-  // The service answers an unknown or lower-case scope with an EMPTY list rather than an error,
-  // so a typo would read as "this token trades nowhere" — a wrong answer that looks real.
   it("refuses anything outside the enum, naming the choices", () => {
     expect(() => normaliseProtocol("v9")).toThrow(/ALL, V1, V1_5, V2, V3, V4, CURVE/);
     expect(() => normaliseProtocol("")).toThrow(/--protocol must be one of/);
   });
 
-  /**
-   * Two commands spell the same flag and mean different things by it: on a listing that FILTERS
-   * rows there is no protocol called ALL to belong to, while on a token listing ALL is a real
-   * scope meaning "combined across every protocol". One shared enum is how ALL came to be
-   * accepted by commands whose help and --json-schema said it was not a value.
-   */
   it("checks against the set the caller permits, not the whole enum", () => {
     expect(() => normaliseProtocol("ALL", SUNSWAP_PROTOCOL_FILTERS)).toThrow(
       /--protocol must be one of V1, V1_5, V2, V3, V4, CURVE/,
@@ -63,8 +55,6 @@ describe("offsetWindowToPage", () => {
     expect(offsetWindowToPage({ offset: 40, limit: 20 })).toEqual({ pageNo: 3, pageSize: 20 });
   });
 
-  // offset 5 limit 4 names rows 5..8, which no page contains. Rounding to the nearest page would
-  // hand back rows the caller did not ask for while looking like success.
   it("refuses a window no page boundary contains", () => {
     expect(() => offsetWindowToPage({ offset: 5, limit: 4 })).toThrow(
       /--offset must be a multiple of --limit \(4\)/,
@@ -85,7 +75,6 @@ describe("tokenSortField", () => {
     expect(tokenSortField("volume-24h")).toBe("volumeUsd1d");
   });
 
-  // The service answers an unknown sort field with an unsorted list, which reads as a real answer.
   it("refuses a field it cannot translate, naming the choices", () => {
     expect(() => tokenSortField("apr")).toThrow(/--order-by must be one of tvl, volume-24h/);
   });

@@ -11,7 +11,6 @@ export interface TransactionScope extends AccountScope {
   readonly wait: boolean;
   readonly waitTimeoutMs: number;
   emit(event: ProgressEvent): void;
-  /** surface a non-fatal warning: captured into the JSON envelope's meta.warnings and, in text
-   *  mode, printed to stderr. Use when an outcome silently degrades (e.g. --wait not confirmed). */
+  // Nonfatal warning for JSON meta.warnings or text-mode stderr.
   warn(message: string | WarningView): void;
 }

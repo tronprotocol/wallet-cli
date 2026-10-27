@@ -6,7 +6,6 @@ import type {
 
 const TRC20_TRANSFER_SELECTOR = "a9059cbb";
 
-/** Decode the consumed subset of TRON contracts without performing network IO. */
 export function decodeTronTransaction(transaction: TronTx): DecodedTronTransaction {
   const contract = transaction.raw_data?.contract?.[0];
   const value = contract?.parameter?.value ?? {};

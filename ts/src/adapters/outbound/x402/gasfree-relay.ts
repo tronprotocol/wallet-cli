@@ -9,8 +9,7 @@ import { CliError, TransportError, UsageError } from "../../../domain/errors/ind
 import { fetchBounded } from "../http/http-response.js";
 import { safeRetryAfter } from "./payment-error.js";
 
-/** Read-only relay configuration used by the SDK to build the payer authorization.
- * Submission remains the protected endpoint's facilitator responsibility. */
+// Reads authorization data; the endpoint's facilitator submits payment.
 export function gasfreeRelayClient(
   network: NetworkDescriptor,
   selection: string | undefined,
@@ -98,8 +97,7 @@ class SelectedRelay extends GasFreeAPIClient {
       headers.Timestamp = timestamp;
       headers.Authorization = `ApiKey ${this.credentials.key}:${signature}`;
     }
-    // Each failure keeps its class so a caller can act on it (wait, shrink, fix the relay);
-    // none echoes the relay's text, and none falls back to another relay.
+    // Preserve typed failures without exposing relay text or falling back to another relay.
     let response: Response;
     try {
       response = await fetchBounded(
@@ -109,7 +107,6 @@ class SelectedRelay extends GasFreeAPIClient {
         this.timeout,
       );
     } catch (error) {
-      // fetchBounded already typed timeouts, oversized bodies and refused redirects.
       if (error instanceof CliError) {
         throw new TransportError(error.code, `Selected GasFree relay: ${error.message}`, {
           ...error.details,
@@ -140,7 +137,7 @@ class SelectedRelay extends GasFreeAPIClient {
     try {
       result = (await response.json()) as { code?: unknown; data?: unknown };
     } catch {
-      /* Not JSON: reported below as an invalid response. */
+      // Report invalid JSON below.
     }
     if (
       result?.code !== 200 ||

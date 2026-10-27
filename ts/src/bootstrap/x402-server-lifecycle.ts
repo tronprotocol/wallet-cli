@@ -6,7 +6,7 @@ import type {
 } from "../application/ports/x402-server.js";
 import type { NetworkDescriptor } from "../domain/types/index.js";
 
-/** Release listeners on normal roundtrip completion as well as process shutdown. */
+// Release listeners on normal completion and process shutdown.
 export class ManagedX402Server implements X402ServerPort {
   constructor(private readonly server: X402ServerPort) {}
   validate(network: NetworkDescriptor, input: X402ServeInput): void {

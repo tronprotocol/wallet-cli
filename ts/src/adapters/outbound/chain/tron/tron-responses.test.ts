@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseTronTxInfo, parseTronTx } from "./tron-responses.js";
 
-// Realistic TronGrid getTransactionInfo payload (TRC20 transfer), trimmed to the fields we read.
 const TRC20_INFO = {
   id: "abc123",
   blockNumber: 66_000_000,
@@ -10,7 +9,6 @@ const TRC20_INFO = {
   contractResult: ["0000"],
 };
 
-// Realistic getTransaction payload for a native TRX transfer.
 const NATIVE_TX = {
   txID: "abc123",
   ret: [{ contractRet: "SUCCESS" }],
@@ -73,8 +71,6 @@ describe("parseTronTx", () => {
   });
 });
 
-// A numeric receipt.result must not be coerced away into "no result": a present-but-unexpected
-// value is evidence the call did not report SUCCESS, and dropping it turned it into a success.
 it("parseTronTxInfo keeps a numeric receipt.result as a string", () => {
   const info = parseTronTxInfo({ blockNumber: 1, receipt: { result: 17 } });
   expect(info.receipt?.result).toBe("17");

@@ -2,23 +2,6 @@ import { activeTronAccount, resolveTronAccount } from "../../../services/tron-ac
 import { tradeOutput } from "../trade-output.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { quoteCurveSale } from "./curve-sale.js";
-/**
- * SunPump curve trading — buying and selling on the bonding curve.
- *
- * Two directions of one market, and the asymmetries are the whole of the interesting part:
- *
- * - A BUY sends TRX as the call's value, so nothing is approved. A SELL has its tokens pulled, so
- *   the launchpad must be approved first — and for an UNBOUNDED amount, which is correct here and
- *   nowhere in the liquidity commands: the curve pulls on every sale and its contract is an
- *   upgradeable proxy that expects a standing allowance. The dry run says both of those out loud.
- * - The platform fee is part of the TRX on both sides: deducted from what a buy spends, and paid
- *   by the curve on top of what a sale's seller receives — the sale quote's TRX is already net.
- *   It is 1% with a 0.01 TRX floor, so a small trade pays a rate far above 1% — and that rate is
- *   reported, because it is the part a caller would not notice.
- * - Whether a trade is possible at all is a question about the curve's STATE, read from the
- *   contract before anything is quoted. Never from an HTTP status field: a stale "trading" sends a
- *   transaction that must revert.
- */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../../contracts/transaction-input.js";
@@ -43,13 +26,12 @@ import {
 } from "../../../../domain/sunpump/curve.js";
 
 export interface CurveTradeInput extends TransactionModeInput {
-  /** the SunPump token's contract address. */
   readonly token: string;
-  /** buy: TRX to spend, in whole TRX. sell: tokens to sell, in whole tokens. */
+  // Buy: decimal TRX; sell: decimal token amount.
   readonly amount: string;
   readonly slippage?: string;
   readonly minOut?: string;
-  /** read-only pricing: no account, no password, no transaction. */
+  // Read-only pricing without an account or transaction.
   readonly quote?: boolean;
   readonly feeLimit?: string;
 }
@@ -60,7 +42,7 @@ interface TradeSide {
   readonly tokenSymbol: string;
   readonly tokenDecimals: number;
   readonly slippage?: string;
-  /** SUN of platform fee, and the rate it worked out to when the floor pushed it above 1%. */
+  // Platform fee in SUN.
   readonly platformFee: string;
   readonly platformFeePercent?: string;
 }
@@ -86,11 +68,7 @@ export class SunPumpCurveTradeService {
     const trxSun = toBaseUnits(input.amount, 6, "TRX", "--trx");
     const quoted = await this.launchpad.quoteBuy(network, facts.address, trxSun);
 
-    // A quote touches no account at all, so it is answered before anything asks for one — and it
-    // publishes NO floor. `--quote` refuses --slippage, so any minimum here would be derived from
-    // a default the caller never chose, and nothing would ever enforce it because a quote
-    // produces no transaction. An agent reading it would believe it had protection it does not
-    // have. The scale stays, because it is what makes the estimate readable.
+    // Quotes require no account and publish no unenforceable minimum output.
     if (input.quote) {
       return {
         kind: "sunpump-buy" as const,
@@ -132,13 +110,12 @@ export class SunPumpCurveTradeService {
     if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
     const tokensIn = toBaseUnits(input.amount, facts.decimals, facts.symbol, "--amount");
-    // What the seller receives is the quote's TRX as it stands — the fee is paid on top of it —
-    // and the floor applies to that. The gross, for the fee's rate, is the two together.
+    // Sale proceeds are net; add the fee only to calculate the gross fee rate.
     const quoted = await quoteCurveSale(this.launchpad, network, facts, tokensIn);
     const netSun = quoted.trxOutSun;
     const grossSun = (BigInt(netSun) + BigInt(quoted.feeSun)).toString();
 
-    // No floor in quote mode, for the same reason as a buy: nothing would enforce it.
+    // Quotes publish no unenforceable minimum output.
     if (input.quote) {
       return {
         kind: "sunpump-sell" as const,
@@ -168,9 +145,7 @@ export class SunPumpCurveTradeService {
 
     const spender = this.launchpad.launchpadAddress(network);
     const approvals = await this.tx.planApprovals(network, owner, spender, [
-      // Unbounded, and correct here: the curve pulls on every sale and its contract is an
-      // upgradeable proxy that expects a standing allowance. The amount asked for is the amount
-      // approved, so the plan reports `unlimited` rather than a number nobody would read.
+      // Sales request a standing unlimited allowance for the launchpad proxy.
       {
         facts: { address: facts.address, decimals: facts.decimals, symbol: facts.symbol },
         amount: UNLIMITED,
@@ -190,13 +165,7 @@ export class SunPumpCurveTradeService {
     });
   }
 
-  /**
-   * The state gate, before anything is quoted.
-   *
-   * Four states, and only one of them may trade. The two closed states are distinguished in the
-   * message because the answer to each is different: one is waiting for a launch nobody can
-   * hurry, the other has already moved to a market with its own command.
-   */
+  // Read contract state before quoting; catalogue status may be stale.
   async #tradeableToken(network: NetworkDescriptor, token: string): Promise<LaunchpadTokenFacts> {
     const state = await this.launchpad.tokenState(network, token);
     assertTradeable(state, token);
@@ -220,12 +189,6 @@ export class SunPumpCurveTradeService {
     };
   }
 
-  /**
-   * The floor, from a tolerance or from an explicit amount.
-   *
-   * An explicit `--min-out` wins outright and reports no slippage, because a percentage the caller
-   * did not give would be a number we invented.
-   */
   #floor(input: CurveTradeInput, expected: string): { amount: string; slippage?: string } {
     const chosen = selectFloor(input.slippage, input.minOut);
     if (chosen.kind === "min-out") return { amount: chosen.amount };
@@ -235,13 +198,7 @@ export class SunPumpCurveTradeService {
     };
   }
 
-  /**
-   * The TRX a buy spends must be there before the fee is spent finding out.
-   *
-   * It does not account for the chain's own fee on top — that is what `--fee-limit` bounds, and
-   * the estimate reports it separately. An account the chain has never seen is refused as such
-   * first, because what to do about it is not "top up".
-   */
+  // Check the trade value only; chain fees are estimated separately.
   async #assertNativeBalance(
     network: NetworkDescriptor,
     owner: string,
@@ -329,16 +286,8 @@ export class SunPumpCurveTradeService {
   }
 }
 
-/** 2^256-1: what an unbounded approval is. Correct on this path and on no liquidity path. */
 const UNLIMITED = (2n ** 256n - 1n).toString();
 
-/**
- * Only TRADING may trade.
- *
- * The two closed states get different messages because a reader needs a different thing from
- * each: READY_TO_LAUNCH is a wait, LAUNCHED is a redirect to the command that serves the market
- * the token moved to.
- */
 function assertTradeable(state: LaunchpadState, token: string): void {
   if (state === LAUNCHPAD_STATE.TRADING) return;
   if (state === LAUNCHPAD_STATE.NOT_EXIST) {
@@ -359,7 +308,6 @@ function assertTradeable(state: LaunchpadState, token: string): void {
   );
 }
 
-/** The approval a plan will send, as a receipt publishes it — the amount named, not a number. */
 function published(approval: ApprovalPlan): Record<string, unknown> {
   return {
     token: approval.token,

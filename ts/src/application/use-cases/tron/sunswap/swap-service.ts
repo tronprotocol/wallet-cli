@@ -1,22 +1,6 @@
 import { activeTronAccount, resolveTronAccount } from "../../../services/tron-account.js";
 import { tradeOutput } from "../trade-output.js";
 import { quoteCurveSale } from "../sunpump/curve-sale.js";
-/**
- * `sunswap swap` — the market decision, and the bonding-curve branch.
- *
- * The routing question comes FIRST, before anything is quoted, and it is answered identically in
- * every mode: quote, dry-run and execute. A quote from one market and a fill on the other is the
- * one failure in this command that costs money silently, so the decision is made once, from
- * on-chain state, and never inferred twice.
- *
- * The rule: on TRON mainnet, if exactly one side is native TRX and the other is a
- * SunPump token still TRADING on its curve, the trade goes through the curve. Everything else
- * goes to the Universal Router.
- *
- * If the curve's state cannot be READ, this reports `provider_error` and stops. It does not fall
- * back to the router — a failed probe is not evidence that the router is the right market, and
- * guessing would be the exact mistake the single-decision rule exists to prevent.
- */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../../contracts/transaction-input.js";
@@ -62,29 +46,15 @@ import {
 
 const KIND = "sunswap-swap" as const;
 
-/** 2^256-1. Correct for a curve sale and for nothing in the liquidity commands. */
 const UNLIMITED = (2n ** 256n - 1n).toString();
 
-/**
- * How long a Permit2 grant lives, and how long the swap stays valid.
- *
- * An hour for the grant, because it must outlive the approval transaction ahead of it and the
- * signing prompt, and must not outlive the trade by days: the SDK's own swap planner asks for
- * THIRTY DAYS, which is the standing allowance Permit2 exists to avoid. Thirty minutes for the
- * transaction, matching the liquidity commands' deadline default.
- */
+// Keep grants short-lived while allowing approval confirmation and signing time.
 const PERMIT_TTL_SECONDS = 3600;
 const SWAP_VALID_SECONDS = 1800;
 
-/**
- * The fee limit a router swap carries when the caller names none.
- *
- * Ours, not the encoder's: left unset the SDK defaults to 500000000 SUN — 500 TRX — which a swap
- * could quietly burn. 100 TRX is the same default every other write in this CLI uses.
- */
+// Set an explicit fee limit instead of inheriting the encoder's default.
 const DEFAULT_SWAP_FEE_LIMIT_SUN = "100000000";
 
-/** One side of a swap, as the receipt publishes it and as the guards compare it. */
 interface SwapSide {
   readonly address: string;
   readonly symbol: string;
@@ -94,7 +64,7 @@ interface SwapSide {
 export interface SwapInput extends TransactionModeInput {
   readonly tokenIn: string;
   readonly tokenOut: string;
-  /** whole tokens of `tokenIn`, as typed. */
+  // Whole input tokens.
   readonly amountIn: string;
   readonly slippage?: string;
   readonly quote?: boolean;
@@ -102,21 +72,11 @@ export interface SwapInput extends TransactionModeInput {
   readonly feeLimit?: string;
 }
 
-/** Which market answered. Published in every mode, because it changes what the numbers mean. */
 export type SwapMarket = "sunpump" | "sunswap";
 
 export class SunSwapSwapService {
-  /** the curve branch's transactions, approving through the launchpad that pulls the tokens. */
   private readonly tx: LiquidityTransactions<"sunpump-launchpad">;
-  /**
-   * the router branch's, approving through the SunSwap port.
-   *
-   * Two instances rather than one because the approve/confirm/re-read sequence reads the allowance
-   * back through the SAME port it approved with, and the two branches deal with different
-   * contracts: a curve sale approves the launchpad, a router swap approves Permit2. Sharing one
-   * instance would have a SunSwap swap asking the SunPump port about a Permit2 allowance, which
-   * happens to compile because the seam is structural.
-   */
+  // Approval construction and allowance reads must use the same protocol's port.
   private readonly routerTx: LiquidityTransactions<"sunswap-contracts">;
 
   constructor(
@@ -125,12 +85,9 @@ export class SunSwapSwapService {
     pipeline: TxPipeline,
     private readonly tokens: SunSwapTokenResolver,
     private readonly router: RouterPort,
-    /** token facts for the router branch, whose service sends symbols but no decimals. */
     private readonly liquidity: LiquidityPort,
     private readonly routerExec: RouterExecutionPort,
     private readonly permits: Permit2Port,
-    /** for the Permit2 typed data, which is signed outside `TxPipeline` because it is not a
-     *  transaction. Everything it signs is checked before and after by the domain guards. */
     private readonly signers: SignerResolver,
   ) {
     this.tx = new LiquidityTransactions(launchpad, gateways, pipeline);
@@ -142,21 +99,17 @@ export class SunSwapSwapService {
     network: NetworkDescriptor,
     input: SwapInput,
   ): Promise<Record<string, unknown>> {
-    // Resolved once, against the book of the account this command uses — the same one for a
-    // quote and for the execution it previews, so both name the same token.
+    // Quotes and execution must resolve symbols against the same account's token book.
     const lookup = { caller: "swap", account: tokenBookAccount(scope) } as const;
     const resolvedIn = this.tokens.resolveToken(network, input.tokenIn, lookup);
     const resolvedOut = this.tokens.resolveToken(network, input.tokenOut, lookup);
     const inAddress = resolvedIn.address;
     const outAddress = resolvedOut.address;
-    // From here on the input names addresses, so nothing downstream resolves a symbol again.
     input = { ...input, tokenIn: inAddress, tokenOut: outAddress };
     if (inAddress === outAddress) {
       throw new ChainError("same_token", "the two sides of a swap are the same token");
     }
-    // Zero is refused before either market is asked: the route service answers it with
-    // "INVALID AMOUNT", which would reach the caller as a provider fault rather than their own input.
-    // Anything malformed is left to `toBaseUnits`, which needs the token's decimals to judge it.
+    // The route service classifies zero as a provider fault; reject it as invalid input here.
     if (/^0+(\.0+)?$/.test(input.amountIn.trim())) {
       throw new UsageError("invalid_amount", "<amountIn> must be greater than 0");
     }
@@ -165,8 +118,7 @@ export class SunSwapSwapService {
       try {
         resolveTronAccount(scope);
       } catch (error) {
-        // Preserve account-independent build-only refusals when no account is configured.
-        // An existing account with the wrong family must still fail before querying a market.
+        // Preserve account-free build-only errors; still reject accounts from the wrong family.
         if (!(error instanceof WalletError && error.code === "missing_wallet_address")) throw error;
       }
     }
@@ -179,13 +131,6 @@ export class SunSwapSwapService {
     return withTokenBook(result, [resolvedIn, resolvedOut]);
   }
 
-  /**
-   * The router branch.
-   *
-   * Quoting is implemented; SENDING is not. A partial execute path that quoted from the router and
-   * filled somewhere else would be worse than an honest refusal, so anything that would sign says
-   * so plainly and names what does work.
-   */
   async #routerSwap(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -198,8 +143,7 @@ export class SunSwapSwapService {
       this.#facts(network, outAddress),
     ]);
     const amountIn = toBaseUnits(input.amountIn, tokenIn.decimals, tokenIn.symbol, "<amountIn>");
-    // BASE UNITS. The service's own parameter takes raw, and a human amount is not an error — it
-    // answers with a valid quote for a millionth of the trade.
+    // The route API accepts base units; whole tokens would silently quote a smaller trade.
     const candidates = await this.router.routes(network, {
       fromToken: inAddress,
       toToken: outAddress,
@@ -210,7 +154,7 @@ export class SunSwapSwapService {
     }
 
     if (input.quote) {
-      // `--all` lists every candidate; the default shows the best — which is NOT the first returned.
+      // The first candidate need not be the best route.
       const shown = input.all ? [...candidates] : [bestRoute(candidates)];
       return {
         kind: KIND,
@@ -227,15 +171,7 @@ export class SunSwapSwapService {
     });
   }
 
-  /**
-   * Sending a router swap: approve exactly, authorize exactly, encode, check, send.
-   *
-   * The order is the whole design. The TRC20 approval to Permit2 is for exactly this trade and is
-   * confirmed before anything is signed. The Permit2 grant is checked against what we meant to
-   * authorize BEFORE a signature exists, and its signer is confirmed by recovery AFTER. The encoded
-   * router call is then checked against the same figures, because the floor, the recipient and the
-   * deadline live inside the calldata and nowhere else.
-   */
+  // Confirm approvals before signing permits, then validate the encoded call before sending.
   async #routerSend(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -247,9 +183,7 @@ export class SunSwapSwapService {
   ): Promise<Record<string, unknown>> {
     const mode = transactionMode(input);
     if (mode.buildOnly && !spending.nativeIn) {
-      // Ahead of the account requirement on purpose: this refusal does not depend on who is
-      // trading, so a caller with no wallet configured should still get the reason rather than
-      // being asked for an account first and told about the flag afterwards.
+      // This refusal is account-independent and must precede account resolution.
       throw new UsageError(
         "invalid_option",
         "--build-only is not available for a router swap that spends a token: the transaction embeds a Permit2 signature, so it cannot be built before that signature exists. --dry-run validates it, and a swap that spends TRX has no permit and does build",
@@ -283,8 +217,7 @@ export class SunSwapSwapService {
       slippage: bipsToSlippage(bips),
     };
 
-    // Native TRX needs no allowance and no permit: it travels as the call's value. So that path is
-    // one transaction and can be priced and built like any other.
+    // Native TRX travels as call value and needs no permit signature.
     if (spending.nativeIn) {
       const call = await this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
         amountIn: spending.amountIn,
@@ -296,18 +229,12 @@ export class SunSwapSwapService {
     const permit = await this.permits.planPermit(network, {
       owner,
       token: spending.tokenAddress,
-      // The Universal Router is what pulls on a swap. Named rather than defaulted, because the same
-      // planner also grants to the V4 position manager and a grant to the wrong one is the whole risk.
       spender: this.routerExec.routerAddress(network),
       amount: spending.amountIn,
       ttlSeconds: PERMIT_TTL_SECONDS,
     });
     if (permit === undefined) {
-      // A standing Permit2 grant already covers this trade — typically one another SDK-built client
-      // left behind, since the SDK's own swap planner grants MAX_UINT160 for thirty days. The router
-      // pulls through Permit2 with or without a permit in the call, so nothing is signed and the call
-      // goes out bare, as the SDK encodes it. That covers the Permit2 layer only: the token's
-      // allowance TO Permit2 is separate, so it is still checked.
+      // A standing Permit2 grant suffices, but the token's allowance to Permit2 still needs checking.
       const approvals = await this.routerTx.planApprovals(
         network,
         owner,
@@ -359,9 +286,7 @@ export class SunSwapSwapService {
     };
 
     if (mode.dryRun) {
-      // The swap itself is NOT priced here, and the reason is not caution: encoding it needs the
-      // signature, and a dry run does not sign. So the approval is priced for real and the grant's
-      // terms are published, which is what a caller came to check.
+      // An unsigned permit prevents encoding and estimating the swap; price approvals only.
       const priced = await this.routerTx.priceApprovals(scope, network, approvals, mode, feeLimit);
       return {
         ...view,
@@ -395,13 +320,7 @@ export class SunSwapSwapService {
     );
   }
 
-  /**
-   * The amount a router swap spends must be there before anything is planned.
-   *
-   * In every mode, and ahead of the permit and the approval on purpose: an execute that found the
-   * shortfall later would already have paid for a Permit2 approval it can never use. Like the
-   * curve's checks, it does not add the chain's own fee — `--fee-limit` bounds that.
-   */
+  // Check funds before spending on approvals; this check excludes chain fees.
   async #assertCovers(
     network: NetworkDescriptor,
     owner: string,
@@ -428,15 +347,7 @@ export class SunSwapSwapService {
     }
   }
 
-  /**
-   * The Permit2 signature, checked on both sides of the act of signing.
-   *
-   * Before: the typed data must authorize exactly this trade — this token, this amount, the
-   * Universal Router as spender, and an expiry no further out than we asked for. After: the
-   * signature must recover to the account we are trading for, and the signer must report having
-   * hashed the struct we inspected. Neither check can be moved to the other side; `PermitSingle`
-   * carries no owner field, so the owner is only knowable from a finished signature.
-   */
+  // Check permit terms before signing; PermitSingle has no owner, so recover it afterward.
   async #signPermit(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -467,7 +378,6 @@ export class SunSwapSwapService {
     return { signature: signed.signature, facts };
   }
 
-  /** The encoded router call, checked against the swap that was quoted. */
   async #encode(
     network: NetworkDescriptor,
     chosen: RouterRoute,
@@ -493,13 +403,7 @@ export class SunSwapSwapService {
             permit: { grant: spending.permit.grant, signature: spending.permit.signature },
           }),
     });
-    /**
-     * The chain's clock, not ours, and the SAME read the encoder used.
-     *
-     * A swap's deadline is enforced against block time, so that is what it is measured against; and
-     * because the planner memoises the read, the number here is the number the encoder added its
-     * window to. So the bound is exact: any disagreement is a real one, not a clock difference.
-     */
+    // Use the encoder's memoized chain time so deadline checks share its clock.
     const now = await this.routerExec.transactionTime(network);
     assertRouterCallMatches(call, {
       router: this.routerExec.routerAddress(network),
@@ -527,7 +431,6 @@ export class SunSwapSwapService {
     };
   }
 
-  /** The last step: price it or send it, with the approvals already on chain. */
   async #send(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -575,7 +478,6 @@ export class SunSwapSwapService {
     };
   }
 
-  /** The chosen route's hops, scaled at the two ends. */
   #publishPath(
     route: RouterRoute,
     tokenIn: SwapSide,
@@ -593,13 +495,7 @@ export class SunSwapSwapService {
     }));
   }
 
-  /**
-   * What a token is.
-   *
-   * Read from its contract — except native TRX, which has none: its six decimals are the chain's
-   * own definition of SUN, and asking the marker address for `decimals()` gets "Smart contract is
-   * not exist".
-   */
+  // Native TRX has no token contract to query.
   async #facts(
     network: NetworkDescriptor,
     address: string,
@@ -608,33 +504,24 @@ export class SunSwapSwapService {
     return this.liquidity.tokenFacts(network, address);
   }
 
-  /**
-   * One router route as a quote publishes it.
-   *
-   * `tradingFee` is DERIVED: the service sends the fee as a human decimal and has no raw field at
-   * all, so it is scaled by the INPUT token's decimals — which the service does not send either.
-   */
+  // The API fee is in whole input tokens; scale it to base units.
   #publishRoute(
     route: RouterRoute,
     tokenIn: { decimals: number; symbol: string },
     tokenOut: { decimals: number },
   ): Record<string, unknown> {
-    // By POSITION, not by symbol: we asked for exactly this pair, so the first and last hops are
-    // the two tokens we resolved. Keying on symbol would hand one side the other's scale whenever
-    // two different contracts share a ticker, which on TRON they routinely do.
+    // Bind decimals by hop position; different contracts can share a symbol.
     const last = route.path.length - 1;
     return {
       amountIn: route.amountInRaw,
       amountOut: route.amountOutRaw,
       ...(route.inUsd === undefined ? {} : { inUsd: route.inUsd }),
       ...(route.outUsd === undefined ? {} : { outUsd: route.outUsd }),
-      // Published as returned, negative included: a negative impact means the route paid better
-      // than the reference price, and clamping it would be editing a measurement.
+      // Negative impact means a better price than the reference; preserve it.
       priceImpactPercent: route.priceImpactPercent,
       tradingFee: toBaseUnits(route.fee, tokenIn.decimals, tokenIn.symbol, "fee"),
       containsUnverifiedHook: route.containsUnverifiedHook,
-      // Each hop carries its scale where we know it. An intermediate token we did not resolve is
-      // published without one rather than with a guessed default.
+      // Intermediate tokens have unknown decimals; do not invent a scale.
       path: route.path.map((hop, index) => ({
         address: hop.address,
         symbol: hop.symbol,
@@ -649,13 +536,6 @@ export class SunSwapSwapService {
     };
   }
 
-  /**
-   * The market, decided once from on-chain state.
-   *
-   * Exactly one native side, and the other still trading on its curve. A pair with no native side
-   * cannot be a curve trade at all, so the curve is not even asked about — which also keeps an
-   * ordinary TRC20 pair from paying for a launchpad read it does not need.
-   */
   async #chooseMarket(
     network: NetworkDescriptor,
     inAddress: string,
@@ -663,48 +543,27 @@ export class SunSwapSwapService {
   ): Promise<SwapMarket> {
     const natives = [inAddress, outAddress].filter(isNative).length;
     if (natives !== 1) return "sunswap";
-    /**
-     * A network with no launchpad has no curve, so there is nothing to ask.
-     *
-     * The capability gate admits `swap` where EITHER market can be served — a route service or a
-     * launchpad. Without this, the implementation required BOTH: a pair with one native side always
-     * consulted the curve, so a router-only network refused the commonest swap there is with
-     * "no SunPump launchpad configured", naming a market the caller never chose.
-     *
-     * This is NOT the failed-read case that `#curveState` guards. A read that fails leaves the
-     * market genuinely unknown and must stop the command. An absent launchpad is the opposite of
-     * unknown: it is certainty that no curve exists here.
-     */
+    // No configured launchpad means no curve; a failed curve read still aborts.
     if (!this.#hasLaunchpad(network)) return "sunswap";
     const other = isNative(inAddress) ? outAddress : inAddress;
     const state = await this.#curveState(network, other);
     return state === LAUNCHPAD_STATE.TRADING ? "sunpump" : "sunswap";
   }
 
-  /** Whether this network has a bonding-curve market at all. */
   #hasLaunchpad(network: NetworkDescriptor): boolean {
     try {
       return Boolean(this.launchpad.launchpadAddress(network));
     } catch {
-      // The port answers an unconfigured network by throwing; that IS the answer.
+      // The port throws when the network has no configured launchpad.
       return false;
     }
   }
 
-  /**
-   * The curve's state, or a refusal.
-   *
-   * A read that fails is reported as `provider_error` and stops the command. It is not
-   * treated as "not a curve token": that would route to the other market on the strength of a
-   * failed request, and the quote and the fill could then land in different places.
-   */
+  // A failed probe leaves the market unknown; do not fall back to another market.
   async #curveState(network: NetworkDescriptor, token: string): Promise<number> {
     try {
       return await this.launchpad.tokenState(network, token);
     } catch (error) {
-      // A UsageError is OUR fault, not the provider's — an unconfigured network, a bad address —
-      // and relabelling it would send a reader looking for a node problem that does not exist.
-      // Only a failure to READ becomes provider_error.
       if (error instanceof UsageError) throw error;
       throw new ChainError(
         "provider_error",
@@ -730,9 +589,7 @@ export class SunSwapSwapService {
       ? toBaseUnits(input.amountIn, 6, "TRX", "<amountIn>")
       : toBaseUnits(input.amountIn, facts.decimals, facts.symbol, "<amountIn>");
 
-    // Both quotes are already net of the platform fee: a buy pays it out of the TRX sent, and a
-    // sale's TRX is what the seller receives, with the fee paid beside it. A sale too small to pay
-    // the seller is refused exactly as `sunpump sell` refuses it.
+    // Both expected outputs are net of the platform fee.
     const quoted = buying
       ? await this.launchpad
           .quoteBuy(network, tokenAddress, amountIn)
@@ -746,10 +603,6 @@ export class SunSwapSwapService {
       throw new UsageError("invalid_amount", `${input.amountIn} TRX buys no ${facts.symbol}`);
     }
 
-    // One hop, no pool fees, and no price impact: a curve has no pool to move against, so the key
-    // is absent rather than zero. `decimals` on each hop is deliberate: an amount without its
-    // scale is the defect this codebase has shipped three times, and a quote's amounts are
-    // scaled by nothing else in the payload.
     const path = [
       { address: tokenIn.address, symbol: tokenIn.symbol, decimals: tokenIn.decimals },
       { address: tokenOut.address, symbol: tokenOut.symbol, decimals: tokenOut.decimals },
@@ -760,17 +613,6 @@ export class SunSwapSwapService {
       poolFees: ["0", "0"],
     };
 
-    /**
-     * A quote is PLURAL, and always an array.
-     *
-     * `routes` is an array whether one candidate came back or five, so an agent parses a quote the
-     * same way either way, and `routesAvailable` says how many exist without being asked for them.
-     * A curve has exactly one and always will — but the shape is the router's shape, so that
-     * `--all` means something when the router branch lands rather than being decorative.
-     *
-     * It publishes no floor: `--quote` refuses `--slippage`, so a minimum would come from a
-     * default the caller never chose and nothing would enforce it.
-     */
     if (input.quote) {
       return {
         kind: KIND,
@@ -781,8 +623,7 @@ export class SunSwapSwapService {
             amountIn,
             amountOut: expected,
             ...route,
-            // SunPump's platform fee, not a pool fee. Same key as a router route, different
-            // meaning, which is why `market` sits beside it.
+            // SunPump platform fee in SUN.
             tradingFee: quoted.feeSun,
           },
         ],
@@ -810,8 +651,6 @@ export class SunSwapSwapService {
     };
 
     const owner = resolveTronAccount(scope);
-    // Before anything is planned: an account the chain has never seen is refused as such, and a
-    // buy the account cannot fund fails here rather than inside the node's energy estimate.
     const account = await activeTronAccount(this.gateways, network, owner);
     if (buying) {
       const held = String(account.balance ?? "0");
@@ -842,12 +681,7 @@ export class SunSwapSwapService {
     });
   }
 
-  /**
-   * A curve sale's approval: the launchpad, without limit.
-   *
-   * Identical to `sunpump sell`, because it is the same contract pulling the same tokens — and the
-   * balance is checked first so a sale the account cannot cover fails before a fee is spent.
-   */
+  // Check funds before requesting the launchpad's standing unlimited allowance.
   async #sellApprovals(
     network: NetworkDescriptor,
     owner: string,
@@ -938,22 +772,12 @@ export class SunSwapSwapService {
   }
 }
 
-/**
- * The floor, as integer arithmetic on base units.
- *
- * Never floats: a 0.5% floor on an 18-decimal amount is exactly the case where a double loses the
- * last digits, and the number this produces is the one the transaction will enforce.
- */
+// Use integer base units to avoid precision loss in the enforced floor.
 function floorOf(expected: string, bips: number): string {
   return ((BigInt(expected) * BigInt(10_000 - bips)) / 10_000n).toString();
 }
 
-/**
- * The chain id the Permit2 domain must be bound to.
- *
- * Taken from the network descriptor rather than from the SDK, so a signature for another chain is
- * caught by comparing two independent sources rather than one against itself.
- */
+// Check the SDK's permit domain against the independent network descriptor.
 function chainIdOf(network: NetworkDescriptor): string {
   const id = (network as { chainId?: unknown }).chainId;
   if (typeof id === "string" && /^\d+$/.test(id)) return id;
@@ -963,7 +787,6 @@ function chainIdOf(network: NetworkDescriptor): string {
   );
 }
 
-/** Native TRX, as a swap side. Its decimals are the chain's definition of SUN, not a contract's. */
 const NATIVE_TRX = { address: NATIVE_TRX_ADDRESS, symbol: "TRX", decimals: 6 } as const;
 
 function published(facts: LaunchpadTokenFacts): {

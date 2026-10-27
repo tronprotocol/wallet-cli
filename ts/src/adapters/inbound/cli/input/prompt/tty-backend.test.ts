@@ -20,8 +20,7 @@ describe("defaultTtySource", () => {
     expect(defaultTtySource("darwin")).toBe(devTty);
   });
 
-  // Creating process.stdin switches fd 0 to non-blocking, so a later --password-stdin
-  // readFileSync(0) on a pipe whose writer has not written yet fails with EAGAIN.
+  // Creating process.stdin can cause EAGAIN on later synchronous pipe reads.
   it.each(["linux", "win32"] as const)(
     "does not create process.stdin when the backend starts (%s)",
     (platform) => {
@@ -105,8 +104,7 @@ describe("TtyBackend", () => {
     expect(src.release).not.toHaveBeenCalled();
   });
 
-  // readline puts the terminal in raw mode, so Ctrl-C arrives as a keypress, not a signal. Without
-  // a SIGINT listener readline just closes and the question never answers: the command hangs.
+  // Raw-mode Ctrl-C arrives as a keypress, not a process signal.
   it("exits 130 on Ctrl-C at a visible prompt, like the hidden prompt does", () => {
     const { src, stream } = source(true);
     const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);

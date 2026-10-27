@@ -109,8 +109,7 @@ export class X402PaymentClient implements X402PaymentPort {
     let phase: PaymentPhase = "request";
     let out: OutputReservation | undefined;
     try {
-      // An existing --out is knowable now; discovering it after settlement means paying for bytes
-      // that are then discarded. Reserve the target exclusively before the first request.
+      // Reserve --out before payment so an existing file cannot prevent delivery after settlement.
       if (input.out !== undefined) out = await reserveOutput(input.out);
       if (this.paidFetchFactory && !input.expectedPayTo && input.exactAmount === undefined) {
         authorization.signed = true; // External fetch factories own their signing lifecycle.
@@ -292,7 +291,7 @@ export class X402PaymentClient implements X402PaymentPort {
       }
       let text: string;
       try {
-        // Missing or unfamiliar MIME types retain their text fallback, without replacing bytes.
+        // Unknown MIME types still require valid UTF-8.
         text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       } catch {
         throw new TransportError(
@@ -333,15 +332,13 @@ export class X402PaymentClient implements X402PaymentPort {
     relay: ReturnType<typeof gasfreeRelayClient>,
     authorization: PaymentAuthorization,
   ): Promise<typeof fetch> {
-    // A human-unit fee ceiling is converted by the bridge against the token the SDK actually
-    // puts in the PermitTransfer — not against whichever candidate the CLI matched first, since
-    // the SDK's own selection (and its default spend control) may settle on another asset.
+    // Convert the fee cap using the token in the final PermitTransfer payload.
     const wallet = toX402Wallet(signer, {
       family: network.family,
       maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
       maxGasfreeFee: input.maxGasfreeFee,
       gasfreeFeeDecimals: (token) => metadata(network.id, token)?.decimals,
-      // The SDK has the RPC build its one-time Permit2 approve; the bridge signs nothing else.
+      // Only the requested TRON Permit2 approval may be signed as a transaction.
       ...(network.family === "tron" && PERMIT2_ADDRESSES[toX402Network(network)]
         ? {
             approveIntent: {
@@ -351,9 +348,7 @@ export class X402PaymentClient implements X402PaymentPort {
           }
         : {}),
       onApprovalSigned: (approval) => {
-        // Before the payment authorization exists the SDK broadcasts the approve itself and waits
-        // for its receipt (auto); after it, the approve is exported inside the payment package for
-        // the endpoint to sponsor. Either way the signature has left the wallet.
+        // Before authorization the SDK submits the approval; afterward it exports it for sponsorship.
         authorization.approval = {
           ...approval,
           status: authorization.signed ? "exported" : "submitted",
@@ -368,7 +363,7 @@ export class X402PaymentClient implements X402PaymentPort {
       ...wallet,
       async signTypedData(payload: unknown) {
         scope.emit({ type: "activity", message: "Signing payment authorization…" });
-        // The SDK only asks for the payment authorization once its auto approve has confirmed.
+        // The SDK requests authorization only after its automatic approval confirms.
         if (authorization.approval?.status === "submitted")
           authorization.approval = { ...authorization.approval, status: "confirmed" };
         try {
@@ -389,8 +384,7 @@ export class X402PaymentClient implements X402PaymentPort {
         const signed = await wallet.signTransaction(tx).catch((error: unknown) => {
           throw sdkPaymentError(error, "sign");
         });
-        // A TRON approve is not the payment: its evidence is tracked in `approval`, and a later
-        // failure is still "no payment was sent". An EVM signed transaction may be the payment.
+        // Track TRON approvals separately from payment authorization.
         if (network.family === "evm") authorization.signed = true;
         scope.emit({
           type: "activity",
@@ -407,8 +401,7 @@ export class X402PaymentClient implements X402PaymentPort {
       },
     };
     const client = new x402Client();
-    // The SDK's conservative default spend control remains active unless the caller supplied
-    // an explicit wallet-cli ceiling. In that case our exact raw/human limit below is authoritative.
+    // An explicit CLI ceiling replaces the SDK spend control.
     if (input.maxAmount !== undefined || input.maxRawAmount !== undefined) {
       client.setSpendControls(false);
     }
@@ -446,7 +439,7 @@ export class X402PaymentClient implements X402PaymentPort {
     client.onPaymentCreationFailure(async ({ error }) => {
       creationError = sdkPaymentError(error, "create_payment");
     });
-    // Report the requirement the SDK actually built the payment for, not an earlier candidate.
+    // Record the requirement used to create the payment.
     client.onAfterPaymentCreation(async ({ selectedRequirements }) => {
       authorization.requirement = selectedRequirements;
     });
@@ -505,15 +498,13 @@ function isBinaryContentType(contentType: string): boolean {
 }
 
 interface PaymentAuthorization {
-  /** A payment authorization (typed data or EVM payment transaction) has been signed. */
+  // Excludes TRON approval signatures.
   signed: boolean;
-  /** The one-time Permit2 approve, once signed, and how far the SDK has taken it. */
+  // Signed Permit2 approval and SDK progress.
   approval?: SignedApproval & { status: "submitted" | "confirmed" | "exported" };
-  /** The requirement the created payment pays. */
   requirement?: { asset: string; amount: string };
 }
 
-/** What the signed payment pays: the token (symbol when registered) and its amount. */
 function paidAmount(
   network: NetworkDescriptor,
   requirement: { asset: string; amount: string },
@@ -532,7 +523,6 @@ function paidAmount(
   };
 }
 
-/** Never lose the approve's evidence to whatever failed after it. */
 function withApproval(error: CliError, approval: PaymentAuthorization["approval"]): CliError {
   if (!approval) return error;
   const ErrorType = error.kind === "usage" ? UsageError : TransportError;
@@ -541,13 +531,12 @@ function withApproval(error: CliError, approval: PaymentAuthorization["approval"
 
 interface OutputReservation {
   readonly path: string;
-  /** Write the delivered bytes; the reservation is then final and `release` keeps the file. */
+  // Successful writes survive release().
   write(bytes: Uint8Array): Promise<void>;
-  /** Remove the placeholder if nothing was written to it. */
+  // Remove an unwritten reservation.
   release(): Promise<void>;
 }
 
-/** Exclusively create `path` now (`wx`), so a taken target fails before any request is made. */
 async function reserveOutput(path: string): Promise<OutputReservation> {
   let handle: FileHandle;
   try {
@@ -656,7 +645,7 @@ function selectMatching<T extends OfferedRequirement>(
   network: NetworkDescriptor,
   input: X402PayInput,
 ): T[] {
-  // A raw limit has no unit; without a pinned token it would cap whatever asset the seller names.
+  // Raw limits require a pinned asset to define their unit.
   if (input.maxRawAmount !== undefined && !input.asset && !input.token) {
     throw new UsageError(
       "invalid_option",
@@ -783,7 +772,7 @@ function parseHeaders(values: string[]): Headers {
   return headers;
 }
 
-/** A response/body failure must not discard settlement already received in headers. */
+// Preserve settlement headers when reading the response fails.
 function settlementError(
   error: unknown,
   response?: Response,

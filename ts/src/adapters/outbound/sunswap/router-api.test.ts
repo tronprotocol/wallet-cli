@@ -32,12 +32,7 @@ const ROUTE = {
   containsUnverifiedHook: false,
 };
 
-/**
- * The adapter over a fetch that answers with one canned response.
- *
- * Only the socket is replaced, so the adapter's own timeout, size cap and 429 interception run —
- * the wrapper these cases exist to check. Same seam as the market API's tests.
- */
+// Inject below the timeout, size-cap, and 429 wrappers so they remain under test.
 function apiServing(response: () => Promise<Response> | Response, timeoutMs = 1_000) {
   return new SunSwapRouterApi(timeoutMs, {
     fetchImpl: (async () => response()) as typeof globalThis.fetch,

@@ -28,24 +28,13 @@ const fields = z.object({
   offset: offsetField,
 });
 
-/**
- * The service refuses `poolAddress` and `tokenAddress` together, and so must we — but as a usage
- * error, not as its error.
- *
- * Passed through, the refusal arrives as `provider_error`: exit 1, retry "same". That tells a
- * caller retrying the identical command might work, when it never can, and blames the service
- * for what the command line got wrong. Only this layer knows whose fault it is.
- */
+// Reject combined pool and token filters locally; the service cannot apply both.
 function refuseBothFilters(value: { pool?: string; token?: string }, ctx: RefinementCtx): void {
   if (value.pool !== undefined && value.token !== undefined) {
     ctx.addIssue({
       code: "custom",
-      // the path names the offending flag, which the parser puts in front of this message
       path: ["pool"],
       message: "cannot be combined with --token; narrow by one or by neither",
-      // invalid_option is the code for two flags that cannot be given together. Left
-      // undeclared, a refine arrives as invalid_value, which describes a bad VALUE rather than a
-      // bad combination of flags that are each fine on their own.
       params: { errorCode: "invalid_option" },
     });
   }

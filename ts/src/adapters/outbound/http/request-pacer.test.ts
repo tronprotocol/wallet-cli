@@ -3,15 +3,13 @@ import { PacedHttpTransport, RequestPacer } from "./request-pacer.js";
 import type { HttpRequest, HttpTransport } from "./index.js";
 import { withDeadline } from "../../../domain/async/index.js";
 
-// A virtual clock, so every gap this file asserts on is the exact one the pacer intended rather
-// than whatever the machine managed under load.
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 const tick = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const unpaced = (maxInFlight: number) => new RequestPacer({ minIntervalMs: 0, maxInFlight });
 
-/** Run the virtual clock out so `work` can finish, without orphaning a rejection while it runs. */
+// Handle rejections while advancing the clock, then return the original promise.
 const settle = async <T>(work: Promise<T>): Promise<T> => {
   work.catch(() => {});
   await vi.runAllTimersAsync();
@@ -39,8 +37,6 @@ describe("RequestPacer in-flight cap", () => {
     expect(active).toBe(0);
   });
 
-  /** The reason the permit is handed over instead of released: a caller arriving in the window
-   *  between a release and the queued runner resuming must not slip past the cap. */
   it("holds the cap when new callers arrive while the queue is draining", async () => {
     const pacer = unpaced(2);
     let active = 0;
@@ -105,7 +101,6 @@ describe("RequestPacer spacing", () => {
     );
     return at.sort((a, b) => a - b);
   };
-  /** consecutive gaps between starts */
   const gaps = (at: number[]) => at.slice(1).map((t, i) => t - at[i]!);
 
   it("spaces consecutive starts by exactly the interval", async () => {
@@ -113,8 +108,6 @@ describe("RequestPacer spacing", () => {
     expect(gaps(at)).toEqual([30, 30, 30, 30]);
   });
 
-  /** The spacing, not the cap, is what a rate limiter reacts to — so a wide cap must not let a
-   *  burst through. */
   it("paces even when the in-flight cap would allow a burst", async () => {
     const started = Date.now();
     await starts(new RequestPacer({ minIntervalMs: 25, maxInFlight: 10 }), 6);
@@ -146,8 +139,6 @@ describe("RequestPacer deadline credit", () => {
   it("does not charge pacing against the caller's deadline", async () => {
     const pacer = new RequestPacer({ minIntervalMs: 60, maxInFlight: 1 });
     const started = Date.now();
-    // 5 starts land 60ms apart and each does 5ms of work: well over the 100ms budget in
-    // wall-clock terms, well under it in work.
     await settle(
       withDeadline(100, () =>
         Promise.all(Array.from({ length: 5 }, () => pacer.run(() => tick(5)))),
@@ -156,15 +147,13 @@ describe("RequestPacer deadline credit", () => {
     expect(Date.now() - started).toBe(4 * 60 + 5);
   });
 
-  /** Regression: crediting only after the sleep let the deadline fire mid-wait, rejecting a
-   *  request that had not been sent. The credit has to be paid up front. */
   it("survives a single pacing wait longer than the whole deadline", async () => {
     const pacer = new RequestPacer({ minIntervalMs: 200, maxInFlight: 4 });
     await expect(
       settle(
         withDeadline(50, async () => {
           await pacer.run(async () => "first");
-          return pacer.run(async () => "second"); // waits a full 200ms on a 50ms budget
+          return pacer.run(async () => "second");
         }),
       ),
     ).resolves.toBe("second");
@@ -237,7 +226,6 @@ describe("PacedHttpTransport", () => {
       new RequestPacer({ minIntervalMs: 0, maxInFlight: 1 }),
     );
     await expect(paced.requestText({ method: "GET" })).rejects.toThrow("network down");
-    // the permit must have been released, or this second call would hang
     await expect(
       new PacedHttpTransport(
         { requestText: async () => "ok" },
@@ -248,12 +236,10 @@ describe("PacedHttpTransport", () => {
 });
 
 describe("RequestPacer abandonment", () => {
-  /** Queue time is the one wait the pacer cannot credit, so a caller can time out while still in
-   *  line. Sending its request afterwards spends the endpoint budget on a result nobody reads. */
   it("does not send a queued request whose deadline fired while it waited", async () => {
     const pacer = new RequestPacer({ minIntervalMs: 0, maxInFlight: 1 });
     let sent = 0;
-    const blocker = pacer.run(() => tick(150)); // holds the only permit past the 30ms budget
+    const blocker = pacer.run(() => tick(150));
     const queued = withDeadline(30, () =>
       pacer.run(async () => {
         sent += 1;

@@ -15,23 +15,13 @@ import {
   transactionRequiresSigner,
 } from "../../services/transaction-mode.js";
 
-/**
- * Contract reads and writes.
- *
- * Writes go through the shared pipeline, so the fee model, the pending-nonce rule and the
- * broadcast guard are the same ones `tx send` uses rather than a second copy.
- */
 export class EvmContractService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
   ) {}
 
-  /**
-   * A read-only call. The result comes back as raw hex, exactly as TRON's already does: a
-   * signature declares its parameter types and nothing about its return, so there is nothing to
-   * decode against without guessing.
-   */
+  // Return raw hex: a method signature supplies parameter types, not return types.
   async call(
     network: NetworkDescriptor,
     contract: string,
@@ -57,8 +47,7 @@ export class EvmContractService {
         ? "0"
         : toBaseUnits(input.callValue, FAMILIES.evm.nativeDecimals, "call value");
 
-    // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a
-    // dry run of an approve exists to confirm (one of only two dry-run extras).
+    // Include approval details in dry-run output too.
     const approval = await this.#approval(gateway, input);
 
     const outcome = await this.#run(
@@ -81,7 +70,6 @@ export class EvmContractService {
     };
   }
 
-  /** The approve receipt; the shared helper does the work, this supplies the EVM specifics. */
   async #approval(
     gateway: EvmGateway,
     input: EvmContractWriteInput,
@@ -95,11 +83,7 @@ export class EvmContractService {
     });
   }
 
-  /**
-   * Deploy a contract. The transaction has no recipient — that is what makes it a deployment —
-   * and the address is derived from the sender and nonce rather than waited for, because CREATE
-   * determines it entirely from those two.
-   */
+  // CREATE determines the address from sender and nonce before mining.
   async deploy(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
     const gateway = this.gateways.get(network, "evm");
     const data = gateway.encodeDeploy(input.bytecode!, input.constructorArgs ?? { source: "none" });

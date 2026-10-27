@@ -3,9 +3,6 @@ import { stageTronBroadcast, tronConfirmation } from "./tron-confirmation.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { TronGateway, TronTxInfo } from "../ports/chain/tron-gateway.js";
 
-// Issue #7: a --wait confirmation that never lands must not silently degrade to "submitted" as if
-// the user never asked to wait — it has to leave a trace in scope.warn (→ meta.warnings + stderr).
-
 function scope(over: Partial<TransactionScope> = {}): TransactionScope & { warnings: string[] } {
   const warnings: string[] = [];
   return {
@@ -40,7 +37,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
   });
 
   it("wait requested but never confirms within the window → submitted + a warning", async () => {
-    const s = scope({ waitTimeoutMs: 0 }); // deadline already passed → one poll, then give up
+    const s = scope({ waitTimeoutMs: 0 });
     const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" });
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
@@ -64,16 +61,6 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
   });
 });
 
-/**
- * A TRON txID is the sha256 of the transaction body, so it is not a number the node assigns — it is
- * derivable from the bytes we signed, and we derive it. The broadcast reply carries the node's own
- * copy, and taking that one on trust means a node whose copy is wrong decides which transaction we
- * then poll for and report. Confirmed against a live Nile node: its txID matches ours exactly, so
- * this costs nothing when the node is honest and only bites when it is not.
- *
- * Preferring our own is the protection; the warning is disclosure. Getting only the warning right
- * would still leave --wait polling the wrong id and the receipt quoting it.
- */
 describe("stageTronBroadcast reports the transaction id we signed", () => {
   const LOCAL = "defbf1e676a7b53c03a30ec3e17e455175231dcf6165ae2a762d2d973f81dbc9";
   const OTHER = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
@@ -122,12 +109,6 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
   });
 });
 
-/**
- * A mined transaction is not a successful one. TRON reports contract failures in two places —
- * the top-level `result: "FAILED"` and the nested `receipt.result` — and a receipt that carries
- * neither says nothing about a smart-contract call's execution. Reading "no failure recorded" as
- * "succeeded" reported reverted ERC-8004 writes as confirmed.
- */
 describe("tronConfirmation distinguishes mined from succeeded", () => {
   it("top-level result FAILED with no nested receipt result → failed", async () => {
     const s = scope();

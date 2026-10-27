@@ -7,7 +7,7 @@ export interface TronLinkListFilter {
   limit: number;
 }
 
-/** Untrusted wire record. Application code validates every field before using or rendering it. */
+// Untrusted wire fields require validation before use or rendering.
 export interface TronLinkRemoteRecord {
   hash: unknown;
   contract_type: unknown;
@@ -26,14 +26,13 @@ export interface TronLinkRemotePage {
   records: TronLinkRemoteRecord[];
 }
 
-/** Outbound boundary for the official walletadapter REST/WebSocket collaboration service. */
 export interface TronLinkCollaborationPort {
   list(
     network: NetworkDescriptor,
     address: string,
     filter: TronLinkListFilter,
   ): Promise<TronLinkRemotePage>;
-  /** Opens a collection when the transaction is new, and accumulates onto it thereafter. */
+  // Creates a collection or accumulates signatures onto an existing one.
   submit(
     network: NetworkDescriptor,
     address: string,

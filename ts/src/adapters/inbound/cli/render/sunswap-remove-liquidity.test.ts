@@ -1,10 +1,3 @@
-/**
- * The `sunswap remove-liquidity` dry run.
- *
- * One property is pinned here, because it was wrong once and the wrongness was silent: a V3 or V4
- * withdrawal pays the position's accrued fees out alongside the principal, so more arrives than the
- * `Received (est)` row quotes, and the dry run has to say so BEFORE the caller sends.
- */
 import { describe, expect, it } from "vitest";
 import { SunSwapRemoveLiquidityFormatters } from "./sunswap-remove-liquidity.js";
 
@@ -43,26 +36,15 @@ describe("sunswap remove-liquidity dry run — the fees that arrive with the pri
     expect(render(dryRun("V3"))).toContain(FEES_WARNING);
   });
 
-  /**
-   * V4 behaves the same, and was once left out of this warning on the assumption that a V4
-   * withdrawal leaves fees behind. Measured on Nile it does not — position 7 owed 4821 / 3132
-   * before a partial withdrawal and 0 / 0 after — so a V4 dry run quoted only the principal and
-   * said nothing about the rest.
-   */
   it("warns on V4 too, because V4 pays the fees out the same way", () => {
     expect(render(dryRun("V4"))).toContain(FEES_WARNING);
   });
 
-  // V2 has no accrued fees to pay: they are already inside the LP token being burned.
   it("does not warn on V2", () => {
     expect(render(dryRun("V2"))).not.toContain(FEES_WARNING);
   });
 });
 
-/**
- * When a floor is zero, the dry run ENDS on the No-minimum warning, whatever else it has to
- * say. It is the line a caller must not miss, so nothing may follow it.
- */
 describe("sunswap remove-liquidity dry run — the No-minimum warning comes last", () => {
   const NO_MINIMUM = "No minimum set — this transaction accepts any output amount.";
   const unfloored = (protocol: string): Record<string, unknown> => {

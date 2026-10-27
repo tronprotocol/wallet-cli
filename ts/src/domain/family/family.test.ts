@@ -4,8 +4,7 @@ import { FAMILIES, familyOf } from "./index.js";
 describe("domain family facts + ledger meta", () => {
   it("tron carries the expected coin facts and is ledger-wired", () => {
     expect(FAMILIES.tron.nativeUnit).toBe("sun");
-    // the coin's SYMBOL is not here — it belongs to the network (eip155:1 = ETH, eip155:56 = BNB),
-    // and a family-level one could only ever be right for one chain of the family.
+    // Symbols vary by network within a family.
     expect("nativeSymbol" in FAMILIES.tron).toBe(false);
     expect(FAMILIES.tron.nativeDecimals).toBe(6);
     expect(FAMILIES.tron.coinType).toBe(195);
@@ -23,9 +22,6 @@ describe("evm family facts", () => {
     });
   });
 
-  // The field's contract is "present = hardware app wired", and it drives both assertWired() and
-  // the `--app` choices `import ledger` offers. It was deliberately absent until hw-app-eth was
-  // a dependency; wiring the app is what makes it correct to declare.
   it("is ledger-wired to the ethereum app", () => {
     expect(FAMILIES.evm.ledger).toEqual({ app: "ethereum" });
   });

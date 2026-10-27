@@ -195,7 +195,7 @@ describe("SdkAgentRegistry", () => {
   it("extracts a TRON Registered id after filtering the emitting contract", async () => {
     const agentId = 2n ** 200n + 456n;
     const log = {
-      // java-tron receipts use a 20-byte hex contract address without 0x or the 41 prefix.
+      // Receipt contract addresses are 20-byte hex without 0x or 41 prefixes.
       address: "3af43112221546eb8303e6c311f7ae54d5496822",
       topics: [
         id("Registered(uint256,string,address)"),

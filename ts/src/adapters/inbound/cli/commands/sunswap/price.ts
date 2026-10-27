@@ -3,13 +3,7 @@ import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/tron/sunswap/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 
-/**
- * One schema drives arity, validation, help and `--json-schema`.
- *
- * The two inputs are deliberately not merged into one "token or address" field. Which one the
- * caller meant decides whether a local lookup happens at all, and giving both is an error rather
- * than a silent preference.
- */
+// Symbol inputs use the token book; explicit addresses bypass it.
 const fields = z.object({
   token: z
     .string()
@@ -50,13 +44,7 @@ export const sunswapPriceSpec: ChainSpec = {
   formatText: TextFormatters.sunswapPrice,
 };
 
-/**
- * The binding decides what the envelope publishes, and it is not the whole service result.
- *
- * `warnings` goes through `ctx.warn`, which is the only route to `meta.warnings` — the place a
- * caller reads. Returning it inside the payload instead would put
- * the notice somewhere nobody looks, which is how the degraded symbol lookup went silent.
- */
+// Route warnings through ctx.warn so they reach envelope metadata.
 export const sunswapPriceTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
   run: async (ctx, net, input) => {
     const view = await service.prices(net, {
@@ -64,8 +52,7 @@ export const sunswapPriceTronBinding = (service: SunSwapMarketQueryService): Fam
       ...(input.address === undefined ? {} : { addresses: input.address.split(",") }),
     });
     for (const warning of view.warnings) ctx.warn(warning);
-    // `view` is stripped before the JSON envelope is written: the symbol stays out of json
-    // because a symbol is self-reported and an agent must key on the address instead.
+    // Symbols are display-only; JSON identifies tokens by address.
     return { prices: view.prices, view: { symbols: Object.fromEntries(view.symbols) } };
   },
 });

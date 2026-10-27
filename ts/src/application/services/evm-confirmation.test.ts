@@ -1,10 +1,3 @@
-/**
- * `--wait` for EVM.
- *
- * The trap this exists to avoid: a receipt is NOT proof of success. `status: 0x0` is a
- * transaction that was mined, paid for its gas, and reverted — reporting that as confirmed would
- * be the most damaging thing this CLI could get wrong about a transaction.
- */
 import { describe, it, expect, vi } from "vitest";
 import { evmConfirmation } from "./evm-confirmation.js";
 import type { EvmGateway } from "../ports/chain/gateway-provider.js";
@@ -52,7 +45,6 @@ describe("evmConfirmation", () => {
     });
   });
 
-  // Mined and reverted. It cost the user real gas and did nothing they asked for.
   it("reports a reverted transaction as failed, never as confirmed", async () => {
     const out = await evmConfirmation(
       gatewayReturning({ success: false, gasUsed: "21000", feeWei: "500", blockNumber: 42 }),
@@ -60,7 +52,6 @@ describe("evmConfirmation", () => {
     )(HASH);
 
     expect(out).toMatchObject({ confirmed: true, failed: true, blockNumber: 42 });
-    // the fee is still reported: a reverted transaction is not a free one.
     expect(out!.feeWei).toBe("500");
   });
 

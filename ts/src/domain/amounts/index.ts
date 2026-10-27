@@ -1,11 +1,7 @@
-/**
- * Amounts — the single base-unit ⇄ human-decimal converter pair. Replaces the three
- * near-identical `humanAmount`/`formatRawAmount` copies (which disagreed on negatives) and the
- * standalone `parseDecimalAmount`. All string math — no floating point.
- */
+// Use string arithmetic to preserve amount precision.
 import { ChainError, UsageError } from "../errors/index.js";
 
-/** CLI-supported token precision; validate remote metadata before allocating scaled amounts. */
+// Bounds remote precision before allocating scaled amounts.
 export function checkedTokenDecimals(decimals: number): number {
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 77) {
     throw new ChainError(
@@ -16,11 +12,7 @@ export function checkedTokenDecimals(decimals: number): number {
   return decimals;
 }
 
-/**
- * Integer base-unit value → human decimal string (e.g. "1204560000", 6 → "1204.56").
- * Negatives are preserved; trailing/leading zeros are trimmed. A non-integer input is
- * returned unchanged (lenient passthrough for values that are already human-readable).
- */
+// Converts integer base units to decimals; passes non-integer input through.
 export function fromBaseUnits(value: string | number | bigint, decimals: number): string {
   checkedTokenDecimals(decimals);
   const raw = String(value);
@@ -34,16 +26,7 @@ export function fromBaseUnits(value: string | number | bigint, decimals: number)
   return neg ? `-${out}` : out;
 }
 
-/**
- * Human decimal amount → integer base-unit string (e.g. "1204.56", 6 → "1204560000").
- * Rejects negative, over-precise, or non-numeric input with a usage error; `unitLabel` names
- * the unit in the message.
- *
- * `flag` names the option the value came from. Several commands take a decimal amount under a
- * name of their own (`--pay`, `--amounts`, `--min-received`), and a message that always said
- * `--amount` sent the caller to fix a flag they had not typed — one that, on `asset participate`,
- * does not exist. Callers whose option really is `--amount` need not pass it.
- */
+// Converts non-negative decimals to base units; flag names the input option in errors.
 export function toBaseUnits(
   value: string,
   decimals: number,

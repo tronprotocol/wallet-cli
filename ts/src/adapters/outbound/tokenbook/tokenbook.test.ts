@@ -6,7 +6,7 @@ import { TokenBook } from "./index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import type { TokenEntry } from "../../../domain/types/index.js";
 
-const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // official mainnet
+const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const NILE_OFFICIAL: TokenEntry[] = [
   {
     kind: "trc20",
@@ -36,7 +36,6 @@ function freshBook() {
   return new TokenBook(mkdtempSync(join(tmpdir(), "tb-")), new AtomicFileStore());
 }
 
-/** assert fn throws a CliError carrying the given .code (the message doesn't echo the code). */
 function expectCode(fn: () => unknown, code: string) {
   expect(fn).toThrowError();
   try {
@@ -115,7 +114,6 @@ describe("TokenBook", () => {
   });
 
   it("user entries override duplicate-id collisions only within their own kind", () => {
-    // a trc10 with the same numeric-ish id as a trc20 stays distinct (dedup is kind+id)
     tb.add("tron:3448148188", REF, { kind: "trc10", id: "1002000", symbol: "TEN", decimals: 0 });
     tb.add("tron:3448148188", REF, { kind: "trc20", id: "1002000", symbol: "TWENTY", decimals: 6 });
     expect(tb.user("tron:3448148188", REF)).toHaveLength(2);

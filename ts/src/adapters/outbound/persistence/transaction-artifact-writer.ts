@@ -15,7 +15,7 @@ import { dirname } from "node:path";
 import { ExecutionError } from "../../../domain/errors/index.js";
 import type { TransactionArtifactWriter } from "../../../application/ports/transaction-artifact-writer.js";
 
-/** Atomic, non-secret transaction artifact writer. Published files are mode 0644. */
+// Non-secret transaction artifacts are published with mode 0644.
 export class SecureTransactionArtifactWriter implements TransactionArtifactWriter {
   write(path: string, hex: string): void {
     if (!path) throw new ExecutionError("io_error", "transaction artifact path is empty");
@@ -52,7 +52,7 @@ export class SecureTransactionArtifactWriter implements TransactionArtifactWrite
         try {
           unlinkSync(tmp);
         } catch {
-          // best-effort cleanup
+          // Preserve the original write failure.
         }
         throw error;
       }

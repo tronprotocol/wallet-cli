@@ -1,23 +1,4 @@
 import { resolveTronAccount } from "../../../services/tron-account.js";
-/**
- * The transaction mechanics the SunSwap liquidity commands share.
- *
- * Adding liquidity and removing it mean opposite things, and almost nothing about WHAT they mean
- * is shared. What is shared is how a TRON contract call gets made: the pipeline, the estimate
- * gate, the approval sequence, the balance checks, and the three non-broadcast modes. This is
- * that plumbing, and nothing else — a deposit's rules stay with deposits, a withdrawal's with
- * withdrawals.
- *
- * The rules it enforces, all of them properties of moving money on TRON rather than of either
- * command:
- *
- * - Every transaction goes through `TxPipeline`, so `--dry-run`, permissions, confirmation and
- *   the receipt shape are the ones the rest of the CLI already guarantees.
- * - An approval and the call that spends it are SEQUENTIAL and confirmed: approve, wait, re-read
- *   the allowance from the chain, then the call. Firing both and hoping the node orders them is
- *   how an approval lands second and the call reverts having spent a fee.
- * - A call whose preconditions do not yet hold is NOT estimated. See `#estimatorFor`.
- */
 import type { FeeReport, NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TokenFacts } from "../../../ports/sunswap/liquidity.js";
@@ -38,8 +19,7 @@ import {
   UsageError,
 } from "../../../../domain/errors/index.js";
 
-/** The cap a TRON contract call burns at when the caller names none, in SUN — 100 TRX, the same
- *  default `contract send` and the ERC-8004 writes use. */
+// 100 TRX in SUN.
 export const DEFAULT_FEE_LIMIT_SUN = "100000000";
 
 export interface ApprovalPlan {
@@ -47,58 +27,27 @@ export interface ApprovalPlan {
   readonly symbol: string;
   readonly decimals: number;
   readonly spender: string;
-  /** Base units to grant; some protocols request an unlimited allowance. */
+  // Base units; may be unlimited.
   readonly amount: string;
-  /** what the spender may already move, for a reader deciding whether this is expected. */
+  // Base units.
   readonly currentAllowance: string;
 }
 
-/**
- * How much of a command's cost the reported `fee` accounts for.
- *
- * `"all"` is the whole operation. `"approvals"` is the approvals alone, because the call itself
- * cannot be priced until they are on-chain. The key exists so a script can tell the two apart
- * without reading the English the text mode prints.
- */
 export type FeeCoverage = "all" | "approvals" | "none";
 
-/** One side of a pair, and how much of it this command needs. */
 export interface SideAmount {
-  /** Grant policy when the existing allowance is below amount. */
+  // Base units to grant when allowance is insufficient; defaults to amount.
   readonly approvalAmount?: string;
   readonly facts: TokenFacts;
   readonly amount: string;
 }
 
-/**
- * The fee of a call that cannot be priced yet.
- *
- * It is a report, not a missing key: this transaction does have a cost, and an absent `fee`
- * reads as "free". `formatFee` renders `note` verbatim, so nothing downstream needs to learn a
- * new shape.
- */
 const FEE_NOT_YET_ESTIMABLE: FeeReport = {
   feeModel: "tron-resource",
   note: "not estimable until the approval is on-chain",
 };
 
-/**
- * The transaction mechanics, over any port that can approve.
- *
- * Typed against the two members the approval sequence actually uses rather than against a whole
- * protocol port, because the sequence is identical whether the spender is a SunSwap router or a
- * SunPump proxy. Every existing caller satisfies it structurally, so nothing had to change to
- * share it.
- */
-/**
- * The approve/confirm/re-read sequence, bound to ONE protocol's contracts.
- *
- * The type parameter is not decoration. The sequence reads an allowance back through the same port
- * it approved with, so the port and the contracts have to belong together — and structural typing
- * alone let a SunSwap swap be built on the SunPump launchpad port, which compiled and then asked the
- * wrong protocol about a Permit2 allowance. Declaring the domain a caller expects turns that into a
- * compile error.
- */
+// Bind approval construction and allowance reads to the same protocol.
 export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
   constructor(
     private readonly liquidity: ApprovalCapablePort & { readonly approvalDomain: D },
@@ -110,14 +59,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     this.pipeline.assertCanSign(scope.activeAccount, "tron");
   }
 
-  /**
-   * The `fee` a `--dry-run` reports, and what it covers.
-   *
-   * With the allowances already in place the call is priced for real. With an approval still
-   * pending it is not priced at all — the approvals are, and `feeCovers` says so. The main
-   * transaction is not even built here: building it is a node round trip whose behaviour before
-   * the allowance exists is exactly what a dry run must not depend on.
-   */
+  // Pending approvals prevent building or estimating the main call in a dry run.
   async priceWithoutSending(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -142,13 +84,6 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     return { fee: sumEnergyFees(fees), feeCovers: "approvals" };
   }
 
-  /**
-   * The approvals priced on their own, with no main transaction to price beside them.
-   *
-   * `priceWithoutSending` needs a main payload even when it never uses one, and a router swap's main
-   * payload does not exist until its Permit2 signature does. Passing an unused placeholder would be
-   * a lie waiting for someone to start using it.
-   */
   async priceApprovals(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -174,13 +109,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     };
   }
 
-  /**
-   * `--build-only`: the unsigned transactions, in the order a caller must send them.
-   *
-   * One approval-free call keeps the ordinary single-transaction shape every other
-   * `--build-only` produces. With approvals it becomes `transactions[]`, because the
-   * caller has to sign and broadcast them in order and a single transaction cannot say that.
-   */
+  // Returned transactions must be signed and broadcast in order.
   async buildOnly(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -189,8 +118,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     mode: ResolvedTransactionMode,
     feeLimit: string | undefined,
   ): Promise<Record<string, unknown>> {
-    // Leave enough time to sign, confirm and re-read a sequence of offline approvals.
-    // An explicit --expiration always wins; signed artifacts are never refreshed.
+    // Allow time for offline approval signing and confirmation; preserve explicit expiration.
     if (approvals.length > 0) mode = { ...mode, expiration: mode.expiration ?? 3_600_000 };
     const built: TxOutcome[] = [];
     for (const approval of approvals) {
@@ -204,7 +132,6 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     }
     const outcome = await this.run(scope, network, main, {
       mode,
-      // The call cannot be priced while an approval is still only a plan.
       estimable: approvals.length === 0,
       feeLimit,
     });
@@ -223,12 +150,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     };
   }
 
-  /**
-   * Send the approvals, one at a time, each confirmed and re-read before the next.
-   *
-   * An approve and the call that spends it cannot be sent together: the node may order them
-   * either way, and the wrong order reverts the call after the approval's fee has been spent.
-   */
+  // Confirm and re-read each approval before sending dependent transactions.
   async withApprovals<T>(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -255,9 +177,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     feeLimit: string | undefined,
   ): Promise<string[]> {
     const txIds: string[] = [];
-    // Approval confirmation is a prerequisite, independent of whether the caller wants to wait
-    // for the main transaction. Forward explicitly: CLI scopes have prototype methods and an
-    // account getter backed by private state, which object spread would lose.
+    // Always await approvals; explicit forwarding preserves scope getters and prototype methods.
     const approvalScope: TransactionScope =
       mode.mode === "broadcast"
         ? {
@@ -280,16 +200,12 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
           this.approvalPayload(network, approval),
           {
             mode,
-            // An approval is a plain ERC-20 `approve`; it has no precondition of its own, so it is
-            // always priceable.
             estimable: true,
             feeLimit,
           },
         );
         const txId = outcomeTxId(outcome);
         if (txId) txIds.push(txId);
-        // A receipt that says the approval failed is the reason, and it is reported as such:
-        // re-reading the allowance would only add "it left 0", which reads as a confirmed approve.
         if (outcome.stage === "failed") {
           const result = typeof outcome.result === "string" ? ` (${outcome.result})` : "";
           throw new ChainError(
@@ -297,8 +213,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
             `the approval for ${approval.symbol} failed on chain${result}; the main transaction was not sent`,
           );
         }
-        // The pipeline deliberately returns submitted on confirmation timeout. That is sufficient
-        // for a standalone transaction, but cannot authorize a dependent call or another approval.
+        // A submitted approval may still time out; dependent calls require confirmation.
         if (mode.mode === "broadcast" && outcome.stage !== "confirmed") {
           throw new ChainError(
             "timeout",
@@ -327,10 +242,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       broadcaster: gateway,
       ...options.mode,
       ...tronTransactionHooks(gateway),
-      // The same authorization gate every other TRON write uses: it asks whether the selected
-      // key's weight reaches the account's threshold, and the pipeline consults the gate it
-      // returns again before broadcasting. So a joint-signature account is refused locally
-      // instead of having an under-signed transaction rejected by the node.
+      // Check signer membership before signing; enforce the combined threshold before broadcast.
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
       confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
       build: async (from) =>
@@ -340,8 +252,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
           payload.method,
           [...payload.parameters],
           {
-            // Both are always sent: the node refuses a build with either missing, and "0" is the
-            // honest value for a pure token call that carries no TRX.
+            // The node requires both fields, including zero call value for token-only calls.
             callValue: payload.callValueSun ?? "0",
             feeLimit: options.feeLimit ?? DEFAULT_FEE_LIMIT_SUN,
             permissionId: 0,
@@ -351,7 +262,6 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     });
   }
 
-  /** One approval per side that needs one, for exactly the amount, to `spender`. */
   async planApprovals(
     network: NetworkDescriptor,
     owner: string,
@@ -383,24 +293,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     );
   }
 
-  /**
-   * The estimate hook, or a refusal to estimate — decided by the PAYLOAD's preconditions, not by
-   * the mode that asked.
-   *
-   * A TRON estimate is `triggerConstantContract`: it SIMULATES the call. A call whose allowance
-   * is not on-chain yet cannot be pulled from, so the simulation reverts and the client raises —
-   * measured on Nile, TronWeb throws `REVERT opcode executed` rather than returning the energy
-   * burned reaching it.
-   *
-   * So the cost of estimating a call whose preconditions do not hold is not a wrong number, it is
-   * no answer at all: `--dry-run` and `--build-only` would fail with an opaque rpc_error instead
-   * of showing the plan the caller asked for. `TxPipeline` estimates before it branches on mode,
-   * so gating here rather than at each consumer is what keeps every mode answering — including
-   * ones nobody has written yet.
-   *
-   * A revert for any OTHER reason is left to surface. A dry run exists to find out that a
-   * transaction would fail, and swallowing that into a note would defeat it.
-   */
+  // Estimation simulates execution and reverts until required allowances are on-chain.
   #estimatorFor(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -409,7 +302,6 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
   ): () => Promise<FeeReport> {
     if (!estimable) return async () => FEE_NOT_YET_ESTIMABLE;
     const gateway = this.gateways.get(network, "tron");
-    // A constant call, so it needs no key and runs on the watch-only paths too.
     return async () =>
       gateway.estimateResources(
         resolveTronAccount(scope),
@@ -420,14 +312,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       );
   }
 
-  /**
-   * Re-read the allowance from the chain after the approval confirmed.
-   *
-   * The receipt says the transaction succeeded; it does not say the allowance is what we asked
-   * for. A token with a non-standard `approve` — one that refuses a change from a non-zero value,
-   * or caps what it grants — succeeds and leaves a different number behind, and the call that
-   * follows then reverts for a reason nothing in the receipt explains.
-   */
+  // A successful approval receipt does not guarantee the requested allowance was granted.
   async #assertAllowanceLanded(
     network: NetworkDescriptor,
     approval: ApprovalPlan,
@@ -443,11 +328,6 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
   }
 }
 
-/**
- * A V3 / V4 plan as it is published: the contract is `positionManager`, in every mode.
- * `router` is V2's word for its own contract, and only V2 keeps it. The plans carry it as `router`
- * internally because one field serves all three protocols.
- */
 export function withPositionManager<T extends { readonly router: string }>(
   view: T,
 ): Omit<T, "router"> & { positionManager: string } {
@@ -459,28 +339,17 @@ export function outcomeTxId(outcome: TxOutcome): string | undefined {
   return "txId" in outcome && typeof outcome.txId === "string" ? outcome.txId : undefined;
 }
 
-/** Only `plan` and `built` carry a typed `fee`, and they are the only stages priced here; a
- *  broadcast stage reports what the chain charged, not an estimate. */
 export function outcomeFee(outcome: TxOutcome): FeeReport {
   return outcome.stage === "plan" || outcome.stage === "built"
     ? outcome.fee
     : FEE_NOT_YET_ESTIMABLE;
 }
 
-/** What one element of `--build-only`'s `transactions[]` carries, plus the hex the
- *  single-transaction shape has always given, because a caller has to broadcast these. */
 function builtTx(outcome: TxOutcome): Record<string, unknown> {
   return outcome.stage === "built" ? { tx: outcome.tx, hex: outcome.hex } : {};
 }
 
-/**
- * One fee for several transactions that will all be sent.
- *
- * TRON prices a contract call in energy, and energy adds up; the price per unit and the account's
- * own reserve are properties of the account and the network, not of the call, so they carry
- * across unchanged. If any part could not be priced, the total cannot be either — saying so
- * beats publishing a sum that silently omits one of its terms.
- */
+// Sum energy only; price and reserve apply to the account and must not be summed.
 export function sumEnergyFees(fees: readonly FeeReport[]): FeeReport {
   if (fees.length === 0) return FEE_NOT_YET_ESTIMABLE;
   let energy = 0;
@@ -497,7 +366,6 @@ export function sumEnergyFees(fees: readonly FeeReport[]): FeeReport {
   };
 }
 
-/** Preserve the original classification, redaction and details while reporting partial progress. */
 function approvalProgressError(error: unknown, approvalTxIds: readonly string[]): unknown {
   if (approvalTxIds.length === 0) return error;
   const classified = classifyError(error);

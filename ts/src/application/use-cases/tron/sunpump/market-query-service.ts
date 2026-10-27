@@ -1,10 +1,3 @@
-/**
- * SunPump catalogue queries — the meaning above the adapter's shapes.
- *
- * Which endpoint answers which question, what an address has to be before it is sent, how an
- * offset window becomes a page, and what "not found" means all live here. The adapter below
- * knows how to ask; this knows what the answer has to be before a person can act on it.
- */
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type {
   SunPumpMarketDataPort,
@@ -13,14 +6,10 @@ import type {
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { TronAddress } from "../../../../domain/address/index.js";
 import { sunpumpSortParam } from "../../../../domain/sunpump/market.js";
-// The offset→page translation is the CLI's, not SunSwap's: both services page by 1-based page
-// number and size, and both commands take --limit/--offset, so the rule and its refusal are the
-// same one. A second copy would be a second place for it to drift.
 import { offsetWindowToPage } from "../../../../domain/sunswap/pagination.js";
 
 const ADDRESS = new TronAddress();
 
-/** the offset window every SunPump listing takes, before the service's paging is derived. */
 export interface SunPumpListWindow {
   readonly limit: number;
   readonly offset: number;
@@ -42,17 +31,10 @@ export interface SunPumpTokenSearchQuery extends SunPumpListWindow {
   readonly sunAgentLaunch: boolean;
 }
 
-/**
- * A page of tokens plus the window that produced it.
- *
- * `total` is always null, on every one of these listings. The service's own `metadata.total` is
- * 0 even in responses that returned tokens, so there is nothing to publish — and publishing the
- * zero would tell a caller who is paging that their query matched nothing.
- */
+// Upstream totals can be zero for nonempty pages, so publish an unknown total.
 export interface SunPumpTokenListView {
   readonly tokens: readonly SunPumpTokenRecord[];
   readonly pagination: { offset: number; limit: number; total: null };
-  /** the ordering actually applied, echoed so a caller need not re-derive it. */
   readonly query: { orderBy: string; sort: string };
 }
 
@@ -63,15 +45,7 @@ export interface SunPumpTokenInfoView {
 export class SunPumpMarketQueryService {
   constructor(private readonly market: SunPumpMarketDataPort) {}
 
-  /**
-   * The catalogue, by contract, by creator, or neither.
-   *
-   * Three routes, because one endpoint cannot serve all three questions. `/token` filters by
-   * contract but IGNORES a creator parameter and returns the whole catalogue with a 200;
-   * `/token/search/by_owner` filters by creator but ignores a contract. Asking for both
-   * therefore takes the contract route and drops any row whose creator is someone else — the
-   * intersection of both filters, computed where the service will not compute it.
-   */
+  // Endpoints cannot combine owner and contract filters; intersect them locally.
   async tokenList(
     network: NetworkDescriptor,
     query: SunPumpTokenListQuery,
@@ -105,8 +79,7 @@ export class SunPumpMarketQueryService {
   ): Promise<SunPumpTokenListView> {
     const page = offsetWindowToPage(query);
     const result = await this.market.searchTokens(network, {
-      // Already refused at parse time; kept because an empty keyword reaches the service as "no
-      // filter" and comes back as the whole catalogue with a 200, which looks like a real answer.
+      // An empty keyword would return the whole catalogue.
       keyword: this.#searchKeyword(query.keyword),
       sort: sunpumpSortParam(query.orderBy, query.sort),
       ...(query.onSunSwap ? { onSunSwap: true } : {}),
@@ -121,13 +94,7 @@ export class SunPumpMarketQueryService {
     };
   }
 
-  /**
-   * One token's detail.
-   *
-   * An address the launchpad has never seen is answered with HTTP 200, `code: 0` and no token,
-   * so "not found" has to be decided here rather than read off a status. Returning that as a
-   * success would publish a token object whose every field is null.
-   */
+  // An unknown token can return HTTP 200; absence determines not-found.
   async tokenInfo(network: NetworkDescriptor, address: string): Promise<SunPumpTokenInfoView> {
     const token = await this.market.getToken(network, this.#validAddress(address));
     if (token === null) {

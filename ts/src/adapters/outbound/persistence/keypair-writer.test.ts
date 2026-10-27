@@ -42,8 +42,6 @@ describe("SecureKeypairWriter", () => {
     }
   });
 
-  // The default location moved here from AddressService: a use case should not know that generated
-  // keypairs live under <root>/generated, nor how the filename is built.
   it("derives the default location from the wallet root and the name", () => {
     const directory = root();
     const address = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
@@ -68,14 +66,12 @@ describe("SecureKeypairWriter", () => {
     expect(readFileSync(path, "utf8")).toBe("original");
   });
 
-  // O_EXCL creates the file before the content is written, so a failure in between used to leave an
-  // empty artifact at the final path — and then O_EXCL rejected every retry of the same command.
   it("removes its own unfinished file so the same path can be retried", () => {
     const directory = root();
     const path = join(directory, "key.json");
     const writer = new SecureKeypairWriter(directory);
 
-    // fails inside the try, after the file exists: JSON.stringify cannot serialize a BigInt
+    // BigInt serialization fails after the file is created.
     expect(() => writer.write({ out: path }, { privateKey: 1n })).toThrow(
       /could not write keypair file/,
     );
@@ -96,8 +92,6 @@ describe("SecureKeypairWriter", () => {
     expect(readFileSync(path, "utf8")).toBe("original");
   });
 
-  // The identical O_EXCL conflict in SecureBackupWriter reports output_exists / UsageError / exit 2.
-  // A deterministic conflict must not look retryable in one command and fatal in another.
   it("reports an existing target with the shared output-conflict contract", () => {
     const directory = root();
     const path = join(directory, "key.json");

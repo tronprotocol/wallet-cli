@@ -44,7 +44,7 @@ export interface TronVoteAllocation {
   [key: string]: unknown;
 }
 
-/** Account payload normalized at the adapter boundary; all SUN/token quantities are strings. */
+// SUN and token quantities are decimal strings.
 export interface TronAccount {
   balance?: string;
   allowance?: string;
@@ -71,7 +71,7 @@ export interface TronWitness {
 
 export type TronProposalState = "PENDING" | "DISAPPROVED" | "APPROVED" | "CANCELED";
 
-/** Proposal payload normalized at the adapter boundary; all int64 map values stay decimal strings. */
+// int64 parameter values remain exact decimal strings.
 export interface TronProposal {
   id: number;
   proposerAddress: string;
@@ -102,31 +102,19 @@ export interface TronTokenInfo {
   [key: string]: unknown;
 }
 
-/**
- * One frozen tranche as ISSUANCE declares it. Quantities stay `number` on the way out: java-tron
- * rebuilds the contract from `raw_data` json on the non-visible broadcast path, and a numeric
- * *string* does not parse into an int64 field there — the node then validates an empty message.
- * `asset issue` therefore refuses a supply above 2^53 rather than emit one it cannot broadcast.
- */
+// Non-visible broadcasts require numeric JSON int64 fields; issuance must stay within safe integers.
 export interface TronAssetTranche {
   frozen_amount: number;
   frozen_days: number;
 }
 
-/**
- * One frozen tranche as the chain REPORTS it. Reading has no such constraint, so the int64 is
- * carried exactly, as a decimal string.
- */
 export interface TronAssetTrancheView {
   frozen_amount: string;
   frozen_days: number;
 }
 
-/**
- * A TRC10 asset as the chain stores it. `name`/`abbr`/`description`/`url` arrive decoded to
- * UTF-8; every quantity is in the asset's minimal units. `trx_num`/`num` are the on-chain ICO
- * rate pair (sun per minimal unit), both int32.
- */
+// Text fields are decoded UTF-8; quantities are token base units.
+// trx_num/num is the ICO rate in SUN per base unit (int32 pair).
 export interface TronAsset {
   id: string;
   owner_address: string;
@@ -134,7 +122,7 @@ export interface TronAsset {
   abbr?: string;
   description?: string;
   url?: string;
-  /** protocol int64, carried exactly as a decimal string — real assets exceed 2^53. */
+  // Exact decimal int64.
   total_supply: string;
   trx_num: number;
   num: number;
@@ -146,7 +134,6 @@ export interface TronAsset {
   frozen_supply?: TronAssetTrancheView[];
 }
 
-/** the mutable half of a TRC10, i.e. everything `asset update` may change. */
 export interface TronAssetUpdate {
   description: string;
   url: string;
@@ -154,7 +141,7 @@ export interface TronAssetUpdate {
   publicFreeAssetNetLimit: number;
 }
 
-/** every field an issuance locks in; quantities already scaled to minimal units. */
+// Quantities are token base units.
 export interface TronAssetIssuance {
   name: string;
   abbr: string;
@@ -171,11 +158,8 @@ export interface TronAssetIssuance {
   frozenSupply: TronAssetTranche[];
 }
 
-/**
- * A Bancor exchange pair. Token ids arrive decoded from their on-chain byte form — `"_"` for TRX,
- * the numeric id for a TRC10 — and both balances are in the respective token's minimal units.
- * Side order is whatever the creator submitted; it is not normalised.
- */
+// Token IDs are decoded: "_" for TRX, numeric ID for TRC10; balances are base units.
+// Side order is preserved from creation.
 export interface TronExchange {
   exchangeId: number;
   creatorAddress: string;
@@ -212,7 +196,6 @@ export interface TronTx {
   [key: string]: unknown;
 }
 
-/** Protocol-level transfer fields decoded by the outbound TRON adapter. */
 export interface DecodedTronTransaction {
   kind: "trx" | "trc10" | "trc20" | "contract" | "unknown";
   from?: string;
@@ -221,7 +204,6 @@ export interface DecodedTronTransaction {
   tokenContract?: string;
 }
 
-/** Contract RPC variants normalized at the outbound boundary. */
 export interface TronContractMetadata {
   name?: string;
   methods: string[];
@@ -235,7 +217,7 @@ export interface TronFeeEstimate extends FeeReport {
   energy: number;
 }
 
-/** one V2 delegation record; addresses base58, SUN quantities strings, expiry epoch-ms or null. */
+// Base58 addresses, SUN strings, expiry in epoch milliseconds or null.
 export interface TronDelegatedResource {
   from: string;
   to: string;
@@ -245,7 +227,6 @@ export interface TronDelegatedResource {
   expireTimeForBandwidth: number | null;
 }
 
-/** getnodeinfo subset the CLI consumes; best-effort — public gateways may omit fields. */
 export interface TronNodeInfo {
   block?: string; // "Num:84120345,ID:…"
   solidityBlock?: string;
@@ -269,7 +250,6 @@ export interface TronSignWeight {
   message?: string;
 }
 
-/** TRON-specific application boundary; chain-specific capabilities remain explicit. */
 export interface TronGateway extends Broadcaster {
   prepareTransaction(
     transaction: UnsignedTx,
@@ -294,7 +274,7 @@ export interface TronGateway extends Broadcaster {
   getBlock(number?: string): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
-  /** Net received amount, verified from this transaction's logs or internal native transfers. */
+  // Net base units received, verified from transaction logs or internal native transfers.
   receivedAmount(txid: string, token: string, recipient: string): Promise<string | undefined>;
   getChainParameters(): Promise<Array<{ key: string; value?: number | string }>>;
   getEnergyPrices(): Promise<string>;
@@ -328,14 +308,12 @@ export interface TronGateway extends Broadcaster {
     amount: string,
   ): Promise<UnsignedTx>;
 
-  // ── TRC10 assets (the `asset` command group) ──────────────────────────────────
-  /** resolves undefined when no asset carries that id. */
   getAssetById(assetId: string): Promise<TronAsset | undefined>;
-  /** every asset sharing a name — the chain permits duplicates once AllowSameTokenName is on. */
+  // Names can identify multiple assets.
   getAssetsByName(name: string): Promise<TronAsset[]>;
-  /** the asset this address issued, if any; an account may issue at most one, ever. */
+  // An account may issue at most one asset.
   getAssetByIssuer(address: string): Promise<TronAsset | undefined>;
-  /** one server-side page; never fetches the whole list (it is megabytes). */
+  // One server-side page only.
   listAssets(limit: number, offset: number): Promise<TronAsset[]>;
   buildAssetIssue(owner: string, issuance: TronAssetIssuance): Promise<UnsignedTx>;
   buildAssetUpdate(owner: string, update: TronAssetUpdate): Promise<UnsignedTx>;
@@ -347,10 +325,8 @@ export interface TronGateway extends Broadcaster {
   ): Promise<UnsignedTx>;
   buildAssetUnfreeze(owner: string): Promise<UnsignedTx>;
 
-  // ── Bancor exchange (the `exchange` command group) ────────────────────────────
-  /** resolves undefined when no pair carries that id. */
   getExchangeById(exchangeId: number): Promise<TronExchange | undefined>;
-  /** one server-side page, in id order. */
+  // Server-side page in ID order.
   listExchanges(limit: number, offset: number): Promise<TronExchange[]>;
   buildExchangeCreate(
     owner: string,
@@ -371,7 +347,7 @@ export interface TronGateway extends Broadcaster {
     tokenId: string,
     quant: string,
   ): Promise<UnsignedTx>;
-  /** `expected` is the on-chain slippage floor: below it the trade reverts. */
+  // expected is the on-chain slippage floor; lower output reverts.
   buildExchangeTrade(
     owner: string,
     exchangeId: number,

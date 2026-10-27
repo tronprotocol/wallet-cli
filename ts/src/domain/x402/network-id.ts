@@ -1,25 +1,14 @@
-/**
- * x402 network identifiers.
- *
- * x402 addresses a chain by CAIP-2. For `eip155` that is the EIP-155 chain id in decimal — the
- * same string `NetworkDescriptor.chainId` already carries. For TRON, CAIP-2 uses the chain id in
- * HEXADECIMAL (`tron:0x2b6653dc`) while wallet-cli's canonical id uses decimal
- * (`tron:728126428`); the two name the same number in different bases.
- *
- * Pure: no registry lookup, no I/O. Whether a parsed id corresponds to a network this wallet is
- * configured for is the NetworkRegistry's question, not this module's.
- */
+// x402 emits TRON chain ids in hex and EIP-155 ids in decimal; internal chain ids use decimal.
 import type { ChainFamily } from "../family/chain-family.js";
 import { UsageError } from "../errors/index.js";
 
 export interface X402NetworkIdentity {
   family: ChainFamily;
-  /** decimal, matching NetworkDescriptor.chainId. */
+  // Decimal.
   chainId: string;
 }
 
-/** `tron:<hex>` or `eip155:<decimal>`; a hex reference is also accepted for eip155 so a
- *  round-trip never depends on which base a counterparty chose. */
+// Accept either numeric base for both namespaces.
 const X402_ID = /^(tron|eip155):(0x[0-9a-f]{1,64}|[0-9]{1,78})$/;
 
 export function toX402Network(network: X402NetworkIdentity): string {
@@ -40,7 +29,7 @@ export function fromX402Network(id: string): X402NetworkIdentity {
   };
 }
 
-/** Compare identifiers by chain identity without changing the signed wire representation. */
+// Compare chain identity without altering signed wire values.
 export function sameX402Network(left: string, right: string): boolean {
   try {
     const a = fromX402Network(left);

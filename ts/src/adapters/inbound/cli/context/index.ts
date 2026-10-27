@@ -1,8 +1,4 @@
-/**
- * ExecutionContext — assemble runtime context from config, environment, and flags. Selection is
- * account-level: activeAccount is resolved lazily from --account/--wallet or wallets.json.
- * Build is side-effect-free; secrets never enter the serializable surface.
- */
+// Resolve accounts lazily; keep secrets out of the serializable context.
 import { sourceFamily } from "../../../../domain/sources/index.js";
 import type {
   AccountRef,
@@ -101,9 +97,6 @@ class ExecutionContextImpl implements ExecutionContext {
     const { wallet, index } = this.deps.keystore.resolveAccount(this.activeAccount, family);
     const address = walletAddress(wallet, family, index);
     if (!address) {
-      // The account exists, it simply lives on another chain — the one error here where the user
-      // did nothing wrong, so the message carries the way out. `missing_wallet_address` would
-      // conflate this with "no account at all", which is a different problem with a different fix.
       const own = sourceFamily(wallet.source);
       throw new UsageError(
         "family_mismatch",

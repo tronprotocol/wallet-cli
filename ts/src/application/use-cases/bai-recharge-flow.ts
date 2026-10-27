@@ -7,8 +7,7 @@ import type {
 } from "../ports/bai-recharge.js";
 import { CliError, UsageError, TransportError } from "../../domain/errors/index.js";
 
-/** Internal orchestration after target resolution and wallet binding. No implicit retries: the
- * transaction is reported once; an unconfirmed result carries the hash for `report-recharge`. */
+// No payment retries; retain the paid hash for report-only recovery.
 export class BaiRechargeFlow {
   constructor(
     private readonly api: Pick<BaiRechargeApi, "createOrder" | "reportTxHash">,
@@ -77,7 +76,7 @@ export class BaiRechargeFlow {
     }
     this.progress("Submitting the transaction hash to B.AI and checking credit confirmation…");
     const reported = await this.report(reportInput);
-    // The hash was just paid, so "not found" means B.AI has not indexed it yet, not a bad hash.
+    // Treat a just-paid hash reported as missing as a possible indexing delay.
     return "code" in reported && reported.code === "TX_NOT_FOUND_OR_INVALID"
       ? {
           ...reported,
@@ -87,13 +86,13 @@ export class BaiRechargeFlow {
       : reported;
   }
 
-  /** Recovery entry point: only reports an existing hash; never creates an order or pays. */
+  // Reports an existing hash without creating an order or paying.
   async report(input: BaiReportTransactionInput) {
     return reportBaiTransaction(this.api, input);
   }
 }
 
-/** Single report shared by the recharge flow and CLI. Never invokes payment, never retries. */
+// One report attempt; never invokes payment.
 export async function reportBaiTransaction(
   api: Pick<BaiRechargeApi, "reportTxHash">,
   input: BaiReportTransactionInput,

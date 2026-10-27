@@ -1,9 +1,4 @@
-/** Exact protobuf support for ProposalCreateContract's map<int64,int64>.
- *
- * google-protobuf generated this map as Map<number, number>, so TronWeb rounds values above
- * Number.MAX_SAFE_INTEGER before serialization. Java wallet-cli accepts the full positive int64
- * range. We let TronWeb encode the transaction envelope, then replace the Any payload with a
- * minimal, exact proposal message encoded from decimal strings. */
+// Encode proposal int64 values exactly; TronWeb's numeric map rounds unsafe integers.
 import { TronWeb, utils as tronUtils } from "tronweb";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 
@@ -32,8 +27,7 @@ export function proposalCreateTxJsonToPbExact(transaction: unknown): any {
     const entries = proposalEntries(value.parameters);
     exactPayloads.set(index, encodeProposalCreate(String(value.owner_address ?? ""), entries));
 
-    // Feed only safe placeholders into TronWeb. The resulting Any bytes are replaced below;
-    // every outer field (TAPOS, timestamp, expiration, permission id) remains SDK-encoded.
+    // Let TronWeb encode the envelope with placeholders, then replace the Any payload.
     const clonedParameter = asObject(clonedContracts[index]!.parameter);
     const clonedValue = asObject(clonedParameter.value);
     clonedValue.parameters = entries.map(({ key }) => ({ key: Number(key), value: 0 }));
@@ -59,8 +53,7 @@ export function proposalCreateTxCheckExact(transaction: unknown): boolean {
   );
 }
 
-/** Exact UpdateEnergyLimitContract int64 encoder; TronWeb's builder both narrows to number and
- * applies an obsolete 10M policy cap that is not part of the Java protocol builder. */
+// Preserve int64 energy limits without TronWeb's number conversion or builder cap.
 export function updateEnergyLimitTxJsonToPbExact(transaction: unknown): any {
   const source = transaction as { raw_data?: { contract?: Json[] } };
   if (!Array.isArray(source?.raw_data?.contract))
@@ -121,7 +114,7 @@ function proposalEntries(value: unknown): ProposalParameter[] {
 function encodeProposalCreate(ownerAddress: string, parameters: ProposalParameter[]): Uint8Array {
   const fields: Uint8Array[] = [lengthDelimited(1, addressBytes(ownerAddress))];
 
-  // jspb.Map serializes one value per key in key order; duplicate assignments use the last value.
+  // Map encoding requires ordered keys and one value per key; the last duplicate wins.
   const selected = new Map<bigint, bigint>();
   for (const parameter of parameters) {
     selected.set(int64(parameter.key, "parameter id"), int64(parameter.value, "parameter value"));
@@ -193,7 +186,7 @@ function asObject(value: unknown): Json {
   return value as Json;
 }
 
-/** Test/debug helper: exact encoded ProposalCreateContract Any payload as hex. */
+// Return the ProposalCreateContract Any payload as hex.
 export function proposalCreatePayloadHex(owner: string, parameters: ProposalParameter[]): string {
   return bytesToHex(encodeProposalCreate(owner, parameters));
 }

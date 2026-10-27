@@ -22,7 +22,6 @@ describe("typed-data sign spec", () => {
     expect(typedDataSignSpec.auth).toBe("required");
   });
 
-  // the payload is not a secret, so argv is the only channel — no --typed-data-stdin exists.
   it("declares no stdin channel", () => {
     expect(typedDataSignSpec.stdin).toBeUndefined();
   });
@@ -55,8 +54,6 @@ describe("typed-data sign binding", () => {
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  // BUG-V413-020: missing/malformed top-level fields (domain/types/message) don't decode as what
-  // --typed-data says they are, so they're invalid_payload (exit 2), not invalid_value.
   it("rejects a structurally invalid payload with invalid_payload", async () => {
     const svc = { sign: async () => stubResult };
     await expect(

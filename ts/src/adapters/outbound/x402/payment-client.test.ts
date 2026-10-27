@@ -173,8 +173,6 @@ describe("X402PaymentClient", () => {
     ).rejects.toMatchObject({ code: "output_exists" });
   });
 
-  // A pre-existing --out is knowable before any request: refusing it only after the paid
-  // response arrives means the user has paid for bytes that were then thrown away.
   it.each(["exists", "io"])(
     "refuses an unusable output file (%s) before sending any request or signing",
     async (mode) => {
@@ -366,8 +364,6 @@ it("bounds oversized 402 bodies before the SDK or signer handles them", async ()
   expect(local.resolve).not.toHaveBeenCalled();
 });
 
-// Output-file conflicts are now refused before payment (see above); a malformed paid body is
-// the failure that can only be discovered after settlement, and its evidence must survive.
 it("retains settlement when the paid response is malformed JSON", async () => {
   const transaction = "0x" + "a".repeat(64);
   const paidFetch = vi.fn(

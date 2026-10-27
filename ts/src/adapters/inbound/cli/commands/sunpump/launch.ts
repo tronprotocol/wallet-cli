@@ -1,16 +1,3 @@
-/**
- * `sunpump launch` — create a token on the SunPump launchpad.
- *
- * Unlike every other write in this group, the SERVICE creates the token: nothing is signed here,
- * nothing is broadcast, no fee is paid locally, and the request body carries no address at all. So
- * this command needs no account and no unlock, has no `--wait`, no `--build-only` and no three-stage
- * receipt — and it REFUSES `--account`, because the new token's creator is chosen by SunPump and is
- * not the local account.
- *
- * Everything refused below is refused before anything is sent. It has to be: this service ignores
- * what it does not understand and accepts the rest, so a link it cannot use is not an error, it is
- * a token created with a broken link.
- */
 import { z } from "zod";
 import type { RefinementCtx } from "zod";
 import { readFile } from "node:fs/promises";
@@ -20,14 +7,7 @@ import type { SunPumpLaunchImage } from "../../../../../application/use-cases/tr
 import { errorMessage, UsageError } from "../../../../../domain/errors/index.js";
 import { TextFormatters } from "../../render/index.js";
 
-/**
- * The name, symbol and description carry NO local rules.
- *
- * Their limits are the service's — length, character set, whether a symbol is already taken — and
- * they are not published anywhere we can read. A local guess would refuse a name SunPump accepts,
- * or accept one it rejects, and the second is honest while the first is a lie. A rejection comes
- * back as `provider_error` with the service's own message.
- */
+// SunPump validates name, symbol, and description constraints.
 const fields = z.object({
   name: z.string().describe("token name"),
   symbol: z.string().describe("token symbol"),
@@ -45,14 +25,6 @@ const fields = z.object({
 
 const URL_FIELDS = ["twitterUrl", "telegramUrl", "websiteUrl"] as const;
 
-/**
- * Two refusals, both knowable with no network at all.
- *
- * A link that is not `http://` or `https://` is refused rather than sent: the service stores what
- * it is given, so `example.com` becomes a token whose website link goes nowhere and cannot be
- * changed afterwards. Two image sources are refused rather than one silently winning — the caller
- * who gave both does not know which logo their token would carry.
- */
 function refuseUnusableOptions(value: Record<string, unknown>, ctx: RefinementCtx): void {
   if (value.image !== undefined && value.imageBase64 !== undefined) {
     ctx.addIssue({
@@ -77,8 +49,6 @@ function refuseUnusableOptions(value: Record<string, unknown>, ctx: RefinementCt
 export const sunpumpLaunchSpec: ChainSpec = {
   path: ["sunpump", "launch"],
   network: "optional",
-  // Nothing local signs, and there is no owner to resolve: the token's creator comes back from the
-  // service. Accepting `--account` would imply the token is that account's, so it is refused.
   wallet: "none",
   auth: "none",
   rejectsAccount:
@@ -125,13 +95,7 @@ export const sunpumpLaunchTronBinding = (service: SunPumpTokenLaunchService): Fa
     }),
 });
 
-/**
- * The logo, read here because reading a path is this layer's job.
- *
- * `--image` is read even for a dry run — a preview whose file does not exist has validated nothing
- * — and the bytes are base64-encoded as they are, with no `data:` prefix and no re-encoding: what
- * the file holds is what the token's logo will be.
- */
+// Read files even for dry runs; encode their bytes as base64 without a data: prefix.
 async function imageOf(input: {
   image?: string;
   imageBase64?: string;

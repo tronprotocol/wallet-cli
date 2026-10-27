@@ -56,7 +56,6 @@ it.each(
           kinds: networks.map((network) => ({ x402Version: 2, scheme: "exact", network })),
         });
       const body = JSON.parse(String(init!.body));
-      // Routing uses exactly the representation advertised for this scheme.
       expect(body.paymentRequirements.network).toBe(expectedNetwork);
       expect(body.paymentPayload.accepted).toEqual(body.paymentRequirements);
       payloads.push(body.paymentPayload);

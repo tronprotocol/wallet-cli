@@ -12,7 +12,7 @@ export interface X402RoundtripPort {
 }
 
 export interface X402ServeInput {
-  /** Temporary roundtrip access logs are diagnostic; standalone servers retain access logs. */
+  // Temporary roundtrip logs are diagnostic; standalone server access logs persist.
   accessLog?: "debug" | "text";
   payTo: string;
   amount?: string;

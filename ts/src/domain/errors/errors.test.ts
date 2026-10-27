@@ -57,9 +57,6 @@ describe("classifyError (classify half of the classify↔render split)", () => {
   });
 
   it("takes the exit code from the code's entry, not from the class it was thrown as", () => {
-    // not_found is declared exit 1. Thrown as a UsageError it must STILL be exit 1 — the table is
-    // the contract, the class is only the author's stated intent (and the guard test catches the
-    // disagreement separately).
     expect(new UsageError("not_found", "x").exitCode()).toBe(1);
     expect(new ChainError("family_mismatch", "x").exitCode()).toBe(2);
   });

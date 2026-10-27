@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { ExecutionError } from "../domain/errors/index.js";
 import type { X402ServerHandle } from "../application/ports/x402-server.js";
 
-/** Start the same CLI in a detached process; only announce success after its listener is ready. */
+// Announce the detached daemon only after its listener is ready.
 export async function startX402Daemon(): Promise<X402ServerHandle> {
   const directory = await mkdtemp(join(tmpdir(), "wallet-cli-x402-"));
   const logFile = join(directory, "access.log");

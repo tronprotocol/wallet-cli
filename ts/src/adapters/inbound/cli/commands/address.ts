@@ -6,9 +6,7 @@ import { TextFormatters } from "../render/index.js";
 
 export function registerAddressCommands(registry: CommandRegistry, service: AddressService): void {
   const fields = z.object({
-    // The default lives in SecureKeypairWriter, not in this schema, so it is stated in prose:
-    // a "[optional, default: …]" tag is derived from zod and would claim a default --json-schema
-    // does not have. Readers need the location before running, not only in the receipt.
+    // The writer derives the default path; the schema has no static default.
     out: z
       .string()
       .min(1)

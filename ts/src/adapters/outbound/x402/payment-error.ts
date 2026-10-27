@@ -157,9 +157,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         retryPayment: false,
       },
     );
-  // The SDK's built-in spend control (a $1 per-payment ceiling on its default assets, active
-  // whenever no wallet-cli ceiling was given) refuses inside requirement selection, before any
-  // payment exists. A deterministic policy refusal, not an upstream fault: keep it typed.
+  // SDK spend-control refusal occurs before payment creation.
   if (/^All payment requirements were rejected by spendControls/.test(cause)) {
     const overLimit = cause.includes("maxAmountPerPayment");
     return new ExecutionError(
@@ -235,7 +233,7 @@ function candidateEvidence(value?: Record<string, unknown>) {
   };
 }
 
-/** Only a plain number of seconds is passed on; an HTTP-date or anything else is dropped. */
+// Accept integer seconds only; ignore HTTP dates.
 export function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
   if (
     (typeof value === "string" && /^\d{1,9}$/.test(value)) ||
@@ -245,7 +243,7 @@ export function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
   return {};
 }
 
-/** Caller has observed that no signature was returned and no payment could be submitted. */
+// Caller observed no payment signature; approval signatures are tracked separately.
 export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliError {
   const classified = sdkPaymentError(error, phase);
   const details = classified.details as Record<string, unknown> | undefined;

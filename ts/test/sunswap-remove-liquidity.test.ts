@@ -1,12 +1,3 @@
-/**
- * Black-box checks for `sunswap remove-liquidity`.
- *
- * Every case here is refused before a key is touched and before a request would be made, so the
- * suite needs neither a funded account nor a reachable node. What needs the chain — the amounts,
- * the multicall, the principal/fee split — is covered by unit tests and by the live Nile run,
- * because pinning a golden file to a pool whose reserves move every block would fail for the
- * wrong reason.
- */
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -36,7 +27,7 @@ function run(args: string[]) {
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
@@ -78,14 +69,7 @@ describe("protocol", () => {
   });
 });
 
-/**
- * V4's own flag matrix.
- *
- * All of it is decided at parse time, so none of these cases reaches a wallet or a node — which is
- * the point: a caller who named the wrong flags learns it without being asked for a password first.
- */
 describe("the V4 flag matrix", () => {
-  // The tokens always go to the signing account. A flag accepted and ignored would say otherwise.
   it("refuses --recipient", () => {
     const r = run([
       "sunswap",
@@ -107,8 +91,6 @@ describe("the V4 flag matrix", () => {
     expect(r.json.error.message).toContain("always settles to the signing account");
   });
 
-  // The one scenario that needs BOTH: the pair is a cross-check against the position, not a
-  // selector, so leaving it out is a missing option rather than something to infer.
   it("requires the pair alongside --position-id", () => {
     const r = run([
       "sunswap",
@@ -147,14 +129,7 @@ describe("the V4 flag matrix", () => {
     expect(r.json.error.code).toBe("missing_option");
   });
 
-  /**
-   * They COMBINE: `--slippage` is a tolerance applied to `--min0`/`--min1` "further down". An
-   * earlier version refused the pair — which rejected the one shape a careful caller wants, a
-   * floor they chose with a little room under it.
-   *
-   * Asserted through to the DRY RUN rather than only at the parser, so this cannot pass while the
-   * service quietly discards one of them.
-   */
+  // This checks flag acceptance, not the calculated withdrawal minimum.
   it("accepts --slippage together with --min0, and applies one under the other", () => {
     const r = run([
       "sunswap",
@@ -204,8 +179,6 @@ describe("the V4 flag matrix", () => {
 });
 
 describe("the flag matrix", () => {
-  // A V2 pool has no positions, and a V3 position already names its pair. Accepting the other
-  // scenario's flags would let a caller believe the two could disagree.
   it("refuses --position-id on V2", () => {
     const r = run([
       "sunswap",
@@ -276,7 +249,6 @@ describe("the flag matrix", () => {
     expect(r.json.error.code).toBe("missing_option");
   });
 
-  // Multi-transaction flows cannot guarantee offline what order their parts land in.
   it("does not offer --sign-only", () => {
     const r = run([
       "sunswap",
@@ -326,14 +298,11 @@ describe("help", () => {
     const r = run(["sunswap", "remove-liquidity", "--help"]);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("--liquidity");
-    // The one that is silent when got wrong.
     expect(r.stdout).toContain("LP tokens");
     expect(r.stdout).toContain("internal liquidity");
     expect(r.stdout).not.toContain("--sign-only");
   });
 
-  // `--fee` is a cross-check on V4 and selects nothing. Help has to say so, because every other
-  // command that has a --fee uses it to choose something.
   it("says --fee only checks the position's tier", () => {
     const r = run(["sunswap", "remove-liquidity", "--help"]);
     expect(r.stdout).toContain("--fee");

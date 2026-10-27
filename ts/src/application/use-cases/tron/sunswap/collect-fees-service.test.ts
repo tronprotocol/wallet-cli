@@ -8,13 +8,11 @@ import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resol
 import { SunSwapCollectFeesService } from "./collect-fees-service.js";
 import { ChainError } from "../../../../domain/errors/index.js";
 
-/** Symbols the V4 cross-check resolves; anything already an address passes through. */
 const SYMBOLS: Record<string, string> = {
   USDT: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
   TRX: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
 };
 const RESOLVER = {
-  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
   resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) => SYMBOLS[value.toUpperCase()] ?? value,
 } as unknown as SunSwapTokenResolver;
@@ -105,8 +103,6 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = true) {
 const V3 = { protocol: "V3", positionId: "686" };
 
 describe("collect-fees", () => {
-  // Not "unknown protocol": V2's fees are real, they are simply not separable. Telling a caller
-  // they mistyped would send them looking for a spelling error instead of explaining the pool.
   it("refuses V2 by explaining that its fees are not separable", async () => {
     const { service, scope } = makeHarness();
 
@@ -148,8 +144,6 @@ describe("collect-fees", () => {
     expect(assertCanSign).not.toHaveBeenCalled();
   });
 
-  // This command routinely sends money somewhere other than the account that signed, so where it
-  // went is the fact a script has to read — never a placeholder.
   it("echoes the resolved recipient, and asks the contract about that address as the owner", async () => {
     const { service, scope, port } = makeHarness();
 
@@ -196,7 +190,6 @@ describe("collect-fees", () => {
     ).rejects.toMatchObject({ code: "invalid_value", message: expect.stringContaining(ELSEWHERE) });
   });
 
-  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
   it("reports an id that was never minted as position_not_found", async () => {
     const port = makePort({
       v3Position: vi.fn(async () => {
@@ -221,8 +214,6 @@ describe("collect-fees", () => {
 });
 
 describe("collect-fees — what actually arrived", () => {
-  // The owed figure was read a moment before sending; a trade in between changes it. The event
-  // is what the contract recorded paying out.
   it("reports the Collect event's amounts, not the ones quoted beforehand", async () => {
     const { service, scope } = makeHarness();
 
@@ -255,7 +246,6 @@ describe("collect-fees — what actually arrived", () => {
       Record<string, string>
     >;
 
-    // Still the owed figure, under a name that does not claim to be more.
     expect(result.token0).toMatchObject({ amount: "1200" });
   });
 });
@@ -264,11 +254,6 @@ describe("collect-fees — a collection of nothing", () => {
   const nothing = () =>
     makePort({ v3OwedFees: vi.fn(async () => ({ amount0: "0", amount1: "0" })) as never });
 
-  /**
-   * Measured on Nile (da9df393…): the contract accepts a collect of zero, emits a Collect of
-   * zero, charges 8.08 TRX, and the receipt reads "✅ Fees collected". A transaction that looks
-   * like success and leaves the caller poorer is exactly what this CLI exists to catch.
-   */
   it("is refused before the node rather than sent", async () => {
     const { service, scope, gateway } = makeHarness(nothing());
 
@@ -279,8 +264,6 @@ describe("collect-fees — a collection of nothing", () => {
     expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
   });
 
-  // Every mode answers alike: a dry run that succeeds where the execute refuses would preview a
-  // transaction that can never be sent. The message carries the zero the caller came to check.
   it.each([
     ["a dry run", { dryRun: true }],
     ["a build", { buildOnly: true }],
@@ -297,11 +280,6 @@ describe("collect-fees — a collection of nothing", () => {
 });
 
 describe("collect-fees — a collection of nearly nothing", () => {
-  /**
-   * Only BOTH sides being zero is nothing. A position owed dust on one token and nothing on the
-   * other is a real collection, and refusing it would be us deciding a small payout is not worth
-   * having — which is the caller's call, not ours.
-   */
   it.each([
     ["token0 only", "1", "0"],
     ["token1 only", "0", "1"],
@@ -319,20 +297,12 @@ describe("collect-fees — a collection of nearly nothing", () => {
   });
 });
 
-// ── V4 ────────────────────────────────────────────────────────────────────────
-
 const V4_MANAGER = "TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP";
 const NATIVE = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 const POOL_ID = "0x2f8c".padEnd(66, "a");
 const V4_COLLECT = "modifyLiquidities(bytes,uint256)";
 
-/**
- * The pool's own key, as the pool manager reports it.
- *
- * `parameters` deliberately does NOT encode `tickSpacing` 12 the way our own encoder would: if
- * anything on this path rebuilt the word from the spacing, the value reaching the payload would
- * differ from this one and the tests below would fail rather than pass by coincidence.
- */
+// Deliberately differs from encoded tickSpacing to detect accidental key reconstruction.
 const V4_POOL = {
   poolId: POOL_ID,
   exists: true,
@@ -376,8 +346,6 @@ function makeV4Port(overrides: Partial<LiquidityPort> = {}) {
     v4Position: vi.fn(async () => V4_POSITION),
     v4PoolState: vi.fn(async () => V4_POOL),
     v4PositionManager: vi.fn(() => V4_MANAGER),
-    // The documented example's figures, so the receipt's published example is what these cases
-    // reproduce.
     v4OwedFees: vi.fn(async () => ({ amount0: "13974", amount1: "4108" })),
     v4CollectPayload: vi.fn((_n: NetworkDescriptor, request: V4CollectRequest) => {
       requests.push(request);
@@ -403,13 +371,6 @@ describe("collect-fees — V4", () => {
     expect(result).not.toHaveProperty("permits");
   });
 
-  /**
-   * The key is the pool's own, verbatim.
-   *
-   * A key that differs by one bit names a different pool, and `parameters` is the field most
-   * easily rebuilt from something we already have (the tick spacing). This fails if anything on
-   * the path re-encodes it, because the fixture's word is not what our encoder would produce.
-   */
   it("carries the pool's own parameters word rather than one re-encoded from the tick spacing", async () => {
     const { port, requests } = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -480,17 +441,10 @@ describe("collect-fees — V4", () => {
       poolId: POOL_ID,
       feeTier: 500,
       tickSpacing: 12,
-      // The word, never the zero address — which on TRON is also native TRX's.
       hooks: "none",
     });
   });
 
-  /**
-   * (b) The read answered, and the receipt carries what it said — with the scale beside it.
-   *
-   * This fails if `v4OwedFees`'s result is dropped anywhere on the path: the amounts are the
-   * port's own figures and nothing else on this path could produce them.
-   */
   it("publishes what the fee read reported, with each side's scale", async () => {
     const { port } = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -514,7 +468,6 @@ describe("collect-fees — V4", () => {
     });
   });
 
-  /** The read is asked about the position's own pool and range, not about anything reconstructed. */
   it("asks for the fees of this position's pool and range", async () => {
     const { port } = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -527,7 +480,6 @@ describe("collect-fees — V4", () => {
     ]);
   });
 
-  /** An amount past 2^53: carried as a decimal string, never through a double. */
   it("carries an amount larger than a double can hold, exactly", async () => {
     const huge = "123456789012345678901234567890";
     const { port } = makeV4Port({
@@ -543,20 +495,6 @@ describe("collect-fees — V4", () => {
     expect(result.token0).toEqual({ address: NATIVE, symbol: "TRX", decimals: 6, amount: huge });
   });
 
-  /**
-   * (a) The read answered ZERO. That is a measurement, and it is published as one.
-   *
-   * The distinction this whole path exists for: a zero that came from the chain is a fact about
-   * the position, and it is published without a warning.
-   */
-  /**
-   * A zero that came from the chain is refused in EVERY mode, not only on execute.
-   *
-   * On V4 this is more than consistency: the collect call is a zero-delta `decreaseLiquidity`, and
-   * on an empty position the estimate reverts with `CannotUpdateEmptyPosition` (0xaefeb924). So a
-   * dry run that reached the estimate failed as `execution_reverted` while the execute refused as
-   * `invalid_value` — two answers to one question. Refusing before the estimate gives one.
-   */
   it.each([
     ["a dry run", { dryRun: true }],
     ["a build", { buildOnly: true }],
@@ -574,13 +512,6 @@ describe("collect-fees — V4", () => {
     expect(gateway.estimateResources).not.toHaveBeenCalled();
   });
 
-  /**
-   * An EMPTY position is refused even when the fee read failed.
-   *
-   * The contract refuses any modification of a position with no liquidity
-   * (`CannotUpdateEmptyPosition`), so the collect could never be sent; previewing it would only
-   * surface that revert as `execution_reverted` instead of the refusal the execute gives.
-   */
   it("refuses a dry run on an empty position even when the fee read failed", async () => {
     const { port } = makeV4Port({
       v4Position: vi.fn(async () => ({ ...V4_POSITION, liquidity: "0" })) as never,
@@ -597,7 +528,6 @@ describe("collect-fees — V4", () => {
     expect(gateway.estimateResources).not.toHaveBeenCalled();
   });
 
-  // A position that still holds liquidity but has earned nothing is the same nothing.
   it("refuses a dry run on a funded position that has earned nothing", async () => {
     const { port } = makeV4Port({
       v4Position: vi.fn(async () => ({ ...V4_POSITION, liquidity: "148506" })) as never,
@@ -613,13 +543,6 @@ describe("collect-fees — V4", () => {
     });
   });
 
-  /**
-   * A collection of nothing is not a small collection.
-   *
-   * Measured on Nile for V3: the contract accepts it, charges 8.08 TRX and the receipt reads
-   * "Fees collected" — success that leaves the caller poorer. V4 gets the same refusal now that the
-   * fee read makes the figure available.
-   */
   it("refuses to send when the read measured nothing owed", async () => {
     const { port } = makeV4Port({
       v4OwedFees: vi.fn(async () => ({ amount0: "0", amount1: "0" })) as never,
@@ -632,12 +555,6 @@ describe("collect-fees — V4", () => {
     });
   });
 
-  /**
-   * And the distinction that makes that refusal safe: an UNREADABLE amount is not a zero.
-   *
-   * Refusing on a failed read would stop a caller collecting real fees because we could not measure
-   * them — trading one silent loss for a louder one.
-   */
   it("still sends when the read failed, rather than reading absence as nothing", async () => {
     const { port } = makeV4Port({
       v4OwedFees: vi.fn(async () => undefined) as never,
@@ -650,12 +567,6 @@ describe("collect-fees — V4", () => {
     expect((result.token0 as Record<string, unknown>).amount).toBeUndefined();
   });
 
-  /**
-   * (c) The read FAILED. No amount at all, and a warning — never a zero.
-   *
-   * A zero here would tell a caller their position had earned nothing, on the strength of a
-   * question nobody managed to ask.
-   */
   it("publishes no amount when the fee read fails, and says so", async () => {
     const { port } = makeV4Port({
       v4OwedFees: vi.fn(async () => {
@@ -677,7 +588,6 @@ describe("collect-fees — V4", () => {
     );
   });
 
-  /** (c) again, through the other door: the read answered, in a shape it could not decode. */
   it("publishes no amount when the fee read cannot be decoded, and says so", async () => {
     const { port } = makeV4Port({
       v4OwedFees: vi.fn(async () => undefined) as never,
@@ -696,12 +606,6 @@ describe("collect-fees — V4", () => {
     );
   });
 
-  /**
-   * A dry run that cannot reach the fee helper still previews the call.
-   *
-   * The whole point of a dry run is to be available before committing to anything, including
-   * against a node that is briefly unreachable. An unread fee is a missing figure, not a failure.
-   */
   it("still previews when the fee read fails", async () => {
     const { port, requests } = makeV4Port({
       v4OwedFees: vi.fn(async () => {
@@ -720,8 +624,6 @@ describe("collect-fees — V4", () => {
     expect(result.token0).not.toHaveProperty("amount");
   });
 
-  // Native TRX is not a contract, and V4 keys carry it unwrapped — asking it for decimals would
-  // fail rather than answer 6.
   it("does not ask the chain what native TRX is", async () => {
     const { port } = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -744,7 +646,6 @@ describe("collect-fees — V4", () => {
     ).rejects.toMatchObject({ code: "invalid_value", message: expect.stringContaining(ELSEWHERE) });
   });
 
-  // An id that was never minted reverts the position read; that is the caller's id, not a fault.
   it("reports an id that was never minted as position_not_found", async () => {
     const { port } = makeV4Port({
       v4Position: vi.fn(async () => {
@@ -816,8 +717,6 @@ describe("collect-fees — V4's cross-checks", () => {
     });
   });
 
-  // V4's currency order belongs to the pool key, not to the caller: the other way round names the
-  // same pool, and the mistake this catches is caught either way round.
   it("accepts the pair the other way round", async () => {
     const { port } = makeV4Port();
     const { service, scope } = makeHarness(port);
@@ -851,14 +750,6 @@ describe("collect-fees — V4's cross-checks", () => {
     });
   });
 
-  /**
-   * `--fee` has no default (such as 500), deliberately.
-   *
-   * On V4 the position names its own pool, so the flag selects nothing and can only agree or
-   * disagree. A default that can only disagree is a refusal waiting for everyone whose position is
-   * not in the 500 tier, over a value they never typed. So a 3000-tier position with the pair named
-   * and no `--fee` is collected from, not refused.
-   */
   it("collects from a position in another tier when no --fee is given", async () => {
     const { port } = makeV4Port({
       v4Position: vi.fn(async () => ({ ...V4_POSITION, fee: 3000 })) as never,
@@ -870,7 +761,6 @@ describe("collect-fees — V4's cross-checks", () => {
     ).resolves.toBeDefined();
   });
 
-  // Given explicitly, it still has to agree — that is the only thing it can do.
   it("still refuses an explicit --fee that the position contradicts", async () => {
     const { port } = makeV4Port({
       v4Position: vi.fn(async () => ({ ...V4_POSITION, fee: 3000 })) as never,
@@ -888,7 +778,6 @@ describe("collect-fees — V4's cross-checks", () => {
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
-  // With no pair named there is nothing to default against, so the position's own tier stands.
   it("leaves a position in another tier alone when no pair is named", async () => {
     const { port } = makeV4Port({
       v4Position: vi.fn(async () => ({ ...V4_POSITION, fee: 3000 })) as never,

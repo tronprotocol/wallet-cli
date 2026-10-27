@@ -1,9 +1,3 @@
-/**
- * MessageService — the response contract and the pre-flight capability gate.
- *
- * The service itself is family-agnostic: the family only chooses which SignStrategy hashes the
- * message, so the same binding serves TRON and EVM and the envelope must not vary between them.
- */
 import { describe, it, expect, vi } from "vitest";
 import { MessageService } from "./message-service.js";
 import { WalletError } from "../../domain/errors/index.js";
@@ -38,8 +32,6 @@ describe("MessageService.sign", () => {
   });
 
   it("refuses a watch-only account before resolving a signer", async () => {
-    // The gate belongs ahead of the keystore work, as it already is in TypedDataService: a
-    // "cannot sign" failure must win over anything the resolve path might report first.
     const signers = resolverStub({
       assertCanSign: vi.fn(() => {
         throw new WalletError("watch_only_no_signer", "watch-only account cannot sign");

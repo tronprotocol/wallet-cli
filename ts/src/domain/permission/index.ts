@@ -21,7 +21,6 @@ export interface TronOperation {
   label: string;
 }
 
-/** Authoritative mapping shared by permission bitmaps, display labels, and authorization checks. */
 export const TRON_OPERATIONS: readonly TronOperation[] = Object.freeze([
   { contractTypeId: 0, contractType: "AccountCreateContract", label: "Activate Account" },
   { contractTypeId: 1, contractType: "TransferContract", label: "Transfer TRX" },
@@ -271,7 +270,7 @@ function isEmptyUnknownList(value: unknown): boolean {
   return Array.isArray(value) && value.length === 0;
 }
 
-/** Require unnamed bitmap bits to be declared verbatim, so no set bit escapes human review. */
+// Require explicit declarations of unnamed bits so the bitmap cannot hide extra permissions.
 function assertDeclaredUnknownOperations(
   value: unknown,
   actual: readonly number[],
@@ -319,8 +318,7 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
     return invalidPermission(`actives[${index}].operations must be an array`);
   }
   const declaredOperations = input.operations as string[];
-  // A node may set bits for contract types this build has no name for. Those bits are real
-  // permission scope, so `operations` alone cannot describe the bitmap — hence the empty-list case.
+  // An empty named list can still authorize unknown contract types through the bitmap.
   const encodedKnownOperations =
     declaredOperations.length === 0
       ? "00".repeat(OPERATIONS_BYTES)
@@ -343,15 +341,9 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
           "it from operations, or edit both together",
       );
     }
-    // Every set bit must be declared somewhere a reviewer can read: named types in `operations`,
-    // unnamed ones in `unknownOperationIds`. Without this, a bitmap can widen the permission
-    // while the human-readable fields stay unchanged — the failure this whole field pair prevents.
     assertDeclaredUnknownOperations(input.unknownOperationIds, supplied.unknownOperationIds, index);
     operationsHex = supplied.operationsHex;
-    // `[]` declares "there are no unnamed bits", which is exactly what encoding `operations` alone
-    // produces — so it needs no bitmap to justify it. `permission show` always emits the field, and
-    // demanding operationsHex alongside an empty list blocked the documented show/edit/update round
-    // trip. Only a non-empty list still requires the bitmap it was read from.
+    // An empty unknown-id list needs no bitmap; named operations fully determine it.
   } else if (
     input.unknownOperationIds !== undefined &&
     !isEmptyUnknownList(input.unknownOperationIds)
@@ -382,7 +374,6 @@ function activeGroup(value: unknown, index: number): ActivePermissionView {
   };
 }
 
-/** Strictly validate and canonicalize the complete replacement structure. */
 export function validatePermissionStructure(
   value: unknown,
   expectedAddress?: string,
@@ -419,7 +410,7 @@ export function validatePermissionStructure(
 
 export type LocalPermissionInventory = ReadonlyMap<string, string>;
 
-/** Watch-only accounts are excluded because they cannot contribute a signature. */
+// Watch accounts cannot contribute signatures.
 export function buildLocalPermissionInventory(
   accounts: readonly AccountDescriptor[],
 ): LocalPermissionInventory {

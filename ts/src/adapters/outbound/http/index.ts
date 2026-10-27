@@ -20,7 +20,7 @@ export interface HttpTransport {
 export type HttpTransportErrorKind =
   "invalid_endpoint" | "invalid_request" | "timeout" | "network" | "http_status" | "redirect";
 
-/** Safe internal transport failure. It deliberately carries no URL, body, header, or remote text. */
+// Do not expose URLs, headers, bodies, or remote text in transport errors.
 export class HttpTransportError extends Error {
   constructor(
     public readonly kind: HttpTransportErrorKind,
@@ -41,7 +41,6 @@ export function httpTransportFailure(error: HttpTransportError): string {
 
 type FetchFunction = typeof globalThis.fetch;
 
-/** Resolve the HTTP mechanics shared by every adapter that uses a network's httpEndpoint. */
 export function networkHttpConfig(
   network: NetworkDescriptor,
   timeoutMs: number,
@@ -68,7 +67,6 @@ function assertHttpEndpoint(endpoint: string): void {
   }
 }
 
-/** Native HTTP adapter. Protocol-specific parsing deliberately stays above this interface. */
 export class FetchHttpTransport implements HttpTransport {
   constructor(
     private readonly config: HttpEndpointConfig,

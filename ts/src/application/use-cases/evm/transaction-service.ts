@@ -30,9 +30,7 @@ import {
 
 type EvmTokenMetadata = Awaited<ReturnType<EvmGateway["getErc20Metadata"]>>;
 
-/** what `evmSignStrategy` always produces for `signOnly` (see signing-strategy.ts): the raw
- *  serialisation `eth_sendRawTransaction` takes, plus its hash. `TxOutcome.signed` is typed
- *  `unknown` because TRON's shape differs — this is the EVM family's own, narrower promise. */
+// EVM signed artifact: raw serialized bytes and their hash.
 interface EvmSignedTx {
   raw: string;
   hash: string;
@@ -66,13 +64,8 @@ export class EvmTransactionService {
     const recipient = this.recipients.resolve("evm", input.to);
     const transfer = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
 
-    // The plan is produced while building and read back by the estimate hook. It is held here
-    // rather than attached to the transaction: --dry-run and --build-only echo that object
-    // verbatim, and a fee plan riding along inside it reads as part of the transaction.
+    // Keep fee metadata outside the transaction echoed by dry-run/build-only.
     let plan: Record<string, unknown> = {};
-    // The nonce is decided while building and never appears in a receipt we might not get. It is
-    // the field that is the entry point for diagnosing a stuck transaction, so the receipt
-    // states it even when the transaction is only submitted.
     let nonce: number | undefined;
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -96,7 +89,6 @@ export class EvmTransactionService {
         nonce = (tx as { nonce?: number }).nonce;
         return tx;
       },
-      // The plan already carries the ceiling, so there is nothing further to ask the node.
       estimate: async () => plan,
     });
 
@@ -113,11 +105,7 @@ export class EvmTransactionService {
     };
   }
 
-  /**
-   * Scale the amount. A token is scaled by ITS OWN decimals, never the chain's: 5 USDT is
-   * 5_000_000 at six decimals, and using the native eighteen would overpay by a factor of a
-   * trillion. `--raw-amount` is already in base units and is passed through untouched.
-   */
+  // Scale tokens by their own decimals; raw amounts are already in base units.
   private async resolveTransfer(
     gateway: EvmGateway,
     networkId: string,
@@ -154,10 +142,7 @@ export class EvmTransactionService {
       };
     }
     if (decimals === undefined) {
-      // `--contract` names a token that need not be in the address book, so the contract itself
-      // is asked — the same fallback the TRON side makes for a bare --contract. Scaling by a
-      // guessed decimals would move the wrong amount by orders of magnitude, so an unreadable
-      // contract is an error, never a default.
+      // Query unlisted contracts for decimals; guessing could transfer the wrong amount.
       const meta = await gateway.getErc20Metadata(contract).catch(() => ({}) as EvmTokenMetadata);
       decimals = meta.decimals;
       if (symbol === undefined) symbol = meta.symbol;
@@ -176,10 +161,7 @@ export class EvmTransactionService {
     };
   }
 
-  /** the party fields for a decoded ERC-20 transfer, in the same shape the TRON side reports for
-   *  TRC20: the token contract, its symbol, and a human amount scaled by its decimals. Metadata
-   *  is best-effort — an unreadable contract degrades to the base-unit amount rather than losing
-   *  the transfer. */
+  // Metadata failure preserves the transfer’s base-unit amount.
   async #erc20Parties(
     gateway: EvmGateway,
     contract: string,
@@ -192,7 +174,6 @@ export class EvmTransactionService {
       to: transfer.to,
       contract,
       ...(meta.symbol === undefined ? {} : { symbol: meta.symbol }),
-      // Both forms, as everywhere else: the exact integer for arithmetic, the scaled one to read.
       rawAmount: transfer.rawAmount,
       amount:
         meta.decimals === undefined
@@ -210,8 +191,7 @@ export class EvmTransactionService {
     transfer: { contract?: string; rawAmount: string },
     input: EvmSendInput,
   ): Promise<{ tx: UnsignedTx; fee: Record<string, unknown> }> {
-    // An ERC-20 transfer moves no native coin: the recipient and amount live in the calldata,
-    // and the transaction is addressed to the contract.
+    // ERC20 recipient and amount belong in calldata; native value must be zero.
     const call = transfer.contract
       ? {
           to: transfer.contract,
@@ -232,22 +212,14 @@ export class EvmTransactionService {
     return built;
   }
 
-  /**
-   * Sign a transaction built elsewhere. An EVM transaction carries exactly one signature — there
-   * is no multi-signature accumulation to relay — so the input is an UNSIGNED serialisation and
-   * the output is the signed one. A transaction that already carries a signature is refused
-   * rather than re-signed: the result would be a different transaction wearing the same intent.
-   */
+  // Accept unsigned serialization only: an EVM transaction carries exactly one signature.
   async sign(
     scope: TransactionScope,
     network: NetworkDescriptor,
     hex: string,
   ): Promise<{ kind: "sign"; signed: EvmSignedTx } & Record<string, unknown>> {
     const parsed = parseEvmTransaction(hex);
-    // BEFORE the signature: a transaction states the chain it is for, and signing keeps that
-    // value. Nothing downstream can catch this — no node is consulted when signing — so a
-    // mainnet transaction handed to `--network sepolia` would come back validly signed FOR
-    // MAINNET, which is the one mistake this command must not make quietly.
+    // Check before signing: no node is consulted to catch a wrong-chain transaction.
     assertChainId(parsed, network);
     if (parsed.signature !== null) {
       throw new ChainError(
@@ -261,22 +233,13 @@ export class EvmTransactionService {
       account: scope.activeAccount,
       tx: parsed.toJSON ? JSON.parse(JSON.stringify(parsed.toJSON())) : parsed,
     });
-    // `outcomeData` types its result as `Record<string, unknown>` because it is shared across
-    // stages and families; `signed` is narrowed to what THIS family's signing strategy actually
-    // produces (see EvmSignedTx) rather than left for a caller to cast blind.
     return { kind: "sign" as const, ...outcomeData(outcome) } as {
       kind: "sign";
       signed: EvmSignedTx;
     } & Record<string, unknown>;
   }
 
-  /**
-   * Broadcast a signed transaction supplied as raw hex.
-   *
-   * The reported id is derived from the bytes, never taken from the node: the hash of a signed
-   * transaction is a property of the transaction, and `authoritativeTxId` exists so a node cannot
-   * name a different one for us to poll and quote back.
-   */
+  // Use the locally derived hash so the node cannot redirect confirmation polling.
   async broadcast(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -289,8 +252,6 @@ export class EvmTransactionService {
     }
     const gateway = this.gateways.get(network, "evm");
     if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
-    // The selected network's node would reject a foreign chain id anyway, but refusing here says
-    // WHICH chain the transaction was built for, and keeps it out of a mempool it never belonged in.
     assertChainId(parsed, network);
     const result = await gateway.sendRawTransaction(parsed.serialized);
     const txId = authoritativeTxId(parsed.hash ?? undefined, result.hash, (m) => scope.warn(m));
@@ -315,20 +276,7 @@ export class EvmTransactionService {
     };
   }
 
-  /**
-   * `tx broadcast --dry-run` — answer "would this go through?" without submitting it.
-   *
-   * TRON's dry run resolves the full approval state against the node, so this does the EVM
-   * equivalent rather than a bare parse: the three things that actually stop a signed EVM
-   * transaction are the wrong chain, a spent nonce and a balance that cannot cover value plus
-   * the fee ceiling. A blocker throws, so `--dry-run` exits non-zero on a transaction that would
-   * fail — the answer a script is asking for.
-   *
-   * The node reads are best-effort. An unreachable endpoint downgrades those checks to `skipped`
-   * with a warning instead of failing the command: a dry run that cannot reach a node is still
-   * worth more than no dry run, and reporting "cannot broadcast" would be a claim about the
-   * transaction that this code has not established.
-   */
+  // Check chain, nonce and balance without submitting; failed node reads leave checks skipped.
   async #dryRunBroadcast(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -343,8 +291,6 @@ export class EvmTransactionService {
       },
     ];
 
-    // Local, and the cheapest way to catch a transaction signed for another chain: a replay of it
-    // here is impossible, so there is nothing to gain by asking a node first.
     assertChainId(parsed, network);
     checks.push({ name: "chainId", status: "ok", detail: `matches ${network.id}` });
 
@@ -428,17 +374,7 @@ export class EvmTransactionService {
     };
   }
 
-  /**
-   * Confirmation state, in four kinds.
-   *
-   * A receipt alone cannot separate "in the mempool" from "never existed" — the RPC answers null
-   * to both — so the transaction object is read alongside it, mirroring how the TRON side pairs
-   * getTransactionById with getTransactionInfoById.
-   *
-   * `not_found` carries a warning because it is the one answer that can be wrong about the past:
-   * a pruned or non-archival endpoint reports null for a transaction that really did happen, and
-   * a bare "not found" invites the reader to conclude it never did.
-   */
+  // A null receipt can mean pending or absent; read the transaction too.
   async status(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -448,7 +384,7 @@ export class EvmTransactionService {
     const [transaction, receipt, head] = await Promise.all([
       gateway.getTransactionByHash(hash),
       gateway.getTransactionReceipt(hash),
-      // Best-effort third call: it only adds a field, and must not be able to fail the answer.
+      // Head height only enriches the result; failure must not hide transaction status.
       gateway.getBlockNumber().catch(() => undefined),
     ]);
     const confirmed = receipt !== null;
@@ -476,15 +412,7 @@ export class EvmTransactionService {
     };
   }
 
-  /**
-   * Full detail. `to` and the amount are read from the transaction, except for an ERC-20
-   * `transfer`, whose real recipient and amount live in the calldata — reporting the raw fields
-   * there would name the CONTRACT as the recipient and the amount as zero, which is what the TRON
-   * side already avoids for TRC20.
-   *
-   * Only that one selector is decoded. Anything else is left as the chain recorded it: guessing
-   * at unknown calldata would be inventing meaning the signature does not carry.
-   */
+  // Decode ERC20 transfer parties from calldata; leave other selectors uninterpreted.
   async info(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -501,8 +429,7 @@ export class EvmTransactionService {
     }
     const transfer = decodeErc20Transfer(String(transaction.input ?? "0x"));
     const value = BigInt(String(transaction.value ?? "0x0"));
-    // The block only for its timestamp, and only once we know there is one. Best-effort like the
-    // head read: a detail view is still worth having without the wall-clock time.
+    // Timestamp enrichment is optional; an unreadable block must not hide transaction details.
     const blockTime =
       receipt?.blockNumber === undefined
         ? undefined
@@ -514,9 +441,6 @@ export class EvmTransactionService {
       txid: hash,
       type: transactionType(transaction, transfer !== undefined),
       from: checksummed(transaction.from),
-      // The transaction's own nonce, flattened out of the node object: it is the entry
-      // point for diagnosing a stuck transaction, and digging it out of a passthrough field is
-      // not what "the detail view" should ask of a reader.
       ...(transaction.nonce === undefined ? {} : { nonce: quantityToNumber(transaction.nonce) }),
       ...(transfer
         ? await this.#erc20Parties(gateway, checksummed(transaction.to), transfer)
@@ -530,8 +454,6 @@ export class EvmTransactionService {
       ...(receipt === null
         ? {}
         : {
-            // Lower case: `tx status` and every write receipt already answer in lower
-            // case, and one field spelled two ways makes an agent match twice for one meaning.
             status: receipt.success === true ? "success" : "revert",
             ...(receipt.blockNumber === undefined
               ? {}
@@ -549,15 +471,7 @@ export class EvmTransactionService {
   }
 }
 
-/**
- * Refuse a transaction built for a different chain.
- *
- * EIP-155 puts the chain id inside the transaction, so this is answerable locally and BEFORE a
- * signature exists. `family_mismatch` does not fire here — a mainnet transaction and a Sepolia one
- * are both EVM — which is exactly why this check has to be its own: without it, signing a mainnet
- * transaction while pointing at a testnet produces a perfectly valid mainnet transaction and says
- * nothing.
- */
+// Enforce the selected chain even when both networks are EVM.
 function assertChainId(tx: Transaction, network: NetworkDescriptor): void {
   if (String(tx.chainId) === String(network.chainId)) return;
   throw new ChainError(
@@ -566,7 +480,6 @@ function assertChainId(tx: Transaction, network: NetworkDescriptor): void {
   );
 }
 
-/** parse raw hex into an ethers Transaction, reporting bad input as bad input. */
 function parseEvmTransaction(hex: string): Transaction {
   try {
     return Transaction.from(hex);
@@ -578,14 +491,6 @@ function parseEvmTransaction(hex: string): Transaction {
   }
 }
 
-/**
- * What KIND of transaction this is, in three words a reader can act on.
- *
- * Deliberately coarse: `transfer` covers a native send and a decoded ERC-20 transfer (both move
- * value to someone), `contract-creation` is a deployment (`to` is null — that IS what makes it
- * one), and everything else is `contract-call`. Naming the METHOD would mean decoding calldata we
- * have chosen not to decode.
- */
 function transactionType(transaction: Record<string, unknown>, isErc20Transfer: boolean): string {
   if (transaction.to === null || transaction.to === undefined) return "contract-creation";
   if (isErc20Transfer) return "transfer";
@@ -593,7 +498,7 @@ function transactionType(transaction: Record<string, unknown>, isErc20Transfer: 
   return input === "0x" || input === "" ? "transfer" : "contract-call";
 }
 
-/** hex QUANTITY (or a decimal) → number; undefined when it is neither. */
+// Parses hex or decimal integers to Number; does not enforce the safe-integer range.
 function quantityToNumber(value: unknown): number | undefined {
   if (value === undefined || value === null) return undefined;
   try {
@@ -605,23 +510,16 @@ function quantityToNumber(value: unknown): number | undefined {
 
 /** ERC-20 `transfer(address,uint256)` calldata → its recipient and base-unit amount. */
 function decodeErc20Transfer(input: string): { to: string; rawAmount: string } | undefined {
-  // 0xa9059cbb is the transfer(address,uint256) selector; 4 bytes + two 32-byte words.
+  // Transfer selector followed by two 32-byte ABI words.
   if (!/^0xa9059cbb[0-9a-fA-F]{128}$/.test(input)) return undefined;
   const body = input.slice(10);
   return {
-    // Calldata carries the address in lower case with no checksum. Every other address this CLI
-    // prints is EIP-55, so it is re-checksummed here rather than shown in a second style.
     to: evmChecksumAddress(hexToBytes(body.slice(24, 64))),
     rawAmount: BigInt(`0x${body.slice(64, 128)}`).toString(10),
   };
 }
 
-/**
- * An address in EIP-55 form. Nodes answer in lower case, but every address this CLI prints comes
- * out checksummed, and one payload mixing both styles invites a reader comparing an address
- * against their own to conclude they do not match. Anything that is not a 20-byte hex address
- * (a contract creation's null `to`, say) is passed through untouched.
- */
+// Checksum 20-byte hex addresses; stringify other values, mapping nullish values to empty text.
 function checksummed(value: unknown): string {
   const text = String(value ?? "");
   if (!/^0x[0-9a-fA-F]{40}$/.test(text)) return text;

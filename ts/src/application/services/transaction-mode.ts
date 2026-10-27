@@ -68,8 +68,7 @@ export function outcomeData(outcome: TxOutcome): Record<string, unknown> {
     return { mode: "build-only", tx: outcome.tx, hex: outcome.hex, fee: outcome.fee };
   }
   if (outcome.stage === "signed") {
-    // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
-    // Omit rather than emit undefined — kv() drops empty rows and JSON stays additive.
+    // Caller-supplied transactions may have no fee estimate.
     return {
       mode: "sign-only",
       signed: outcome.signed,

@@ -1,16 +1,4 @@
-/**
- * TRC10 assets — the `asset` command group.
- *
- * TRC10 is a chain-native token with issuance, an ICO window and frozen supply, which is why it is
- * a group of its own rather than part of `token` (TRC20 contracts). Transfer is deliberately not
- * here: `tx send` with an asset id already covers it.
- *
- * Two conventions run through everything below:
- *   - command input and text output use whole tokens; json and the chain use minimal units.
- *   - local rejection is limited to what we can compute exactly or read for free while building
- *     Chain bounds we cannot read are left to the node — a rejected
- *     transaction never enters a block, so it costs neither fee nor bandwidth.
- */
+// Inputs use whole tokens; chain quantities and returned supply amounts use minimal units.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
@@ -31,7 +19,7 @@ import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const DAY_MS = 86_400_000;
 const TRX_DECIMALS = 6;
-/** name/abbr accept printable ASCII only — the chain rejects spaces and any non-ASCII byte. */
+// The chain rejects spaces and non-ASCII bytes in names and abbreviations.
 const VISIBLE_ASCII = /^[\x21-\x7E]{1,32}$/;
 
 export interface AssetIssueInput extends TransactionModeInput {
@@ -74,7 +62,6 @@ export class TronAssetService {
     private readonly now: () => number = () => Date.now(),
   ) {}
 
-  // ── reads ────────────────────────────────────────────────────────────────────
   async info(network: NetworkDescriptor, input: AssetInfoInput) {
     const gateway = this.gateways.get(network, "tron");
     if ((input.assetRef === undefined) === (input.issuer === undefined)) {
@@ -104,7 +91,6 @@ export class TronAssetService {
     };
   }
 
-  // ── writes ───────────────────────────────────────────────────────────────────
   async issue(scope: TransactionScope, network: NetworkDescriptor, input: AssetIssueInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
     const gateway = this.gateways.get(network, "tron");
@@ -128,8 +114,6 @@ export class TronAssetService {
     const scale = 10n ** BigInt(precision);
     const frozenSupply = (input.freeze ?? []).map((entry) => parseTranche(entry, scale));
 
-    // `asset issue` burns the issuance fee and an account may issue only once, ever — worth one
-    // read to refuse before that is spent. Every other bound is left to the node.
     if (await gateway.getAssetByIssuer(owner)) {
       throw new ChainError(
         "already_issued_asset",
@@ -171,7 +155,7 @@ export class TronAssetService {
     return {
       kind: "asset-issue" as const,
       ...data,
-      // the chain assigns the id; it does not exist until the transaction confirms
+      // The chain assigns the asset ID on confirmation.
       ...(data.assetIssueID === undefined ? {} : { assetId: String(data.assetIssueID) }),
       issuerAddress: owner,
       name,
@@ -211,8 +195,7 @@ export class TronAssetService {
     }
     const asset = await this.#requireOwnAsset(gateway, owner);
 
-    // The chain overwrites all four fields, so anything not given is read back and rewritten
-    // unchanged — otherwise omitting a flag would silently blank it.
+    // The chain overwrites all four fields; preserve omitted values.
     const update = {
       description: input.description ?? asset.description ?? "",
       url: input.url ?? asset.url ?? "",
@@ -271,7 +254,6 @@ export class TronAssetService {
         `${asset.name} is not accepting participation right now`,
       );
     }
-    // TRX carries 6 decimals, so --pay is a decimal amount, not whole TRX only.
     const paidSun = BigInt(toBaseUnits(input.pay, TRX_DECIMALS, "TRX"));
     if (paidSun <= 0n) throw new UsageError("invalid_value", "--pay must be greater than zero");
     const rate: IcoRate = { trxNum: asset.trx_num, num: asset.num };
@@ -306,7 +288,6 @@ export class TronAssetService {
       issuerAddress: issuer,
       participantAddress: owner,
       paidSun: String(paidSun),
-      // exact integer arithmetic from the asset's fixed rate — no receipt field needed
       receivedAmount: String(received),
       precision: asset.precision ?? 0,
     };
@@ -322,8 +303,7 @@ export class TronAssetService {
     if (tranches.length === 0) {
       throw new ChainError("no_frozen_supply", `${asset.name} has no frozen supply to release`);
     }
-    // Each tranche's unlock is fixed at issuance: start_time + days, regardless of when the
-    // issuance actually landed. The chain releases every matured tranche in one transaction.
+    // Unlocks are relative to start_time, not the block that included issuance.
     const now = this.now();
     const matured = tranches.filter((t) => asset.start_time + t.frozen_days * DAY_MS <= now);
     if (matured.length === 0) {
@@ -357,16 +337,14 @@ export class TronAssetService {
       assetId: String(asset.id),
       name: asset.name,
       issuerAddress: owner,
-      // the receipt is authoritative once confirmed; before that we can only state our own plan
+      // Prefer the confirmed receipt over the projected release amount.
       releasedAmount: String(data.unfreezeAmount ?? releasing),
       stillFrozenAmount: String(stillFrozen),
       precision: asset.precision ?? 0,
     };
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────────
-  /** The Ledger TRON app cannot parse any TRC10 issuance contract type — refuse before the
-   *  device is touched rather than after. */
+  // Ledger cannot sign these TRC10 issuance operations.
   #assertSignable(scope: TransactionScope): void {
     this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
   }
@@ -379,14 +357,11 @@ export class TronAssetService {
     return asset;
   }
 
-  /** numeric reference → id lookup; anything else → name lookup, which may be ambiguous. */
   async #resolveAsset(gateway: TronGateway, reference: string): Promise<TronAsset | undefined> {
     if (/^\d+$/.test(reference)) return gateway.getAssetById(reference);
     const matches = await gateway.getAssetsByName(reference);
     if (matches.length > 1) {
-      // `assetIds` is the machine-readable answer ("which ids do I re-run with?"); `matches` carries
-      // the columns a human needs to actually pick one, and is what the text renderer tables up.
-      // Quantities stay raw (minimal units) here, exactly as the success payload reports them.
+      // Quantities use minimal units.
       throw new ChainError(
         "ambiguous_asset_name",
         `${matches.length} TRC10 tokens are named ${reference}; re-run with the id`,
@@ -406,7 +381,6 @@ export class TronAssetService {
   }
 }
 
-/** the full read view of an asset, shared by `asset info`. */
 function assetView(asset: TronAsset) {
   const precision = asset.precision ?? 0;
   const rate: IcoRate = { trxNum: asset.trx_num, num: asset.num };
@@ -445,7 +419,7 @@ function parsePrice(value: string, precision: number): IcoRate {
   return icoRate(BigInt(match[1]!), BigInt(match[2]!), precision);
 }
 
-/** `<amount>:<days>` in whole tokens → a chain tranche in minimal units. */
+// Parse whole-token <amount>:<days> into minimal units.
 function parseTranche(value: string, scale: bigint): TronAssetTranche {
   const match = /^(\d+):(\d+)$/.exec(value.trim());
   if (!match)
@@ -458,7 +432,6 @@ function parseTranche(value: string, scale: bigint): TronAssetTranche {
   return { frozen_amount: toSafeInteger(amount * scale, "--freeze"), frozen_days: days };
 }
 
-/** `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss`, always read as UTC so it is reproducible anywhere. */
 function parseUtcDateTime(value: string, flag: string): number {
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(value.trim());
   if (!match) {
@@ -469,9 +442,7 @@ function parseUtcDateTime(value: string, flag: string): number {
   }
   const [, y, mo, d, h = "00", mi = "00", s = "00"] = match;
   const stamp = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
-  // Date.UTC rolls over out-of-range parts (month 13 → next January); reject rather than reinterpret.
-  // Comparing the whole instant, not just the date: `12:60:00` rolls to 13:00:00 WITHIN the same
-  // day, so a date-only check waves it through — and an issuance is irreversible.
+  // Reject Date.UTC rollover in both date and time components.
   const iso = new Date(stamp).toISOString();
   if (iso.slice(0, 19) !== `${y}-${mo}-${d}T${h}:${mi}:${s}`) {
     throw new UsageError("invalid_value", `${flag} is not a real date and time`);
@@ -511,8 +482,7 @@ function requirePositiveInteger(value: string, flag: string): bigint {
   return parsed;
 }
 
-/** protobuf int64 fields travel as JS numbers through tronweb; refuse anything that would lose
- *  precision rather than issue a token with a silently wrong supply. */
+// TronWeb passes int64 fields as JS numbers; reject precision loss.
 function toSafeInteger(value: bigint, flag: string): number {
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new UsageError(

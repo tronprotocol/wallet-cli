@@ -12,7 +12,6 @@ const NET = {
   chainId: "nile",
 } as unknown as NetworkDescriptor;
 
-// Minimal fake gateway: status() only touches the two lookup endpoints.
 function service(opts: { tx?: TronTx | Error; info?: TronTxInfo | Error; head?: number | Error }) {
   const gateway = {
     async getTransactionById(): Promise<TronTx> {
@@ -77,9 +76,6 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("fails instead of reporting not_found when the node cannot be reached", async () => {
-    // getTransactionInfoById resolving is what proves the node answered at all. If it rejects,
-    // nothing here knows whether the transaction exists — and `not_found` in the four-state model
-    // means "keep polling", which would loop forever against a node that is simply down.
     await expect(
       service({
         tx: new ChainError("rpc_error", "boom"),
@@ -89,8 +85,6 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("still reports not_found when the node answers and simply has no such transaction", async () => {
-    // The node is healthy: getTransactionInfoById resolved (Nile returns {} for an unknown hash).
-    // getTransactionById rejecting is then a fact about the transaction, not about the node.
     const s = await service({
       tx: new Error("Transaction not found"),
       info: {},
@@ -99,11 +93,6 @@ describe("TronTransactionService.status — four-state", () => {
   });
 });
 
-/**
- * `Confirmations` is NOT EVM-specific. `--wait` stops at the
- * receipt, so how deep is deep enough is the caller's judgement to make, and this is the number
- * they make it with.
- */
 describe("TronTransactionService.status — confirmations", () => {
   it("reports head minus the transaction's block", async () => {
     const s = await service({
@@ -115,7 +104,6 @@ describe("TronTransactionService.status — confirmations", () => {
     expect(s.confirmations).toBe(36);
   });
 
-  // The including block is not counted, so a transaction in the head block reports zero.
   it("reports zero for a transaction in the head block", async () => {
     const s = await service({
       tx: { txID: "abc" } as TronTx,
@@ -126,8 +114,6 @@ describe("TronTransactionService.status — confirmations", () => {
     expect(s.confirmations).toBe(0);
   });
 
-  // Absent, not zero: "we could not ask" is a different claim from "nothing on top yet", and the
-  // extra call must never cost the answer the command was actually asked for.
   it("omits the field when the head could not be read, and still answers", async () => {
     const s = await service({
       tx: { txID: "abc" } as TronTx,

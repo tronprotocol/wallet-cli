@@ -1,25 +1,12 @@
-/**
- * Shared chain-command factories — only for commands whose intent and input shape are
- * identical across families. Divergent commands (for example send-native,
- * with chain-specific amount units + build/estimate) live explicitly in each chain module.
- */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 
-/** Help line for SunSwap/SunPump write commands: the TRON app settings a Ledger account needs.
- *  Approvals and other contract calls need "Custom contracts"; Permit2 grants and transactions
- *  too large for the device need "Sign by Hash". The error names the missing one at signing time. */
 export const LEDGER_TRON_SETTINGS_NOTE =
   'Ledger: enable "Custom contracts" and "Sign by Hash" in the TRON app settings.\n';
 
-// ── execution-mode flags shared by every signing command ─────────────────────────
-/** Transaction execution fields; default (no mode flag) = sign and broadcast on-chain. */
-/** TRON multi-signature concepts: a permission group to sign under, and a longer expiry while
- *  signatures are collected. Neither exists on a single-signature chain, so they belong to the
- *  TRON binding rather than to every family's flag set. */
 export const tronTxModeFields = {
   permissionId: z.coerce
     .number()
@@ -28,8 +15,6 @@ export const tronTxModeFields = {
     .max(9)
     .default(0)
     .describe("TRON permission group to sign with (0=owner, 1=witness, 2-9=active)"),
-  // The 24h bound is the chain's, enforced by max() above; the omitted case is the node's own
-  // ~60s, which is why extending it is the whole point of this flag when collecting signatures.
   expiration: z.coerce
     .number()
     .int()
@@ -50,8 +35,6 @@ export const txModeFields = {
     .boolean()
     .default(false)
     .describe("sign and output complete transaction hex without broadcasting"),
-  // Both multi-sig routes start from this artifact: the hex relay (`tx sign --file --out`) and the
-  // TronLink queue (`tx multisig --create`). Naming only one would read as "service path only".
   buildOnly: z
     .boolean()
     .default(false)
@@ -60,7 +43,6 @@ export const txModeFields = {
     ),
 };
 
-/** Full transaction controls required by governance/administrative writes. */
 export const governanceTxModeFields = {
   ...txModeFields,
   ...tronTxModeFields,
@@ -90,16 +72,12 @@ export function governanceTxRefine(
     });
   }
 }
-// ── unified --amount / --raw-amount selector (shared by every chain's `tx send`) ────
-// A transfer of 0 is meaningless on any chain — reject it here (exit 2) rather than let the node
-// reject it with an opaque error. regex-based zero check (never BigInt): zod v4 keeps running
-// refinements after the regex fails, so a throwing check would escape safeParse.
+// Use regex for zero checks: Zod runs refinements even after the format check fails.
 const positiveDecimalAmount = z
   .string()
   .regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string")
   .refine((v) => !/^0+(\.0+)?$/.test(v), { message: "must be greater than zero" });
 
-/** the `--amount`/`--raw-amount` field pair; descriptions vary per chain (units differ). */
 export function unifiedAmountFields(amountDesc: string, rawDesc: string) {
   return {
     amount: positiveDecimalAmount.optional().describe(amountDesc),
@@ -107,7 +85,6 @@ export function unifiedAmountFields(amountDesc: string, rawDesc: string) {
   };
 }
 
-/** superRefine: exactly one of --amount or --raw-amount must be present. */
 export function amountSelector(
   v: { amount?: string; rawAmount?: string },
   ctx: z.RefinementCtx,
@@ -134,13 +111,10 @@ export const messageSignSpec: ChainSpec = {
   auth: "required",
   capability: "message.sign",
   summary: "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
-  // The summary can only put the two standard names side by side; which one applies is what the
-  // caller actually needs, so the leaf page spells the mapping out.
   description:
     "Sign an arbitrary message. The prefix follows the selected network's family:\n" +
     "TIP-191/V2 for TRON, EIP-191 for EVM.",
   baseFields: messageSignFields,
-  // SecretResolver.pick enforces this: both sources → invalid_option, neither → missing_option.
   exclusive: [
     { label: "the message to sign", flags: ["message", "message-stdin"], select: "exactly-one" },
   ],

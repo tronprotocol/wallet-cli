@@ -1,13 +1,4 @@
-/**
- * A stand-in for the SunSwap market API, run as its OWN process.
- *
- * It cannot live inside the test: the golden suite drives the CLI with `spawnSync`, which blocks
- * the calling process's event loop, so a server listening there would never accept the
- * connection and every case would sit until its timeout.
- *
- * Answers the price call and fails the catalogue call, which is the arrangement that exercises
- * the degraded symbol lookup. Prints its port on the first stdout line.
- */
+// Run separately because the test process blocks on spawnSync.
 import { createServer } from "node:http";
 import { stdout } from "node:process";
 

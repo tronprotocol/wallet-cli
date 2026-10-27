@@ -29,9 +29,7 @@ function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
   throw new UsageError("invalid_value", `${flag} must be a JSON array`);
 }
 
-// Contract parameters are ABI-encoded from {type, value} entries. Validate the shape at the
-// command boundary so a malformed entry fails as invalid_value here, not as an opaque family
-// encoder/RPC error later.
+// Validate here so malformed entries produce a usage error before encoding.
 const typedParam = z
   .object({ type: z.string().min(1), value: z.unknown() })
   .refine((e) => e.value !== undefined, { message: "value is required" });
@@ -47,35 +45,17 @@ function typedParams(raw: string | undefined): TronContractParameter[] {
   return arr as TronContractParameter[];
 }
 
-// ── deploy input guards ────────────────────────────────────────────────────────
-// Both guards below only restate a rejection TronWeb already makes — the accepted input set is
-// unchanged. They exist because TronWeb states these two in terms of its own internals, and one
-// of them not as a rejection at all but as a crash.
-
-/** the ABI's entry list, in either shape TronWeb reads (`abi` itself, or `abi.entrys`). */
 function abiEntries(abi: unknown): unknown[] | undefined {
   if (Array.isArray(abi)) return abi;
   const wrapped = (abi as { entrys?: unknown } | null)?.entrys;
   return Array.isArray(wrapped) ? wrapped : undefined;
 }
 
-/**
- * TronWeb decides whether a constructor may take call value with an unguarded read —
- * `'payable' === func.stateMutability.toLowerCase()` (TransactionBuilder.js) — so a constructor
- * entry whose `stateMutability` is not a string dies inside the encoder as "Cannot read properties
- * of undefined (reading 'toLowerCase')", naming neither the ABI nor the missing key, and arriving
- * as rpc_error/exit 1 despite no request having been sent.
- *
- * Rejected here iff that read would throw — i.e. the value is not a string. An empty string is
- * left alone on purpose: TronWeb accepts it (`''.toLowerCase()` is fine, the constructor is simply
- * not payable), and rejecting it would make this CLI stricter than the encoder it fronts.
- * A non-array, non-`entrys` ABI is likewise left alone — TronWeb's own "Invalid options.abi
- * provided" already says that plainly.
- */
+// TronWeb accepts empty-string stateMutability but crashes on non-string values.
 function assertConstructorEncodable(abi: unknown): void {
   for (const entry of abiEntries(abi) ?? []) {
     const e = entry as { type?: unknown; stateMutability?: unknown } | null;
-    if (e?.type !== "constructor") continue; // TronWeb's && short-circuits the same way
+    if (e?.type !== "constructor") continue;
     if (typeof e.stateMutability !== "string") {
       throw new UsageError(
         "invalid_value",
@@ -86,14 +66,6 @@ function assertConstructorEncodable(abi: unknown): void {
   }
 }
 
-/**
- * `--constructor-params` entries, as `{type, value}` — the same form `contract call` and
- * `contract send` take.
- *
- * Deploy used to take bare positional values here while its siblings took typed entries: one
- * flag name, two incompatible formats. That is what unifying the flag fixed, so the guard that used to
- * reject the typed form now rejects the bare one.
- */
 function typedConstructorParams(raw: string | undefined): TronContractParameter[] {
   const values = jsonArray(raw, "--constructor-params");
   if (!z.array(typedParam).safeParse(values).success) {
@@ -120,8 +92,6 @@ export const contractCallSpec: ChainSpec = {
   auth: "none",
   capability: "contract.call",
   summary: "Read-only contract call",
-  // No ABI is fetched — the caller supplies the types. Without this the reader has no way
-  // to know why a signature is required, or why the result comes back undecoded.
   description:
     "Read-only contract call. The function signature and parameter types are supplied\n" +
     "explicitly; no ABI lookup is performed.",
@@ -156,11 +126,7 @@ const sendFields = z.object({
     .string()
     .optional()
     .describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
-  // Family-neutral and in WHOLE COINS, like `tx send --amount`. The concept — native coin
-  // attached to a call — is the same on every chain, so it gets one flag and one unit; the unit
-  // in `--call-value-sun`'s name is what made it unusable off TRON.
-  // Zero is a legitimate call value (it is the default), so this is not the transfer amount's
-  // "must be greater than zero" schema.
+  // Whole native coins; zero is valid for calls.
   value: z
     .string()
     .regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string")
@@ -175,7 +141,6 @@ const sendFields = z.object({
     ),
 });
 
-/** TRON prices a contract call in SUN and burns energy up to a fee limit; both flag names say so. */
 const tronContractWriteFields = z.object({
   callValueSun: Schemas.uintString()
     .optional()
@@ -186,8 +151,6 @@ const tronContractWriteFields = z.object({
   ...tronTxModeFields,
 });
 
-/** EVM prices it in gas. `--call-value` is in whole coins, matching `tx send --amount`; the
- *  per-gas fields are gwei, the unit every wallet and explorer uses. */
 const evmGasFields = z.object({
   gasLimit: Schemas.positiveIntString()
     .optional()
@@ -208,15 +171,12 @@ const evmGasFields = z.object({
     .describe("transaction nonce; defaults to the account's pending nonce"),
 });
 
-/** `contract send`'s call value is the shared `--value`; `contract deploy` has none — a
- *  deployment's value is always zero here, and offering a flag the command ignores is worse than
- *  omitting it. */
 const evmContractWrite = {
   fields: evmGasFields,
   refine: addressFieldsFor("evm", "contract"),
 };
 
-/** gwei on the flag, wei below it. */
+// CLI fees are in gwei; service fees are in wei.
 const withEvmFees = (input: Record<string, unknown>) => ({
   ...input,
   ...(input.maxFee === undefined ? {} : { maxFee: gweiToWei(String(input.maxFee)) }),
@@ -257,7 +217,6 @@ export const contractSendEvmBinding = (svc: EvmContractService): FamilyBinding =
     }),
 });
 
-/** the creation bytecode, from `--code` or `--code-file`. */
 async function creationBytecode(input: { code?: string; codeFile?: string }): Promise<string> {
   if (!input.codeFile) return checkedCreationCode(input.code!, "--code");
   let text: string;
@@ -272,37 +231,7 @@ async function creationBytecode(input: { code?: string; codeFile?: string }): Pr
   return checkedCreationCode(text, `--code-file ${input.codeFile}`);
 }
 
-/**
- * The bytecode with its surrounding whitespace trimmed, refused unless it is even-length hex.
- *
- * The rule is: trim, then even-length hex with an optional `0x`, and the trimmed string must not
- * be empty. The `0x` prefix is left on when it was given: normalising it is the encoder's job.
- *
- * That empty-string rejection is a DELIBERATE exception to this command's usual principle of
- * refusing only what cannot succeed. An empty deployment does succeed — `0x` builds a valid
- * transaction the EVM runs (empty init code, empty runtime code) with real uses, such as
- * occupying a CREATE2 address — so the line here is drawn at stated intent rather than at
- * chain outcome. Writing `0x` states it; an empty or whitespace-only file states nothing, and is
- * far more often what a failed compile leaves behind than something anybody meant. Waving that
- * through would quietly deploy an empty contract and burn a real CREATE's gas for it. Rejecting
- * it also puts the three ways in on the same footing: an empty VALUE is refused everywhere
- * (`--code ''` already fails the schema's `min(1)`), and an explicit `0x` is accepted everywhere.
- *
- * `contract create2` strips whitespace with `\s+` (domain/governance/create2.ts); this is
- * deliberately `.trim()` instead, not an oversight. A file holding two bytecode fragments on two
- * lines would be silently JOINED into one valid hex string by `\s+`, deploying a contract nobody
- * asked for — turning a loud failure into a quiet wrong answer. Interior whitespace already
- * cannot succeed (ethers refuses `"0x6080 604052"` at RLP serialisation), so refusing it here
- * convicts no one. A trailing newline is different: a code file all but always has one — an
- * editor's save, `echo`, `jq -r` — and it is objectively not bytecode.
- *
- * The `0x`/`0X` prefix is normalised to lowercase rather than accepted as-is: `0X` is valid hex
- * notation with no semantic difference from `0x`, but ethers rejects it downstream as
- * invalid_transaction — a local check that let it through while the encoder refused it would be
- * exactly the "misses it locally, misclassifies it downstream" failure this validation exists to
- * prevent. Normalising, not rejecting, is the fix: this CLI's own acceptance policy is "refuse
- * only what cannot succeed", and `0X...` bytecode succeeds once spelled the way the encoder wants.
- */
+// Allow explicit 0x for empty deployment; reject empty input and internal whitespace.
 function checkedCreationCode(raw: string, source: string): string {
   const code = raw.trim();
   const hex = code.replace(/^0x/i, "");
@@ -317,23 +246,10 @@ function checkedCreationCode(raw: string, source: string): string {
 
 interface DeploySource {
   bytecode: string;
-  /** present only when the source was an artifact; it is the compiler's own ABI. */
+  // Compiler ABI, present only for artifact input.
   abi?: unknown;
 }
 
-/**
- * A compiler artifact — the bytecode and the ABI, from the file the compiler already wrote.
- *
- * Every toolchain in both families emits the same two fields: Foundry (`out/X.sol/X.json`),
- * Hardhat and its TRON plugin sunhat (`artifacts/…/X.json`), and TronBox
- * (`build/contracts/X.json`). Only the bytecode's shape differs — Foundry nests it under
- * `{object}`, the others store the string directly — so both are accepted.
- *
- * This matters most on TRON, where `--abi` is required: without it the caller has to open the
- * artifact and paste a multi-kilobyte ABI onto the command line, which is transcription, not
- * input. It also removes the one way a correct deployment can still go wrong — types typed by
- * hand — because the ABI comes from the compiler that produced the bytecode.
- */
 async function readArtifact(path: string): Promise<DeploySource> {
   let text: string;
   try {
@@ -358,8 +274,7 @@ async function readArtifact(path: string): Promise<DeploySource> {
       errorMessage`artifact has no creation bytecode: ${path} (looked at .bytecode.object, .bytecode and .evm.bytecode.object)`,
     );
   }
-  // solc emits "0x" for an interface or an abstract contract: a real artifact for something that
-  // cannot be deployed. Saying so beats letting an empty deployment reach the chain.
+  // solc emits empty bytecode for interfaces and abstract contracts.
   if (bytecode.replace(/^0x/, "") === "") {
     throw new UsageError(
       "invalid_value",
@@ -369,7 +284,6 @@ async function readArtifact(path: string): Promise<DeploySource> {
   return { bytecode, ...(artifact.abi === undefined ? {} : { abi: artifact.abi }) };
 }
 
-/** the bytecode, and the ABI when the caller pointed at an artifact. */
 async function deploySource(input: {
   code?: string;
   codeFile?: string;
@@ -386,18 +300,12 @@ interface DeployArgInput {
   constructorParams?: string;
 }
 
-/** bare constructor values, from `--constructor-args` or unwrapped from `--constructor-params`. */
 function constructorValues(input: DeployArgInput): unknown[] {
   if (input.constructorArgs !== undefined)
     return jsonArray(input.constructorArgs, "--constructor-args");
   return typedConstructorParams(input.constructorParams).map((entry) => entry.value);
 }
 
-/**
- * Where the constructor's TYPES come from, in order of authority: the compiler's ABI, then a
- * signature the caller stated, then — only because it is the shape this command shipped with —
- * the types inlined beside each value.
- */
 function deployConstructorArgs(input: DeployArgInput, abi: unknown): DeployConstructorArgs {
   const values = constructorValues(input);
   if (abi !== undefined) return { source: "abi", abi, values };
@@ -442,14 +350,7 @@ export const contractSendTronBinding = (svc: TronContractService): FamilyBinding
     }),
 });
 
-/**
- * The call value in SUN, from either flag.
- *
- * `--value` is the family-neutral form and takes whole TRX; `--call-value-sun` is the old
- * TRON-only spelling, kept working for one release. Both at once is refused rather than
- * silently preferring one — they can disagree, and picking a winner would move an amount of
- * money the caller did not ask for.
- */
+// --value is whole TRX; --call-value-sun is SUN. Reject conflicting amount sources.
 function tronCallValueSun(input: { value?: string; callValueSun?: string }): string {
   if (input.value !== undefined && input.callValueSun !== undefined) {
     throw new UsageError(
@@ -513,9 +414,6 @@ const deployFields = z.object({
     ),
 });
 
-/** the spec's two base rules: the shared governance modes, plus exactly one bytecode source.
- *  Written out rather than composed generically because the two refines read different field
- *  sets, and a generic combinator would have to erase one of their types to fit them together. */
 function deployRefine(
   value: {
     artifact?: string;
@@ -534,13 +432,7 @@ function deployRefine(
   constructorArgsRefine(value, ctx);
 }
 
-/**
- * The constructor's arguments must have exactly one form, and their types exactly one source.
- *
- * Both rules exist because the alternative is silence: two argument lists means one is ignored,
- * and an ABI beside hand-written types means one of the two is not being used to encode. A
- * deployment cannot be undone, so neither is left to a precedence rule the caller cannot see.
- */
+// Reject competing argument or type sources rather than silently ignoring one.
 function constructorArgsRefine(
   value: {
     artifact?: string;
@@ -573,8 +465,6 @@ function constructorArgsRefine(
       message: "--constructor-signature is not needed with --artifact; its ABI declares the types",
     });
   }
-  // `--abi` counts here: it is TRON-only, and on TRON it is the type source — naming only the
-  // family-neutral flags would send a TRON caller to --constructor-signature, which TRON refuses.
   if (
     value.constructorArgs !== undefined &&
     value.artifact === undefined &&
@@ -590,7 +480,6 @@ function constructorArgsRefine(
   }
 }
 
-/** exactly one bytecode source, matching the rule `contract create2` already applies. */
 function codeSourceRefine(
   value: { code?: string; codeFile?: string; artifact?: string },
   ctx: z.RefinementCtx,
@@ -609,15 +498,6 @@ function codeSourceRefine(
   }
 }
 
-/**
- * TRON's deploy inputs.
- *
- * `--abi` stays REQUIRED here rather than becoming optional: TronWeb's createSmartContract
- * derives the constructor's types from the ABI and takes only bare values, so without it there
- * is nothing to encode against. Synthesising an ABI from the caller's inline types would hand
- * TronWeb something no one can check — a mistyped parameter would encode cleanly and deploy a
- * contract built from the wrong arguments. ethers needs no ABI, which is why this is `(TRON only)`.
- */
 const tronDeployFields = z.object({
   abi: z
     .string()
@@ -630,8 +510,7 @@ const tronDeployFields = z.object({
   ...tronTxModeFields,
 });
 
-/** TronWeb needs the whole ABI, not just the constructor's types, so a signature cannot stand in
- *  for it — the one place where the two families genuinely need different inputs. */
+// TronWeb requires the full ABI; a constructor signature cannot replace it.
 function tronDeployRefine(
   value: { abi?: string; artifact?: string; constructorSignature?: string },
   ctx: z.RefinementCtx,
@@ -706,8 +585,7 @@ export const contractDeployTronBinding = (svc: TronContractService): FamilyBindi
       ...input,
       abi,
       bytecode: source.bytecode,
-      // TronWeb takes bare values beside the ABI, so only the values travel. The TYPES come from
-      // the ABI in every case — which is why --artifact is the better way in.
+      // TronWeb takes bare values; their types come from the ABI.
       parameters: constructorValues(input),
     });
   },

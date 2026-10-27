@@ -39,7 +39,6 @@ describe("obtainSignature", () => {
     expect(out).toBe("sig");
   });
 
-  // A device prompt that is never tapped must not hang the CLI, and must abort the pending APDU.
   it("bounds a hung device signature and aborts it", async () => {
     const device = { kind: "device", address: "T1", precheck: async () => {} } as unknown as Signer;
     const s = scope();
@@ -60,7 +59,6 @@ describe("obtainSignature", () => {
     expect(aborted).toBe(true);
   });
 
-  // A failing precheck (wrong seed / locked device) must surface before anything is signed.
   it("propagates a precheck failure without signing", async () => {
     const produce = vi.fn(async () => "sig");
     const device = {

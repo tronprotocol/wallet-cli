@@ -1,36 +1,4 @@
 import { resolveTronAccount } from "../../../services/tron-account.js";
-/**
- * SunSwap collect-fees — taking a position's earnings without touching its principal.
- *
- * The narrowest of the three liquidity commands, and the differences are all subtractions:
- *
- * - V3 and V4 only. A V2 pool has no separable fees at all: they accrue into the LP token's own
- *   value, so there is nothing to claim — which is a different statement from "V2 is not
- *   supported".
- * - There is no "how much" on either protocol. `collect` takes what the position is owed, and it
- *   is owed in full. A partial option would suggest a choice the contract does not offer.
- * - Nothing is approved and no Permit2 is involved: the position manager already holds the
- *   position on both protocols.
- * - On V3, `remove-liquidity` already collects the fees alongside the principal, so this command
- *   exists for the case where the principal should stay where it is.
- *
- * WHAT A V4 RECEIPT CLAIMS, AND WHEN. The V3 path reads what the contract itself says is owed
- * (`v3OwedFees`) and reports it, both in the dry run and — after the event — as what arrived. V4
- * now has its own read, `v4OwedFees`, over the LP fee helper, and the receipt carries the two
- * figures it returns.
- *
- * That read is BEST EFFORT, and its failure is a third state rather than a zero. A dry run against
- * an unreachable node still previews the call, and a helper that cannot be read or decoded leaves
- * the receipt with NO amount and a warning — exactly the receipt this command produced before the
- * read existed, pointing at `sunswap position-list` for the unclaimed value. A zero is published
- * only when the helper answered zero. On a command whose whole purpose is collecting money, "0"
- * reads as "nothing was owed", and that is a claim only a measurement may make.
- *
- * ONE THING IS DELIBERATELY NOT SAID. Whether V4's `decreaseLiquidity` also pays out the accrued
- * fees — as V3's does — is unresolved here, and it cannot be settled without sending a
- * transaction. So nothing on this path claims it either way: no warning is copied over from V3's
- * removal, and no wording suggests a V4 withdrawal leaves the fees behind.
- */
 import type { NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../../contracts/transaction-input.js";
@@ -63,34 +31,21 @@ import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { describeHooks } from "../../../../domain/sunswap/v4-pool.js";
 import { LiquidityTransactions, outcomeTxId } from "./liquidity-transactions.js";
 
-/**
- * The lookup for the resolution further in. The entry has already resolved `token0`/`token1`
- * against the account's book, so what reaches these calls is an address (a pass-through) or a
- * builtin; a caller that skipped the entry gets the official layer only.
- */
 const RESOLVED = { caller: "liquidity" } as const;
 
-/** The receipt's `kind`, one value across every mode this command has. */
 const KIND = "sunswap-collect-fees" as const;
-
-/**
- * The tier `--fee` means when the caller named the pair but not the tier.
- *
- * It selects nothing — the position names its own pool — so all this default can do is disagree
- * with the position, and a disagreement is refused rather than resolved.
- */
 
 export interface CollectFeesInput extends TransactionModeInput {
   readonly protocol: string;
   readonly positionId: string;
-  /** V3 only: the fees go to the signing account on V4, and the flag is refused there. */
+  // V3 only; V4 pays the signing account.
   readonly recipient?: string;
-  /** V4 only, and optional: the pair as a CROSS-CHECK against the one the position holds. */
+  // V4 pair cross-check; both tokens must be supplied together.
   readonly token0?: string;
   readonly token1?: string;
-  /** V4 only: the tier, checked the same way. Accepted only alongside the pair. */
+  // V4 tier cross-check, accepted only with the pair.
   readonly fee?: number;
-  /** V4 only: the call carries a deadline; V3's `collect` does not. */
+  // V4 only; Unix seconds.
   readonly deadline?: number;
   readonly feeLimit?: string;
 }
@@ -99,10 +54,7 @@ export interface CollectedSide {
   readonly address: string;
   readonly symbol: string;
   readonly decimals: number;
-  /**
-   * Base units estimated before sending, then actual settlement after confirmation.
-   * Absent when neither an estimate nor a receipt is available.
-   */
+  // Base units; estimated before confirmation, replaced by settlement when available.
   readonly amount?: string;
 }
 
@@ -111,27 +63,19 @@ export interface CollectFeesView {
   readonly protocol: "V3" | "V4";
   readonly positionManager: string;
   readonly nftTokenId: string;
-  /**
-   * Always true: the pair is read from the position on both protocols.
-   *
-   * V4 accepts `--token0` / `--token1`, but they never SELECT anything — the position names its
-   * own pool and the pair it reports is what is used. The flags are checked against it and
-   * discarded, so the pair on the receipt came from the chain either way.
-   */
+  // The pair comes from the position, even when the caller supplies a cross-check.
   readonly tokensAuto: true;
-  /** the RESOLVED address the fees go to — never a placeholder, because a script has to know. */
   readonly recipient: string;
   readonly token0: CollectedSide;
   readonly token1: CollectedSide;
-  // ── V4 ──────────────────────────────────────────────────────────────────────
-  /** the 32-byte pool id. A V4 pool has no address, so this is what names it. */
+  // 32-byte V4 pool id.
   readonly poolId?: string;
   readonly feeTier?: number;
-  /** part of the pool's identity on V4, rather than implied by the fee tier. */
+  // V4 pool identity; independent of the fee tier.
   readonly tickSpacing?: number;
-  /** already the WORD for it — "none" for an unhooked pool — never the zero address. */
+  // "none" for an unhooked pool.
   readonly hooks?: string;
-  /** seconds since epoch, after which the call stops being valid. V4 only. */
+  // Unix seconds; V4 only.
   readonly deadline?: number;
 }
 
@@ -154,15 +98,12 @@ export class SunSwapCollectFeesService {
   ): Promise<Record<string, unknown>> {
     const protocol = input.protocol.toUpperCase();
     if (protocol === "V4") {
-      // Only V4 reads the pair: it is the cross-check against the position's own currencies.
       const book = this.tokens.resolvePair(network, input, {
         caller: "liquidity",
         account: tokenBookAccount(scope),
       });
       return withTokenBook(await this.#collectV4(scope, network, book.input), book.resolved);
     }
-    // Not "unknown protocol": V2's fees are real, they simply are not separable — they accrue
-    // into the LP token's value and come out when the liquidity does.
     if (protocol !== "V3") {
       throw new UsageError(
         "invalid_value",
@@ -174,10 +115,7 @@ export class SunSwapCollectFeesService {
     const { plan, position } = await this.#plan(network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
-    // A collection of nothing is not a small collection. Measured on Nile: the contract accepts
-    // it, emits a Collect of zero, charges 8.08 TRX and the receipt reads "Fees collected" — a
-    // transaction that looks like success and leaves the caller poorer. It is refused in EVERY
-    // mode, ahead of the estimate, so a dry run and a build answer exactly as the execute would.
+    // Reject zero-fee collections in every mode before spending on estimation or execution.
     if (nothingOwed(plan)) throw noFeesToCollect(plan.nftTokenId);
 
     const payload = this.#payload(network, plan);
@@ -197,8 +135,7 @@ export class SunSwapCollectFeesService {
       return { kind: KIND, ...plan, ...built };
     }
 
-    // Re-read the owner immediately before sending: a dry run can be minutes old, and a position
-    // that changed hands in between must not have its fees claimed on this account's behalf.
+    // Ownership can change while the collection is being prepared.
     await this.#assertOwned(network, position.tokenId, owner);
     const main = await this.tx.run(scope, network, payload, {
       mode,
@@ -234,8 +171,6 @@ export class SunSwapCollectFeesService {
     const [token0, token1, owed] = await Promise.all([
       this.liquidity.tokenFacts(network, position.token0),
       this.liquidity.tokenFacts(network, position.token1),
-      // What the contract itself says is claimable — the same figure the transaction will move,
-      // so the dry run promises exactly what the receipt will report.
       this.liquidity.v3OwedFees(network, position.tokenId, recipient, owner),
     ]);
 
@@ -261,13 +196,7 @@ export class SunSwapCollectFeesService {
     });
   }
 
-  /**
-   * What actually arrived, from the transaction's own `Collect` event.
-   *
-   * The owed figure was read a moment before sending, and a trade in between changes it. The
-   * event is what the contract recorded paying out. Best-effort: the fees are already the
-   * caller's, so a failed read costs the exact figure, not the collection.
-   */
+  // Settlement is best effort; a receipt read failure must not fail a confirmed collection.
   async #settle(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -310,15 +239,6 @@ export class SunSwapCollectFeesService {
     return position;
   }
 
-  // ── V4 ──────────────────────────────────────────────────────────────────────
-
-  /**
-   * A V4 collection.
-   *
-   * ONE call, like V3's, and with the same absences: no amount to choose, no approval, no
-   * Permit2. What V4 adds is the pool key the call carries, and that key is the whole risk of
-   * this path — see `#planV4`.
-   */
   async #collectV4(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -328,24 +248,7 @@ export class SunSwapCollectFeesService {
     const { plan, position, request } = await this.#planV4(scope, network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
-    /**
-     * A collection of nothing is not a small collection — the same reason V3 refuses one, and in
-     * every mode for the same reason: a dry run and a build answer exactly as the execute would.
-     *
-     * On V4 it also has to run BEFORE the estimate. The collect call is a zero-delta
-     * `decreaseLiquidity`, and on an empty position the contract reverts it with
-     * `CannotUpdateEmptyPosition` (0xaefeb924), so an estimate reached here would fail as
-     * `execution_reverted` instead of saying what is actually wrong.
-     *
-     * The predicate is NOT V3's, and the difference is the whole point. V3's `nothingOwed` reads a
-     * missing amount as zero, which is right there because V3 always has the figure. Here the
-     * amount is absent whenever the fee read failed, and refusing on THAT would block a caller from
-     * collecting real fees because we could not read them. So both sides must be present AND zero:
-     * a measured nothing is refused, an unknown is sent.
-     *
-     * The one exception is an EMPTY position: the contract refuses any modification of one, so its
-     * collect could never be sent whatever the fee read said, and it is refused the same way.
-     */
+    // V4 rejects empty-position updates; check before estimation even if fees are unknown.
     if (measuredNothingOwed(plan) || BigInt(position.liquidity) === 0n) {
       throw noFeesToCollect(request.tokenId);
     }
@@ -367,9 +270,7 @@ export class SunSwapCollectFeesService {
       return { kind: KIND, ...plan, ...built };
     }
 
-    // Re-read the owner immediately before sending, for the same reason V3 does: a dry run can be
-    // minutes old, and a position that changed hands in between must not have its fees claimed on
-    // this account's behalf.
+    // Ownership can change while the collection is being prepared.
     await this.#assertV4Owned(network, request.tokenId, owner);
     const main = await this.tx.run(scope, network, payload, {
       mode,
@@ -401,18 +302,6 @@ export class SunSwapCollectFeesService {
     return { kind: KIND, ...plan, ...outcomeData(main), amountsEstimated: true, ...settled };
   }
 
-  /**
-   * Everything a V4 collection needs, decided before anything is sent.
-   *
-   * THE POOL KEY IS THE POOL'S OWN, verbatim from `v4PoolState(position.poolId)` — currencies,
-   * hooks, fee and the `parameters` word alike. Re-encoding `parameters` from the tick spacing
-   * would be our guess at a layout the pool has already stated, and a key that differs by one bit
-   * names a different pool.
-   *
-   * `--token0` / `--token1` and `--fee` are CROSS-CHECKS, never selectors: the position names its
-   * own pool, so all the caller's pair can do is disagree, and a disagreement is refused rather
-   * than resolved in either direction.
-   */
   async #planV4(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -434,9 +323,6 @@ export class SunSwapCollectFeesService {
       deadline: number;
     };
   }> {
-    // Defensive: the command schema refuses each of these at parse time, where it is deterministic
-    // and needs no wallet. Restated here because the use case is also reachable directly, and a
-    // recipient silently dropped is a collection sent somewhere the caller did not ask for.
     if (input.recipient !== undefined) {
       throw new UsageError(
         "invalid_option",
@@ -460,15 +346,7 @@ export class SunSwapCollectFeesService {
     const position = await this.#assertV4Owned(network, input.positionId, owner);
     if (named === 2) {
       this.#assertPairMatches(network, position, input.token0!, input.token1!);
-      /**
-       * `--fee` cross-checks ONLY when the caller gave one.
-       *
-       * It has no default of 500 here, on purpose. On V4 the position names its own pool, so this
-       * flag selects nothing and can only ever AGREE or DISAGREE. A default that can only disagree
-       * is not a default — it is a refusal waiting for everyone whose position is not in the 500
-       * tier, over a value they never typed. A 500 default is right where it selects something, as
-       * on add-liquidity's new position; here it does not.
-       */
+      // Only an explicit fee is a cross-check; a default would reject other tiers.
       if (input.fee !== undefined && input.fee !== position.fee) {
         throw new UsageError(
           "invalid_value",
@@ -488,7 +366,6 @@ export class SunSwapCollectFeesService {
     const [token0, token1, owed] = await Promise.all([
       this.#facts(network, pool.currency0),
       this.#facts(network, pool.currency1),
-      // What the LP fee helper says is owed, if it can be asked at all.
       this.#owedFees(scope, network, position),
     ]);
     const deadline = resolveDeadline(input.deadline, Date.now());
@@ -499,18 +376,14 @@ export class SunSwapCollectFeesService {
         protocol: "V4",
         positionManager: this.liquidity.v4PositionManager(network),
         nftTokenId: position.tokenId,
-        // The pair came from the pool, not from the caller, whether or not they named it.
         tokensAuto: true,
-        // Always the signing account: `--recipient` is refused on this path.
         recipient: owner,
-        // The measurement or nothing — never a zero standing in for an unanswered question.
+        // Unknown fees must remain absent, not zero.
         token0: owed === undefined ? unpriced(token0) : collected(token0, owed.amount0),
         token1: owed === undefined ? unpriced(token1) : collected(token1, owed.amount1),
         poolId: pool.poolId,
         feeTier: pool.fee,
         tickSpacing: pool.tickSpacing,
-        // The word for it, never the zero address — which on TRON is also native TRX's address,
-        // so printing it would say the pool is hooked to TRX.
         hooks: describeHooks(pool.hooks),
         deadline,
       },
@@ -521,7 +394,7 @@ export class SunSwapCollectFeesService {
           currency1: pool.currency1,
           hooks: pool.hooks,
           fee: pool.fee,
-          // The pool's OWN word, never re-encoded from the spacing.
+          // Preserve the pool's parameters verbatim: changing any bit changes its identity.
           parameters: pool.parameters,
         },
         tokenId: position.tokenId,
@@ -531,14 +404,7 @@ export class SunSwapCollectFeesService {
     };
   }
 
-  /**
-   * The fees the position is owed, or nothing at all — and never a zero for "we could not tell".
-   *
-   * Best effort by design. A dry run exists to be run before committing to anything, including
-   * against a node that is slow, rate-limited or briefly unreachable, so a fee helper that cannot
-   * be reached must not turn the preview into a failure. When it cannot answer, the receipt goes
-   * out with no amount and a warning saying where the figure can be found instead.
-   */
+  // A failed fee read must not block collection or be reported as zero.
   async #owedFees(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -570,13 +436,7 @@ export class SunSwapCollectFeesService {
     return owed;
   }
 
-  /**
-   * The caller's pair against the position's own, as a set.
-   *
-   * Unordered on purpose: V4's currency order is the key's, not the caller's, and a caller who
-   * wrote the two sides the other way round has named the same pool. What this exists to catch is
-   * a caller collecting from a position they did not mean to, and that is caught either way round.
-   */
+  // Either token order identifies the same pair.
   #assertPairMatches(
     network: NetworkDescriptor,
     position: V4Position,
@@ -616,14 +476,13 @@ export class SunSwapCollectFeesService {
     return position;
   }
 
-  /** Native TRX has no contract to ask; V4 keys carry it unwrapped. */
+  // Native TRX has no token contract; V4 keys carry it unwrapped.
   async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
     if (address === NATIVE_TRX_ADDRESS) return { address, decimals: 6, symbol: "TRX" };
     return this.liquidity.tokenFacts(network, address);
   }
 }
 
-/** decimals travels with the amount, always — see the receipt-scale test. */
 function collected(facts: TokenFacts, amount: string): CollectedSide {
   return {
     address: facts.address,
@@ -633,17 +492,11 @@ function collected(facts: TokenFacts, amount: string): CollectedSide {
   };
 }
 
-/** A side with no amount: the read did not answer, and a zero would claim that it had. */
 function unpriced(facts: TokenFacts): CollectedSide {
   return { address: facts.address, symbol: facts.symbol, decimals: facts.decimals };
 }
 
-/**
- * Both sides read successfully AND both are zero.
- *
- * Deliberately not `?? "0"`: an absent amount means the read failed, which is a different fact from
- * a zero and must not be refused on.
- */
+// An absent amount is unknown, so only two measured zeros justify rejection.
 function measuredNothingOwed(plan: CollectFeesView): boolean {
   const a = plan.token0.amount;
   const b = plan.token1.amount;
@@ -651,7 +504,6 @@ function measuredNothingOwed(plan: CollectFeesView): boolean {
   return BigInt(a) === 0n && BigInt(b) === 0n;
 }
 
-/** One refusal for both protocols and every mode, so the three answers cannot drift apart. */
 function noFeesToCollect(tokenId: string): UsageError {
   return new UsageError(
     "invalid_value",

@@ -5,7 +5,6 @@ import type { MarketDataPort, PriceRecord } from "../../../ports/sunswap/market-
 import type { NetworkDescriptor, WarningView } from "../../../../domain/types/index.js";
 import { ChainError } from "../../../../domain/errors/index.js";
 
-/** Mainnet, which has a price source — the branch where the USD fields may be published. */
 const TRON = {
   id: "tron:728126428",
   family: "tron",
@@ -17,7 +16,6 @@ const TRON = {
   sunswap: { marketApiBaseUrl: "https://open.sun.io" },
 } as unknown as NetworkDescriptor;
 
-/** Nile: the same contracts, no market API. Everything but the USD keys must still be published. */
 const NILE = {
   ...TRON,
   id: "tron:3448148188",
@@ -30,19 +28,13 @@ const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const OWNER = "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N";
 const POOL_ID = "61446c8062cdc7f165946650c5ca6b6aa1809d19fcdf69b58824b01dd581333e";
 
-/** Mainnet position 88: the amounts, the fees and the liquidity the market API reports for it. */
 const AMOUNT0 = "984154975046066985622761";
 const AMOUNT1 = "976580959229";
 const REWARD0 = "192392895141706307962";
 const REWARD1 = "193934246";
 const LIQUIDITY = "392657176790371861588";
 
-/**
- * `sqrt(P) * 2^96` for the pool price the market API's own derived amounts imply.
- *
- * Written out rather than computed, because the price (0.9999833482373381, in base units) has more
- * significant digits than a `number` literal may carry without losing some.
- */
+// Q64.96 literal preserves precision beyond a JavaScript number.
 const SQRT_PRICE = "79227502867239086850048";
 
 const FACTS: Record<string, { address: string; decimals: number; symbol: string }> = {
@@ -116,14 +108,6 @@ function makeMarket(overrides: Partial<MarketDataPort> = {}): MarketDataPort {
 }
 
 describe("position-info — V4", () => {
-  /**
-   * The WHOLE published object, asserted exactly.
-   *
-   * Deliberately not a set of `toHaveProperty` checks: this command's entire job is publishing a
-   * field-by-field description of a position, so a dropped key, a key published under another
-   * name, or a value taken from the wrong side of the pair all have to fail here. A partial
-   * assertion would let any of the three through.
-   */
   it("publishes every field it can read, and nothing it cannot", async () => {
     const { scope, warnings } = warnScope();
     const service = new SunSwapPositionInfoService(makeV4Port(), makeMarket());
@@ -133,11 +117,9 @@ describe("position-info — V4", () => {
       position: {
         nftTokenId: "88",
         owner: OWNER,
-        // a V4 pool has no address: the 64-hex pool id is what names it
         poolAddress: POOL_ID,
         protocol: "V4",
         status: "IN_RANGE",
-        // read off the NFT contract, NOT the market API's strings
         lpTokenName: "SunSwap V4 Positions NFT",
         lpTokenSymbol: "SUN-SWAP-V4-POSM",
         lpBalanceAmount: LIQUIDITY,
@@ -171,13 +153,9 @@ describe("position-info — V4", () => {
           maxPrice: "1.005014926708653",
           positionLiquidity: LIQUIDITY,
           tokenRewardUsd: "386.215279865955328950",
-          // the market API's derived pair, reproduced from the pool price it implies — the last
-          // digits differ only by the precision of the sqrt price this test can construct from a
-          // double
           derivedToken0Amount: "1960752196340212367546053",
           derivedToken1Amount: "1960719546359",
           isDynamicFee: false,
-          // the pool key's own word, without the 0x the read carries
           parameters: "0000000000000000000000000000000000000000000000000000000000010000",
           hasSubscriber: false,
         },
@@ -186,19 +164,6 @@ describe("position-info — V4", () => {
     expect(warnings).toEqual([]);
   });
 
-  /**
-   * The valuation, to eighteen places.
-   *
-   * Pinned separately from the shape above because it is the one place a `number` would survive
-   * every structural check while quietly rewriting the figure: this sum has twenty-five
-   * significant digits.
-   *
-   * IT IS NOT the market API's `lpBalanceUsd` (1960337.604921974103310348), and the gap is not a
-   * bug here. This figure is exactly `amount0 * priceUsd0 + amount1 * priceUsd1` from the values
-   * published alongside it, which is the only definition anyone can check; the market API's own
-   * total does not reconcile with its own amounts and prices, and reproducing a figure we cannot
-   * derive would mean copying it rather than computing it.
-   */
   it("values the position exactly, past what a double could hold", async () => {
     const { scope } = warnScope();
     const service = new SunSwapPositionInfoService(makeV4Port(), makeMarket());
@@ -237,7 +202,6 @@ describe("position-info — V4", () => {
       TRON,
       { protocol: "V4", positionId: "88" },
     );
-    // the zero address is ALSO native TRX's on TRON, so publishing it would say "hooked to TRX"
     expect("hooksAddress" in unhooked.position.extra).toBe(false);
   });
 });
@@ -251,7 +215,6 @@ describe("position-info — a USD figure is a claim", () => {
     expect("lpBalanceUsd" in out.position).toBe(false);
     expect("tokenRewardUsd" in out.position.extra).toBe(false);
     for (const token of out.position.tokens) expect("priceUsd" in token).toBe(false);
-    // and everything the chain does answer is still there
     expect(out.position.lpBalanceAmount).toBe(LIQUIDITY);
     expect(out.position.tokens[0]!.amount).toBe(AMOUNT0);
     expect(warnings).toEqual([expect.objectContaining({ code: "sunswap_prices_unavailable" })]);
@@ -348,10 +311,6 @@ describe("position-info — refusals", () => {
     ).rejects.toMatchObject({ code: "position_not_found" });
   });
 
-  /**
-   * An outage must not be reported as a missing position: a caller told "no such position" stops
-   * looking, while one told "nobody answered" retries.
-   */
   it("lets a timeout keep its own code", async () => {
     const { scope } = warnScope();
     const port = makeV4Port({
@@ -415,11 +374,6 @@ describe("position-info — V3", () => {
     } as unknown as LiquidityPort;
   }
 
-  /**
-   * V3's `extra` carries NO V4 key — not a zero, not a false, not an
-   * empty string. The assertion is on the key SET, because a `derivedToken0Amount: undefined`
-   * would pass any value check and still change the json.
-   */
   it("publishes the V3 shape, with a pool ADDRESS and none of V4's extra keys", async () => {
     const { scope } = warnScope();
     const out = await new SunSwapPositionInfoService(makeV3Port(), makeMarket()).positionInfo(
@@ -459,7 +413,6 @@ describe("position-info — V3", () => {
       positionId: "1845",
     });
     expect(out.position.status).toBe("OUT_RANGE");
-    // it holds none of the pool's ACTIVE liquidity while it is out of range
     expect(out.position.poolShare).toBe("0");
   });
 });

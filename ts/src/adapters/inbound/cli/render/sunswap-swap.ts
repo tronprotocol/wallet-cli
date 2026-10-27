@@ -1,11 +1,3 @@
-/**
- * Text receipts for `sunswap swap`.
- *
- * The `Market` row leads, and it is not decoration: on a curve the trading fee is SunPump's
- * platform fee rather than a pool's, there is one hop, and there is no price impact — so the same
- * table means different things depending on which market answered. A reader who cannot see the
- * market cannot read the rest correctly.
- */
 import type { TextRenderContext } from "../contracts/command.js";
 import { formatAmount, formatInt, shorten } from "./scalars.js";
 import { fail, ok, pending, receipt, table, warn } from "./layout.js";
@@ -25,7 +17,6 @@ interface ApprovalRow {
   readonly amount: string;
 }
 
-/** The Permit2 grant a router swap authorizes, when it spends a token. */
 interface PermitView {
   readonly permit2: string;
   readonly spender: string;
@@ -33,8 +24,7 @@ interface PermitView {
   readonly expiration: string;
 }
 
-/** One candidate route, as a quote publishes it. Amounts are base units; each hop carries its
- *  own scale, which is what lets this be rendered without a token table beside it. */
+// Route amounts are base units, scaled by each side's decimals.
 interface QuotedRoute {
   readonly amountIn: string;
   readonly amountOut: string;
@@ -78,7 +68,6 @@ interface SwapView {
 
 type Pair = [string, string];
 
-/** What a reader calls the market, not what the JSON keys it as. */
 const marketLabel = (market: string) =>
   market === "sunpump" ? "SunPump bonding curve" : "SunSwap";
 
@@ -87,8 +76,6 @@ const amount = (value: string, side: Side) =>
 
 export const SunSwapSwapFormatters = {
   sunswapSwap: (value: SwapView, ctx: TextRenderContext): string => {
-    // A quote is plural and carries its own routes; every other mode has one chosen route and a
-    // minimum to go with it.
     if (value.mode === "quote") return quote(value);
 
     const tokenIn = value.tokenIn ?? UNKNOWN_SIDE;
@@ -170,9 +157,7 @@ export const SunSwapSwapFormatters = {
         value,
       );
     }
-    // The grant is on the confirmed receipt too, and not only on the dry run. It outlives the
-    // transaction — that is the whole point of a permit — so what was authorized and until when is
-    // exactly what a reader needs from the record of it afterwards.
+    // Permits can outlive a swap; retain the grant and expiry on its receipt.
     const settled: Pair[] = [...rows, ...permitRows(value), ...ids];
     if (value.blockNumber !== undefined) {
       settled.push(["Block", `#${formatInt(value.blockNumber)}`]);
@@ -190,18 +175,10 @@ export const SunSwapSwapFormatters = {
   },
 };
 
-/**
- * A quote is a table, with the market named above it.
- *
- * No minimum column and no slippage: `--quote` refuses `--slippage`, and a floor nothing will
- * enforce would read as protection the caller does not have. The fee column is labelled for the
- * market it came from — a platform fee and a pool fee are not the same thing.
- */
+// Quotes have no enforceable minimum; fee meaning depends on the market.
 function quote(value: SwapView): string {
   const routes = value.routes ?? [];
   const feeHeader = value.market === "sunpump" ? "Platform fee" : "Trading fee";
-  // A curve has no pool to move against, so the column is absent rather than showing a zero that
-  // would read as "measured, and none".
   const impact = routes.some((route) => route.priceImpactPercent !== undefined);
   const headers = ["Route", "Amount in", "Amount out", feeHeader];
   if (impact) headers.push("Price impact");
@@ -210,8 +187,6 @@ function quote(value: SwapView): string {
     const last = route.path[route.path.length - 1] ?? UNKNOWN_SIDE;
     const cells = [
       route.path.map((hop) => hop.symbol).join(" → "),
-      // Plain here, unlike the receipt's `Spent` row: this table has its own fee column, and
-      // saying the fee twice invites a reader to add it on.
       amount(route.amountIn, first),
       amount(route.amountOut, last),
       value.market === "sunpump"
@@ -222,8 +197,7 @@ function quote(value: SwapView): string {
       cells.push(route.priceImpactPercent === undefined ? "—" : `${route.priceImpactPercent}%`);
     return cells;
   });
-  // The contracts the two symbols resolved to, from the ends of the first route: every route
-  // joins the same two tokens.
+  // Every route joins the same input and output tokens.
   const ends = routes[0]?.path ?? [];
   const lines = [
     `Market  ${marketLabel(value.market)}`,
@@ -232,25 +206,16 @@ function quote(value: SwapView): string {
     "",
     table(headers, rows),
   ];
-  // How many exist, not how many were shown — so a caller knows whether --all would add anything.
   if (value.routesAvailable !== undefined && value.routesAvailable > routes.length) {
     lines.push("", `${routes.length} of ${value.routesAvailable} routes shown — --all lists them.`);
   }
-  // A hook nobody has verified is a fact about the route, not a decode failure: the route is still
-  // offered, and the reader decides.
   if (routes.some((route) => route.containsUnverifiedHook)) {
     lines.push("", `${warn()} A route passes through an unverified hook contract.`);
   }
   return lines.join("\n");
 }
 
-/**
- * The approval, described by what it actually is on each market.
- *
- * A curve sale grants the launchpad an UNLIMITED allowance and the note has to say so. A router swap
- * grants Permit2 exactly the trade. Using one wording for both was a real defect: a dry run of a
- * router swap read "approves the SunPump proxy without limit" over a row showing 1000000.
- */
+// Curve sales grant unlimited allowance; router swaps approve the trade amount.
 function approvalRows(value: SwapView): Pair[] {
   if (!value.approvals?.length) return [];
   const curve = value.market === "sunpump";
@@ -265,13 +230,6 @@ function approvalRows(value: SwapView): Pair[] {
   ]);
 }
 
-/**
- * The Permit2 grant, spelled out.
- *
- * A signature that lets a contract move tokens without a transaction of ours is the part of this
- * command a reader most needs to see before approving it, so the amount and the expiry are rows
- * rather than something only the JSON carries.
- */
 function permitRows(value: SwapView): Pair[] {
   const permit = value.permit;
   if (permit === undefined) return [];
@@ -289,9 +247,6 @@ function withNotes(body: string, value: SwapView): string {
       `${warn()} Selling into the curve approves the SunPump proxy without limit, as \`sunpump sell\` does.`,
     );
   }
-  // The swap's own fee is unknowable until the permit is signed, and a dry run does not sign. Said
-  // rather than left to infer, as the liquidity commands do for a pending approval. With no permit
-  // a standing grant covers the swap, so only the pending approval stands in the way.
   if (value.feeUnavailableReason || value.feeCovers === "approvals") {
     notes.push(
       value.market === "sunswap" && value.permit === undefined
@@ -299,13 +254,10 @@ function withNotes(body: string, value: SwapView): string {
         : `${warn()} The swap's own fee cannot be estimated until the Permit2 authorization is signed, which a dry run does not do.`,
     );
   }
-  // A hook nobody has verified is a fact about the route, and it belongs in every mode rather than
-  // only in the quote table.
   if (value.route?.containsUnverifiedHook) {
     notes.push(`${warn()} This route passes through an unverified hook contract.`);
   }
-  // A failed swap leaves the TRC20 allowance in place without an expiry. Only the signed
-  // Permit2 grant has the expiry reported below.
+  // TRC20 approvals have no expiry; signed Permit2 grants do.
   if (value.stage === "failed" && value.permit !== undefined) {
     notes.push(
       `${warn()} The TRC20 approval is still in place and does not expire automatically. The Permit2 grant is limited to this trade and expires at ${formatTimestamp(value.permit.expiration)}.`,
@@ -314,7 +266,7 @@ function withNotes(body: string, value: SwapView): string {
   return notes.length === 0 ? body : `${body}\n\n${notes.join("\n\n")}`;
 }
 
-/** A unix second as a readable UTC instant, which is what an expiry has to be to be checked. */
+// Input is Unix seconds; output uses UTC.
 function formatTimestamp(seconds: string): string {
   const at = new Date(Number(seconds) * 1000);
   return Number.isFinite(at.getTime())
@@ -328,13 +280,11 @@ function summary(value: SwapView, tokenIn: Side, tokenOut: Side, out: string | u
   return `Swapped ${amount(value.amountIn ?? "0", tokenIn)} for ${got}`;
 }
 
-/** The contract a side resolved to, marked when the symbol came from the user's own book. */
 function tokenAddress(value: SwapView, address: string | undefined): string {
   if (!address) return "";
   return fromTokenBook(value, address) ? `${address} ${TOKEN_BOOK_MARK}` : address;
 }
 
-/** A side we were not given. Renders as a bare figure rather than mis-scaling one. */
 const UNKNOWN_SIDE: Side = { address: "", symbol: "", decimals: 0 };
 
 function percent(slippage: string): string {

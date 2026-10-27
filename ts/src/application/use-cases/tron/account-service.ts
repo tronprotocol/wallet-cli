@@ -7,7 +7,6 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronAccount, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TronHistoryQuery, TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
-// Shared with every other family: `account portfolio` is one command, so one row shape.
 import { holding, portfolioTotal, unavailableHolding } from "../portfolio-holdings.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
@@ -40,9 +39,7 @@ export class TronAccountService {
     if (!ADDRESS.validate(input.address)) {
       throw new UsageError("invalid_value", "--address must be a valid TRON address");
     }
-    // The Ledger TRON app has no parser for AccountCreateContract (app-tron src/parse.c falls
-    // through to `default: return USTREAM_FAULT`), so the device answers 0x6a80 — and no app
-    // setting changes that. Refuse before any RPC rather than after sending the user to unlock it.
+    // Ledger cannot sign AccountCreateContract; reject before RPC.
     if (transactionRequiresSigner(input)) {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
@@ -106,8 +103,7 @@ export class TronAccountService {
       throw new UsageError("invalid_option", "provide exactly one of --name or --id");
     }
     const field = input.name !== undefined ? ("name" as const) : ("id" as const);
-    // Same parser gap as `activate`, but only for --id: the app implements AccountUpdateContract
-    // (--name) and not SetAccountIdContract, so the two fields differ in what a Ledger can sign.
+    // Ledger supports AccountUpdateContract (--name), but not SetAccountIdContract (--id).
     if (transactionRequiresSigner(input)) {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: field === "id" });
     }
@@ -200,8 +196,7 @@ export class TronAccountService {
     const tokens = this.tokens.effective(network.id, scope.activeAccount);
     const [nativeRaw, tokenBalances] = await Promise.all([
       gateway.getNativeBalance(address),
-      // per-token best-effort: one unreadable token (delisted, bad contract, RPC hiccup) must not
-      // sink the whole portfolio — degrade that row to balanceUnavailable instead.
+      // An unreadable token must not fail the whole portfolio.
       Promise.all(
         tokens.map((token) =>
           (token.kind === "trc10"
@@ -209,8 +204,7 @@ export class TronAccountService {
             : gateway.getTrc20Balance(token.id, address)
           )
             .then((raw) => ({ raw }) as const)
-            // best-effort: swallow the raw downstream error (may carry endpoint/key) — degrade to a
-            // stable reason instead of leaking it into the success payload (audit I-06).
+            // Downstream errors may contain endpoint credentials.
             .catch(() => ({ unavailable: true }) as const),
         ),
       ),
@@ -228,7 +222,7 @@ export class TronAccountService {
         ),
       ]);
     } catch {
-      // swallow the raw price-provider error (may carry a keyed URL); surface a stable reason only.
+      // Price-provider errors may contain keyed URLs.
       priceUnavailable = true;
     }
 
@@ -267,8 +261,6 @@ async function accountCreateFee(gateway: TronGateway) {
   const parameters = await gateway.getChainParameters();
   const find = (key: string): bigint => {
     const value = parameters.find((entry) => entry.key === key)?.value;
-    // `value` is typed `string | number` since the gateway port widened; isSafeInteger already
-    // rejects every non-number, so Number() here is a cast for the compiler, not a behaviour change.
     if (!Number.isSafeInteger(value) || Number(value) < 0) {
       throw new ChainError("provider_error", `chain parameter is unavailable: ${key}`);
     }

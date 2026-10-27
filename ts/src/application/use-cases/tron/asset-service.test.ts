@@ -14,9 +14,9 @@ const NET: NetworkDescriptor = {
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
-const OWNER_HEX = "4174472e7d35395a6b5add427eecb7f4b62ad2b071"; // == OWNER
+const OWNER_HEX = "4174472e7d35395a6b5add427eecb7f4b62ad2b071"; // OWNER in hex.
 const OTHER_HEX = "419756bae210f6e9591f311613cff8f19d6cef3971";
-const NOW = 1_800_000_000_000; // 2027-01-15T08:00:00Z
+const NOW = 1_800_000_000_000;
 
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
@@ -70,7 +70,6 @@ const ISSUE = {
 
 describe("asset issue", () => {
   it("refuses a Ledger account before touching the device", () => {
-    // The Ledger TRON app cannot parse AssetIssueContract at all.
     const assertCanSign = vi.fn();
     const svc = service({}, { assertCanSign });
     void svc.issue(scope, NET, { ...ISSUE }).catch(() => {});
@@ -170,7 +169,6 @@ describe("asset update", () => {
     );
 
     await svc.update(scope, NET, { url: "https://mytoken.io/v2" });
-    // the chain overwrites all four; omitting a flag must not blank the field
     expect(update).toEqual({
       url: "https://mytoken.io/v2",
       description: "Demo TRC10",
@@ -198,7 +196,7 @@ describe("asset participate", () => {
     const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX }) });
     await expect(svc.participate(scope, NET, input)).resolves.toMatchObject({
       paidSun: "100000000",
-      receivedAmount: "10000000000", // 100 TRX × 100 tokens, in minimal units
+      receivedAmount: "10000000000",
     });
   });
 
@@ -228,7 +226,7 @@ describe("asset participate", () => {
   });
 
   it("refuses a payment too small to buy one unit", async () => {
-    // at 1 sun per 0.5 minimal units, the smallest possible payment buys nothing
+    // One SUN buys half a minimal unit, which rounds down to zero.
     const svc = service({
       getAssetById: async () => asset({ owner_address: OTHER_HEX, trx_num: 2, num: 1 }),
     });
@@ -251,8 +249,6 @@ describe("asset participate", () => {
 });
 
 describe("ambiguous asset names", () => {
-  // A name collision is a choice, not a dead end: the error has to carry enough for the caller to
-  // pick — ids for a machine, and the columns a human compares on.
   it("carries the queried name, the ids, and one comparable row per match", async () => {
     const svc = service({
       getAssetsByName: async () => [
@@ -293,7 +289,7 @@ describe("asset unfreeze", () => {
   ];
 
   it("releases every matured tranche and reports what stays frozen", async () => {
-    const start = NOW - 60 * 86_400_000; // 60 days ago: first tranche matured, second not
+    const start = NOW - 60 * 86_400_000;
     const svc = service({
       getAssetByIssuer: async () => asset({ start_time: start, frozen_supply: tranches }),
     });
@@ -374,14 +370,6 @@ describe("asset info / list", () => {
   });
 });
 
-/**
- * `asset issue` burns the issuance fee, an account may only ever issue once, and the ICO window is
- * fixed for the life of the token. So a mistyped time must not become a different, valid one.
- *
- * The parser accepted any two digits per component and let `Date.UTC` roll them over, checking only
- * the resulting DATE afterwards — which catches `24:00:00` (it lands on the next day) but not
- * `12:60:00`, which stays inside the same day and is silently read as 13:00:00.
- */
 describe("asset issue rejects an impossible time instead of rolling it over", () => {
   const issueWith = (start: string) =>
     service({

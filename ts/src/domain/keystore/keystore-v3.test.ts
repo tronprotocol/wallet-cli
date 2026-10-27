@@ -9,8 +9,7 @@ const KEY = hexToBytes("4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d217
 const ADDRESS = "41f0cc5a2b8d4e7f9c1a3b5d7e9f0a2c4b6d8e0f12";
 const PW = "Str0ng!pass";
 
-// A light scrypt (n=2^10) keeps the round-trip test fast; the codec reads whatever n the file
-// declares. Export always writes n=2^18, asserted separately below.
+// Use a low scrypt cost for import tests.
 function lightV3(privateKey = KEY, password = PW) {
   const salt = new Uint8Array(32).fill(7);
   const iv = new Uint8Array(16).fill(3);
@@ -32,7 +31,6 @@ function lightV3(privateKey = KEY, password = PW) {
   };
 }
 
-/** A pbkdf2 keystore — the other KDF Java's importer accepts, which we must read but never write. */
 function pbkdf2V3() {
   const salt = new Uint8Array(32).fill(9);
   const iv = new Uint8Array(16).fill(5);
@@ -68,7 +66,7 @@ describe("KeystoreV3.encrypt", () => {
     expect(crypto.cipher).toBe("aes-128-ctr");
     expect(crypto.kdf).toBe("scrypt");
     expect(crypto.kdfparams).toMatchObject({ n: 262144, r: 8, p: 1, dklen: 32 });
-    expect(crypto.ciphertext).toHaveLength(64); // 32-byte key, ctr is length-preserving
+    expect(crypto.ciphertext).toHaveLength(64); // 32 bytes encoded as hex.
   });
 
   it("round-trips its own output", () => {
@@ -148,8 +146,6 @@ describe("KeystoreV3.decrypt", () => {
   });
 
   it("rejects a MAC-valid file whose payload is not a 32-byte key", () => {
-    // e.g. someone re-wrapped a seed vault's JSON plaintext in a V3 envelope: it decrypts cleanly,
-    // so only the length check catches it.
     const file = lightV3(utf8ToBytes(JSON.stringify({ v: 1, entropy: "00".repeat(16) })));
     expect(() => KeystoreV3.decrypt(file, PW)).toThrowError(/expected a 32-byte private key/);
   });
@@ -160,19 +156,6 @@ describe("KeystoreV3.decrypt", () => {
   });
 });
 
-/**
- * The Web3 MAC is keccak(dk[16:32] || ciphertext) — it authenticates the password only because
- * dk[16:32] is derived from it. A file declaring `dklen: 16` makes that slice EMPTY, so the MAC
- * degenerates to keccak(ciphertext): a value the file's author fixes, independent of any password.
- * Every password then passes the check and decrypts the ciphertext to different 32 random bytes,
- * which is a well-formed private key. The import reports success and the user holds an address
- * nobody knows the key to — funds sent there are burned.
- *
- * Both KDFs in the accept set are affected, and both are safe in the Java implementation this codec
- * claims parity with: its pbkdf2 path ignores `dklen` and always derives 32 bytes, and its scrypt
- * path would throw copying a 16-byte slice. Refusing dklen < 32 is therefore not a divergence from
- * Java — it is catching up with it.
- */
 describe("V3 import rejects a derived key too short to authenticate the password", () => {
   const shortDklen = (kdf: "pbkdf2" | "scrypt", password: string) => {
     const salt = new Uint8Array(32).fill(11);
@@ -196,7 +179,7 @@ describe("V3 import rejects a derived key too short to authenticate the password
         cipherparams: { iv: bytesToHex(iv) },
         kdf,
         kdfparams,
-        // dk[16:32] is empty, so this is keccak(ciphertext) — no password involved.
+        // An empty MAC key leaves the MAC independent of the password.
         mac: bytesToHex(Web3Crypto.mac(dk, ciphertext)),
       },
     };
@@ -206,7 +189,6 @@ describe("V3 import rejects a derived key too short to authenticate the password
     expect(() => KeystoreV3.decrypt(shortDklen(kdf, PW), PW)).toThrowError(/dklen/i);
   });
 
-  // The decisive property: without the guard BOTH of these succeed, each yielding a different key.
   it.each(["pbkdf2", "scrypt"] as const)(
     "refuses a %s file under any password, not just the wrong one",
     (kdf) => {
@@ -222,17 +204,6 @@ describe("V3 import rejects a derived key too short to authenticate the password
   });
 });
 
-/**
- * The MAC is a hex string, and `A1B2` and `a1b2` are the same bytes. It was the one hex field that
- * skipped `hexField` and was compared as a STRING against our lowercase rendering, so a file written
- * with uppercase hex — legal, and what `Arrays.equals` in the Java implementation accepts without
- * noticing — came back as `wrong_keystore_password`. Two things wrong with that: a valid file is
- * refused, and the refusal sends the reader to fix a password that was never wrong.
- *
- * The same misreport covered a malformed file: a missing or non-string `mac` compared unequal and
- * was also reported as a bad password, which the codec's own contract says it should not be
- * ("a malformed file is reported as such instead of as a wrong password").
- */
 describe("V3 import compares the MAC by value, not by how it was written", () => {
   const withMac = (mac: unknown) => {
     const file = lightV3() as unknown as { crypto: Record<string, unknown> };
@@ -264,16 +235,6 @@ describe("V3 import compares the MAC by value, not by how it was written", () =>
   });
 });
 
-/**
- * An imported keystore chooses its own KDF cost, and the KDF runs to completion BEFORE the MAC is
- * checked — so the file's author needs no password to decide how much work this process does.
- *
- * scrypt is already bounded: @noble/hashes refuses a non-power-of-two `n` outright and caps
- * `128 * r * (n + p + 1)` at its 1 GiB `maxmem`, which no bound of ours would improve on. pbkdf2
- * has no such ceiling — `c` is unbounded, and `dklen` is limited only by `(2^32 - 1) * 32` — so a
- * file can name a cost that runs for hours, or an output size that exhausts memory, and the failure
- * is a hang rather than a message naming the parameter that caused it.
- */
 describe("V3 import bounds the work an imported file can demand", () => {
   function withKdfParams(kdf: "scrypt" | "pbkdf2", kdfparams: Record<string, unknown>) {
     const base = kdf === "scrypt" ? lightV3() : pbkdf2V3();
@@ -298,8 +259,6 @@ describe("V3 import bounds the work an imported file can demand", () => {
     );
   });
 
-  // The bound has to be checked BEFORE the KDF runs, or it protects nothing: refusal must be
-  // immediate, not the result of doing the work first.
   it("refuses before doing the work", () => {
     const started = performance.now();
     expect(() =>
@@ -308,8 +267,6 @@ describe("V3 import bounds the work an imported file can demand", () => {
     expect(performance.now() - started).toBeLessThan(1_000);
   });
 
-  // A rejected parameter is a malformed FILE, not a wrong password: the two send the reader to
-  // completely different places.
   it("reports an out-of-range parameter as an invalid keystore, not a bad password", () => {
     try {
       KeystoreV3.decrypt(withKdfParams("pbkdf2", { c: 1_000_000_000 }), PW);
@@ -320,17 +277,13 @@ describe("V3 import bounds the work an imported file can demand", () => {
   });
 
   it("still accepts the costs real wallets actually write", () => {
-    // what our own export writes, and what MEW / TronLink emit
     expect(KeystoreV3.decrypt(lightV3(), PW)).toEqual(KEY);
     expect(KeystoreV3.decrypt(pbkdf2V3(), PW)).toEqual(KEY);
     expect(() => KeystoreV3.decrypt(withKdfParams("pbkdf2", { c: 262_144 }), PW)).toThrowError(
-      /password/i, // the MAC no longer matches, but the COST was accepted
+      /password/i, // Accept the cost despite the mismatched MAC.
     );
   });
 
-  // scrypt's ceiling belongs to noble, and it already refuses these without our help — but it says
-  // so with a bare Error. Left alone that reads as an internal fault of ours, sending the reader to
-  // debug the CLI over a file that simply names impossible parameters.
   it("reports scrypt's own refusals as an invalid keystore too", () => {
     for (const params of [{ n: 2 ** 30 }, { n: 3 }]) {
       try {
@@ -340,7 +293,6 @@ describe("V3 import bounds the work an imported file can demand", () => {
         expect((e as { code?: string }).code, JSON.stringify(params)).toBe("invalid_keystore");
       }
     }
-    // and the library's own wording survives, because it names the parameter at fault
     expect(() => KeystoreV3.decrypt(withKdfParams("scrypt", { n: 2 ** 30 }), PW)).toThrowError(
       /maxmem/i,
     );

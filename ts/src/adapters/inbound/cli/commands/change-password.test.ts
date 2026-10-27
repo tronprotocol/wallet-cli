@@ -8,10 +8,7 @@ import type { LedgerDevice } from "../../../../application/ports/ledger-device.j
 const OLD = "OldPw1!aa";
 const NEW = "NewPw2@bb";
 
-// change-password is TTY-only (secretsTtyOnly): the old password is primed from the TTY by dispatch,
-// the new password comes from a hidden prompt. --password-stdin / non-TTY are rejected upstream in
-// the shell dispatch (secretsTtyOnly pre-check), exercised by the stdin regression smoke, not here —
-// this unit test covers the run handler in isolation.
+// This harness bypasses dispatch, which enforces TTY-only secret input.
 function setup(opts: { newPrompt?: string; confirm?: boolean } = {}) {
   const changePassword = vi.fn(() => ({ wallets: ["seed", "hot"], count: 2 }));
   const wallets = {

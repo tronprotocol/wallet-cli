@@ -17,7 +17,6 @@ describe("ChainGatewayRegistry injected factories", () => {
   const p = new ChainGatewayRegistry(
     {
       tron: (n, timeoutMs) => new TronRpcClient(n.httpEndpoint ?? "", timeoutMs),
-      // no EVM adapter yet — this suite only exercises the TRON factory
       evm: () => {
         throw new Error("evm gateway not wired");
       },
@@ -26,6 +25,6 @@ describe("ChainGatewayRegistry injected factories", () => {
   );
   it("dispatches the tron factory and caches by net id", () => {
     expect(p.get(net("tron"), "tron")).toBeInstanceOf(TronRpcClient);
-    expect(p.client(net("tron"))).toBe(p.client(net("tron"))); // cached
+    expect(p.client(net("tron"))).toBe(p.client(net("tron")));
   });
 });

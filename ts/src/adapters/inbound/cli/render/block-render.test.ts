@@ -1,11 +1,3 @@
-/**
- * `block` renders each family's RAW node object.
- *
- * The JSON contract for this command is deliberately "what the node said", so the two families
- * arrive in different shapes: TRON nests the header under `block_header.raw_data` and reports
- * milliseconds, while an EVM node returns a flat object of hex QUANTITY values and seconds.
- * Normalizing for humans is therefore this renderer's job, and only this renderer's.
- */
 import { describe, it, expect } from "vitest";
 import { TextFormatters } from "./index.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
@@ -48,7 +40,6 @@ describe("block renderer", () => {
     expect(out).not.toContain("0x12d687");
   });
 
-  // Seconds read as milliseconds would date every EVM block to 1970.
   it("treats the EVM timestamp as seconds", () => {
     const out = TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!;
 
@@ -66,22 +57,15 @@ describe("block renderer", () => {
     expect(out).toContain("unknown");
   });
 
-  /**
-   * The four rows that say whether a block is full and what it cost. Without them `block` on EVM
-   * answered "how many transactions" and nothing a reader could act on.
-   */
   it("reports the EVM hash, parent, gas usage and base fee", () => {
     const out = TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!;
 
     expect(out).toContain("Hash");
     expect(out).toContain("Parent hash");
-    // decoded and grouped, never the hex the node sent
     expect(out).toContain("12,840,221 / 30,000,000");
     expect(out).toContain("18.4 gwei");
   });
 
-  // Not "a field whose value we do not know" but a concept that does not exist there; an empty
-  // row would claim the former.
   it("omits the base fee row entirely on a pre-1559 chain", () => {
     const { baseFeePerGas: _dropped, ...legacy } = EVM_BLOCK;
     const out = TextFormatters.block!({ block: legacy }, ctxFor("evm"))!;
@@ -89,7 +73,6 @@ describe("block renderer", () => {
     expect(out).not.toContain("Base fee");
   });
 
-  // The EVM rows are additive; TRON's three stay exactly as they were.
   it("leaves the TRON block rows unchanged", () => {
     const out = TextFormatters.block!({ block: TRON_BLOCK }, ctxFor("tron"))!;
 

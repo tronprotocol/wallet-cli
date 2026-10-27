@@ -3,7 +3,6 @@ export interface PromptChoice<T> {
   label: string;
 }
 
-/** Interaction capability used by application workflows; implemented by an inbound adapter. */
 export interface PromptPort {
   isTTY(): boolean;
   text(options: { label: string; validate?: (value: string) => string | null }): Promise<string>;

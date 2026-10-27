@@ -143,11 +143,6 @@ it("uses not_sent only when the caller has no authorization or transaction evide
   });
 });
 
-/**
- * Without an explicit --max-amount the SDK's own $1-per-payment spend control stays on, and it
- * rejects inside `selectPaymentRequirements` — before any payment is created — with a plain
- * Error. That is a deterministic policy refusal the caller can act on, not an upstream failure.
- */
 it.each([
   [
     "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",

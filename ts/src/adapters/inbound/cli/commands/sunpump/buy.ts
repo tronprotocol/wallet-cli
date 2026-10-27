@@ -15,14 +15,10 @@ const fields = z.object({
 export const sunpumpBuySpec: ChainSpec = {
   path: ["sunpump", "buy"],
   network: "optional",
-  // `none` because `--quote` must work with no account at all, and the framework
-  // resolves the active account up front for anything else. Every mode that signs resolves it in
-  // the use case instead and fails with the same `missing_wallet_address` when there is none —
-  // later, but identically.
+  // Quotes need no account; signing modes resolve it in the use case.
   wallet: "none",
   auth: "conditional",
   broadcasts: true,
-  // A quote sends nothing, so there is no confirmation for --wait or --wait-timeout to wait on.
   rejectsWaitWith: "quote",
   capability: "sunpump.curve",
   summary: "Buy a token on the SunPump bonding curve",
@@ -34,12 +30,9 @@ export const sunpumpBuySpec: ChainSpec = {
     CURVE_TRADE_NOTES +
     "\n\nAn account is needed for every mode except --quote, which reads only.",
   baseFields: fields,
-  // A malformed address is `invalid_address` at exit 2, refused here rather than carried to a
-  // node that answers with a base58 complaint at exit 1.
   baseRefine: allRefines(
     addressFieldsFor("tron", "token"),
     refuseQuoteWithSendingFlags,
-    // A tolerance is pure input, so it is checked here rather than after a launchpad read.
     slippageField(),
   ),
   positionals: [{ field: "token", placeholder: "address" }],

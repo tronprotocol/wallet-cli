@@ -8,20 +8,18 @@ const {
   secretStdinFlags: SECRET_STDIN_FLAGS,
 } = globalTokenMaps();
 
-/** A value flag whose supplied value failed coercion — surfaced by the runner as invalid_value. */
 export interface InvalidGlobal {
   flag: string;
   value: string;
   reason: string;
 }
 
-/** Pre-yargs scan needed to select output and secret channels before the CLI adapter is built. */
+// Select output and secret channels before constructing the CLI adapter.
 export function parseGlobals(tokens: string[]): {
   globals: Globals;
   secretPaths: SecretPaths;
   invalid: InvalidGlobal[];
-  /** the literal `--*-stdin` flags seen, one per distinct secret kind, in the order they appeared —
-   *  used to reject more than one before any secret is read (stdin serves at most one per run). */
+  // Distinct secret flags in argv order; stdin can supply only one secret per run.
   stdinFlags: string[];
 } {
   const globals = { verbose: false } as Globals;
@@ -61,7 +59,6 @@ export function parseGlobals(tokens: string[]): {
   return { globals, secretPaths, invalid, stdinFlags };
 }
 
-/** True when argv contains a command token rather than only global flags and their values. */
 export function hasCommand(tokens: string[]): boolean {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;

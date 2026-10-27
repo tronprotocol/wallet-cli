@@ -18,15 +18,7 @@ export function resolveTronAccount(scope: AccountScope): string {
   }
 }
 
-/**
- * `owner`'s on-chain record, refused as `account_not_active` when the chain has none.
- *
- * "Activated" means the node returned a record carrying an address — the same test witness
- * registration uses. A node answers an unknown address with an empty object, and such an account
- * can pay for no transaction at all: asked later, the node says only "no OwnerAccount", and a
- * balance check would report a zero the caller cannot act on. The record carries `balance`, so a
- * caller that needs the TRX on hand reads it from here rather than asking the node twice.
- */
+// Nodes return an empty record for an inactive account.
 export async function activeTronAccount(
   gateways: ChainGatewayProvider,
   network: NetworkDescriptor,

@@ -20,12 +20,10 @@ describe("renderErrorDetails", () => {
     expect(out).toContain("1000488");
   });
 
-  // The row reports raw minimal units; text shows the same whole-token figure `asset info` does,
-  // so the two views of one token never disagree.
   it("scales each row's supply by its own precision", () => {
     const out = renderErrorDetails({ matches })!;
-    expect(out).toContain("1,000,000,000"); // 1e15 at precision 6
-    expect(out).toContain("50,000,000"); // 5e9 at precision 2
+    expect(out).toContain("1,000,000,000");
+    expect(out).toContain("50,000,000");
     expect(out).not.toContain("1000000000000000");
   });
 
@@ -37,7 +35,6 @@ describe("renderErrorDetails", () => {
     expect(renderErrorDetails({ matches: [{}] })).toBeNull();
   });
 
-  // The contract is the `matches` key, not the asset shape — a future error opts in for free.
   it("derives its columns from whatever keys the rows carry", () => {
     const out = renderErrorDetails({ matches: [{ label: "cold", path: "m/44'/195'/1'/0/0" }] })!;
     expect(out).toContain("label");

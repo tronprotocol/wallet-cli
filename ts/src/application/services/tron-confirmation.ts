@@ -18,9 +18,7 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
   if (receipt.energy_fee !== undefined) result.energyFeeSun = receipt.energy_fee;
   if (receipt.net_fee !== undefined) result.netFeeSun = receipt.net_fee;
   if (info.withdraw_amount !== undefined) result.withdrawnSun = info.withdraw_amount;
-  // Chain-assigned identities and realised amounts exist only in the receipt, so they are absent
-  // whenever a command returns `submitted`.
-  // (TRON's HTTP mapping camel-cases this one field and leaves the rest snake_case.)
+  // TRON’s HTTP mapping uses camelCase for assetIssueID.
   if (info.assetIssueID !== undefined) result.assetIssueID = info.assetIssueID;
   if (info.unfreeze_amount !== undefined) result.unfreezeAmount = info.unfreeze_amount;
   if (info.exchange_id !== undefined) result.exchangeId = info.exchange_id;
@@ -33,9 +31,7 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
     result.exchangeWithdrawnOther = info.exchange_withdraw_another_amount;
   }
   if (receipt.result !== undefined) result.result = receipt.result;
-  // TRON records a failure in two places: the top-level `result: "FAILED"` (with `resMessage`)
-  // and the nested `receipt.result`. Either one is authoritative; neither being present is not
-  // evidence of success — see `requireReceiptResult` below.
+  // Either top-level or receipt failure is authoritative.
   result.failed =
     info.result === "FAILED" ||
     (receipt.result !== undefined && receipt.result !== "SUCCESS" && receipt.result !== "DEFAULT");
@@ -43,11 +39,7 @@ function normalize(info: TronTxInfo): Record<string, unknown> {
 }
 
 export interface TronConfirmationOptions {
-  /**
-   * A smart-contract call always carries `receipt.result` once mined; an info that has a block
-   * but no execution result is not a confirmation of that call, so keep polling rather than
-   * defaulting it to success. Native transactions (transfer, stake…) legitimately omit it.
-   */
+  // Require an execution result or explicit failure; native transactions may omit the result.
   requireReceiptResult?: boolean;
 }
 

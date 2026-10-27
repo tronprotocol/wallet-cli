@@ -4,9 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { main } from "./runner.js";
 
-// Wraps the real readFileSync so a test can observe (and, for fd 0 only, control) its calls —
-// vitest cannot vi.spyOn an ESM module's own export at runtime, so the mock has to be declared
-// here instead. Every call other than fd 0 falls straight through to the real implementation.
+// Mock the module because ESM exports cannot be spied on directly.
 let stdinReply: string | undefined;
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -29,10 +27,7 @@ describe("FAMILY_REGISTRY (composition manifest)", () => {
     expect(FAMILY_REGISTRY.map((d) => d.meta.family)).toEqual(["tron", "evm"]);
   });
 
-  // familyMap() casts its Object.fromEntries result to a TOTAL Record<ChainFamily, T>, so a
-  // family present in the type union but missing a plugin type-checks fine and then hands out
-  // `undefined` at runtime — SoftwareSigner would fail with a bare TypeError on the strategy.
-  // tsc cannot catch this; these two assertions are the only thing that can.
+  // The total Record cast cannot detect a missing plugin at compile time.
   it("leaves no family without a plugin", () => {
     const registered = new Set(FAMILY_REGISTRY.map((d) => d.meta.family));
     expect([...CHAIN_FAMILIES].filter((f) => !registered.has(f))).toEqual([]);
@@ -48,7 +43,7 @@ describe("FAMILY_REGISTRY (composition manifest)", () => {
 describe("hasCommand (bare invocation → root help)", () => {
   it("is false for no tokens and for global-flags-only invocations", () => {
     expect(hasCommand([])).toBe(false);
-    expect(hasCommand(["--output", "json"])).toBe(false); // value flag consumes 'json'
+    expect(hasCommand(["--output", "json"])).toBe(false);
     expect(hasCommand(["-o", "json"])).toBe(false);
     expect(hasCommand(["--network", "tron:3448148188"])).toBe(false);
     expect(hasCommand(["--verbose"])).toBe(false);
@@ -76,7 +71,6 @@ describe("parseGlobals", () => {
 
   it("rejects an invalid --timeout as invalid (never falls back to the default)", () => {
     for (const raw of ["abc", "-5", "0"]) {
-      // 0ms = instant-abort, not a usable bound
       const { globals, invalid } = parseGlobals(["--timeout", raw]);
       expect(globals.timeoutMs).toBeUndefined();
       expect(invalid).toEqual([{ flag: "--timeout", value: raw, reason: "must be a number >= 1" }]);
@@ -113,9 +107,6 @@ describe("parseGlobals", () => {
     expect(stdinFlags).toEqual(["--api-key-stdin"]);
   });
 
-  // BUG-V413-019: stdin (fd 0) can serve only one secret per run. `stdinFlags` names every
-  // distinct `--*-stdin` flag seen so the caller (runner.ts) can reject a combination BEFORE
-  // any secret is read, rather than discovering it later as secret_source_error.
   it("collects every distinct --*-stdin flag seen, in order", () => {
     expect(
       parseGlobals(["message", "sign", "--message-stdin", "--password-stdin"]).stdinFlags,
@@ -136,10 +127,6 @@ describe("parseGlobals", () => {
   });
 });
 
-// BUG-V413-019: two `--*-stdin` flags used to surface only when the second secret read found
-// stdin already consumed by the first (secret_source_error, exit 1) — a read failure, reported
-// after work had already started. It is really a FLAG COMBINATION mistake, catchable from argv
-// alone, so it must be invalid_option/exit 2 and caught before any secret is read.
 describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
   async function runIsolated(tokens: string[], stdinData?: string) {
     const root = mkdtempSync(join(tmpdir(), "wcli-stdin-"));
@@ -188,9 +175,6 @@ describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
       ["message", "sign", "--message-stdin", "-o", "json"],
       "hello world",
     );
-    // No account exists in this fresh, isolated wallet dir — a later, unrelated failure that
-    // proves the run was NOT stopped by the two-flag check above (which would have reported
-    // invalid_option instead, before command logic runs at all).
     expect(JSON.parse(stdout)).toMatchObject({
       success: false,
       error: { code: "missing_wallet_address" },
@@ -199,10 +183,6 @@ describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
   });
 });
 
-// composeCliRuntime runs before the formatter exists, so a broken config.yaml used to escape main()
-// entirely and land on the last-resort `fatal:` guard in index.ts — no envelope, exit 1 for what is
-// a UsageError. A malformed document is the trigger here because, unlike the 0600 check, it is not
-// skipped on Windows.
 describe("bootstrap error boundary", () => {
   async function runWithConfig(yaml: string, tokens: string[]) {
     const root = mkdtempSync(join(tmpdir(), "wcli-boot-"));
@@ -263,8 +243,6 @@ describe("bootstrap error boundary", () => {
   });
 });
 
-// The registry guard above proves a factory EXISTS; this proves the factory, the descriptor and
-// the gateway registry actually line up — that `--network sepolia` would reach a live client.
 describe("composition resolves a gateway per family", () => {
   const gateways = () =>
     new ChainGatewayRegistry(

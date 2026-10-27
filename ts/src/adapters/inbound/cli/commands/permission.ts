@@ -38,8 +38,6 @@ const updateFields = z.object({
     .default(false)
     .describe("build and sign, then output complete transaction hex"),
   buildOnly: txModeFields.buildOnly,
-  // dry-run/sign-only wording is specific to a permission replacement, but the permission group
-  // and expiration semantics are the shared ones — reuse them rather than keep a second copy.
   permissionId: tronTxModeFields.permissionId,
   expiration: tronTxModeFields.expiration,
 });

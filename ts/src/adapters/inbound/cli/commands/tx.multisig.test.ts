@@ -21,8 +21,6 @@ function harness() {
 }
 
 describe("tx multisig binding", () => {
-  // --create signs, so it must receive the execution scope. Handing it the bare address instead
-  // would still typecheck at the call site and fail only at runtime, in the signing step.
   it("routes --create through the signing scope, not the resolved address", async () => {
     const { service, ctx, run } = harness();
     await run(ctx, NETWORK, { create: true, hex: "aabb" } as never);

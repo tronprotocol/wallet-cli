@@ -1,11 +1,3 @@
-/**
- * EvmContractService — read-only `contract call`.
- *
- * Thin on purpose, mirroring TronContractService: the ABI encoding lives in the gateway, where
- * the TRON family already keeps it (TronWeb does that job there). The result comes back as raw
- * hex, exactly as TRON's already does — `--method "balanceOf(address)"` declares parameter types
- * and nothing about the return, so there is nothing to decode against without guessing.
- */
 import { describe, it, expect, vi } from "vitest";
 import { EvmContractService } from "./contract-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -59,14 +51,6 @@ describe("EvmContractService.call", () => {
   });
 });
 
-/**
- * `contract send` and `contract deploy`.
- *
- * Both go through the same pipeline as `tx send`, so the fee model, nonce source and broadcast
- * guard are shared rather than re-implemented. What is specific here is the calldata and, for a
- * deployment, the address — which CREATE derives from the sender and nonce, so it is known at
- * signing time rather than only from a receipt.
- */
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 
@@ -134,7 +118,6 @@ describe("EvmContractService.send", () => {
       callValue: "1",
     } as never);
 
-    // 1 native coin at 18 decimals.
     expect(built[0]!.value).toBe("1000000000000000000");
   });
 
@@ -165,12 +148,6 @@ describe("EvmContractService.deploy", () => {
     expect(out.contractAddress).toBe("0xDEPLOYED");
   });
 
-  /**
-   * The service decides nothing about how the arguments are typed — it forwards the resolved
-   * source to the gateway. The defect this replaces was exactly a decision made here: the service
-   * substituted an empty ABI (`input.abi ?? "[]"`) whenever none was supplied, which on EVM was
-   * always, so every constructor argument failed with "expectedCount=0".
-   */
   it("forwards the resolved constructor arguments to the encoder", async () => {
     const { service, gateway } = writeHarness();
     const constructorArgs = {
@@ -193,12 +170,6 @@ describe("EvmContractService.deploy", () => {
   });
 });
 
-/**
- * `approve(address,uint256)` — the one receipt special case.
- *
- * The uint256 a caller types is scaled by the token's decimals, and its maximum is 78 digits, so
- * the one thing they cannot check is the thing that matters most: how much they just approved.
- */
 describe("EvmContractService.send — approve", () => {
   const SEPOLIA = { ...net, id: "eip155:11155111", chainId: "11155111" } as NetworkDescriptor;
   const scope = () =>
@@ -262,12 +233,10 @@ describe("EvmContractService.send — approve", () => {
     await expect(send(service, "1000000")).resolves.toMatchObject({
       spender: SPENDER,
       allowance: "1",
-      // labelled, so the receipt reads "1 USDC" rather than a bare 1
       token: "USDC",
     });
   });
 
-  // 2^256-1 is the approval that never runs out; 78 digits say only that the number is long.
   it("calls the maximum allowance unlimited, without asking the contract anything", async () => {
     const { service, gateway } = approveHarness(6);
 
@@ -277,7 +246,6 @@ describe("EvmContractService.send — approve", () => {
     expect(gateway.getErc20Metadata).not.toHaveBeenCalled();
   });
 
-  // Being unable to LABEL the amount must not stop the approval or invent a scale for it.
   it("falls back to base units when the token's decimals cannot be read", async () => {
     const { service } = approveHarness(new Error("no decimals()"));
 
@@ -310,11 +278,6 @@ describe("EvmContractService.send — approve", () => {
   });
 });
 
-/**
- * The nonce check lives in tx-build, which every EVM write shares — so `contract send` and
- * `contract deploy` inherit what `tx send --dry-run` does, without their own copy of the rule.
- * See transaction-service.test.ts for the full matrix (replacement, no --dry-run, read failure).
- */
 describe("EvmContractService --dry-run — an explicit nonce the chain has moved past", () => {
   function staleNonceHarness() {
     const { service, gateway, built } = writeHarness();
@@ -343,8 +306,6 @@ describe("EvmContractService --dry-run — an explicit nonce the chain has moved
     ).rejects.toThrowError(expect.objectContaining({ code: "nonce_too_low" }));
   });
 
-  // The predicted address is derived from (sender, nonce). Handing one back for a nonce the chain
-  // has already used would name an address this deployment can never occupy.
   it("does not predict a contract address for a deploy it refuses", async () => {
     const { service, gateway } = staleNonceHarness();
     await expect(

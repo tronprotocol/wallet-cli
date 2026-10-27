@@ -1,28 +1,3 @@
-/**
- * Every amount in a liquidity receipt carries its scale.
- *
- * Three times in this phase the same defect shipped: an amount travelled somewhere its
- * `decimals` did not, the renderer's fallback of zero printed base units, and a receipt claimed
- * "1,000,000 USDT" for one token — the misread in the direction that alarms. Each time a test
- * asserted the amount and not the scale, so each time it passed.
- *
- * This walks the receipts themselves rather than trusting any one command to remember, and it
- * runs over EVERY mode, because the defect has arrived twice through a path added later than the
- * one that was checked.
- *
- * PART OF THE PERMANENT FIX IS NOW IN THE TYPES (2026-09-25). The renderers' `Side.decimals` and
- * `ApprovalRow.decimals` are REQUIRED rather than optional, so a producer that forgets a scale no
- * longer compiles. Making them required broke exactly ONE call site, which means the eleven
- * `?? 0` fallbacks that used to stand behind them were dead code — unreachable today, and able to
- * do nothing but hide the next instance of this defect the moment one appeared.
- *
- * The one genuinely optional scale, V2's `lpDecimals`, now renders NOTHING when it is missing
- * rather than falling back to zero: an amount without its scale is not a smaller number, it is a
- * wrong one.
- *
- * This file stays, because the types bind a scale to a rendered row and not to the amount itself.
- * A value that cannot be separated from its decimals at all is still the end state.
- */
 import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
@@ -79,7 +54,6 @@ function port(): LiquidityPort {
     })),
     balanceOf: vi.fn(async () => "999999999999"),
     nativeBalance: vi.fn(async () => "999999999999"),
-    // Sufficient everywhere, so every command reaches its main call in one step.
     allowance: vi.fn(async () => "999999999999"),
     approvalPayload: vi.fn(() => ({ target: USDT, method: "approve", parameters: [] })),
     v2AddLiquidityPayload: vi.fn(() => ({ target: ROUTER, method: "add", parameters: [] })),
@@ -118,7 +92,6 @@ interface PipelineParams {
 }
 
 const resolver = {
-  // The entry's one-time resolution is a pass-through here; `resolve` below does the mapping.
   resolvePair: (_n: NetworkDescriptor, input: object) => ({ input, resolved: [] }),
   resolve: (_n: NetworkDescriptor, value: string) => ({ USDT, WTRX })[value.toUpperCase()] ?? value,
   resolveSymbol: (_n: NetworkDescriptor, value: string) => value,
@@ -164,7 +137,6 @@ function services() {
   };
 }
 
-/** Amount-shaped keys, and the sibling that has to sit beside each one. */
 const SCALED: Record<string, string> = {
   amount: "decimals",
   amountMinimum: "decimals",
@@ -173,12 +145,7 @@ const SCALED: Record<string, string> = {
   lpAmountExpected: "lpDecimals",
 };
 
-/**
- * Walk a receipt and report every amount whose scale is missing.
- *
- * `liquidity` and `liquidityAfter` are deliberately NOT here: a V3 position's liquidity is not a
- * token amount and has no decimals, so demanding a scale for it would be demanding a fiction.
- */
+// Position liquidity is unscaled and must not require token decimals.
 function unscaled(value: unknown, path = "data"): string[] {
   if (Array.isArray(value)) return value.flatMap((entry, i) => unscaled(entry, `${path}[${i}]`));
   if (typeof value !== "object" || value === null) return [];
@@ -273,7 +240,6 @@ describe("every amount in a liquidity receipt carries its scale", () => {
 });
 
 describe("the walker itself", () => {
-  // A guard that cannot fail is not a guard. This is the exact shape that shipped three times.
   it("catches an amount whose decimals were dropped", () => {
     expect(unscaled({ token0: { symbol: "USDT", amount: "1000000" } })).toEqual([
       "data.token0.amount has no decimals beside it",
@@ -286,13 +252,6 @@ describe("the walker itself", () => {
   });
 });
 
-/**
- * The V4 collaborators, which these cases do not exercise.
- *
- * They THROW rather than returning a plausible nothing: a double that quietly answers is how a test
- * passes while the path it names is broken, which is the mistake the TRX token-facts fixture taught.
- * Anything here reaching them is a test that has escaped its own subject.
- */
 const noV4Permits = {
   planPermit: () => {
     throw new Error("V4 Permit2 planning is not part of this test");

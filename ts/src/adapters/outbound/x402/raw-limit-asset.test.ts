@@ -1,5 +1,3 @@
-// A raw payment limit has no unit: it must be pinned to one token, or a seller can price the
-// route in any asset (or the same asset at another precision) under a cap sized for a stablecoin.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Wallet } from "ethers";
 import { TronWeb, providers } from "tronweb";
@@ -57,7 +55,7 @@ function seller(requirement: Record<string, unknown>, out: Outcome): typeof fetc
 
 async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outcome> {
   const wallet = Wallet.createRandom();
-  // Permit2 already holds an allowance, so the only signature is the payment authorization.
+  // Sufficient Permit2 allowance avoids approval signing.
   vi.stubGlobal(
     "fetch",
     vi.fn<typeof fetch>(async (request, init) => {
@@ -119,7 +117,7 @@ async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outc
 async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Outcome> {
   const key = Wallet.createRandom().privateKey;
   const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
-  // Permit2 already holds an allowance, so no approve is built.
+  // Sufficient Permit2 allowance avoids approval signing.
   vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
     if (path === "wallet/triggerconstantcontract")
       return { result: { result: true }, constant_result: ["f".repeat(64)] };

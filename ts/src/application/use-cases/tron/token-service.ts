@@ -122,7 +122,7 @@ export class TronTokenService {
         const decoded = Buffer.from(value, "hex").toString("utf8");
         if (/^[\x20-\x7e]+$/.test(decoded)) return decoded;
       } catch {
-        // Preserve the original value when it was not valid text.
+        // Fall back to the original text.
       }
     }
     return value;

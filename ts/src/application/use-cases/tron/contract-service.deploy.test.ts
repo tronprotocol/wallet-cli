@@ -19,9 +19,6 @@ const CONTRACT_B58 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const PREPARED_HEX = "41b20b47cd2008731fd794274b736db24958f88edd";
 const PREPARED_B58 = "TSCcnz8iNBFDbccr4mfByskq8TDhCHLW3n";
 
-// Fake pipeline: run build() then prepare() the way TxPipeline does — deploy captures the address
-// from the prepared transaction — then return a canned outcome. The stage decides which
-// outcomeData branch runs. `prepareTransaction` stands in for the identity refresh.
 function service(opts: {
   deployTx: Record<string, unknown>;
   outcome: Record<string, unknown>;
@@ -76,8 +73,6 @@ describe("TronContractService.deploy — contractAddress", () => {
     expect(view.contractAddress).toBeUndefined();
   });
 
-  // --permission-id / --expiration rewrite raw_data, so preparation recomputes the txID and with it
-  // the deployed address. Reporting the builder's address would name a contract nobody deploys.
   it("broadcast with --permission-id: reports the prepared address, not the builder's", async () => {
     const view = await service({
       deployTx: { contract_address: CONTRACT_HEX },

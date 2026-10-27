@@ -1,15 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 
-/**
- * The TRC10 and exchange reads were the last endpoints still going through tronweb, whose HTTP
- * provider parses with a plain `JSON.parse` — so a protocol int64 was already a rounded float64 by
- * the time it reached this class, and no amount of `String(...)` downstream could recover it.
- *
- * These tests pin the whole read: the request the node receives, and the exactness of what comes
- * back. `fetch` is stubbed rather than a live node dialled, so the byte-level JSON (which is the
- * entire point) is under the test's control.
- */
 const OWNER_HEX = "418225f3aa48a2d30643a64410abb1e914dfa0bd2f";
 const OWNER = "TMqNJwD3qVmuRxzzP3Q4A24fuByVBKQ39E";
 
@@ -76,7 +67,6 @@ describe("TRC10 reads carry int64 quantities exactly", () => {
     expect(calls[0]!.body).toMatchObject({ limit: 10, offset: 20 });
   });
 
-  // An unknown id is an empty answer, not a fault: the caller maps absence to asset_not_found.
   it("reports an unknown id as absent rather than inventing an asset", async () => {
     nodeReturns("{}");
     expect(await client().getAssetById("999")).toBeUndefined();
@@ -89,8 +79,6 @@ describe("TRC10 reads carry int64 quantities exactly", () => {
 });
 
 describe("exchange reads carry int64 reserves exactly", () => {
-  // Reserves are not merely displayed: they drive proportionalOther/bancorOutput, whose results are
-  // the quantities signed into inject/withdraw/trade.
   const PAIR = `{
     "exchange_id": 12,
     "creator_address": "${OWNER_HEX}",
@@ -124,23 +112,6 @@ describe("exchange reads carry int64 reserves exactly", () => {
   });
 });
 
-/**
- * A response is only trustworthy to the extent it can be checked. Two things can be:
- *
- *   - identity — we know which id we asked for, so a record answering with a different one is a
- *     mismatch no matter how self-consistent it looks;
- *   - protocol range — precision is 0..6 and the rate pair is a positive int32, by definition of
- *     the contract, not by observation.
- *
- * Both matter because these fields are not merely displayed: `precision` converts a human `--amount`
- * into the minimal units that get SIGNED, so a node that reports 0 where the token has 6 moves the
- * decimal point six places on a transaction the user is about to authorise.
- *
- * Scanning every TRC10 on mainnet (5,192) and Nile (4,000) found zero records violating either
- * rule, so rejecting is not a compatibility risk — an out-of-range value is a broken or dishonest
- * node, never a historical quirk. Absence stays legal: 47.67% of mainnet assets omit `precision`
- * entirely, which means 0.
- */
 describe("node responses are checked against what we asked for and what the protocol allows", () => {
   const asset = (over: Record<string, unknown> = {}) =>
     JSON.stringify({
@@ -209,7 +180,6 @@ describe("node responses are checked against what we asked for and what the prot
     });
   });
 
-  // A list is a display surface: one poisoned row must not deny the other 199.
   it("drops an invalid row from a list instead of failing the whole page", async () => {
     nodeReturns(
       `{"assetIssue": [${asset()}, ${asset({ id: "2", precision: 99 })}, ${asset({ id: "3" })}]}`,
@@ -225,11 +195,6 @@ describe("node responses are checked against what we asked for and what the prot
   });
 });
 
-/**
- * `tx send --asset-id <id> --amount 1` is the mainstream way to move a TRC10, and it reads its
- * decimals from here rather than from getAssetById — so this method needs the same guarantees, or
- * the most-used signing path keeps the hole the others just closed.
- */
 describe("getTrc10Info is held to the same rules as the other TRC10 reads", () => {
   const info = (over: Record<string, unknown> = {}) =>
     JSON.stringify({

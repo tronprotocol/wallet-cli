@@ -1,10 +1,3 @@
-/**
- * How a V4 pool is named, and the two facts that read as something else.
- *
- * The pool key in `LIVE_HOOKS` is the real mainnet TRX/USDT V4 pool, taken from a router quote's own
- * `poolKey` — so the two traps below are tested against the thing that actually comes back, not
- * against a description of it.
- */
 import { describe, expect, it } from "vitest";
 import {
   assertSortedPair,
@@ -16,22 +9,15 @@ import {
 import { NATIVE_TRX_ADDRESS } from "./tokens.js";
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-/** Measured: what that pool's `hooks` field actually contains. */
 const LIVE_HOOKS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
 describe("no hooks is spelled with the address that also means TRX", () => {
-  /**
-   * The trap. That string is the base58 zero address, which on TRON is also the address the market
-   * API uses for native TRX. A pool whose `hooks` reads it has NO hook — it is not hooked to TRX.
-   */
   it("reads the live pool's hooks field as absence, not as a contract", () => {
     expect(LIVE_HOOKS).toBe(NATIVE_TRX_ADDRESS);
     expect(hasHooks(LIVE_HOOKS)).toBe(false);
     expect(describeHooks(LIVE_HOOKS)).toBe("none");
   });
 
-  // And it must not print that address at a reader, which would teach them the pool is hooked to
-  // the chain's own coin.
   it("never shows the zero address where a hook would go", () => {
     expect(describeHooks(V4_NO_HOOKS)).not.toContain("T9yD14");
   });
@@ -43,13 +29,6 @@ describe("no hooks is spelled with the address that also means TRX", () => {
 });
 
 describe("naming a pool by its parts", () => {
-  /**
-   * The five parts, and the fourth is the one this used to be missing.
-   *
-   * A V4 pool was named here by its 32-byte pool id — a value this CLI published nowhere. It is
-   * named by what it is made of now, which is also how `--create-pool` already named one, through
-   * the same builder.
-   */
   const existing = {
     token0: NATIVE_TRX_ADDRESS,
     token1: USDT,
@@ -72,13 +51,6 @@ describe("naming a pool by its parts", () => {
     expect(resolveV4Pool({ ...existing, hooks: USDT })).toMatchObject({ hooks: USDT });
   });
 
-  /**
-   * THE REFUSAL THIS VERSION EXISTS FOR.
-   *
-   * A V4 tick spacing is NOT implied by the fee tier. Measured on Nile: USDC/USDT at fee 500 has
-   * spacing 12 and TRX/USDT at fee 500 has spacing 10. Defaulting it from V3's table would compute a
-   * different pool key, and when that pool exists the deposit lands in a market nobody named.
-   */
   it("requires --tick-spacing and says a fee tier does not fix it", () => {
     expect(() => resolveV4Pool({ ...existing, tickSpacing: undefined })).toThrow(
       /--tick-spacing is required on V4 and has no default.*SAME fee tier.*different tick spacings/s,
@@ -97,22 +69,12 @@ describe("naming a pool by its parts", () => {
     expect(() => resolveV4Pool(input)).toThrow(expect.objectContaining({ code: "missing_option" }));
   });
 
-  // A price belongs to a pool being created. On an existing one it would be silently discarded,
-  // which is how a caller comes to believe they set something.
   it("refuses --sqrt-price without --create-pool", () => {
     expect(() => resolveV4Pool({ ...existing, sqrtPrice: "1" })).toThrow(
       /only accepted with --create-pool/,
     );
   });
 
-  /**
-   * A SYMBOL IS NOT AN ADDRESS YET, and the pair order cannot be judged on one.
-   *
-   * `--token0 TRX --create-pool` used to fail with `invalid --pool: Invalid checksum` — a flag the
-   * caller never passed and a cause that was not the problem — because the byte comparison ran on
-   * the symbol. The order is checked once both sides are addresses; the use case runs this again
-   * after resolving them.
-   */
   it("passes a symbol through rather than decoding it as an address", () => {
     expect(() => resolveV4Pool({ ...existing, token0: "TRX", token1: "USDT" })).not.toThrow();
     expect(resolveV4Pool({ ...existing, token0: "TRX", token1: "USDT" })).toMatchObject({
@@ -144,8 +106,6 @@ describe("creating a pool", () => {
     });
   });
 
-  // TRX is passed through as NATIVE. V2 and V3 both wrap, so the guess from V3 is wrong, and a
-  // wrapped pair names a pool that also exists — the WTRX one — rather than failing.
   it("keeps native TRX native rather than wrapping it", () => {
     const target = resolveV4Pool(creation);
     expect(target.kind === "create" && target.token0).toBe(NATIVE_TRX_ADDRESS);
@@ -167,13 +127,6 @@ describe("creating a pool", () => {
     expect(() => resolveV4Pool(input)).toThrow(message);
   });
 
-  /**
-   * ONE KEY BUILDER, not two that agree.
-   *
-   * A creation and a deposit into an existing pool are named by exactly the same five parts. If they
-   * were assembled separately, the pool a caller created and the pool they later deposited into
-   * could drift apart — and the drift would be invisible, because both would be valid keys.
-   */
   it("builds the same key as an existing pool from the same flags", () => {
     const { kind, sqrtPriceX96, ...created } = resolveV4Pool(creation) as never as Record<
       string,
@@ -191,30 +144,13 @@ describe("creating a pool", () => {
     expect(created).toEqual(existing);
   });
 
-  /**
-   * Q64.96, not a ratio. A caller who types 1.0001 means a price and gets a number the contract
-   * would read as almost zero, so the form is stated rather than coerced.
-   */
   it.each([["0"], ["1.0001"], ["-1"], ["0x10"]])("refuses %s as a starting price", (value) => {
     expect(() => resolveV4Pool({ ...creation, sqrtPrice: value })).toThrow(/Q64.96 fixed point/);
   });
 });
 
-/**
- * The pair's order, which is not cosmetic.
- *
- * A reversed pair hashes to a different pool id AND inverts the starting price, because
- * `--sqrt-price` is the price of the second currency measured in the first. So a reversed creation
- * initialises a pool at the reciprocal of the intended price, reports that price happily, and puts
- * the first deposit entirely on one side. It is refused rather than sorted: sorting silently would
- * leave the caller's price attached to a pair they did not write.
- */
 describe("the pair must be in the order V4 requires", () => {
-  // Real mainnet addresses, with their 20-byte values, so the expected order is checkable by eye:
-  //   TRX  0x0000…0000
-  //   JST  0x18fd0626…
-  //   WTRX 0x891cdb91…
-  //   USDT 0xa614f803…
+  // Address values sort TRX (0x00...) < JST (0x18...) < WTRX (0x89...) < USDT (0xa6...).
   const JST = "TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9";
   const WTRX = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
 
@@ -239,7 +175,6 @@ describe("the pair must be in the order V4 requires", () => {
     );
   });
 
-  // The reason the refusal exists, stated in the message so the caller knows it is about money.
   it("says the reversed pair would invert the starting price", () => {
     expect(() => assertSortedPair(USDT, JST)).toThrow(/reciprocal of the price you meant/);
   });
@@ -250,16 +185,11 @@ describe("the pair must be in the order V4 requires", () => {
     );
   });
 
-  // TRX is the zero address, so it sorts before everything and is always currency0.
   it("accepts native TRX as token0", () => {
     expect(() => assertSortedPair(NATIVE_TRX_ADDRESS, USDT)).not.toThrow();
     expect(resolveV4Pool(creating(NATIVE_TRX_ADDRESS, USDT)).kind).toBe("create");
   });
 
-  /**
-   * And gives TRX-as-token1 its OWN message. It is not a pair written backwards, it is a pair that
-   * cannot exist — telling the caller to swap two tokens would suggest either order was possible.
-   */
   it("refuses native TRX as token1 with a message of its own", () => {
     expect(() => assertSortedPair(USDT, NATIVE_TRX_ADDRESS)).toThrow(
       /--token1 cannot be native TRX.*always currency0/s,
@@ -267,24 +197,13 @@ describe("the pair must be in the order V4 requires", () => {
     expect(() => assertSortedPair(USDT, NATIVE_TRX_ADDRESS)).not.toThrow(/the wrong way round/);
   });
 
-  // Exit 1, like every other `same_token` in the CLI. The code exists already and must not acquire a
-  // second exit class depending on which command raised it.
   it("refuses a pool of one token against itself", () => {
     expect(() => assertSortedPair(USDT, USDT)).toThrow(
       expect.objectContaining({ code: "same_token", kind: "execution" }),
     );
   });
 
-  /**
-   * The order is compared on the DECODED 20-byte value, not on the base58 string.
-   *
-   * The two happen to agree for every TRON address — all 34 characters, and base58's alphabet is in
-   * ASCII order — and twenty thousand random pairs showed no disagreement. This case exists so that
-   * the equivalence is not what the code depends on: it pins the order against the hex values, which
-   * is what the pool key requires.
-   */
   it("orders by the address value the pool key uses", () => {
-    // JST < WTRX < USDT by value, so every sorted couple is accepted and every reverse refused.
     for (const [low, high] of [
       [JST, WTRX],
       [JST, USDT],

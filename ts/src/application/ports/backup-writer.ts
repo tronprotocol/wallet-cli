@@ -4,8 +4,7 @@ export interface BackupWriteResult {
   bytes: number;
 }
 
-/** Which default filename suffix an export lands under when no --out is given: the native backup
- *  format or a standard Web3 keystore. Explicit --out paths are used verbatim either way. */
+// Selects the default filename suffix; explicit output paths are used verbatim.
 export type BackupFormat = "native" | "keystore";
 
 export interface BackupWriter {

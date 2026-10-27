@@ -36,7 +36,6 @@ describe("runMigrationGate", () => {
 
     expect(error?.code).toBe("migration_required");
     expect(error?.exitCode()).toBe(2);
-    // and it changed nothing
     expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual({ version: 1, wallets: [] });
   });
 
@@ -76,10 +75,6 @@ describe("runMigrationGate", () => {
   });
 });
 
-/**
- * Consent. The gate rewrites the user's wallet file, independently of whether it needs a password,
- * so an interactive caller must always be able to explain the plan and take an answer first.
- */
 describe("runMigrationGate consent", () => {
   it("asks before touching anything, and asks before asking for the password", async () => {
     const wallets = join(seededRoot(), "wallets.json");

@@ -62,8 +62,6 @@ describe("toBaseUnits", () => {
     expect(() => toBaseUnits("1.1234567", 6, "TRX")).toThrow(/too many decimal places/);
   });
 
-  // The message has to name the option the caller actually typed: commands take a decimal amount
-  // under names of their own, and pointing at `--amount` sends them to fix a flag they never used.
   describe("names the offending option", () => {
     it("defaults to --amount for the commands whose option is that", () => {
       expect(() => toBaseUnits("1.1234567", 6, "TRX")).toThrow(/^--amount has too many/);

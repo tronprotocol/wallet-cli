@@ -9,8 +9,6 @@ import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.j
 import type { TokenEntry, WalletsFile } from "../src/domain/types/index.js";
 import { DETACHED } from "./detached.js";
 
-// A built entry (WALLET_CLI_TEST_ENTRY, set by vitest.config for the golden project) runs as
-// plain `node <entry>`; without one, the TypeScript source is executed through tsx per spawn.
 const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
   ? [process.env.WALLET_CLI_TEST_ENTRY]
   : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
@@ -27,9 +25,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(testHome, { recursive: true, force: true }));
 
-// Secret model: master password via stdin (--password-stdin); two-secret import is
-// interactive so it can't run as a black-box subprocess — wallet setup uses seedWallet() to write
-// the keystore in-process instead. No MASTER_PASSWORD env. password:null → no source (auth_required).
+// password: null disables password stdin; otherwise the password replaces input.
 export function run(args: string[], opts: { input?: string; password?: string | null } = {}) {
   const env: Record<string, string> = { ...process.env, WALLET_CLI_HOME: testHome } as Record<
     string,
@@ -42,10 +38,8 @@ export function run(args: string[], opts: { input?: string; password?: string | 
     finalArgs.push("--password-stdin");
     stdin = (opts.password ?? DEFAULT_PW) + "\n";
   }
-  // 25s < the suite's 30s testTimeout: a genuinely hung subprocess errors here with a clear
-  // signal instead of silently eating the whole test budget.
-  // `node --import tsx` executes the same TypeScript entry without the tsx CLI's IPC control
-  // socket, so black-box tests also run in restricted CI/sandbox environments.
+  // Leave time for subprocess failures to surface before the test timeout.
+  // --import tsx avoids the tsx CLI control socket in restricted environments.
   const r = spawnSync(process.execPath, [...ENTRY_ARGS, ...finalArgs], {
     input: stdin,
     encoding: "utf8",
@@ -57,18 +51,17 @@ export function run(args: string[], opts: { input?: string; password?: string | 
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
 
-// Write the keystore directly (bypassing the now-interactive CLI import) so wallet-dependent
-// tests have a funded identity; the seed is encrypted with DEFAULT_PW, matching run()'s default.
 const seedFixtures = new Map<string, { root: string; accountId: string }>();
 afterAll(() => {
   for (const { root } of seedFixtures.values()) rmSync(root, { recursive: true, force: true });
 });
 
+// Seed directly because secret import requires a TTY.
 export function seedWallet(label = "main") {
   let fixture = seedFixtures.get(label);
   if (!fixture) {
@@ -83,8 +76,7 @@ export function seedWallet(label = "main") {
       throw error;
     }
   }
-  // Copy real encrypted data into each test's private home. Mutations never reach the fixture;
-  // the CLI still uses the production KDF to unlock it. Only repeated setup encryption is saved.
+  // Each test gets its own encrypted copy; CLI unlocks still use the production KDF.
   cpSync(fixture.root, testHome, { recursive: true });
   return fixture.accountId;
 }
@@ -106,8 +98,7 @@ export function seedLegacyWallet() {
   return accountId.split(".")[0]!;
 }
 
-// Write a user-layer token directly (bypassing the live-RPC `token add` path) so list/remove
-// can be exercised deterministically — mirrors seedWallet()'s in-process keystore approach.
+// Seed directly to avoid the live RPC reads required by token add.
 export function seedToken(networkId: string, ref: string, entry: TokenEntry) {
   new TokenBook(testHome, new AtomicFileStore()).add(networkId, ref, entry);
 }

@@ -29,11 +29,7 @@ type Internal = {
   callValueInfo?: { callValue?: string | number; tokenId?: string }[];
 };
 
-/**
- * Match both ModifyLiquidity events to this position, then read account settlement transfers.
- * Pool amountDelta is emitted BEFORE afterModifyLiquidity hooks, so it alone cannot prove
- * the amount received. Transfer logs/internal TRX calls account for hooks and native refunds.
- */
+// Pool deltas precede hooks; use settlement transfers for the account balance change.
 export function decodeV4LiquidityReceipt(
   info: TronTxInfo,
   query: V4LiquidityReceiptQuery,
@@ -82,7 +78,7 @@ export function decodeV4LiquidityReceipt(
   function flow(currency: string): bigint | undefined {
     let delta = 0n;
     if (currency === NATIVE_TRX_ADDRESS) {
-      // Missing traces are unknown, not a zero transfer. Never fall back to balance snapshots.
+      // Missing native traces mean unknown settlement; balance snapshots cannot replace them.
       if (!Array.isArray(info.internal_transactions)) return undefined;
       delta -= BigInt(query.nativeValueSent ?? "0");
       for (const call of info.internal_transactions as Internal[]) {

@@ -71,7 +71,6 @@ describe("TronChainService.prices", () => {
 
   it("drops malformed segments so NaN never reaches the output", async () => {
     const gateway = {
-      // energy: middle segment is non-numeric; bandwidth: entirely malformed; both must exclude NaN.
       getEnergyPrices: async () => "0:100,1670515200000:oops,1670515300000:230",
       getBandwidthPrices: async () => "abc:def,x:y",
       getChainParameters: async () => [{ key: "getMemoFee", value: 1000000 }],
@@ -84,7 +83,6 @@ describe("TronChainService.prices", () => {
         { since: 1670515300000, price: 230 },
       ],
     });
-    // all-invalid → empty history, current falls back to 0 (no NaN)
     expect(view.bandwidth).toEqual({ currentSunPerUnit: 0, history: [] });
     expect(Number.isNaN(view.energy.currentSunPerUnit)).toBe(false);
     expect(
@@ -121,7 +119,6 @@ describe("TronChainService.node", () => {
     };
     const view = await svc(gateway).node(net);
     expect(view).toMatchObject({
-      // host only: the same rule the EVM side follows, for the same reason (API keys in URLs)
       endpoint: "nile.trongrid.io",
       version: "java-tron 4.7.7",
       p2pVersion: "11111",
@@ -132,8 +129,6 @@ describe("TronChainService.node", () => {
       peers: { connected: 30, active: 27 },
     });
   });
-  /** Users are told to point this at a commercial gateway, whose API key lives in the URL.
-   *  `chain node` is pasted into issues and CI logs, so it reports the host and nothing else. */
   it("never echoes an endpoint's path or query, which is where API keys live", async () => {
     const gateway = {
       getNodeInfo: async () => ({}),

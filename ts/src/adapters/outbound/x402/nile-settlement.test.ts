@@ -41,7 +41,7 @@ it.each([true, false])(
       extra: { assetTransferMethod: "permit2" },
     };
     const transactions = new Map<string, unknown>();
-    // This boundary simulates node acceptance. No network or chain VM is used.
+    // Simulate node acceptance without a chain VM.
     const broadcast = vi.fn(async (signed: { txID: string; signature: string[] }) => {
       expect(signed.signature[0]).toMatch(/^[0-9a-f]{130}$/i);
       expect(

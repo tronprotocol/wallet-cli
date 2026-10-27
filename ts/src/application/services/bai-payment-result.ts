@@ -36,7 +36,7 @@ function invalidSettlement(
   candidateNetwork: unknown,
   expectedNetwork: string,
 ) {
-  // Retain only bounded, syntactically valid evidence; it is NOT a confirmed payment.
+  // Candidate evidence is bounded and unconfirmed.
   const candidateTxHash =
     typeof txHash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(txHash) ? txHash : undefined;
   return new TransportError(

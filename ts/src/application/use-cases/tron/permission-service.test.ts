@@ -123,8 +123,6 @@ describe("TRON permission service", () => {
     });
   });
 
-  // The validator preserving unnamed bits is worthless if the builder re-derives the bitmap from
-  // the named operations — that is where the original round-trip loss happened.
   it("hands the builder the full bitmap, unnamed bits included, and warns about them", async () => {
     const { service, gateway } = setup();
     const requested = permissions();
@@ -165,9 +163,6 @@ describe("TRON permission service", () => {
     expect(pipeline.run).not.toHaveBeenCalled();
   });
 
-  // A --dry-run that answers "fine" for a request the node would certainly reject defeats the point
-  // of the flag. sign-only/build-only are deliberately exempt: those artifacts are broadcast later,
-  // by which time the account can have been funded.
   it("rejects insufficient balance on --dry-run too", async () => {
     const { service, gateway } = setup("99999999");
     await expect(
@@ -183,8 +178,6 @@ describe("TRON permission service", () => {
     ).resolves.toBeDefined();
   });
 
-  // Permissions are already rewritten on chain by this point; an unreadable re-read must not present
-  // that as a failed command, or the caller re-submits a permission structure that is already live.
   it("keeps the confirmed receipt when the permission re-read cannot be performed", async () => {
     const { service } = setup("200000000", {
       outcome: { stage: "confirmed", txId: "tx-confirmed" },

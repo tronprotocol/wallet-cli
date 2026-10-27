@@ -15,11 +15,11 @@ import { obtainSignature } from "../../services/signing/obtain-signature.js";
 import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
 
 export interface TronSignOptions {
-  /** Bind an authorization decision to the exact signer before any signature interaction. */
+  // Require the signer that passed authorization, before any signing interaction.
   expectedSigner?: string;
 }
 
-/** Offline-capable TRON artifact signing. It never queries permission or approval endpoints. */
+// Signs artifacts without querying permission or approval endpoints.
 export class TronSigService {
   constructor(
     private readonly gateways: ChainGatewayProvider,

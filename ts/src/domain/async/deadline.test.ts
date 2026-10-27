@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { creditActiveDeadline, throwIfDeadlineExpired, withDeadline } from "./index.js";
 
-// A virtual clock: these tests are all about when a timer fires, so they should not depend on how
-// busy the machine running them is.
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 const tick = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Run the virtual clock out so `work` can finish, without orphaning a rejection while it runs. */
+// Handle rejections while advancing the virtual clock.
 const settle = async <T>(work: Promise<T>): Promise<T> => {
   work.catch(() => {});
   await vi.runAllTimersAsync();
@@ -54,9 +52,6 @@ describe("withDeadline", () => {
 });
 
 describe("creditActiveDeadline", () => {
-  /** The point of the whole thing: time a scheduler spends holding a request it has not sent yet
-   *  must not be charged against that request's deadline. A self-imposed wait of a known length is
-   *  credited BEFORE it is taken, so the deadline cannot fire part-way through it. */
   it("buys back time, so wall-clock may exceed the budget while the work does not", async () => {
     const started = Date.now();
     const result = await settle(
@@ -101,8 +96,6 @@ describe("creditActiveDeadline", () => {
 });
 
 describe("nested deadlines", () => {
-  /** `#wrap` nests: getTrc10Balance runs inside a deadline and calls getAccount, which opens its
-   *  own. A pacing wait credited only to the innermost one still burns the outer one's budget. */
   it("credits every enclosing deadline, not just the innermost", async () => {
     await expect(
       settle(
@@ -164,8 +157,6 @@ describe("throwIfDeadlineExpired", () => {
     ).resolves.toBe("done");
   });
 
-  /** Nobody is waiting on the result any more, so a scheduler holding the request must drop it
-   *  rather than send it — a broadcast reported as a timeout must not reach the node afterwards. */
   it("stops work that resumes after its deadline has fired", async () => {
     let sent = false;
     const done = withDeadline(20, async () => {
@@ -192,8 +183,6 @@ describe("throwIfDeadlineExpired", () => {
 });
 
 describe("withDeadline timer hygiene", () => {
-  /** The CLI sets process.exitCode and lets the event loop drain, so a timer left armed keeps the
-   *  whole command alive for the rest of its budget after the result has already been printed. */
   it("leaves no timer armed when the work throws before returning a promise", async () => {
     await expect(
       withDeadline(30_000, (() => {

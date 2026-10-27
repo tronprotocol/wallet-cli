@@ -1,11 +1,3 @@
-/**
- * EvmTokenService — the ERC-20 half of the `token` group.
- *
- * `token add` is the single point where a token's decimals are checked against the chain: once an
- * entry is in the book, `tx send --token SYMBOL` takes its contract and decimals verbatim and
- * never asks the chain again. So a missing `decimals` has to be refused here, while a symbol the
- * contract spells in the legacy `bytes32` form must not cost the user the entry.
- */
 import { describe, it, expect } from "vitest";
 import { EvmTokenService } from "./token-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -81,7 +73,6 @@ describe("EvmTokenService.add", () => {
     expect(out).toMatchObject({ network: "eip155:1", action: "added" });
   });
 
-  // The load-bearing rule: `tx send --token` trusts this number for every later transfer.
   it("refuses to add a token whose decimals the chain did not report", async () => {
     const { svc, added } = service({ symbol: "USDT" });
 
@@ -128,12 +119,6 @@ describe("EvmTokenService.info", () => {
     });
   });
 
-  /**
-   * Metadata is read best-effort, so a thin token still reports. But a contract that answers
-   * NOTHING is not a token with thin metadata — it is not a token, and `{contract}` alone under
-   * `success` reads as "this token has no metadata". `add` and `balance` already refuse the same
-   * address; this is the third command agreeing with them.
-   */
   it("still reports a token that answers only some of its metadata", async () => {
     const { svc } = service({ decimals: 6 });
 

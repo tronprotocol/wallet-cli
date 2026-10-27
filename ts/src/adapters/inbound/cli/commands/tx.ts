@@ -13,9 +13,6 @@ import { amountSelector, tronTxModeFields, txModeFields, unifiedAmountFields } f
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 
-// baseFields carry only what every family has: a recipient, an asset selector that is either a
-// book symbol or a contract, and an amount. Everything priced or numbered per chain — TRON's
-// fee limit and TRC10 asset id, EVM's gas flags and nonce — lives on that family's binding.
 const sendFields = z.object({
   to: z
     .string()
@@ -44,16 +41,12 @@ export const txSendSpec: ChainSpec = {
   summary: "Send native coins or tokens with human --amount",
   description:
     "Send the native coin, or a token selected with --token / --contract.\n" +
-    // A command whose Options show BOTH families' tags must say what the tags mean —
-    // help has to be readable on its own, without any other documentation.
     "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: sendFields,
   exclusive: [
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
-    // omitting all three is the native-TRX path, so this set is optional as a whole.
     {
-      // `--asset-id` is TRON-only and is declared on that binding; this group is spec-level, so
-      // it may only name flags every family actually has.
+      // Spec-level groups name shared flags; --asset-id belongs to the TRON binding.
       label: "which asset to send; omit for the network's native coin",
       flags: ["token", "contract"],
       select: "at-most-one",
@@ -82,8 +75,6 @@ const tronSendFields = z.object({
   ...tronTxModeFields,
 });
 
-/** EVM pricing: gwei for the per-gas fields, because that is the unit every wallet, explorer and
- *  human uses for gas — wei would be nine zeros longer and a real typo risk. */
 const evmSendFields = z.object({
   gasLimit: Schemas.positiveIntString()
     .optional()
@@ -104,15 +95,11 @@ const evmSendFields = z.object({
     .describe("transaction nonce; defaults to the account's pending nonce"),
 });
 
-/** EVM has no multi-signature relay, so the artifact both ends exchange is raw hex: an unsigned
- *  serialisation in, a signed one out. TRON's `--transaction` JSON has no EVM meaning. */
 function evmHexOnly(
   input: { transaction?: string; hex?: string; file?: string },
   hasStdin = false,
 ): string {
-  // `--transaction` no longer reaches here — it is declared by the TRON binding, so the flag check
-  // refuses it first. `--tx-stdin` is not a flag but a channel, so it still needs saying: a piped
-  // payload that is silently ignored is worse than one that is refused.
+  // Reject the TRON JSON stdin channel instead of ignoring its payload.
   if (hasStdin) {
     throw new UsageError(
       "invalid_option",
@@ -129,8 +116,6 @@ export const txSignEvmBinding = (
   run: async (ctx, net, input) => {
     const result = await svc.sign(ctx, net, evmHexOnly(input));
     if (!input.out) return result;
-    // The two families name this differently: TRON's `tx sign` writes `result.hex`, EVM's writes
-    // `result.signed.raw` — not a shared field, so nothing here can be written generically.
     writer.write(input.out, result.signed.raw);
     return { ...result, out: input.out };
   },
@@ -151,7 +136,7 @@ export const txSendEvmBinding = (svc: EvmTransactionService): FamilyBinding => (
   run: async (ctx, net, input) =>
     svc.send(ctx, net, {
       ...input,
-      // gwei on the flag, wei everywhere below it.
+      // CLI fees are in gwei; service fees are in wei.
       ...(input.maxFee === undefined ? {} : { maxFee: gweiToWei(input.maxFee) }),
       ...(input.priorityFee === undefined ? {} : { priorityFee: gweiToWei(input.priorityFee) }),
     }),
@@ -163,9 +148,6 @@ export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding =>
   run: async (ctx, net, input) => svc.send(ctx, net, input),
 });
 
-/** TRON's JSON form of a signed transaction. Declared by the TRON binding alone, which is what
- *  makes help tag it `(TRON only)` and every other family refuse it — the same treatment `--asset-id`
- *  gets. EVM has no JSON transaction: it exchanges RLP hex. */
 const tronBroadcastFields = z.object({
   transaction: z.string().optional().describe("signed transaction JSON"),
 });
@@ -188,9 +170,6 @@ const broadcastFields = z.object({
 export const txBroadcastSpec: ChainSpec = {
   path: ["tx", "broadcast"],
   stdin: "tx",
-  // The channel carries TRON's transaction JSON, and only the TRON binding reads it. Declaring
-  // that is what tags it `(TRON only)` in help and lets any other family refuse it outright, instead
-  // of ignoring a payload the caller piped in.
   stdinFamily: "tron",
   network: "optional",
   wallet: "none",
@@ -291,9 +270,6 @@ export const txApprovalsTronBinding = (service: TronMultisigService): FamilyBind
   run: async (_ctx, network, input) => service.approvals(network, hexInput(input)),
 });
 
-/** The TRON compatibility path, declared by the TRON binding so help tags it `(TRON only)`; see
- *  tronBroadcastFields. Its two companion rules (`--out` / `--offline` are hex-only) travel with
- *  it, because they are only meaningful where `--transaction` exists. */
 const tronSignFields = z.object({
   transaction: z
     .string()
@@ -333,10 +309,8 @@ export const txSignSpec: ChainSpec = {
     "resulting approval weight; --offline skips the online permission checks. An EVM\n" +
     "transaction carries exactly one signature, so an already-signed one is refused.",
   baseFields: signFields,
-  // --hex/--file first: --transaction is the compatibility path, not the co-signing one.
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
   baseRefine: (input, context) => {
-    // On a family without `--transaction` this is the whole rule: one of --hex / --file.
     if (
       input.transaction === undefined &&
       [input.hex, input.file].filter((entry) => entry !== undefined).length !== 1

@@ -15,9 +15,6 @@ import {
 } from "./golden-harness.js";
 
 describe("golden CLI — meta & introspection", () => {
-  // Read from package.json rather than pinned: this asserts that --version reports the version
-  // this build IS, which is the actual contract. A literal here makes every release bump a test
-  // failure, and the fix for that failure is to retype the same number in a second place.
   it("--version prints the package version, exit 0", () => {
     const r = run(["--version"]);
     expect(r.status).toBe(0);
@@ -42,8 +39,6 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toMatch(/^  encoding\s/m);
     expect(r.stdout).toMatch(/^  address\s/m);
     expect(r.stdout).toMatch(/^  contact\s/m);
-    // The root row names the command, not its flags (root descriptions are verb
-    // summaries). `--qr` stays discoverable one level down, in `current --help`.
     expect(r.stdout).toMatch(/^  current\s+Show the current \(active\) account$/m);
     expect(r.stdout).not.toContain("Learn more:");
     expect(r.stdout).not.toMatch(/^  import watch\s/m);
@@ -64,7 +59,6 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
     const ids = r.json.data.map((n: { id: string }) => n.id);
-    // Both families ship: 3 TRON + 6 EVM; every EVM mainnet has a builtin testnet partner.
     expect(ids).toEqual(
       expect.arrayContaining([
         "tron:728126428",
@@ -79,8 +73,6 @@ describe("golden CLI — meta & introspection", () => {
       ]),
     );
     expect(ids).toHaveLength(9);
-    // machine surfaces carry canonical ids only, never aliases — and a canonical id is
-    // CAIP-2, so its namespace is `eip155` for the EVM family rather than the family's own name
     expect(ids.every((id: string) => /^(tron|eip155):/.test(id))).toBe(true);
   });
 
@@ -129,7 +121,6 @@ describe("golden CLI — meta & introspection", () => {
     });
     expect(cmd.inputSchema.properties.to).toBeDefined();
     const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "import.mnemonic");
-    // TTY-only setup op: the mnemonic is entered interactively, so there is no --*-stdin input flag.
     expect(importMnemonic.inputFlags).toBeUndefined();
     const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tx.broadcast");
     expect(broadcast.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--tx-stdin");
@@ -253,20 +244,15 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
     const out = join(testHome, "bak.json");
     const r = run(["--output", "json", "backup", "main", "--out", out]);
     expect(r.status).toBe(0);
-    // stdout carries metadata + path only — no secret in the envelope
     expect(r.json.data.out).toBe(out);
-    expect(JSON.stringify(r.json)).not.toContain("junk"); // mnemonic word must not leak to stdout
-    // the file holds the plaintext secret, at 0600
+    expect(JSON.stringify(r.json)).not.toContain("junk");
     const file = JSON.parse(readFileSync(out, "utf8"));
     expect(file.secretType).toBe("mnemonic");
     expect(file.mnemonic).toBe(MNEMONIC);
     expect(statSync(out).mode & 0o777).toBe(0o600);
-    // refuses to clobber an existing file → exit 2
     const again = run(["--output", "json", "backup", "main", "--out", out]);
     expect(again.status).toBe(2);
     expect(again.json.error.code).toBe("output_exists");
-    // No per-test timeout: this is the suite's most expensive case (seed encrypt + two backup
-    // decrypts run scrypt 3×), so it needs the project's full budget, not a smaller slice of it.
   });
 
   it("supports root-level use and backup account commands", () => {
@@ -283,13 +269,12 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
   });
 
   it("derive defaults to the active HD account, including an active child", () => {
-    const seedId = seedWallet().split(".")[0]!; // "main" at index 0, active; seed id = wlt_x
+    const seedId = seedWallet().split(".")[0]!;
     const r = run(["--output", "json", "derive", "--label", "child"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("derive");
     expect(r.json.data.index).toBe(1);
-    expect(r.json.data.active).toBe(true); // derive auto-activates, not active:false
-    // and `current` now resolves to the derived child, confirming the switch persisted
+    expect(r.json.data.active).toBe(true);
     const current = run(["--output", "json", "current"], { password: null });
     expect(current.json.data.label).toBe("child");
 
@@ -340,8 +325,6 @@ describe("golden CLI — command help contracts", () => {
   it("tx send --help summary leads with 'Send' and human --amount (E2)", () => {
     const r = run(["tx", "send", "--help"], { password: null });
     expect(r.status).toBe(0);
-    // Leads with the imperative verb and stays family-neutral; the human-unit
-    // --amount flag is what the E2 contract is really about, so assert it directly.
     expect(r.stdout).toMatch(/^Send the native coin, or a token/m);
     expect(r.stdout).toMatch(/^ +--amount <string> +human amount/m);
   });
@@ -351,7 +334,7 @@ describe("golden CLI — command help contracts", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("wallet-cli block [<number>]");
     expect(r.stdout).toMatch(/Args:\s*\n\s*number\s/);
-    expect(r.stdout).not.toContain("--number"); // positional-only surface, flag dropped from help
+    expect(r.stdout).not.toContain("--number");
   });
 
   it("account-positional commands document <account> under Args, not as a --account flag", () => {
@@ -359,8 +342,8 @@ describe("golden CLI — command help contracts", () => {
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("wallet-cli rename <account>");
     expect(r.stdout).toMatch(/Args:\s*\n\s*account\s/);
-    expect(r.stdout).not.toContain("--account"); // unified positional mechanism hides the flag
-    expect(r.stdout).toContain("--label"); // sibling flags still listed
+    expect(r.stdout).not.toContain("--account");
+    expect(r.stdout).toContain("--label");
   });
 });
 
@@ -373,11 +356,6 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(list.json.data[0].type).toBe("watch");
   });
 
-  /**
-   * Watch is the exception to "an import becomes the active account". It holds no key, so
-   * activating it turns the next write command into watch_only_no_signer for a reason the user
-   * never chose — `use <account>` is how the active account changes.
-   */
   it("does not make a watch account active", () => {
     const r = run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
     expect(r.json.data.active).toBe(false);
@@ -391,16 +369,12 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
   });
 
-  // This one is `invalid_address`; it used to be the generic invalid_value, which
-  // said nothing about WHICH argument was wrong.
   it("rejects an unrecognised watch address → invalid_address, exit 2", () => {
     const r = run(["--output", "json", "import", "watch", "--address", "not-an-address"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_address");
   });
 
-  // A near-miss is a different mistake from a value that is not address-shaped at all, and the
-  // message has to say so: otherwise someone who mistyped one character hunts for the wrong thing.
   it("says a mistyped EVM address failed its checksum rather than 'unrecognised format'", () => {
     const r = run([
       "--output",
@@ -415,11 +389,6 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.error.message).toMatch(/checksum/);
   });
 
-  /**
-   * The companion to storing canonically: three spellings are accepted as INPUT, so an account
-   * has to be findable by all of them. Canonicalising only the stored side would make the CLI
-   * refuse to find an account by the very spelling it just told the user was valid.
-   */
   it("finds a watch account by any accepted spelling of its address", () => {
     run([
       "--output",
@@ -442,8 +411,6 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     }
   });
 
-  // An all-lowercase address offers no checksum, so it is accepted — and stored in the one
-  // spelling this CLI prints, so it never shows up looking like a different address.
   it("stores an all-lowercase EVM watch address in EIP-55", () => {
     const r = run([
       "--output",
@@ -469,8 +436,6 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
   it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
     run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
-    // Explicitly selected: registering one no longer activates it, and this test is about
-    // what happens when a watch account IS the one being signed with.
     run(["--output", "json", "use", "obs"]);
     const r = run([
       "--output",
@@ -519,14 +484,9 @@ describe("golden CLI — error contract (exit codes)", () => {
       "0xnope",
     ]);
     expect(r.status).toBe(2);
-    // BUG-V413-018: a malformed address is invalid_address, not invalid_value —
-    // machine-interface.md defines invalid_address as "not a valid address for the relevant
-    // chain".
     expect(r.json.error.code).toBe("invalid_address");
   });
 
-  // Every address-shaped flag is validated locally, so a typo is exit 2 everywhere rather than a
-  // node round-trip that reports the same typo as an execution failure (exit 1, rpc_error).
   it.each([
     ["asset info --issuer", ["asset", "info", "--issuer", "notanaddress"]],
     [
@@ -634,9 +594,6 @@ describe("golden CLI — error contract (exit codes)", () => {
 
   it("vote cast collects a repeated --for into an array (same SR twice → duplicate, exit 2)", () => {
     seedWallet();
-    // Proves the CLI collects a repeated flag into an array. If --for were last-wins, only one
-    // entry would reach the service and there'd be no duplicate; the duplicate error confirms both
-    // repeated flags arrived. `parseVoteInputs` runs before any RPC, so this needs no network.
     const r = run([
       "--output",
       "json",
@@ -657,9 +614,7 @@ describe("golden CLI — error contract (exit codes)", () => {
 
   it("vote cast delivers a SINGLE --for as a one-element array, not a split string", () => {
     seedWallet();
-    // A lone `--for foo` (no '='): as a one-element array the whole "foo" is one bad entry; as a
-    // bare string the service would iterate its characters and complain about 'f'. An error naming
-    // the whole 'foo' proves yargs `array: true` delivered [ "foo" ]. No RPC (parse fails first).
+    // Naming 'foo' distinguishes a one-element array from character iteration.
     const r = run([
       "--output",
       "json",
@@ -676,9 +631,6 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.json.error.message).toContain("'foo'");
   });
 
-  // Leaf/group help must carry the full user-facing semantics, not a compressed one-liner: overwrite
-  // semantics + TP math (vote cast), the 30-entry cap on --for, the 24h withdraw cap (reward
-  // withdraw), the 0% reward-ratio warning (vote status), and the reward pointer (vote group).
   it("vote --help keeps the reward pointer (group 2nd line)", () => {
     const r = run(["vote", "--help"], { password: null });
     expect(r.stdout).toContain("Vote for super representatives (SR).");
@@ -704,8 +656,6 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.stdout).toContain("at most once every 24 hours");
   });
 
-  // stake-query / chain / interactive-import leaf help must also carry the fuller description,
-  // not the compressed one-line summary (same fix as vote/reward above).
   it("stake info --help lists the overview fields", () => {
     const r = run(["stake", "info", "--help"], { password: null });
     expect(r.stdout).toContain(
@@ -756,7 +706,7 @@ describe("golden CLI — error contract (exit codes)", () => {
 });
 
 describe("golden CLI — token address-book (local, no RPC)", () => {
-  // a real valid base58check address (the CLI validates --contract); not actually a token contract.
+  // Valid Base58Check address; no deployed token is needed.
   const CUSTOM: TokenEntry = {
     kind: "trc20",
     id: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
@@ -855,7 +805,6 @@ describe("golden CLI — fixes regression", () => {
 
   it("a value flag resolves via zod arity (raw-amount reaches the schema)", () => {
     seedWallet();
-    // invalid (non-numeric) amount must be a zod invalid_value, proving the value reached the schema
     const r = run([
       "--output",
       "json",
@@ -946,11 +895,7 @@ describe("golden CLI — governance surface", () => {
   });
 });
 
-// Every other migration test fakes something: the gate's unit tests fake the password
-// source, the step test calls migrate() directly. This is the only one that runs the real binary,
-// against a real encrypted vault, with the password arriving down fd 0 the way CI supplies it.
 describe("golden CLI — startup migration", () => {
-  /** a real v2 keystore wound back to what a pre-EVM one looked like on disk */
   function windBackToV1() {
     seedWallet();
     const path = join(testHome, "wallets.json");
@@ -1034,16 +979,6 @@ describe("golden CLI — startup migration", () => {
   });
 });
 
-/**
- * A flag the command does not declare must be REFUSED, never ignored — including one that happens
- * to be spelled like the command's own path.
- *
- * `assertKnownFlags` used to allow the path segments, so `token balance --token USDT` and
- * `contract deploy --contract 0x…` were silently accepted no-ops: the user typed something the
- * command does not have, and the CLI ran anyway as if they had not. That is the exact failure the
- * check exists to prevent, and it hid behind the one input most likely to be typed by mistake —
- * `tx send` really does take `--token`, so reaching for it on `token balance` is natural.
- */
 describe("golden CLI — flags spelled like the command path", () => {
   it.each([
     [
@@ -1059,7 +994,6 @@ describe("golden CLI — flags spelled like the command path", () => {
     expect(r.json.error.message).toContain(flag);
   });
 
-  // The commands themselves must still run — the path segments arrive as positionals, not flags.
   it("leaves the commands' own invocations working", () => {
     expect(
       run(["--output", "json", "token", "list", "--network", "tron:3448148188"]).json.command,
@@ -1071,24 +1005,16 @@ describe("golden CLI — flags spelled like the command path", () => {
   });
 });
 
-/**
- * The `networks` header is worth pinning because the column NAMES carry meaning here: `Chain id`
- * says the value is the second half of the canonical id (`eip155` + `1` = `eip155:1`), which the
- * shorter "Chain" left open to reading as the chain's name.
- */
 describe("golden CLI — networks table", () => {
   it("names its columns as fixed", () => {
     const header = run(["networks"]).stdout.split("\n")[0];
 
-    // the column NAME is the contract; its width follows whatever the widest value happens to be
     expect(header).toMatch(/\|\s*Chain id\s*\|/);
-    // canonical id and alias are separate columns: one is stable, the other is readable
     expect(header).toContain("| Network ");
     expect(header).toContain("| Alias ");
     expect(header).toContain("| Endpoint ");
   });
 
-  // The endpoint may carry an API key in its path; a listing has no business echoing one.
   it("shows endpoints as hosts, never full URLs", () => {
     const out = run(["networks"]).stdout;
 
@@ -1097,11 +1023,6 @@ describe("golden CLI — networks table", () => {
   });
 });
 
-// yargs keeps a grouped command's tail in argv.group/verb/args, which made those names work as
-// undocumented flags: `chain --verb node` really dispatched chain.node and `use --args main`
-// really bound the positional. The dangerous one was `contract call --args <addr>`, which bound
-// into a slot the command has not got — the call then ran with no argument and answered 0, a
-// wrong result indistinguishable from a real one.
 describe("golden CLI — yargs tail keys are not user-facing flags", () => {
   it("rejects --args where it used to act as a positional", () => {
     seedWallet("main");
@@ -1115,7 +1036,6 @@ describe("golden CLI — yargs tail keys are not user-facing flags", () => {
   it("rejects --verb where it used to act as a subcommand alias", () => {
     const r = run(["--output", "json", "chain", "--verb", "node"]);
 
-    // exit 2 before any RPC: the check runs on the raw tokens, ahead of dispatch.
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_option");
   });

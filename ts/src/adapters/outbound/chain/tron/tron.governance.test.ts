@@ -26,14 +26,6 @@ describe("TronRpcClient governance builders", () => {
     expect(() => assertTronTxIntegrity(transaction)).not.toThrow();
   });
 
-  // Java's CLI can send int64 max here because it speaks protobuf over gRPC. We cannot: java-tron
-  // rebuilds the contract from `raw_data` json on the non-visible broadcast path, and a numeric
-  // STRING does not parse into the int64 field — the node then validates an empty message and
-  // answers "Contract validate error : No contract!". Proven on Nile with one signed transaction and
-  // identical raw_data_hex. A json number cannot hold int64 max exactly either, so the only honest
-  // answer for such a value is to refuse it up front rather than emit a transaction the node will
-  // reject, or silently set a rounded limit. Real limits are bounded by getTotalEnergyLimit (~1.8e11),
-  // far below the safe-integer ceiling, so nothing reachable is lost.
   it("refuses an origin energy limit no json number can hold exactly", async () => {
     const client = new TronRpcClient("http://127.0.0.1:1");
     vi.spyOn(client.tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({

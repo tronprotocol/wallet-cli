@@ -13,15 +13,7 @@ import {
   type GovernanceTransactionInput,
 } from "./governance-transaction.js";
 
-/**
- * The Ledger TRON app's parser implements a fixed contract-type allowlist (java's
- * `ledger/wrapper/ContractTypeChecker`), and none of this group's types are on it:
- * `WitnessCreateContract`, `WitnessUpdateContract`, `UpdateBrokerageContract`. The device answers
- * APDU 0x6a80 and no app setting changes that, so refuse before the user is sent to unlock it and
- * before any RPC is spent — the same rule the asset group follows.
- *
- * The `proposal` group is deliberately NOT gated: ProposalCreate/Approve/Delete *are* allowlisted.
- */
+// Ledger cannot sign WitnessCreateContract, WitnessUpdateContract, or UpdateBrokerageContract.
 const LEDGER_CANNOT_SIGN = { requireSoftware: true } as const;
 
 export interface WitnessUrlInput extends GovernanceTransactionInput {
@@ -49,9 +41,6 @@ export class TronWitnessService {
     ]);
     if (witness)
       throw new ChainError("already_witness", `${owner} is already a registered witness`);
-    // "Activated" means the node returned a record carrying an address. Testing for an EMPTY object
-    // is not the same thing: a node that answers with a stub (just `address`, no balance) would pass
-    // that check and the user would get an opaque node rejection instead of `account_not_active`.
     if (!account.address) {
       throw new ChainError("account_not_active", `${owner} is not activated on-chain`);
     }
@@ -84,8 +73,7 @@ export class TronWitnessService {
     });
     return witnessReceipt("witness-create", outcomeData(outcome), owner, {
       url: input.url,
-      // The node receipt's `fee` generally covers bandwidth/energy only. Witness registration
-      // also burns getAccountUpgradeCost, which is the economically relevant fee for this action.
+      // Registration burns getAccountUpgradeCost in addition to receipt resource fees.
       feeSun: registrationFeeSun.toString(),
       registrationFeeSun: registrationFeeSun.toString(),
     });

@@ -153,7 +153,7 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
     {} as never,
     new X402HttpServer(facilitator),
   );
-  // No --token or --asset: the paywall's default token must still bound the raw limit.
+  // The omitted asset uses the paywall's default token.
   const result = await service.roundtrip(
     { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn() } as never,
     { id: "eip155:56", chainId: "56", family: "evm" } as never,

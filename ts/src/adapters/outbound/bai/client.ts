@@ -118,8 +118,7 @@ export class BaiClient implements BaiApi {
     let decoded: unknown;
     try {
       const body = await response.text();
-      // Summary scalars are exposed as strings; preserve numeric literals before any rounding.
-      // Lists retain their existing numeric fields and pagination contract.
+      // Preserve summary precision; list responses use JSON numbers.
       decoded =
         procedure === "usage.summary"
           ? parseLosslessJson(body, undefined, (value) => value)

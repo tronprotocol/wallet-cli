@@ -1,20 +1,4 @@
-/**
- * The startup migration gate. Runs on every invocation before help/meta handling,
- * argument validation, or command dispatch.
- *
- * The gate is absolute: while a registered file lags this binary, no command runs. That is what
- * lets `ChainAddresses` stay total instead of degrading to a partial map everywhere.
- *
- * Consent: rewriting someone's wallet file and decrypting their seed to do it is not something to
- * spring on them. When the upgrade needs the master password, the gate explains what will change
- * and takes an answer BEFORE asking for the password. Previously the entire upgrade surfaced as a
- * bare "Master password (hidden):" prompt — no reason given, no mention that a file was about to
- * be rewritten, and no way to say no except Ctrl+C.
- *
- * Consent and authentication are independent. Every interactive migration asks before rewriting
- * wallet state; a secretless upgrade (ledger / watch only) simply skips the password step after
- * consent. Non-interactive secretless migrations remain automatic so CI can self-heal.
- */
+// Gate wallet commands on migration; public help and discovery bypass this gate.
 import { UsageError } from "../domain/errors/index.js";
 import {
   backupPathFor,
@@ -23,12 +7,11 @@ import {
   type StaleFile,
 } from "../adapters/outbound/persistence/migration.js";
 
-/** One file the upgrade will rewrite, in the terms a user needs to weigh it. */
 export interface PendingUpgrade {
   path: string;
   from: number;
   to: number;
-  /** where the pre-upgrade copy is kept; never removed automatically. */
+  // Pre-upgrade backup, never removed automatically.
   backup: string;
 }
 
@@ -38,19 +21,13 @@ export interface MigrationGateOutcome {
 }
 
 export interface MigrationPrompt {
-  /** Report every pending upgrade before any prompt or write. */
+  // Report pending upgrades before prompting or writing.
   notice?(pending: PendingUpgrade[], needsPassword: boolean): void;
-  /**
-   * Explain the pending upgrade and return the user's answer. Called for every stale plan when an
-   * interactive caller supplies it, and always before `password()`.
-   *
-   * Non-interactive callers return true: secretless plans then apply automatically, while
-   * password-bearing plans let `password()` produce migration_required when no source exists.
-   */
+  // Ask consent before requesting a password; noninteractive callers may return true.
   confirm?(pending: PendingUpgrade[]): Promise<boolean>;
-  /** The master password, or null when none can be obtained (no TTY and no --password-stdin). */
+  // Return null when no password source is available.
   password(): Promise<string | null>;
-  /** Report the atomic backup + rewrite immediately before it starts. */
+  // Report the backup and rewrite immediately before applying the plan.
   applying?(pending: PendingUpgrade[]): void;
 }
 
@@ -59,8 +36,6 @@ export async function runMigrationGate(
   steps: MigrationStep[],
   prompt: MigrationPrompt,
 ): Promise<MigrationGateOutcome> {
-  // No early exit for "nothing stale" is needed: planMigrations only aggregates needsPassword
-  // over stale files, and apply() no-ops on an empty set. Mutation testing proved the guard dead.
   const plan = runner.plan(steps);
   const pending = plan.stale.map(pendingUpgrade);
   if (pending.length === 0) return { status: "current", files: [] };

@@ -12,12 +12,11 @@ import { dirname, join, resolve } from "node:path";
 import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
 import type { KeypairTarget, KeypairWriter } from "../../../application/ports/keypair-writer.js";
 
-/** Exclusive, no-follow writer for plaintext private-key artifacts. */
+// Plaintext private-key files require exclusive creation and mode 0600.
 export class SecureKeypairWriter implements KeypairWriter {
   constructor(private readonly root: string) {}
 
   write(target: KeypairTarget, value: unknown): string {
-    // Default location is this adapter's business — the use case only supplies the name.
     return this.#writeTo(
       "out" in target ? target.out : join(this.root, "generated", `keypair-${target.name}`),
       value,
@@ -35,8 +34,7 @@ export class SecureKeypairWriter implements KeypairWriter {
         constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
         0o600,
       );
-      // O_EXCL guarantees this open is what brought the file into existence, so from here on a
-      // failure leaves OUR unfinished file behind — and it is ours to remove.
+      // Mark ownership only after exclusive creation succeeds.
       created = true;
       fchmodSync(descriptor, 0o600);
       writeFileSync(descriptor, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -55,18 +53,15 @@ export class SecureKeypairWriter implements KeypairWriter {
     } catch (error) {
       if (descriptor !== undefined) closeSync(descriptor);
       const code = (error as NodeJS.ErrnoException).code;
-      // Refusing an existing target is deterministic input, not a runtime fault — same code, class,
-      // and exit status the backup writer uses for the identical O_EXCL conflict.
       if (code === "EEXIST" || code === "ELOOP") {
         throw new UsageError("output_exists", `refusing to overwrite existing file: ${target}`);
       }
-      // Without this, a half-written file stays at the final path and O_EXCL rejects every retry
-      // with output_exists — a transient disk error would become a permanent, manual-fix deadlock.
+      // Remove unfinished files so exclusive creation permits a retry.
       if (created) {
         try {
           unlinkSync(target);
         } catch {
-          // best effort: the write error below is the one worth reporting
+          // Preserve the original write failure.
         }
       }
       throw new ExecutionError("io_error", `could not write keypair file: ${target}`);

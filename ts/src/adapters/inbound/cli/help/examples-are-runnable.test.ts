@@ -7,15 +7,6 @@ import { isChainCommand } from "../contracts/index.js";
 import { GLOBAL_FLAGS, inputFlagsFor } from "./catalog.js";
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
 
-/**
- * Every flag used in a help Example must be a flag the command actually declares.
- *
- * Examples are the part of help people copy verbatim, and nothing keeps them honest when a flag
- * is renamed: `contract deploy` advertised `--bytecode` and `--params` for a whole release after
- * they were renamed to `--code` / `--code-file` / `--constructor-params`, so the one
- * line a reader was most likely to paste was the one line guaranteed to fail with
- * `unknown option`. A renamed flag now fails here instead of in someone's terminal.
- */
 describe("help examples only use flags the command declares", () => {
   let previousHome: string | undefined;
 
@@ -29,7 +20,6 @@ describe("help examples only use flags the command declares", () => {
     else process.env.WALLET_CLI_HOME = previousHome;
   });
 
-  /** zod field names are camelCase; the CLI spells them kebab-case. */
   const kebab = (name: string): string => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
   function declaredFlags(
@@ -64,7 +54,7 @@ describe("help examples only use flags the command declares", () => {
       const examples = (isChainCommand(cmd) ? cmd.spec.examples : cmd.examples) ?? [];
       const allowed = declaredFlags(cmd);
       for (const example of examples) {
-        // Long flags only. Short aliases (-o) and shell redirection are not command flags.
+        // Check long flags; short aliases and redirection are outside this check.
         for (const [, flag] of example.cmd.matchAll(/(?:^|\s)--([a-z0-9][a-z0-9-]*)/g)) {
           if (!allowed.has(flag!)) offenders.push(`${path}: --${flag} (in "${example.cmd}")`);
         }

@@ -1,29 +1,4 @@
 import { resolveTronAccount } from "../../../services/tron-account.js";
-/**
- * SunSwap remove-liquidity — taking a position back out.
- *
- * The mirror of adding, and not symmetric with it:
- *
- * - V2 burns LP tokens and the ROUTER must be allowed to take them, so the approval is for the
- *   LP token itself rather than for the pair's two sides.
- * - V3 needs no approval at all: the position manager already holds the NFT.
- * - V3 is ONE transaction carrying a multicall of `decreaseLiquidity` + `collect`.
- *   `decreaseLiquidity` alone only credits the position and transfers nothing, so a user who
- *   sent it would see a successful transaction and receive no tokens.
- * - V4 is ONE call and not a multicall, unlike V3: `decreaseLiquidity` settles the pair itself,
- *   so nothing has to be collected beside it. It also needs no approval and no Permit2 — the
- *   position manager already holds the position, so nothing needs authorising to move.
- * - `--liquidity` means two different things. On V2 it is LP tokens, in whole units, like any
- *   other token amount. On V3 and V4 it is the position's internal liquidity, which is not a
- *   token amount at all and has no decimals. Getting that wrong is silent, which is why help
- *   says so.
- *
- * ONE RULE GOVERNS THE V4 PATH and it is the opposite of the V4 DEPOSIT's: a withdrawal is
- * bounded from BELOW, by `amount0Min` / `amount1Min`, where the deposit is bounded from above by
- * a ceiling. So every estimate here must err DOWNWARD — understating what arrives is safe,
- * overstating it is not — which is why the sizing goes through `v4AmountsForLiquidity` (rounds
- * down) and never through the deposit's ceiling helper.
- */
 import type { NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../../contracts/transaction-input.js";
@@ -69,22 +44,13 @@ import {
   type ApprovalPlan,
 } from "./liquidity-transactions.js";
 
-/**
- * The lookup for the resolution further in. The entry has already resolved `token0`/`token1`
- * against the account's book, so what reaches these calls is an address (a pass-through) or a
- * builtin; a caller that skipped the entry gets the official layer only.
- */
 const RESOLVED = { caller: "liquidity" } as const;
 
-/** The receipt's `kind`, one value across every mode this command has. */
 const KIND = "sunswap-remove-liquidity" as const;
 
 export interface RemoveLiquidityInput extends TransactionModeInput {
   readonly protocol: string;
-  /**
-   * V2: LP tokens to burn, in whole units. V3: the position's internal liquidity, raw — not a
-   * token amount, and not scaled by anything.
-   */
+  // V2: whole LP tokens. V3/V4: unscaled position liquidity.
   readonly liquidity: string;
   readonly token0?: string;
   readonly token1?: string;
@@ -94,20 +60,9 @@ export interface RemoveLiquidityInput extends TransactionModeInput {
   readonly recipient?: string;
   readonly deadline?: number;
   readonly feeLimit?: string;
-  /**
-   * V4: the pool's fee tier, as a CROSS-CHECK against the tier the position reports.
-   *
-   * Never a selector — the position names its own pool — so the only thing it can do is disagree,
-   * and a disagreement is refused rather than resolved in either direction.
-   */
+  // V4 fee-tier cross-check; the position selects the pool.
   readonly fee?: number;
-  /**
-   * V4: a further DOWNWARD tolerance on the computed floors, as a decimal.
-   *
-   * It only ever lowers them. `amount0Min` is a floor, so a tolerance that raised it would revert
-   * the withdrawals it was meant to protect — the exact opposite of what `--slippage` does on the
-   * V4 deposit, where the bound is a ceiling and the tolerance only ever raises it.
-   */
+  // V4 decimal tolerance that lowers the withdrawal floors.
   readonly slippage?: string;
 }
 
@@ -115,35 +70,34 @@ export interface RemovalSide {
   readonly address: string;
   readonly symbol: string;
   readonly decimals: number;
-  /** base units expected back, before the transaction; actual afterwards. */
+  // Base units; estimated until settlement is available.
   readonly amount: string;
-  /** base units below which the withdrawal should revert rather than proceed. */
+  // Minimum received, in base units.
   readonly amountMinimum: string;
 }
 
 export interface RemovalPlanView {
   readonly account: string;
   readonly protocol: "V2" | "V3" | "V4";
-  /** V2's router, or the V3 / V4 position manager — published as `positionManager` on V3 / V4. */
+  // Published as positionManager on V3/V4.
   readonly router: string;
   readonly recipient: string;
   readonly deadline: number;
   readonly token0: RemovalSide;
   readonly token1: RemovalSide;
-  /** V2: LP tokens burned, base units. */
+  // V2 LP tokens burned, in base units.
   readonly lpAmount?: string;
   readonly lpDecimals?: number;
-  /** V3: the position and how much of its liquidity this burns. */
+  // V3/V4 NFT id and unscaled liquidity to burn.
   readonly nftTokenId?: string;
   readonly liquidity?: string;
   readonly approvals?: readonly ApprovalPlan[];
-  // ── V4 ──────────────────────────────────────────────────────────────────────
-  /** the 32-byte pool id. A V4 pool has no address, so this is what names it. */
+  // 32-byte V4 pool id.
   readonly poolId?: string;
   readonly feeTier?: number;
-  /** part of the pool's identity on V4, rather than implied by the fee tier. */
+  // V4 pool identity; independent of fee tier.
   readonly tickSpacing?: number;
-  /** already the WORD for it — "none" for an unhooked pool — never the zero address. */
+  // "none" for an unhooked pool.
   readonly hooks?: string;
   readonly tickLower?: number;
   readonly tickUpper?: number;
@@ -180,8 +134,6 @@ export class SunSwapRemoveLiquidityService {
           : await this.#removeV2(scope, network, resolved);
     return withTokenBook(result, book.resolved);
   }
-
-  // ── V2 ──────────────────────────────────────────────────────────────────────
 
   async #removeV2(
     scope: TransactionScope,
@@ -239,9 +191,6 @@ export class SunSwapRemoveLiquidityService {
           router: plan.router,
           recipient: plan.recipient,
           lpAmount: plan.lpAmount,
-          // decimals travels with the amount. Without it the receipt printed "LP burned 766,634"
-          // for the same burn the dry run had shown as a fraction — a live Nile run caught it, and
-          // it is the third time this shape of defect has appeared on this path.
           lpDecimals: plan.lpDecimals,
           token0: publishedSide(plan.token0),
           token1: publishedSide(plan.token1),
@@ -284,7 +233,6 @@ export class SunSwapRemoveLiquidityService {
       throw new ChainError("pool_not_found", "no V2 pool exists for that pair");
     }
 
-    // LP tokens are an ordinary TRC20, so the amount is scaled by the pair's own decimals.
     const lpAmount = toBaseUnits(input.liquidity, pair.lpDecimals, "LP", "--liquidity");
     const held = await this.liquidity.balanceOf(network, pair.pairAddress, owner);
     if (BigInt(held) < BigInt(lpAmount)) {
@@ -294,12 +242,10 @@ export class SunSwapRemoveLiquidityService {
       );
     }
 
-    // Each side comes back in proportion to the share of the supply being burned.
     const amount0 = share(lpAmount, pair.reserve0, pair.totalSupply);
     const amount1 = share(lpAmount, pair.reserve1, pair.totalSupply);
 
-    // The LP TOKEN is what the router must be allowed to take — not the pair's two sides, which
-    // the pool already holds.
+    // The router burns LP tokens; approving the underlying pair tokens would not authorize it.
     const approvals = await this.tx.planApprovals(network, owner, router, [
       {
         facts: { address: pair.pairAddress, decimals: pair.lpDecimals, symbol: "LP" },
@@ -324,7 +270,6 @@ export class SunSwapRemoveLiquidityService {
     };
   }
 
-  /** an explicit floor, else 95% of what the current reserves say is coming back. */
   #v2Minimum(explicit: string | undefined, amount: string, facts: TokenFacts): string {
     if (explicit === undefined) return applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS);
     return toBaseUnits(explicit, facts.decimals, facts.symbol, "--min");
@@ -357,7 +302,7 @@ export class SunSwapRemoveLiquidityService {
     });
   }
 
-  /** Read this transaction's router result; account deltas also include fees and other transfers. */
+  // Use the router result; account deltas also include fees and unrelated transfers.
   async #settleV2(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -395,8 +340,6 @@ export class SunSwapRemoveLiquidityService {
     return settled;
   }
 
-  // ── V3 ──────────────────────────────────────────────────────────────────────
-
   async #removeV3(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -424,11 +367,9 @@ export class SunSwapRemoveLiquidityService {
       return { kind: KIND, ...withPositionManager(plan), ...built };
     }
 
-    // Re-read the owner immediately before sending: a dry run can be minutes old, and a position
-    // that changed hands in between must not be decreased on this account's behalf.
+    // Ownership can change while the withdrawal is being prepared.
     await this.#assertPositionOwned(network, position.tokenId, owner);
-    // What the position could collect BEFORE the transaction. Afterwards the principal and the
-    // fees have arrived together and nothing distinguishes them.
+    // Read fees before collection combines them with principal.
     const owed = await this.#owedFees(scope, network, position.tokenId, plan.recipient, owner);
 
     const main = await this.tx.run(scope, network, payload, {
@@ -471,7 +412,6 @@ export class SunSwapRemoveLiquidityService {
     }
     const position = await this.#assertPositionOwned(network, input.positionId, owner);
 
-    // Raw, not scaled: a position's liquidity is not a token amount and has no decimals.
     const burn = wholeNumber(input.liquidity, "--liquidity");
     if (BigInt(burn) > BigInt(position.liquidity)) {
       throw new UsageError(
@@ -505,7 +445,6 @@ export class SunSwapRemoveLiquidityService {
         deadline: resolveDeadline(input.deadline, Date.now()),
         nftTokenId: position.tokenId,
         liquidity: burn,
-        // V3 floors default to 0. The dry run says so out loud.
         token0: side(token0, expected.amount0, this.#v3Minimum(input.min0, token0)),
         token1: side(token1, expected.amount1, this.#v3Minimum(input.min1, token1)),
       },
@@ -520,6 +459,7 @@ export class SunSwapRemoveLiquidityService {
       : toBaseUnits(explicit, facts.decimals, facts.symbol, "--min");
   }
 
+  // V3 decreaseLiquidity only credits the position; the payload must also collect.
   #v3Payload(network: NetworkDescriptor, plan: RemovalPlanView): ContractCallPayload {
     return this.liquidity.v3RemovePayload(network, {
       tokenId: plan.nftTokenId ?? "0",
@@ -531,7 +471,7 @@ export class SunSwapRemoveLiquidityService {
     });
   }
 
-  /** Best-effort: an unreadable fee figure costs the split, not the withdrawal. */
+  // Unreadable fees must not block the withdrawal.
   async #owedFees(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -547,13 +487,7 @@ export class SunSwapRemoveLiquidityService {
     return owed;
   }
 
-  /**
-   * What arrived, split into principal and the fees collected alongside it.
-   *
-   * One transaction brings both, so nothing in the receipt distinguishes them: the split is what
-   * the `Collect` event reports minus what the position was owed beforehand. Text shows the
-   * total; only JSON separates them, because the total is what a person is checking.
-   */
+  // Estimate the principal/fee split from the pre-send fees and the actual Collect total.
   async #settleV3(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -601,15 +535,7 @@ export class SunSwapRemoveLiquidityService {
     return position;
   }
 
-  // ── V4 ──────────────────────────────────────────────────────────────────────
-
-  /**
-   * A V4 withdrawal.
-   *
-   * ONE call, not V3's multicall: `decreaseLiquidity` on the V4 position manager settles the pair
-   * itself, so there is no `collect` beside it and nothing to approve. What is left to get right is
-   * the DIRECTION of the bound — see the note at the top of this file.
-   */
+  // V4 decreaseLiquidity settles principal and fees in one call; no separate collect is needed.
   async #removeV4(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -637,20 +563,9 @@ export class SunSwapRemoveLiquidityService {
       return { kind: KIND, ...withPositionManager(plan), ...built };
     }
 
-    // Re-read the owner immediately before sending, for the same reason V3 does: a dry run can be
-    // minutes old, and a position that changed hands in between must not be decreased on this
-    // account's behalf.
+    // Ownership can change while the withdrawal is being prepared.
     await this.#assertV4PositionOwned(network, request.tokenId, owner);
-    /**
-     * What the position is owed BEFORE the call, because the call takes it too.
-     *
-     * MEASURED on Nile, 2026-09-25, position 7: owed 4821 TRX / 3132 USDT before a partial
-     * withdrawal, 0 / 0 after, while an untouched position's owed figure stood unchanged. So a V4
-     * withdrawal settles the fees alongside the principal exactly as V3's does, rather than leaving
-     * them for `collect-fees`. Reporting only the principal, as an earlier version did,
-     * understated what arrived by nearly four times and left a caller looking for money that had
-     * already been paid to them.
-     */
+    // Withdrawal pays accrued fees too; read them before the call clears them.
     const owed = await this.#owedFeesV4(scope, network, plan);
 
     const main = await this.tx.run(scope, network, payload, {
@@ -671,22 +586,11 @@ export class SunSwapRemoveLiquidityService {
     };
   }
 
-  /**
-   * Everything a V4 withdrawal needs, decided before anything is sent.
-   *
-   * V4 requires BOTH the position id AND the pair, unlike V3 — and the pair is not what selects the
-   * pool. The position names its own pool; the caller's pair is a CROSS-CHECK against what the
-   * position reports, so that withdrawing from a position the caller did not mean to is refused
-   * rather than executed. The fee tier, when given, is checked the same way.
-   */
   async #planV4(
     network: NetworkDescriptor,
     owner: string,
     input: RemoveLiquidityInput,
   ): Promise<{ plan: RemovalPlanView; position: V4Position; request: V4RemoveRequest }> {
-    // Defensive: the command schema refuses this at parse time, where it is deterministic and needs
-    // no wallet. Restated here because the use case is also reachable directly, and a recipient
-    // silently dropped is a withdrawal sent somewhere the caller did not ask for.
     if (input.recipient !== undefined) {
       throw new UsageError(
         "invalid_option",
@@ -712,7 +616,6 @@ export class SunSwapRemoveLiquidityService {
       );
     }
 
-    // Raw, not scaled: a position's liquidity is not a token amount and has no decimals.
     const burn = wholeNumber(input.liquidity, "--liquidity");
     if (BigInt(burn) > BigInt(position.liquidity)) {
       throw new UsageError(
@@ -734,8 +637,7 @@ export class SunSwapRemoveLiquidityService {
       this.#facts(network, pool.currency1),
     ]);
     const range = { tickLower: position.tickLower, tickUpper: position.tickUpper };
-    // ROUNDS DOWN — this is what the caller RECEIVES, so the error must point down. The deposit's
-    // ceiling helper rounds the other way and is deliberately not used here.
+    // Round withdrawals down so minimums do not exceed the expected receipts.
     const expected = this.liquidity.v4AmountsForLiquidity(pool, range, burn);
 
     const amount0Min = this.#v4Minimum(input.min0, input.slippage, expected.amount0, token0);
@@ -747,8 +649,7 @@ export class SunSwapRemoveLiquidityService {
       currency1: pool.currency1,
       hooks: pool.hooks,
       fee: pool.fee,
-      // The pool's OWN word, never re-encoded from the spacing — re-encoding it would be our guess
-      // at a layout the pool has already told us.
+      // Preserve parameters verbatim; changing any bit changes the pool identity.
       parameters: pool.parameters,
     };
 
@@ -757,7 +658,6 @@ export class SunSwapRemoveLiquidityService {
         account: owner,
         protocol: "V4",
         router: this.liquidity.v4PositionManager(network),
-        // Always the signing account: `--recipient` is refused on this path.
         recipient: owner,
         deadline,
         nftTokenId: position.tokenId,
@@ -767,8 +667,6 @@ export class SunSwapRemoveLiquidityService {
         poolId: pool.poolId,
         feeTier: pool.fee,
         tickSpacing: pool.tickSpacing,
-        // The word for it, never the zero address — which on TRON is also native TRX's address, so
-        // printing it would say the pool is hooked to TRX.
         hooks: describeHooks(pool.hooks),
         tickLower: range.tickLower,
         tickUpper: range.tickUpper,
@@ -786,23 +684,13 @@ export class SunSwapRemoveLiquidityService {
     };
   }
 
-  /**
-   * The FLOOR on one side: an explicit amount, a tolerance below the estimate, or zero.
-   *
-   * Zero is the default on V3 and V4 alike. A tolerance only ever LOWERS the floor, because a
-   * floor raised above what the position is worth reverts the withdrawal it was meant to protect —
-   * the opposite direction to `--slippage` on the V4 deposit, where the bound is a ceiling.
-   */
   #v4Minimum(
     explicit: string | undefined,
     slippage: string | undefined,
     expected: string,
     facts: TokenFacts,
   ): string {
-    // --slippage is a tolerance that lowers --min0/--min1 FURTHER, so the two combine rather than
-    // compete: the explicit amount is the base when one is given, and the estimate is the base
-    // when none is. Either way the tolerance only ever moves the floor DOWN, which is the safe
-    // direction for a withdrawal — the bound protects against receiving less.
+    // Slippage lowers the explicit floor, or the estimate when no floor was supplied.
     const base =
       explicit === undefined
         ? expected
@@ -811,10 +699,7 @@ export class SunSwapRemoveLiquidityService {
     return applyMinimumShare(base, BigInt(10_000 - slippageToBips(slippage)));
   }
 
-  /**
-   * Require the position's currency order: min0/min1 protect assets in that order.
-   * Accepting a reversed pair would attach the caller's minimums to the wrong assets.
-   */
+  // Require currency order so min0/min1 protect the intended assets.
   #assertPairMatches(
     network: NetworkDescriptor,
     position: V4Position,
@@ -835,21 +720,7 @@ export class SunSwapRemoveLiquidityService {
     }
   }
 
-  /**
-   * What the position holds after the withdrawal — read, not computed.
-   *
-   * Best-effort, like every other post-check here: the tokens are already the caller's, so a failed
-   * follow-up read costs the figure and not the withdrawal. The AMOUNTS stay as planned: V4 emits no
-   * event this codebase can decode into what arrived, so the receipt reports the estimate rather
-   * than inventing an actual.
-   */
-  /**
-   * The fees the withdrawal will also pay out, read just before it is sent.
-   *
-   * Best effort on purpose: a figure we could not read must not stop a withdrawal the caller asked
-   * for. When it is missing the receipt simply carries no `feeAmount`, which is the same shape V3
-   * falls back to.
-   */
+  // Unreadable fees omit the estimate without blocking withdrawal.
   async #owedFeesV4(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -970,21 +841,7 @@ function publishedSide(entry: RemovalSide): Record<string, unknown> {
   };
 }
 
-/**
- * One side of a confirmed V3 removal: principal, and the fees that came with it.
- *
- * `feeAmount` is what the position was owed before the transaction; the principal is the rest.
- * When the owed figure could not be read the whole arrival is reported as `amount` rather than
- * guessed at — a split invented from nothing would be worse than no split.
- */
-/**
- * A published side plus the fees that arrived with it, when we know them.
- *
- * Unlike V3's `splitSide` there is nothing to subtract: V4 emits no event this codebase decodes, so
- * `amount` is the principal the plan computed and `feeAmount` is what the position was owed. The fee
- * figure is a LOWER BOUND — the pool can accrue more between the read and the block — and that is
- * the honest direction for a number describing money that arrived.
- */
+// Attach pre-send fee estimates until settlement supplies actual amounts.
 function withFees(
   side: Record<string, unknown>,
   owed: string | undefined,
@@ -1006,7 +863,6 @@ function splitSide(
   };
 }
 
-/** `amount * reserve / totalSupply` — the share of a reserve that a burn is worth. */
 function share(amount: string, reserve: string, totalSupply: string): string {
   return ((BigInt(amount) * BigInt(reserve)) / BigInt(totalSupply)).toString();
 }
@@ -1025,7 +881,7 @@ function isNative(address: string): boolean {
   return address === NATIVE_TRX_ADDRESS;
 }
 
-/** Native TRX has no pool of its own; the router wraps it, so the pair to read is the WTRX one. */
+// V2 pools hold WTRX; the router wraps native TRX.
 function poolSideOf(contracts: LiquidityContractAddresses, address: string): string {
   return isNative(address) ? contracts.wtrx : address;
 }

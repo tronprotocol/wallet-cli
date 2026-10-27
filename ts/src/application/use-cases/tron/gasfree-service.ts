@@ -141,7 +141,7 @@ export class GasFreeService {
       throw new UsageError("invalid_amount", "--amount must be greater than zero");
     }
     const activateFee = addressInfo.active ? "0" : asset.activateFee;
-    // Java signs the upper bound activateFee + transferFee even after activation.
+    // Authorize activation plus transfer fees even when activation is already paid.
     const authorizedMaxFee = add(asset.activateFee, asset.transferFee);
     const totalDeducted = add(value, activateFee, asset.transferFee);
     const gateway = this.gateways.get(network, "tron");
@@ -236,7 +236,6 @@ export class GasFreeService {
       authorization,
       addressInfo.gasFreeAddress,
     );
-    // #wait has already warned with the precise reason it stopped.
     if (!terminal) return accepted;
     const settledAmount = terminal.txnAmount ?? accepted.amount;
     const settledServiceFee = terminal.txnTransferFee ?? accepted.serviceFee;
@@ -325,17 +324,7 @@ export class GasFreeService {
     );
   }
 
-  /**
-   * Poll the trace until a terminal state, or give up.
-   *
-   * Everything here runs AFTER `submitTransfer` succeeded — the transfer is accepted and the tokens
-   * are committed. A polling failure therefore says nothing about the outcome, and must never
-   * destroy the receipt that carries the trace id: without it the caller cannot reconcile and is
-   * likely to resubmit. Transport flakiness is retried inside the deadline; anything else that is
-   * not an integrity violation gives up with a warning and lets the caller return `submitted`.
-   *
-   * Returns undefined when no terminal state was reached; it has already warned why.
-   */
+  // Preserve the submitted receipt on polling failure, except for integrity violations.
   async #wait(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -360,7 +349,6 @@ export class GasFreeService {
       try {
         current = await this.provider.trace(network, initial.id);
       } catch (error) {
-        // 429 / 5xx / connection failure / request timeout — the deadline decides when to stop.
         if (isRetryablePoll(error)) continue;
         if (error instanceof CliError && error.code === "gasfree_integrity") throw error;
         scope.warn(
@@ -393,7 +381,6 @@ export class GasFreeService {
   }
 }
 
-/** Transport-level flakiness the provider will plausibly recover from inside the wait deadline. */
 function isRetryablePoll(error: unknown): boolean {
   return error instanceof TransportError || (error instanceof CliError && error.code === "timeout");
 }
@@ -409,7 +396,6 @@ function selectToken(tokens: ResolvedGasFreeToken[], symbol: string): ResolvedGa
   return matches[0]!;
 }
 
-/** Java selects the first provider returned by the authenticated configuration endpoint. */
 function selectProvider(providers: GasFreeProviderConfig[]): GasFreeProviderConfig {
   if (providers.length === 0) {
     throw new ChainError("gasfree_integrity", "GasFree provider configuration is empty");
@@ -464,7 +450,7 @@ function assertAccepted(
   record: GasFreeTransferRecord,
   authorization: GasFreeAuthorization,
   gasFreeAddress: string,
-  /** carried into error.details once a trace id exists, so a rejected receipt stays reconcilable. */
+  // Keep the trace ID in error details for reconciliation.
   context?: object,
 ): void {
   const deadlineMatches =
@@ -492,7 +478,7 @@ function assertAccepted(
   assertFeeIntegrity(record, authorization.maxFee);
 }
 
-/** Provider estimates and final charges are untrusted until bounded by signed maxFee. */
+// Bound provider estimates and final charges by the signed maxFee when available.
 function assertFeeIntegrity(record: GasFreeTransferRecord, authorizedMaxFee?: string): void {
   const feeSets = [
     [

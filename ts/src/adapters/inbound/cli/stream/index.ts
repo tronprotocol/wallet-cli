@@ -1,9 +1,4 @@
-/**
- * StreamManager — strict stdout/stderr discipline.
- *   result      → stdout, exactly once per execution
- *   diagnostic  → stderr, debug gated by verbose; warns are captured for meta.warnings
- *   readStdinOnce → consumes stdin once; a second read throws
- */
+// Reserve stdout for one result; diagnostics and progress use stderr.
 import { readFileSync } from "node:fs";
 import type { OutputMode } from "../../../../domain/types/index.js";
 import type {
@@ -48,11 +43,7 @@ export class StreamManager implements IStreamManager {
     this.err(msg.endsWith("\n") ? msg : msg + "\n");
   }
 
-  /**
-   * Intermediate progress frame (long flows: Ledger wait / signed / broadcasting).
-   * Plain line to stderr — keeps stdout reserved for the single terminal frame.
-   * Not a terminal frame: callable many times, device prompts must surface.
-   */
+  // Progress must reach stderr even when verbose output is disabled.
   event(frame: string | null): void {
     if (frame === null) return;
     this.err(frame.endsWith("\n") ? frame : frame + "\n");

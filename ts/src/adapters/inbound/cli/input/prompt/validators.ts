@@ -1,9 +1,7 @@
-/** Pure input validators for the interactive prompt layer (no I/O). */
 import { Derivation } from "../../../../../domain/derivation/index.js";
 
 export const PASSWORD_SPECIALS = "!@#$%^&*()-_=+[]{};:,.?";
 
-/** First-time master-password policy. Returns unmet requirements ([] = acceptable). */
 export function passwordPolicyErrors(pw: string): string[] {
   const errs: string[] = [];
   if (pw.length < 8) errs.push("must be at least 8 characters");

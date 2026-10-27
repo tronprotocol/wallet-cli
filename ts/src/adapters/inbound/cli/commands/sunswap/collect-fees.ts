@@ -5,10 +5,9 @@ import type { SunSwapCollectFeesService } from "../../../../../application/use-c
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 
-/** Flags V4 adds, and which mean nothing on V3. */
 const V4_ONLY = ["token0", "token1", "fee", "deadline"] as const;
 
-/** Flags V4 does not have. A V4 collection settles to the signing account and nowhere else. */
+// V4 settles fees to the signing account only.
 const NOT_ON_V4 = ["recipient"] as const;
 
 const fields = z.object({
@@ -52,18 +51,6 @@ const fields = z.object({
     ),
 });
 
-/**
- * The flag × scenario matrix, and why V2 is absent.
- *
- * V2 is `invalid_value`, not an unknown protocol: a V2 pool's fees are real; they are simply not
- * separable — they accrue into the LP token's own value and come out when the liquidity does.
- * Telling a caller "unknown protocol" would suggest they mistyped, when what they need to know is
- * that there is nothing to claim.
- *
- * Every refusal here depends on nothing remote, so it fires deterministically and without a
- * wallet. The checks that need the chain — the pair and the tier against what the position
- * reports — belong to the use case.
- */
 function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: RefinementCtx): void {
   const protocol = String(value.protocol).toUpperCase();
   if (protocol !== "V3" && protocol !== "V4") {
@@ -95,13 +82,6 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
   refuseV4Flags(value, ctx);
 }
 
-/**
- * V4's own matrix.
- *
- * The pair is OPTIONAL here, unlike on `remove-liquidity` — it is a cross-check a caller may
- * skip, because a collection cannot be sized wrong the way a withdrawal can. What it
- * cannot be is half-given: one side names no pair at all, and `--fee` on its own checks nothing.
- */
 function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void {
   for (const flag of NOT_ON_V4) {
     if (value[flag] !== undefined) {
@@ -162,8 +142,7 @@ export const sunswapCollectFeesSpec: ChainSpec = {
     "On V3, 'sunswap remove-liquidity' already collects the fees alongside the principal, so this\n" +
     "command is for the case where the principal should stay in the pool.",
   baseFields: fields,
-  // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
-  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1.
+  // Reject unsupported flags before validating recipient addresses.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     { cmd: "wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --dry-run" },
@@ -183,8 +162,6 @@ export const sunswapCollectFeesTronBinding = (
       protocol: String(input.protocol).toUpperCase(),
       positionId: input.positionId,
       ...(input.recipient === undefined ? {} : { recipient: input.recipient }),
-      // V4's own. Forwarded explicitly like the rest rather than by spreading `input`, so a flag
-      // that is declared but never passed on is a visible omission instead of a silent one.
       ...(input.token0 === undefined ? {} : { token0: input.token0 }),
       ...(input.token1 === undefined ? {} : { token1: input.token1 }),
       ...(input.fee === undefined ? {} : { fee: input.fee }),

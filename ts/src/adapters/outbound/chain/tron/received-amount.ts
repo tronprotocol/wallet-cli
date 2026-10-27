@@ -7,7 +7,7 @@ const hex = (s: string) => s.replace(/^0x/, "").toLowerCase();
 const address = (s: string) => tronHexAddress(s).slice(-40).toLowerCase();
 const validWord = (s: string) => /^[0-9a-f]{64}$/.test(s);
 
-/** Net output credited by this successful transaction; never a before/after account snapshot. */
+// Net receipt-proven output in base units; undefined when evidence is insufficient.
 export function decodeReceivedAmount(
   info: TronTxInfo,
   token: string,

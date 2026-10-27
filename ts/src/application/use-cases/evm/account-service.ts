@@ -6,14 +6,6 @@ import { FAMILIES } from "../../../domain/family/index.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 
-/**
- * EVM account reads.
- *
- * `info` deliberately does not mirror TRON's shape. TRON returns the node's `getAccount` object
- * plus derived bandwidth/energy; an EVM node exposes no such call and no such object, so there
- * is nothing to pass through. What an EVM account actually has is a balance, a nonce, and either
- * code or no code — and those are what a user asks `account info` for.
- */
 export class EvmAccountService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
@@ -21,17 +13,6 @@ export class EvmAccountService {
     private readonly prices: PriceProvider,
   ) {}
 
-  /**
-   * Every holding, valued.
-   *
-   * Balances are read PER TOKEN and in parallel, each degrading on its own: a delisted contract,
-   * a reverting `balanceOf` or an RPC hiccup costs that one row, not the listing. Deliberately
-   * not a multicall — that would add a contract dependency and a per-chain address to verify, to
-   * save a few round trips.
-   *
-   * The row shape comes from the shared helpers, so this listing and TRON's report the same
-   * fields for the same thing.
-   */
   async portfolio(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("evm");
     const gateway = this.gateways.get(network, "evm");
@@ -43,8 +24,7 @@ export class EvmAccountService {
           gateway
             .getErc20Balance(token.id, address)
             .then((raw) => ({ raw }) as const)
-            // Swallow the underlying error rather than surfacing it: it can carry the endpoint
-            // (and any key in it) into a success payload. A stable reason goes on the row instead.
+            // Raw errors may expose endpoint credentials; report only a stable reason.
             .catch(() => ({ unavailable: true }) as const),
         ),
       ),
@@ -102,22 +82,15 @@ export class EvmAccountService {
       gateway.getTransactionCount(address),
       gateway.getCode(address),
     ]);
-    // "0x" is the empty-code answer, i.e. an externally-owned account. `type` rather than a
-    // boolean: it is the field agents match on, and it has room for a third kind of
-    // account without every reader having to relearn the meaning of a flag.
     const isContract = code !== "0x" && code !== "";
     return {
       address,
       balance,
-      // A number, matching `tx info`'s own `nonce`: one field name must not arrive as two
-      // types across two commands. Safe as a number — a nonce counts an account's transactions,
-      // so it cannot approach 2^53 the way a wei balance does.
       nonce: Number(nonce),
       decimals: FAMILIES.evm.nativeDecimals,
       symbol: network.nativeSymbol,
       type: isContract ? "contract" : "eoa",
-      // Bytes of deployed code, and only for an account that has some: an EOA reporting 0 would
-      // be answering a question that does not apply to it. Hex is "0x" + two chars per byte.
+      // Code size is bytes: 0x-prefixed hex has two characters per byte.
       ...(isContract ? { codeSize: (code.length - 2) / 2 } : {}),
     };
   }

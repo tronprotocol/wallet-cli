@@ -27,11 +27,11 @@ describe("selectLedgerPath", () => {
   it("derives a page, paginates, and returns the chosen path", async () => {
     const ledger = new Ledger();
     vi.spyOn(ledger, "getAddress").mockImplementation(async (_f, path) => `addr-for-${path}`);
-    // pageSize 2: page0 = idx0,idx1; arrow down twice -> loadMore -> idx2; enter
+    // Two downward keys load the next page before selection.
     const prompter = new Prompter(
       new KeyBackend([{ name: "down" }, { name: "down" }, { name: "return" }]),
     );
     const path = await selectLedgerPath(ledger, "tron", prompter, 2);
-    expect(path).toContain("m/44'"); // a real BIP32 path was selected
+    expect(path).toContain("m/44'");
   });
 });

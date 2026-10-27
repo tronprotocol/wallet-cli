@@ -16,19 +16,7 @@ import { basename } from "node:path";
 
 export const VERSION = packageMetadata.version;
 
-/**
- * Report a failure raised while the composition root was still being built — an unreadable,
- * insecure, or malformed `config.yaml`. These happen before the runtime exists, so they cannot use
- * the normal error path, and without this they escape `main()` entirely and land on the last-resort
- * guard in `index.ts` as a bare `fatal:` line at exit 1 — no envelope, and the wrong exit code for
- * what is a UsageError.
- *
- * Everything here depends on argv alone: the config that would have supplied the default output
- * mode is precisely what failed, so only an explicit `-o` is honoured and text is the fallback.
- * `normalizeError` still does the redacting — a YAML parse error quotes the offending line, which
- * may sit next to a service credential, so it is classified to a generic `internal_error` rather
- * than surfaced.
- */
+// Bootstrap failures use argv output settings because config may be unreadable.
 function reportBootstrapFailure(
   error: unknown,
   globals: { output?: OutputMode; verbose?: boolean },
@@ -38,24 +26,18 @@ function reportBootstrapFailure(
   const normalized = normalizeError(error);
   const streams = new StreamManager(output, globals.verbose ?? false);
   if (normalized.code === "internal_error") {
-    // same --verbose-gated escape hatch the main path offers, minus paths/URLs
     streams.diagnostic("debug", `bootstrap error: ${redactErrorMessage(String(error))}`);
   }
   createOutputFormatter(output, streams, startedAt).error(normalized);
   return normalized.exitCode();
 }
 
-/** Execute one CLI invocation. Dependency construction is delegated to the composition root. */
 export async function main(argv: string[]): Promise<ExitCode> {
   const startedAt = Date.now();
   const tokens = hideBin(argv);
   const { globals, secretPaths, invalid, stdinFlags } = parseGlobals(tokens);
 
-  // Reject more than one `--*-stdin` flag before anything else runs: stdin (fd 0) can serve only
-  // one secret channel per invocation, so this is a flag COMBINATION error (invalid_option, exit
-  // 2), not a read failure — it must be caught before the migration gate or any command logic
-  // gets a chance to read a secret, not discovered later as secret_source_error when the second
-  // read finds stdin already consumed.
+  // Reject competing stdin secrets before migration or command logic can consume stdin.
   if (stdinFlags.length > 1) {
     return reportBootstrapFailure(
       new UsageError(
@@ -80,8 +62,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
       return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]);
     }
 
-    // Commands that can use wallet state must pass migration before dispatch.
-    // Public help, version and schema discovery above never read or migrate wallet data.
+    // Migrate before dispatch; public help and discovery bypass this gate.
     const migration = await runMigrationGate(
       new MigrationRunner(runtime.store),
       migrationSteps(runtime.root, runtime.store),
@@ -93,8 +74,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
         },
         confirm: async (_pending) => {
           const { prompter } = runtime.deps;
-          // Non-interactive secretless plans migrate automatically; password-bearing plans fall
-          // through to password(), which raises migration_required if no stdin source exists.
+          // Noninteractive secretless upgrades are automatic; other plans require a password source.
           if (!prompter.isTTY()) return true;
           return prompter.select({
             label: "Wallet data upgrade",
@@ -120,8 +100,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
       },
     );
 
-    // Startup changed durable wallet state. End this invocation at that boundary instead of
-    // silently dispatching the command the user typed before they saw the upgrade.
+    // Stop after cancellation or upgrade; never dispatch the original command.
     if (migration.status === "cancelled") {
       const data = {
         upgraded: false,
@@ -151,8 +130,6 @@ export async function main(argv: string[]): Promise<ExitCode> {
       return 0;
     }
 
-    // A supplied global flag with an out-of-range/invalid value is a usage error — never a silent
-    // fall-back to the default. Reported before command dispatch, so no RPC is attempted.
     if (invalid.length > 0) {
       const bad = invalid[0]!;
       throw new UsageError(
@@ -161,9 +138,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
       );
     }
 
-    // yargs stores a grouped command's tail in argv.group/verb/args, so those names must stay in
-    // the per-command flag allowlist — which leaves a user-typed `--args` indistinguishable from
-    // plumbing once parsed. The raw tokens still tell them apart.
+    // Reject reserved tail flags before yargs makes them indistinguishable from command fields.
     assertNoTailFlags(tokens);
 
     const cli = buildCli({
@@ -189,12 +164,12 @@ export async function main(argv: string[]): Promise<ExitCode> {
     });
     return normalized.exitCode();
   } finally {
-    runtime.deps.secrets.clearPrimed(); // release cached secrets at end of the invocation
+    runtime.deps.secrets.clearPrimed();
     runtime.prompter.close();
   }
 }
 
-/** Goes to stderr at `info`, so stdout stays reserved for command output. */
+// Emit on stderr so stdout remains reserved for command output.
 export function upgradeNotice(pending: PendingUpgrade[], needsPassword = true): string[] {
   return [
     "",

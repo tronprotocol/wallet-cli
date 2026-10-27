@@ -105,10 +105,6 @@ describe("TronWitnessService", () => {
     expect(build).not.toHaveBeenCalled();
   });
 
-  // The Ledger TRON app has no parser for WitnessCreate / WitnessUpdate / UpdateBrokerage
-  // (java's ledger/wrapper/ContractTypeChecker lists neither), so every write in this group must be
-  // refused as software-only BEFORE the device is touched. Asserted per command
-  // because the flag is passed at each call site and is easy to drop in one of them.
   describe("Ledger accounts", () => {
     const cases = [
       [
@@ -136,7 +132,7 @@ describe("TronWitnessService", () => {
         buildWitnessUpdate: async () => ({}) as never,
         buildWitnessSetBrokerage: async () => ({}) as never,
       });
-      await call(service).catch(() => undefined); // `create` rejects with already_witness; irrelevant here
+      await call(service).catch(() => undefined); // create rejects after the signer gate.
       expect(service.assertCanSign).toHaveBeenCalledWith(scope.activeAccount, "tron", {
         requireSoftware: true,
       });

@@ -35,18 +35,11 @@ export const ChainFormatters = {
     );
   }) satisfies TextFormatter,
 
-  // Both families price transactions, but in disjoint terms — TRON in SUN per energy/bandwidth
-  // unit, EVM in gwei per gas under a fee model the chain reports. The rows come from the family
-  // table; reading one family's keys out of the other's payload printed three empty TRON labels
-  // on EVM and none of the fee data that was there.
   chainPrices: ((data, ctx) => {
     const d = asObj(data);
     return query(FAMILY_RENDER[renderFamily(ctx)].chainPricesRows(d, renderSymbol(ctx)));
   }) satisfies TextFormatter,
 
-  // Family-shaped, like `chain prices` and `account info`: TRON has a p2p network to report on,
-  // EVM has a chain id to check the endpoint against. Reading one family's keys out of the other's
-  // payload is what printed empty TRON labels on EVM before.
   chainNode: ((data, ctx) =>
     query(FAMILY_RENDER[renderFamily(ctx)].chainNodeRows(asObj(data)))) satisfies TextFormatter,
 };

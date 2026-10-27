@@ -35,7 +35,6 @@ describe("TxPipeline.signOnly", () => {
       txId: "abc",
       signed: { txID: "abc", signature: ["deadbeef"] },
     });
-    // nothing was estimated, so no fee is invented
     expect((outcome as { fee?: unknown }).fee).toBeUndefined();
   });
 
@@ -52,7 +51,6 @@ describe("TxPipeline.signOnly", () => {
     expect(events).toEqual([{ type: "awaiting_device", reason: "sign" }]);
   });
 
-  // A watch-only account must fail before any signing work, same as every write command.
   it("refuses an account that cannot sign", async () => {
     const p = pipelineWith({ kind: "software", address: "T1", sign: async () => ({}) }, () => {
       throw new Error("watch-only");

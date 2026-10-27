@@ -7,7 +7,6 @@ interface TerminalShape {
   columns?: number;
 }
 
-/** Compact ANSI-free half-block QR renderer with a four-module quiet zone. */
 export class TerminalQrEncoder implements QrEncoder {
   constructor(private readonly terminal: TerminalShape = process.stdout) {}
 
@@ -43,7 +42,7 @@ export class TerminalQrEncoder implements QrEncoder {
         const bottom = bit(row + 1, column);
         line += top ? (bottom ? "█" : "▀") : bottom ? "▄" : " ";
       }
-      // Retain the right quiet zone; it is part of the scannable symbol.
+      // Keep trailing spaces: the quiet zone is part of the scannable symbol.
       lines.push(line);
     }
     return lines.join("\n");

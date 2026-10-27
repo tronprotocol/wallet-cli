@@ -55,11 +55,6 @@ it.each([
   );
 });
 
-/**
- * A selected relay's failures used to collapse into one `provider_error`, so a script could not
- * tell a rate limit from a timeout from a malformed answer. Each keeps its class and the safe
- * retry metadata; none echoes the relay's text, and none falls back to another relay.
- */
 const relay = (fetcher: typeof fetch, timeout = 1000) =>
   gasfreeRelayClient(network, "https://relay.example", {}, timeout, fetcher)!;
 

@@ -25,7 +25,7 @@ const ADDRESS = new TronAddress();
 const STATES = new Set<GasFreeState>(["WAITING", "INPROGRESS", "CONFIRMING", "SUCCEED", "FAILED"]);
 type Fetch = typeof globalThis.fetch;
 
-/** Java-compatible adapter for open.gasfree.io. Mutating POST requests are never retried. */
+// Never retry transfer submissions.
 export class GasFreeClient implements GasFreeProvider {
   constructor(
     private readonly config: Config,
@@ -346,8 +346,7 @@ function uint(value: unknown, field: string): string {
   } else {
     throw invalid(field, "an unsigned decimal integer");
   }
-  // All values entering GasFree authorization/hash math are uint256. Bound length before BigInt
-  // conversion so an authenticated-but-malicious response cannot trigger huge integer parsing.
+  // Bound decimal length before BigInt parsing to limit work on untrusted responses.
   if (result.length > 78 || BigInt(result) >= 1n << 256n) {
     throw invalid(field, "an unsigned uint256 decimal integer");
   }

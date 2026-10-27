@@ -35,13 +35,6 @@ function gatewayAnswering(answers: Record<string, string>) {
   } as unknown as ChainGatewayProvider;
 }
 
-/**
- * The reason our enum is not a transcription.
- *
- * Upstream's had three values and reported a launched token's `3` as something else, which would
- * let it through to a transaction that must revert. Ours must agree with the SDK's exactly, and
- * this is the assertion that says so rather than a comment claiming it.
- */
 describe("the curve states we recognise", () => {
   it("are exactly the SDK's", () => {
     expect(LAUNCHPAD_STATE.NOT_EXIST).toBe(LaunchpadTokenState.NOT_EXIST);
@@ -64,12 +57,6 @@ describe("tokenState", () => {
     await expect(port.tokenState(NETWORK, TOKEN)).resolves.toBe(expected);
   });
 
-  /**
-   * A value we do not recognise is an error, not a guess.
-   *
-   * The enum already grew from three to four once. Treating an unknown fifth as tradeable is how
-   * a token in a state nobody has seen gets a transaction that must fail.
-   */
   it("refuses a state this release does not know rather than assuming it can trade", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({ "getTokenState(address)": uint(4) }),
@@ -82,7 +69,6 @@ describe("tokenState", () => {
 });
 
 describe("quotes", () => {
-  // The fee is the second word, and it is inside the TRX the caller named — not added to it.
   it("reads the token amount and the platform fee out of one buy quote", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
@@ -95,7 +81,6 @@ describe("quotes", () => {
     });
   });
 
-  // The first word is what the seller receives, already net: the fee is paid beside it.
   it("reads the seller's net TRX and the fee out of one sell quote, as quoted", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
@@ -108,11 +93,6 @@ describe("quotes", () => {
     });
   });
 
-  /**
-   * The smallest sale that pays the seller anything: the inverse quote for a net of ONE SUN.
-   * Not the inverse of the fee floor, which is the point where the seller's net EQUALS the fee
-   * and roughly doubles the true minimum.
-   */
   it("finds the minimum sale from the inverse quote for one SUN of proceeds", async () => {
     const triggerConstantContract = vi.fn(
       async (_contract: string, method: string, parameters: { value: unknown }[]) => {
@@ -130,7 +110,6 @@ describe("quotes", () => {
     expect(triggerConstantContract).toHaveBeenCalledTimes(1);
   });
 
-  // Past what a double holds, which is why every amount here is a string.
   it("keeps a 23-digit token amount exact", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
@@ -151,8 +130,6 @@ describe("the floor", () => {
     expect(port.applyFloor("25125337148664452174594", 500)).toBe("23869070291231229565864");
   });
 
-  // 25125337148664452174594 * 9999 / 10000, worked by hand. A double would round the input
-  // itself before the multiplication ever happened.
   it("stays exact past float precision", () => {
     expect(port.applyFloor("25125337148664452174594", 1)).toBe("25122824614949585729376");
   });
@@ -161,10 +138,6 @@ describe("the floor", () => {
 describe("payloads", () => {
   const port = new SunPumpLaunchpadContracts(gatewayAnswering({}));
 
-  /**
-   * The signature and the parameter order come from the SDK, not from this file. Asserting them
-   * here is what would catch an SDK rename before it became a wrong call on chain.
-   */
   it("builds a buy with TRX as the call value and the minimum as an argument", () => {
     const payload = port.buyPayload(NETWORK, {
       token: TOKEN,
@@ -200,12 +173,6 @@ describe("payloads", () => {
     expect(payload.callValueSun).toBeUndefined();
   });
 
-  /**
-   * The guard that exists because the SDK's parameter values are optional in its own types.
-   *
-   * A missing minimum would encode as an empty parameter — and a trade whose floor never arrived
-   * is a trade with no slippage protection, which succeeds and looks entirely normal.
-   */
   it("refuses an action the SDK built with an empty parameter", () => {
     const action = createLaunchpadBuyAction({
       launchpad: LAUNCHPAD,
@@ -235,8 +202,6 @@ describe("payloads", () => {
     ).toBe(action.functionSelector);
   });
 
-  // The one path in this codebase where unbounded is correct: the curve pulls tokens on every
-  // sale, and the contract is an upgradeable proxy that expects a standing allowance.
   it("takes the unlimited amount from the SDK rather than writing out 2^256-1", () => {
     expect(SunPumpLaunchpadContracts.UNLIMITED).toBe(MAX_UINT256.toString());
     expect(SunPumpLaunchpadContracts.UNLIMITED).toBe(

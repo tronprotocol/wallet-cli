@@ -13,7 +13,7 @@ const approval = {
   amount: "10",
   currentAllowance: "0",
 };
-// The CLI supplies a class instance, including prototype methods and a lazy account getter.
+// Exercise forwarding of prototype methods and a private-state account getter.
 class TestScope implements TransactionScope {
   readonly timeoutMs = 500;
   readonly waitTimeoutMs = 1000;
@@ -238,10 +238,6 @@ describe("approval failure progress", () => {
   });
 });
 
-/**
- * An approval that lands on chain but fails (a revert, out of energy) must stop the flow: the main
- * call would spend the allowance it never got and revert too, after its own fee was paid.
- */
 describe("an approval that fails on chain", () => {
   it("refuses with execution_reverted, keeps its txId, and never runs the main call", async () => {
     const h = harness();

@@ -132,9 +132,6 @@ describe("ChainCommandDefinition dispatch", () => {
   });
 });
 
-// executeChainCommand is a second, independent dispatch path: it binds positionals and rejects
-// flagged ones at its own call site. A `<group> <verb> [args..]` chain leaf exercises the grouped
-// tail there, which the single-segment `block` case above does not reach.
 describe("grouped chain leaf positionals", () => {
   function chainFixture(_tokens: string[]) {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-chain-test-"));
@@ -170,7 +167,6 @@ describe("grouped chain leaf positionals", () => {
     };
     const run = vi.fn(async (_ctx: any, _net: any, input: any) => ({ traceId: input.traceId }));
     registry.addChain(spec, "tron", { run });
-    // sibling leaf → the head is dispatched as `gasfree [verb] [args..]`
     registry.addChain(
       {
         path: ["gasfree", "info"],
@@ -209,7 +205,7 @@ describe("grouped chain leaf positionals", () => {
   it("rejects the --<field> spelling, matching the kebab form of a camelCase field", async () => {
     const tokens = ["gasfree", "trace", "--trace-id", "12345"];
     const { shellOpts, run } = chainFixture(tokens);
-    // exactly once: camel-case-expansion lands both spellings in argv, they must not double-report
+    // yargs emits both spellings; report the offending flag once.
     await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
       code: "invalid_option",
       message: "unknown option(s): --trace-id",
@@ -227,14 +223,6 @@ describe("grouped chain leaf positionals", () => {
   });
 });
 
-/**
- * The shell's half of the dry-run guarantee.
- *
- * A family binding is free to forget `--dry-run` — the flag lives on the shared spec and each
- * binding decides what to forward — so the shell bars broadcasting for the duration of the run.
- * The binding below is exactly the mistake being defended against: it ignores the flag and
- * broadcasts anyway.
- */
 describe("--dry-run bars broadcasting", () => {
   function dryRunFixture(run: (input: any) => Promise<unknown>) {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-dryrun-test-"));

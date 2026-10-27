@@ -4,29 +4,27 @@ import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
-    // standalone build/verify scripts run under Node or Bun, not the CLI's stream ports
+    // Build scripts use Node/Bun streams directly.
     ignores: ["dist/**", "node_modules/**", ".wallet-cli/**", ".private/**", "scripts/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     rules: {
-      // the CLI renders through the streams port, never straight to the console
+      // CLI output must use the streams port.
       "no-console": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
-      // several renderers and sanitizers match control bytes on purpose, to strip terminal
-      // escape-sequence injection out of chain-controlled text (see cli/render/scalars.ts)
+      // Sanitizers match control bytes to prevent terminal injection.
       "no-control-regex": "off",
-      // `any` sits at the adapter boundary, where TronWeb / Ledger / yargs ship no usable types.
-      // tsc is the type authority here; flagging every such cast is noise, not signal.
+      // SDK boundaries require casts where upstream types are incomplete.
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {
-    // golden-output assertions match the CLI's literal column spacing
+    // Output assertions match literal column spacing.
     files: ["**/*.test.ts", "test/**/*.ts"],
     rules: {
       "no-regex-spaces": "off",
@@ -39,6 +37,6 @@ export default tseslint.config(
       globals: { module: "writable", require: "readonly", __dirname: "readonly" },
     },
   },
-  // formatting is Prettier's job — must stay last so it can switch stylistic rules off
+  // Keep last to disable conflicting formatting rules.
   prettier,
 );

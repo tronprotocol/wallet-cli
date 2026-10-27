@@ -1,9 +1,3 @@
-/**
- * EvmTransactionService.send — what actually gets signed.
- *
- * The fake pipeline runs the real `build` and `estimate` callbacks, so these assert the
- * transaction the wallet would put in front of a key, not a mock of one.
- */
 import { describe, expect, it, vi } from "vitest";
 import { EvmTransactionService } from "./transaction-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
@@ -36,7 +30,7 @@ function scope(): TransactionScope {
   };
 }
 
-/** captures the built transaction by running the pipeline's own callbacks. */
+// Run the real build/estimate callbacks without signing or broadcasting.
 function harness(over: Partial<Record<string, unknown>> = {}) {
   const gateway = {
     getTransactionCount: vi.fn(async () => (over.nonce as string) ?? "5"),
@@ -83,7 +77,6 @@ describe("EvmTransactionService.send — native transfer", () => {
       type: 2,
       chainId: 11155111,
       to: RECEIVER,
-      // 1 ETH at 18 decimals — the family's decimals, not a hardcoded 6.
       value: "1000000000000000000",
       nonce: 5,
       gasLimit: "21000",
@@ -92,7 +85,6 @@ describe("EvmTransactionService.send — native transfer", () => {
     });
   });
 
-  // A nonce read at "latest" would refuse to queue behind an unconfirmed transaction of our own.
   it("takes the nonce from the pending block", async () => {
     const { service, gateway } = harness();
     await service.send(scope(), SEPOLIA, { to: RECEIVER, amount: "1" } as never);
@@ -114,8 +106,6 @@ describe("EvmTransactionService.send — native transfer", () => {
     expect(transactionScope.warn).toHaveBeenCalledWith(expect.stringMatching(/nonce 44.*42.*gap/i));
   });
 
-  // With --nonce given, the pending-nonce read exists only to warn about a gap. It must not be
-  // able to fail a build that already has everything it needs.
   it("still builds when --nonce is given and the pending-nonce read fails", async () => {
     const gateway = {
       getTransactionCount: vi.fn(async () => {
@@ -250,13 +240,9 @@ describe("EvmTransactionService.send — ERC-20 transfer", () => {
       decimals: 6,
     } as never);
 
-    // 5 USDT at 6 decimals is 5_000_000 — using 18 would overpay by a factor of a trillion.
     expect(gateway.encodeErc20Transfer).toHaveBeenCalledWith(RECEIVER, "5000000");
   });
 
-  // This used to assert that a bare --contract ALWAYS failed, which is what the flag actually did
-  // — nothing resolved its decimals. The rule it should have been asserting is narrower: refuse
-  // when decimals cannot be established, from the book or from the contract itself.
   it("refuses a token transfer whose decimals it could not establish", async () => {
     const { service } = harness({ metadata: {} });
 
@@ -267,9 +253,6 @@ describe("EvmTransactionService.send — ERC-20 transfer", () => {
 });
 
 describe("EvmTransactionService.send — the transaction it hands over", () => {
-  // The built transaction is echoed verbatim by --dry-run and --build-only, so it must contain
-  // only transaction fields. A fee plan smuggled through it as a courier reads like part of the
-  // transaction and is not one.
   it("carries no bookkeeping fields of its own", async () => {
     const { service, built } = harness();
     await service.send(scope(), SEPOLIA, { to: RECEIVER, amount: "1" } as never);
@@ -301,14 +284,6 @@ describe("EvmTransactionService.send — the transaction it hands over", () => {
   });
 });
 
-/**
- * `--contract` without the token in the address book.
- *
- * The flag is offered on EVM but nothing resolved its decimals: the inbound layer has no
- * --decimals flag and only `--token <symbol>` consulted the book, so `--contract 0x… --amount N`
- * always failed as token_metadata_unavailable — even for a contract whose decimals() answers.
- * TRON has always asked the contract in this case; EVM now does the same.
- */
 describe("EvmTransactionService.send — --contract without a book entry", () => {
   it("asks the contract for its decimals and scales by them", async () => {
     const { service, built, gateway } = harness({
@@ -323,7 +298,6 @@ describe("EvmTransactionService.send — --contract without a book entry", () =>
     } as never)) as Record<string, unknown>;
 
     expect(gateway.getErc20Metadata).toHaveBeenCalledWith(USDT);
-    // 0.5 at six decimals — scaled by the TOKEN's decimals, never the chain's eighteen.
     expect(out.rawAmount).toBe("500000");
     expect(out.decimals).toBe(6);
     expect(out.symbol ?? out.token).toBe("USDC");
@@ -361,13 +335,6 @@ describe("EvmTransactionService.send — --contract without a book entry", () =>
   });
 });
 
-/**
- * A failed gas estimate.
- *
- * It used to be swallowed and replaced with 21000, so an ERC-20 transfer was signed with the gas
- * limit of a plain value transfer and failed at broadcast — or, on a node that accepts an
- * under-limit transaction, on-chain with the fee burned.
- */
 describe("EvmTransactionService.send — gas estimation", () => {
   it("surfaces the node's refusal instead of signing a guess", async () => {
     const gateway = {
@@ -396,8 +363,6 @@ describe("EvmTransactionService.send — gas estimation", () => {
       .send(scope(), SEPOLIA, { to: RECEIVER, amount: "1", dryRun: true } as never)
       .catch((e) => e);
 
-    // A node-side refusal, so a node-side code and exit 1 — not `invalid_option` / exit 2, which
-    // would tell a caller its command line was wrong (see evm-gas-estimate.ts).
     expect(error).toMatchObject({ code: "rpc_error" });
     expect(error.exitCode()).toBe(1);
     expect(error.message).toMatch(/insufficient funds/);
@@ -440,14 +405,6 @@ describe("EvmTransactionService.send — gas estimation", () => {
   });
 });
 
-/**
- * `tx sign` and `tx broadcast` on EVM.
- *
- * An EVM transaction carries exactly one signature — there is no multi-signature accumulation to
- * relay — so signing takes an UNSIGNED serialisation and returns the signed one. That symmetry is
- * why `tx broadcast` accepts only `--hex`/`--file`: the artifact both ends exchange is raw hex,
- * and TRON's `--transaction` JSON has no EVM meaning.
- */
 describe("EvmTransactionService.sign", () => {
   function signHarness(signed: unknown = { raw: "0x02signed", hash: `0x${"ab".repeat(32)}` }) {
     const seen: unknown[] = [];
@@ -467,8 +424,7 @@ describe("EvmTransactionService.sign", () => {
     return { service, seen, pipeline };
   }
 
-  // Produced with ethers' own `unsignedSerialized`, not written by hand: a hand-rolled RLP body
-  // is exactly the kind of fixture that fails for a reason unrelated to what is being tested.
+  // ethers unsignedSerialized fixture.
   const UNSIGNED =
     "0x02f083aa36a780830f4240847944848282520894000000000000000000000000000000000000dead87038d7ea4c6800080c0";
 
@@ -476,7 +432,6 @@ describe("EvmTransactionService.sign", () => {
     const { service, seen } = signHarness();
     await service.sign(scope(), SEPOLIA, UNSIGNED);
 
-    // ethers' toJSON carries bigints as strings; the signer re-parses them.
     expect(seen[0]).toMatchObject({ chainId: "11155111", nonce: 0, sig: null });
   });
 
@@ -496,16 +451,8 @@ describe("EvmTransactionService.sign", () => {
     expect(pipeline.signOnly).not.toHaveBeenCalled();
   });
 
-  /**
-   * The one mistake `tx sign` must not make quietly.
-   *
-   * Both transactions are EVM, so `family_mismatch` never fires; and signing consults no node, so
-   * nothing downstream can catch it either. Without this guard the command hands back a perfectly
-   * valid MAINNET transaction and says nothing about it.
-   */
   it("refuses a transaction built for another chain before signing it", async () => {
     const { service, pipeline } = signHarness();
-    // ethers' own unsignedSerialized for the same shape as UNSIGNED, but chainId 1.
     const MAINNET =
       "0x02ed0180830f42408478fbb08282520894000000000000000000000000000000000000dead87038d7ea4c6800080c0";
 
@@ -515,8 +462,6 @@ describe("EvmTransactionService.sign", () => {
     expect(pipeline.signOnly).not.toHaveBeenCalled();
   });
 
-  // The check runs BEFORE the already-signed check: a foreign-chain transaction is refused for
-  // being foreign, which is the fact the reader needs, not for carrying a signature.
   it("names the chain mismatch even when the foreign transaction is already signed", async () => {
     const { service } = signHarness();
     const SIGNED_MAINNET =
@@ -565,7 +510,6 @@ describe("EvmTransactionService.broadcast", () => {
     const out = (await service.broadcast(scope(), SEPOLIA, SIGNED)) as Record<string, unknown>;
 
     expect(seen[0]).toBe(SIGNED);
-    // 0x6bfa29… is keccak of these bytes; the node's answer does not get to choose it.
     expect(out.txId).toBe("0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026");
   });
 
@@ -577,8 +521,6 @@ describe("EvmTransactionService.broadcast", () => {
     expect(out.alreadyKnown).toBe(true);
   });
 
-  // The node would reject it too, but only after it has been sent — and its error would not say
-  // which chain the transaction was actually built for.
   it("refuses a transaction built for another chain without submitting it", async () => {
     const { service, seen } = bcHarness();
     const SIGNED_MAINNET =
@@ -599,21 +541,12 @@ describe("EvmTransactionService.broadcast", () => {
   });
 });
 
-/**
- * `tx broadcast --dry-run`.
- *
- * The flag promises the transaction is validated and NOT submitted; on EVM it used to submit it,
- * irreversibly. The first test below is the one that matters — everything else describes what a
- * dry run is worth once it stops spending money.
- */
 describe("EvmTransactionService.broadcast --dry-run", () => {
   const SIGNED =
     "0x02f87383aa36a780830f424084793b5e8282520894000000000000000000000000000000000000dead87038d7ea4c6800080c001a02958ee6a65975b5f6c2067d08704bc367375ee3fd54f1a0b4cbbc2643ab6b95ca0044e8cb5dea54b08c8b43b68a842e75e4f6627caa3911e4f9e5119ca12c01fc9";
-  // What the fixture costs: nonce 0, value 1000000000000000 wei, gasLimit 21000 ×
-  // maxFeePerGas 2033933954 = 42712613034000 wei. Read off the fixture, not chosen.
+  // Signed fixture values are wei; gasLimit is 21000.
   const MAX_COST = 21000n * 2033933954n;
   const VALUE = 1000000000000000n;
-  // The same transaction signed at nonce 5, for the gap case (ethers' own signTransaction).
   const SIGNED_NONCE_5 =
     "0x02f87383aa36a705830f4240847936a08282520894000000000000000000000000000000000000dead87038d7ea4c6800080c001a0c6bd6e2d48486d0f3cfc0afe941906ed4d2b1e0ddf0d7c420ce309cb71de850da0343d3b1e4e2818e022ad953505750198158dcbd378a50046758b24aafad18c9b";
 
@@ -668,7 +601,6 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     const mainnet = { ...SEPOLIA, id: "eip155:1", chainId: "1" };
 
     await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
-      // The dry run shares the guard the sign and submit paths use.
       code: "chain_id_mismatch",
     });
   });
@@ -693,8 +625,6 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     });
   });
 
-  // A gap is not a rejection: the transaction is valid and will be mined once the missing nonce
-  // arrives. Failing here would deny something that can still happen.
   it("warns rather than fails when the nonce leaves a gap", async () => {
     const { service, scope, warn } = dryHarness({
       getTransactionCount: vi.fn(async () => "2"),
@@ -712,8 +642,6 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("gap"));
   });
 
-  // A dry run that cannot reach a node is still worth more than no dry run — but it must not
-  // claim the checks it could not make.
   it("degrades to the local checks when the node is unreachable", async () => {
     const { service, scope, warn } = dryHarness({
       getTransactionCount: vi.fn(async () => {
@@ -746,13 +674,6 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
   });
 });
 
-/**
- * `tx status` and `tx info`.
- *
- * A receipt alone cannot tell "in the mempool" from "never existed" — `eth_getTransactionReceipt`
- * answers null to both — so the transaction object is read alongside it, exactly as the TRON side
- * reads getTransactionById beside getTransactionInfoById.
- */
 describe("EvmTransactionService.status", () => {
   function statusHarness(tx: unknown, receipt: unknown, head: string | Error = "42") {
     const warn = vi.fn();
@@ -814,9 +735,6 @@ describe("EvmTransactionService.status", () => {
     await expect(service.status(s, SEPOLIA, HASH)).resolves.toMatchObject({ state: "not_found" });
   });
 
-  // A public endpoint may simply not keep old transactions. Reporting not_found without saying so
-  // invites the reader to conclude the transaction never happened, which may be false.
-  // Same field, same arithmetic as TRON's: it is a two-family field, not an EVM one.
   it("reports head minus the transaction's block as confirmations", async () => {
     const { service, scope: s } = statusHarness(
       { hash: HASH },
@@ -853,9 +771,6 @@ describe("EvmTransactionService.status", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  // BUG-V413-025: a node failure (timeout, rpc_error, an unreachable endpoint) must fail the
-  // command, not be swallowed into "not_found". `not_found` tells a script to keep polling a
-  // transaction that may in fact be sitting on a broken node — the opposite of what happened.
   it("fails the command when getTransactionByHash rejects, rather than reporting not_found", async () => {
     const gateway = {
       getTransactionByHash: vi.fn(async () => {
@@ -931,7 +846,7 @@ describe("EvmTransactionService.info", () => {
       getTransactionByHash: vi.fn(async () => tx),
       getTransactionReceipt: vi.fn(async () => receipt),
       getBlockNumber: vi.fn(async () => "42"),
-      // seconds on the wire, as an EVM node reports them
+      // RPC timestamps are seconds.
       getBlock: vi.fn(async () => ({ timestamp: "0x66b1c0d0" })),
       getErc20Metadata: vi.fn(async () => meta),
     };
@@ -966,9 +881,7 @@ describe("EvmTransactionService.info", () => {
       blockNumber: 5,
       gasUsed: "21000",
       feeWei: "1000",
-      // Normalized: one case throughout, so an agent matches "success" and never "SUCCESS".
       status: "success",
-      // Flat keys, out of the node objects rather than buried in the passthrough
       type: "transfer",
       nonce: 7,
       rawAmount: "1000000000000000000",
@@ -977,10 +890,6 @@ describe("EvmTransactionService.info", () => {
     });
   });
 
-  /**
-   * `type` is deliberately coarse: three words a reader can act on, and none of them requires
-   * decoding calldata we have chosen not to decode (see the ERC-20 tests below).
-   */
   it.each([
     [{ to: TO, input: "0x" }, "transfer"],
     [{ to: TO, input: "0xdeadbeef" }, "contract-call"],
@@ -991,7 +900,6 @@ describe("EvmTransactionService.info", () => {
     await expect(svc.info(scope(), SEPOLIA, HASH)).resolves.toMatchObject({ type: expected });
   });
 
-  // The detail view must not fail because a second, optional read did.
   it("still answers when the block's timestamp cannot be read", async () => {
     const gateway = {
       getTransactionByHash: async () => ({
@@ -1020,18 +928,13 @@ describe("EvmTransactionService.info", () => {
     expect(out.blockTime).toBeUndefined();
   });
 
-  // Only `transfer(address,uint256)` is decoded, nothing else. Reporting the raw fields for
-  // an ERC-20 transfer would name the CONTRACT as the recipient and the amount as zero.
   it("decodes an ERC-20 transfer to its real recipient and amount", async () => {
-    // transfer(0xbBbB…, 5000000)
     const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${5000000n
       .toString(16)
       .padStart(64, "0")}`;
     const svc = infoHarness({ hash: HASH, from: OWNER, to: USDT, value: "0x0", input });
 
     const out = await svc.info(scope(), SEPOLIA, HASH);
-    // Same field names the TRON side reports for a TRC20 transfer: contract + symbol + a human
-    // amount scaled by the token's own decimals.
     expect(out).toMatchObject({
       from: OWNER,
       to: TO,
@@ -1060,7 +963,6 @@ describe("EvmTransactionService.info", () => {
     });
 
     const out = await svc.info(scope(), SEPOLIA, HASH);
-    // still the contract, because guessing at unknown calldata is exactly what was ruled out
     expect(out.to).toBe(USDT);
     expect(out.contract).toBeUndefined();
   });
@@ -1071,10 +973,6 @@ describe("EvmTransactionService.info", () => {
     await expect(svc.info(scope(), SEPOLIA, HASH)).rejects.toMatchObject({ code: "not_found" });
   });
 
-  // BUG-V413-014: `tx info` on an unknown hash used to exit 2 (usage error) — wrong, since the
-  // command line was fine and the node simply has no such transaction. `not_found` is now
-  // declared exit 1 in codes.ts and thrown via ChainError; pin the exit itself, not just the
-  // code, so a future change to either side is caught here.
   it("exits 1, not 2, for a hash the node has never seen", async () => {
     const svc = infoHarness(null);
 
@@ -1089,9 +987,6 @@ describe("EvmTransactionService.info", () => {
 
 describe("EvmTransactionService.info address style", () => {
   const HASH = `0x${"ef".repeat(32)}`;
-  // Nodes return addresses in lower case. Every address this CLI prints elsewhere — wallet
-  // addresses, the calldata-decoded recipient below — is EIP-55, so one payload must not mix the
-  // two styles: a reader comparing `from` against their own address would see a mismatch.
   it("checksums the transaction's own from and to", async () => {
     const gateway = {
       getTransactionByHash: async () => ({
@@ -1119,16 +1014,7 @@ describe("EvmTransactionService.info address style", () => {
   });
 });
 
-/**
- * `--dry-run` asks "would this go through?", so an explicit nonce is checked against the chain
- * rather than merely used. Read at "latest" (mined), not "pending": a nonce below pending may be
- * a deliberate replacement of a transaction still in the mempool, which is legitimate.
- *
- * The check lives in tx-build, so `tx send`, `contract send` and `contract deploy` all inherit it
- * — the same place the nonce-gap warning above already comes from.
- */
 describe("EvmTransactionService.send --dry-run — an explicit nonce the chain has moved past", () => {
-  /** distinct counts per block tag, which the shared harness cannot express. */
   function nonceHarness(counts: { latest: string; pending: string }) {
     const gateway = {
       getTransactionCount: vi.fn(async (_addr: string, block: string) =>
@@ -1169,7 +1055,6 @@ describe("EvmTransactionService.send --dry-run — an explicit nonce the chain h
     );
   });
 
-  // The estimate would fail for its own reasons on a doomed transaction, reporting the wrong one.
   it("refuses before spending an eth_estimateGas", async () => {
     const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
     await expect(send(service, { dryRun: true, nonce: 9 })).rejects.toThrow();
@@ -1181,7 +1066,6 @@ describe("EvmTransactionService.send --dry-run — an explicit nonce the chain h
     await expect(send(service, { dryRun: true, nonce: 10 })).resolves.toBeDefined();
   });
 
-  // Below PENDING but at or above LATEST: replacing one of our own unmined transactions.
   it("allows replacing a transaction that is still in the mempool", async () => {
     const { service } = nonceHarness({ latest: "10", pending: "12" });
     await expect(send(service, { dryRun: true, nonce: 11 })).resolves.toBeDefined();
@@ -1193,7 +1077,6 @@ describe("EvmTransactionService.send --dry-run — an explicit nonce the chain h
     expect(gateway.getTransactionCount).not.toHaveBeenCalledWith(OWNER, "latest");
   });
 
-  // A derived nonce IS the pending count, so it cannot be behind — nothing to check, nothing to read.
   it("does not read the mined count when no nonce was given", async () => {
     const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
     await send(service, { dryRun: true });

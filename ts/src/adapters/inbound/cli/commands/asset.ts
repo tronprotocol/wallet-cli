@@ -1,11 +1,3 @@
-/**
- * `asset` — TRC10, the TRON protocol's own token type (issuance, ICO window, frozen supply).
- * TRC20 contracts live under `token`; TRC10 *transfer* is `tx send` with an asset id.
- *
- * Departures from the command spec for this group: Ledger cannot sign any of these contract
- * types, `asset list` defaults to one page rather than the whole chain, and an ambiguous token
- * name is an error rather than a differently-shaped result.
- */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAssetService } from "../../../../application/use-cases/tron/asset-service.js";
@@ -67,7 +59,6 @@ export const assetIssueSpec: ChainSpec = {
       .min(0)
       .optional()
       .describe("shared free bandwidth pool for holders"),
-    // repeatable: the arity layer sets yargs `array: true`, so this always arrives as string[]
     freeze: z
       .array(z.string().min(1))
       .optional()
@@ -182,8 +173,7 @@ export const assetInfoSpec: ChainSpec = {
     "Give exactly one of the <asset> argument or --issuer.\n\n" +
     "Token names are not guaranteed unique. A name matching more than one token is an\n" +
     "error listing the matching ids — re-run with the id you want.",
-  // The choice here is between a positional and a flag; `exclusive` groups model flag-vs-flag
-  // only, so the constraint is stated above and enforced in the service.
+  // Exclusive groups support flags only; the service checks positional-versus-flag exclusivity.
   positionals: [{ field: "assetRef", placeholder: "asset" }],
   baseFields: z.object({
     assetRef: assetReference.optional(),

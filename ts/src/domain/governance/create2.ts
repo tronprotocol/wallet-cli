@@ -14,7 +14,7 @@ export interface TronCreate2Result {
   address: string;
 }
 
-/** Compute the TVM CREATE2 address with the exact formula used by Java wallet-cli. */
+// Uses a signed 64-bit decimal salt and hex creation code.
 export function computeTronCreate2Address(
   deployerAddress: string,
   creationCode: string,
@@ -39,12 +39,11 @@ export function computeTronCreate2Address(
     throw new UsageError("invalid_value", "salt is outside the signed 64-bit range");
   }
 
-  // Java wallet-cli writes Longs.toByteArray(salt) into bytes 24..31 of a zeroed 32-byte salt.
+  // Java-compatible salt: signed big-endian int64 in the low eight bytes, zero-padded above.
   const saltBytes = new Uint8Array(32);
   new DataView(saltBytes.buffer).setBigInt64(24, salt, false);
   const codeHashBytes = keccak_256(hexToBytes(codeHex));
   const digest = keccak_256(concatBytes(deployer, saltBytes, codeHashBytes));
-  // Hash.sha3omit12 on TRON returns 0x41 || digest[12..31].
   const payload = new Uint8Array(21);
   payload[0] = 0x41;
   payload.set(digest.slice(12), 1);

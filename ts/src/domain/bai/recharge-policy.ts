@@ -8,7 +8,7 @@ const minimums: Readonly<Record<string, string>> = Object.freeze({
   SOL: "0.01",
 });
 
-/** Compare decimal quantities exactly; equality is accepted and unlisted tokens have no floor. */
+// Compares decimal strings exactly; unlisted tokens have no minimum.
 export function assertBaiRechargeMinimum(token: string, amount: string): void {
   const minimum = minimums[token.toUpperCase()];
   if (!minimum) return;
@@ -26,7 +26,7 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
   }
 }
 
-/** Validate decimal quantities without converting payment amounts to floating point. */
+// Validates and normalizes positive decimal strings without floating-point conversion.
 export function baiRechargeAmount(value: string): string {
   if (value.length > 100 || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
     throw new UsageError("invalid_amount", "Recharge amount must be a positive decimal string");

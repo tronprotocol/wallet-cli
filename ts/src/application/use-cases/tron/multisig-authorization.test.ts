@@ -59,13 +59,11 @@ describe("TRON multisig authorization preflight", () => {
   });
 
   it("gates the broadcast on the weight this signature will actually reach", async () => {
-    // 2-of-2 with only one local key: signing is legal, broadcasting the 1-weight result is not.
     const short = await assertTronSignerAuthorized(gateway(), transaction(), A, 1_900_000_000_000);
     expect(() => short.assertBroadcastable()).toThrowError(
       /threshold is not reached; missing 1 weight/,
     );
 
-    // the co-signer already approved, so this signature carries the transaction over the threshold.
     const cosigned = gateway({
       getSignWeight: vi.fn(async () => ({
         permission: {

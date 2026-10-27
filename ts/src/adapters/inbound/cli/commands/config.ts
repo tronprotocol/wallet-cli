@@ -11,9 +11,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 
 export function registerConfigCommands(registry: CommandRegistry, service: ConfigService): void {
   const fields = z.object({
-    // Not an enum: `networks.<id>[.<field>]` is a nested path, and the id segment is
-    // open-ended (any canonical id or alias). The service validates the key and names the
-    // supported ones, so a typo gets a precise message rather than a yargs enum dump.
+    // Network IDs and aliases make config paths open-ended; the service validates them.
     key: z
       .string()
       .min(1)

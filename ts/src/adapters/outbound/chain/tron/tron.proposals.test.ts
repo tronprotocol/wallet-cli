@@ -5,17 +5,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/**
- * Guards the HTTP→domain boundary for proposals, which had no coverage and was silently wrong: the
- * normalizer accepted a parameter MAP and rejected arrays, while `/wallet/listproposals` only ever
- * sends an array. Every proposal therefore reported zero changes — the one field that says what a
- * proposal actually does — and `proposal create --wait` could not identify the proposal it had just
- * created (it matches on the parameter set).
- *
- * The payload below is a verbatim excerpt of mainnet proposal 106 (parameter 94 → 1), so this test
- * fails if the real node shape stops being handled. Service-level fixtures cannot catch that: they
- * mock the port, so they can only re-encode whatever shape the adapter believes in.
- */
 const MAINNET_106 = JSON.stringify({
   proposals: [
     {
@@ -47,7 +36,6 @@ describe("TronRpcClient.getProposals", () => {
     stubNode(MAINNET_106);
     const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
 
-    // keyed by protocol parameter id, values stringified — the shape the domain maps to names/units
     expect(proposal!.parameters).toEqual({ "94": "1" });
     expect(proposal!.id).toBe(106);
     expect(proposal!.state).toBe("APPROVED");
@@ -78,7 +66,6 @@ describe("TronRpcClient.getProposals", () => {
     expect(proposal!.parameters).toEqual({ "3": "15", "2": "200000" });
   });
 
-  // tronweb's typings describe a map; accepted so a different gateway cannot regress the group.
   it("also accepts a parameter map keyed by id", async () => {
     stubNode(
       JSON.stringify({
@@ -99,8 +86,7 @@ describe("TronRpcClient.getProposals", () => {
     expect(proposal!.parameters).toEqual({ "3": "15" });
   });
 
-  // Written as RAW json: a JS number literal this large is already rounded before it reaches the
-  // stub, so building the payload with JSON.stringify would test nothing.
+  // Use raw JSON: a JS number literal would round before reaching the parser.
   it("preserves a parameter value beyond Number.MAX_SAFE_INTEGER as an exact string", async () => {
     stubNode(`{
       "proposals": [{

@@ -23,7 +23,6 @@ describe("parseMinTvl", () => {
     expect(parseMinTvl(value)).toBe(value.trim());
   });
 
-  // 1e5 is a number but not a decimal string; accepting it would mean parsing it as a float.
   it.each(["-1", "abc", "1e5", "", " ", ".5", "1.", "+1", "1,000"])("refuses %j", (value) => {
     expect(() => parseMinTvl(value)).toThrow(
       expect.objectContaining({
@@ -41,7 +40,6 @@ describe("meetsMinTvl", () => {
     expect(meetsMinTvl("99999.999999999999999999", "100000")).toBe(false);
   });
 
-  // A record with no TVL cannot be shown to meet any threshold.
   it("does not qualify a record without a usable TVL", () => {
     expect(meetsMinTvl("", "0.01")).toBe(false);
     expect(meetsMinTvl("n/a", "0.01")).toBe(false);

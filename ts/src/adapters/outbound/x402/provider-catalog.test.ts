@@ -192,7 +192,6 @@ it("returns an empty page for a valid chain absent from the provider catalog", a
   });
 });
 
-// Exercise the production alias registry together with catalog filtering.
 describe("provider network resolution", () => {
   it("accepts every global alias, including configured aliases, without changing unfiltered lists", async () => {
     const { ConfigLoader, NetworkRegistry } = await import("../config/index.js");

@@ -41,7 +41,6 @@ describe("mapPosition", () => {
     expect(position.tokens[1]?.symbol).toBe("USDT");
   });
 
-  // The source gives a decimal token amount; a caller needs base units it can pass to a contract.
   it("converts token amounts to base units using each token's own decimals", () => {
     const position = mapPosition(fixture());
     expect(position.tokens[0]?.amount).toBe("1070163618808583559303388");
@@ -59,7 +58,6 @@ describe("mapPosition", () => {
     expect(mapPosition(fixture()).owner).toBe("TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N");
   });
 
-  // A V4 position is an NFT; one price per LP token describes nothing about it.
   it("drops lpPriceUsd on V3 and V4 but keeps it elsewhere", () => {
     expect(mapPosition(fixture())).not.toHaveProperty("lpPriceUsd");
     const v2 = mapPosition({ ...fixture(), protocol: "V2", lpPriceUsd: "1.25" } as RawPosition);
@@ -87,8 +85,6 @@ describe("mapPosition", () => {
     expect(mapPosition(fixture()).lastActiveAt).toBe("2026-03-31 16:10");
   });
 
-  // The service sends an empty string rather than omitting the field for the protocols that have
-  // no NFT, and publishing that would put a bare "#" in the id column and a meaningless json key.
   it("omits nftTokenId when the protocol has no position NFT", () => {
     expect(mapPosition({ ...fixture(), nftTokenId: "" } as RawPosition)).not.toHaveProperty(
       "nftTokenId",
@@ -105,8 +101,6 @@ describe("mapPosition", () => {
 });
 
 describe("toUtcMinute", () => {
-  // The API sends no zone. Reading the string through Date would apply the machine's own, so the
-  // same listing would read differently in Taipei and in CI — hence characters, not dates.
   it("gives the same answer whatever the machine's zone is", () => {
     const original = process.env.TZ;
     try {
@@ -164,12 +158,10 @@ describe("mapToken", () => {
     expect(token).not.toHaveProperty("relevantPoolAddressList");
   });
 
-  // An internal row key no caller can use for anything.
   it("drops id", () => {
     expect(mapToken(tokenFixture())).not.toHaveProperty("id");
   });
 
-  // Money and rates outrun a float; counts do not, and a caller wants them as numbers.
   it("keeps money and rates as digit strings, counts as numbers", () => {
     const token = mapToken(tokenFixture());
     expect(typeof token.priceUsd).toBe("string");
@@ -177,7 +169,6 @@ describe("mapToken", () => {
     expect(typeof token.priceUsd1dRate).toBe("string");
     expect(typeof token.transaction1d).toBe("number");
     expect(typeof token.transactionRecentTotal).toBe("number");
-    // full precision survives, well past what a float holds
     expect(token.reserveUsd).toMatch(/^\d+\.\d{10,}$/);
   });
 
@@ -212,7 +203,6 @@ describe("mapPool", () => {
     expect(pool.tokens[0]?.volume1d).toBe("99066784099966");
   });
 
-  // Database keys and a field that is a constant 0 on V3/V4 — nothing a caller can use.
   it("drops id, contractIndex and lpPriceUsd", () => {
     const pool = mapPool(poolFixture());
     expect(pool).not.toHaveProperty("id");
@@ -220,7 +210,6 @@ describe("mapPool", () => {
     expect(pool).not.toHaveProperty("lpPriceUsd");
   });
 
-  // The orientation of swapRateList is a service detail; the use case turns it into a price.
   it("carries the raw rates for the use case rather than publishing them", () => {
     expect(mapPool(poolFixture()).rates).toEqual(["2.909173910769221638008798715979251686941"]);
   });
@@ -230,8 +219,6 @@ describe("mapPool", () => {
     expect(mapPool(poolFixture()).createdAt).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   });
 
-  // extraInfo genuinely differs per protocol; flattening it would invent a shape that is not
-  // there. Ticks stay integers, everything money-like stays a digit string.
   it("camelCases extra without normalising its shape", () => {
     const extra = mapPool(poolFixture()).extra;
     expect(typeof extra.tick).toBe("number");
@@ -241,25 +228,15 @@ describe("mapPool", () => {
     expect(extra).toHaveProperty("protocolFeeRateToken0");
   });
 
-  /**
-   * A V4 row has to be enough to name the pool again.
-   *
-   * `add-liquidity` takes a V4 pool by its parts, and two of them were unreadable here: the tick
-   * spacing lived only inside the raw `parameters` word and the hook was simply absent when the
-   * pool had none. Both are published now, derived from the row itself.
-   */
   it("decodes the tick spacing and names the hook on a V4 pool", () => {
     const extra = mapPool(poolFixture(2)).extra;
     expect(mapPool(poolFixture(2)).protocol).toBe("V4");
-    // 0x…0a0000 is spacing 10, and the raw word stays beside it.
     expect(extra.tickSpacing).toBe(10);
     expect(extra.parameters).toMatch(/0a0000$/);
-    // The word for absence, never the zero address — which on TRON also means native TRX.
     expect(extra.hooks).toBe("none");
     expect(extra.hooks).not.toContain("T9yD14");
   });
 
-  // V2 and V3 rows have no pool key of this shape, so they gain nothing.
   it.each([
     ["V3", 0],
     ["V2", 1],

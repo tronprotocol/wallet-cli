@@ -1,6 +1,5 @@
 import type { z } from "zod";
 
-/** TRC20 contract XOR TRC10 asset id; exactly one selector is required. */
 export function tokenSelector(
   value: { contract?: string; assetId?: string },
   context: z.RefinementCtx,

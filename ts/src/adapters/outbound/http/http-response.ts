@@ -2,7 +2,7 @@ import { TransportError } from "../../../domain/errors/index.js";
 
 export const MAX_HTTP_RESPONSE_BYTES = 10 * 1024 * 1024;
 
-/** Enforce limits while reading, before an SDK or JSON parser can buffer the body. */
+// Enforce the byte limit before downstream parsers buffer the body.
 export async function boundedResponse(
   response: Response,
   maxBytes: number,

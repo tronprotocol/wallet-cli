@@ -9,32 +9,12 @@ import { Keystore } from "../src/adapters/outbound/keystore/index.js";
 import { AtomicFileStore } from "../src/adapters/outbound/persistence/fs/index.js";
 import { DETACHED } from "./detached.js";
 
-// Regression coverage for issue #2: `contract deploy` constructor params.
-//   • --constructor-sig was a dead flag (types come from the ABI); it was removed.
-//   • The format is named at the COMMAND BOUNDARY rather than reaching TronWeb, which reports a
-//     mismatch in ethers' internals (`invalid BigNumberish value (argument="value")`) — an
-//     argument name that collides with the user's own key and explains nothing.
-//
-// The rename inverted WHICH form is correct: `--params` (bare positional values) became
-// `--constructor-params` ({type,value}), unifying deploy with contract call/send, which always
-// took the typed form. Issue #2's protection is unchanged — only its direction is.
-//
-// The negative case fails at client-side ABI encoding *before* any node call, so it runs
-// hermetically (random key, no network, no funds). The positive/broadcast cases hit real Nile
-// and are gated behind explicit opt-in env flags so `npm test` stays hermetic:
-//   RUN_LIVE=1            → dry-run build against Nile (no broadcast, no funds spent)
-//   RUN_LIVE_BROADCAST=1  → actually deploy + confirm on Nile (spends testnet TRX)
-
 const HERE = dirname(fileURLToPath(import.meta.url));
-// A built entry (WALLET_CLI_TEST_ENTRY, set by vitest.config for the golden project) runs as
-// plain `node <entry>`; without one, the TypeScript source is executed through tsx per spawn.
 const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
   ? [process.env.WALLET_CLI_TEST_ENTRY]
   : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
 const PW = "testpw123A";
 
-// Minimal init code whose runtime ignores appended constructor args (a known-good Nile deploy
-// payload). Declaring a constructor in the ABI is what drives client-side arg encoding.
 const ABI = JSON.stringify([
   {
     type: "constructor",
@@ -45,10 +25,10 @@ const ABI = JSON.stringify([
     ],
   },
 ]);
+// Init code ignores the constructor arguments appended by ABI encoding.
 const BYTECODE =
   "6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea2646970667358fe";
 const ARG_ADDR = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
-// Expected ABI encodings that must appear in the built CreateSmartContract bytecode.
 const ENC_CAP = "0".repeat(62) + "64"; // uint256(100)
 const ENC_OWNER = "74472e7d35395a6b5add427eecb7f4b62ad2b071"; // ARG_ADDR as a 20-byte EVM address
 
@@ -70,7 +50,7 @@ function deploy(
   opts: { dryRun?: boolean; wait?: boolean; timeoutMs?: number } = {},
 ) {
   const globals = ["--output", "json", "--network", "tron:3448148188"];
-  if (opts.wait) globals.push("--wait"); // --wait is a global flag (before the subcommand)
+  if (opts.wait) globals.push("--wait");
   const local = [
     "contract",
     "deploy",
@@ -101,10 +81,9 @@ describe("contract deploy — constructor params (issue #2)", () => {
   });
 
   it("rejects the bare positional form (--constructor-params takes {type,value})", () => {
-    seed(randomBytes(32).toString("hex")); // rejected at the command boundary → hermetic
+    seed(randomBytes(32).toString("hex"));
     const out = deploy(RAW_PARAMS, { dryRun: true });
     expect(out.success).toBe(false);
-    // A malformed call, not a failed execution: deterministic on retry, so exit 2 / invalid_value.
     expect(out.error.code).toBe("invalid_value");
     expect(out.error.message).toMatch(/type/i);
   });
@@ -120,8 +99,8 @@ describe("contract deploy — constructor params (issue #2)", () => {
       expect(out.data.mode).toBe("dry-run");
       const bytecode: string =
         out.data.tx.raw_data.contract[0].parameter.value.new_contract.bytecode;
-      expect(bytecode).toContain(ENC_CAP); // uint256(100) appended
-      expect(bytecode.toLowerCase()).toContain(ENC_OWNER); // address arg appended
+      expect(bytecode).toContain(ENC_CAP);
+      expect(bytecode.toLowerCase()).toContain(ENC_OWNER);
       expect(out.data.tx.contract_address).toBeTruthy();
     });
 
@@ -142,7 +121,6 @@ describe("contract deploy — constructor params (issue #2)", () => {
   });
 });
 
-// Credential lookup: env override first, then the git-ignored .private fixtures.
 function loadTestPrivateKey(): string | undefined {
   if (process.env.TEST_TRON_PRIVATE_KEY) return process.env.TEST_TRON_PRIVATE_KEY;
   const candidates = [

@@ -9,16 +9,6 @@ import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
 
-/**
- * The nine governance writes advertise `--permission-id` and `--expiration`. They once bound both
- * inside their own builders instead of through the pipeline's `prepare` hook, and the pipeline's
- * guard reads "no prepare hook ⇒ this adapter cannot apply these options" — so every non-default
- * value was rejected after the transaction had already been built, in every execution mode. The
- * multi-sig story for governance was simply unreachable.
- *
- * These tests drive the REAL `TxPipeline`. The other governance suites pass a fake pipeline that
- * records params, which is exactly why the guard never fired in test: only the real one has it.
- */
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
   family: "tron",
@@ -41,9 +31,6 @@ const scope: TransactionScope = {
 
 function harness(overrides: Partial<TronGateway> = {}) {
   const built = { raw_data: { timestamp: 1_000_000, expiration: 1_060_000, contract: [{}] } };
-  // Mirrors the observable half of the real `prepareTransaction`: binds Permission_id and sets
-  // expiration relative to the transaction's own timestamp. Clones, because the real one does
-  // (`structuredClone`) and because `built` is shared across the cases below.
   const prepareTransaction = vi.fn(
     (tx: unknown, options: { permissionId: number; expiration?: number }) => {
       const prepared = structuredClone(tx) as typeof built & {
@@ -177,7 +164,6 @@ describe("governance writes accept --permission-id through the real pipeline", (
     );
   });
 
-  // The ninth write; it burns 9999 TRX so it needs a gateway that reports "not yet a witness".
   it("`witness create` builds with --permission-id 2", async () => {
     const h = harness({ getWitness: async () => null });
     const result = (await h.witness.create(scope, NET, {
@@ -201,20 +187,8 @@ describe("governance writes accept --expiration through the real pipeline", () =
   });
 });
 
-/**
- * `--expiration` must mean the same thing on every command that offers it: the transaction expires
- * that many milliseconds after its own timestamp. `tx send`, `contract send` and `contract deploy`
- * all get that from the pipeline's `prepare` hook.
- *
- * The governance group instead extended the node's default window, so the same flag produced a
- * different window here (node default + N, i.e. ~60s more than asked) and the result depended on
- * whichever block timestamp the node happened to serve — the opposite of what an offline multi-sig
- * window needs. These tests pin the shared meaning; they run the real adapter so the transaction
- * bytes are the ones a node would receive.
- */
 describe("--expiration means the same on governance as everywhere else", () => {
-  // Anchored to the present: tronweb's extendExpiration refuses a window that has already passed,
-  // which would fail these tests for a reason that has nothing to do with the semantics they pin.
+  // TronWeb rejects expiration windows that have already passed.
   const NOW = Date.now();
 
   async function realGatewayHarness() {
@@ -227,8 +201,6 @@ describe("--expiration means the same on governance as everywhere else", () => {
       timestamp: NOW,
     })) as never;
 
-    // Real transaction construction/preparation, faked reads: the expiration maths is what is
-    // under test, not the chain state the command happens to need.
     const gateway = {
       buildProposalCreate: rpc.buildProposalCreate.bind(rpc),
       prepareTransaction: rpc.prepareTransaction.bind(rpc),

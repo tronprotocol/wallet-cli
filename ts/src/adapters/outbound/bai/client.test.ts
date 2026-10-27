@@ -18,7 +18,7 @@ describe("BaiClient", () => {
       ["123.456789012345678901", "123.456789012345678901"],
       ['"9007199254740993.123456789012345678901"', "9007199254740993.123456789012345678901"],
     ])("preserves raw credits %s through JSON and text output", async (literal, expected) => {
-      // Construct raw HTTP JSON: converting the fixture to a JS number would lose precision first.
+      // Raw JSON avoids rounding the fixture before parsing.
       const summary = `{"points_balance":${literal},"monthly_spent":${literal},"monthly_chart":[{"month":"2026-09","points":${literal}}]}`;
       const body =
         envelope === "direct"

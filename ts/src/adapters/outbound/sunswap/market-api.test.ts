@@ -19,13 +19,7 @@ const MAINNET = {
 
 const query = { owner: "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N", pageNo: 1, pageSize: 10 };
 
-/**
- * The adapter over a fetch that answers with one canned response.
- *
- * Only the socket is replaced: the real client factory runs, and so do the adapter's own timeout,
- * size cap and 429 interception. Replacing the client's fetchImpl instead would step over
- * exactly the wrapper these cases exist to check.
- */
+// Inject below the timeout, size-cap, and 429 wrappers so they remain under test.
 function apiServing(response: () => Promise<Response> | Response, timeoutMs = 1_000) {
   return new SunSwapMarketApi(timeoutMs, {
     fetchImpl: (async () => response()) as typeof globalThis.fetch,
@@ -40,8 +34,6 @@ const json = (body: unknown, init?: ResponseInit) =>
   });
 
 describe("SunSwapMarketApi construction", () => {
-  // The SDK's default base URL is mainnet, so a client built without an explicit one would
-  // answer a Nile question with mainnet data and look perfectly healthy doing it.
   it("passes the scope's baseUrl, a fetch and the lossless parser to the client", async () => {
     const clientFactory = vi.fn<SunApiClientFactory>(
       (options) =>
@@ -94,7 +86,6 @@ describe("SunSwapMarketApi error mapping", () => {
     expect(error.details).not.toHaveProperty("retryAfterSeconds");
   });
 
-  // Every other status keeps flowing into the SDK, so its status and body excerpt still apply.
   it("maps another non-2xx to provider_error with the status and a short excerpt", async () => {
     const api = apiServing(() => new Response("upstream exploded", { status: 503 }));
     const error = await api.listPositions(MAINNET, query).catch((e) => e);
@@ -117,7 +108,6 @@ describe("SunSwapMarketApi error mapping", () => {
     });
   });
 
-  // A non-zero envelope code is the service refusing, not the transport failing.
   it("maps a non-zero envelope code to provider_error", async () => {
     const api = apiServing(() => json({ code: 4003, msg: "size too large", data: null }));
     await expect(api.listPositions(MAINNET, query)).rejects.toMatchObject({
@@ -155,8 +145,6 @@ describe("SunSwapMarketApi paging", () => {
     await expect(last.listPositions(MAINNET, query)).resolves.toMatchObject({ hasMore: false });
   });
 
-  // An unanswered question is more honest than a guessed answer: a full page is not evidence
-  // that another one exists.
   it("omits hasMore when the server did not say", async () => {
     const api = apiServing(() => json({ code: 0, data: { list: [] } }));
     await expect(api.listPositions(MAINNET, query)).resolves.not.toHaveProperty("hasMore");
@@ -175,12 +163,10 @@ describe("parseRetryAfter", () => {
     expect(parseRetryAfter(future)).toBeLessThanOrEqual(45);
   });
 
-  // A date already past means "retry now", not "wait a negative number of seconds".
   it("clamps a past HTTP-date at zero", () => {
     expect(parseRetryAfter(new Date(Date.now() - 60_000).toUTCString())).toBe(0);
   });
 
-  // Publishing a wrong wait as a number is worse than letting the caller decide.
   it("omits anything it cannot read", () => {
     expect(parseRetryAfter(null)).toBeUndefined();
     expect(parseRetryAfter("soon")).toBeUndefined();
@@ -229,8 +215,6 @@ describe("SunSwapMarketApi.prices", () => {
     expect(url).toBe("");
   });
 
-  // The service answers "0" for an address it has never indexed. That is an answer, not a
-  // failure, and it must travel as one.
   it("carries a zero price through rather than dropping the row", async () => {
     const api = apiServing(() =>
       json({ code: 0, data: { TX: { quote: { USD: { last_updated: 0, price: "0" } } } } }),
@@ -290,8 +274,7 @@ describe("SunSwapMarketApi token endpoints", () => {
     expect(page.hasMore).toBe(true);
   });
 
-  // Records carry no blacklist marker, so an unfiltered listing would put impersonations in the
-  // table unlabelled. The filter is never a caller's choice.
+  // Records have no blacklist marker to identify impersonations in unfiltered results.
   it("always asks the service to filter the blacklist", async () => {
     let url = "";
     const fetchImpl = (async (input: unknown) => {
@@ -306,7 +289,7 @@ describe("SunSwapMarketApi token endpoints", () => {
     expect(url).toContain("filterBlackList=true");
   });
 
-  // Omitting the scope makes the service mix statistic scopes and return a token twice.
+  // Omitting protocol can mix statistic scopes and duplicate tokens.
   it("always sends the protocol scope explicitly", async () => {
     let url = "";
     const fetchImpl = (async (input: unknown) => {
@@ -369,7 +352,6 @@ describe("SunSwapMarketApi pool endpoints", () => {
     expect(page.hasMore).toBe(true);
   });
 
-  // The pool endpoints are the only ones with a direction parameter, so it is always sent.
   it("sends the sort direction, the scope filter and the blacklist filter", async () => {
     let url = "";
     const fetchImpl = (async (input: unknown) => {
@@ -390,7 +372,6 @@ describe("SunSwapMarketApi pool endpoints", () => {
     expect(url).toContain("filterBlackList=true");
   });
 
-  // "showing 3 of 76" has to be 76 of the SAME set, or the sentence is a lie about which 76.
   it("asks the count with the same filters as the page it describes", async () => {
     const urls: string[] = [];
     const fetchImpl = (async (input: unknown) => {
@@ -416,7 +397,6 @@ describe("SunSwapMarketApi pool endpoints", () => {
     );
   });
 
-  // A total nobody can trust is worse than no total: it would be printed as fact.
   it("answers null rather than a wrong total when the count is unreadable", async () => {
     const api = apiServing(() => json({ code: 0, data: "not a number" }));
     await expect(

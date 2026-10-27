@@ -57,7 +57,7 @@ export class TronStakeService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  /** voting power (TP) — 1 TP = 1 staked TRX. Public: vote status (Leon) consumes this. */
+  // Voting power is in TP: 1 TP per staked TRX.
   async votingPower(
     network: NetworkDescriptor,
     address: string,
@@ -90,7 +90,7 @@ export class TronStakeService {
       votingPower: { total, used, available: total - used },
       resource: {
         energy: { used: Number(r.EnergyUsed ?? 0), limit: Number(r.EnergyLimit ?? 0) },
-        // bandwidth = free allowance + staked allowance (node reports them separately).
+        // Node bandwidth totals separate free and staked allowances.
         bandwidth: {
           used: Number(r.NetUsed ?? 0) + Number(r.freeNetUsed ?? 0),
           limit: Number(r.NetLimit ?? 0) + Number(r.freeNetLimit ?? 0),
@@ -122,7 +122,7 @@ export class TronStakeService {
         ),
       )
     ).flat();
-    // one record carries both directions' balances; emit one row per resource with balance > 0.
+    // Each delegation record carries both energy and bandwidth balances.
     const rows = records.flatMap((rec) => {
       const counterparty = out ? rec.to : rec.from;
       const key = out ? "receiver" : "from";
@@ -157,8 +157,7 @@ export class TronStakeService {
 
   freeze(scope: TransactionScope, network: NetworkDescriptor, input: StakeAmountInput) {
     return this.transact("stake-freeze", scope, network, input, async (gateway, owner) => {
-      // Same reasoning as unfreeze's guard: the node rejects an over-balance stake, but --dry-run
-      // never asks it, so without this a doomed request reports as fine.
+      // Check funds during build so dry runs detect insufficient balance too.
       const balance = BigInt(await gateway.getNativeBalance(owner));
       if (BigInt(input.amountSun) > balance) {
         throw new ChainError(
@@ -172,9 +171,7 @@ export class TronStakeService {
 
   unfreeze(scope: TransactionScope, network: NetworkDescriptor, input: StakeAmountInput) {
     return this.transact("stake-unfreeze", scope, network, input, async (gateway, owner) => {
-      // Unstaking more than is staked is rejected by the node at broadcast time, but --dry-run
-      // never reaches the node and would report a doomed request as fine. The staked amount is a
-      // cheap, authoritative query — the same trade-off withdraw's guard makes above.
+      // Check stake during build so dry runs detect insufficient stake too.
       const staked = stakedSun(await gateway.getAccount(owner), input.resource);
       if (BigInt(input.amountSun) > staked) {
         throw new ChainError(
@@ -188,9 +185,7 @@ export class TronStakeService {
 
   withdraw(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
     return this.transact("stake-withdraw", scope, network, input, async (gateway, owner) => {
-      // WithdrawExpireUnfreeze with nothing withdrawable passes the node's broadcast-time checks
-      // but never confirms, leaving a phantom txid. Reject up front (dry-run too) — the amount is
-      // a cheap, authoritative query, unlike duplicating the node's full validation rules.
+      // Empty withdrawals can be accepted without confirming; reject before broadcast.
       if (BigInt(await gateway.getCanWithdrawUnfreezeAmount(owner)) <= 0n) {
         throw new ChainError(
           "nothing_to_withdraw",
@@ -202,7 +197,7 @@ export class TronStakeService {
   }
 
   cancelUnfreeze(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
-    // Ledger TRON app firmware cannot sign CancelAllUnfreezeV2 — reject before any device I/O.
+    // Ledger cannot sign CancelAllUnfreezeV2; reject before device I/O.
     return this.transact(
       "stake-cancel",
       scope,
@@ -281,7 +276,7 @@ export class TronStakeService {
   }
 }
 
-/** Staked SUN for one resource. frozenV2 omits `type` for BANDWIDTH (node drops default enums). */
+// Nodes omit frozenV2.type for the default BANDWIDTH enum.
 function stakedSun(
   account: { frozenV2?: Array<{ type?: unknown; amount?: string }> },
   resource: Resource,

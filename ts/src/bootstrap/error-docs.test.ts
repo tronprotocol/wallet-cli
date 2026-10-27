@@ -3,11 +3,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
 
-/**
- * The two "common codes at exit N" tables in machine-interface.md are prose, and prose drifts —
- * the same failure mode codes.ts already fixed for the code vocabulary. This checks the tables
- * against the index rather than against a reader's memory.
- */
 const DOC = fileURLToPath(new URL("../../docs/machine-interface.md", import.meta.url));
 
 function tableCodes(start: string, end: string): Set<string> {

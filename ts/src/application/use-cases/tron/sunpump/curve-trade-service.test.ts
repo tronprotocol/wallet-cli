@@ -24,12 +24,7 @@ const NETWORK = {
   sunpump: { launchpad: LAUNCHPAD },
 } as unknown as NetworkDescriptor;
 
-/** The live mainnet quote for 1 TRX of the example token. */
 const BUY_QUOTE = { tokenAmount: "25125337148664452174594", feeSun: "10000" };
-/**
- * A live Nile sale of 1000 tokens: the contract quoted `(22728, 10000)`, and the chain paid the
- * seller 22728 SUN and the fee address 10000 SUN on top. The first figure is already net.
- */
 const SELL_QUOTE = { trxAmountSun: "22728", feeSun: "10000" };
 
 function makePort(overrides: Partial<LaunchpadPort> = {}): LaunchpadPort {
@@ -117,7 +112,6 @@ describe("the curve state gate", () => {
     ).rejects.toMatchObject({ code: "launchpad_token_not_found" });
   });
 
-  // Two closed states, two different things a reader needs: one is a wait, the other a redirect.
   it("tells a READY_TO_LAUNCH token it is awaiting launch", async () => {
     const port = makePort({
       tokenState: vi.fn(async () => LAUNCHPAD_STATE.READY_TO_LAUNCH) as never,
@@ -142,8 +136,6 @@ describe("the curve state gate", () => {
     });
   });
 
-  // The state is the FIRST thing asked, before a quote is even attempted: quoting a token that
-  // cannot trade wastes a round trip and invites a transaction that must revert.
   it("is checked before anything is quoted", async () => {
     const port = makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never });
     const { service, scope } = makeHarness(port);
@@ -153,8 +145,6 @@ describe("the curve state gate", () => {
 });
 
 describe("--quote", () => {
-  // No account, no password, no transaction. The harness throws if an address is
-  // resolved, so this asserts the absence rather than trusting the code path.
   it("touches no account at all", async () => {
     const { service, scope, resolveAddress } = makeHarness(makePort(), false);
     const result = (await service.buy(scope, NETWORK, {
@@ -166,14 +156,6 @@ describe("--quote", () => {
     expect(result.mode).toBe("quote");
   });
 
-  /**
-   * A quote publishes NO floor.
-   *
-   * `--quote` refuses `--slippage`, so a minimum here would be derived from a default the caller
-   * never chose — and nothing would ever enforce it, because a quote produces no transaction. An
-   * agent reading `tokensOutMinimum` from a quote would believe it had protection it does not
-   * have. Same reasoning as refusing to publish a fee that cannot be honestly measured.
-   */
   it.each([
     ["buy", "tokensOutMinimum"],
     ["sell", "trxOutMinimum"],
@@ -189,8 +171,6 @@ describe("--quote", () => {
     expect(result).not.toHaveProperty(minimumKey);
   });
 
-  // The scale stays: it is what makes the estimate beside it readable, and the receipt guard is
-  // what put it there.
   it("keeps the scale of the amount it does publish", async () => {
     const { service, scope } = makeHarness(makePort(), false);
     const result = (await service.buy(scope, NETWORK, {
@@ -229,8 +209,6 @@ describe("buy", () => {
     expect(result.slippage).toBe("0.05");
   });
 
-  // The fee is inside the TRX named, not added to it — which is what makes the floor bite on a
-  // small buy: 0.01 TRX of 0.1 TRX is ten percent.
   it("reports the fee rate only when the floor pushed it above one percent", async () => {
     const { service, scope } = makeHarness();
     const small = (await service.buy(scope, NETWORK, {
@@ -257,7 +235,6 @@ describe("buy", () => {
       dryRun: true,
     })) as Record<string, unknown>;
     expect(result.tokensOutMinimum).toBe("1");
-    // No slippage is reported, because none was given and inventing one would be a number we made up.
     expect(result).not.toHaveProperty("slippage");
   });
 
@@ -280,7 +257,6 @@ describe("buy", () => {
 });
 
 describe("sell", () => {
-  // The contract's trxAmount is what arrives; the fee is paid on top of it, not out of it.
   it("reports what the caller receives, which is the contract's trxAmount as quoted", async () => {
     const { service, scope } = makeHarness();
     const result = (await service.sell(scope, NETWORK, {
@@ -289,18 +265,12 @@ describe("sell", () => {
       dryRun: true,
     })) as Record<string, unknown>;
     expect(result.trxOutExpected).toBe("22728");
-    // floor(22728 x 0.95): the floor the Nile sale should have carried.
     expect(result.trxOutMinimum).toBe("21591");
     expect(result.platformFee).toBe("10000");
-    // 10000 of a 32728 gross.
+    // Fee rate uses proceeds plus the fee as its denominator.
     expect(result.platformFeePercent).toBe("30.55");
   });
 
-  /**
-   * A sale large enough that the fee is the plain 1% (a mainnet quote). The gross is the proceeds
-   * PLUS the fee, so the rate is 342095 / 34209569 — not / 33867474, which read 1.01% and warned
-   * about a fee floor that never applied.
-   */
   it("reports no fee rate when the fee is the plain one percent", async () => {
     const port = makePort({
       quoteSell: vi.fn(async () => ({ trxAmountSun: "33867474", feeSun: "342095" })) as never,
@@ -315,11 +285,6 @@ describe("sell", () => {
     expect(result).not.toHaveProperty("platformFeePercent");
   });
 
-  /**
-   * The one place in this codebase where an unbounded approval is correct: the curve pulls on
-   * every sale and its contract is an upgradeable proxy that expects a standing allowance. The
-   * receipt says `unlimited` rather than printing 2^256-1, which nobody reads as a number.
-   */
   it("approves the launchpad without limit, and says so in words", async () => {
     const { service, scope, port } = makeHarness();
     const result = (await service.sell(scope, NETWORK, {
@@ -344,8 +309,6 @@ describe("sell", () => {
     expect(result).not.toHaveProperty("approvalTxIds");
   });
 
-  // The approval is sent and confirmed before the sale is built; a failed one must end the flow
-  // there, or the sale would be signed and broadcast against an allowance that never landed.
   it("never builds or broadcasts the sale when its approval fails on chain", async () => {
     const { service, scope, gateway, pipeline } = makeHarness();
     vi.mocked(pipeline.run).mockResolvedValueOnce({
@@ -372,10 +335,6 @@ describe("sell", () => {
   });
 });
 
-/**
- * An account the chain has never seen can pay for no transaction, whatever it holds. What to do
- * about that differs from topping up a balance, so it is a different code.
- */
 describe("an account that is not activated", () => {
   it.each(["buy", "sell"] as const)("is refused as account_not_active on a %s", async (side) => {
     const { service, scope, port } = makeHarness(makePort(), true, {});
@@ -386,7 +345,6 @@ describe("an account that is not activated", () => {
         dryRun: true,
       }),
     ).rejects.toMatchObject({ code: "account_not_active" });
-    // Before the token balance is asked, so a held balance cannot mask it.
     expect(port.balanceOf).not.toHaveBeenCalled();
   });
 
@@ -397,11 +355,6 @@ describe("an account that is not activated", () => {
   });
 });
 
-/**
- * Two distinct conditions: the curve reverts rather than price the sale, or it prices it at
- * nothing for the seller. Each says what happened, and both end with the one thing a caller can
- * act on.
- */
 describe("a sale that is too small", () => {
   it("names the threshold when the curve will not price it", async () => {
     const port = makePort({
@@ -433,8 +386,6 @@ describe("a sale that is too small", () => {
     });
   });
 
-  // A small sale the curve DOES price with something for the seller is a sale, whatever the fee.
-  // Nile: 320 tokens quoted (473, 10000), which the chain fills and pays 473 SUN for.
   it("lets a small sale through when it pays the seller anything", async () => {
     const port = makePort({
       quoteSell: vi.fn(async () => ({ trxAmountSun: "473", feeSun: "10000" })) as never,
@@ -461,10 +412,6 @@ describe("a sale that is too small", () => {
     ).rejects.toMatchObject({ code: "invalid_amount" });
   });
 
-  /**
-   * The condition is checked, not assumed. A revert from an amount ABOVE the threshold was
-   * something else entirely, and relabelling it would hide the real failure.
-   */
   it("lets an unrelated revert speak for itself", async () => {
     const port = makePort({
       quoteSell: vi.fn(async () => {

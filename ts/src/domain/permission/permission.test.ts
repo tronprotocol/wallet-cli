@@ -100,9 +100,6 @@ describe("permission replacement validation", () => {
     });
   });
 
-  // The bitmap is what the chain enforces; `operations` and `unknownOperationIds` are what a human
-  // reviews. A bit set in the bitmap but absent from both lists would widen the permission with
-  // nothing in the file to show for it — exactly how the original round-trip bug hid its damage.
   it("rejects unnamed operation bits that the file does not declare", () => {
     const omitted = structure();
     omitted.actives[0]!.operationsHex = "86000080" + "00".repeat(28);
@@ -138,10 +135,6 @@ describe("permission replacement validation", () => {
     expect(() => validatePermissionStructure(input)).toThrowError(/must not contain duplicate/);
   });
 
-  // The documented workflow is `permission show -o json > f` → edit `operations` → `update --file`.
-  // show always emits unknownOperationIds, almost always `[]`. An empty list declares "no unnamed
-  // bits", which is exactly what regenerating the bitmap from `operations` produces — demanding
-  // operationsHex alongside it blocks the round trip without protecting anything.
   it("accepts an empty unknownOperationIds without a bitmap, regenerating it from operations", () => {
     const input = structure();
     delete (input.actives[0] as Record<string, unknown>).operationsHex;
@@ -161,7 +154,7 @@ describe("permission replacement validation", () => {
   it("accepts the edited round trip: operations changed, operationsHex dropped, empty unknown list kept", () => {
     const input = structure();
     delete (input.actives[0] as Record<string, unknown>).operationsHex;
-    input.actives[0]!.operations = ["TransferContract"]; // reviewer narrowed the permission
+    input.actives[0]!.operations = ["TransferContract"];
     input.actives[0]!.unknownOperationIds = [];
     expect(validatePermissionStructure(input).actives[0]).toMatchObject({
       operations: ["TransferContract"],
@@ -176,11 +169,9 @@ describe("permission replacement validation", () => {
     expect(() => validatePermissionStructure(input)).toThrowError(/requires operationsHex/);
   });
 
-  // The mismatch is reached by editing `operations` and leaving the exported bitmap behind. Saying
-  // only "does not match" leaves the reader to guess which side to change.
   it("tells the reader how to resolve an operations/operationsHex mismatch", () => {
     const input = structure();
-    input.actives[0]!.operations = ["TransferContract"]; // edited; operationsHex left stale
+    input.actives[0]!.operations = ["TransferContract"];
     expect(() => validatePermissionStructure(input)).toThrowError(/remove operationsHex/);
   });
 
@@ -196,8 +187,6 @@ describe("permission replacement validation", () => {
     expect(() => validatePermissionStructure(malformed)).toThrowError(/requires operationsHex/);
   });
 
-  // A node permission may set only bits this build cannot name; `permission show` then emits
-  // operations: []. Rejecting that would leave such an account unable to restore its own backup.
   it("accepts an active whose bitmap holds only unnamed contract types", () => {
     const input = structure();
     input.actives[0]!.operations = [];
@@ -306,8 +295,6 @@ describe("local key inventory and lockout warnings", () => {
     ]);
   });
 
-  // Preserving bits we cannot name is the safe default, but it is still scope the user cannot see
-  // in the operation list — --dry-run has to say so rather than render an empty warnings array.
   it("warns that preserved unnamed operations are scope the reader cannot inspect", () => {
     const input = structure();
     input.actives[0]!.operationsHex = "86000080" + "00".repeat(28);

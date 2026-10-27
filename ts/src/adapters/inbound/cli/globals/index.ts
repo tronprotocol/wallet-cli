@@ -1,41 +1,27 @@
-/**
- * Single source of truth for GLOBAL (kubectl-style) flags — the flag list, arity (kinds, aliases,
- * yargs scalar types, choices), per-flag COERCION, and the DOCUMENTATION facts. Everything that
- * otherwise drifts across a flag's touch-points derives from GLOBAL_FLAG_SPECS:
- *   - bootstrap/runner's pre-yargs scan (token maps via globalTokenMaps + coerceGlobalValue),
- *   - cli/shell's yargs `.options()` declaration (globalYargsOptions), and
- *   - cli/help/catalog's documentation projection (globalFlagDoc over description/defaultValue).
- * Add a global flag HERE only; every layer is a projection.
- *
- * Array order is the documented display order (it's what cli/help renders). Other projections are
- * order-independent.
- */
+// Global flag specs also define help display order.
 import type { SecretKind } from "../contracts/index.js";
 
 export type GlobalFlagKind = "value" | "boolean" | "secret-stdin";
 
 export interface GlobalFlagSpec {
-  /** kebab flag name, no leading dashes (e.g. "wait-timeout", "password-stdin"). */
+  // Kebab name without leading dashes.
   name: string;
-  /** single-char alias, no dash (e.g. "o", "v"). */
+  // Single-character alias without a dash.
   alias?: string;
   kind: GlobalFlagKind;
-  /** value flags only: yargs scalar type. */
+  // Value flags only.
   valueType?: "string" | "number";
-  /** value flags only: restrict accepted values (yargs `choices`). */
   choices?: readonly string[];
-  /** number flags only: minimum accepted value (inclusive). Defaults to 0. */
+  // Inclusive minimum for numeric flags; defaults to zero.
   min?: number;
-  /** secret-stdin flags only: which secret kind this `--<name>` binds. */
+  // Secret-stdin flags only.
   secretKey?: SecretKind;
-  /** override the derived camelCase field name when the runtime Globals key differs from the flag
-   *  (e.g. `--timeout` → `timeoutMs`); defaults to globalFlagField(name). */
+  // Overrides the default camelCase runtime field.
   field?: string;
-  /** human-readable flag description (cli/help text + --json-schema catalog). */
   description: string;
-  /** documented default; absent → rendered as plain "[optional]". */
+  // Absent means help shows [optional].
   defaultValue?: string | number | boolean;
-  /** secret-stdin only: documented under each owning command, not in the global flag list. */
+  // Document under the owning command instead of in the global flag list.
   commandScoped?: boolean;
 }
 
@@ -79,8 +65,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     description: "show extra diagnostic output",
     defaultValue: false,
   },
-  // Shown verbatim on every submitting command, including `gasfree transfer`, which submits to the
-  // GasFree service rather than broadcasting and returns a trace id — so this stays on "submitted".
+  // Wording must also cover provider-submitted transactions, such as GasFree.
   {
     name: "wait",
     kind: "boolean",
@@ -103,8 +88,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     description:
       "read the master password from stdin (fd 0); only one *-stdin flag can consume stdin per run",
   },
-  // NB: mnemonic / private-key / new-password have NO stdin flag — those secrets are TTY-only
-  // (import mnemonic/private-key, change-password are interactive setup ops; see secretsTtyOnly).
+  // Mnemonics, private keys, and new passwords have no stdin flag.
   {
     name: "tx-stdin",
     kind: "secret-stdin",
@@ -128,26 +112,17 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
   },
 ];
 
-/** kebab → camel default; the `field` override wins when the runtime Globals key differs from the flag. */
 export const globalFlagField = (name: string): string =>
   name.replace(/-([a-z0-9])/g, (_m, c) => c.toUpperCase());
 const specField = (f: GlobalFlagSpec): string => f.field ?? globalFlagField(f.name);
 
-/** value-flag spec keyed by its runtime Globals field, for coercion. */
 const VALUE_SPEC_BY_FIELD: Record<string, GlobalFlagSpec> = Object.fromEntries(
   GLOBAL_FLAG_SPECS.filter((f) => f.kind === "value").map((f) => [specField(f), f]),
 );
 
-/** Result of coercing a value flag: a validated value, or the reason it was rejected. */
 export type GlobalCoercion = { ok: true; value: string | number } | { ok: false; reason: string };
 
-/**
- * Coerce a raw value-flag string per its spec. A rejected value is `{ ok:false, reason }`, NOT a
- * silent fallback — an out-of-range/non-matching flag is a usage error, never the default. Derives
- * entirely from valueType/choices: number flags accept a finite value at or above the spec's `min`
- * (default 0; --timeout sets min 1 since a 0ms bound aborts instantly), choice flags must match one
- * of `choices`, everything else passes through as a string.
- */
+// Invalid values return a reason; callers must not silently substitute defaults.
 export function coerceGlobalValue(field: string, raw: string): GlobalCoercion {
   const spec = VALUE_SPEC_BY_FIELD[field];
   if (!spec) return { ok: true, value: raw };
@@ -172,7 +147,6 @@ interface YargsOption {
   alias?: string;
 }
 
-/** yargs `.options()` shape, keyed by kebab flag name. secret-stdin + boolean flags are presence flags. */
 export function globalYargsOptions(): Record<string, YargsOption> {
   const out: Record<string, YargsOption> = {};
   for (const f of GLOBAL_FLAG_SPECS) {
@@ -184,13 +158,12 @@ export function globalYargsOptions(): Record<string, YargsOption> {
   return out;
 }
 
-/** Token-keyed lookup maps for the pre-yargs scan (bootstrap/runner). Sibling projection to
- *  globalYargsOptions — the other layer that derives from GLOBAL_FLAG_SPECS. */
+// Token lookups for scanning argv before yargs.
 export interface GlobalTokenMaps {
-  /** flag token (`--long` or `-alias`) → runtime Globals field. */
+  // Flag token (--long or -alias) to runtime field.
   valueFlags: Record<string, string>;
   booleanFlags: Record<string, string>;
-  /** `--<kind>-stdin` → secret kind (the only stdin source is fd 0). */
+  // --<kind>-stdin to secret kind; stdin uses fd 0.
   secretStdinFlags: Record<string, SecretKind>;
 }
 

@@ -20,7 +20,6 @@ const trc20 = (id: string, symbol: string): TokenEntry => ({
   decimals: 6,
 });
 
-/** A book with an official layer and one user layer, keyed by account like the real one. */
 function book(user: TokenEntry[] = []): TokenRepository {
   const official = [trc20(USDT, "USDT")];
   return {
@@ -69,7 +68,6 @@ describe("the user layer", () => {
     );
   });
 
-  // price and pool-list take no account, so even if one were passed the user layer is not theirs.
   it.each(["price", "pool-list"] as const)("%s ignores the user layer", (caller) => {
     expect(() =>
       resolver([trc20(SUN, "SUN")]).resolve(NETWORK, "SUN", { caller, account: ACCOUNT }),

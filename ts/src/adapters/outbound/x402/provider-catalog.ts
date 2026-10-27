@@ -86,7 +86,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   async update() {
     const payload = validateCatalog(await this.readJson(CATALOG_URL));
     const details: Record<string, Record<string, unknown>> = {};
-    // Refresh a complete snapshot so show/endpoints can work offline too.
+    // Cache provider details for offline show/endpoints calls.
     for (const provider of arrayOfObjects(payload.providers)) {
       const fqn = String(provider.fqn);
       safeFqn(fqn);

@@ -24,8 +24,7 @@ export class X402Service {
 
   providerList(input: ProviderListInput) {
     const network = input.network;
-    // Catalog filters need no RPC configuration for an explicit chain ID.
-    // Resolve names through the same registry used by global --network.
+    // Explicit chain IDs need no configured RPC; resolve aliases through the network registry.
     const canonical =
       network && !/^(?:tron|eip155):(?:[0-9]+|0x[0-9a-f]+)$/i.test(network)
         ? this.networks.resolve(network).id

@@ -29,16 +29,12 @@ describe("resolveDerivation", () => {
     expect(r.path).toBe("m/44'/195'/1'/0/0");
   });
 
-  // The returned key is the point of the whole function: backup exports it, the signer loads it.
-  // Deriving the right path but handing back the wrong key would be silent and expensive.
   it("returns the key that actually produces the cached address", () => {
     const r = resolveDerivation(seed, "tron", 1, TRON_LEGACY_1)!;
     const derived = addressCodec("tron").fromPublicKey(r.keyPair.publicKey);
     expect(derived).toBe(TRON_LEGACY_1);
   });
 
-  // Index 0 is the same path under both templates, so it must never be reported as legacy —
-  // that would send an unaffected user through the rescue flow for nothing.
   it("calls index 0 current, where the two templates agree", () => {
     const r = resolveDerivation(seed, "tron", 0, TRON_INDEX_0)!;
     expect(r.scheme).toBe("current");
@@ -50,22 +46,16 @@ describe("resolveDerivation", () => {
     expect(r.path).toBe("m/44'/60'/0'/0/1");
   });
 
-  // An address matching no template means the file and the vault disagree — a hand-edited
-  // wallets.json, or the wrong vault. Callers must be able to tell that from "it is legacy".
   it("returns undefined when no template reproduces the cached address", () => {
     expect(resolveDerivation(seed, "tron", 1, TRON_INDEX_0)).toBeUndefined();
   });
 
-  // EVM is compared case-insensitively via the codec: a wallets.json written before addresses
-  // were canonicalised holds an all-lowercase address, and it still names the same account.
   it("matches an EVM address stored in a non-canonical spelling", () => {
     const r = resolveDerivation(seed, "evm", 1, EVM_INDEX_1.toLowerCase())!;
     expect(r.scheme).toBe("current");
   });
 });
 
-// A normal mnemonic import follows the current template and does not recreate the old stored TRON
-// address automatically. `legacyAccounts` identifies the accounts a native backup must warn about.
 describe("legacyAccounts", () => {
   const addressesWith = (tronAt1: string) => ({
     "0": { tron: TRON_INDEX_0, evm: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" },
@@ -82,14 +72,10 @@ describe("legacyAccounts", () => {
     expect(legacyAccounts(seed, addressesWith(TRON_CURRENT_1))).toEqual([]);
   });
 
-  // Index 0 is the same path under both templates, so it can never be stranded — and reporting it
-  // would send every untouched user through a rescue they do not need.
   it("never reports index 0", () => {
     expect(legacyAccounts(seed, { "0": { tron: TRON_INDEX_0 } })).toEqual([]);
   });
 
-  // A cached address no template explains is a file/vault disagreement, not a stranded account:
-  // a different problem with a different fix, so it must not be reported as legacy.
   it("ignores an address no template explains", () => {
     expect(legacyAccounts(seed, { "1": { tron: TRON_INDEX_0 } })).toEqual([]);
   });
@@ -99,7 +85,6 @@ describe("legacyAccounts", () => {
   });
 });
 
-// Signing and `derive` refuse for different reasons but point to the same complete procedure.
 describe("legacyDerivationError", () => {
   const REF = "wlt_abc123.1";
   const PATH = "m/44'/195'/1'/0/0";
@@ -127,9 +112,6 @@ describe("legacyDerivationError", () => {
     expect(legacyDerivationError(REF, PATH, "sign").code).toBe("legacy_derivation");
   });
 
-  // The two refusals differ only in why: one key cannot be produced, one wallet must not mix
-  // templates. The derive lead names the wallet, since the blocked wallet is what the user asked
-  // about and the stranded account may not be the one they named.
   it("leads with signing for a sign refusal and with the wallet for a derive refusal", () => {
     expect(legacyDerivationError(REF, PATH, "sign").message).toMatch(/cannot be signed here/);
     const derive = legacyDerivationError(REF, PATH, "derive").message;
@@ -148,8 +130,6 @@ describe("legacyDerivationError", () => {
 });
 
 describe("derivationMismatchError", () => {
-  // A different problem from a stranded account, and one with no rescue: no key of this seed owns
-  // that address, so there is nothing to export. It must never read as a legacy refusal.
   it("says the file and the vault disagree, and offers no rescue", () => {
     const m = derivationMismatchError("tron", "wlt_abc123.1");
     expect(m.code).toBe("derivation_mismatch");

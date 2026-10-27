@@ -4,9 +4,6 @@ import type { TronChainService } from "../../../../application/use-cases/tron/ch
 import type { EvmChainService } from "../../../../application/use-cases/evm/chain-service.js";
 import { TextFormatters } from "../render/index.js";
 
-/** `chain node` is its own export, not part of the TRON bundle below: every family can report
- *  node status, so the spec is shared and each family brings its own binding. */
-/** `chain prices` is shared: every family prices transactions somehow, though the fields differ. */
 export const chainPricesSpec: ChainSpec = {
   path: ["chain", "prices"],
   network: "optional",

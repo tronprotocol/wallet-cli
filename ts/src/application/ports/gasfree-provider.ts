@@ -7,7 +7,6 @@ import type {
   SignedGasFreeAuthorization,
 } from "../../domain/types/index.js";
 
-/** Outbound boundary for the official GasFree Open Platform. */
 export interface GasFreeProvider {
   listTokens(network: NetworkDescriptor): Promise<GasFreeTokenConfig[]>;
   listProviders(network: NetworkDescriptor): Promise<GasFreeProviderConfig[]>;

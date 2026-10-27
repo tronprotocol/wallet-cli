@@ -1,7 +1,3 @@
-/**
- * AddressCodec — derive and validate chain addresses from public keys.
- *   TRON: 0x41 || keccak256(pub[1:])[-20:] → Base58Check
- */
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { createBase58check } from "@scure/base";
@@ -14,35 +10,28 @@ export interface AddressCodec {
   family: ChainFamily;
   fromPublicKey(pub: Bytes): string;
   validate(addr: string): boolean;
-  /**
-   * The one spelling of a VALID address that this CLI stores and prints.
-   *
-   * Input is accepted in more forms than output is written in (an all-lower or
-   * all-upper EVM address means "no checksum was offered"), so without a normalising step the same
-   * address reaches the screen in two different spellings depending on which command put it
-   * there — and a user comparing them concludes they are different addresses.
-   */
+  // Canonical spelling for valid addresses; passes other values through.
   canonical(addr: string): string;
 }
 
 const b58c = createBase58check(sha256);
 
-/** Valid SEC1 key → canonical uncompressed 65-byte representation. */
+// Accepts SEC1 keys and returns 65 uncompressed bytes.
 export function uncompressedPublicKey(pub: Bytes): Bytes {
   if (pub.length !== 33 && pub.length !== 65) {
     throw new Error("public key must be 33 or 65 bytes");
   }
-  // Point parsing validates prefix, coordinates, and secp256k1 curve membership.
+  // Parsing validates secp256k1 curve membership.
   return secp256k1.Point.fromBytes(pub).toBytes(false);
 }
 
-/** compressed/uncompressed public key → last-20-bytes keccak(x || y). */
+// Returns the last 20 bytes of keccak256(x || y) for either SEC1 encoding.
 export function publicKeyHash20(pub: Bytes): Bytes {
   const body = uncompressedPublicKey(pub).slice(1);
   return keccak_256(body).slice(-20);
 }
 
-/** Decode and validate a Base58Check TRON address payload. */
+// Returns the 21-byte, 0x41-prefixed Base58Check payload.
 export function tronAddressBytes(address: string): Bytes {
   const decoded = b58c.decode(address);
   if (decoded.length !== 21 || decoded[0] !== 0x41) {
@@ -98,7 +87,7 @@ export class TronAddress implements AddressCodec {
       return false;
     }
   }
-  /** Base58Check is already one-form-per-address: its own checksum fixes every character. */
+  // Base58Check has only one spelling per address.
   canonical(addr: string): string {
     return addr;
   }
@@ -112,13 +101,13 @@ export class EvmAddress implements AddressCodec {
   validate(addr: string): boolean {
     return isEvmAddress(addr);
   }
-  /** EIP-55, always — the form every EVM address leaves this CLI in. */
+  // Valid addresses use EIP-55; other values pass through.
   canonical(addr: string): string {
     return isEvmAddress(addr) ? evmChecksumAddress(hexToBytes(addr.slice(2).toLowerCase())) : addr;
   }
 }
 
-/** Convert a 41-prefixed TRON hex address to base58; preserve non-hex values unchanged. */
+// Converts 41-prefixed hex to Base58Check; passes other values through.
 export function tronHexToBase58(address: unknown): string {
   const value = String(address ?? "");
   const hex = value.replace(/^0x/, "");
@@ -130,7 +119,7 @@ export function tronHexToBase58(address: unknown): string {
   }
 }
 
-/** Decode a Base58Check TRON address to its 21-byte, 0x41-prefixed payload. */
+// Returns the 21-byte, 0x41-prefixed Base58Check payload.
 export function tronBase58ToBytes(address: string): Uint8Array {
   const decoded = b58c.decode(address);
   if (decoded.length !== 21 || decoded[0] !== 0x41) {
@@ -139,7 +128,7 @@ export function tronBase58ToBytes(address: string): Uint8Array {
   return decoded;
 }
 
-/** Encode a 21-byte, 0x41-prefixed TRON address payload as Base58Check. */
+// Encodes a 21-byte, 0x41-prefixed payload as Base58Check.
 export function tronBytesToBase58(payload: Uint8Array): string {
   if (payload.length !== 21 || payload[0] !== 0x41) {
     throw new Error("invalid TRON address payload");
@@ -147,21 +136,11 @@ export function tronBytesToBase58(payload: Uint8Array): string {
   return b58c.encode(payload);
 }
 
-/**
- * EIP-55 acceptance policy for an EVM address supplied by a caller.
- *
- * All-lower and all-upper carry no case information and are accepted unverified, as EIP-55
- * permits. A mixed-case address MUST carry a valid checksum. The protocol itself is case-insensitive, so
- * accepting a mismatched one would turn "typed one character wrong" and "clipboard was swapped"
- * into fund loss — the same reason ethers' getAddress() throws and hardware wallets refuse.
- */
+// Mixed-case input requires an EIP-55 checksum; uniform case is accepted unverified.
 export function isEvmAddress(address: string): boolean {
   if (!/^0x[0-9a-fA-F]{40}$/i.test(address)) return false;
   const body = address.slice(2);
-  // No mixed case ⇒ no checksum was ever encoded ⇒ nothing to verify.
   if (body === body.toLowerCase() || body === body.toUpperCase()) return true;
-  // 0X is valid hex notation, same as 0x; only our downstream checksum encoder is opinionated
-  // about the prefix's own case. Normalise it before comparing, or a correctly-checksummed
-  // 0X… address would fail the very check meant to accept it.
+  // The prefix case carries no checksum information.
   return "0x" + body === evmChecksumAddress(hexToBytes(body.toLowerCase()));
 }

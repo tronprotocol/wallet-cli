@@ -1,11 +1,4 @@
-/**
- * SecretResolver — the single place that reads secrets, memoized per source.
- * Every secret kind binds to its own source `--<kind>-stdin`, which reads stdin (fd 0) — at most
- * one secret may use it per run. The `--<kind>-file`/`/dev/fd/N` multi-fd path was removed; commands
- * needing a 2nd secret (import-mnemonic/import-private-key/backup) go interactive.
- * There is NO env source (no MASTER_PASSWORD): secrets never sit in env/process-table/history.
- * Handlers must never touch process.stdin directly. Secrets never enter logs/envelopes.
- */
+// Memoize secrets per command; keep them out of logs and envelopes.
 import { isatty } from "node:tty";
 import type {
   SecretKind,
@@ -20,10 +13,9 @@ import {
   isValidPrivateKeyHex,
 } from "../prompt/validators.js";
 
-/** path per secret kind; the only source is `--<kind>-stdin`, so the value is always `-` (stdin). */
+// Configured stdin sources use "-" (fd 0).
 export type SecretPaths = Partial<Record<SecretKind, string>>;
 
-/** the flag stem for a kind (e.g. privateKey → "private-key", so `--private-key-stdin`). */
 function flagOf(kind: SecretKind): string {
   return kind.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 }
@@ -39,18 +31,14 @@ export class SecretResolver implements ISecretResolver {
     private readonly prompter?: Prompter,
   ) {}
 
-  /**
-   * Drop every cached secret once the command is done (called from the runner's finally).
-   * NOTE: JavaScript strings are immutable and cannot be overwritten, so this only releases the
-   * references for GC — it is not a guaranteed memory wipe (see the CP-08 caveat in the docs).
-   */
+  // Releases references; immutable JavaScript strings cannot be securely wiped.
   clearPrimed(): void {
     this.#primed.clear();
     this.#byPath.clear();
     this.#stdinUsedBy = undefined;
   }
 
-  /** whether a master-password source is configured, WITHOUT consuming it. */
+  // Checks availability without consuming the source.
   hasMasterPassword(): boolean {
     return this.paths.password !== undefined || this.#primed.has("password");
   }
@@ -64,7 +52,7 @@ export class SecretResolver implements ISecretResolver {
     return this.read("password");
   }
 
-  /** whether a source for `kind` is configured, WITHOUT consuming it. */
+  // Checks availability without consuming the source.
   has(kind: SecretKind): boolean {
     return this.paths[kind] !== undefined;
   }
@@ -84,10 +72,7 @@ export class SecretResolver implements ISecretResolver {
     return this.#readPath(path, kind);
   }
 
-  /**
-   * Read a REQUIRED source. A missing source is a usage error (forgot a required flag →
-   * missing_option, exit 2); secret_source_error is reserved for present-but-unreadable.
-   */
+  // Missing input is a usage error; unreadable input is an execution error.
   require(kind: SecretKind): string {
     if (!this.has(kind)) {
       throw new UsageError("missing_option", `--${flagOf(kind)}-stdin is required`);
@@ -95,11 +80,7 @@ export class SecretResolver implements ISecretResolver {
     return this.read(kind);
   }
 
-  /**
-   * Exactly-one selector for commands that accept an inline value OR a stdin source
-   * (e.g. --transaction|--tx-stdin, --message|--message-stdin). Both → invalid_option;
-   * neither → missing_option (both usage/exit 2).
-   */
+  // Require exactly one of the inline value or stdin source.
   pick(inline: string | undefined, kind: SecretKind, inlineFlag: string): string {
     const hasStdin = this.has(kind);
     if (inline !== undefined && hasStdin) {
@@ -116,8 +97,7 @@ export class SecretResolver implements ISecretResolver {
     );
   }
 
-  /** Wallet secrets (mnemonic / private key) are TTY-only: a hidden interactive prompt, or fail.
-   *  There is no `--*-stdin` source for them — importing an existing secret is a human moment. */
+  // Wallet secrets require a hidden TTY prompt.
   async resolveSecret(kind: "mnemonic" | "privateKey"): Promise<string> {
     const validate = kind === "mnemonic" ? isValidMnemonic : isValidPrivateKeyHex;
     if (this.prompter?.isTTY()) {
@@ -138,9 +118,7 @@ export class SecretResolver implements ISecretResolver {
     mode: "set" | "verify";
     verify?: (pw: string) => boolean;
   }): Promise<void> {
-    // Already primed and still valid — reuse it. The startup migration gate primes the password
-    // before the command runs; without this an interactive run would prompt twice for the same
-    // secret. Only "verify" short-circuits: a "set" is establishing a NEW password, so it must ask.
+    // Reuse verified passwords; set mode must obtain a new password.
     const primed = this.#primed.get("password");
     if (plan.mode === "verify" && primed !== undefined && (plan.verify?.(primed) ?? true)) {
       return;
@@ -188,7 +166,7 @@ export class SecretResolver implements ISecretResolver {
     throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
   }
 
-  /** The only source is stdin (fd 0), so `path` is always `-`; at most one secret may use it. */
+  // Only one secret kind may consume stdin per run.
   #readPath(_path: string, kind: SecretKind): string {
     if (this.#stdinUsedBy && this.#stdinUsedBy !== kind) {
       throw new ExecutionError(

@@ -30,9 +30,6 @@ describe("TronBlockService.get", () => {
   });
 
   it("throws invalid_node_response when the latest block comes back with no blockID", async () => {
-    // Asking for latest with no height and getting `{}` back is not a fact about the chain —
-    // there is no such thing as "the chain has no latest block" — so it must not be reported the
-    // same way as a specific missing height.
     await expect(service(async () => ({})).get(net)).rejects.toMatchObject({
       code: "invalid_node_response",
     });

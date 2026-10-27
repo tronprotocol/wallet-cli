@@ -1,8 +1,3 @@
-/**
- * LedgerSigner — device-backed signing through the LedgerDevice port.
- * Lives next to SoftwareSigner so all Signer implementations share one home; the device protocol
- * detail stays inside the injected `Ledger` (path/hex encoding, @ledgerhq, hw-app-trx).
- */
 import type { ChainFamily } from "../../../domain/family/index.js";
 import type {
   SignedTx,
@@ -25,9 +20,9 @@ export class LedgerSigner implements Signer {
   ) {}
 
   async precheck(): Promise<void> {
-    const cfg = await this.ledger.appConfig(this.family); // throws auth_required if not ready
+    const cfg = await this.ledger.appConfig(this.family);
     if (!cfg.ready) throw new ExecutionError("auth_required", "open the correct app on the Ledger");
-    // the device's current seed/passphrase must still derive this account's cached address.
+    // The device seed/passphrase must still derive the cached address.
     const onDevice = await this.ledger.getAddress(this.family, this.path, { display: false });
     if (onDevice !== this.address) {
       throw new WalletError(

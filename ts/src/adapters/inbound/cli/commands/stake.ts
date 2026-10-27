@@ -81,8 +81,7 @@ export function stakeDefinitions(
       (context, network, input) => service.cancelUnfreeze(context, network, input),
       {},
       {
-        // The Ledger TRON app firmware rejects CancelAllUnfreezeV2Contract (APDU 0x6a80),
-        // even with blind-signing enabled; software accounts sign it fine.
+        // Ledger rejects this contract type even with blind signing enabled.
         requires: [
           "a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type",
         ],

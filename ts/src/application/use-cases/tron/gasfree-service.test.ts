@@ -49,7 +49,6 @@ function fixture(
     badDigest?: boolean;
     expiredAtSeconds?: boolean;
     terminal?: "success" | "fee-exceeded" | "mutated-recipient";
-    /** replaces the polling response entirely — for failure-path tests. */
     trace?: (call: number) => Promise<unknown>;
   } = {},
 ) {
@@ -328,12 +327,9 @@ describe("GasFreeService", () => {
         token: "USDT",
         dryRun: false,
       }),
-      // an integrity violation must still fail loudly — but it stays reconcilable
     ).rejects.toMatchObject({ code: "gasfree_integrity", details: { traceId: "trace-1" } });
   });
 
-  // Everything below runs after submitTransfer has already succeeded and the tokens are committed.
-  // A polling failure says nothing about the outcome and must never take the trace id with it.
   describe("--wait polling failures never destroy the receipt", () => {
     const send = (fixtureValue: ReturnType<typeof fixture>, ctx: TransactionScope) =>
       fixtureValue.service.transfer(ctx, NETWORK, {
@@ -404,7 +400,7 @@ describe("GasFreeService", () => {
       const result = await send(fixtureValue, ctx);
 
       expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
-      expect(fixtureValue.provider.trace).toHaveBeenCalledTimes(1); // not retried
+      expect(fixtureValue.provider.trace).toHaveBeenCalledTimes(1);
       expect(ctx.warn).toHaveBeenCalledWith(expect.stringContaining("gasfree trace trace-1"));
     });
   });

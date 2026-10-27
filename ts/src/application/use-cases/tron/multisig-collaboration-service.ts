@@ -26,10 +26,7 @@ interface ValidatedRemoteRecord {
   hex: string;
 }
 
-/**
- * Multi-signature collaboration use case. TronLink is an external coordination port,
- * never the source of truth for transaction bytes or on-chain approval state.
- */
+// Verify TronLink transaction bytes and approval claims independently.
 export class TronMultisigCollaborationService {
   readonly #address = new TronAddress();
 
@@ -47,9 +44,7 @@ export class TronMultisigCollaborationService {
       limit: LIST_LIMIT,
     });
     const gateway = this.gateways.get(network, "tron");
-    // A record whose bytes this client cannot reconstruct costs its own row, not the page: one
-    // historical transaction in an encoding we do not understand must not hide every pending one.
-    // Acting on it is a different matter — #find still refuses.
+    // Skip undecodable rows when listing; signing still rejects them.
     const validated: ValidatedRemoteRecord[] = [];
     let unreadable = 0;
     for (const record of page.records) {
@@ -60,16 +55,14 @@ export class TronMultisigCollaborationService {
         unreadable += 1;
       }
     }
-    // A permission changed while an old transaction sat pending makes that record disagree with
-    // the chain for good. Listing is informational, so one such row is reported as unverified
-    // rather than costing the whole page — acting on it (--sign) still refuses.
+    // List chain disagreements as unverified; propagate other verification failures.
     await mapWithConcurrency(validated, 4, async (transaction) => {
       try {
         await this.#verifyOnChain(network, address, transaction);
       } catch (error) {
         if (!isChainDisagreement(error)) throw error;
         transaction.view.unverifiedReason = error.message;
-        // Nothing here is substantiated, least of all a claim on this account's signature.
+        // An unverified row must not request this account's signature.
         transaction.view.awaitingMySignature = false;
       }
     });
@@ -81,10 +74,7 @@ export class TronMultisigCollaborationService {
     };
   }
 
-  /**
-   * Opening a collection and casting its first signature are one act: the service has no empty
-   * collection, and derives the initial weight from the signature the transaction arrives with.
-   */
+  // TronLink requires an initial signature to open a collection.
   async create(scope: TransactionScope, network: NetworkDescriptor, unsignedHex: string) {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(unsignedHex);
@@ -92,8 +82,6 @@ export class TronMultisigCollaborationService {
       throw new UsageError("invalid_value", "TronLink --create requires an unsigned transaction");
     }
 
-    // signChecked rejects an expired transaction, a signer outside the permission group, and a
-    // repeat signature — the whole precondition set this collection needs.
     const signed = await this.multisig.signChecked(scope, network, unsignedHex);
     await this.collaboration.submit(
       network,
@@ -185,9 +173,7 @@ export class TronMultisigCollaborationService {
       });
       total = page.total;
       for (const record of page.records) {
-        // Matching on the claimed hash first keeps one unreadable record from blocking the search
-        // for everything behind it. The claim smuggles nothing: #validate re-derives txID from the
-        // bytes and refuses any record whose hash disagrees.
+        // Filter by claimed hash, then validate it against the transaction bytes.
         if (claimedTxId(record) !== txId) continue;
         const validated = this.#validate(gateway, address, record);
         await this.#verifyOnChain(network, address, validated);
@@ -217,8 +203,6 @@ export class TronMultisigCollaborationService {
       hex = gateway.encodeTransactionHex(remote.current_transaction);
       transaction = gateway.decodeTransactionHex(hex);
     } catch (error) {
-      // Keep the codec's reason. "TronLink sent something bad" sends the user to the wrong system
-      // when the truth is that this client could not reconstruct the bytes.
       throw new ChainError(
         "invalid_transaction",
         `this client cannot reconstruct the TronLink transaction bytes: ${reason(error)}`,
@@ -301,7 +285,7 @@ export class TronMultisigCollaborationService {
     return {
       hex,
       view: {
-        // Byte-level checks only; #verifyOnChain is what earns this.
+        // Chain approval verification is still pending.
         verified: false,
         txId: hash,
         state,
@@ -361,11 +345,7 @@ export class TronMultisigCollaborationService {
       );
     }
 
-    // The checks above bind only the SIGNED set and the aggregate weight. Unsigned entries and every
-    // per-signer weight are still whatever the provider said — so a stale record (the permission was
-    // updated while this transaction sat pending) or a hostile one can name a signer the permission
-    // does not contain, or misstate how much weight each key carries. Both read as chain-validated
-    // in the summary a co-signer uses to decide. Bind the whole roster, and render chain weights.
+    // Validate unsigned roster entries too, and replace all weights with chain values.
     const onChainWeight = new Map(
       (signWeight.permission?.keys ?? []).map((key) => [key.address, key.weight] as const),
     );
@@ -375,10 +355,7 @@ export class TronMultisigCollaborationService {
         "selected account is not a key in the transaction permission",
       );
     }
-    // NB: deliberately not requiring every on-chain key to appear. Whether the service always
-    // returns the full roster is not something this client can know, and every number the user acts
-    // on (threshold, currentWeight, missingWeight) is chain-derived regardless — so rejecting a
-    // short list would risk breaking real usage to prevent nothing.
+    // The remote roster may omit on-chain keys; validate every entry it does include.
     for (const entry of remote.view.signatureProgress) {
       const weight = onChainWeight.get(entry.address);
       if (weight === undefined) {
@@ -389,8 +366,7 @@ export class TronMultisigCollaborationService {
       }
       entry.weight = weight;
     }
-    // Re-derive from chain weights: catches weight redistributed among the signed keys, which the
-    // provider-side sum in #validate cannot see.
+    // Recompute the total after replacing provider weights with chain weights.
     const signedWeight = remote.view.signatureProgress
       .filter((entry) => entry.signed)
       .reduce((sum, entry) => sum + entry.weight, 0);
@@ -405,12 +381,7 @@ export class TronMultisigCollaborationService {
   }
 }
 
-/**
- * A verdict of "checked and disagreed", as opposed to "could not check". Only the former may be
- * downgraded to an unverified row: a node outage must never read as a clean page.
- */
-/** "This client cannot read it", as opposed to "read it and it disagrees" — only the former may be
- *  dropped from a page; a record that decodes and then lies still fails loudly. */
+// Skip decoding failures only; decoded records with inconsistent metadata must fail.
 function isUndecodable(error: unknown): error is ChainError {
   return error instanceof ChainError && error.code === "invalid_transaction";
 }
@@ -426,7 +397,7 @@ function isChainDisagreement(error: unknown): error is ChainError {
   );
 }
 
-/** Convert address fields to visible=true JSON, then prove that protobuf bytes are unchanged. */
+// visible=true uses base58 addresses; the signed protobuf bytes must stay unchanged.
 function visibleTransaction(gateway: TronGateway, hex: string): TronTransactionArtifact {
   const transaction = structuredClone(gateway.decodeTransactionHex(hex));
   convertAddressFields(transaction);

@@ -1,18 +1,3 @@
-/**
- * Bancor exchange — the `exchange` command group.
- *
- * TRON carries an automatic market maker at protocol level: no order book, no counterparty, price
- * set by the pair's two reserves along a curve. It trades TRX and TRC10 only.
- *
- * Three things shape this file:
- *   - **Only the creator may inject or withdraw.** A pair is private market-making, not a public
- *     pool, and the binding cannot be transferred.
- *   - **Our pricing advises, it never gates.** `bancorOutput` derives the
- *     `--slippage` floor and the `--dry-run` estimate; nothing is refused on its say-so. Rejections
- *     come only from exact integer checks or from the node.
- *   - **Token ids only, never names.** A TRC10 name may contain `:`, which would make
- *     `--pair A:B:1000123` ambiguous.
- */
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
@@ -39,10 +24,9 @@ import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const TRX_DECIMALS = 6;
-/** the protocol requires a positive `expected`; this is "no slippage protection". */
+// The protocol requires expected > 0, even without slippage protection.
 const UNPROTECTED_FLOOR = 1n;
 
-/** display metadata for one side of a pair. */
 interface TokenMeta {
   tokenId: string;
   decimals: number;
@@ -83,12 +67,9 @@ export class TronExchangeService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  // ── reads ────────────────────────────────────────────────────────────────────
   async show(network: NetworkDescriptor, input: ExchangeShowInput) {
     const gateway = this.gateways.get(network, "tron");
     const exchange = await this.#requireExchange(gateway, input.id);
-    // One pair, so two O(1) lookups at most: enough to render whole tokens and names. `list` is the
-    // command that must never fan out.
     const [first, second] = await Promise.all([
       this.#tokenMeta(gateway, exchange.firstTokenId),
       this.#tokenMeta(gateway, exchange.secondTokenId),
@@ -110,7 +91,7 @@ export class TronExchangeService {
     };
   }
 
-  /** Exactly one RPC, whatever the page size — no per-row token lookups. */
+  // Avoid per-row token lookups when listing exchanges.
   async list(network: NetworkDescriptor, input: ExchangeListInput) {
     const gateway = this.gateways.get(network, "tron");
     const exchanges = await gateway.listExchanges(input.limit, input.offset);
@@ -129,7 +110,6 @@ export class TronExchangeService {
     };
   }
 
-  // ── writes ───────────────────────────────────────────────────────────────────
   async create(scope: TransactionScope, network: NetworkDescriptor, input: ExchangeCreateInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const gateway = this.gateways.get(network, "tron");
@@ -172,7 +152,7 @@ export class TronExchangeService {
     return {
       kind: "exchange-create" as const,
       ...data,
-      // the chain assigns the id; it is only in the receipt, so absent until confirmed
+      // The chain assigns the exchange ID on confirmation.
       ...(data.exchangeId === undefined ? {} : { exchangeId: Number(data.exchangeId) }),
       pair: `${tokenIdLabel(firstTokenId)}:${tokenIdLabel(secondTokenId)}`,
       creatorAddress: owner,
@@ -212,7 +192,7 @@ export class TronExchangeService {
     ]);
     const sellQuant = this.#amount(input, sellMeta, "--amount");
 
-    // Advisory only: this drives --slippage and the dry-run preview, and never rejects.
+    // Approximate output drives the preview and slippage-floor validation.
     const predicted = bancorOutput(sides.reserve, sides.otherReserve, sellQuant);
     const floor = this.#tradeFloor(scope, input, predicted, buyMeta);
 
@@ -251,7 +231,7 @@ export class TronExchangeService {
       receivedTokenId: sides.otherTokenId,
       receivedLabel: buyMeta.label,
       receivedDecimals: buyMeta.decimals,
-      // the realised amount exists only in the receipt; our own figure stays labelled an estimate
+      // Report actual received quantities only from the receipt.
       ...(data.exchangeReceived === undefined
         ? {}
         : { receivedQuant: String(data.exchangeReceived) }),
@@ -260,7 +240,6 @@ export class TronExchangeService {
     };
   }
 
-  // ── shared write path for inject / withdraw ───────────────────────────────────
   async #liquidity(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -285,8 +264,7 @@ export class TronExchangeService {
     ]);
     const quant = this.#amount(input, meta, "--amount");
 
-    // Exact integer arithmetic — the same expression the actuator evaluates — so it is safe to
-    // reject on, unlike the Bancor curve.
+    // This integer calculation matches the actuator, so it can reject invalid amounts locally.
     const otherQuant = proportionalOther(sides.reserve, sides.otherReserve, quant);
     if (otherQuant <= 0n) {
       throw new UsageError(
@@ -315,8 +293,7 @@ export class TronExchangeService {
       estimate: async () => ({ feeModel: "tron-resource", note: `${action} uses bandwidth only` }),
     });
     const data = outcomeData(outcome);
-    // The receipt states the other side authoritatively; before confirmation our own exact figure
-    // stands, and reserves after are pre-state ± the amounts, so no extra read is needed.
+    // Prefer the receipt amount; project reserves from the pre-transaction snapshot.
     const realisedOther =
       action === "inject" ? data.exchangeInjectedOther : data.exchangeWithdrawnOther;
     const otherFinal = realisedOther === undefined ? otherQuant : BigInt(String(realisedOther));
@@ -341,14 +318,12 @@ export class TronExchangeService {
     };
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────────
   async #requireExchange(gateway: TronGateway, id: number): Promise<TronExchange> {
     const exchange = await gateway.getExchangeById(id);
     if (!exchange) throw new ChainError("exchange_not_found", `no exchange pair has id ${id}`);
     return exchange;
   }
 
-  /** orient a pair around the side the caller named, and refuse a closed pair. */
   #sides(exchange: TronExchange, tokenId: string) {
     const first = tokenId === exchange.firstTokenId;
     if (!first && tokenId !== exchange.secondTokenId) {
@@ -370,7 +345,6 @@ export class TronExchangeService {
     };
   }
 
-  /** TRX needs no lookup; a TRC10 costs one, and an unknown id is a usage error, not a crash. */
   async #tokenMeta(gateway: TronGateway, tokenId: string): Promise<TokenMeta> {
     if (tokenId === TRX_TOKEN_ID) return { tokenId, decimals: TRX_DECIMALS, label: "TRX" };
     const asset = await gateway.getAssetById(tokenId);
@@ -378,7 +352,6 @@ export class TronExchangeService {
     return { tokenId, decimals: asset.precision ?? 0, label: asset.name };
   }
 
-  /** exactly one of --amount (whole tokens, needs the token's precision) or --raw-amount. */
   #amount(input: AmountInput, meta: TokenMeta, flag: string): bigint {
     const given = [input.amount !== undefined, input.rawAmount !== undefined].filter(
       Boolean,
@@ -398,7 +371,6 @@ export class TronExchangeService {
     return value;
   }
 
-  /** `--amounts a:b` / `--raw-amounts a:b`, one half per side of the pair. */
   async #pairAmounts(
     input: ExchangeCreateInput,
     first: TokenMeta,
@@ -427,11 +399,6 @@ export class TronExchangeService {
     return [convert(a, first), convert(b, second)];
   }
 
-  /**
-   * The on-chain `expected`. `--min-received` is taken as given; `--slippage` derives it from the
-   * predicted output at build time; omitting both means no protection, which the protocol can only
-   * express as `expected = 1` — recorded as a warning so an agent reading json can see it.
-   */
   #tradeFloor(
     scope: TransactionScope,
     input: ExchangeTradeInput,

@@ -8,15 +8,6 @@ import { composeCliRuntime } from "../../../../bootstrap/composition.js";
 import { Prompter } from "../input/prompt/index.js";
 import { SecretResolver } from "../input/secret/index.js";
 
-/**
- * The other shell tests drive synthetic command definitions, which proves the mechanism but not
- * that any shipped command is wired to it. This one enumerates the REAL registry: every command
- * that declares positionals must reject the `--<field>` spelling of each one. New positional
- * commands are covered automatically — the table is derived, not hand-written.
- *
- * Rejection happens in assertKnownFlags, before run(), so nothing here touches the network,
- * the keystore, or a signing path.
- */
 describe("every registered positional command rejects its --<field> spelling", () => {
   let previousHome: string | undefined;
 
@@ -30,21 +21,14 @@ describe("every registered positional command rejects its --<field> spelling", (
     else process.env.WALLET_CLI_HOME = previousHome;
   });
 
-  // fresh per invocation: StreamManager permits one result emission, so a runtime cannot be shared
-  // across commands that actually run.
+  // Each runtime allows only one result emission.
   function newRuntime() {
     const runtime = composeCliRuntime({
       globals: { output: "json", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
     });
-    // These two overrides are load-bearing, and only on a developer machine: `composeCliRuntime`
-    // wires the real TtyBackend, which finds the controlling terminal and prompts on /dev/tty. The
-    // `--account` case below dispatches `backup`/`delete`, whose passwordMode primes the master
-    // password — with a real TTY that blocks forever (CI has no terminal, so it passes there).
-    // Both lines are needed: dispatch prompts through deps.prompter, priming through deps.secrets'
-    // own prompter reference. Any prompt reaching the backend is a bug in this test's assumptions,
-    // so the backend throws rather than silently answering "" and passing for the wrong reason.
+    // Replace both prompter references to prevent real /dev/tty prompts on developer machines.
     const unreachable = (site: string) => () => {
       throw new Error(`positional-contract test must not prompt (${site})`);
     };
@@ -152,7 +136,7 @@ describe("every registered positional command rejects its --<field> spelling", (
   it("rejects --<field> for each positional of each command", async () => {
     for (const cmd of positionalCommands()) {
       for (const p of cmd.positionals) {
-        // `account` is also a global flag, legitimately accepted everywhere (use/rename/delete/backup)
+        // The global --account remains valid when it shares a positional's name.
         if (p.field === "account") continue;
         const kebab = p.field.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
         const tokens = [...cmd.path, `--${kebab}`, "x"];
@@ -167,9 +151,6 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
-  // Optional positionals must stay omittable. `config` is the sharpest case: 0, 1 or 2 of them,
-  // and it moved from a `config [key] [value]` yargs layout to the shared `[args..]` capture.
-  // Both readings are local-only (no network, no keystore).
   it.each([
     [["config"], "no positionals"],
     [["config", "timeoutMs"], "first of two"],
@@ -183,17 +164,6 @@ describe("every registered positional command rejects its --<field> spelling", (
     );
   });
 
-  /**
-   * A command may also refuse `--account` outright, and ten do.
-   *
-   * `--account` is global, so the refusal has to be made on purpose. Without it the flag would be
-   * accepted and ignored: `sunpump launch --account main` would read as having created a token for
-   * `main` — which no launch does, since SunPump picks the owner — and `sunswap position-info
-   * --account main` would read as being about a position that account holds, when the command
-   * reports whoever holds the id it was given. The SunSwap / SunPump market queries refuse it because
-   * each reads public data and takes no account. Derived from the registry, so any later command
-   * that declares the same intent is covered here too.
-   */
   function accountRefusingCommands() {
     return newRuntime()
       .registry.all()
@@ -226,11 +196,6 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
-  /**
-   * `--wait` is global too, and refused the same way by a command that submits nothing to wait on.
-   * `sunpump launch` creates its token server-side and returns no transaction, so an accepted
-   * `--wait` would read as having waited for a confirmation that does not exist.
-   */
   it("refuses --wait on every command that declares it has nothing to wait for", async () => {
     const paths = newRuntime()
       .registry.all()
@@ -246,7 +211,6 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
-  // The same refusal scoped to one mode: a curve quote sends nothing to wait on.
   it("refuses --wait and --wait-timeout with --quote on the commands that declare it", async () => {
     const commands = newRuntime()
       .registry.all()
@@ -272,8 +236,6 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
-  // `use`/`rename`/`delete`/`backup` name their positional after the global --account. The global
-  // stays valid; supplying both spellings at once is the case bindGroupedPositionals catches.
   it("keeps the global --account usable on the commands whose positional shares its name", async () => {
     for (const cmd of positionalCommands().filter((c) =>
       c.positionals.some((p) => p.field === "account"),

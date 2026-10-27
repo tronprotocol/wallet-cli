@@ -48,8 +48,6 @@ describe("createPayerSigner", () => {
     expect(createPayerSigner(resolverOf(signer), scope(), "evm").address).toBe("0xdead");
   });
 
-  // Finding 8: `resolverOf` used to ignore its arguments entirely, so all six tests stayed green
-  // even if `payer-signer.ts` transposed the two arguments to `assertCanSign`/`resolve`.
   it("calls assertCanSign and resolve with the active account and family, in that order", () => {
     const signer = { kind: "software", address: "0xdead" } as unknown as Signer;
     const assertCanSign = vi.fn();
@@ -89,8 +87,6 @@ describe("createPayerSigner", () => {
     expect(s.emitted).toEqual([{ type: "awaiting_device", reason: "sign" }]);
   });
 
-  // The TRON allowanceMode "auto" path may sign an approve transaction before the payment
-  // itself; each signature must get its own precheck and its own prompt.
   it("runs one ceremony per signature", async () => {
     const precheck = vi.fn(async () => {});
     const signer = {

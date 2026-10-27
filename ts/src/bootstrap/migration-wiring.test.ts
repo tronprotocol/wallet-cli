@@ -54,13 +54,6 @@ const v1PrivateKeyDoc = {
   ],
 };
 
-/**
- * Ledger is the case that matters most here: a real, signing-capable account that holds no local
- * secret. Such a user may never have set a master password at all — `import ledger` / `import
- * watch` do not ask for one, and a keystore file is never written — so a gate that demanded one
- * would leave them with nothing to type and no way in. The upgrade must not ask for a password or
- * consent; reporting its progress is safe.
- */
 const v1LedgerDoc = {
   version: 1,
   activeAccount: "wlt_l",
@@ -73,7 +66,6 @@ const v1LedgerDoc = {
   ],
 };
 
-// watch and ledger hold no secret anywhere, so this keystore migrates with no prompt.
 const v1WatchDoc = {
   version: 1,
   activeAccount: "wlt_w",
@@ -90,8 +82,6 @@ describe("the startup migration gate is wired into main()", () => {
     expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(1);
   });
 
-  // A privateKey wallet is re-derived from its decrypted key, exactly as a seed wallet is, so
-  // it needs the password too. Only sources with NO local secret migrate free.
   it("refuses a privateKey keystore with migration_required when no password can be obtained", async () => {
     const { code, stdout } = await runIn(v1PrivateKeyDoc, ["-o", "json", "list"]);
 
@@ -146,8 +136,6 @@ describe("the startup migration gate is wired into main()", () => {
   });
 
   it("needs the password once ANY wallet in the file holds a secret", async () => {
-    // needsPassword is per FILE, not per wallet: one seed alongside a Ledger account still means
-    // the file cannot be rewritten without decrypting something.
     const mixed = {
       ...v1LedgerDoc,
       wallets: [...v1LedgerDoc.wallets, ...v1SeedDoc.wallets],
@@ -181,8 +169,6 @@ describe("the startup migration gate is wired into main()", () => {
 });
 
 describe("TRON-only commands on an EVM network", () => {
-  // Reachable for the first time now that EVM networks are builtin: dispatch looks up the
-  // command's family binding and finds none, so it must refuse before touching any RPC.
   it.each([
     ["gasfree", "info"],
     ["stake", "info"],
@@ -212,7 +198,6 @@ describe("aliases resolve at selection and nowhere else", () => {
     ]);
 
     const { error } = JSON.parse(stdout);
-    // resolved (not "unknown network"), and everything past resolution speaks canonical ids
     expect(error.message).toContain("eip155:11155111");
     expect(error.message).not.toContain("sepolia");
   });
@@ -244,7 +229,6 @@ describe("networks lists both families with their endpoints", () => {
       feeModel: "evm-gas",
       alias: "sepolia",
     });
-    // The listing shows the HOST, not the full URL with any embedded key
     expect(byId["eip155:11155111"]!.endpoint).toBe("ethereum-sepolia-rpc.publicnode.com");
     expect(byId["tron:3448148188"]!.endpoint).toBe("nile.trongrid.io");
   });
@@ -282,8 +266,6 @@ describe("config addresses networks by nested key", () => {
     });
   });
 
-  // The endpoint may carry an API key in its path, so breadth-first listings trim it to the host;
-  // naming ONE network is the deliberate act that reveals the whole URL.
   it("reveals the full endpoint URL only when a single network is named", async () => {
     const listed = await runIn(emptyKeystore, ["-o", "json", "config", "networks"]);
     expect(JSON.parse(listed.stdout).data.value["tron:3448148188"].httpEndpoint).toBe(

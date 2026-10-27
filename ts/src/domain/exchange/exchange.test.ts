@@ -13,19 +13,13 @@ import {
 const TRX = 1_000_000n; // sun per TRX
 
 describe("bancor pricing", () => {
-  /**
-   * A worked example, in minimal units: a 10,000 TRX / 500,000 MyToken pool (precision 6),
-   * selling 100 TRX. The predicted return is 4,950 whole tokens —
-   * an independent check on the port, since that number was written from the chain's behaviour and
-   * not from this code.
-   */
+  // A 10,000 TRX / 500,000-token pool uses six-decimal token units.
   it("matches the worked example", () => {
     const out = bancorOutput(10_000n * TRX, 500_000n * 1_000_000n, 100n * TRX);
     expect(out / 1_000_000n).toBe(4950n);
   });
 
   it("prices below the naive reserve ratio — the pool's own price impact", () => {
-    // the quoted rate would give 5,000; the curve gives less, and the gap is the impact
     const out = bancorOutput(10_000n * TRX, 500_000n * 1_000_000n, 100n * TRX);
     expect(out).toBeLessThan(5_000n * 1_000_000n);
   });
@@ -35,7 +29,6 @@ describe("bancor pricing", () => {
     const buy = 500_000n * 1_000_000n;
     const small = bancorOutput(sell, buy, 10n * TRX);
     const large = bancorOutput(sell, buy, 1_000n * TRX);
-    // ten times the size returns less than ten times the tokens
     expect(large).toBeLessThan(small * 100n);
     expect(large).toBeGreaterThan(small);
   });
@@ -47,17 +40,14 @@ describe("bancor pricing", () => {
   });
 
   it("returns zero when the trade is too small to move the curve by a unit", () => {
-    // a thin buy side: one sun against a pool holding a single unit of the other token buys nothing
     expect(bancorOutput(1_000_000n * TRX, 1n, 1n)).toBe(0n);
-    // and the same pool as the worked example still pays out for one sun, because that side holds
-    // 50 units per sun — "too small" is about the ratio, not the absolute amount
+    // The minimum viable trade depends on the reserve ratio.
     expect(bancorOutput(10_000n * TRX, 500_000n * 1_000_000n, 1n)).toBe(49n);
   });
 });
 
 describe("slippage floor", () => {
   it("rounds the floor down, matching the 1% worked example", () => {
-    // predicted 4,950 whole tokens → 1% → 4,900.5 → 4,900
     expect(slippageFloor(4950n, 1)).toBe(4900n);
   });
 
@@ -75,7 +65,7 @@ describe("slippage floor", () => {
 
 describe("proportional inject / withdraw", () => {
   it("computes the other side the way the actuator does — multiply, then floor", () => {
-    // 10,000 TRX / 500,000 tokens, inject 1,000 TRX → 50,000 tokens
+    // Token quantities use six decimals.
     expect(proportionalOther(10_000n * TRX, 500_000n * 1_000_000n, 1_000n * TRX)).toBe(
       50_000n * 1_000_000n,
     );
@@ -90,7 +80,6 @@ describe("proportional inject / withdraw", () => {
     const first = 10_000n * TRX;
     const second = 500_000n * 1_000_000n;
     expect(withdrawIsPrecise(first, second, 1_000n * TRX)).toBe(true);
-    // an amount whose counterpart does not divide cleanly trips the 0.01% tolerance
     expect(withdrawIsPrecise(3n, 7n, 1n)).toBe(false);
   });
 });
@@ -124,29 +113,19 @@ describe("token ids", () => {
   });
 });
 
-// Basis points can only express two decimal places, so a finer percentage had to be rounded to the
-// nearest one — in EITHER direction. Rounding it down loosened the user's floor below what they
-// asked for; rounding it up tightened it past what they asked for, and for anything under 0.005%
-// it snapped the floor to the predicted output itself, demanding a return the estimate cannot
-// promise. The resolution is now fine enough that every percentage a person types is exact.
 describe("slippage floor at finer than basis-point precision", () => {
   const predicted = 1_000_000n;
 
   it("honours a three-decimal percentage exactly", () => {
-    // 1.006% of 1,000,000 is 10,060 → floor 989,940. Basis points gave 989,900, which accepts
-    // 40 units less than asked for.
     expect(slippageFloor(predicted, 1.006)).toBe(989_940n);
   });
 
   it("does not tighten a percentage that used to round up", () => {
-    // 1.004% → 989,960. Basis points gave 990,000, refusing a trade the user would have taken.
     expect(slippageFloor(predicted, 1.004)).toBe(989_960n);
     expect(slippageFloor(predicted, 0.334)).toBe(996_660n);
   });
 
   it("keeps a very tight tolerance below the predicted output", () => {
-    // Anything under 0.005% used to snap to 10,000 bps, making the floor the prediction itself —
-    // and the prediction is an estimate, so that trade reverts on any last-unit disagreement.
     expect(slippageFloor(predicted, 0.001)).toBe(999_990n);
     expect(slippageFloor(predicted, 0.001)).toBeLessThan(predicted);
     expect(slippageFloor(predicted, 0.0049)).toBeLessThan(predicted);
@@ -160,8 +139,6 @@ describe("slippage floor at finer than basis-point precision", () => {
     expect(slippageFloor(4950n, 1)).toBe(4900n);
   });
 
-  // Resolution has to stop somewhere. Below it the TOLERANCE rounds down, which can only raise the
-  // floor — the direction that never hands the user a weaker guarantee than the one they asked for.
   it("rounds a tolerance finer than its resolution down, never up", () => {
     const finer = slippageFloor(predicted, 1.0000001);
     expect(finer).toBeGreaterThanOrEqual(slippageFloor(predicted, 1.000001));

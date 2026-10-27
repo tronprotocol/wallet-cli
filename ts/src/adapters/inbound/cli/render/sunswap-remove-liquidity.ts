@@ -1,11 +1,3 @@
-/**
- * Text receipts for `sunswap remove-liquidity`.
- *
- * The withdrawal's own shape, not the deposit's mirrored: what a person checks after taking
- * money out is how much arrived, and on V3 the principal and the fees arrive in the same
- * transaction. Text gives the TOTAL — that is the number they are looking for — and `-o json`
- * separates the two.
- */
 import type { TextRenderContext } from "../contracts/command.js";
 import { formatAmount, formatInt, shorten } from "./scalars.js";
 import { fail, ok, pending, receipt, warn } from "./layout.js";
@@ -43,12 +35,11 @@ interface RemovalView {
   readonly nftTokenId?: string;
   readonly liquidity?: string;
   readonly liquidityAfter?: string;
-  // ── V4 ──────────────────────────────────────────────────────────────────────
-  /** the 32-byte pool id. A V4 pool has no address, so this is what names it. */
+  // 32-byte pool ID; V4 pools have no individual address.
   readonly poolId?: string;
   readonly feeTier?: number;
   readonly tickSpacing?: number;
-  /** already the word for it, never the zero address — see `describeHooks`. */
+  // Preformatted hook label, including "none" for the zero address.
   readonly hooks?: string;
   readonly tickLower?: number;
   readonly tickUpper?: number;
@@ -65,11 +56,10 @@ interface RemovalView {
 
 type Pair = [string, string];
 
-/** UTC to the second, because a deadline is a moment a transaction stops being valid. */
 const deadline = (seconds: number): string =>
   `${new Date(seconds * 1000).toISOString().replace("T", " ").slice(0, 19)} UTC`;
 
-/** Principal and fees arrive together, so the total is what actually landed. */
+// Prefer actual settlement; otherwise sum principal and fees.
 const arrived = (side: Side): bigint =>
   side.receivedAmount === undefined
     ? BigInt(side.amount) + BigInt(side.feeAmount ?? "0")
@@ -129,16 +119,13 @@ export const SunSwapRemoveLiquidityFormatters = {
   },
 };
 
-/** What is being given up: LP tokens on V2, a slice of a position's liquidity on V3 and V4. */
 function burnedRows(value: RemovalView): Pair[] {
   if (value.protocol === "V4") return v4Rows(value);
   if (value.protocol === "V2") {
     return [
       [
         "LP burned",
-        // BOTH or neither. An LP amount without its scale used to print base units as whole
-        // tokens — the misread in the direction that alarms — and a fallback of zero is what made
-        // that possible. Missing a scale now renders nothing rather than something wrong.
+        // Require LP decimals to avoid displaying base units as whole tokens.
         value.lpAmount === undefined || value.lpDecimals === undefined
           ? ""
           : formatAmount(value.lpAmount, value.lpDecimals),
@@ -152,21 +139,12 @@ function burnedRows(value: RemovalView): Pair[] {
   ];
 }
 
-/**
- * What identifies a V4 withdrawal, which is not what identifies a V3 one.
- *
- * A pool id rather than a pair, because two V4 pools can hold the same tokens at the same fee tier
- * and differ in tick spacing or hooks — which is also why the spacing is shown. The position and its
- * range come after, because they are what is actually being reduced.
- *
- * `hooks` arrives already as the WORD for it. The zero address is the address native TRX uses, so
- * printing it raw would say the pool is hooked to TRX.
- */
+// V4 pool identity includes tick spacing and hooks, not just tokens and fee tier.
 function v4Rows(value: RemovalView): Pair[] {
   const range =
     value.tickLower === undefined || value.tickUpper === undefined
       ? ""
-      : // Plain integers: a tick is an index on a grid, not a quantity.
+      : // Tick indices stay ungrouped.
         `[${value.tickLower}, ${value.tickUpper}]`;
   return [
     ["Pool", value.poolId ?? ""],
@@ -193,18 +171,13 @@ function dryRun(value: RemovalView, rows: Pair[], ctx: TextRenderContext): strin
       `${warn()} The withdrawal's own fee cannot be estimated until the approval is on-chain.`,
     );
   }
-  // V3 AND V4 bring the accrued fees out in the same transaction — worth saying before it happens,
-  // because the amount that arrives will be larger than the principal the plan quotes. V4 was left
-  // out of this once, on the assumption that a V4 withdrawal leaves fees behind; measured on Nile
-  // it does not (position 7: owed 4821 / 3132 before, 0 / 0 after), so a V4 dry run was quoting
-  // only the principal and staying silent about the rest. Same behaviour, same warning.
+  // V3 and V4 withdrawals collect accrued fees in the same transaction.
   if (value.protocol === "V3" || value.protocol === "V4") {
     lines.push(
       `${warn()} Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.`,
     );
   }
-  // LAST, whatever else was said: a floor of zero is the line a caller must not miss, so nothing
-  // is printed after it.
+  // Keep the zero-minimum warning last.
   if (value.token0.amountMinimum === "0" || value.token1.amountMinimum === "0") {
     lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
   }
@@ -243,13 +216,7 @@ function reservesRow(value: RemovalView): string {
   return `${formatAmount(value.reservesAfter.token0, value.token0.decimals)} ${value.token0.symbol} / ${formatAmount(value.reservesAfter.token1, value.token1.decimals)} ${value.token1.symbol}`;
 }
 
-/**
- * The LP token approval a V2 withdrawal needs.
- *
- * It is the LP token, not the pair's two sides — the pool already holds those. Saying which
- * token is being approved matters more here than on a deposit, because "LP" is not a symbol
- * anyone recognises from their wallet.
- */
+// V2 withdrawals approve the LP token, not the underlying pair tokens.
 function approvalRows(value: RemovalView): Pair[] {
   if (!value.approvals?.length) return [];
   return value.approvals.flatMap((approval, index): Pair[] => {

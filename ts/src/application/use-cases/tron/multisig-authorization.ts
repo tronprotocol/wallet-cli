@@ -109,10 +109,6 @@ export async function authorizationState(
   return { weight, approved, permission };
 }
 
-/**
- * The one rule both broadcast entry points apply, so `tx broadcast` and a direct-submit pipeline
- * fail with identical semantics when the accumulated signature weight is short.
- */
 export function assertThresholdReached(currentWeight: number, threshold: number): void {
   if (currentWeight < threshold) {
     throw new ChainError(
@@ -122,7 +118,7 @@ export function assertThresholdReached(currentWeight: number, threshold: number)
   }
 }
 
-/** Validate permission membership before decrypting a software key or opening Ledger UI. */
+// Call before decrypting a key or opening Ledger UI.
 export async function assertTronSignerAuthorized(
   gateway: TronGateway,
   transaction: UnsignedTx,
@@ -142,18 +138,14 @@ export async function assertTronSignerAuthorized(
   if (approved.includes(signerAddress)) {
     throw new ChainError("already_signed", "selected signer has already approved this transaction");
   }
-  // The pipeline has already pinned the signer to the transaction owner and rejected a repeat
-  // approval, so the signature about to be produced adds exactly this key's weight.
+  // The signer is an unapproved permission key, so its weight is added once.
   const weightAfterSigning = weight.currentWeight + key.weight;
   return {
     assertBroadcastable: () => assertThresholdReached(weightAfterSigning, permission.threshold),
   };
 }
 
-/**
- * Shared transaction-construction hooks. Permission approval checks belong to explicit
- * multi-signature workflows so ordinary signing does not depend on online approval endpoints.
- */
+// These construction hooks omit online permission-approval checks.
 export function tronTransactionHooks(gateway: TronGateway) {
   return {
     prepare: (transaction: UnsignedTx, options: { permissionId: number; expiration?: number }) =>
@@ -167,8 +159,7 @@ export function tronTransactionHooks(gateway: TronGateway) {
           "TRON transaction timestamp is missing or imprecise",
         );
       }
-      // The node's short default is often consumed by Ledger review. Reserve ten minutes
-      // or the device timeout plus a minute for broadcast, without shortening a longer TTL.
+      // Allow Ledger review plus broadcast time without shortening a longer TTL.
       const expiration = Math.max(
         artifact.raw_data.expiration ?? 0,
         Date.now() + Math.max(600_000, timeoutMs + 60_000),

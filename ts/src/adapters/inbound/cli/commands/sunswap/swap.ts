@@ -36,11 +36,6 @@ const fields = z.object({
     ),
 });
 
-/**
- * `--quote` sends no transaction, so it excludes everything that describes one — including
- * `--slippage`, since a tolerance only means something when a floor will be enforced. `--all`
- * lists candidate routes, which only a quote has.
- */
 function refuseFlagsOutsideMode(value: Record<string, unknown>, ctx: RefinementCtx): void {
   const sending = ["dryRun", "buildOnly"] as const;
   if (value.quote === true) {
@@ -78,16 +73,12 @@ function refuseFlagsOutsideMode(value: Record<string, unknown>, ctx: RefinementC
 export const sunswapSwapSpec: ChainSpec = {
   path: ["sunswap", "swap"],
   network: "optional",
-  // `none` because `--quote` must work with no account at all; the use case resolves
-  // the account itself on the paths that sign. An account is needed for every other mode.
+  // Quotes need no account; other modes resolve it in the use case.
   wallet: "none",
   auth: "conditional",
-  // A quote sends nothing, so there is no confirmation for --wait or --wait-timeout to wait on.
   rejectsWaitWith: "quote",
   broadcasts: true,
-  // Its own key, not sunpump's: this command needs a launchpad address OR a route service, and
-  // `swap` must not be switched on merely because SunPump is configured — nor hidden on a network
-  // that has a router but no curve.
+  // Swap availability depends on a curve or router, not SunPump configuration alone.
   capability: "sunswap.swap",
   summary: "Swap tokens through SunSwap or a SunPump curve",
   description:

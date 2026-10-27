@@ -27,15 +27,12 @@ function repo() {
   };
 }
 
-// An entry persists its family, and the family is inferred from the address — asking the
-// user to restate what the address already says is a chance to get it wrong.
 describe("ContactService infers the family from the address", () => {
   it.each([
     ["tron", TRON],
     ["evm", EVM],
   ])("files a %s address under that family", (family, address) => {
     const { port, entries } = repo();
-    // the view carries no family — but the entry is still bucketed by one internally
     expect(new ContactService(port).add("friend", address)).toMatchObject({ address });
     expect(entries).toMatchObject([{ family }]);
   });
@@ -53,7 +50,6 @@ describe("ContactService lists every family", () => {
     svc.add("tron-friend", TRON);
     svc.add("evm-friend", EVM);
 
-    // family is internal now; the address is what identifies the chain to a reader
     expect(svc.list().contacts.map((c) => [c.name, c.address])).toEqual([
       ["tron-friend", TRON],
       ["evm-friend", EVM],
@@ -72,10 +68,6 @@ describe("ContactService removes by name alone", () => {
   });
 });
 
-// Externally the book is a flat map: one name, one address, both unique. Family is how the JSON
-// buckets entries and how `--to` routes them — never something the user has to think about.
-// Per-family uniqueness was never a decision; it was inherited from the storage shape, and it is
-// what made `remove <name>` ambiguous and forced a --family flag into the design.
 describe("ContactService keeps names and addresses unique across the whole book", () => {
   it("refuses a name already used on another chain", () => {
     const { port } = repo();
@@ -99,8 +91,6 @@ describe("ContactService keeps names and addresses unique across the whole book"
     expect(code).toBe("already_exists");
   });
 
-  // Two names for one address makes `contact list` show the same recipient twice and leaves no
-  // answer to "what is this address called".
   it("refuses an address already stored under another name", () => {
     const { port } = repo();
     const svc = new ContactService(port);
@@ -117,8 +107,6 @@ describe("ContactService keeps names and addresses unique across the whole book"
     expect(svc.add("exchange-evm", EVM)).toMatchObject({ name: "exchange-evm" });
   });
 
-  // With names unique, removal is never ambiguous — no --family, no --network, no second
-  // positional.
   it("removes by name with nothing to disambiguate", () => {
     const { port, entries } = repo();
     const svc = new ContactService(port);

@@ -37,7 +37,6 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
     run: async () => ({ stage: "submitted", txId: "txid" }),
     ...pipeline,
   } as unknown as TxPipeline;
-  // voting power now comes from the injected stake service (reads getAccountResources).
   return new TronVoteService(gateways, pipe, new TronStakeService(gateways, pipe));
 }
 
@@ -54,7 +53,6 @@ describe("TronVoteService.cast", () => {
   it("capability gate wins over the voting-power rule: watch-only fails before any RPC", async () => {
     const svc = service(
       {
-        // must never be reached — a watch-only account can't sign, so no voting-power lookup runs.
         getAccountResources: async () => {
           throw new Error("voting power must not be read for a watch-only account");
         },
@@ -150,7 +148,6 @@ describe("TronVoteService.list/status", () => {
         },
       ],
     });
-    // zero-ratio warning now goes through the standard warn channel, not a data key.
     expect(result).not.toHaveProperty("__walletCliWarnings");
     expect(warnings).toEqual([
       `400 votes on ${SR2} (beta.example) earn nothing: reward ratio is 0%`,

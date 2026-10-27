@@ -13,13 +13,7 @@ import {
 } from "./market-shared.js";
 
 const fields = z.object({
-  /**
-   * Empty is refused here rather than sent.
-   *
-   * The service treats a missing or blank search term as "no filter" and answers with the whole
-   * catalogue, ranked, at HTTP 200 — which reads exactly like a successful search that happened
-   * to match everything.
-   */
+  // A blank keyword returns the unfiltered catalogue.
   keyword: z
     .string()
     .refine((value) => value.trim() !== "", { message: "must not be empty" })

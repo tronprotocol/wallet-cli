@@ -1,13 +1,3 @@
-/**
- * The `sunswap swap` receipts.
- *
- * This file exists because of a real defect: a dry run of a router swap printed "Selling into the
- * curve approves the SunPump proxy without limit" directly above a row showing an allowance of
- * 1000000. The warning was keyed on approvals existing rather than on which market answered, which
- * was right on the day it was written and wrong the moment a second market appeared. A warning that
- * contradicts the row beneath it is worse than no warning, so the market-dependent wording is
- * pinned from both sides here.
- */
 import { describe, expect, it } from "vitest";
 import { SunSwapSwapFormatters } from "./sunswap-swap.js";
 
@@ -28,7 +18,6 @@ const render = (value: Record<string, unknown>) =>
 const TOKEN_SIDE = { address: USDT, symbol: "USDT", decimals: 6 };
 const TRX_SIDE = { address: TRX, symbol: "TRX", decimals: 6 };
 
-/** A router swap spending a token: two grants, neither unlimited. */
 const routerSwap = (extra: Record<string, unknown> = {}) => ({
   kind: "sunswap-swap",
   market: "sunswap",
@@ -46,7 +35,6 @@ const routerSwap = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-/** A curve sale, which really does grant an unlimited allowance. */
 const curveSwap = (extra: Record<string, unknown> = {}) => ({
   kind: "sunswap-swap",
   market: "sunpump",
@@ -126,7 +114,6 @@ describe("the approval note follows the market, not the presence of approvals", 
     const out = render(routerSwap({ mode: "dry-run", feeCovers: "approvals" }));
     expect(out).not.toContain("without limit");
     expect(out).not.toContain("SunPump proxy");
-    // What it says instead, over a row showing the exact figure.
     expect(out).toContain("exactly this trade");
     expect(out).toContain("1000000");
   });
@@ -139,10 +126,6 @@ describe("the approval note follows the market, not the presence of approvals", 
 });
 
 describe("the Permit2 grant is shown, not only stored", () => {
-  /**
-   * A signature that lets a contract move tokens without a transaction of ours is the part a person
-   * most needs to read before approving it, so the amount and the expiry are rows.
-   */
   it("names the amount, the spender and the expiry on a dry run", () => {
     const out = render(routerSwap({ mode: "dry-run", feeCovers: "approvals" }));
     expect(out).toContain("Permit grants");
@@ -151,8 +134,6 @@ describe("the Permit2 grant is shown, not only stored", () => {
     expect(out).toContain("(1 hour)");
   });
 
-  // A permit outlives the transaction, which is the whole point of one, so the record of the trade
-  // has to say what was authorized and until when.
   it("keeps the grant on a confirmed receipt", () => {
     const out = render(
       routerSwap({ stage: "confirmed", txId: "abc", blockNumber: 1, approvalTxIds: ["def"] }),
@@ -181,7 +162,6 @@ describe("what a dry run admits it cannot do", () => {
     expect(out).toContain("cannot be estimated until the Permit2 authorization is signed");
   });
 
-  // A standing Permit2 grant means nothing is signed, so only the pending approval stands in the way.
   it("blames the approval, not a signature, when a standing grant covers the swap", () => {
     const out = render(
       routerSwap({ mode: "dry-run", feeCovers: "approvals", fee: {}, permit: undefined }),
@@ -204,10 +184,6 @@ describe("what a dry run admits it cannot do", () => {
 });
 
 describe("an unverified hook", () => {
-  /**
-   * It was warned about only in the quote table, where a caller is not yet spending anything. The
-   * modes that spend are the ones that need it.
-   */
   it.each([
     ["dry-run", { mode: "dry-run", feeCovers: "approvals" }],
     ["submitted", { txId: "abc" }],
@@ -224,9 +200,6 @@ describe("an unverified hook", () => {
 });
 
 describe("a swap that failed on chain", () => {
-  /**
-   * The TRC20 approval has no expiry; only the newly signed Permit2 grant expires.
-   */
   it("says the grant outlived the failed transaction, and when it lapses", () => {
     const out = render(routerSwap({ stage: "failed", txId: "abc", result: "REVERT" }));
     expect(out).toContain("still in place");
@@ -250,10 +223,6 @@ it("keeps a confirmed swap quote labelled as an estimate", () => {
   expect(render(routerSwap({ stage: "confirmed" }))).toContain("Received (est)");
 });
 
-/**
- * Which contracts the symbols resolved to, and whether one came from the user's own token book.
- * A user-added token can shadow a familiar symbol, so the receipt names the contract.
- */
 describe("the resolved contracts", () => {
   it("shows both addresses on a dry run, unmarked when both are official", () => {
     const out = render(routerSwap({ mode: "dry-run" }));

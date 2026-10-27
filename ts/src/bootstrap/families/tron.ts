@@ -283,20 +283,14 @@ export interface TronChainCommandDependencies {
   timeoutMs: number;
   tronlink: TronLinkCollaborationPort;
   gasfree: GasFreeProvider;
-  /** SunSwap market data; the capability gate keeps it out of reach on a network without it. */
   sunswapMarket: MarketDataPort;
-  /** SunSwap liquidity contracts; keyed on a different capability, since Nile has these and no
-   *  market service. Bound when the commands that use it land. */
   sunswapLiquidity: LiquidityPort;
   sunpumpLaunchpad: LaunchpadPort;
   sunpumpMarket: SunPumpMarketDataPort;
-  /** the SunPump create endpoint. Its own port: the service creates the token and picks its owner,
-   *  so nothing about it goes through a signer or the transaction pipeline. */
   sunpumpLaunch: SunPumpTokenLaunchPort;
   sunswapRouter: RouterPort;
   sunswapRouterPlanner: RouterExecutionPort;
   sunswapPermits: Permit2Port;
-  /** config alias book, so a refusal can name a network the way a person types it. */
   aliases: Record<string, string>;
   recipients: RecipientResolver;
   balances: AccountBalanceService;
@@ -340,8 +334,6 @@ export function registerTronChainCommands(
     multisig,
   );
   const gasfree = new GasFreeService(deps.gasfree, deps.gateways, deps.signers, deps.recipients);
-  // One resolver, shared: the liquidity commands must resolve a symbol to the same address the
-  // price came from, and two copies of that rule would diverge the first time either was edited.
   const sunswapTokens = new SunSwapTokenResolver(deps.tokens, deps.aliases);
   const sunswap = new SunSwapMarketQueryService(
     deps.sunswapMarket,
@@ -381,8 +373,6 @@ export function registerTronChainCommands(
     deps.transactions,
     sunswapTokens,
   );
-  // Chain-first: the position manager and the pool answer everything but the USD values, which
-  // is why it takes the liquidity port first and the market only for prices.
   const sunswapPositionInfo = new SunSwapPositionInfoService(
     deps.sunswapLiquidity,
     deps.sunswapMarket,
@@ -405,8 +395,7 @@ export function registerTronChainCommands(
   const witness = new TronWitnessService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
-  // Registration order is what the group help lists, so these follow the documented running order:
-  // the two-family read commands first, then the TRON-only ones.
+  // Registration order determines group help order; shared commands come first.
   reg.addChain(accountBalanceSpec, "tron", accountBalanceBinding(deps.balances));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
   reg.addChain(accountPortfolioSpec, "tron", accountPortfolioTronBinding(account));
@@ -429,7 +418,6 @@ export function registerTronChainCommands(
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
-  // TRON-only, so they sit at the end of the `tx` group listing.
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(multisigCollaboration));
   reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
@@ -478,7 +466,6 @@ export function registerTronChainCommands(
   reg.addChain(rewardWithdrawSpec, "tron", rewardWithdrawTronBinding(reward));
   reg.addChain(chainNodeSpec, "tron", chainNodeTronBinding(chain));
   reg.addChain(chainPricesSpec, "tron", chainPricesTronBinding(chain));
-  // `chain params` is TRON-only and goes last in the group listing.
   for (const definition of chainDefinitions(chain)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }

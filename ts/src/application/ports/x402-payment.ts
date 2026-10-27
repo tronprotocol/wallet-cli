@@ -12,7 +12,7 @@ export interface X402PayInput {
   scheme?: "exact" | "exact_gasfree";
   maxAmount?: string;
   maxRawAmount?: string;
-  /** Internal payment constraints, enforced against every offered x402 requirement. */
+  // Check against every offered x402 requirement.
   expectedPayTo?: string;
   exactAmount?: string;
   dryRun?: boolean;

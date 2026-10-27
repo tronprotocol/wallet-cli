@@ -7,14 +7,9 @@ export class MessageService {
   constructor(private readonly signers: SignerResolver) {}
 
   async sign(scope: TransactionScope, family: ChainFamily, account: AccountRef, message: string) {
-    // Cheap gate first, as in TypedDataService: a watch-only account must fail as "cannot sign"
-    // rather than through whatever the resolve path happens to report.
+    // Reject watch-only accounts before resolving a signer.
     this.signers.assertCanSign(account, family);
     const signer = this.signers.resolve(account, family);
-    // obtainSignature handles the device preliminaries: verify the connected device still derives
-    // this account's cached address (wrong seed/passphrase → wrong_device_seed) before attributing
-    // a signature to it, prompt the user to approve on-device, and bound a prompt that is never
-    // tapped. Software signers pass straight through. Same path as the transaction pipeline.
     return {
       address: signer.address,
       message,

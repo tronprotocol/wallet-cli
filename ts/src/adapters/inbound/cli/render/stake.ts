@@ -34,8 +34,6 @@ export const StakeFormatters = {
       ],
     ];
     const body = query(lines);
-    // Tree-style unstake list, indented to the value column (label width + 2) and branched
-    // ├─ / └─; amounts are padded so the withdrawable column lines up across rows.
     const branchPad = " ".repeat(Math.max(...lines.map(([l]) => l.length)) + 2);
     const amounts = unfreezing.map((u) => trx(u.amountSun));
     const amtWidth = Math.max(0, ...amounts.map((a) => a.length));

@@ -1,10 +1,3 @@
-/**
- * EvmAccountService — `account info` for the EVM family.
- *
- * TRON's `account info` returns the node's `getAccount` object plus derived bandwidth/energy
- * resources. An EVM node has no equivalent call and no such object, so this reports the three
- * facts an EVM account actually has: balance, nonce, and whether the address carries code.
- */
 import { describe, it, expect } from "vitest";
 import { EvmAccountService } from "./account-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -54,12 +47,10 @@ describe("EvmAccountService.info", () => {
     });
   });
 
-  // `eth_getCode` answers this and nothing else does: "0x" is an externally-owned account.
   it("marks an address with no code as an EOA, and gives it no code size", async () => {
     const out = await service({ code: "0x" }).info(scope, net);
 
     expect(out.type).toBe("eoa");
-    // Not zero: an EOA is not a contract that happens to have no bytes.
     expect(out).not.toHaveProperty("codeSize");
   });
 
@@ -70,25 +61,12 @@ describe("EvmAccountService.info", () => {
     expect(out.codeSize).toBe(4);
   });
 
-  // The regression this guards: `account info` used to answer with a decimal STRING while
-  // `tx info` answered the same field with a number, so an agent reading one and feeding the
-  // other saw the type change under it.
   it("reports the nonce as a number, the same carrier tx info uses", async () => {
     const out = await service({ nonce: "42" }).info(scope, net);
     expect(out.nonce).toBe(42);
   });
 });
 
-/**
- * `account portfolio` on EVM.
- *
- * Structurally the same as the TRON side, and deliberately so: it is one command, and the row
- * shape comes from the shared `portfolio-holdings` helpers rather than a second copy. What is
- * EVM-specific is only how a balance is read — `eth_call` per ERC-20, in parallel.
- *
- * No multicall: that would mean a contract dependency and a per-chain address to verify, for a
- * saving of a few round trips.
- */
 describe("EvmAccountService.portfolio", () => {
   const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
   const BOOK = [
@@ -163,7 +141,6 @@ describe("EvmAccountService.portfolio", () => {
     expect((await portfolioService().portfolio(scope, net)).totalValueUsd).toBe(1505);
   });
 
-  // The whole point of reading per token: one bad contract must cost one row, not the listing.
   it("degrades a single unreadable token without sinking the portfolio", async () => {
     const out = await portfolioService({
       balances: { [USDT]: new Error("execution reverted") },
@@ -175,7 +152,6 @@ describe("EvmAccountService.portfolio", () => {
       balance: null,
       reason: "rpc_error",
     });
-    // the native row and the total survive
     expect(out.holdings[0]!.valueUsd).toBe(1500);
     expect(out.totalValueUsd).toBe(1500);
   });
@@ -217,7 +193,6 @@ describe("EvmAccountService.portfolio", () => {
     );
     await svc.portfolio(scope, net);
 
-    // all three start before any finishes; a sequential loop would interleave start/end pairs.
     expect(order.slice(0, 3).every((entry) => entry.startsWith("start:"))).toBe(true);
   });
 });

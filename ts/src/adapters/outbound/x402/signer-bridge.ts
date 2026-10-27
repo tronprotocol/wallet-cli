@@ -1,16 +1,3 @@
-/**
- * signer-bridge — a wallet-cli PayerSigner in the shape the x402 schemes call.
- *
- * The shape is described STRUCTURALLY rather than imported: this file must compile before any
- * x402 package is a dependency, and the SDK only ever duck-types the wallet it is handed. The two
- * schemes duck-type it differently: TRON's (`createClientTronSigner`) calls `getAddress()`, EVM's
- * (`toClientEvmSigner`) reads a viem-account-shaped `address` property. `X402Wallet` carries both
- * spellings of the same value so this bridge need not be reopened once a scheme is actually wired.
- *
- * This is also the only place every typed-data payload passes through, which is why all three
- * guards live here rather than at the call sites. Two of them refuse BEFORE the signature is
- * requested, so a rejected payment never reaches a device prompt.
- */
 import type {
   PayerPolicy,
   PayerSigner,
@@ -23,10 +10,7 @@ import { tronHexToBase58, tronHexAddress } from "../../../domain/address/index.j
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
 
-/**
- * The wallet an x402 scheme calls. Structural on purpose — see the module comment. TRON's scheme
- * reads `getAddress()`; EVM's reads `address`. Both are the same payer address.
- */
+// TRON reads getAddress(); EVM reads address.
 export interface X402Wallet {
   readonly address: string;
   getAddress(): string;
@@ -34,26 +18,18 @@ export interface X402Wallet {
   signTransaction(tx: unknown): Promise<unknown>;
 }
 
-/** TIP-712 GasFree authorization; the only struct whose fee this bridge caps. */
 const PERMIT_TRANSFER = "PermitTransfer";
 
-/**
- * Which field names the payer.
- *
- * `from` is the payer in the EVM exact/permit2 structs; the GasFree `PermitTransfer` calls the
- * same party `user`. A struct that names neither (a nonce read, say) has no payer to check.
- */
 function declaredPayer(payload: TypedDataPayload, primaryType: string): unknown {
   return primaryType === PERMIT_TRANSFER ? payload.message.user : payload.message.from;
 }
 
-/** The TRON SDK uses 20-byte 0x addresses inside typed data, without the chain prefix. */
+// TRON typed data uses 20-byte 0x addresses without the chain prefix.
 function canonicalTronPayer(address: string): string {
   const full = /^0x[0-9a-f]{40}$/i.test(address) ? `41${address.slice(2)}` : address;
   return tronHexToBase58(full);
 }
 
-/** Compare each chain's equivalent address representations. */
 function samePayer(family: ChainFamily, a: string, b: string): boolean {
   return family === "tron"
     ? canonicalTronPayer(a) === canonicalTronPayer(b)
@@ -77,12 +53,7 @@ function assertPayerMatches(
   }
 }
 
-/**
- * A GasFree authorization signs a maxFee the service is then entitled to take, so a caller that
- * set a ceiling must have it enforced against the FINAL payload, after the SDK has filled the
- * value in. Both the payload's fee and the policy's own ceiling are parsed inside this guarded
- * path: a ceiling that will not parse must never be treated as "no ceiling".
- */
+// Enforce the cap on the final SDK payload; invalid caps must fail closed.
 function assertFeeWithinCap(
   payload: TypedDataPayload,
   primaryType: string,
@@ -112,11 +83,7 @@ function assertFeeWithinCap(
   }
 }
 
-/**
- * The ceiling in base units of the token the payload names. A raw ceiling is used as given; a
- * human one is converted with that token's precision, and an unknown token refuses rather than
- * guesses — a ceiling that cannot be applied must never be treated as "no ceiling".
- */
+// Use the signed token's precision; unknown precision must fail closed.
 function feeCapRaw(payload: TypedDataPayload, policy: PayerPolicy): string | undefined {
   if (policy.maxGasfreeFeeRaw !== undefined) return policy.maxGasfreeFeeRaw;
   if (policy.maxGasfreeFee === undefined) return undefined;
@@ -139,21 +106,14 @@ function feeCapRaw(payload: TypedDataPayload, policy: PayerPolicy): string | und
   }
 }
 
-/**
- * Which field bounds the authorization's validity, in unix seconds. Permit2 and GasFree call it
- * `deadline`; EIP-3009 calls it `validBefore`. Structs without one carry no deadline to check.
- */
+// Authorization deadlines are Unix seconds.
 function declaredDeadline(payload: TypedDataPayload, primaryType: string): unknown {
   return primaryType === "TransferWithAuthorization"
     ? payload.message.validBefore
     : payload.message.deadline;
 }
 
-/**
- * The SDK fixes the deadline before it waits for an allowance to confirm, so the window can be
- * gone by the time it asks for the signature, and again by the time a device returns one. Called
- * before signing (nothing reaches the device) and after (nothing expired is handed on to be sent).
- */
+// Allowance confirmation and device signing can each outlast the authorization deadline.
 function assertNotExpired(payload: TypedDataPayload, primaryType: string, now: number): void {
   const declared = declaredDeadline(payload, primaryType);
   if (declared === undefined) return;
@@ -175,7 +135,6 @@ function assertNotExpired(payload: TypedDataPayload, primaryType: string, now: n
   }
 }
 
-/** A signature is only evidence about the struct it was produced for. */
 function assertSignedTheRequest(signed: TypedDataSignature, primaryType: string): void {
   if (signed.primaryType !== primaryType) {
     throw new ChainError(
@@ -187,11 +146,7 @@ function assertSignedTheRequest(signed: TypedDataSignature, primaryType: string)
 
 const prefixedHex = (value: string): string => (value.startsWith("0x") ? value : `0x${value}`);
 
-/**
- * `evmSignStrategy.sign` returns `{ raw, hash }` — the serialisation plus the locally derived id.
- * x402 wants only the serialisation it will broadcast. TRON's strategy returns the signed
- * transaction object the SDK already expects, so it passes through as it is.
- */
+// The SDK expects the serialized EVM transaction, without the local hash.
 function evmRawTransaction(signed: unknown): string {
   const raw = (signed as { raw?: unknown } | null)?.raw;
   if (typeof raw !== "string") {
@@ -200,10 +155,10 @@ function evmRawTransaction(signed: unknown): string {
   return raw;
 }
 
-/** `approve(address,uint256)`; the spender is left-padded to 32 bytes, the amount is 32 bytes. */
+// approve(address,uint256): two 32-byte ABI arguments.
 const APPROVE_SELECTOR = "095ea7b3";
 const MAX_UINT256_HEX = "f".repeat(64);
-/** The SDK's own fee limit for the approve (100 TRX); anything above it was not built for us. */
+// SDK approval budget: 100 TRX.
 const APPROVE_FEE_LIMIT_SUN = 100_000_000;
 
 function tronAddressField(value: unknown): string | undefined {
@@ -214,11 +169,7 @@ function tronAddressField(value: unknown): string | undefined {
   }
 }
 
-/**
- * The generic integrity check proves the JSON and the bytes describe the same transaction; this
- * proves that transaction is the approve the SDK asked a remote RPC to build. Everything is read
- * from `raw_data`, which the integrity check binds to `raw_data_hex` before signing.
- */
+// Validate RPC-built approval intent; the signer separately binds raw_data to raw_data_hex.
 function assertApproveIntent(
   tx: unknown,
   payer: string,
@@ -262,9 +213,7 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
     address: payer.address,
     getAddress: () => payer.address,
     async signTypedData(payload) {
-      // Resolve the effective root ONCE and feed every guard from it, rather than branching each
-      // guard on `payload.primaryType` directly — a payload that legitimately omits the field (see
-      // domain/typed-data) must still be checked, not silently waved through.
+      // Infer omitted primaryType before applying every guard.
       const primaryType = resolvePrimaryType(payload);
       if (primaryType === undefined) {
         throw new ChainError(
@@ -301,7 +250,7 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
       }
       const approval = assertApproveIntent(tx, payer.address, policy);
       const signed = await payer.signTransaction(tx);
-      // The signer has verified txID against raw_data_hex before signing; it is the id to look up.
+      // The signer verifies txID against raw_data_hex.
       const txId = (signed as { txID?: unknown })?.txID ?? (tx as { txID?: unknown })?.txID;
       if (typeof txId === "string") policy.onApprovalSigned?.({ ...approval, txId });
       return signed;
@@ -309,7 +258,7 @@ export function toX402Wallet(payer: PayerSigner, policy: PayerPolicy): X402Walle
   };
 }
 
-/** x402 uses viem's `gas`; wallet signers use ethers' `gasLimit`. */
+// x402 uses viem's gas; wallet signers use ethers' gasLimit.
 function evmTransactionInput(tx: unknown): Record<string, unknown> {
   if (!tx || typeof tx !== "object" || Array.isArray(tx)) {
     throw new ChainError("signed_payload_mismatch", "EVM transaction must be an object");
