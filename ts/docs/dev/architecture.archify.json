@@ -1,0 +1,485 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "wallet-cli ts/ architecture at 657e04b6",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/tronprotocol/wallet-cli",
+      "revision": "657e04b66935cf49ed3519289ce94f8603e118b0",
+      "link_mode": "local-only"
+    }
+  },
+  "components": [
+    {
+      "id": "boot",
+      "type": "backend",
+      "label": "Composition root",
+      "sublabel": "bootstrap/ runner \u00b7 composition",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "ts/src/bootstrap/composition.ts"
+        },
+        {
+          "path": "ts/src/bootstrap/runner.ts"
+        },
+        {
+          "path": "ts/src/bootstrap/family-registry.ts"
+        }
+      ]
+    },
+    {
+      "id": "families",
+      "type": "backend",
+      "label": "Family plugins",
+      "sublabel": "bootstrap/families/ tron \u00b7 evm",
+      "pos": [
+        340,
+        60
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "FAMILY_REGISTRY",
+      "sources": [
+        {
+          "path": "ts/src/bootstrap/families/tron.ts"
+        },
+        {
+          "path": "ts/src/bootstrap/families/evm.ts"
+        },
+        {
+          "path": "ts/src/bootstrap/families/types.ts"
+        }
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "frontend",
+      "label": "CLI adapter",
+      "sublabel": "argv \u00b7 prompts \u00b7 render \u00b7 envelope",
+      "pos": [
+        40,
+        330
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "adapters/inbound/cli",
+      "sources": [
+        {
+          "path": "ts/src/adapters/inbound/cli/shell/index.ts"
+        },
+        {
+          "path": "ts/src/adapters/inbound/cli/registry/index.ts"
+        },
+        {
+          "path": "ts/src/adapters/inbound/cli/output/envelope.ts"
+        }
+      ]
+    },
+    {
+      "id": "app",
+      "type": "backend",
+      "label": "Application",
+      "sublabel": "use cases \u00b7 services \u00b7 ports",
+      "pos": [
+        340,
+        330
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "application/",
+      "sources": [
+        {
+          "path": "ts/src/application/services/signer/index.ts"
+        },
+        {
+          "path": "ts/src/application/services/pipeline/index.ts"
+        },
+        {
+          "path": "ts/src/application/ports/chain/gateway-provider.ts"
+        }
+      ]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "Domain",
+      "sublabel": "address \u00b7 amounts \u00b7 errors",
+      "pos": [
+        340,
+        560
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "domain/",
+      "sources": [
+        {
+          "path": "ts/src/domain/address/index.ts"
+        },
+        {
+          "path": "ts/src/domain/errors/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "family",
+      "type": "backend",
+      "label": "domain/family",
+      "sublabel": "FAMILIES \u00b7 address codecs",
+      "pos": [
+        40,
+        560
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "ts/src/domain/family/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "chainInt",
+      "type": "backend",
+      "label": "Chain + Ledger",
+      "sublabel": "chain/tron \u00b7 chain/evm \u00b7 ledger",
+      "pos": [
+        740,
+        150
+      ],
+      "size": [
+        210,
+        64
+      ],
+      "sources": [
+        {
+          "path": "ts/src/adapters/outbound/chain/tron/tron.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/chain/evm/evm.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/ledger/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "svcInt",
+      "type": "backend",
+      "label": "Service integrations",
+      "sublabel": "sunswap \u00b7 sunpump \u00b7 gasfree \u00b7 x402 \u2026",
+      "pos": [
+        740,
+        330
+      ],
+      "size": [
+        210,
+        64
+      ],
+      "sources": [
+        {
+          "path": "ts/src/adapters/outbound/sunswap/router-api.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/x402/payment-client.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/tronlink/client.ts"
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "Local stores",
+      "sublabel": "keystore \u00b7 config \u00b7 token/contact books",
+      "pos": [
+        740,
+        610
+      ],
+      "size": [
+        210,
+        64
+      ],
+      "sources": [
+        {
+          "path": "ts/src/adapters/outbound/keystore/index.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/config/index.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/tokenbook/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "plumbing",
+      "type": "backend",
+      "label": "Shared plumbing",
+      "sublabel": "http \u00b7 persistence",
+      "pos": [
+        740,
+        470
+      ],
+      "size": [
+        210,
+        64
+      ],
+      "sources": [
+        {
+          "path": "ts/src/adapters/outbound/http/index.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/persistence/fs/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "nodes",
+      "type": "external",
+      "label": "TRON nodes \u00b7 EVM RPC",
+      "sublabel": "TronWeb \u00b7 ethers",
+      "pos": [
+        1060,
+        90
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "device",
+      "type": "external",
+      "label": "Ledger device",
+      "sublabel": "HID \u00b7 Speculos",
+      "pos": [
+        1060,
+        210
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "http",
+      "type": "external",
+      "label": "HTTP services",
+      "sublabel": "SunSwap \u00b7 GasFree \u00b7 TronLink \u00b7 x402",
+      "pos": [
+        1060,
+        330
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "files",
+      "type": "database",
+      "label": "~/.wallet-cli files",
+      "sublabel": "wallets \u00b7 config.yaml \u00b7 books",
+      "pos": [
+        1060,
+        610
+      ],
+      "size": [
+        200,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "bootstrap",
+      "wraps": [
+        "boot",
+        "families"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "adapters/outbound",
+      "wraps": [
+        "chainInt",
+        "svcInt",
+        "store",
+        "plumbing"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "domain",
+      "wraps": [
+        "domain",
+        "family"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "boot-families",
+      "from": "boot",
+      "to": "families",
+      "label": "familyMap"
+    },
+    {
+      "id": "boot-cli",
+      "from": "boot",
+      "to": "cli",
+      "label": "builds CLI",
+      "labelDy": 24
+    },
+    {
+      "id": "families-cli",
+      "from": "families",
+      "to": "cli",
+      "label": "Spec + Binding",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "families-app",
+      "from": "families",
+      "to": "app",
+      "label": "tron/ evm/ use cases",
+      "variant": "emphasis",
+      "labelDy": 24,
+      "labelDx": 56
+    },
+    {
+      "id": "families-chain",
+      "from": "families",
+      "to": "chainInt",
+      "label": "createGateway",
+      "variant": "emphasis"
+    },
+    {
+      "id": "cli-app",
+      "from": "cli",
+      "to": "app",
+      "label": "calls use cases"
+    },
+    {
+      "id": "cli-family",
+      "from": "cli",
+      "to": "family",
+      "label": "family facts",
+      "labelDy": 24
+    },
+    {
+      "id": "app-domain",
+      "from": "app",
+      "to": "domain"
+    },
+    {
+      "id": "chain-app",
+      "from": "chainInt",
+      "to": "app"
+    },
+    {
+      "id": "svc-app",
+      "from": "svcInt",
+      "to": "app",
+      "label": "implement ports",
+      "labelAt": [
+        692,
+        362
+      ]
+    },
+    {
+      "id": "store-app",
+      "from": "store",
+      "to": "app"
+    },
+    {
+      "id": "svc-plumbing",
+      "from": "svcInt",
+      "to": "plumbing",
+      "variant": "dashed"
+    },
+    {
+      "id": "store-plumbing",
+      "from": "store",
+      "to": "plumbing",
+      "variant": "dashed"
+    },
+    {
+      "id": "chain-nodes",
+      "from": "chainInt",
+      "to": "nodes",
+      "label": "JSON-RPC"
+    },
+    {
+      "id": "chain-device",
+      "from": "chainInt",
+      "to": "device",
+      "label": "APDU"
+    },
+    {
+      "id": "svc-http",
+      "from": "svcInt",
+      "to": "http",
+      "label": "HTTPS \u00b7 WS"
+    },
+    {
+      "id": "store-files",
+      "from": "store",
+      "to": "files",
+      "label": "atomic write"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Dependency direction",
+      "items": [
+        "bootstrap wires everything",
+        "inbound and outbound both point at application",
+        "application points at domain only"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Family plug-in",
+      "items": [
+        "families/tron.ts and evm.ts register Spec + family Binding pairs",
+        "they supply createGateway and signStrategy",
+        "neutral code reads FAMILIES from domain/family"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Code vs rules at HEAD",
+      "items": [
+        "chain/* and x402 import application/services",
+        "ledger imports chain/tron",
+        "x402 HTTP server lives in adapters/outbound"
+      ]
+    }
+  ]
+}

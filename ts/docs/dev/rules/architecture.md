@@ -52,13 +52,9 @@ no SDK. `application` follows the same allowlist.
 Chain, device, and protocol SDKs (`tronweb`, `ethers`, `@sun-protocol/*`, `@bankofai/*`, `@ledgerhq/*`) and HTTP
 clients are used only in `adapters/outbound`. **depcruise**.
 
-1.6 Family-specific modules are those in a `tron/` or `evm/` directory, named `tron-*` or `evm-*`, in
-`bootstrap/families/`, or in a protocol module that serves one family only, in any layer (for example
-`domain/sunswap/`, `application/ports/sunswap/`, `adapters/outbound/gasfree/`; the protocol list lives in
-`ts/.dependency-cruiser.cjs`). Every other module is family-neutral. A family-neutral module does not import a
-family-specific module, in any layer; only `bootstrap` connects family implementations to neutral interfaces.
-One exception: an inbound command's family binding table (5.2) may `import type` the family use cases it binds.
-**depcruise** (type-only edges excepted for inbound).
+1.6 Family code is code in a `tron/` or `evm/` directory. Code outside these directories does not import family
+code; the exceptions are `bootstrap`, the protocol modules listed in `ts/.dependency-cruiser.cjs`, and an inbound
+command's `import type` of the family use cases it binds. **depcruise**.
 
 1.7 No circular dependencies. **depcruise**.
 
@@ -169,20 +165,17 @@ decision. **test**.
 ## 5. Families and capabilities
 
 5.1 Chain facts are defined once in `domain`: address format, address encoding conversion, transaction hash
-format, units, and the zero address. Family-neutral code gets them through `domain/family`; family-specific code
-may use its own family's codec (for example `domain/address`) directly. No module writes them by hand.
-Addresses are compared and stored in the canonical form `domain/family` defines. **lint** for case-folding
-comparisons and hand-written address or hash patterns outside `domain`, **review**.
+format, units, and the zero address. Code outside family directories gets them through `domain/family`; family
+code and protocol modules may use their own family's codec (for example `domain/address`) directly. No module
+writes them by hand. Addresses are compared and stored in the canonical form `domain/family` defines. **lint** for
+case-folding comparisons and hand-written address or hash patterns outside `domain`, **review**.
 
 5.2 When a feature behaves differently per family (for example x402 schemes, or which use case a command runs),
 the feature module holds one table from family to behavior. It does not branch on the family in several places.
 **review**.
 
-5.3 Family-specific code (1.6) stays in the layer that owns it: pure rules and codecs in `domain/<family>/`,
-ports, contracts, and services in `application/.../<family>/`, commands that exist for one family only in
-`adapters/inbound/cli/commands/<family>/`, integrations as in 1.9, and assembly in
-`bootstrap/families/`. A command shared by both families is family-neutral and binds each family's use case
-through its table (5.2). **depcruise**.
+5.3 Each layer keeps one family's chain operations in its `tron/` or `evm/` directory, and each protocol in its
+own directory. Commands are exempt: their `families` tag declares the family. **depcruise**.
 
 5.4 `application` owns one capability predicate per capability, over the network, the configuration, and the
 inputs the capability needs. Discovery (help, `--json-schema`) separates "supported on this network" from "needs
@@ -240,8 +233,8 @@ how to describe them to the user. **lint** for flag and command literals, **revi
 content.
 
 7.2 `domain` owns the error code registry: each code's meaning, retry class, and exit class, as published in the
-contract. `adapters/inbound` owns the envelope shape and the fallback for unknown codes. **test** for the
-registry against the contract.
+contract. `adapters/inbound` owns the envelope shape and the fallback for unknown and `either` codes. **test** for
+the registry against the contract.
 
 ## 8. Documentation
 
