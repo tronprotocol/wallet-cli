@@ -228,6 +228,10 @@ created with mode 0600 that never overwrites or follows an existing path. A secr
 stdout only when the user passes the command's explicit option (`address generate --print-secret`).
 **test**.
 
+6.6 Credentials that `config` stores for external services are not 6.5 secrets. They are read only
+from stdin, never from argv or environment variables, are stored in a file with mode 0600, and are
+masked in every output. **test**.
+
 ## 7. Language boundary
 
 7.1 `application` and `domain` do not name CLI flags or commands. Errors carry structured fields; inbound decides
