@@ -207,8 +207,8 @@ origin. Call sites do not skip a step that applies to their mode.
 
 6.3 Errors keep the codes and retry classes of the published contract. A failed read, or a request known not to
 have acted, gets the matching retryable code. A write that may have been committed follows its documented
-outcome-unknown policy, and a submit that fails after signing reports the locally computed transaction id in
-`error.details` so the caller can reconcile. "Not supported" comes only from a capability decision or a
+outcome-unknown policy. A chain submit of a signed transaction whose outcome is unknown reports the id of that
+transaction in `error.details.txId`. "Not supported" comes only from a capability decision or a
 recognized unsupported response, never from an unclassified exception. **test** for the transaction id on
 submit failures, **review**.
 
