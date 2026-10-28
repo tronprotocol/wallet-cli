@@ -214,7 +214,8 @@ submit failures, **review**.
 
 6.4 Signing has one entry: an `application` service that takes a closed sign request naming its network, its
 origin, and its payload. It refuses a payload whose embedded chain identity (EVM `chainId`, EIP-712
-`domain.chainId`) disagrees with the named network; a TRON artifact records its network. Submitting happens only
+`domain.chainId`) disagrees with the named network; a TRON transaction is refused when the named network's node
+does not hold its reference block. Submitting happens only
 through the guarded paths of 6.1. An integration whose SDK can sign or send wraps it so those functions are
 unreachable elsewhere, and builds no signer of its own. **depcruise** for SDK entry points that sign or send,
 **test** for chain identity mismatches, **review**.
