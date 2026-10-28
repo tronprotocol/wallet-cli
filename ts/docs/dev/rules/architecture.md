@@ -223,6 +223,11 @@ unreachable elsewhere, and builds no signer of its own. **depcruise** for SDK en
 argv or environment variables, only from the dedicated stdin channel or a hidden TTY prompt. **lint**:
 `process.env` is read only in `bootstrap` and an allowlist; **test**: no command schema has a secret option.
 
+Exception: native `backup` and `address generate` may write their secret in plaintext to a file
+created with mode 0600 that never overwrites or follows an existing path. A secret is printed to
+stdout only when the user passes the command's explicit option (`address generate --print-secret`).
+**test**.
+
 ## 7. Language boundary
 
 7.1 `application` and `domain` do not name CLI flags or commands. Errors carry structured fields; inbound decides

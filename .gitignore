@@ -28,3 +28,6 @@ ts/.npmrc
 
 # MCP
 .mcp.json
+
+# Team working files (status, briefs, handoffs); local only
+.team/
