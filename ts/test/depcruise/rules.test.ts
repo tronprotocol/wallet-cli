@@ -48,6 +48,85 @@ function cruise(cwd: string): string {
   }
 }
 
+describe("dependency-cruiser layer and cycle rules", () => {
+  it.each<{ rule: string; files: Record<string, string>; importers: string[] }>([
+    {
+      rule: "ports-are-innermost",
+      importers: ["src/application/ports/leak.ts", "src/application/ports/use-case-leak.ts"],
+      files: {
+        "src/application/ports/leak.ts": `import { marker } from "../services/marker.js";\nexport const leak = marker;\n`,
+        "src/application/services/marker.ts": `export const marker = 1;\n`,
+        "src/application/ports/use-case-leak.ts": `import { marker } from "../use-cases/example-service.js";\nexport const leak = marker;\n`,
+        "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
+      },
+    },
+    {
+      rule: "no-circular",
+      importers: ["src/domain/first.ts"],
+      files: {
+        "src/domain/first.ts": `import { second } from "./second.js";\nexport function first() { return second(); }\n`,
+        "src/domain/second.ts": `import { first } from "./first.js";\nexport function second() { return first(); }\n`,
+      },
+    },
+    {
+      rule: "domain-is-independent",
+      importers: [
+        "src/domain/leak.ts",
+        "src/domain/adapter-leak.ts",
+        "src/domain/bootstrap-leak.ts",
+      ],
+      files: {
+        "src/domain/leak.ts": `import { marker } from "../application/services/marker.js";\nexport const leak = marker;\n`,
+        "src/application/services/marker.ts": `export const marker = 1;\n`,
+        "src/domain/adapter-leak.ts": `import { marker } from "../adapters/outbound/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/marker.ts": `export const marker = 1;\n`,
+        "src/domain/bootstrap-leak.ts": `import { marker } from "../bootstrap/marker.js";\nexport const leak = marker;\n`,
+        "src/bootstrap/marker.ts": `export const marker = 1;\n`,
+      },
+    },
+    {
+      rule: "application-owns-ports",
+      importers: ["src/application/services/leak.ts", "src/application/services/bootstrap-leak.ts"],
+      files: {
+        "src/application/services/leak.ts": `import { marker } from "../../adapters/outbound/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/marker.ts": `export const marker = 1;\n`,
+        "src/application/services/bootstrap-leak.ts": `import { marker } from "../../bootstrap/marker.js";\nexport const leak = marker;\n`,
+        "src/bootstrap/marker.ts": `export const marker = 1;\n`,
+      },
+    },
+    {
+      rule: "inbound-does-not-know-outbound",
+      importers: ["src/adapters/inbound/leak.ts", "src/adapters/inbound/bootstrap-leak.ts"],
+      files: {
+        "src/adapters/inbound/leak.ts": `import { marker } from "../outbound/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/inbound/bootstrap-leak.ts": `import { marker } from "../../bootstrap/marker.js";\nexport const leak = marker;\n`,
+        "src/bootstrap/marker.ts": `export const marker = 1;\n`,
+      },
+    },
+    {
+      rule: "outbound-does-not-know-inbound",
+      importers: ["src/adapters/outbound/leak.ts", "src/adapters/outbound/bootstrap-leak.ts"],
+      files: {
+        "src/adapters/outbound/leak.ts": `import { marker } from "../inbound/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/inbound/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/bootstrap-leak.ts": `import { marker } from "../../bootstrap/marker.js";\nexport const leak = marker;\n`,
+        "src/bootstrap/marker.ts": `export const marker = 1;\n`,
+      },
+    },
+  ])("reports $rule", ({ rule, files, importers }) => {
+    const dir = buildTree(files);
+    try {
+      const output = cruise(dir);
+      for (const importer of importers) {
+        expect(output).toContain(`${rule}: ${importer} →`);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("dependency-cruiser SunSwap boundary rules", () => {
   let violatingOutput = "";
   let allowedOutput = "";
