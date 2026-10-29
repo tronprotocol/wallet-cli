@@ -26,6 +26,13 @@ npm run typecheck      # tsc --noEmit
 npm run depcruise      # dependency-cruiser — enforces the layer rules
 ```
 
+`npm run depcruise` uses `ts/.dependency-cruiser-known-violations.json` and fails on new violations or
+stale/duplicate baseline entries. After fixing a known violation or enabling a rule with existing violations,
+run `npm run depcruise:baseline` from `ts/`, review the exact entries added or removed, and rerun
+`npm run depcruise`. Commit the baseline diff with the corresponding code or rule change. Regeneration records
+all current violations; fix unintended new violations before regenerating. To see unsuppressed diagnostics,
+run `npx --no-install depcruise src`.
+
 ### Development rules
 
 The rules for `ts/` are in `ts/docs/dev/rules/`. They are the single source of truth; do not restate them here.

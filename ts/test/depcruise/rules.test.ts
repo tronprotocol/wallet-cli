@@ -1,7 +1,16 @@
-// Run the real dependency rules against isolated valid and invalid import trees.
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync, copyFileSync } from "node:fs";
+// Run the real dependency rules and baseline gates against isolated fixture trees.
+import { describe, expect, it, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+  copyFileSync,
+  readFileSync,
+  appendFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -157,5 +166,170 @@ describe("dependency-cruiser SunSwap boundary rules", () => {
     expect(allowedOutput).not.toContain("sdk-adapters-only");
     expect(allowedOutput).not.toContain("no-runtime-import");
     expect(allowedOutput).toContain("no dependency violations found");
+  });
+});
+
+describe("dependency-cruiser baseline gate", () => {
+  let dir: string;
+  let baselinePath: string;
+
+  function run(script: string) {
+    return spawnSync("npm", ["run", script], { cwd: dir, encoding: "utf8" });
+  }
+
+  beforeEach(() => {
+    dir = buildTree({
+      "src/domain/leak.ts": `import { marker } from "../application/services/marker.js";\nexport const leak = marker;\n`,
+      "src/application/services/marker.ts": `export const marker = 1;\n`,
+    });
+    baselinePath = join(dir, ".dependency-cruiser-known-violations.json");
+    copyFileSync(configPath, join(dir, ".dependency-cruiser.cjs"));
+    copyFileSync(join(repo, "package.json"), join(dir, "package.json"));
+    mkdirSync(join(dir, "scripts"));
+    copyFileSync(
+      join(repo, "scripts/check-depcruise-baseline.mjs"),
+      join(dir, "scripts/check-depcruise-baseline.mjs"),
+    );
+    expect(run("depcruise:baseline").status).toBe(0);
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("allows a known violation without changing the baseline", () => {
+    const baseline = readFileSync(baselinePath, "utf8");
+    expect(JSON.parse(baseline)).toEqual([
+      {
+        type: "dependency",
+        from: "src/domain/leak.ts",
+        to: "src/application/services/marker.ts",
+        dependencyTypes: ["local", "import"],
+        unresolvedTo: "../application/services/marker.js",
+        rule: { name: "domain-is-independent", severity: "error" },
+      },
+    ]);
+    const result = run("depcruise");
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("1 known violations ignored");
+    expect(readFileSync(baselinePath, "utf8")).toBe(baseline);
+  });
+
+  it("allows a baselined cycle with reordered members and different endpoints", () => {
+    writeFileSync(
+      join(dir, "src/domain/leak.ts"),
+      `import { second } from "./second.js";\nexport function first() { return second(); }\n`,
+    );
+    writeFileSync(
+      join(dir, "src/domain/second.ts"),
+      `import { first } from "./leak.js";\nexport function second() { return first(); }\n`,
+    );
+    expect(run("depcruise:baseline").status).toBe(0);
+    const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+    expect(baseline).toEqual([
+      expect.objectContaining({ type: "cycle", rule: { name: "no-circular", severity: "error" } }),
+    ]);
+    const [cycle] = baseline;
+    writeFileSync(
+      baselinePath,
+      JSON.stringify([
+        { ...cycle, from: cycle.to, to: cycle.from, cycle: cycle.cycle.toReversed() },
+      ]),
+    );
+    const result = run("depcruise");
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it.each(["importer", "target"])("rejects a new %s for the same rule", (change) => {
+    const baseline = readFileSync(baselinePath, "utf8");
+    if (change === "importer") {
+      copyFileSync(join(dir, "src/domain/leak.ts"), join(dir, "src/domain/new-leak.ts"));
+    } else {
+      copyFileSync(
+        join(dir, "src/application/services/marker.ts"),
+        join(dir, "src/application/services/other.ts"),
+      );
+      appendFileSync(
+        join(dir, "src/domain/leak.ts"),
+        `import { marker as other } from "../application/services/other.js";\nexport const second = other;\n`,
+      );
+    }
+    const result = run("depcruise");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("error domain-is-independent:");
+    expect(readFileSync(baselinePath, "utf8")).toBe(baseline);
+  });
+
+  it("rejects a new rule violation on a known edge", () => {
+    appendFileSync(
+      join(dir, ".dependency-cruiser.cjs"),
+      `module.exports.forbidden.push({
+        name: "additional-boundary",
+        severity: "error",
+        from: { path: "^src/domain/" },
+        to: { path: "^src/application/" },
+      });\n`,
+    );
+    const result = run("depcruise");
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("error additional-boundary:");
+  });
+
+  it("allows a known edge that becomes type-only", () => {
+    const baseline = readFileSync(baselinePath, "utf8");
+    writeFileSync(
+      join(dir, "src/domain/leak.ts"),
+      `import type { marker } from "../application/services/marker.js";\nexport type Marker = typeof marker;\n`,
+    );
+    const result = run("depcruise");
+    expect(result.stdout).toContain("1 known violations ignored");
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(baselinePath, "utf8")).toBe(baseline);
+  });
+
+  it("allows a known edge whose import specifier changes", () => {
+    const baseline = readFileSync(baselinePath, "utf8");
+    writeFileSync(
+      join(dir, "src/domain/leak.ts"),
+      `import { marker } from "../application/services/marker";\nexport const leak = marker;\n`,
+    );
+    const result = run("depcruise");
+    expect(result.stdout).toContain("1 known violations ignored");
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(baselinePath, "utf8")).toBe(baseline);
+  });
+
+  it("rejects a fixed entry until regeneration removes it", () => {
+    const baseline = readFileSync(baselinePath, "utf8");
+    writeFileSync(join(dir, "src/domain/leak.ts"), "export const marker = 1;\n");
+    const result = run("depcruise");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Stale or duplicate entries");
+    expect(result.stderr).toContain("src/domain/leak.ts");
+    expect(readFileSync(baselinePath, "utf8")).toBe(baseline);
+    expect(run("depcruise:baseline").status).toBe(0);
+    expect(JSON.parse(readFileSync(baselinePath, "utf8"))).toEqual([]);
+    expect(run("depcruise").status).toBe(0);
+  });
+
+  it.each(["identical", "different metadata"])(
+    "rejects a duplicate baseline entry (%s)",
+    (kind) => {
+      const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+      const duplicate = { ...baseline[0] };
+      if (kind === "different metadata") duplicate.unresolvedTo = "../application/services/marker";
+      writeFileSync(baselinePath, JSON.stringify([...baseline, duplicate]));
+      const result = run("depcruise");
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Stale or duplicate entries");
+    },
+  );
+
+  it.each(["missing", "malformed"])("rejects a %s baseline", (state) => {
+    if (state === "missing") rmSync(baselinePath);
+    else writeFileSync(baselinePath, "invalid JSON");
+    const result = run("depcruise");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(".dependency-cruiser-known-violations.json");
   });
 });
