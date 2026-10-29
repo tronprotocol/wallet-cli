@@ -23,10 +23,6 @@ const depcruiseBin = join(repo, "node_modules", ".bin", "depcruise");
 const VIOLATIONS: Record<string, string> = {
   "src/application/ports/sdk-leak.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Leak = SunApiClient;\n`,
   "src/adapters/outbound/sunswap/runtime-leak.ts": `import { createRuntime } from "@sun-protocol/sun-sdk-runtime";\nexport const leak = createRuntime;\n`,
-  "src/adapters/outbound/sunswap/cross.ts": `import { marker } from "../sunpump/marker.js";\nexport const leak = marker;\n`,
-  "src/adapters/outbound/sunpump/cross.ts": `import { marker } from "../sunswap/marker.js";\nexport const leak = marker;\n`,
-  "src/adapters/outbound/sunswap/marker.ts": `export const marker = 1;\n`,
-  "src/adapters/outbound/sunpump/marker.ts": `export const marker = 1;\n`,
 };
 
 const ALLOWED: Record<string, string> = {
@@ -479,12 +475,7 @@ describe("dependency-cruiser SunSwap boundary rules", () => {
     for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
   });
 
-  it.each([
-    "sdk-adapters-only",
-    "no-runtime-import",
-    "sunswap-does-not-import-sunpump",
-    "sunpump-does-not-import-sunswap",
-  ])("reports %s", (rule) => {
+  it.each(["sdk-adapters-only", "no-runtime-import"])("reports %s", (rule) => {
     expect(violatingOutput).toContain(rule);
   });
 

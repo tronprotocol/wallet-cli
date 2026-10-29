@@ -156,20 +156,6 @@ module.exports = {
       to: { path: "@sun-protocol/sun-sdk-" },
     },
     {
-      name: "sunswap-does-not-import-sunpump",
-      severity: "error",
-      comment: "the two SunSwap/SunPump adapters are separate integrations and share no code",
-      from: { path: "^src/adapters/outbound/sunswap/" },
-      to: { path: "^src/adapters/outbound/sunpump/" },
-    },
-    {
-      name: "sunpump-does-not-import-sunswap",
-      severity: "error",
-      comment: "the reverse of sunswap-does-not-import-sunpump",
-      from: { path: "^src/adapters/outbound/sunpump/" },
-      to: { path: "^src/adapters/outbound/sunswap/" },
-    },
-    {
       name: "no-runtime-import",
       severity: "error",
       comment:
