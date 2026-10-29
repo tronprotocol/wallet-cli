@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { chainInputSchema } from "../shell/index.js";
+import type { FamilyBinding } from "../contracts/index.js";
 import {
   contractDeployEvmBinding,
   contractDeploySpec,
@@ -155,9 +157,12 @@ describe("contract deploy — where the constructor's types come from", () => {
 
 describe("contract deploy — input rules", () => {
   const parse = (input: Record<string, unknown>) =>
-    contractDeploySpec.baseFields
-      .superRefine(contractDeploySpec.baseRefine!)
-      .safeParse({ dryRun: false, signOnly: false, buildOnly: false, ...input });
+    chainInputSchema(contractDeploySpec, {} as FamilyBinding).input.safeParse({
+      dryRun: false,
+      signOnly: false,
+      buildOnly: false,
+      ...input,
+    });
 
   const message = (input: Record<string, unknown>) =>
     parse(input)
@@ -175,7 +180,7 @@ describe("contract deploy — input rules", () => {
 
   it("refuses two argument lists at once", () => {
     expect(message({ code: "6080", constructorArgs: "[]", constructorParams: "[]" })).toMatch(
-      /mutually exclusive/,
+      /cannot be combined with --constructor-params/,
     );
   });
 

@@ -4,12 +4,7 @@ import type { MessageService } from "./message-service.js";
 import type { BaiRechargeApi } from "../ports/bai-recharge.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
-
-export function baiChain(network: NetworkDescriptor): string | undefined {
-  if (network.family === "evm" && network.chainId === "56") return "bnb";
-  if (network.family === "evm" && network.chainId === "8453") return "base";
-  if (network.family === "tron" && network.chainId === "728126428") return "tron";
-}
+import { baiChain } from "../services/capability/predicates.js";
 
 export function requireBaiChain(network: NetworkDescriptor): string {
   const chain = baiChain(network);

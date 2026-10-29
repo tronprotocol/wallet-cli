@@ -101,6 +101,13 @@ export const GASFREE_TOKENS: Record<string, Record<string, Token>> = {
   },
 };
 
+// x402 serve charges this token when neither a token nor an asset is given.
+export const DEFAULT_SERVE_TOKEN = "USDT";
+
+export function hasDefaultServeToken(network: string): boolean {
+  return X402_TOKENS[network]?.[DEFAULT_SERVE_TOKEN] !== undefined;
+}
+
 export function tokensForScheme(network: string, scheme: string): Record<string, Token> {
   return {
     ...X402_TOKENS[network],

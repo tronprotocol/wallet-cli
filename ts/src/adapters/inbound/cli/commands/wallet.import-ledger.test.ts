@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { walletImportLedgerInput } from "./wallet.js";
+import { walletImportLedgerExclusive, walletImportLedgerFields } from "./wallet.js";
+import { exclusiveRefine } from "../schemas/exclusive.js";
+
+const walletImportLedgerInput = walletImportLedgerFields.superRefine(
+  exclusiveRefine(walletImportLedgerExclusive, walletImportLedgerFields)!,
+);
 
 const ok = (v: unknown) => walletImportLedgerInput.safeParse(v).success;
 

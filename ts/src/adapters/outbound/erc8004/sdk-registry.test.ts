@@ -124,6 +124,12 @@ describe("SdkAgentRegistry", () => {
     },
   );
 
+  it("leaves an undeployed network to the SDK, which refuses it", () => {
+    expect(() => harness().registry.registry(evmNetwork("eip155:1"))).toThrow(
+      expect.objectContaining({ code: "unsupported_network" }),
+    );
+  });
+
   it("decodes an exact uint256 while retaining the existing EVM call transport", async () => {
     const large = 2n ** 200n + 123n;
     const result = AbiCoder.defaultAbiCoder().encode(["uint256"], [large]);

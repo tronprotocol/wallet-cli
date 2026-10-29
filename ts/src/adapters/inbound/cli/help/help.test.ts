@@ -7,6 +7,7 @@ import {
   txBroadcastSpec,
   txBroadcastTronBinding,
   txSendSpec,
+  txSendTronBinding,
   txTronLinkMultisigSpec,
 } from "../commands/tx.js";
 import { messageSignSpec } from "../commands/shared.js";
@@ -132,7 +133,7 @@ describe("shipped exclusive groups actually render", () => {
   }
 
   it("renders both of tx send's groups, with the right requirement wording", () => {
-    const out = optionsOf(txSendSpec);
+    const out = optionsOf(txSendSpec, txSendTronBinding({} as never));
     expect(out).toContain("  Exactly one of these — the amount to send:");
     expect(out).toContain(
       "  At most one of these — which asset to send; omit for the network's native coin:",

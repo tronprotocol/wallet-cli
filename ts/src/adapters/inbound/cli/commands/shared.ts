@@ -86,20 +86,6 @@ export function unifiedAmountFields(amountDesc: string, rawDesc: string) {
   };
 }
 
-export function amountSelector(
-  v: { amount?: string; rawAmount?: string },
-  ctx: z.RefinementCtx,
-): void {
-  const n = [v.amount !== undefined, v.rawAmount !== undefined].filter(Boolean).length;
-  if (n !== 1)
-    ctx.addIssue({
-      code: "custom",
-      path: ["amount"],
-      message: "provide exactly one of --amount or --raw-amount",
-      params: { errorCode: "invalid_option" },
-    });
-}
-
 const messageSignFields = z.object({
   message: z.string().min(1).optional().describe("message text to sign"),
 });

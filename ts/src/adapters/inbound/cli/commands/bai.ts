@@ -72,6 +72,13 @@ export const baiRechargeSpec: ChainSpec = {
   description:
     "Recharge B.AI using the selected network and token. Each recharge checks wallet binding with B.AI and signs a binding message if needed before creating an order or paying. Dry-run checks binding but never signs or binds. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 on mainnet (exact, or TRON exact_gasfree): TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
   baseFields: rechargeFields,
+  exclusive: [
+    {
+      label: "GasFree fee limit",
+      flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
+      select: "at-most-one",
+    },
+  ],
   examples: [
     { cmd: "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin" },
     {
@@ -96,12 +103,6 @@ export function baiRechargeBinding(service: BaiService): FamilyBinding {
           params: { errorCode: "invalid_amount" },
         });
       }
-      if (input.maxGasfreeFee !== undefined && input.maxGasfreeFeeRaw !== undefined)
-        ctx.addIssue({
-          code: "custom",
-          message: "GasFree fee limits are mutually exclusive",
-          params: { errorCode: "invalid_option" },
-        });
     },
     run: async (ctx, network, input) => {
       if (!network) throw new Error("B.AI recharge requires a resolved network");

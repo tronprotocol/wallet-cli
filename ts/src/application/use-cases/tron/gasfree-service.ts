@@ -1,4 +1,4 @@
-import { isTronNetwork } from "../../../domain/types/network.js";
+import { gasfreeService } from "../../services/capability/predicates.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type { GasFreeProvider } from "../../ports/gasfree-provider.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -110,7 +110,7 @@ export class GasFreeService {
     if (!input.dryRun) {
       this.signers.assertCanSign(scope.activeAccount, "tron");
     }
-    const metadata = isTronNetwork(network) ? network.gasfree : undefined;
+    const metadata = gasfreeService(network);
     if (!metadata) {
       throw new UsageError("unsupported_network", `network ${network.id} does not support GasFree`);
     }

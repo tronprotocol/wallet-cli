@@ -216,7 +216,7 @@ describe("tx send exclusive groups", () => {
   it("marks the asset selector optional, since omitting it sends the native coin", () => {
     expect(groups().token).toEqual({
       label: "which asset to send; omit for the network's native coin",
-      flags: ["token", "contract"],
+      flags: ["token", "contract", "asset-id"],
       select: "at-most-one",
     });
     expect(txSendSpec.baseFields.safeParse({ to: "T...", amount: "1" }).success).toBe(true);

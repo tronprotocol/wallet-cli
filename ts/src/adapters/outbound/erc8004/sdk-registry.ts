@@ -10,12 +10,6 @@ import { UsageError, ExecutionError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { sameAddress } from "../../../domain/family/index.js";
 
-interface SupportedNetwork {
-  family: "evm" | "tron";
-  chainId: string;
-  sdkNetwork: string;
-}
-
 interface SdkNetwork {
   sdk: SDK;
   identity: Interface;
@@ -23,26 +17,11 @@ interface SdkNetwork {
 
 const UNUSED_RPC_URL = "https://unused.invalid";
 
-const SUPPORTED_NETWORKS: Readonly<Record<string, SupportedNetwork>> = {
-  "eip155:56": { family: "evm", chainId: "56", sdkNetwork: "eip155:56" },
-  "eip155:97": { family: "evm", chainId: "97", sdkNetwork: "eip155:97" },
-  "eip155:8453": { family: "evm", chainId: "8453", sdkNetwork: "eip155:8453" },
-  "eip155:84532": { family: "evm", chainId: "84532", sdkNetwork: "eip155:84532" },
-  "tron:728126428": {
-    family: "tron",
-    chainId: "728126428",
-    sdkNetwork: "tron:mainnet",
-  },
-  "tron:3448148188": {
-    family: "tron",
-    chainId: "3448148188",
-    sdkNetwork: "tron:nile",
-  },
-  "tron:2494104990": {
-    family: "tron",
-    chainId: "2494104990",
-    sdkNetwork: "tron:shasta",
-  },
+// The SDK names TRON networks by name and EVM networks by CAIP-2 id.
+const TRON_SDK_NETWORKS: Readonly<Record<string, string>> = {
+  "728126428": "tron:mainnet",
+  "3448148188": "tron:nile",
+  "2494104990": "tron:shasta",
 };
 
 export class SdkAgentRegistry implements AgentRegistryReader {
@@ -131,32 +110,36 @@ export class SdkAgentRegistry implements AgentRegistryReader {
   }
 
   #for(network: NetworkDescriptor): SdkNetwork {
-    const supported = SUPPORTED_NETWORKS[network.id];
-    if (!supported) {
-      throw new UsageError(
-        "unsupported_network_capability",
-        `ERC-8004 Identity Registry is not deployed on ${network.id}`,
-      );
-    }
-    if (network.family !== supported.family || network.chainId !== supported.chainId) {
-      throw new UsageError(
-        "family_mismatch",
-        `network descriptor ${network.id} does not match family ${network.family} and chain id ${network.chainId}`,
-      );
-    }
     const existing = this.#networks.get(network.id);
     if (existing) return existing;
-    const sdk = new SDK({
-      network: supported.sdkNetwork,
-      chainId: Number(supported.chainId),
-      rpcUrl: UNUSED_RPC_URL,
-    });
+    const sdk = sdkFor(network);
     const configured = {
       sdk,
       identity: new Interface(sdk.identityRegistryAbi as unknown as InterfaceAbi),
     };
     this.#networks.set(network.id, configured);
     return configured;
+  }
+}
+
+// Support is decided before this call; the SDK refuses a network it has no deployment for.
+function sdkFor(network: NetworkDescriptor): SDK {
+  const [namespace, reference] = network.id.split(":");
+  if (
+    namespace !== (network.family === "tron" ? "tron" : "eip155") ||
+    reference !== network.chainId
+  ) {
+    throw new UsageError(
+      "family_mismatch",
+      `network descriptor ${network.id} does not match family ${network.family} and chain id ${network.chainId}`,
+    );
+  }
+  const name = network.family === "tron" ? TRON_SDK_NETWORKS[network.chainId] : network.id;
+  try {
+    if (name === undefined) throw new Error(`no ERC-8004 SDK network for ${network.id}`);
+    return new SDK({ network: name, chainId: Number(network.chainId), rpcUrl: UNUSED_RPC_URL });
+  } catch (error) {
+    throw new UsageError("unsupported_network", (error as Error).message);
   }
 }
 

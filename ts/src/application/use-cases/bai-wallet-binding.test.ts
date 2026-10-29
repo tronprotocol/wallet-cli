@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
-import { BaiWalletBinding, baiChain } from "./bai-wallet-binding.js";
+import { BaiWalletBinding } from "./bai-wallet-binding.js";
+import { baiChain } from "../services/capability/predicates.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 it.each([
   ["evm", "56", "bnb"],

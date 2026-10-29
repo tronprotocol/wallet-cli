@@ -1,7 +1,7 @@
 import { facilitatorUrl } from "./facilitator-url.js";
 import { facilitatorNetwork } from "./facilitator-network.js";
 import { addressCodec, sameAddress } from "../../../domain/family/index.js";
-import { tokensForScheme } from "./tokens.js";
+import { DEFAULT_SERVE_TOKEN, tokensForScheme } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
@@ -85,7 +85,7 @@ export class X402HttpServer implements X402ServerPort {
       ? Object.values(registered).find((item) =>
           sameAddress(network.family, item.address, input.asset!),
         )
-      : registered[(input.token ?? "USDT").toUpperCase()];
+      : registered[(input.token ?? DEFAULT_SERVE_TOKEN).toUpperCase()];
     if (known && input.decimals !== undefined && input.decimals !== known.decimals)
       throw new UsageError(
         "invalid_option",
@@ -246,7 +246,7 @@ export class X402HttpServer implements X402ServerPort {
         payUrl: resourceUrl,
         network: network.id,
         scheme: input.scheme,
-        token: input.token?.toUpperCase() ?? (input.asset ? undefined : "USDT"),
+        token: input.token?.toUpperCase() ?? (input.asset ? undefined : DEFAULT_SERVE_TOKEN),
         asset: token.address,
         decimals: token.decimals,
         validForSeconds: input.validForSeconds ?? 300,

@@ -12,7 +12,9 @@ import type {
   ChainSpec,
   CommandDefinition,
   CommandExecutionSpec,
+  ExclusiveGroup,
   ExecutionContext,
+  FamilyBinding,
   Globals,
   SessionRef,
   StreamManager,
@@ -34,6 +36,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import { ERROR_CODES, type ErrorCodeEntry } from "../../../../domain/errors/codes.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, globalYargsOptions } from "../globals/index.js";
+import { exclusiveRefine } from "../schemas/exclusive.js";
 
 export interface ShellOptions {
   registry: CommandRegistry;
@@ -240,10 +243,7 @@ async function executeChainCommand(
   }
   session.current = { commandId: id, net };
 
-  const effectiveFields = binding.fields
-    ? spec.baseFields.extend(binding.fields.shape)
-    : spec.baseFields;
-  const effectiveInput = composeRefines(effectiveFields, spec.baseRefine, binding.refine);
+  const { fields: effectiveFields, input: effectiveInput } = chainInputSchema(spec, binding);
   const executionSpec = withFields(spec, effectiveFields);
   // Validate flags before binding positionals so positional-only fields cannot become flags.
   assertKnownFlags(executionSpec, argv, otherFamilyFlags(def, net.family));
@@ -571,7 +571,25 @@ function assertKnownFlags(
 }
 
 function parseInput(cmd: CommandDefinition, argv: any): unknown {
-  return parseInputSchema(cmd.input, argv);
+  return parseInputSchema(neutralInputSchema(cmd), argv);
+}
+
+// The validation schema of a family-neutral command, including its exclusive groups.
+export function neutralInputSchema(cmd: CommandDefinition): ZodType {
+  const exclusive = exclusiveRefine(cmd.exclusive, cmd.fields);
+  return exclusive ? cmd.input.superRefine(exclusive) : cmd.input;
+}
+
+// The fields and validation schema of a chain command on one family.
+export function chainInputSchema(
+  spec: ChainSpec,
+  binding: FamilyBinding,
+): { fields: ZodObject<ZodRawShape>; input: ZodType } {
+  const fields = binding.fields ? spec.baseFields.extend(binding.fields.shape) : spec.baseFields;
+  return {
+    fields,
+    input: composeRefines(fields, spec.baseRefine, binding.refine, spec.exclusive),
+  };
 }
 
 export function parseInputSchema(schema: ZodType, argv: any): unknown {
@@ -606,8 +624,11 @@ export function composeRefines(
   fields: ZodObject<ZodRawShape>,
   baseRefine?: (value: any, ctx: RefinementCtx) => void,
   familyRefine?: (value: any, ctx: RefinementCtx) => void,
+  exclusive?: readonly ExclusiveGroup[],
 ): ZodType {
   let schema: ZodType = fields;
+  const exclusiveCheck = exclusiveRefine(exclusive, fields);
+  if (exclusiveCheck) schema = schema.superRefine(exclusiveCheck);
   if (baseRefine) schema = schema.superRefine(baseRefine);
   if (familyRefine) schema = schema.superRefine(familyRefine);
   return schema;

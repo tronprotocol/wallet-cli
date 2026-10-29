@@ -9,8 +9,8 @@ import type { TronSigService } from "../../../../application/use-cases/tron/sig-
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
 import type { TransactionArtifactWriter } from "../../../../application/ports/transaction-artifact-writer.js";
-import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
-import { amountSelector, tronTxModeFields, txModeFields, unifiedAmountFields } from "./shared.js";
+import { Schemas, addressFieldsFor } from "../schemas/index.js";
+import { tronTxModeFields, txModeFields, unifiedAmountFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 import { txHashInputPattern } from "../../../../domain/family/index.js";
@@ -49,13 +49,11 @@ export const txSendSpec: ChainSpec = {
   exclusive: [
     { label: "the amount to send", flags: ["amount", "raw-amount"], select: "exactly-one" },
     {
-      // Spec-level groups name shared flags; --asset-id belongs to the TRON binding.
       label: "which asset to send; omit for the network's native coin",
-      flags: ["token", "contract"],
+      flags: ["token", "contract", "asset-id"],
       select: "at-most-one",
     },
   ],
-  baseRefine: amountSelector,
   examples: [
     { cmd: "wallet-cli tx send --to T... --amount 1 --network nile" },
     { cmd: "wallet-cli tx send --to 0x742d... --amount 1 --network sepolia" },
@@ -147,7 +145,7 @@ export const txSendEvmBinding = (svc: EvmTransactionService): FamilyBinding => (
 
 export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding => ({
   fields: tronSendFields,
-  refine: allRefines(tokenOptional, addressFieldsFor("tron", "contract")),
+  refine: addressFieldsFor("tron", "contract"),
   run: async (ctx, net, input) =>
     svc.send(ctx, net, { ...input, feeLimit: sunAmount(input.feeLimit) }),
 });
@@ -191,15 +189,6 @@ export const txBroadcastSpec: ChainSpec = {
       flags: ["transaction", "tx-stdin", "hex", "file"],
     },
   ],
-  baseRefine: (input, context) => {
-    if ([input.hex, input.file].filter((entry) => entry !== undefined).length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["hex"],
-        message: "--hex and --file are mutually exclusive",
-      });
-    }
-  },
   examples: [
     { cmd: "wallet-cli tx broadcast --file signed.hex --network nile" },
     { cmd: "wallet-cli tx broadcast --file signed.hex --network sepolia" },
@@ -210,17 +199,6 @@ export const txBroadcastSpec: ChainSpec = {
 
 export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBinding => ({
   fields: tronBroadcastFields,
-  refine: (input, context) => {
-    if (
-      [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length > 1
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["transaction"],
-        message: "--transaction, --hex, and --file are mutually exclusive",
-      });
-    }
-  },
   run: async (ctx, net, input) => {
     if (input.dryRun && ctx.wait) {
       throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
@@ -265,7 +243,6 @@ export const txApprovalsSpec: ChainSpec = {
     "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
   baseFields: approvalsFields,
   exclusive: [{ label: "the transaction to inspect", flags: ["hex", "file"] }],
-  baseRefine: hexOrFileRefine,
   examples: [{ cmd: "wallet-cli tx approvals --file partially-signed.hex" }],
   formatText: TextFormatters.txApprovals,
 };
@@ -314,18 +291,6 @@ export const txSignSpec: ChainSpec = {
     "transaction carries exactly one signature, so an already-signed one is refused.",
   baseFields: signFields,
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
-  baseRefine: (input, context) => {
-    if (
-      input.transaction === undefined &&
-      [input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["hex"],
-        message: "provide exactly one of --hex or --file",
-      });
-    }
-  },
   examples: [
     {
       cmd: `wallet-cli tx sign --transaction '{"txID":"...","raw_data":{...},"raw_data_hex":"..."}'`,
@@ -348,15 +313,6 @@ export const txSignTronBinding = (
 ): FamilyBinding => ({
   fields: tronSignFields,
   refine: (input, context) => {
-    if (
-      [input.transaction, input.hex, input.file].filter((entry) => entry !== undefined).length !== 1
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["transaction"],
-        message: "provide exactly one of --transaction, --hex, or --file",
-      });
-    }
     if (input.out && input.transaction) {
       context.addIssue({
         code: "custom",
@@ -373,10 +329,6 @@ export const txSignTronBinding = (
     }
   },
   run: async (ctx, net, input) => {
-    exactlyOne(
-      [input.transaction, input.hex, input.file],
-      "provide exactly one of --transaction, --hex, or --file",
-    );
     if (!input.transaction) {
       const hex = hexInput(input);
       const result = input.offline
@@ -536,32 +488,6 @@ export const txInfoEvmBinding = (svc: EvmTransactionService): FamilyBinding => (
   run: async (ctx, net, input) => svc.info(ctx, net, input.txid),
 });
 
-function tokenOptional(
-  value: { token?: string; contract?: string; assetId?: string },
-  context: z.RefinementCtx,
-): void {
-  const count = [value.token, value.contract, value.assetId].filter(
-    (candidate) => candidate !== undefined,
-  ).length;
-  if (count > 1) {
-    context.addIssue({
-      code: "custom",
-      path: ["token"],
-      message: "choose at most one of --token, --contract or --asset-id",
-    });
-  }
-}
-
-function hexOrFileRefine(value: { hex?: string; file?: string }, context: z.RefinementCtx): void {
-  if ([value.hex, value.file].filter((entry) => entry !== undefined).length !== 1) {
-    context.addIssue({
-      code: "custom",
-      path: ["hex"],
-      message: "provide exactly one of --hex or --file",
-    });
-  }
-}
-
 function hexInput(input: { hex?: string; file?: string }): string {
   exactlyOne([input.hex, input.file], "provide exactly one of --hex or --file");
   return input.hex ?? readBoundedTextFile(input.file!, 1024 * 1024 + 4096, "transaction hex file");
@@ -571,14 +497,6 @@ function tronLinkMultisigRefine(
   value: z.infer<typeof tronLinkMultisigFields>,
   context: z.RefinementCtx,
 ): void {
-  const modes = [value.create, value.sign !== undefined, value.watch].filter(Boolean).length;
-  if (modes > 1) {
-    context.addIssue({
-      code: "custom",
-      path: ["create"],
-      message: "--create, --sign, and --watch are mutually exclusive",
-    });
-  }
   const artifacts = [value.hex, value.file].filter((entry) => entry !== undefined).length;
   if (value.create && artifacts !== 1) {
     context.addIssue({

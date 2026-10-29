@@ -11,7 +11,13 @@ import type {
 import { CommandRegistry } from "../registry/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import { introspectFields, type FieldInfo } from "../arity/index.js";
-import { GLOBAL_FLAGS, type GlobalFlag, inputFlagsFor, buildCatalog } from "./catalog.js";
+import {
+  GLOBAL_FLAGS,
+  type CapabilitySupportSource,
+  type GlobalFlag,
+  inputFlagsFor,
+  buildCatalog,
+} from "./catalog.js";
 
 const META = new Set(["--help", "-h", "--version", "-V", "--json-schema"]);
 
@@ -24,6 +30,7 @@ export class HelpService {
     private readonly registry: CommandRegistry,
     private readonly streams: StreamManager,
     private readonly version: string,
+    private readonly capabilities?: CapabilitySupportSource,
   ) {}
 
   handleMeta(tokens: string[]): ExitCode {
@@ -464,7 +471,7 @@ export class HelpService {
   }
 
   #catalog(familyFilter?: ChainFamily): string {
-    return buildCatalog(this.registry, this.version, familyFilter);
+    return buildCatalog(this.registry, this.version, familyFilter, this.capabilities);
   }
 }
 

@@ -31,6 +31,8 @@ wallet-cli tx send --json-schema
 
 One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]`. Command entries carry `id`, `kind`, `path`, `usage`, `summary`, `requires` (network / auth / wallet), `capability`, `examples`, and `inputSchema`, a JSON Schema for their input; chain commands also declare `families`. This is the intended way to learn the CLI; do not scrape `--help`. A family argument scopes the catalog to one chain family.
 
+A command with a `capability` also carries `support`, mapping each configured network of its families to `supported`, `unsupported`, or `needs-inputs`. `unsupported` fails with **`unsupported_network_capability`** before any request. `needs-inputs` means the network supports the command only with inputs it otherwise defaults: `x402 serve` on a network with no registered default token needs `--token`, or `--asset` with `--decimals`. A command with flags that exclude each other carries `exclusive`: groups of flag names, each with a `label` and a `select` of `exactly-one` (the default) or `at-most-one`. Breaking a group fails with **`invalid_option`**.
+
 ### Chain families
 
 A network belongs to one **chain family**, `tron` or `evm`, and that is what decides which commands and which flags apply:

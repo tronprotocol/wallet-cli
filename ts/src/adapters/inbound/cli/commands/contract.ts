@@ -430,7 +430,6 @@ function deployRefine(
   ctx: z.RefinementCtx,
 ): void {
   governanceTxRefine(value as never, ctx);
-  codeSourceRefine(value, ctx);
   constructorArgsRefine(value, ctx);
 }
 
@@ -445,13 +444,6 @@ function constructorArgsRefine(
   },
   ctx: z.RefinementCtx,
 ): void {
-  if (value.constructorArgs !== undefined && value.constructorParams !== undefined) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["constructorArgs"],
-      message: "--constructor-args and --constructor-params are mutually exclusive",
-    });
-  }
   if (value.constructorParams !== undefined && value.artifact !== undefined) {
     ctx.addIssue({
       code: "custom",
@@ -478,24 +470,6 @@ function constructorArgsRefine(
       path: ["constructorArgs"],
       message:
         "--constructor-args needs the constructor's types: pass --artifact, or state them with --constructor-signature (--abi also declares them on TRON)",
-    });
-  }
-}
-
-function codeSourceRefine(
-  value: { code?: string; codeFile?: string; artifact?: string },
-  ctx: z.RefinementCtx,
-): void {
-  if (
-    [value.code !== undefined, value.codeFile !== undefined, value.artifact !== undefined].filter(
-      Boolean,
-    ).length !== 1
-  ) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["code"],
-      message: "provide exactly one of --artifact, --code or --code-file",
-      params: { errorCode: "invalid_option" },
     });
   }
 }
@@ -554,6 +528,14 @@ export const contractDeploySpec: ChainSpec = {
     "Deploy contract creation bytecode and report the new contract's address.\n" +
     "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
   baseFields: deployFields,
+  exclusive: [
+    { label: "the creation bytecode", flags: ["artifact", "code", "code-file"] },
+    {
+      label: "the constructor values",
+      flags: ["constructor-args", "constructor-params"],
+      select: "at-most-one",
+    },
+  ],
   baseRefine: deployRefine,
   examples: [
     {
@@ -701,12 +683,6 @@ export const contractSetUserResourcePercentTronBinding = (
   run: async (ctx, net, input) => svc.setUserResourcePercent(ctx, net, input),
 });
 
-function create2Refine(value: { code?: string; codeFile?: string }, ctx: z.RefinementCtx): void {
-  if ([value.code !== undefined, value.codeFile !== undefined].filter(Boolean).length !== 1) {
-    ctx.addIssue({ code: "custom", message: "provide exactly one of --code or --code-file" });
-  }
-}
-
 export const contractCreate2Spec: ChainSpec = {
   path: ["contract", "create2"],
   network: "optional",
@@ -729,7 +705,7 @@ export const contractCreate2Spec: ChainSpec = {
       .regex(/^-?\d+$/)
       .describe("signed decimal 64-bit salt"),
   }),
-  baseRefine: create2Refine,
+  exclusive: [{ label: "the creation bytecode", flags: ["code", "code-file"] }],
   examples: [
     {
       cmd: "wallet-cli contract create2 --deployer TQk... --code-file ./Token.creation.hex --salt 1",

@@ -53,11 +53,6 @@ export function endpointHost(url: unknown): string {
   }
 }
 
-export interface CapabilityDescriptor {
-  key: string;
-  summary: string;
-}
-
 export interface Config {
   // Used when --network is omitted.
   defaultNetwork?: string;

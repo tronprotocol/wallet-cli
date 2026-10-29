@@ -4,12 +4,15 @@ import { isChainCommand } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
   CommandDefinition,
+  ExclusiveGroup,
   StdinChannel,
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
+import type { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, type GlobalFlagSpec } from "../globals/index.js";
 import { ERROR_CODES } from "../../../../domain/errors/codes.js";
+import { exclusiveGroupsFor, exclusiveRefine } from "../schemas/exclusive.js";
 
 export interface GlobalFlag {
   flag: string;
@@ -57,11 +60,26 @@ function commandInputSchema(input: z.ZodType): unknown {
   }
 }
 
+// Per-network support of each capability, from the capability predicates.
+export type CapabilitySupportSource = Pick<CapabilityRegistry, "supportByNetwork">;
+
 export function buildCatalog(
   registry: CommandRegistry,
   version: string,
   familyFilter?: ChainFamily,
+  capabilities?: CapabilitySupportSource,
 ): string {
+  const support = (capability: string | undefined, families: readonly string[]) =>
+    capability && capabilities
+      ? {
+          support: Object.fromEntries(
+            capabilities
+              .supportByNetwork(capability)
+              .filter((n) => families.includes(n.family))
+              .map((n) => [n.network, n.support]),
+          ),
+        }
+      : {};
   const commands = registry
     .all()
     .filter((cmd) =>
@@ -80,8 +98,14 @@ export function buildCatalog(
             summary: cmd.spec.summary ?? "",
             requires: { network: cmd.spec.network, auth: cmd.spec.auth, wallet: cmd.spec.wallet },
             ...(cmd.spec.capability ? { capability: cmd.spec.capability } : {}),
+            ...support(
+              cmd.spec.capability,
+              familyFilter ? [familyFilter] : Object.keys(cmd.families),
+            ),
             examples: cmd.spec.examples.map((e: { cmd: string }) => e.cmd),
-            ...(cmd.spec.exclusive?.length ? { exclusive: cmd.spec.exclusive } : {}),
+            ...exclusiveEntry(
+              exclusiveGroupsFor(cmd.spec.exclusive, mergedFields(cmd, familyFilter)),
+            ),
             ...(cmd.spec.stdin ? { inputFlags: inputFlagsFor(cmd.spec) } : {}),
             inputSchema: commandInputSchema(mergedInput(cmd, familyFilter)),
           }
@@ -93,8 +117,9 @@ export function buildCatalog(
             summary: cmd.summary ?? "",
             requires: { network: cmd.network, auth: cmd.auth, wallet: cmd.wallet },
             ...(cmd.capability ? { capability: cmd.capability } : {}),
+            ...support(cmd.capability, familyFilter ? [familyFilter] : registry.families()),
             examples: cmd.examples.map((e: { cmd: string }) => e.cmd),
-            ...(cmd.exclusive?.length ? { exclusive: cmd.exclusive } : {}),
+            ...exclusiveEntry(exclusiveGroupsFor(cmd.exclusive, cmd.fields)),
             ...(inputFlagsFor(cmd).length ? { inputFlags: inputFlagsFor(cmd) } : {}),
             inputSchema: commandInputSchema(cmd.input),
           },
@@ -109,15 +134,32 @@ export function buildCatalog(
   });
 }
 
-function mergedInput(def: ChainCommandDefinition, family?: ChainFamily): z.ZodType {
+function exclusiveEntry(groups: ExclusiveGroup[]): { exclusive?: ExclusiveGroup[] } {
+  return groups.length ? { exclusive: groups } : {};
+}
+
+function mergedFields(
+  def: ChainCommandDefinition,
+  family?: ChainFamily,
+): z.ZodObject<z.ZodRawShape> {
   let shape = { ...def.spec.baseFields.shape };
-  const bindings = family ? [def.families[family]] : Object.values(def.families);
-  for (const binding of bindings) {
+  for (const binding of bindingsFor(def, family)) {
     if (binding?.fields) shape = { ...shape, ...binding.fields.shape };
   }
-  let input: z.ZodType = z.object(shape);
+  return z.object(shape);
+}
+
+function bindingsFor(def: ChainCommandDefinition, family?: ChainFamily) {
+  return family ? [def.families[family]] : Object.values(def.families);
+}
+
+function mergedInput(def: ChainCommandDefinition, family?: ChainFamily): z.ZodType {
+  const fields = mergedFields(def, family);
+  let input: z.ZodType = fields;
+  const exclusive = exclusiveRefine(def.spec.exclusive, fields);
+  if (exclusive) input = input.superRefine(exclusive);
   if (def.spec.baseRefine) input = input.superRefine(def.spec.baseRefine);
-  for (const binding of bindings) {
+  for (const binding of bindingsFor(def, family)) {
     if (binding?.refine) input = input.superRefine(binding.refine);
   }
   return input;

@@ -55,6 +55,15 @@ export class CommandRegistry {
     return new Map([...out].map(([f, s]) => [f, [...s]]));
   }
 
+  // Family-neutral commands run on any network family.
+  neutralCapabilityKeys(): string[] {
+    return [
+      ...new Set(
+        [...this.#byPath.values()].flatMap((cmd) => (cmd.capability ? [cmd.capability] : [])),
+      ),
+    ];
+  }
+
   resolveNeutral(path: string[]): CommandDefinition | null {
     return this.#byPath.get(path.join(".")) ?? null;
   }

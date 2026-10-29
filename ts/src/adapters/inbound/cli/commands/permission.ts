@@ -4,7 +4,7 @@ import type { TronPermissionService } from "../../../../application/use-cases/tr
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { TextFormatters } from "../render/index.js";
-import { exactlyOne, readBoundedTextFile } from "./artifact.js";
+import { readBoundedTextFile } from "./artifact.js";
 import { txModeFields, tronTxModeFields } from "./shared.js";
 
 const showFields = z.object({});
@@ -58,13 +58,6 @@ export const permissionUpdateSpec: ChainSpec = {
   baseFields: updateFields,
   exclusive: [{ label: "the new permission structure", flags: ["file", "json"] }],
   baseRefine: (input, context) => {
-    if ([input.file, input.json].filter((value) => value !== undefined).length !== 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["file"],
-        message: "provide exactly one of --file or --json",
-      });
-    }
     if ([input.dryRun, input.signOnly, input.buildOnly].filter(Boolean).length > 1) {
       context.addIssue({
         code: "custom",
@@ -93,7 +86,6 @@ export const permissionShowTronBinding = (service: TronPermissionService): Famil
 
 export const permissionUpdateTronBinding = (service: TronPermissionService): FamilyBinding => ({
   run: async (ctx, network, input) => {
-    exactlyOne([input.file, input.json], "provide exactly one of --file or --json");
     const raw = input.file
       ? readBoundedTextFile(input.file, 1024 * 1024, "permission JSON file")
       : input.json;

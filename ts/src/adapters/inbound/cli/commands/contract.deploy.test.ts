@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { chainInputSchema } from "../shell/index.js";
+import type { FamilyBinding } from "../contracts/index.js";
 import {
   contractDeployEvmBinding,
   contractDeploySpec,
@@ -158,9 +160,13 @@ describe("contract deploy — code input channel", () => {
   });
 
   const parse = (input: Record<string, unknown>) =>
-    contractDeploySpec.baseFields
-      .superRefine(contractDeploySpec.baseRefine!)
-      .safeParse({ dryRun: false, signOnly: false, buildOnly: false, permissionId: 0, ...input });
+    chainInputSchema(contractDeploySpec, {} as FamilyBinding).input.safeParse({
+      dryRun: false,
+      signOnly: false,
+      buildOnly: false,
+      permissionId: 0,
+      ...input,
+    });
 
   it("refuses both --code and --code-file at once", () => {
     expect(parse({ code: "6080", codeFile: "./Token.bin" }).success).toBe(false);

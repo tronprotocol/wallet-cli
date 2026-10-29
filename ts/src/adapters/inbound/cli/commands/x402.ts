@@ -9,7 +9,7 @@ import {
 } from "../render/x402.js";
 import { paymentAmount, rawPaymentAmount, integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
-import { SECRET_KINDS, type CommandDefinition } from "../contracts/index.js";
+import { SECRET_KINDS, type CommandDefinition, type ExclusiveGroup } from "../contracts/index.js";
 import { sanitizeText } from "../render/scalars.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
@@ -54,14 +54,6 @@ const payFields = z.object({
     .describe("maximum GasFree relay fee in smallest units"),
 });
 const payInput = payFields.superRefine((value, context) => {
-  if (value.maxAmount && value.maxRawAmount) {
-    context.addIssue({
-      code: "custom",
-      params: { errorCode: "invalid_option" },
-      path: ["maxAmount"],
-      message: "cannot be combined with --max-raw-amount",
-    });
-  }
   // Pin raw limits to a token so the seller cannot choose their units.
   if (value.maxRawAmount !== undefined && !value.token && !value.asset) {
     context.addIssue({
@@ -70,22 +62,6 @@ const payInput = payFields.superRefine((value, context) => {
       path: ["maxRawAmount"],
       message:
         "requires --token or --asset; a raw limit has no unit, so pin it to one token or use --max-amount",
-    });
-  }
-  if (value.body !== undefined && value.bodyFile !== undefined) {
-    context.addIssue({
-      code: "custom",
-      params: { errorCode: "invalid_option" },
-      path: ["body"],
-      message: "cannot be combined with --body-file",
-    });
-  }
-  if (value.maxGasfreeFee && value.maxGasfreeFeeRaw) {
-    context.addIssue({
-      code: "custom",
-      params: { errorCode: "invalid_option" },
-      path: ["maxGasfreeFee"],
-      message: "cannot be combined with --max-gasfree-fee-raw",
     });
   }
   if (value.decimals !== undefined && !value.asset) {
@@ -97,6 +73,12 @@ const payInput = payFields.superRefine((value, context) => {
     });
   }
 });
+
+const gasfreeFeeLimitGroup: ExclusiveGroup = {
+  label: "GasFree fee limit",
+  flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
+  select: "at-most-one",
+};
 
 const payCommand: CommandDefinition = {
   path: ["x402", "pay"],
@@ -116,11 +98,7 @@ const payCommand: CommandDefinition = {
   exclusive: [
     { label: "request body", flags: ["body", "body-file"], select: "at-most-one" },
     { label: "payment limit", flags: ["max-amount", "max-raw-amount"], select: "at-most-one" },
-    {
-      label: "GasFree fee limit",
-      flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
-      select: "at-most-one",
-    },
+    gasfreeFeeLimitGroup,
   ],
   examples: [
     { cmd: "wallet-cli x402 pay https://service.example/resource --network bsc --password-stdin" },
@@ -180,37 +158,27 @@ const serveFields = z.object({
     .default("https://facilitator.bankofai.io"),
 });
 
-function serveRefinement(
-  value: { amount?: string; rawAmount?: string; token?: string; asset?: string; decimals?: number },
-  ctx: z.RefinementCtx,
-) {
-  for (const [invalid, message] of [
-    [
-      value.amount !== undefined && value.rawAmount !== undefined,
-      "--amount and --raw-amount are mutually exclusive",
-    ],
-    [
-      value.token !== undefined && value.asset !== undefined,
-      "--token and --asset are mutually exclusive",
-    ],
-    [value.decimals !== undefined && value.asset === undefined, "--decimals requires --asset"],
-  ] as const) {
-    if (invalid) ctx.addIssue({ code: "custom", message, params: { errorCode: "invalid_option" } });
+function serveRefinement(value: { asset?: string; decimals?: number }, ctx: z.RefinementCtx) {
+  if (value.decimals !== undefined && value.asset === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: "--decimals requires --asset",
+      params: { errorCode: "invalid_option" },
+    });
   }
 }
+
+const serveExclusive: ExclusiveGroup[] = [
+  { label: "the payment amount", flags: ["amount", "raw-amount"], select: "at-most-one" },
+  { label: "the payment token", flags: ["token", "asset"], select: "at-most-one" },
+];
 
 const roundtripFields = serveFields.omit({ host: true, resourceUrl: true, daemon: true }).extend({
   gasfreeRelay: payFields.shape.gasfreeRelay,
   maxGasfreeFee: payFields.shape.maxGasfreeFee,
   maxGasfreeFeeRaw: payFields.shape.maxGasfreeFeeRaw,
 });
-const roundtripInput = roundtripFields
-  .superRefine(serveRefinement)
-  .refine((value) => !(value.maxGasfreeFee !== undefined && value.maxGasfreeFeeRaw !== undefined), {
-    path: ["maxGasfreeFee"],
-    message: "cannot be combined with --max-gasfree-fee-raw",
-    params: { errorCode: "invalid_option" },
-  });
+const roundtripInput = roundtripFields.superRefine(serveRefinement);
 
 export function registerX402Commands(registry: CommandRegistry, service: X402Service): void {
   registry.add({
@@ -251,6 +219,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     summary: "Run a local x402-protected endpoint",
     fields: serveFields,
     input: serveFields.superRefine(serveRefinement),
+    exclusive: serveExclusive,
     examples: [
       { cmd: "wallet-cli x402 serve --pay-to T... --amount 1 --token USDT --network tron" },
     ],
@@ -275,6 +244,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     summary: "Start a local paywall, pay it, and exit",
     fields: roundtripFields,
     input: roundtripInput,
+    exclusive: [...serveExclusive, gasfreeFeeLimitGroup],
     examples: [{ cmd: "wallet-cli x402 roundtrip --pay-to T... --network tron --password-stdin" }],
     run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 roundtrip requires a resolved network");

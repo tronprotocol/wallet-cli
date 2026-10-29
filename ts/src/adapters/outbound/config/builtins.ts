@@ -1,51 +1,5 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-// Network capabilities contain traits; command capabilities are added at composition.
-
-export const TRAIT_SUMMARIES: Record<string, string> = {};
-
-export const CAP_SUMMARIES: Record<string, string> = {
-  "erc8004.identity.read": "Read ERC-8004 identities and operator approvals",
-  "erc8004.identity.write": "Register and manage ERC-8004 identities",
-  "account.balance.native": "native balance",
-  "account.balance.token": "token balance",
-  "account.portfolio": "holdings with USD valuation",
-  "account.activate": "activate a new TRON account",
-  "account.set": "set one-time on-chain account name or ID",
-  "token.tokenbook": "token address-book (add/list/remove)",
-  "tx.send": "transfer native / token",
-  "tx.sign": "sign transaction artifacts without broadcasting",
-  "tx.broadcast": "broadcast a presigned transaction",
-  "tx.multisig.local": "inspect and append local multi-sign approvals",
-  "tx.multisig.tronlink": "coordinate multi-sign approvals through TronLink",
-  "message.sign": "sign a message",
-  "contract.call": "constant + state-changing contract calls",
-  "contract.deploy": "deploy a smart contract",
-  "contract.governance": "govern a deployed smart contract",
-  "contract.create2": "compute TVM CREATE2 addresses",
-  "proposal.read": "query governance proposals",
-  "proposal.write": "create, approve, and delete governance proposals",
-  "witness.manage": "register and operate an SR candidacy",
-  "staking.freeze": "freeze/unfreeze (Stake 2.0)",
-  "staking.delegate": "delegate/undelegate resource (Stake 2.0)",
-  "vote.cast": "cast/replace SR votes",
-  "vote.list": "list super representatives",
-  "vote.status": "current SR votes and voting power",
-  "reward.balance": "claimable voting/block reward",
-  "reward.withdraw": "withdraw voting/block rewards",
-  "permission.read": "read account multi-sign permissions",
-  "permission.update": "replace account multi-sign permissions",
-  "gasfree.info": "GasFree account, fee and nonce information",
-  "gasfree.transfer": "TIP-712 gas-free token transfer",
-  "gasfree.trace": "track a GasFree transfer",
-  "sunswap.market": "SunSwap pool, token, price and position queries",
-  "sunswap.liquidity": "Add, remove and collect fees on SunSwap V2/V3 liquidity",
-  "sunpump.curve": "Buy and sell SunPump tokens on the bonding curve",
-  "sunpump.market": "SunPump launchpad token listings, details and search",
-  "sunpump.launch": "Create a new token on the SunPump launchpad, server-side",
-  "sunswap.swap": "Swap tokens, through a SunPump bonding curve where one applies",
-};
-
 export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
   "tron:728126428": {
     id: "tron:728126428",

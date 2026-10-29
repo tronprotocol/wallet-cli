@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { composeRefines, parseInputSchema } from "../shell/index.js";
+import { chainInputSchema, parseInputSchema } from "../shell/index.js";
 import {
   tokenBalanceSpec,
   tokenBalanceTronBinding,
@@ -14,8 +14,7 @@ const TRON_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const EVM_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 
 function effectiveSchema(spec: ChainSpec, binding: FamilyBinding) {
-  const fields = binding.fields ? spec.baseFields.extend(binding.fields.shape) : spec.baseFields;
-  return composeRefines(fields, spec.baseRefine, binding.refine);
+  return chainInputSchema(spec, binding).input;
 }
 
 const svc = {} as never;
@@ -94,7 +93,7 @@ describe("amount selector", () => {
 
 describe("contract deploy bytecode source selector", () => {
   it("reports two bytecode sources as invalid_option", () => {
-    const schema = contractDeploySpec.baseFields.superRefine(contractDeploySpec.baseRefine!);
+    const schema = effectiveSchema(contractDeploySpec, {} as FamilyBinding);
     expect(() =>
       parseInputSchema(schema, { artifact: "a.json", code: "6080", feeLimit: "1000000" }),
     ).toThrowError(expect.objectContaining({ code: "invalid_option" }));

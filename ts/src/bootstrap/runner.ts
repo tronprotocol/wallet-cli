@@ -61,7 +61,12 @@ export async function main(argv: string[]): Promise<ExitCode> {
 
   try {
     if (hasMeta(tokens) || !hasCommand(tokens)) {
-      const help = new HelpService(runtime.registry, runtime.streams, VERSION);
+      const help = new HelpService(
+        runtime.registry,
+        runtime.streams,
+        VERSION,
+        runtime.capabilities,
+      );
       return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]);
     }
 

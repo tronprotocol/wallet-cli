@@ -85,16 +85,7 @@ export const accountSetSpec: ChainSpec = {
     ...tronTxModeFields,
   }),
   exclusive: [{ label: "what to set", flags: ["name", "id"] }],
-  baseRefine: (input, context) => {
-    if ((input.name === undefined) === (input.id === undefined)) {
-      context.addIssue({
-        code: "custom",
-        path: ["name"],
-        message: "provide exactly one of --name or --id",
-      });
-    }
-    transactionModeRefine(input, context);
-  },
+  baseRefine: transactionModeRefine,
   examples: [
     { cmd: "wallet-cli account set --name alice --dry-run" },
     { cmd: "wallet-cli account set --id alice-001 --wait --password-stdin" },

@@ -4,7 +4,7 @@ import type { LiquidityPort, TokenFacts } from "../../../ports/sunswap/liquidity
 import type { MarketDataPort } from "../../../ports/sunswap/market-data.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
-import { isTronNetwork } from "../../../../domain/types/network.js";
+import { hasSunSwapMarket } from "../../../services/capability/predicates.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { readPosition } from "./position-read.js";
 import { describeHooks, hasHooks } from "../../../../domain/sunswap/v4-pool.js";
@@ -310,7 +310,7 @@ export class SunSwapPositionInfoService {
     addresses: readonly string[],
   ): Promise<Map<string, string>> {
     const empty = new Map<string, string>();
-    if (!isTronNetwork(network) || !network.sunswap?.marketApiBaseUrl) {
+    if (!hasSunSwapMarket(network)) {
       scope.warn({
         code: "sunswap_prices_unavailable",
         message: `network ${network.id} has no SunSwap price source, so this position is reported without any USD value`,

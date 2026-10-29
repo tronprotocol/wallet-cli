@@ -3,15 +3,13 @@ import { MessageService } from "../application/use-cases/message-service.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
-import { BaiWalletBinding, baiChain } from "../application/use-cases/bai-wallet-binding.js";
+import { BaiWalletBinding } from "../application/use-cases/bai-wallet-binding.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
-import { isTronNetwork } from "../domain/types/network.js";
 import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
 import { ConfigLoader, NetworkRegistry } from "../adapters/outbound/config/index.js";
 import { YamlConfigDocument } from "../adapters/outbound/config/yaml-config-document.js";
-import { CAP_SUMMARIES, TRAIT_SUMMARIES } from "../adapters/outbound/config/builtins.js";
 import { AtomicFileStore } from "../adapters/outbound/persistence/fs/index.js";
 import { SecureBackupWriter } from "../adapters/outbound/persistence/backup-writer.js";
 import { FileBackupRecordStore } from "../adapters/outbound/persistence/backup-records.js";
@@ -74,6 +72,7 @@ import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.
 import { X402Service } from "../application/use-cases/x402-service.js";
 import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
 import { X402HttpServer } from "../adapters/outbound/x402/server.js";
+import { hasDefaultServeToken } from "../adapters/outbound/x402/tokens.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -121,7 +120,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
     timeoutMs,
   );
   const routerPlanner = new SunSwapRouterPlanner(gatewayProvider);
-  const capabilityRegistry = new CapabilityRegistry(config.aliases);
+  const capabilityRegistry = new CapabilityRegistry(config.aliases, {
+    x402ServeDefaultToken: (network) => hasDefaultServeToken(network.id),
+  });
   const signerResolver = new SignerResolver(
     keystore,
     ledger,
@@ -221,74 +222,13 @@ export function composeCliRuntime(options: BootstrapOptions) {
   });
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();
+  const neutralCapabilities = registry.neutralCapabilityKeys();
   for (const network of Object.values(config.networks)) {
-    const commandCapabilities = (capabilitiesByFamily.get(network.family) ?? [])
-      .filter(
-        (key) =>
-          key !== "tx.multisig.tronlink" ||
-          (isTronNetwork(network) && Boolean(network.tronlinkHttpEndpoint)),
-      )
-      .filter(
-        (key) =>
-          !key.startsWith("gasfree.") || (isTronNetwork(network) && Boolean(network.gasfree)),
-      )
-      // Market data, liquidity, and swaps require independent capability gates.
-      .filter(
-        (key) =>
-          key !== "sunswap.market" ||
-          (isTronNetwork(network) && Boolean(network.sunswap?.marketApiBaseUrl)),
-      )
-      // Contract liquidity can be available without a market API.
-      .filter(
-        (key) =>
-          key !== "sunswap.liquidity" ||
-          (isTronNetwork(network) && network.sunswap?.liquidity === true),
-      )
-      // Curve access requires explicit configuration, even when SDK addresses exist.
-      .filter(
-        (key) =>
-          key !== "sunpump.curve" || (isTronNetwork(network) && network.sunpump?.curve === true),
-      )
-      .filter(
-        (key) =>
-          key !== "sunpump.market" ||
-          (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
-      )
-      .filter(
-        (key) =>
-          key !== "sunpump.launch" ||
-          (isTronNetwork(network) && Boolean(network.sunpump?.apiBaseUrl)),
-      )
-      .filter(
-        (key) =>
-          key !== "sunswap.swap" ||
-          (isTronNetwork(network) &&
-            (network.sunpump?.curve === true || Boolean(network.sunswap?.routerApiBaseUrl))),
-      )
-      .map((key) => ({
-        key,
-        summary: CAP_SUMMARIES[key] ?? key,
-      }));
-    // Family-neutral commands are absent from capabilityKeysByFamily.
-    commandCapabilities.push({
-      key: "x402.pay",
-      summary: "Inspect or pay an x402 endpoint using the selected wallet network",
-    });
-    commandCapabilities.push({
-      key: "x402.serve",
-      summary: "Serve a local x402 endpoint; the server validates network token support",
-    });
-    if (baiChain(network)) {
-      commandCapabilities.push({
-        key: "bai.recharge",
-        summary: "Recharge B.AI from a configured payer wallet",
-      });
-    }
-    const traits = network.capabilities.map((key) => ({
-      key,
-      summary: TRAIT_SUMMARIES[key] ?? key,
-    }));
-    capabilityRegistry.register(network.id, [...commandCapabilities, ...traits]);
+    capabilityRegistry.register(network, [
+      ...(capabilitiesByFamily.get(network.family) ?? []),
+      ...neutralCapabilities,
+      ...network.capabilities,
+    ]);
   }
 
   const deps = {

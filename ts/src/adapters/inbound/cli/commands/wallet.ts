@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { z } from "zod";
-import type { CommandDefinition } from "../contracts/index.js";
+import type { CommandDefinition, ExclusiveGroup } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { accountRef, camelToKebab, ciEnum } from "../arity/index.js";
@@ -61,18 +61,13 @@ export const walletImportLedgerFields = z.object({
     .optional()
     .describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
 });
-export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, c) => {
-  const locators = [v.index !== undefined, v.path !== undefined, v.address !== undefined].filter(
-    Boolean,
-  ).length;
-  if (locators > 1)
-    c.addIssue({
-      code: "custom",
-      path: ["index"],
-      message: "--index, --path and --address are mutually exclusive",
-    });
-});
-
+export const walletImportLedgerExclusive: ExclusiveGroup[] = [
+  {
+    label: "where the account is on the device; omit all three for index 0",
+    flags: ["index", "path", "address"],
+    select: "at-most-one",
+  },
+];
 const KEYSTORE_MAX_BYTES = 64 * 1024;
 
 function readKeystoreFile(path: string): unknown {
@@ -277,7 +272,8 @@ export function registerWalletCommands(
     requires: ["a connected, unlocked Ledger with the selected app (--app) open"],
     summary: "Register a Ledger account (signs on the device)",
     fields: walletImportLedgerFields,
-    input: walletImportLedgerInput,
+    input: walletImportLedgerFields,
+    exclusive: walletImportLedgerExclusive,
     examples: [
       { cmd: "wallet-cli import ledger --app tron --index 0 --label cold" },
       { cmd: "wallet-cli import ledger --app ethereum --index 0 --label cold-evm" },

@@ -1,4 +1,4 @@
-import { z, type RefinementCtx } from "zod";
+import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/tron/sunswap/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
@@ -28,18 +28,6 @@ const fields = z.object({
   offset: offsetField,
 });
 
-// Reject combined pool and token filters locally; the service cannot apply both.
-function refuseBothFilters(value: { pool?: string; token?: string }, ctx: RefinementCtx): void {
-  if (value.pool !== undefined && value.token !== undefined) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["pool"],
-      message: "cannot be combined with --token; narrow by one or by neither",
-      params: { errorCode: "invalid_option" },
-    });
-  }
-}
-
 export const sunswapPoolListSpec: ChainSpec = {
   path: ["sunswap", "pool-list"],
   network: "optional",
@@ -67,7 +55,6 @@ export const sunswapPoolListSpec: ChainSpec = {
       select: "at-most-one",
     },
   ],
-  baseRefine: refuseBothFilters,
   examples: [
     { cmd: "wallet-cli sunswap pool-list --token USDT" },
     { cmd: "wallet-cli sunswap pool-list --order-by apr --min-tvl 100000" },

@@ -12,7 +12,7 @@ export interface Example {
   note?: string;
 }
 
-// Help metadata for exclusive options; enforce the constraint in the command refinement.
+// The one declaration of options that exclude each other; validation, help, and --json-schema derive from it.
 export interface ExclusiveGroup {
   label: string;
   // Kebab-case flag names without "--", in display order.

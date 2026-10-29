@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
 import { registerX402Commands } from "./x402.js";
+import { neutralInputSchema } from "../shell/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
 
 function service(): X402Service {
@@ -47,7 +48,7 @@ describe("x402 command surface", () => {
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     expect(Object.keys(pay.fields.shape)).toContain("dryRun");
     expect(
-      pay.input.safeParse({
+      neutralInputSchema(pay).safeParse({
         url: "https://example.test",
         method: "GET",
         header: [],
@@ -63,7 +64,7 @@ describe("x402 command surface", () => {
     registerX402Commands(registry, service());
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     expect(
-      pay.input.safeParse({
+      neutralInputSchema(pay).safeParse({
         url: "https://example.test",
         method: "POST",
         header: [],
@@ -78,7 +79,7 @@ describe("x402 command surface", () => {
     registerX402Commands(registry, service());
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     expect(
-      pay.input.safeParse({
+      neutralInputSchema(pay).safeParse({
         url: "https://example.test",
         method: "GET",
         header: [],

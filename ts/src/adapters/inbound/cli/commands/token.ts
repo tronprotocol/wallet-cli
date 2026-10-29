@@ -1,9 +1,8 @@
 import { z } from "zod";
-import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
+import type { ChainSpec, ExclusiveGroup, FamilyBinding } from "../contracts/index.js";
 import type { TronTokenService } from "../../../../application/use-cases/tron/token-service.js";
 import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
-import { tokenSelector } from "./token-selector.js";
 import type { TokenBookService } from "../../../../application/use-cases/token-book-service.js";
 import type { EvmTokenService } from "../../../../application/use-cases/evm/token-service.js";
 
@@ -31,8 +30,16 @@ const tronSelector = {
       .optional()
       .describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
   }),
-  refine: allRefines(tokenSelector, addressFieldsFor("tron", "contract")),
+  refine: addressFieldsFor("tron", "contract"),
 };
+
+// --asset-id is a TRON field, so on EVM the group reduces to --contract alone.
+const selectorGroup: ExclusiveGroup[] = [
+  {
+    label: "the token: a contract address, or a TRC10 id on TRON",
+    flags: ["contract", "asset-id"],
+  },
+];
 
 export const tokenBalanceSpec: ChainSpec = {
   path: ["token", "balance"],
@@ -42,6 +49,7 @@ export const tokenBalanceSpec: ChainSpec = {
   capability: "account.balance.token",
   summary: "Show a single token balance",
   baseFields: selectorFields,
+  exclusive: selectorGroup,
   examples: [
     { cmd: "wallet-cli token balance --contract TR7... --network nile" },
     { cmd: "wallet-cli token balance --contract 0xA0b8... --network sepolia" },
@@ -82,6 +90,7 @@ export const tokenInfoSpec: ChainSpec = {
   capability: "account.balance.token",
   summary: "Show token metadata",
   baseFields: selectorFields,
+  exclusive: selectorGroup,
   examples: [
     { cmd: "wallet-cli token info --contract TR7... --network nile" },
     { cmd: "wallet-cli token info --contract 0xA0b8... --network sepolia" },
@@ -105,6 +114,7 @@ export const tokenAddSpec: ChainSpec = {
     "Add a token to the address book of the selected network, fetching its name,\n" +
     "symbol and decimals from the contract",
   baseFields: selectorFields,
+  exclusive: selectorGroup,
   examples: [
     { cmd: "wallet-cli token add --contract TR7... --network nile" },
     { cmd: "wallet-cli token add --contract 0xA0b8... --network sepolia" },
@@ -147,6 +157,7 @@ export const tokenRemoveSpec: ChainSpec = {
   description:
     "Remove a user-added token from the address book. Official entries cannot be\n" + "removed.",
   baseFields: selectorFields,
+  exclusive: selectorGroup,
   examples: [
     { cmd: "wallet-cli token remove --contract TR7... --network nile" },
     { cmd: "wallet-cli token remove --contract 0xA0b8... --network sepolia" },
