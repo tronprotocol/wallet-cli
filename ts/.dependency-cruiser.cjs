@@ -48,6 +48,14 @@ module.exports = {
       to: { path: "^src/(adapters/inbound|bootstrap)/" },
     },
     {
+      name: "outbound-imports-no-service-or-use-case",
+      severity: "error",
+      comment:
+        "outbound adapters import application ports and contracts, never services or use cases",
+      from: { path: "^src/adapters/outbound/", pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/application/(services|use-cases)/" },
+    },
+    {
       name: "sdk-adapters-only",
       severity: "error",
       comment:

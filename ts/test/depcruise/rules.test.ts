@@ -123,6 +123,16 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/bootstrap/marker.ts": `export const marker = 1;\n`,
       },
     },
+    {
+      rule: "outbound-imports-no-service-or-use-case",
+      importers: ["src/adapters/outbound/leak.ts", "src/adapters/outbound/use-case-leak.ts"],
+      files: {
+        "src/adapters/outbound/leak.ts": `import { marker } from "../../application/services/marker.js";\nexport const leak = marker;\n`,
+        "src/application/services/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/use-case-leak.ts": `import { marker } from "../../application/use-cases/example-service.js";\nexport const leak = marker;\n`,
+        "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
+      },
+    },
   ])("reports $rule", ({ rule, files, importers }) => {
     const dir = buildTree(files);
     try {
