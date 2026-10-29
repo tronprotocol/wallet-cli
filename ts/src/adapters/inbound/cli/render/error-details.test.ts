@@ -12,6 +12,28 @@ describe("renderErrorDetails", () => {
     { assetId: "1000488", issuerAddress: "TZx9kP2m", totalSupply: "5000000000", precision: 2 },
   ];
 
+  it("shows the submission ID and advises checking status before resending", () => {
+    expect(renderErrorDetails({ txId: "abc" })).toBe(
+      "Transaction ID: abc. Check with tx status before sending again.",
+    );
+  });
+
+  it("keeps existing detail tables alongside the transaction ID", () => {
+    const out = renderErrorDetails({ txId: "abc", matches });
+    expect(out).toContain("Transaction ID: abc");
+    expect(out).toContain(renderErrorDetails({ matches }));
+  });
+
+  it("escapes untrusted transaction ID line separators", () => {
+    expect(renderErrorDetails({ txId: "abc\nforged\r\u0085\u2028\u2029" })).toContain(
+      "abc\\nforged\\r\\u0085\\u2028\\u2029",
+    );
+  });
+
+  it.each([undefined, null, "", 42, {}])("does not render an unavailable ID %j", (txId) => {
+    expect(renderErrorDetails({ txId })).toBeNull();
+  });
+
   it("tables the candidates so a human can pick one", () => {
     const out = renderErrorDetails({ name: "MyToken", assetIds: ["1000123", "1000488"], matches });
     expect(out).toContain("ID");

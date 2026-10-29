@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, expect, it, vi } from "vitest";
 import { Interface, Transaction, Wallet } from "ethers";
 import { X402PaymentClient } from "./payment-client.js";
@@ -62,7 +63,8 @@ it.each(["56", "8453"])(
       approval = payload.extensions[extension].info;
       return new Response("ok");
     });
-    const client = new X402PaymentClient(
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
       {
         assertCanSign() {},
         resolve: () => ({
@@ -72,7 +74,8 @@ it.each(["56", "8453"])(
           signTypedData,
         }),
       } as never,
-      fetcher,
+      {} as never,
+      {} as never,
     );
     await expect(
       client.pay(

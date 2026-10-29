@@ -208,7 +208,7 @@ describe("provider network resolution", () => {
         .all()
         .map(({ id }) => ({ fqn: `demo/${id.replace(":", "-")}`, chains: [id] }));
       const catalog = new X402ProviderCatalog(async () => Response.json({ version: 1, providers }));
-      const service = new X402Service({} as never, catalog, registry);
+      const service = new X402Service({} as never, {} as never, catalog, registry);
       for (const alias of Object.keys(config.aliases)) {
         const id = registry.resolve(alias).id;
         for (const input of [alias, alias.toUpperCase()]) {

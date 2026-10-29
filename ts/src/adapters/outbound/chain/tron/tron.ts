@@ -15,7 +15,10 @@ import type {
 } from "../../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../../domain/resources/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
-import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
+import {
+  UNWIRED_BROADCAST_GUARD,
+  type BroadcastGuard,
+} from "../../../../application/contracts/broadcast-guard.js";
 import type {
   DecodedTronTransaction,
   TronContractParameter,
@@ -81,6 +84,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   #tw: InstanceType<typeof TronWeb>;
   readonly #timeoutMs: number;
   readonly #transport: HttpTransport;
+  readonly #broadcastGuard: BroadcastGuard;
   // Share one request budget across this client's raw HTTP and TronWeb providers.
   readonly #pacer = new RequestPacer({ minIntervalMs: 400, maxInFlight: 2 });
   readonly #pacedProviders = new WeakSet<object>();
@@ -88,6 +92,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     fullHostOrConfig: string | NetworkDescriptor | HttpEndpointConfig,
     timeoutMs = 60_000,
     transport?: HttpTransport,
+    guard: BroadcastGuard = UNWIRED_BROADCAST_GUARD,
   ) {
     let config: HttpEndpointConfig;
     try {
@@ -120,6 +125,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       eventServer: tronProvider(),
     });
     this.#timeoutMs = config.timeoutMs;
+    this.#broadcastGuard = guard;
     this.#transport = new PacedHttpTransport(
       transport ?? new FetchHttpTransport(config),
       this.#pacer,
@@ -173,7 +179,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return account.balance ?? "0";
   }
   async broadcast(signed: SignedTx): Promise<BroadcastResult> {
-    assertBroadcastAllowed();
+    this.#broadcastGuard.assertAllowed();
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
     try {
       // Credit pacing waits without extending the budget for stalled network requests.
@@ -187,20 +193,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         `TRON broadcast failed: ${redactErrorMessage((e as Error).message ?? "")}`,
       );
     }
-    // Node rejections can omit result entirely; only explicit true means acceptance.
-    if (res.result !== true) {
-      const reason = String(decodeTronMessage(res.message) || res.code || "rejected by node");
-      const known = classifyNodeRejection(reason, res.code);
-      // Text output reads message; include the node reason only after redaction.
-      throw new ChainError(
-        known?.code ?? "transaction_rejected",
-        known?.message
-          ? `${known.message}: ${redactErrorMessage(reason)}`
-          : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
-        { nodeCode: res.code, nodeMessage: redactErrorMessage(reason) },
-      );
-    }
-    return { txId: res.txid ?? res.transaction?.txID };
+    return broadcastResult(res);
   }
 
   prepareTransaction(
@@ -389,28 +382,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   async broadcastHex(input: string): Promise<BroadcastResult> {
-    assertBroadcastAllowed();
+    this.#broadcastGuard.assertAllowed();
     const hex = normalizeTransactionHex(input);
     decodeTransactionHex(hex);
     const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));
-    if (response.result !== true) {
-      const reason = String(
-        decodeTronMessage(response.message) || response.code || "rejected by node",
-      );
-      const known = classifyNodeRejection(reason, response.code);
-      throw new ChainError(
-        known?.code ?? "transaction_rejected",
-        known?.message
-          ? `${known.message}: ${redactErrorMessage(reason)}`
-          : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
-        { nodeCode: response.code, nodeMessage: redactErrorMessage(reason) },
-      );
-    }
-    const returnedTxId =
-      response.transaction && typeof response.transaction === "object"
-        ? response.transaction.txID
-        : undefined;
-    return { txId: response.txid ?? returnedTxId };
+    return broadcastResult(response);
   }
 
   async getUpdateAccountPermissionFee(): Promise<number> {
@@ -1880,4 +1856,39 @@ function decodeTronMessage(message?: string): string {
     }
   }
   return message;
+}
+
+function broadcastResult(response: unknown): BroadcastResult {
+  if (response === null || typeof response !== "object" || Array.isArray(response)) {
+    throw new ChainError("invalid_node_response", "TRON broadcast returned a malformed response");
+  }
+  const res = response as {
+    result?: unknown;
+    message?: unknown;
+    code?: unknown;
+    txid?: unknown;
+    transaction?: { txID?: unknown } | null;
+  };
+  // Node rejections can omit result entirely; only explicit true means acceptance.
+  if (res.result !== true) {
+    const nodeCode = typeof res.code === "string" ? res.code : undefined;
+    const reason =
+      (typeof res.message === "string" ? decodeTronMessage(res.message) : undefined) || nodeCode;
+    if (!reason) {
+      throw new ChainError(
+        "invalid_node_response",
+        "TRON broadcast returned neither acceptance nor a rejection reason",
+      );
+    }
+    const known = classifyNodeRejection(reason, nodeCode);
+    throw new ChainError(
+      known?.code ?? "transaction_rejected",
+      known?.message
+        ? `${known.message}: ${redactErrorMessage(reason)}`
+        : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
+      { nodeCode, nodeMessage: redactErrorMessage(reason) },
+    );
+  }
+  const txId = res.txid ?? res.transaction?.txID;
+  return { txId: typeof txId === "string" ? txId : undefined };
 }

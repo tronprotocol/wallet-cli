@@ -7,7 +7,12 @@ import type { TxPipeline } from "../../../services/pipeline/index.js";
 import { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import type { TokenRepository } from "../../../ports/token-repository.js";
 import { SunSwapLiquidityService } from "./liquidity-service.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import {
+  ChainError,
+  UsageError,
+  errorMessage,
+  classifyError,
+} from "../../../../domain/errors/index.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -172,7 +177,35 @@ function makeHarness(
   return { service, scope, gateway, pipeline, port, estimated, assertCanSign, callValues };
 }
 
-const BASE = { protocol: "V2", token0: USDT, token1: WTRX, amount0: "1" };
+const BASE = { protocol: "V2" as const, token0: USDT, token1: WTRX, amount0: "1" };
+
+describe("SunSwapLiquidityService.addLiquidity — protocol", () => {
+  it.each(["V5", "v3 ", "", "V2V3"])(
+    "rejects %j from a non-CLI caller before any deposit path",
+    async (protocol) => {
+      const port = makePort();
+      const { service, scope, gateway } = makeHarness(port);
+
+      await expect(
+        service.addLiquidity(scope, NETWORK, {
+          ...BASE,
+          protocol: protocol as never,
+          dryRun: true,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_value" });
+      expect(port.v2PairState).not.toHaveBeenCalled();
+      expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts a lowercase protocol", async () => {
+    const { service, scope } = makeHarness();
+
+    await expect(
+      service.addLiquidity(scope, NETWORK, { ...BASE, protocol: "v2" as never, dryRun: true }),
+    ).resolves.toMatchObject({ protocol: "V2" });
+  });
+});
 
 describe("SunSwapLiquidityService.addLiquidityV2 — planning", () => {
   it("derives the other side from the pool's reserves and floors both at 95%", async () => {
@@ -372,6 +405,35 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --build-only", () => {
 });
 
 describe("SunSwapLiquidityService.addLiquidityV2 — broadcasting", () => {
+  it("retains the deposit ID and confirmed approval IDs when submission times out", async () => {
+    const port = makePort({
+      allowance: vi
+        .fn()
+        .mockResolvedValueOnce("0")
+        .mockResolvedValueOnce("0")
+        .mockResolvedValue("999999999999"),
+    });
+    const { service, scope, pipeline } = makeHarness(port);
+    const original = new ChainError("timeout", errorMessage`node: ${"untrusted\nvalue"}`, {
+      txId: "deposit-tx",
+      nodeCode: "fixture",
+    });
+    vi.mocked(pipeline.run)
+      .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
+      .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-2" })
+      .mockRejectedValueOnce(original);
+    const error = classifyError(await service.addLiquidityV2(scope, NETWORK, BASE).catch((e) => e));
+    expect(error.code).toBe("timeout");
+    expect(error.details).toEqual({
+      txId: "deposit-tx",
+      nodeCode: "fixture",
+      approvalTxIds: ["approval-1", "approval-2"],
+    });
+    expect(error.textMessage).toBe(
+      `${original.textMessage}; approval transactions already submitted: approval-1, approval-2`,
+    );
+  });
+
   it("re-reads the allowance after each approval and refuses to deposit if it fell short", async () => {
     const port = makePort({ allowance: vi.fn(async () => "0") as never });
     const { service, scope } = makeHarness(port);
@@ -446,7 +508,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — symbols", () => {
 });
 
 describe("SunSwapLiquidityService.addLiquidityV2 — native TRX", () => {
-  const NATIVE = { protocol: "V2", token0: "TRX", token1: USDT, amount1: "1" };
+  const NATIVE = { protocol: "V2" as const, token0: "TRX", token1: USDT, amount1: "1" };
 
   it("deposits through addLiquidityETH, carrying the TRX as the call's value", async () => {
     const { service, scope, gateway, callValues } = makeHarness();
@@ -619,7 +681,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
 });
 
 describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
-  const MINT = { protocol: "V3", token0: USDT, token1: WTRX, fee: 500, amount0: "1" };
+  const MINT = { protocol: "V3" as const, token0: USDT, token1: WTRX, fee: 500, amount0: "1" };
 
   it("defaults the tier to 3000 and the range to the current tick, and says it chose them", async () => {
     const { service, scope } = makeHarness();
@@ -770,7 +832,7 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
 });
 
 describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
-  const INCREASE = { protocol: "V3", positionId: "1846", amount0: "1" };
+  const INCREASE = { protocol: "V3" as const, positionId: "1846", amount0: "1" };
 
   it("reads the pair, the tier and the range off the position", async () => {
     const { service, scope, port } = makeHarness();
@@ -1392,7 +1454,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   const signers = { resolve: vi.fn(() => ({})) };
 
   const BASE_V4 = {
-    protocol: "V4",
+    protocol: "V4" as const,
     token0: "USDT",
     token1: "WTRX",
     fee: 500,

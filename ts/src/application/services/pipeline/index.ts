@@ -11,7 +11,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { obtainSignature } from "../signing/obtain-signature.js";
-import { authoritativeTxId, localTxId as txIdOf } from "../broadcast-identity.js";
+import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 import type { TransactionExecutionMode } from "../transaction-mode.js";
 
@@ -135,8 +135,9 @@ export class TxPipeline {
       };
     }
     authorization?.assertBroadcastable();
-    const result = await p.broadcaster.broadcast(signed);
-    const txId = authoritativeTxId(txIdOf(signed), String(result.txId ?? result.hash ?? ""), (m) =>
+    const local = txIdOf(signed);
+    const result = await submitWithTxId(local, () => p.broadcaster.broadcast(signed));
+    const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
       p.ctx.warn(m),
     );
     if (!p.ctx.wait || !p.confirm || !txId) {

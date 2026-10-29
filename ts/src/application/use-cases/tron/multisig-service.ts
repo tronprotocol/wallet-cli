@@ -10,7 +10,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import { stageTronBroadcast } from "../../services/tron-confirmation.js";
-import { localTxId } from "../../services/broadcast-identity.js";
+import { localTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import type { TronSigService } from "./sig-service.js";
 import {
   assertThresholdReached,
@@ -76,10 +76,11 @@ export class TronMultisigService {
         multiSignFeeSun,
       };
     }
-    const result = await gateway.broadcastHex(hex);
+    const txId = localTxId(transaction);
+    const result = await submitWithTxId(txId, () => gateway.broadcastHex(hex));
     return {
       kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result, localTxId(transaction))),
+      ...(await stageTronBroadcast(gateway, scope, result, txId)),
       transaction: approval,
       multiSignFeeSun,
     };

@@ -9,7 +9,7 @@ const PAYLOAD: TypedDataPayload = {
   domain: { name: "x402" },
   types: { Transfer: [{ name: "from", type: "address" }] },
   primaryType: "Transfer",
-  message: { from: "0xabc" },
+  message: { from: "0xdead" },
 };
 
 const scope = (): TransactionScope & { emitted: unknown[] } => ({
@@ -37,7 +37,7 @@ describe("createPayerSigner", () => {
     });
     const resolve = vi.fn();
     const signers = { assertCanSign, resolve } as unknown as SignerResolver;
-    expect(() => createPayerSigner(signers, scope(), "evm")).toThrow(
+    expect(() => createPayerSigner(signers, scope(), { family: "evm" })).toThrow(
       expect.objectContaining({ code: "watch_only_no_signer" }),
     );
     expect(resolve).not.toHaveBeenCalled();
@@ -45,14 +45,16 @@ describe("createPayerSigner", () => {
 
   it("exposes the resolved signer's address", () => {
     const signer = { kind: "software", address: "0xdead" } as unknown as Signer;
-    expect(createPayerSigner(resolverOf(signer), scope(), "evm").address).toBe("0xdead");
+    expect(createPayerSigner(resolverOf(signer), scope(), { family: "evm" }).address).toBe(
+      "0xdead",
+    );
   });
 
   it("calls assertCanSign and resolve with the active account and family, in that order", () => {
     const signer = { kind: "software", address: "0xdead" } as unknown as Signer;
     const assertCanSign = vi.fn();
     const signers = resolverOf(signer, assertCanSign);
-    createPayerSigner(signers, scope(), "evm");
+    createPayerSigner(signers, scope(), { family: "evm" });
     expect(assertCanSign).toHaveBeenCalledWith("wlt_k", "evm");
     expect(signers.resolve).toHaveBeenCalledWith("wlt_k", "evm");
     const resolveOrder = (signers.resolve as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0];
@@ -67,7 +69,9 @@ describe("createPayerSigner", () => {
     }));
     const signer = { kind: "software", address: "0xdead", signTypedData } as unknown as Signer;
     const s = scope();
-    const out = await createPayerSigner(resolverOf(signer), s, "evm").signTypedData(PAYLOAD);
+    const out = await createPayerSigner(resolverOf(signer), s, { family: "evm" }).signTypedData(
+      PAYLOAD,
+    );
     expect(out.signature).toBe("0xsig");
     expect(signTypedData).toHaveBeenCalledWith(PAYLOAD, {});
     expect(s.emitted).toEqual([]);
@@ -82,7 +86,7 @@ describe("createPayerSigner", () => {
       signTypedData: async () => ({ signature: "0xsig", digest: "0xdig", primaryType: "Transfer" }),
     } as unknown as Signer;
     const s = scope();
-    await createPayerSigner(resolverOf(signer), s, "evm").signTypedData(PAYLOAD);
+    await createPayerSigner(resolverOf(signer), s, { family: "evm" }).signTypedData(PAYLOAD);
     expect(precheck).toHaveBeenCalledOnce();
     expect(s.emitted).toEqual([{ type: "awaiting_device", reason: "sign" }]);
   });
@@ -97,7 +101,7 @@ describe("createPayerSigner", () => {
       signTypedData: async () => ({ signature: "0xsig", digest: "0xdig", primaryType: "Transfer" }),
     } as unknown as Signer;
     const s = scope();
-    const payer = createPayerSigner(resolverOf(signer), s, "evm");
+    const payer = createPayerSigner(resolverOf(signer), s, { family: "evm" });
     await payer.signTransaction({ to: "0xdead" });
     await payer.signTypedData(PAYLOAD);
     expect(precheck).toHaveBeenCalledTimes(2);
@@ -108,7 +112,9 @@ describe("createPayerSigner", () => {
     const sign = vi.fn(async () => ({ raw: "0xraw", hash: "0xhash" }));
     const signer = { kind: "software", address: "0xdead", sign } as unknown as Signer;
     const tx = { to: "0xdead" };
-    const out = await createPayerSigner(resolverOf(signer), scope(), "evm").signTransaction(tx);
+    const out = await createPayerSigner(resolverOf(signer), scope(), {
+      family: "evm",
+    }).signTransaction(tx);
     expect(sign).toHaveBeenCalledWith(tx, {});
     expect(out).toEqual({ raw: "0xraw", hash: "0xhash" });
   });

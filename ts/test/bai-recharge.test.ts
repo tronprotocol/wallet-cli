@@ -67,7 +67,7 @@ it.each([
         log({method:'pay'});
         return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
       };
-      X402PaymentClient.prototype.pay = pay;
+      X402PaymentClient.prototype.request = async () => ({kind: "response", result: await pay()});
       if (${JSON.stringify(chain)} === "tron") X402Service.prototype.roundtrip = async () => ({serve:{},pay:await pay()});`,
       );
       for (const [to, withPassword] of [

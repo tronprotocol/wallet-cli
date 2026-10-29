@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { describe, expect, it, vi } from "vitest";
 import { Wallet, verifyTypedData } from "ethers";
 import { X402PaymentClient } from "./payment-client.js";
@@ -57,7 +58,12 @@ function fixture(wrongType = false, multiple = false) {
     }),
   );
   fetcher.mockResolvedValueOnce(new Response("ok"));
-  return { wallet, signTypedData, fetcher, client: new X402PaymentClient(resolver, fetcher) };
+  return {
+    wallet,
+    signTypedData,
+    fetcher,
+    client: new X402Service(new X402PaymentClient(fetcher), resolver, {} as never, {} as never),
+  };
 }
 
 describe("x402 SDK payer integration", () => {

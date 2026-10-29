@@ -1,3 +1,7 @@
+import {
+  barBroadcasts,
+  processBroadcastGuard,
+} from "../../../application/services/broadcast-guard.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import { GasFreeClient } from "./client.js";
@@ -42,6 +46,7 @@ describe("GasFreeClient", () => {
     const client = new GasFreeClient(
       CONFIG,
       1000,
+      processBroadcastGuard,
       fetcher as typeof fetch,
       () => 1_700_000_000_000,
     );
@@ -75,6 +80,7 @@ describe("GasFreeClient", () => {
     const client = new GasFreeClient(
       CONFIG,
       1000,
+      processBroadcastGuard,
       fetcher as typeof fetch,
       () => 1_700_000_000_000,
     );
@@ -98,6 +104,7 @@ describe("GasFreeClient", () => {
     const client = new GasFreeClient(
       CONFIG,
       1000,
+      processBroadcastGuard,
       vi.fn(async () => response({}, 401)) as typeof fetch,
     );
     await expect(client.listTokens(NETWORK)).rejects.toMatchObject({
@@ -108,9 +115,33 @@ describe("GasFreeClient", () => {
 
   it("rejects unsupported networks before sending credentials", async () => {
     const fetcher = vi.fn();
-    const client = new GasFreeClient(CONFIG, 1000, fetcher as typeof fetch);
+    const client = new GasFreeClient(CONFIG, 1000, processBroadcastGuard, fetcher as typeof fetch);
     await expect(client.listTokens({ ...NETWORK, gasfree: undefined })).rejects.toMatchObject({
       code: "unsupported_network",
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("GasFreeClient.submitTransfer dry-run guard", () => {
+  it("refuses while broadcasting is barred and sends nothing", async () => {
+    const fetcher = vi.fn(async () => response({ code: 200, data: {} }));
+    const client = new GasFreeClient(CONFIG, 1000, processBroadcastGuard, fetcher as typeof fetch);
+    await barBroadcasts("gasfree transfer --dry-run", async () => {
+      await expect(
+        client.submitTransfer(NETWORK, {
+          token: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+          serviceProvider: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+          user: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+          receiver: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+          value: "1",
+          maxFee: "1",
+          deadline: "1747909695",
+          version: "1",
+          nonce: "8",
+          sig: "00".repeat(64) + "1b",
+        }),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
     });
     expect(fetcher).not.toHaveBeenCalled();
   });

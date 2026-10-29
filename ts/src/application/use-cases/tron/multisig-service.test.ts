@@ -1,3 +1,4 @@
+import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Signer } from "../../../domain/types/index.js";
 import { encodeOperations } from "../../../domain/permission/index.js";
@@ -226,4 +227,83 @@ describe("local TRON multi-signature workflow", () => {
       code: "provider_error",
     });
   });
+});
+
+describe("TRON multisig submission outcome", () => {
+  function signedHex(expiration = NOW + 60_000) {
+    return encodeTransactionHex({
+      ...decodeTransactionHex(unsignedHex(expiration)),
+      signature: [SIG_A, SIG_B],
+    });
+  }
+
+  it.each(["timeout", "rpc_error", "invalid_node_response"])(
+    "retains the local ID and error representation on %s",
+    async (code) => {
+      const original = new ChainError(code, errorMessage`node: ${"untrusted\nvalue"}`, {
+        nodeCode: "fixture",
+      });
+      const broadcastHex = vi.fn().mockRejectedValueOnce(original);
+      const hex = signedHex();
+      const error = classifyError(
+        await service(fakeGateway({ broadcastHex }))
+          .broadcastHex(scope(), NETWORK, hex, false)
+          .catch((e) => e),
+      );
+      expect(error.toEnvelope()).toEqual({
+        code,
+        message: original.message,
+        details: { nodeCode: "fixture", txId: decodeTransactionHex(hex).txID },
+      });
+      expect(error.textMessage).toBe(original.textMessage);
+      expect(error.kind).toBe(original.kind);
+      expect(error.exitCode()).toBe(original.exitCode());
+      expect(broadcastHex).toHaveBeenCalledWith(hex);
+    },
+  );
+
+  it("preserves a definite rejection without an ID", async () => {
+    const original = new ChainError("transaction_rejected", "refused");
+    const gateway = fakeGateway({ broadcastHex: vi.fn().mockRejectedValueOnce(original) });
+    await expect(service(gateway).broadcastHex(scope(), NETWORK, signedHex(), false)).rejects.toBe(
+      original,
+    );
+    expect(original.details).toBeUndefined();
+  });
+
+  it.each(["authorization", "fee"])("does not label a pre-submit %s timeout", async (step) => {
+    const original = new ChainError("timeout", "before submission");
+    const gateway = fakeGateway({
+      [step === "authorization" ? "getSignWeight" : "getMultiSignFee"]: vi
+        .fn()
+        .mockRejectedValueOnce(original),
+    });
+    await expect(service(gateway).broadcastHex(scope(), NETWORK, signedHex(), false)).rejects.toBe(
+      original,
+    );
+    expect(original.details).toBeUndefined();
+    expect(gateway.broadcastHex).not.toHaveBeenCalled();
+  });
+
+  it.each(["expiry", "threshold", "validation"])(
+    "does not attach an ID on %s failure",
+    async (step) => {
+      const gateway = fakeGateway();
+      const hex = step === "expiry" ? signedHex(NOW) : step === "threshold" ? unsignedHex() : "00";
+      const error = classifyError(
+        await service(gateway)
+          .broadcastHex(scope(), NETWORK, hex, false)
+          .catch((e) => e),
+      );
+      expect(error.code).toBe(
+        step === "expiry"
+          ? "tx_expired"
+          : step === "threshold"
+            ? "not_authorized"
+            : "invalid_transaction",
+      );
+      expect(error.details ?? {}).not.toHaveProperty("txId");
+      expect(gateway.broadcastHex).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Wallet } from "ethers";
 import { TronWeb, providers } from "tronweb";
@@ -98,7 +99,12 @@ async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outc
     out,
   );
   try {
-    out.result = await new X402PaymentClient(signers, fetcher).pay(
+    out.result = await new X402Service(
+      new X402PaymentClient(fetcher),
+      signers,
+      {} as never,
+      {} as never,
+    ).pay(
       scope,
       {
         family: "evm",
@@ -152,7 +158,12 @@ async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Ou
     out,
   );
   try {
-    out.result = await new X402PaymentClient(signers, fetcher).pay(
+    out.result = await new X402Service(
+      new X402PaymentClient(fetcher),
+      signers,
+      {} as never,
+      {} as never,
+    ).pay(
       scope,
       {
         id: "tron:728126428",

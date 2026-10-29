@@ -1,3 +1,5 @@
+import { barBroadcasts } from "../../../application/services/broadcast-guard.js";
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { describe, expect, it, vi } from "vitest";
 import { X402PaymentClient } from "./payment-client.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
@@ -39,7 +41,12 @@ describe("X402PaymentClient", () => {
           headers: { "content-type": "application/json" },
         }),
     );
-    const client = new X402PaymentClient(localResolver, fetcher as typeof fetch);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher as typeof fetch),
+      localResolver,
+      {} as never,
+      {} as never,
+    );
 
     await expect(
       client.pay(scope, net, {
@@ -78,7 +85,12 @@ describe("X402PaymentClient", () => {
           headers: { "content-type": "application/json" },
         }),
     );
-    const client = new X402PaymentClient(localResolver, fetcher as typeof fetch);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher as typeof fetch),
+      localResolver,
+      {} as never,
+      {} as never,
+    );
 
     await expect(
       client.pay(scope, net, {
@@ -105,7 +117,12 @@ describe("X402PaymentClient", () => {
         }),
     );
     const factory = vi.fn(async () => paidFetch as typeof fetch);
-    const client = new X402PaymentClient(resolver, globalThis.fetch, factory);
+    const client = new X402Service(
+      new X402PaymentClient(challengeFetch, factory),
+      resolver,
+      {} as never,
+      {} as never,
+    );
 
     await expect(
       client.pay(scope, net, {
@@ -122,12 +139,45 @@ describe("X402PaymentClient", () => {
       payer: { address: signer.address },
     });
     expect(resolver.assertCanSign).toHaveBeenCalledWith("acc_1", "evm");
-    expect(factory).toHaveBeenCalledWith(net, signer, scope);
+    expect(factory).toHaveBeenCalledWith(
+      net,
+      {
+        address: signer.address,
+        signTypedData: expect.any(Function),
+        signTransaction: expect.any(Function),
+        signPermit2Approval: expect.any(Function),
+      },
+      scope,
+    );
+  });
+
+  it("refuses to pay while broadcasting is barred, before any signing or paid request", async () => {
+    const paidFetch = vi.fn(async () => new Response("paid"));
+    const factory = vi.fn(async () => paidFetch as typeof fetch);
+    const client = new X402Service(
+      new X402PaymentClient(challengeFetch, factory),
+      resolver,
+      {} as never,
+      {} as never,
+    );
+
+    await barBroadcasts("x402 pay --dry-run", async () => {
+      await expect(
+        client.pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] }),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+    });
+    expect(factory).not.toHaveBeenCalled();
+    expect(paidFetch).not.toHaveBeenCalled();
   });
 
   it("rejects malformed headers before making a request", async () => {
     const factory = vi.fn();
-    const client = new X402PaymentClient(resolver, globalThis.fetch, factory);
+    const client = new X402Service(
+      new X402PaymentClient(challengeFetch, factory),
+      resolver,
+      {} as never,
+      {} as never,
+    );
     await expect(
       client.pay(scope, net, {
         url: "https://api.example/paid",
@@ -148,10 +198,14 @@ describe("X402PaymentClient", () => {
           headers: { "content-type": "application/octet-stream" },
         }),
     );
-    const client = new X402PaymentClient(
+    const client = new X402Service(
+      new X402PaymentClient(
+        challengeFetch,
+        vi.fn(async () => paidFetch as typeof fetch),
+      ),
       resolver,
-      globalThis.fetch,
-      vi.fn(async () => paidFetch as typeof fetch),
+      {} as never,
+      {} as never,
     );
 
     const result = await client.pay(scope, net, {
@@ -182,10 +236,14 @@ describe("X402PaymentClient", () => {
       const fetcher = vi.fn();
       const paidFetch = vi.fn();
       const localResolver = { assertCanSign: vi.fn(), resolve: vi.fn(() => signer) } as never;
-      const client = new X402PaymentClient(
+      const client = new X402Service(
+        new X402PaymentClient(
+          fetcher as typeof fetch,
+          vi.fn(async () => paidFetch as typeof fetch),
+        ),
         localResolver,
-        fetcher as typeof fetch,
-        vi.fn(async () => paidFetch as typeof fetch),
+        {} as never,
+        {} as never,
       );
       await expect(
         client.pay(scope, net, {
@@ -211,7 +269,12 @@ describe("X402PaymentClient", () => {
     const fetcher = vi.fn(async () => {
       throw new Error("connection refused");
     });
-    const client = new X402PaymentClient(resolver, fetcher as typeof fetch);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher as typeof fetch),
+      resolver,
+      {} as never,
+      {} as never,
+    );
     await expect(
       client.pay(scope, net, {
         url: "https://api.example/file",
@@ -236,16 +299,20 @@ it.each([
   ],
   [{ success: "false", transaction: "", network: "eip155:56" }, false],
 ])("only marks a successful matching settlement as settled (%j)", async (header, settled) => {
-  const client = new X402PaymentClient(
+  const client = new X402Service(
+    new X402PaymentClient(
+      async () =>
+        new Response("{}", {
+          status: 502,
+          headers: {
+            "content-type": "application/json",
+            "payment-response": Buffer.from(JSON.stringify(header)).toString("base64"),
+          },
+        }),
+    ),
     resolver,
-    async () =>
-      new Response("{}", {
-        status: 502,
-        headers: {
-          "content-type": "application/json",
-          "payment-response": Buffer.from(JSON.stringify(header)).toString("base64"),
-        },
-      }),
+    {} as never,
+    {} as never,
   );
   const pending = client.pay(scope, net, {
     url: "https://example.test",
@@ -267,22 +334,26 @@ it.each([
   const transaction = "0x" + "a".repeat(64);
   for (const status of [200, 502]) {
     for (const header of ["payment-response", "x-payment-response"]) {
-      const client = new X402PaymentClient(
+      const client = new X402Service(
+        new X402PaymentClient(
+          async () =>
+            new Response("not JSON", {
+              status,
+              headers: {
+                [header]: Buffer.from(
+                  JSON.stringify({
+                    success: false,
+                    errorReason: reason,
+                    transaction,
+                    network: "eip155:56",
+                  }),
+                ).toString("base64"),
+              },
+            }),
+        ),
         resolver,
-        async () =>
-          new Response("not JSON", {
-            status,
-            headers: {
-              [header]: Buffer.from(
-                JSON.stringify({
-                  success: false,
-                  errorReason: reason,
-                  transaction,
-                  network: "eip155:56",
-                }),
-              ).toString("base64"),
-            },
-          }),
+        {} as never,
+        {} as never,
       );
       const error = await client
         .pay(scope, net, {
@@ -310,22 +381,26 @@ it.each([
 });
 
 it("classifies a failed settlement without a transaction hash", async () => {
-  const client = new X402PaymentClient(
+  const client = new X402Service(
+    new X402PaymentClient(
+      async () =>
+        new Response("{}", {
+          status: 502,
+          headers: {
+            "payment-response": Buffer.from(
+              JSON.stringify({
+                success: false,
+                errorReason: "insufficient_funds",
+                transaction: "",
+                network: "eip155:56",
+              }),
+            ).toString("base64"),
+          },
+        }),
+    ),
     resolver,
-    async () =>
-      new Response("{}", {
-        status: 502,
-        headers: {
-          "payment-response": Buffer.from(
-            JSON.stringify({
-              success: false,
-              errorReason: "insufficient_funds",
-              transaction: "",
-              network: "eip155:56",
-            }),
-          ).toString("base64"),
-        },
-      }),
+    {} as never,
+    {} as never,
   );
   await expect(
     client.pay(scope, net, {
@@ -339,22 +414,26 @@ it("bounds oversized 402 bodies before the SDK or signer handles them", async ()
   let pulled = 0;
   const cancel = vi.fn();
   const local = { assertCanSign: vi.fn(), resolve: vi.fn() } as unknown as SignerResolver;
-  const client = new X402PaymentClient(
-    local,
-    async () =>
-      new Response(
-        new ReadableStream(
-          {
-            pull(c) {
-              pulled++;
-              c.enqueue(new Uint8Array(1024 * 1024));
+  const client = new X402Service(
+    new X402PaymentClient(
+      async () =>
+        new Response(
+          new ReadableStream(
+            {
+              pull(c) {
+                pulled++;
+                c.enqueue(new Uint8Array(1024 * 1024));
+              },
+              cancel,
             },
-            cancel,
-          },
-          { highWaterMark: 0 },
+            { highWaterMark: 0 },
+          ),
+          { status: 402 },
         ),
-        { status: 402 },
-      ),
+    ),
+    local,
+    {} as never,
+    {} as never,
   );
   await expect(
     client.pay(scope, net, { url: "https://example.test", method: "GET", headers: [] }),
@@ -382,7 +461,12 @@ it("retains settlement when the paid response is malformed JSON", async () => {
         },
       }),
   );
-  const client = new X402PaymentClient(resolver, globalThis.fetch, async () => paidFetch);
+  const client = new X402Service(
+    new X402PaymentClient(challengeFetch, async () => paidFetch),
+    resolver,
+    {} as never,
+    {} as never,
+  );
   const error = await client
     .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
     .catch((error) => error);
@@ -427,7 +511,12 @@ it.each([
   const paidFetch = vi.fn(async () => {
     throw new Error(message);
   });
-  const client = new X402PaymentClient(resolver, globalThis.fetch, async () => paidFetch);
+  const client = new X402Service(
+    new X402PaymentClient(challengeFetch, async () => paidFetch),
+    resolver,
+    {} as never,
+    {} as never,
+  );
   const error = await client
     .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
     .catch((error) => error);
@@ -446,10 +535,11 @@ it("retains settlement when reading the paid body exceeds its limit", async () =
       ).toString("base64"),
     },
   });
-  const client = new X402PaymentClient(
+  const client = new X402Service(
+    new X402PaymentClient(challengeFetch, async () => async () => response),
     resolver,
-    globalThis.fetch,
-    async () => async () => response,
+    {} as never,
+    {} as never,
   );
   await expect(
     client.pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] }),
@@ -462,14 +552,18 @@ it("retains settlement when reading the paid body exceeds its limit", async () =
 it.each(["verify", "settle"])(
   "exposes a sanitized facilitator failure in phase %s",
   async (phase) => {
-    const client = new X402PaymentClient(
+    const client = new X402Service(
+      new X402PaymentClient(
+        challengeFetch,
+        async () => async () =>
+          Response.json(
+            { phase, code: "permit2_allowance_required", error: "SECRET" },
+            { status: 502 },
+          ),
+      ),
       resolver,
-      globalThis.fetch,
-      async () => async () =>
-        Response.json(
-          { phase, code: "permit2_allowance_required", error: "SECRET" },
-          { status: 502 },
-        ),
+      {} as never,
+      {} as never,
     );
     const error = await client
       .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
@@ -483,21 +577,25 @@ it.each(["verify", "settle"])(
 );
 
 it("retains safe failed-settlement evidence from the local paywall without marking it paid", async () => {
-  const client = new X402PaymentClient(
+  const client = new X402Service(
+    new X402PaymentClient(
+      challengeFetch,
+      async () => async () =>
+        Response.json(
+          {
+            phase: "settle",
+            reason: "invalid_transaction_state",
+            candidateTxHash: "a".repeat(64),
+            candidateNetwork: "tron:0x2b6653dc",
+            httpStatus: 503,
+            error: "SECRET",
+          },
+          { status: 502 },
+        ),
+    ),
     resolver,
-    globalThis.fetch,
-    async () => async () =>
-      Response.json(
-        {
-          phase: "settle",
-          reason: "invalid_transaction_state",
-          candidateTxHash: "a".repeat(64),
-          candidateNetwork: "tron:0x2b6653dc",
-          httpStatus: 503,
-          error: "SECRET",
-        },
-        { status: 502 },
-      ),
+    {} as never,
+    {} as never,
   );
   const error = await client
     .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
@@ -519,14 +617,18 @@ it("retains safe failed-settlement evidence from the local paywall without marki
 it.each(["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "SECRET"])(
   "preserves only safe paywall transport codes: %s",
   async (transportCode) => {
-    const client = new X402PaymentClient(
+    const client = new X402Service(
+      new X402PaymentClient(
+        challengeFetch,
+        async () => async () =>
+          Response.json(
+            { phase: "settle", reason: "connection_failed", transportCode, error: "SECRET" },
+            { status: 502 },
+          ),
+      ),
       resolver,
-      globalThis.fetch,
-      async () => async () =>
-        Response.json(
-          { phase: "settle", reason: "connection_failed", transportCode, error: "SECRET" },
-          { status: 502 },
-        ),
+      {} as never,
+      {} as never,
     );
     const error = await client
       .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
@@ -553,7 +655,12 @@ it.each([
 ] as const)("fails initial HTTP %s without signing or retrying", async (status, body, code) => {
   const fetcher = vi.fn(async () => Response.json(body, { status }));
   const resolve = vi.fn();
-  const client = new X402PaymentClient({ resolve } as unknown as SignerResolver, fetcher);
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    { resolve } as unknown as SignerResolver,
+    {} as never,
+    {} as never,
+  );
   await expect(
     client.pay(scope, net, { url: "https://example.test/a", method: "GET", headers: [] }),
   ).rejects.toMatchObject({
@@ -566,11 +673,16 @@ it.each([
 it.each(["tron:3448148188", "tron:0xcd8690dc"])(
   "matches incoming %s without changing chain identity",
   async (network) => {
-    const client = new X402PaymentClient(resolver, async () =>
-      Response.json(
-        { accepts: [{ network, scheme: "exact", amount: "1", asset: "unknown" }] },
-        { status: 402 },
+    const client = new X402Service(
+      new X402PaymentClient(async () =>
+        Response.json(
+          { accepts: [{ network, scheme: "exact", amount: "1", asset: "unknown" }] },
+          { status: 402 },
+        ),
       ),
+      resolver,
+      {} as never,
+      {} as never,
     );
     await expect(
       client.pay(
@@ -615,9 +727,11 @@ it.each([
       { status: 402 },
     ),
   );
-  const client = new X402PaymentClient(
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
     { resolve, assertCanSign: vi.fn() } as unknown as SignerResolver,
-    fetcher,
+    {} as never,
+    {} as never,
   );
   await expect(
     client.pay(scope, net, {
@@ -630,3 +744,142 @@ it.each([
   expect(resolve).not.toHaveBeenCalled();
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  {},
+  { expectedPayTo: signer.address },
+  { exactAmount: "0.000000000000000001" },
+  {
+    expectedPayTo: signer.address,
+    exactAmount: "0.000000000000000001",
+  },
+])("never enters an injected paid-fetch factory during inspection (%j)", async (constraints) => {
+  const factory = vi.fn(async () => async () => new Response("paid"));
+  const fetcher = vi.fn(async () =>
+    Response.json(
+      {
+        accepts: [
+          {
+            scheme: "exact",
+            network: net.id,
+            amount: "1",
+            asset: "0x55d398326f99059fF775485246999027B3197955",
+            payTo: signer.address,
+          },
+        ],
+      },
+      { status: 402 },
+    ),
+  );
+  const local = {
+    assertCanSign: vi.fn(),
+    resolve: vi.fn(() => signer),
+  } as unknown as SignerResolver;
+  const client = new X402Service(
+    new X402PaymentClient(fetcher, factory),
+    local,
+    {} as never,
+    {} as never,
+  );
+  await expect(
+    client.pay(scope, net, {
+      url: "https://example.test",
+      method: "GET",
+      headers: [],
+      dryRun: true,
+      ...constraints,
+    }),
+  ).resolves.toMatchObject({ dryRun: true, paymentRequired: true });
+  expect(factory).not.toHaveBeenCalled();
+  expect(local.resolve).not.toHaveBeenCalled();
+});
+
+function challengeFetch(): Promise<Response> {
+  return Promise.resolve(
+    Response.json(
+      {
+        accepts: [
+          {
+            scheme: "exact",
+            network: net.id,
+            amount: "1",
+            asset: "0x55d398326f99059fF775485246999027B3197955",
+            payTo: signer.address,
+          },
+        ],
+      },
+      { status: 402 },
+    ),
+  );
+}
+
+it("does not resolve or prepare a payer or invoke a paid factory for a free response", async () => {
+  const sign = vi.fn();
+  const local = {
+    prepare: vi.fn(),
+    assertCanSign: vi.fn(),
+    resolve: vi.fn(() => ({ address: signer.address, sign })),
+  };
+  const factory = vi.fn();
+  const fetcher = vi.fn(async () => new Response("free"));
+  const service = new X402Service(
+    new X402PaymentClient(fetcher, factory),
+    local as unknown as SignerResolver,
+    {} as never,
+    {} as never,
+  );
+  await expect(
+    service.pay(scope, net, { url: "https://example.test", method: "GET", headers: [] }),
+  ).resolves.toMatchObject({ response: "free", settled: false });
+  expect(local.prepare).not.toHaveBeenCalled();
+  expect(local.assertCanSign).not.toHaveBeenCalled();
+  expect(local.resolve).not.toHaveBeenCalled();
+  expect(sign).not.toHaveBeenCalled();
+  expect(factory).not.toHaveBeenCalled();
+  expect(fetcher).toHaveBeenCalledOnce();
+});
+
+it.each(["preview", "payer-failure", "payment-failure"])(
+  "releases the challenge output reservation after %s",
+  async (mode) => {
+    const directory = await mkdtemp(join(tmpdir(), "x402-challenge-out-"));
+    const out = join(directory, "response.bin");
+    const factory = vi.fn(async () => {
+      throw new Error("payment failed");
+    });
+    const local = {
+      assertCanSign: vi.fn(),
+      resolve: vi.fn(() => {
+        if (mode === "payer-failure") throw new Error("cannot resolve payer");
+        return signer;
+      }),
+    } as unknown as SignerResolver;
+    const service = new X402Service(
+      new X402PaymentClient(challengeFetch, factory),
+      local,
+      {} as never,
+      {} as never,
+    );
+    try {
+      const result = service.pay(scope, net, {
+        url: "https://example.test",
+        method: "GET",
+        headers: [],
+        out,
+        dryRun: mode === "preview",
+      });
+      if (mode === "preview") await expect(result).resolves.toMatchObject({ dryRun: true });
+      else
+        await expect(result).rejects.toMatchObject({
+          details: {
+            paymentStatus: mode === "payment-failure" ? "unknown" : "not_sent",
+            retryPayment: false,
+          },
+        });
+      await expect(readFile(out)).rejects.toMatchObject({ code: "ENOENT" });
+      expect(factory).toHaveBeenCalledTimes(mode === "payment-failure" ? 1 : 0);
+    } finally {
+      await rm(directory, { recursive: true });
+    }
+  },
+);

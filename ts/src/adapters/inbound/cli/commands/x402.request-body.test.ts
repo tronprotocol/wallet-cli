@@ -29,9 +29,9 @@ async function stdin(bytes: Buffer<ArrayBuffer>) {
   });
 }
 
-function command(client: X402PaymentClient) {
+function command(service: X402Service) {
   const registry = new CommandRegistry();
-  registerX402Commands(registry, new X402Service(client, {} as never, {} as never));
+  registerX402Commands(registry, service);
   return registry.resolveNeutral(["x402", "pay"])!;
 }
 
@@ -74,7 +74,20 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
       authorization.push(request.headers["payment-signature"] as string | undefined);
       response.statusCode = retry && received.length === 1 ? 402 : 200;
       response.setHeader("content-type", "text/plain");
-      response.end("ok");
+      response.end(
+        response.statusCode === 402
+          ? JSON.stringify({
+              accepts: [
+                {
+                  scheme: "exact",
+                  network: network.id,
+                  amount: "1",
+                  asset: "0x55d398326f99059fF775485246999027B3197955",
+                },
+              ],
+            })
+          : "ok",
+      );
     });
     const resolver = {
       assertCanSign: vi.fn(),
@@ -82,9 +95,6 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
     } as unknown as SignerResolver;
     // Use a fixed payment header; no real signing or payment occurs.
     const paidFetch: typeof fetch = async (url, init) => {
-      const initial = await fetch(url, init);
-      if (initial.status !== 402) return initial;
-      await initial.arrayBuffer();
       const headers = new Headers(init?.headers);
       headers.set("payment-signature", "test-only");
       return fetch(url, { ...init, headers });
@@ -95,10 +105,11 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
       await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
       const address = server.address();
       if (!address || typeof address === "string") throw new Error("missing server port");
-      const client = new X402PaymentClient(
+      const client = new X402Service(
+        new X402PaymentClient(globalThis.fetch, retry ? async () => paidFetch : undefined),
         resolver,
-        globalThis.fetch,
-        retry ? async () => paidFetch : undefined,
+        {} as never,
+        {} as never,
       );
       await command(client).run(context() as never, network, {
         url: `http://127.0.0.1:${address.port}`,
@@ -130,16 +141,14 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
     try {
       await writeFile(path, bytes);
       if (source === "stdin") await stdin(bytes);
-      const result = command(new X402PaymentClient({} as never, fetcher)).run(
-        context() as never,
-        network,
-        {
-          url: "http://example.test",
-          method: "POST",
-          header: [],
-          bodyFile: source === "stdin" ? "-" : path,
-        },
-      );
+      const result = command(
+        new X402Service(new X402PaymentClient(fetcher), {} as never, {} as never, {} as never),
+      ).run(context() as never, network, {
+        url: "http://example.test",
+        method: "POST",
+        header: [],
+        bodyFile: source === "stdin" ? "-" : path,
+      });
       if (length === 1_048_576) {
         await expect(result).resolves.toMatchObject({ delivered: true });
         expect(fetcher).toHaveBeenCalledOnce();
@@ -158,7 +167,9 @@ it("keeps inline --body as text", async () => {
     expect(init?.body).toBe("中文\r\n");
     return new Response("ok");
   });
-  await command(new X402PaymentClient({} as never, fetcher)).run(context() as never, network, {
+  await command(
+    new X402Service(new X402PaymentClient(fetcher), {} as never, {} as never, {} as never),
+  ).run(context() as never, network, {
     url: "http://example.test",
     method: "POST",
     header: [],

@@ -46,7 +46,8 @@ it.each([
       );
     });
     const service = new X402Service(
-      new X402PaymentClient(resolver),
+      new X402PaymentClient(),
+      resolver,
       {} as ProviderCatalogPort,
       {} as never,
       new X402HttpServer(facilitator as typeof fetch),
@@ -102,7 +103,8 @@ it.each([
     return Response.json({ transaction, network: "eip155:97", payer, ...body }, { status });
   };
   const service = new X402Service(
-    new X402PaymentClient(resolver),
+    new X402PaymentClient(),
+    resolver,
     {} as ProviderCatalogPort,
     {} as never,
     new X402HttpServer(facilitator),
@@ -148,7 +150,8 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
         : { success: true, transaction, network: "eip155:56", payer },
     );
   const service = new X402Service(
-    new X402PaymentClient(resolver),
+    new X402PaymentClient(),
+    resolver,
     {} as ProviderCatalogPort,
     {} as never,
     new X402HttpServer(facilitator),

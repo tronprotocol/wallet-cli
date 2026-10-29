@@ -7,7 +7,7 @@ import type {
 } from "../../../domain/types/index.js";
 import { Transaction } from "ethers";
 import { ChainError, ExecutionError } from "../../../domain/errors/index.js";
-import { authoritativeTxId } from "../../services/broadcast-identity.js";
+import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { evmChecksumAddress } from "../../../domain/address/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
@@ -253,8 +253,10 @@ export class EvmTransactionService {
     const gateway = this.gateways.get(network, "evm");
     if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
     assertChainId(parsed, network);
-    const result = await gateway.sendRawTransaction(parsed.serialized);
-    const txId = authoritativeTxId(parsed.hash ?? undefined, result.hash, (m) => scope.warn(m));
+    const local = parsed.hash ?? undefined;
+    const serialized = parsed.serialized;
+    const result = await submitWithTxId(local, () => gateway.sendRawTransaction(serialized));
+    const txId = authoritativeTxId(local, result.hash, (m) => scope.warn(m));
     const submitted = {
       stage: "submitted" as const,
       ...result,

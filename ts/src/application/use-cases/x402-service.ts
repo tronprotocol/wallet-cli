@@ -1,4 +1,10 @@
+import { createPayerSigner, preparePayerSigner } from "../services/x402/payer-signer.js";
+import type { SignerResolver } from "../services/signer/index.js";
+import { processBroadcastGuard } from "../services/broadcast-guard.js";
+import type { Permit2Approver, X402PaymentFacts } from "../contracts/x402-payer.js";
+import type { X402Permit2Approvals } from "./x402-permit2-approval.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import { ExecutionError } from "../../domain/errors/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { ProviderCatalogPort, ProviderListInput } from "../ports/provider-catalog.js";
 import type { X402PayInput, X402PaymentPort } from "../ports/x402-payment.js";
@@ -9,17 +15,58 @@ import type { NetworkRegistry } from "../ports/network-registry.js";
 export class X402Service {
   constructor(
     private readonly payments: X402PaymentPort,
+    private readonly signers: SignerResolver,
     private readonly catalog: ProviderCatalogPort,
     private readonly networks: Pick<NetworkRegistry, "resolve">,
     private readonly server?: X402ServerPort,
+    private readonly approvals?: Pick<X402Permit2Approvals, "approver">,
   ) {}
 
   prepare(scope: TransactionScope, network: NetworkDescriptor): void {
-    this.payments.prepare(scope, network);
+    preparePayerSigner(this.signers, scope, network.family);
   }
 
-  pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
-    return this.payments.pay(scope, network, input);
+  async pay(scope: TransactionScope, network: NetworkDescriptor, input: X402PayInput) {
+    const { dryRun, ...request } = input;
+    const resource = await this.payments.request(scope, network, request);
+    if (resource.kind === "response") return resource.result;
+    try {
+      if (dryRun) return resource.inspection;
+      const { facts } = resource;
+      const payer = createPayerSigner(this.signers, scope, {
+        family: network.family,
+        ...(request.maxGasfreeFeeRaw === undefined
+          ? {}
+          : { maxGasfreeFeeRaw: request.maxGasfreeFeeRaw }),
+        ...(request.maxGasfreeFee === undefined ? {} : { maxGasfreeFee: request.maxGasfreeFee }),
+        gasfreeFeeDecimals: (token) => facts.tokenDecimals(token),
+        // Only the Permit2 approval a TRON payment needs may be signed as a transaction.
+        ...(network.family === "tron" && facts.permit2 ? { approveIntent: facts.permit2 } : {}),
+      });
+      return await resource.pay({
+        payer,
+        approver: this.#approver(scope, network, facts),
+        guard: processBroadcastGuard,
+      });
+    } finally {
+      await resource.close();
+    }
+  }
+
+  #approver(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    facts: X402PaymentFacts,
+  ): Permit2Approver {
+    if (this.approvals) return this.approvals.approver(scope, network, facts);
+    return {
+      approve: async () => {
+        throw new ExecutionError(
+          "internal_error",
+          "no Permit2 approval path is wired to the x402 service; nothing was submitted",
+        );
+      },
+    };
   }
 
   providerList(input: ProviderListInput) {
@@ -63,7 +110,7 @@ export class X402Service {
     if (!this.server) throw new Error("x402 server is not available in this runtime");
     const handle = await this.server.start(network, { ...input, accessLog: "debug" });
     try {
-      const pay = await this.payments.pay(scope, network, {
+      const pay = await this.pay(scope, network, {
         url: String(handle.details.payUrl),
         method: "GET",
         headers: [],

@@ -25,9 +25,20 @@ function cell(key: string, row: Obj): string {
   return formatScalar(value);
 }
 
-// Render details.matches using the first row's keys as columns; return null for no columns.
 export function renderErrorDetails(details: unknown): string | null {
-  const rows = asObj(details).matches;
+  const { txId, matches } = asObj(details);
+  const lines: string[] = [];
+  if (typeof txId === "string" && txId !== "") {
+    lines.push(
+      `Transaction ID: ${singleLineErrorValue(txId)}. Check with tx status before sending again.`,
+    );
+  }
+  const candidates = renderMatches(matches);
+  if (candidates) lines.push(candidates);
+  return lines.length === 0 ? null : lines.join("\n");
+}
+
+function renderMatches(rows: unknown): string | null {
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const objects = rows.map(asObj);
   const keys = Object.keys(objects[0] ?? {});

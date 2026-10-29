@@ -1,10 +1,17 @@
+import { X402Service } from "../../../../application/use-cases/x402-service.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactService } from "../../../../application/use-cases/contact-service.js";
 import type { ContactRepository } from "../../../../application/ports/contact-repository.js";
-import { CliError, normalizeError, UsageError } from "../../../../domain/errors/index.js";
+import {
+  CliError,
+  normalizeError,
+  UsageError,
+  ChainError,
+  errorMessage,
+} from "../../../../domain/errors/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { readBoundedTextFile } from "../commands/artifact.js";
@@ -170,7 +177,7 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
   it("preserves a keystore error's safe text through payment preparation", () => {
     const keystore = new Keystore(root(), new AtomicFileStore(), () => "unused");
     const resolver = new SignerResolver(keystore, {} as never, {} as never);
-    const client = new X402PaymentClient(resolver);
+    const client = new X402Service(new X402PaymentClient(), resolver, {} as never, {} as never);
     const error = thrown(() =>
       client.prepare({ activeAccount: "missing\nFAKE_LOG" } as never, { family: "tron" } as never),
     );
@@ -213,5 +220,22 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     expect(JSON.parse(render(error, "json")).error.details.matches[0].label).toBe(
       "watch\nFAKE_LOG",
     );
+  });
+});
+
+describe("submission error output", () => {
+  it("escapes text while retaining raw message and transaction ID in JSON", () => {
+    const txId = "abc\nforged\u001b[31m";
+    const error = new ChainError("timeout", errorMessage`node: ${"lost\nreply"}`, { txId });
+    const text = render(error, "text");
+    expect(text).toContain("node: lost\\nreply");
+    expect(text).toContain("Transaction ID: abc\\nforged");
+    expect(text).toContain("Check with tx status before sending again.");
+    expect(text).not.toContain("\u001b");
+    expect(JSON.parse(render(error, "json")).error).toEqual({
+      code: "timeout",
+      message: "node: lost\nreply",
+      details: { txId },
+    });
   });
 });

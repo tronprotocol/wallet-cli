@@ -264,12 +264,7 @@ async function executeChainCommand(
 
   const ctx = buildExecutionContext(globals, deps);
   if (spec.wallet !== "none") void ctx.activeAccount;
-  // Bar broadcasts during dry-run even if a family binding ignores the flag.
-  const run = () => binding.run(ctx, net, input);
-  const data =
-    spec.broadcasts && (input as { dryRun?: unknown }).dryRun === true
-      ? await barBroadcasts(`${spec.path.join(" ")} --dry-run`, run)
-      : await run();
+  const data = await barredDuringDryRun(spec, input, () => binding.run(ctx, net, input));
   streams.result(
     formatter.success(id, net, data, spec.formatText, activeAccountLabel(spec, ctx, deps)),
   );
@@ -326,12 +321,23 @@ async function executeCommand(
   const ctx = buildExecutionContext(globals, deps);
   if (cmd.wallet !== "none") void ctx.activeAccount; // Resolve the account before running the command.
 
-  const data = await cmd.run(ctx, net, input);
+  const data = await barredDuringDryRun(cmd, input, () => cmd.run(ctx, net, input));
   const resultId = cmd.commandIdFor?.(input) ?? commandId(cmd);
   session.current = { commandId: resultId, net };
   streams.result(
     formatter.success(resultId, net, data, cmd.formatText, activeAccountLabel(cmd, ctx, deps)),
   );
+}
+
+// Bar broadcasts during dry-run even if a use case ignores the flag.
+function barredDuringDryRun<T>(
+  cmd: Pick<CommandExecutionSpec, "path">,
+  input: unknown,
+  run: () => Promise<T>,
+): Promise<T> {
+  return (input as { dryRun?: unknown }).dryRun === true
+    ? barBroadcasts(`${cmd.path.join(" ")} --dry-run`, run)
+    : run();
 }
 
 function requireResolvedNetwork(

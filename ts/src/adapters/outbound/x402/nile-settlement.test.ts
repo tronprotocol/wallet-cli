@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Interface, Wallet } from "ethers";
 import { TronWeb, providers, utils as tronUtils } from "tronweb";
@@ -142,7 +143,12 @@ it.each([true, false])(
         },
       });
     });
-    const client = new X402PaymentClient(signers as never, fetcher);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      signers as never,
+      {} as never,
+      {} as never,
+    );
     const payment = client.pay(
       { activeAccount: "payer", timeoutMs: 1000, emit: vi.fn() } as never,
       {

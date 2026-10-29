@@ -13,6 +13,7 @@ import type {
   NetworkDescriptor,
   TronTransactionArtifact,
 } from "../../../domain/types/index.js";
+import type { BroadcastGuard } from "../../../application/contracts/broadcast-guard.js";
 import { CliError, ChainError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import {
   encodeTronLinkQuery,
@@ -45,6 +46,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
   constructor(
     private readonly config: Config,
     private readonly timeoutMs: number,
+    private readonly guard: BroadcastGuard,
     private readonly fetchImpl: Fetch = globalThis.fetch,
     private readonly clock: () => number = () => Date.now(),
     private readonly uuid: () => string = randomUUID,
@@ -79,6 +81,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     address: string,
     transaction: TronTransactionArtifact,
   ): Promise<void> {
+    this.guard.assertAllowed();
     const credentials = this.#credentials();
     const path = "/multi/transaction";
     const auth = tronLinkAuthParameters(credentials, this.clock, this.uuid);

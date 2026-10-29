@@ -187,7 +187,8 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     }),
   };
   const payments = new X402Service(
-    new X402PaymentClient(signing as never),
+    new X402PaymentClient(),
+    signing as never,
     {} as never,
     {} as never,
     new X402HttpServer(undefined, 1000, () => {}),
@@ -270,7 +271,8 @@ it("checks relay configuration before creating any preorder", async () => {
   const { X402HttpServer } = await import("../../adapters/outbound/x402/server.js");
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
   const payments = new X402Service(
-    new X402PaymentClient({} as never),
+    new X402PaymentClient(),
+    {} as never,
     {} as never,
     {} as never,
     new X402HttpServer(),
@@ -427,3 +429,56 @@ it("previews an unbound wallet with a warning without unlocking, signing, bindin
   expect(f.payments.prepare).not.toHaveBeenCalled();
   expect(f.api.createOrder).not.toHaveBeenCalled();
 });
+
+it.each([false, true])(
+  "runs application signer preparation before binding and preorder (failure=%s)",
+  async (failure) => {
+    const { X402Service } = await import("./x402-service.js");
+    const { WalletError } = await import("../../domain/errors/index.js");
+    const f = liveBindingFixture();
+    const prepare = vi.fn(() => {
+      f.calls.push("prepare");
+      if (failure) throw new WalletError("watch_only_no_signer", "cannot sign");
+    });
+    const close = vi.fn(async () => {});
+    const request = vi.fn(async () => {
+      f.calls.push("pay");
+      return {
+        kind: "response" as const,
+        result: {
+          settled: true,
+          payer: { address: payer },
+          paymentResponse: { success: true, transaction: txHash, network: network.id },
+        },
+      };
+    });
+    const payments = new X402Service({ request }, { prepare } as never, {} as never, {} as never, {
+      validate: vi.fn(),
+      start: async () => ({ details: { payUrl: "https://example.test" }, close }),
+    });
+    const service = new BaiService({} as never, undefined, payments, f.binding, f.api as never, {
+      facilitatorUrl: "https://example.test",
+      payTo: { bnb: payer },
+    });
+    const pending = service.recharge(f.scope, network as never, {
+      amount: "1",
+      token: "USDT",
+      apiKey: "key",
+    });
+    if (failure) {
+      await expect(pending).rejects.toMatchObject({
+        code: "watch_only_no_signer",
+        details: { phase: "sign", paymentStatus: "not_sent", retryPayment: false },
+      });
+      expect(f.calls).toEqual(["check", "prepare"]);
+      expect(f.binding.bind).not.toHaveBeenCalled();
+      expect(f.api.createOrder).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+    } else {
+      await expect(pending).resolves.toMatchObject({ txHash });
+      expect(f.calls).toEqual(["check", "prepare", "bind", "order", "pay"]);
+      expect(close).toHaveBeenCalledOnce();
+    }
+    expect(prepare).toHaveBeenCalledWith("selected", "evm");
+  },
+);

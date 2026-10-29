@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { EvmTransactionService } from "./transaction-service.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -499,11 +499,45 @@ describe("EvmTransactionService.broadcast", () => {
       {} as never,
       { resolve: vi.fn() } as never,
     );
-    return { service, seen };
+    return { service, seen, gateway };
   }
 
   const SIGNED =
     "0x02f87383aa36a780830f424084793b5e8282520894000000000000000000000000000000000000dead87038d7ea4c6800080c001a02958ee6a65975b5f6c2067d08704bc367375ee3fd54f1a0b4cbbc2643ab6b95ca0044e8cb5dea54b08c8b43b68a842e75e4f6627caa3911e4f9e5119ca12c01fc9";
+
+  it.each(["timeout", "rpc_error", "invalid_node_response"])(
+    "retains the local hash and error representation on %s",
+    async (code) => {
+      const { service, gateway } = bcHarness();
+      const original = new ChainError(code, errorMessage`node: ${"untrusted\nvalue"}`, {
+        nodeCode: "fixture",
+      });
+      gateway.sendRawTransaction.mockRejectedValueOnce(original);
+      const error = classifyError(
+        await service.broadcast(scope(), SEPOLIA, SIGNED).catch((e) => e),
+      );
+      expect(error.toEnvelope()).toEqual({
+        code,
+        message: original.message,
+        details: {
+          nodeCode: "fixture",
+          txId: "0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026",
+        },
+      });
+      expect(error.textMessage).toBe(original.textMessage);
+      expect(error.kind).toBe(original.kind);
+      expect(error.exitCode()).toBe(original.exitCode());
+      expect(gateway.sendRawTransaction).toHaveBeenCalledWith(SIGNED);
+    },
+  );
+
+  it("preserves a definite rejection without an ID", async () => {
+    const { service, gateway } = bcHarness();
+    const original = new ChainError("transaction_rejected", "refused");
+    gateway.sendRawTransaction.mockRejectedValueOnce(original);
+    await expect(service.broadcast(scope(), SEPOLIA, SIGNED)).rejects.toBe(original);
+    expect(original.details).toBeUndefined();
+  });
 
   it("submits the hex and reports the locally derived hash", async () => {
     const { service, seen } = bcHarness();
@@ -528,6 +562,7 @@ describe("EvmTransactionService.broadcast", () => {
 
     await expect(service.broadcast(scope(), SEPOLIA, SIGNED_MAINNET)).rejects.toMatchObject({
       code: "chain_id_mismatch",
+      details: undefined,
     });
     expect(seen).toEqual([]);
   });
@@ -537,6 +572,7 @@ describe("EvmTransactionService.broadcast", () => {
 
     await expect(service.broadcast(scope(), SEPOLIA, "0xdeadbeef")).rejects.toMatchObject({
       code: "invalid_transaction",
+      details: undefined,
     });
   });
 });
@@ -602,6 +638,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
     await expect(service.broadcast(scope(), mainnet as never, SIGNED, true)).rejects.toMatchObject({
       code: "chain_id_mismatch",
+      details: undefined,
     });
   });
 
@@ -612,6 +649,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
     await expect(service.broadcast(scope(), SEPOLIA, SIGNED, true)).rejects.toMatchObject({
       code: "nonce_too_low",
+      details: undefined,
     });
   });
 
@@ -622,6 +660,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
     await expect(service.broadcast(scope(), SEPOLIA, SIGNED, true)).rejects.toMatchObject({
       code: "insufficient_balance",
+      details: undefined,
     });
   });
 
@@ -670,6 +709,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
     await expect(service.broadcast(scope(), SEPOLIA, unsigned, true)).rejects.toMatchObject({
       code: "invalid_transaction",
+      details: undefined,
     });
   });
 });

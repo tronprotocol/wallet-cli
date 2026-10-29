@@ -3,7 +3,7 @@ import { TxPipeline, type TxPipelineParams } from "./index.js";
 import type { SignerResolver } from "../signer/index.js";
 import type { Signer } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
 
 function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   return {
@@ -350,5 +350,96 @@ describe("TRON signing lifetime", () => {
     } finally {
       clock.mockRestore();
     }
+  });
+});
+
+describe("TxPipeline submission outcome", () => {
+  const txId = "defbf1e676a7b53c03a30ec3e17e455175231dcf6165ae2a762d2d973f81dbc9";
+  function harness(signed: unknown = { txID: txId }) {
+    const signer = {
+      kind: "software",
+      address: "TSender",
+      sign: vi.fn(async () => signed),
+    } as unknown as Signer;
+    const pipeline = new TxPipeline({
+      assertCanSign: vi.fn(),
+      resolve: () => signer,
+    } as unknown as SignerResolver);
+    const broadcast = vi.fn(async (_signed: unknown) => ({ txId }));
+    const input = params(signer, { broadcast: true, broadcaster: { broadcast } });
+    return { pipeline, broadcast, input, signer };
+  }
+
+  it.each(["timeout", "rpc_error", "invalid_node_response"])(
+    "retains the signed ID and error representation on %s",
+    async (code) => {
+      const h = harness();
+      const original = new ChainError(code, errorMessage`node: ${"untrusted\nvalue"}`, {
+        nodeCode: "fixture",
+      });
+      h.broadcast.mockRejectedValueOnce(original);
+      const error = classifyError(await h.pipeline.run(h.input).catch((e) => e));
+      expect(error.toEnvelope()).toEqual({
+        code,
+        message: original.message,
+        details: { nodeCode: "fixture", txId },
+      });
+      expect(error.textMessage).toBe(original.textMessage);
+      expect(error.kind).toBe(original.kind);
+      expect(error.exitCode()).toBe(original.exitCode());
+      expect(h.broadcast).toHaveBeenCalledWith({ txID: txId });
+    },
+  );
+
+  it.each(["transaction_rejected", "not_authorized", "tx_expired", "dry_run_violation"])(
+    "does not attach an ID to %s",
+    async (code) => {
+      const h = harness();
+      const original = new ChainError(code, "refused");
+      h.broadcast.mockRejectedValueOnce(original);
+      await expect(h.pipeline.run(h.input)).rejects.toBe(original);
+      expect(original.details).toBeUndefined();
+    },
+  );
+
+  it("does not invent an ID when the signed payload has none", async () => {
+    const h = harness({});
+    const original = new ChainError("timeout", "lost response", { nodeCode: "fixture" });
+    h.broadcast.mockRejectedValueOnce(original);
+    await expect(h.pipeline.run(h.input)).rejects.toBe(original);
+    expect(original.details).toEqual({ nodeCode: "fixture" });
+  });
+
+  it.each(["build", "estimate", "preflight", "sign", "expiry", "authorization"])(
+    "does not label a pre-submit %s error",
+    async (step) => {
+      const h = harness();
+      const original = new ChainError("timeout", "before submission");
+      const fail = () => {
+        throw original;
+      };
+      if (step === "build") h.input.build = fail;
+      if (step === "estimate") h.input.estimate = fail;
+      if (step === "preflight") h.input.preflight = fail;
+      if (step === "sign") vi.mocked(h.signer.sign).mockImplementation(fail);
+      if (step === "expiry")
+        h.input.assertNotExpired = vi
+          .fn()
+          .mockImplementationOnce(() => {})
+          .mockImplementationOnce(fail);
+      if (step === "authorization") h.input.preflight = async () => ({ assertBroadcastable: fail });
+      await expect(h.pipeline.run(h.input)).rejects.toBe(original);
+      expect(original.details).toBeUndefined();
+      expect(h.broadcast).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not submit during dry-run", async () => {
+    const h = harness();
+    await expect(h.pipeline.run({ ...h.input, dryRun: true })).resolves.toMatchObject({
+      stage: "plan",
+    });
+    expect(h.broadcast).not.toHaveBeenCalled();
+    expect(h.signer.sign).not.toHaveBeenCalled();
   });
 });

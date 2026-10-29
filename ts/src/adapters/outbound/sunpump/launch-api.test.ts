@@ -1,3 +1,7 @@
+import {
+  barBroadcasts,
+  processBroadcastGuard,
+} from "../../../application/services/broadcast-guard.js";
 import { describe, expect, it } from "vitest";
 import { SunPumpLaunchApi } from "./launch-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
@@ -64,7 +68,8 @@ function transport(body: unknown, status = 200) {
 
 const ok = (data: unknown) => ({ code: 0, msg: "SUCCESS", data });
 
-const api = (fetchImpl: typeof globalThis.fetch) => new SunPumpLaunchApi(5_000, { fetchImpl });
+const api = (fetchImpl: typeof globalThis.fetch) =>
+  new SunPumpLaunchApi(5_000, processBroadcastGuard, { fetchImpl });
 
 describe("the request body", () => {
   it("carries every option it was given, under the names the service reads", async () => {
@@ -210,7 +215,7 @@ describe("failures", () => {
         init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
       });
     }) as typeof fetch;
-    const error = await new SunPumpLaunchApi(20, { fetchImpl })
+    const error = await new SunPumpLaunchApi(20, processBroadcastGuard, { fetchImpl })
       .launchToken(MAINNET, { name: "WqaR111008", symbol: "WQ111008", description: "d" })
       .catch((e: unknown) => e as CliError);
     expect(sent).toBe(1);
@@ -270,5 +275,17 @@ describe("failures", () => {
       code: "provider_rate_limited",
       details: { retryAfterSeconds: 30 },
     });
+  });
+});
+
+describe("SunPumpLaunchApi.launchToken dry-run guard", () => {
+  it("refuses while broadcasting is barred and sends nothing", async () => {
+    const { calls, fetchImpl } = transport(ok(CREATED));
+    await barBroadcasts("sunpump launch --dry-run", async () => {
+      await expect(
+        api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+    });
+    expect(calls).toEqual([]);
   });
 });

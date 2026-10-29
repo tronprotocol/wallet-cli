@@ -23,8 +23,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { stageTronBroadcast, tronConfirmation } from "../../services/tron-confirmation.js";
-import { localTxId } from "../../services/broadcast-identity.js";
+import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
@@ -116,15 +115,6 @@ export class TronTransactionService {
       tx,
     });
     return { kind: "sign" as const, ...outcomeData(outcome) };
-  }
-
-  async broadcast(scope: TransactionScope, network: NetworkDescriptor, signed: unknown) {
-    const gateway = this.gateways.get(network, "tron");
-    const result = await gateway.broadcast(signed);
-    return {
-      kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result, localTxId(signed))),
-    };
   }
 
   async status(network: NetworkDescriptor, txid: string): Promise<TxStatusView> {

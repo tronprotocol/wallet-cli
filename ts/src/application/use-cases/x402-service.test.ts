@@ -1,27 +1,121 @@
 import { describe, expect, it, vi } from "vitest";
 import { X402Service } from "./x402-service.js";
-import type { X402PaymentPort } from "../ports/x402-payment.js";
 import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
+import type { SignerResolver } from "../services/signer/index.js";
+import { WalletError } from "../../domain/errors/index.js";
+import { processBroadcastGuard } from "../services/broadcast-guard.js";
+
+const scope = { activeAccount: "payer" } as never;
+const network = { id: "eip155:56", family: "evm" } as never;
+const input = { url: "https://example.test", method: "GET", headers: [] };
+
+function fixture(failure?: "prepare" | "resolve" | "pay") {
+  const pay = vi.fn(async () => {
+    if (failure === "pay") throw new Error("settlement failed");
+    return { settled: true };
+  });
+  const close = vi.fn(async () => {});
+  const request = vi.fn(async () => ({
+    kind: "payment-required" as const,
+    inspection: { dryRun: true },
+    facts: { tokenDecimals: () => undefined },
+    pay,
+    close,
+  }));
+  const signers = {
+    assertCanSign: vi.fn(),
+    prepare: vi.fn(() => {
+      if (failure === "prepare") throw new WalletError("watch_only_no_signer", "cannot sign");
+    }),
+    resolve: vi.fn(() => {
+      if (failure === "resolve") throw new WalletError("watch_only_no_signer", "cannot sign");
+      return { address: "payer", kind: "software", sign: vi.fn(), signTypedData: vi.fn() };
+    }),
+  };
+  const catalog = {
+    list: vi.fn(async () => ({ results: [], pagination: {} })),
+    show: vi.fn(async () => ({ fqn: "a/b" })),
+    endpoints: vi.fn(async () => ({ endpoints: [] })),
+    update: vi.fn(async () => ({ updated: true })),
+  } as unknown as ProviderCatalogPort;
+  const serverClose = vi.fn(async () => {});
+  const service = new X402Service(
+    { request },
+    signers as unknown as SignerResolver,
+    catalog,
+    { resolve: vi.fn() },
+    {
+      validate: vi.fn(),
+      start: async () => ({ details: { payUrl: input.url }, close: serverClose }),
+    },
+  );
+  return { service, request, pay, close, signers, catalog, serverClose };
+}
 
 describe("X402Service", () => {
-  it("delegates payments and catalog operations through ports", async () => {
-    const payment = {
-      prepare: vi.fn(),
-      pay: vi.fn(async () => ({ delivered: true })),
-    } as X402PaymentPort;
-    const catalog = {
-      list: vi.fn(async () => ({ results: [], pagination: {} })),
-      show: vi.fn(async () => ({ fqn: "a/b" })),
-      endpoints: vi.fn(async () => ({ endpoints: [] })),
-      update: vi.fn(async () => ({ updated: true })),
-    } as unknown as ProviderCatalogPort;
-    const service = new X402Service(payment, catalog, { resolve: vi.fn() });
-    const scope = {} as never;
-    const network = { id: "eip155:56" } as never;
+  it.each([false, true])("selects the operation in application (dryRun=%s)", async (dryRun) => {
+    const f = fixture();
+    await expect(f.service.pay(scope, network, { ...input, dryRun })).resolves.toEqual(
+      dryRun ? { dryRun: true } : { settled: true },
+    );
+    expect(f.request).toHaveBeenCalledWith(scope, network, input);
+    expect(f.pay).toHaveBeenCalledTimes(dryRun ? 0 : 1);
+    expect(f.signers.assertCanSign).toHaveBeenCalledTimes(dryRun ? 0 : 1);
+    expect(f.signers.resolve).toHaveBeenCalledTimes(dryRun ? 0 : 1);
+    expect(f.signers.prepare).not.toHaveBeenCalled();
+    if (!dryRun)
+      expect(f.pay).toHaveBeenCalledWith({
+        payer: {
+          address: "payer",
+          signTypedData: expect.any(Function),
+          signTransaction: expect.any(Function),
+          signPermit2Approval: expect.any(Function),
+        },
+        approver: { approve: expect.any(Function) },
+        guard: processBroadcastGuard,
+      });
+    expect(f.close).toHaveBeenCalledOnce();
+  });
 
-    await expect(
-      service.pay(scope, network, { url: "https://example.test", method: "GET", headers: [] }),
-    ).resolves.toEqual({ delivered: true });
+  it("fails closed when a payment needs an approval and no approval path is wired", async () => {
+    const f = fixture();
+    await f.service.pay(scope, network, input);
+    const [{ approver }] = f.pay.mock.calls[0] as unknown as [
+      { approver: { approve(request: unknown): Promise<unknown> } },
+    ];
+    await expect(approver.approve({})).rejects.toMatchObject({ code: "internal_error" });
+  });
+
+  it("prepares credentials only on explicit prepare", () => {
+    const f = fixture();
+    f.service.prepare(scope, network);
+    expect(f.signers.prepare).toHaveBeenCalledWith("payer", "evm");
+    expect(f.request).not.toHaveBeenCalled();
+  });
+
+  it("classifies preparation failures before any HTTP request", () => {
+    const f = fixture("prepare");
+    expect(() => f.service.prepare(scope, network)).toThrow(
+      expect.objectContaining({
+        code: "watch_only_no_signer",
+        details: { phase: "sign", paymentStatus: "not_sent", retryPayment: false },
+      }),
+    );
+    expect(f.request).not.toHaveBeenCalled();
+  });
+
+  it("releases the resource when payer creation fails", async () => {
+    const f = fixture("resolve");
+    await expect(f.service.pay(scope, network, input)).rejects.toMatchObject({
+      code: "watch_only_no_signer",
+      details: { phase: "create_payment", paymentStatus: "not_sent", retryPayment: false },
+    });
+    expect(f.pay).not.toHaveBeenCalled();
+    expect(f.close).toHaveBeenCalledOnce();
+  });
+
+  it("delegates catalog operations", async () => {
+    const { service, catalog } = fixture();
     await service.providerList({ limit: 20, offset: 0 });
     await service.providerShow("a/b");
     await service.providerEndpoints("a/b");
@@ -30,24 +124,11 @@ describe("X402Service", () => {
   });
 });
 
-it.each([false, true])(
-  "closes the roundtrip server after payment (failure=%s)",
+it.each([undefined, "pay", "resolve"] as const)(
+  "closes the roundtrip server (failure=%s)",
   async (failure) => {
-    const close = vi.fn(async () => {});
-    const pay = vi.fn(async () => {
-      if (failure) throw new Error("settlement failed");
-      return { settled: true };
-    });
-    const service = new X402Service(
-      { prepare: vi.fn(), pay },
-      {} as ProviderCatalogPort,
-      { resolve: vi.fn() },
-      {
-        validate: vi.fn(),
-        start: async () => ({ details: { payUrl: "http://127.0.0.1:45678/pay" }, close }),
-      },
-    );
-    const result = service.roundtrip({} as never, {} as never, {
+    const f = fixture(failure);
+    const result = f.service.roundtrip(scope, network, {
       payTo: "trusted",
       amount: "10",
       token: "USDT",
@@ -56,13 +137,13 @@ it.each([false, true])(
       port: 0,
       facilitatorUrl: "https://facilitator.example",
     });
-    if (failure) await expect(result).rejects.toThrow("settlement failed");
+    if (failure) await expect(result).rejects.toThrow();
     else await expect(result).resolves.toMatchObject({ pay: { settled: true } });
-    expect(pay).toHaveBeenCalledWith(
-      {},
-      {},
+    expect(f.request).toHaveBeenCalledWith(
+      scope,
+      network,
       expect.objectContaining({
-        url: "http://127.0.0.1:45678/pay",
+        url: input.url,
         token: "USDT",
         scheme: "exact",
         expectedPayTo: "trusted",
@@ -70,6 +151,28 @@ it.each([false, true])(
         maxAmount: "10",
       }),
     );
-    expect(close).toHaveBeenCalledOnce();
+    expect(f.close).toHaveBeenCalledOnce();
+    expect(f.serverClose).toHaveBeenCalledOnce();
   },
 );
+
+it("inspects roundtrip without preparing or obtaining a payer", async () => {
+  const f = fixture();
+  await expect(
+    f.service.roundtrip(scope, network, {
+      payTo: "trusted",
+      amount: "10",
+      token: "USDT",
+      scheme: "exact",
+      dryRun: true,
+      host: "127.0.0.1",
+      port: 0,
+      facilitatorUrl: "https://facilitator.example",
+    }),
+  ).resolves.toMatchObject({ pay: { dryRun: true } });
+  expect(f.signers.prepare).not.toHaveBeenCalled();
+  expect(f.signers.resolve).not.toHaveBeenCalled();
+  expect(f.pay).not.toHaveBeenCalled();
+  expect(f.close).toHaveBeenCalledOnce();
+  expect(f.serverClose).toHaveBeenCalledOnce();
+});

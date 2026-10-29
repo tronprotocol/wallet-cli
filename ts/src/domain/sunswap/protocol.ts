@@ -24,6 +24,26 @@ export function normaliseProtocol(
   return upper as SunSwapProtocol;
 }
 
+export const LIQUIDITY_PROTOCOLS = ["V2", "V3", "V4"] as const;
+
+export type LiquidityProtocol = (typeof LIQUIDITY_PROTOCOLS)[number];
+
+// Case-insensitive; surrounding whitespace is not accepted.
+export function liquidityProtocolOf(value: string): LiquidityProtocol | undefined {
+  const upper = value.toUpperCase();
+  return LIQUIDITY_PROTOCOLS.find((protocol) => protocol === upper);
+}
+
+export function parseLiquidityProtocol(value: unknown): LiquidityProtocol {
+  const protocol = typeof value === "string" ? liquidityProtocolOf(value) : undefined;
+  if (protocol === undefined) {
+    throw new UsageError("invalid_value", "liquidity protocol must be V2, V3 or V4", {
+      protocol: String(value),
+    });
+  }
+  return protocol;
+}
+
 // V4 pool IDs are 64 hex characters with an optional 0x prefix.
 export function isPoolId(value: string): boolean {
   return /^(0x)?[0-9a-fA-F]{64}$/.test(value.trim());

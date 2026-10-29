@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { z } from "zod";
 import { buildCli, type ShellOptions } from "./index.js";
-import type { ChainSpec, SessionRef } from "../contracts/index.js";
+import type { ChainSpec, CommandDefinition, SessionRef } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { TargetResolver } from "../../../../application/services/target/index.js";
@@ -224,7 +224,10 @@ describe("grouped chain leaf positionals", () => {
 });
 
 describe("--dry-run bars broadcasting", () => {
-  function dryRunFixture(run: (input: any) => Promise<unknown>) {
+  function dryRunFixture(
+    run: (input: any) => Promise<unknown>,
+    shape: "chain" | "chain-without-broadcasts" | "neutral" = "chain",
+  ) {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-dryrun-test-"));
     const prompter = new Prompter({
       isTTY: () => false,
@@ -246,19 +249,33 @@ describe("--dry-run bars broadcasting", () => {
     const networkRegistry = new NetworkRegistry(config);
     const formatter = createOutputFormatter("json", streams, Date.now());
     const registry = new CommandRegistry();
-    registry.addChain(
-      {
+    const fields = z.object({ dryRun: z.boolean().default(false) });
+    if (shape === "neutral") {
+      registry.add({
         path: ["tx", "broadcast"],
         network: "optional",
         wallet: "none",
         auth: "none",
-        broadcasts: true,
+        fields,
+        input: fields,
         examples: [],
-        baseFields: z.object({ dryRun: z.boolean().default(false) }),
-      },
-      "tron",
-      { run: async (_ctx: any, _net: any, input: any) => run(input) },
-    );
+        run: async (_ctx: any, _net: any, input: any) => run(input),
+      } as unknown as CommandDefinition);
+    } else {
+      registry.addChain(
+        {
+          path: ["tx", "broadcast"],
+          network: "optional",
+          wallet: "none",
+          auth: "none",
+          ...(shape === "chain" ? { broadcasts: true } : {}),
+          examples: [],
+          baseFields: fields,
+        },
+        "tron",
+        { run: async (_ctx: any, _net: any, input: any) => run(input) },
+      );
+    }
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
     const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
     return {
@@ -289,6 +306,23 @@ describe("--dry-run bars broadcasting", () => {
     ).rejects.toMatchObject({ code: "dry_run_violation" });
     expect(submitted).toEqual([]);
   });
+
+  it.each(["chain-without-broadcasts", "neutral"] as const)(
+    "stops a %s command that submits during --dry-run",
+    async (shape) => {
+      const submitted: string[] = [];
+      const { shellOpts } = dryRunFixture(async () => {
+        assertBroadcastAllowed();
+        submitted.push("sent");
+        return { stage: "submitted" };
+      }, shape);
+
+      await expect(
+        buildCli(shellOpts).parseAsync(["tx", "broadcast", "--dry-run"]),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+      expect(submitted).toEqual([]);
+    },
+  );
 
   it("leaves a real broadcast alone", async () => {
     const submitted: string[] = [];

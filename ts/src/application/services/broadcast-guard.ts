@@ -1,5 +1,6 @@
 // Process-wide guard; callers must not overlap or nest barred sections.
 import { ExecutionError } from "../../domain/errors/index.js";
+import type { BroadcastGuard } from "../contracts/broadcast-guard.js";
 
 let barred: string | undefined;
 
@@ -20,3 +21,5 @@ export function assertBroadcastAllowed(): void {
     `${barred} reached the broadcast path; nothing was submitted. This is a bug in the command's family binding, not in your input — please report it.`,
   );
 }
+
+export const processBroadcastGuard: BroadcastGuard = { assertAllowed: assertBroadcastAllowed };

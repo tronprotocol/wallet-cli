@@ -1,3 +1,4 @@
+import { processBroadcastGuard } from "../../application/services/broadcast-guard.js";
 import type { AgentService } from "../../application/use-cases/agent-service.js";
 import {
   showSpec,
@@ -269,7 +270,8 @@ import {
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
   signStrategy: tronSignStrategy,
-  createGateway: (network, timeoutMs) => new TronRpcClient(network, timeoutMs),
+  createGateway: (network, timeoutMs) =>
+    new TronRpcClient(network, timeoutMs, undefined, processBroadcastGuard),
 };
 
 export interface TronChainCommandDependencies {

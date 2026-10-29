@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
-import { ChainError, normalizeError } from "../../../../domain/errors/index.js";
+import { ChainError, normalizeError, errorMessage } from "../../../../domain/errors/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { AccountRef, NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
 import type { TxPipelineParams } from "../../../services/pipeline/index.js";
@@ -212,6 +212,36 @@ describe("approval failure progress", () => {
     });
     expect(main).not.toHaveBeenCalled();
   });
+  it.each(["timeout", "rpc_error", "invalid_node_response"])(
+    "preserves submission and approval IDs on %s during a later approval",
+    async (code) => {
+      const h = harness();
+      const original = new ChainError(code, errorMessage`node: ${"untrusted\nvalue"}`, {
+        txId: "pending-approval",
+        nodeCode: "fixture",
+      });
+      h.run
+        .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
+        .mockRejectedValueOnce(original);
+      const main = vi.fn();
+      const error = normalizeError(
+        await h.tx
+          .withApprovals(scope, network, [approval, approval], "owner", mode, undefined, main)
+          .catch((e) => e),
+      );
+      expect(error.code).toBe(code);
+      expect(error.details).toEqual({
+        txId: "pending-approval",
+        nodeCode: "fixture",
+        approvalTxIds: ["approval-1"],
+      });
+      expect(error.textMessage).toBe(
+        `${original.textMessage}; approval transactions already submitted: approval-1`,
+      );
+      expect(main).not.toHaveBeenCalled();
+    },
+  );
+
   it("redacts unknown exceptions while retaining completed approval IDs", async () => {
     const h = harness();
     try {

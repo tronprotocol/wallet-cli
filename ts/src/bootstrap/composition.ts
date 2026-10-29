@@ -1,3 +1,4 @@
+import { processBroadcastGuard } from "../application/services/broadcast-guard.js";
 import { MessageService } from "../application/use-cases/message-service.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
@@ -32,6 +33,7 @@ import { CapabilityRegistry } from "../application/services/capability/index.js"
 import { SignerResolver } from "../application/services/signer/index.js";
 import { TargetResolver } from "../application/services/target/index.js";
 import { TxPipeline } from "../application/services/pipeline/index.js";
+import { X402Permit2Approvals } from "../application/use-cases/x402-permit2-approval.js";
 import { ConfigService } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
 import { familyMap } from "./family-registry.js";
@@ -138,9 +140,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
-  const x402Payments = new X402PaymentClient(signerResolver, undefined, undefined, config);
+  const x402Payments = new X402PaymentClient(undefined, undefined, config);
   const x402Service = new X402Service(
     x402Payments,
+    signerResolver,
     new X402ProviderCatalog(undefined, undefined, timeoutMs),
     networkRegistry,
     new ManagedX402Server(
@@ -148,6 +151,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
         streams.diagnostic("debug", line),
       ),
     ),
+    new X402Permit2Approvals(gatewayProvider, txPipeline),
   );
   registerBaiCommands(
     registry,
@@ -184,13 +188,13 @@ export function composeCliRuntime(options: BootstrapOptions) {
     transactions: txPipeline,
     accounts: keystore,
     timeoutMs,
-    tronlink: new TronLinkClient(config, timeoutMs),
-    gasfree: new GasFreeClient(config, timeoutMs),
+    tronlink: new TronLinkClient(config, timeoutMs, processBroadcastGuard),
+    gasfree: new GasFreeClient(config, timeoutMs, processBroadcastGuard),
     sunswapMarket: new SunSwapMarketApi(timeoutMs),
     sunswapLiquidity: new SunSwapLiquidityContracts(gatewayProvider),
     sunpumpLaunchpad: new SunPumpLaunchpadContracts(gatewayProvider),
     sunpumpMarket: new SunPumpMarketApi(timeoutMs),
-    sunpumpLaunch: new SunPumpLaunchApi(timeoutMs),
+    sunpumpLaunch: new SunPumpLaunchApi(timeoutMs, processBroadcastGuard),
     sunswapRouter: new SunSwapRouterApi(timeoutMs),
     sunswapRouterPlanner: routerPlanner,
     // Share the cached chain clock so router and permit deadlines agree.

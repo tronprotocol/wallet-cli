@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { processBroadcastGuard } from "../../../../application/services/broadcast-guard.js";
 import { TronRpcClient } from "./tron.js";
 
 const SIGNED = { txID: "abc", signature: ["sig"] } as never;
@@ -6,7 +7,7 @@ const SECRET_URL = "https://rpc.provider.com/v1/APIKEY_SECRET123/jsonrpc?token=z
 
 describe("TronRpcClient error redaction (I-03)", () => {
   it("broadcast throw path keeps code/prefix but redacts the endpoint URL", async () => {
-    const client = new TronRpcClient("http://localhost:1", 200);
+    const client = new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard);
     client.tronweb.trx.sendRawTransaction = (() => {
       throw new Error(`fetch failed: request to ${SECRET_URL} timed out`);
     }) as never;
@@ -20,7 +21,7 @@ describe("TronRpcClient error redaction (I-03)", () => {
   });
 
   it("node-reject path redacts the decoded reject message", async () => {
-    const client = new TronRpcClient("http://localhost:1", 200);
+    const client = new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard);
     client.tronweb.trx.sendRawTransaction = (() =>
       Promise.resolve({
         result: false,

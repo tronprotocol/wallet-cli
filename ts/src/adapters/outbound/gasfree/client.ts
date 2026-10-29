@@ -6,6 +6,7 @@ import {
   parse as parseLosslessJson,
   stringify as stringifyLosslessJson,
 } from "lossless-json";
+import type { BroadcastGuard } from "../../../application/contracts/broadcast-guard.js";
 import type { GasFreeProvider } from "../../../application/ports/gasfree-provider.js";
 import type {
   Config,
@@ -30,6 +31,7 @@ export class GasFreeClient implements GasFreeProvider {
   constructor(
     private readonly config: Config,
     private readonly timeoutMs: number,
+    private readonly guard: BroadcastGuard,
     private readonly fetchImpl: Fetch = globalThis.fetch,
     private readonly clock: () => number = () => Date.now(),
   ) {}
@@ -96,6 +98,7 @@ export class GasFreeClient implements GasFreeProvider {
     network: NetworkDescriptor,
     authorization: SignedGasFreeAuthorization,
   ): Promise<GasFreeTransferRecord> {
+    this.guard.assertAllowed();
     const body = {
       token: authorization.token,
       serviceProvider: authorization.serviceProvider,

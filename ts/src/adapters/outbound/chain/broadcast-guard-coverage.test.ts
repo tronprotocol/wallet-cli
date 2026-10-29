@@ -36,7 +36,7 @@ describe("broadcast guard coverage", () => {
           match.index + match[0].length,
           match.index + match[0].length + 400,
         );
-        const guardAt = body.indexOf("assertBroadcastAllowed()");
+        const guardAt = body.indexOf("#broadcastGuard.assertAllowed()");
         const awaitAt = body.indexOf("await ");
         if (guardAt === -1 || (awaitAt !== -1 && awaitAt < guardAt)) {
           unguarded.push(`${file}: ${match[1]}`);

@@ -1,4 +1,5 @@
 // Unknown outcomes must not be retried: the service may have already created the token.
+import type { BroadcastGuard } from "../../../application/contracts/broadcast-guard.js";
 import type { NetworkDescriptor } from "../../../domain/types/network.js";
 import type {
   SunPumpTokenLaunchPort,
@@ -13,6 +14,7 @@ import { parseSunPumpShape, sunpumpRequest, type SunPumpApiDeps } from "./api-tr
 export class SunPumpLaunchApi implements SunPumpTokenLaunchPort {
   constructor(
     private readonly timeoutMs: number,
+    private readonly guard: BroadcastGuard,
     private readonly deps: SunPumpApiDeps = {},
   ) {}
 
@@ -20,6 +22,7 @@ export class SunPumpLaunchApi implements SunPumpTokenLaunchPort {
     network: NetworkDescriptor,
     request: SunPumpTokenLaunchRequest,
   ): Promise<SunPumpTokenRecord> {
+    this.guard.assertAllowed();
     try {
       const payload = await sunpumpRequest(network, this.timeoutMs, this.deps, (client) =>
         client.agentTokenLaunch({

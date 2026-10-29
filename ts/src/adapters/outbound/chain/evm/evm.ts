@@ -13,7 +13,10 @@ import type {
   DeployConstructorArgs,
   EvmGateway,
 } from "../../../../application/ports/chain/gateway-provider.js";
-import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
+import {
+  UNWIRED_BROADCAST_GUARD,
+  type BroadcastGuard,
+} from "../../../../application/contracts/broadcast-guard.js";
 import {
   FetchHttpTransport,
   HttpTransportError,
@@ -32,11 +35,13 @@ interface JsonRpcResponse {
 export class EvmRpcClient implements EvmGateway {
   #id = 0;
   readonly #transport: HttpTransport;
+  readonly #broadcastGuard: BroadcastGuard;
 
   constructor(
     endpointOrNetwork: string | NetworkDescriptor | HttpEndpointConfig,
     timeoutMs = 60_000,
     transport?: HttpTransport,
+    guard: BroadcastGuard = UNWIRED_BROADCAST_GUARD,
   ) {
     let config: HttpEndpointConfig;
     try {
@@ -52,6 +57,7 @@ export class EvmRpcClient implements EvmGateway {
       throw new ChainError("rpc_error", `EVM RPC configuration failed: ${failure}`);
     }
     this.#transport = transport ?? new FetchHttpTransport(config);
+    this.#broadcastGuard = guard;
   }
 
   async getNativeBalance(address: string): Promise<string> {
@@ -136,11 +142,22 @@ export class EvmRpcClient implements EvmGateway {
 
   // Accept only a 32-byte hash or an already-known response as successful submission.
   async sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }> {
-    assertBroadcastAllowed();
+    this.#broadcastGuard.assertAllowed();
     const method = "eth_sendRawTransaction";
     const body = await this.#request(method, [raw]);
-    if (body.error) {
-      const message = body.error.message ?? "";
+    if (body.error !== undefined && body.error !== null) {
+      if (
+        typeof body.error !== "object" ||
+        Array.isArray(body.error) ||
+        typeof body.error.code !== "number" ||
+        typeof body.error.message !== "string"
+      ) {
+        throw new ChainError(
+          "invalid_node_response",
+          "EVM broadcast returned a malformed JSON-RPC error",
+        );
+      }
+      const message = body.error.message;
       if (isAlreadyKnown(message)) return { alreadyKnown: true };
       const known = classifyEvmRejection(method, message);
       // Include node wording in the message because text output omits details.
@@ -152,7 +169,7 @@ export class EvmRpcClient implements EvmGateway {
     }
     if (typeof body.result !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(body.result)) {
       throw new ChainError(
-        "transaction_rejected",
+        "invalid_node_response",
         `EVM broadcast returned no transaction hash: ${JSON.stringify(body.result ?? null)}`,
       );
     }
@@ -216,17 +233,19 @@ export class EvmRpcClient implements EvmGateway {
         e instanceof HttpTransportError ? httpTransportFailure(e) : "network request failed";
       throw new ChainError("rpc_error", `${method} failed: ${failure}`);
     }
+    const malformedCode =
+      method === "eth_sendRawTransaction" ? "invalid_node_response" : "rpc_error";
     let body: unknown;
     try {
       body = JSON.parse(text);
     } catch (e) {
       throw new ChainError(
-        "rpc_error",
+        malformedCode,
         `${method} returned malformed JSON: ${(e as Error).message}`,
       );
     }
     if (body === null || typeof body !== "object" || Array.isArray(body)) {
-      throw new ChainError("rpc_error", `${method} returned a malformed JSON-RPC response`);
+      throw new ChainError(malformedCode, `${method} returned a malformed JSON-RPC response`);
     }
     return body as JsonRpcResponse;
   }
@@ -244,7 +263,7 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   async broadcast(signed: unknown): Promise<Record<string, unknown>> {
-    assertBroadcastAllowed();
+    this.#broadcastGuard.assertAllowed();
     const raw = (signed as { raw?: unknown })?.raw;
     if (typeof raw !== "string" || raw === "") {
       throw new ChainError(

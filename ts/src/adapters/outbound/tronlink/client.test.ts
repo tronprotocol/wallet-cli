@@ -1,3 +1,7 @@
+import {
+  barBroadcasts,
+  processBroadcastGuard,
+} from "../../../application/services/broadcast-guard.js";
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -59,6 +63,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = new TronLinkClient(
       CONFIG,
       1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
@@ -93,6 +98,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = new TronLinkClient(
       CONFIG,
       1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
@@ -134,6 +140,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = new TronLinkClient(
       CONFIG,
       1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
@@ -164,6 +171,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = new TronLinkClient(
       CONFIG,
       1_000,
+      processBroadcastGuard,
       globalThis.fetch,
       () => NOW,
       () => UUID,
@@ -190,6 +198,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = new TronLinkClient(
       CONFIG,
       1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
@@ -208,6 +217,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       new TronLinkClient(
         CONFIG,
         1_000,
+        processBroadcastGuard,
         vi.fn(async () => response(body)) as unknown as typeof fetch,
         () => NOW,
         () => UUID,
@@ -246,7 +256,12 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
   it("requires complete credentials and rejects insecure endpoints before a request", async () => {
     const fetchMock = vi.fn();
     await expect(
-      new TronLinkClient({} as Config, 1_000, fetchMock as typeof fetch).list(NETWORK, ADDRESS, {
+      new TronLinkClient(
+        {} as Config,
+        1_000,
+        processBroadcastGuard,
+        fetchMock as typeof fetch,
+      ).list(NETWORK, ADDRESS, {
         state: 255,
         start: 0,
         limit: 20,
@@ -255,12 +270,34 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
 
     const insecure = { ...NETWORK, tronlinkHttpEndpoint: "http://api.walletadapter.org" };
     await expect(
-      new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch).list(insecure, ADDRESS, {
-        state: 255,
-        start: 0,
-        limit: 20,
-      }),
+      new TronLinkClient(CONFIG, 1_000, processBroadcastGuard, fetchMock as typeof fetch).list(
+        insecure,
+        ADDRESS,
+        {
+          state: 255,
+          start: 0,
+          limit: 20,
+        },
+      ),
     ).rejects.toMatchObject({ code: "invalid_config" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("TronLinkClient.submit dry-run guard", () => {
+  it("refuses while broadcasting is barred and sends nothing", async () => {
+    const fetchMock = vi.fn(async () => response({ code: 0, data: {} }));
+    const client = new TronLinkClient(
+      CONFIG,
+      1_000,
+      processBroadcastGuard,
+      fetchMock as typeof fetch,
+    );
+    await barBroadcasts("tx multisig --dry-run", async () => {
+      await expect(
+        client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { toX402Wallet } from "./signer-bridge.js";
-import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
+import { toX402Wallet, type X402WalletOptions } from "./signer-bridge.js";
+import {
+  withPayerPolicy,
+  type PayerPolicy,
+  type UnguardedPayer,
+} from "../../../application/services/x402/payer-policy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import { tronHexAddress } from "../../../domain/address/index.js";
 
@@ -19,7 +23,7 @@ it.each([
     const tx = Object.freeze({ to: EVM_ADDRESS, ...fields });
     const signTransaction = vi.fn(async () => ({ raw: "0xraw" }));
     const payer = { ...payerOf(EVM_ADDRESS), signTransaction };
-    await toX402Wallet(payer, { family: "evm" }).signTransaction(tx);
+    await bridged(payer, { family: "evm" }).signTransaction(tx);
     expect(signTransaction).toHaveBeenCalledWith({ to: EVM_ADDRESS, gasLimit: expected });
     expect(tx).toEqual({ to: EVM_ADDRESS, ...fields });
   },
@@ -29,14 +33,24 @@ it.each([null, "0x1234", []])(
   "rejects invalid EVM transaction input before signing %j",
   async (tx) => {
     const payer = payerOf(EVM_ADDRESS);
-    await expect(toX402Wallet(payer, { family: "evm" }).signTransaction(tx)).rejects.toThrow(
+    await expect(bridged(payer, { family: "evm" }).signTransaction(tx)).rejects.toThrow(
       "must be an object",
     );
     expect(payer.signTransaction).not.toHaveBeenCalled();
   },
 );
 
-const payerOf = (address: string, signature = "sig", primaryType = "Transfer"): PayerSigner => ({
+// The production payer: the application's policy around the signer, then the SDK bridge.
+const bridged = (
+  payer: UnguardedPayer,
+  policy: PayerPolicy & Omit<X402WalletOptions, "family" | "feeCapped">,
+) =>
+  toX402Wallet(withPayerPolicy(payer, policy), {
+    ...policy,
+    feeCapped: policy.maxGasfreeFee !== undefined || policy.maxGasfreeFeeRaw !== undefined,
+  });
+
+const payerOf = (address: string, signature = "sig", primaryType = "Transfer"): UnguardedPayer => ({
   address,
   signTypedData: vi.fn(async () => ({ signature, digest: "0xdig", primaryType })),
   signTransaction: vi.fn(async (tx: unknown) => tx),
@@ -80,33 +94,33 @@ const evmPayloadNoPrimaryType = (from: string): TypedDataPayload => ({
 
 describe("toX402Wallet", () => {
   it("reports the payer's address", () => {
-    expect(toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm" }).getAddress()).toBe(EVM_ADDRESS);
+    expect(bridged(payerOf(EVM_ADDRESS), { family: "evm" }).getAddress()).toBe(EVM_ADDRESS);
   });
 
   it("exposes the payer's address under both spellings the two schemes read, for evm", () => {
-    const wallet = toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm" });
+    const wallet = bridged(payerOf(EVM_ADDRESS), { family: "evm" });
     expect(wallet.address).toBe(wallet.getAddress());
     expect(wallet.address).toBe(EVM_ADDRESS);
   });
 
   it("exposes the payer's address under both spellings the two schemes read, for tron", () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS), { family: "tron" });
+    const wallet = bridged(payerOf(TRON_ADDRESS), { family: "tron" });
     expect(wallet.address).toBe(wallet.getAddress());
     expect(wallet.address).toBe(TRON_ADDRESS);
   });
 
   it("returns a 0x-prefixed signature even when the signer omits the prefix", async () => {
-    const wallet = toX402Wallet(payerOf(EVM_ADDRESS, "abcd"), { family: "evm" });
+    const wallet = bridged(payerOf(EVM_ADDRESS, "abcd"), { family: "evm" });
     expect(await wallet.signTypedData(evmPayload(EVM_ADDRESS))).toBe("0xabcd");
   });
 
   it("keeps a signature that is already prefixed", async () => {
-    const wallet = toX402Wallet(payerOf(EVM_ADDRESS, "0xabcd"), { family: "evm" });
+    const wallet = bridged(payerOf(EVM_ADDRESS, "0xabcd"), { family: "evm" });
     expect(await wallet.signTypedData(evmPayload(EVM_ADDRESS))).toBe("0xabcd");
   });
 
   it("accepts an EVM payer that differs only in case", async () => {
-    const wallet = toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm" });
+    const wallet = bridged(payerOf(EVM_ADDRESS), { family: "evm" });
     await expect(
       wallet.signTypedData(evmPayload(EVM_ADDRESS.toLowerCase())),
     ).resolves.toBeDefined();
@@ -114,7 +128,7 @@ describe("toX402Wallet", () => {
 
   it("refuses to sign for a different EVM payer", async () => {
     const payer = payerOf(EVM_ADDRESS);
-    const wallet = toX402Wallet(payer, { family: "evm" });
+    const wallet = bridged(payer, { family: "evm" });
     await expect(
       wallet.signTypedData(evmPayload("0x2222222222222222222222222222222222222222")),
     ).rejects.toMatchObject({ code: "payer_mismatch" });
@@ -122,19 +136,19 @@ describe("toX402Wallet", () => {
   });
 
   it("accepts a TRON payer given in hex form", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), { family: "tron" });
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), { family: "tron" });
     await expect(wallet.signTypedData(permitPayload(TRON_HEX, "100"))).resolves.toBeDefined();
   });
 
   it("refuses to sign for a different TRON payer", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), { family: "tron" });
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), { family: "tron" });
     await expect(
       wallet.signTypedData(permitPayload("TBvJUBXorwBPzqvV38vjDgegj5Eh6g2Tsq", "100")),
     ).rejects.toMatchObject({ code: "payer_mismatch" });
   });
 
   it("signs a PermitTransfer whose fee is within the ceiling", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
       family: "tron",
       maxGasfreeFeeRaw: "100",
     });
@@ -143,7 +157,7 @@ describe("toX402Wallet", () => {
 
   it("refuses a PermitTransfer whose fee exceeds the ceiling", async () => {
     const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
-    const wallet = toX402Wallet(payer, { family: "tron", maxGasfreeFeeRaw: "100" });
+    const wallet = bridged(payer, { family: "tron", maxGasfreeFeeRaw: "100" });
     await expect(wallet.signTypedData(permitPayload(TRON_ADDRESS, "101"))).rejects.toMatchObject({
       code: "fee_cap_exceeded",
     });
@@ -151,7 +165,7 @@ describe("toX402Wallet", () => {
   });
 
   it("refuses a PermitTransfer whose fee is not a whole number", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
       family: "tron",
       maxGasfreeFeeRaw: "100",
     });
@@ -161,7 +175,7 @@ describe("toX402Wallet", () => {
   });
 
   it("refuses a PermitTransfer when the policy's own fee ceiling will not parse", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
       family: "tron",
       maxGasfreeFeeRaw: "1e6",
     });
@@ -171,12 +185,12 @@ describe("toX402Wallet", () => {
   });
 
   it("ignores the fee ceiling for a struct that is not a PermitTransfer", async () => {
-    const wallet = toX402Wallet(payerOf(EVM_ADDRESS), { family: "evm", maxGasfreeFeeRaw: "0" });
+    const wallet = bridged(payerOf(EVM_ADDRESS), { family: "evm", maxGasfreeFeeRaw: "0" });
     await expect(wallet.signTypedData(evmPayload(EVM_ADDRESS))).resolves.toBeDefined();
   });
 
   it("refuses a signature produced for a different struct", async () => {
-    const wallet = toX402Wallet(payerOf(EVM_ADDRESS, "sig", "SomethingElse"), { family: "evm" });
+    const wallet = bridged(payerOf(EVM_ADDRESS, "sig", "SomethingElse"), { family: "evm" });
     await expect(wallet.signTypedData(evmPayload(EVM_ADDRESS))).rejects.toMatchObject({
       code: "signed_payload_mismatch",
     });
@@ -184,7 +198,7 @@ describe("toX402Wallet", () => {
 
   it("still rejects a payer mismatch and an over-cap fee when primaryType is omitted", async () => {
     const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
-    const wallet = toX402Wallet(payer, { family: "tron", maxGasfreeFeeRaw: "100" });
+    const wallet = bridged(payer, { family: "tron", maxGasfreeFeeRaw: "100" });
     await expect(
       wallet.signTypedData(
         permitPayloadNoPrimaryType("TBvJUBXorwBPzqvV38vjDgegj5Eh6g2Tsq", "999999999"),
@@ -194,7 +208,7 @@ describe("toX402Wallet", () => {
   });
 
   it("resolves the root and signs a PermitTransfer with omitted primaryType when payer and fee are fine", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), {
       family: "tron",
       maxGasfreeFeeRaw: "100",
     });
@@ -205,7 +219,7 @@ describe("toX402Wallet", () => {
 
   it("rejects an EVM payer mismatch when primaryType is omitted", async () => {
     const payer = payerOf(EVM_ADDRESS);
-    const wallet = toX402Wallet(payer, { family: "evm" });
+    const wallet = bridged(payer, { family: "evm" });
     await expect(
       wallet.signTypedData(evmPayloadNoPrimaryType("0x2222222222222222222222222222222222222222")),
     ).rejects.toMatchObject({ code: "payer_mismatch" });
@@ -213,21 +227,21 @@ describe("toX402Wallet", () => {
   });
 
   it("unwraps an EVM signature to the raw serialisation x402 broadcasts", async () => {
-    const payer: PayerSigner = {
+    const payer: UnguardedPayer = {
       address: EVM_ADDRESS,
       signTypedData: vi.fn(),
       signTransaction: vi.fn(async () => ({ raw: "0xraw", hash: "0xhash" })),
     };
-    expect(await toX402Wallet(payer, { family: "evm" }).signTransaction({})).toBe("0xraw");
+    expect(await bridged(payer, { family: "evm" }).signTransaction({})).toBe("0xraw");
   });
 
   it("refuses an EVM signature that carries no raw transaction", async () => {
-    const payer: PayerSigner = {
+    const payer: UnguardedPayer = {
       address: EVM_ADDRESS,
       signTypedData: vi.fn(),
       signTransaction: vi.fn(async () => ({ hash: "0xhash" })),
     };
-    await expect(toX402Wallet(payer, { family: "evm" }).signTransaction({})).rejects.toMatchObject({
+    await expect(bridged(payer, { family: "evm" }).signTransaction({})).rejects.toMatchObject({
       code: "signed_payload_mismatch",
     });
   });
@@ -236,7 +250,7 @@ describe("toX402Wallet", () => {
 it.each(["Transfer", "PermitTransfer"])(
   "accepts the TRON SDK's 20-byte payer for %s",
   async (primaryType) => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", primaryType), {
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", primaryType), {
       family: "tron",
       maxGasfreeFeeRaw: "10",
     });
@@ -252,7 +266,7 @@ it.each(["Transfer", "PermitTransfer"])(
 it("warns about an uncapped high GasFree fee before requesting the signature", async () => {
   const warn = vi.fn();
   const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
-  const wallet = toX402Wallet(payer, { family: "tron", warn });
+  const wallet = bridged(payer, { family: "tron", warn });
   const payload = permitPayload(TRON_HEX, "1300000");
   payload.message.value = "10000";
   await wallet.signTypedData(payload);
@@ -277,7 +291,7 @@ describe("toX402Wallet converts a human fee ceiling with the SIGNED token's prec
 
   it("refuses a fee above the ceiling in the signed token's units", async () => {
     const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
-    const wallet = toX402Wallet(payer, policy);
+    const wallet = bridged(payer, policy);
     await expect(wallet.signTypedData(withToken("1300000"))).rejects.toMatchObject({
       code: "fee_cap_exceeded",
       details: { fee: "1300000", cap: "1000000" },
@@ -286,13 +300,13 @@ describe("toX402Wallet converts a human fee ceiling with the SIGNED token's prec
   });
 
   it("signs a fee within the ceiling in the signed token's units", async () => {
-    const wallet = toX402Wallet(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), policy);
+    const wallet = bridged(payerOf(TRON_ADDRESS, "sig", "PermitTransfer"), policy);
     await expect(wallet.signTypedData(withToken("1000000"))).resolves.toBeDefined();
   });
 
   it("refuses rather than guess when the signed token's precision is unknown", async () => {
     const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
-    const wallet = toX402Wallet(payer, policy);
+    const wallet = bridged(payer, policy);
     await expect(
       wallet.signTypedData(withToken("1", "0x0000000000000000000000000000000000000001")),
     ).rejects.toMatchObject({ code: "fee_cap_exceeded" });
@@ -328,7 +342,7 @@ describe("toX402Wallet refuses expired payment authorizations", () => {
 
   it("refuses a Permit2 authorization whose deadline has passed, before signing", async () => {
     const payer = payerOf(EVM, "sig", "PermitWitnessTransferFrom");
-    const wallet = toX402Wallet(payer, { family: "evm", now: () => NOW });
+    const wallet = bridged(payer, { family: "evm", now: () => NOW });
     await expect(wallet.signTypedData(permit2(NOW - 1))).rejects.toMatchObject({
       code: "tx_expired",
     });
@@ -337,13 +351,13 @@ describe("toX402Wallet refuses expired payment authorizations", () => {
 
   it("refuses an EIP-3009 authorization whose validBefore has passed", async () => {
     const payer = payerOf(EVM, "sig", "TransferWithAuthorization");
-    const wallet = toX402Wallet(payer, { family: "evm", now: () => NOW });
+    const wallet = bridged(payer, { family: "evm", now: () => NOW });
     await expect(wallet.signTypedData(eip3009(NOW))).rejects.toMatchObject({ code: "tx_expired" });
   });
 
   it("refuses a GasFree PermitTransfer whose deadline has passed", async () => {
     const payer = payerOf(TRON_ADDRESS, "sig", "PermitTransfer");
-    const wallet = toX402Wallet(payer, { family: "tron", now: () => NOW });
+    const wallet = bridged(payer, { family: "tron", now: () => NOW });
     const payload = {
       ...permitPayload(TRON_ADDRESS, "1"),
       message: { user: TRON_ADDRESS, maxFee: "1", deadline: String(NOW - 5) },
@@ -352,7 +366,7 @@ describe("toX402Wallet refuses expired payment authorizations", () => {
   });
 
   it("signs an authorization whose deadline is still ahead", async () => {
-    const wallet = toX402Wallet(payerOf(EVM, "sig", "PermitWitnessTransferFrom"), {
+    const wallet = bridged(payerOf(EVM, "sig", "PermitWitnessTransferFrom"), {
       family: "evm",
       now: () => NOW,
     });
@@ -366,7 +380,7 @@ describe("toX402Wallet refuses expired payment authorizations", () => {
       clock = NOW + 61;
       return { signature: "0xsig", digest: "0xdig", primaryType: "PermitWitnessTransferFrom" };
     });
-    const wallet = toX402Wallet(payer, { family: "evm", now: () => clock });
+    const wallet = bridged(payer, { family: "evm", now: () => clock });
     await expect(wallet.signTypedData(permit2(NOW + 60))).rejects.toMatchObject({
       code: "tx_expired",
     });
@@ -412,7 +426,7 @@ describe("toX402Wallet signs only the Permit2 approve it was asked for (TRON)", 
   it("signs the approve the SDK asked for, passing the transaction through untouched", async () => {
     const payer = payerOf(TRON_ADDRESS);
     const tx = approveTx();
-    expect(await toX402Wallet(payer, policy).signTransaction(tx)).toEqual(tx);
+    expect(await bridged(payer, policy).signTransaction(tx)).toEqual(tx);
     expect(payer.signTransaction).toHaveBeenCalledWith(tx);
   });
 
@@ -444,7 +458,7 @@ describe("toX402Wallet signs only the Permit2 approve it was asked for (TRON)", 
   ])("refuses %s before the signer is asked", async (_label, over, valueOver) => {
     const payer = payerOf(TRON_ADDRESS);
     await expect(
-      toX402Wallet(payer, policy).signTransaction(approveTx(over, valueOver)),
+      bridged(payer, policy).signTransaction(approveTx(over, valueOver)),
     ).rejects.toMatchObject({ code: "signed_payload_mismatch" });
     expect(payer.signTransaction).not.toHaveBeenCalled();
   });
@@ -452,7 +466,7 @@ describe("toX402Wallet signs only the Permit2 approve it was asked for (TRON)", 
   it("refuses any TRON transaction when no approve intent was declared", async () => {
     const payer = payerOf(TRON_ADDRESS);
     await expect(
-      toX402Wallet(payer, { family: "tron" }).signTransaction(approveTx()),
+      bridged(payer, { family: "tron" }).signTransaction(approveTx()),
     ).rejects.toMatchObject({ code: "signed_payload_mismatch" });
     expect(payer.signTransaction).not.toHaveBeenCalled();
   });

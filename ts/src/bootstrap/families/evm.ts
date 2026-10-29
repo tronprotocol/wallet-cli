@@ -1,3 +1,4 @@
+import { processBroadcastGuard } from "../../application/services/broadcast-guard.js";
 import type { AgentService } from "../../application/use-cases/agent-service.js";
 import {
   showSpec,
@@ -95,7 +96,8 @@ import type { FamilyPlugin } from "./types.js";
 export const evmFamily: FamilyPlugin<"evm"> = {
   meta: FAMILIES.evm,
   signStrategy: evmSignStrategy,
-  createGateway: (network, timeoutMs) => new EvmRpcClient(network, timeoutMs),
+  createGateway: (network, timeoutMs) =>
+    new EvmRpcClient(network, timeoutMs, undefined, processBroadcastGuard),
 };
 
 export interface EvmChainCommandDependencies {

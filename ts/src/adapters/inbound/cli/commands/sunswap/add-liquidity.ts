@@ -2,12 +2,14 @@ import { z, type RefinementCtx } from "zod";
 import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { resolveV4Pool } from "../../../../../domain/sunswap/v4-pool.js";
+import {
+  liquidityProtocolOf,
+  parseLiquidityProtocol,
+} from "../../../../../domain/sunswap/protocol.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapLiquidityService } from "../../../../../application/use-cases/tron/sunswap/liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
-
-const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
 const fields = z.object({
   // Do not use txModeFields: this command does not support sign-only.
@@ -221,8 +223,8 @@ function messageOf(error: unknown): string {
 }
 
 function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: RefinementCtx): void {
-  const protocol = String(value.protocol).toUpperCase();
-  if (!PROTOCOLS.includes(protocol as (typeof PROTOCOLS)[number])) {
+  const protocol = liquidityProtocolOf(String(value.protocol));
+  if (protocol === undefined) {
     ctx.addIssue({
       code: "custom",
       path: ["protocol"],
@@ -360,7 +362,7 @@ export const sunswapAddLiquidityTronBinding = (
 ): FamilyBinding => ({
   run: async (ctx, net, input) =>
     service.addLiquidity(ctx, net, {
-      protocol: String(input.protocol).toUpperCase(),
+      protocol: parseLiquidityProtocol(input.protocol),
       ...(input.token0 === undefined ? {} : { token0: input.token0 }),
       ...(input.token1 === undefined ? {} : { token1: input.token1 }),
       ...(input.positionId === undefined ? {} : { positionId: input.positionId }),

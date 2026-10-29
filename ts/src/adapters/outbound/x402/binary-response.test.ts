@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -39,8 +40,13 @@ function harness(
   } as unknown as SignerResolver;
   const client =
     mode === "free"
-      ? new X402PaymentClient(resolver, fetcher)
-      : new X402PaymentClient(resolver, globalThis.fetch, async () => fetcher);
+      ? new X402Service(new X402PaymentClient(fetcher), resolver, {} as never, {} as never)
+      : new X402Service(
+          new X402PaymentClient(challengeFetch, async () => fetcher),
+          resolver,
+          {} as never,
+          {} as never,
+        );
   return { client, fetcher, resolver };
 }
 
@@ -139,7 +145,12 @@ describe("x402 response bytes", () => {
       "application/octet-stream",
       "settled",
     );
-    const client = new X402PaymentClient(resolver, fetcher);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      resolver,
+      {} as never,
+      {} as never,
+    );
     const error = await rejection(client.pay(scope, net, input));
     expect(error).toMatchObject({
       code: "invalid_option",
@@ -203,3 +214,22 @@ describe("x402 response bytes", () => {
     },
   );
 });
+
+function challengeFetch(): Promise<Response> {
+  return Promise.resolve(
+    Response.json(
+      {
+        accepts: [
+          {
+            scheme: "exact",
+            network: net.id,
+            amount: "1",
+            asset: "0x55d398326f99059fF775485246999027B3197955",
+            payTo: signer.address,
+          },
+        ],
+      },
+      { status: 402 },
+    ),
+  );
+}

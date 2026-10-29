@@ -1,29 +1,64 @@
 // Signing closures handle device prechecks, prompts, and aborts for the payment flow.
-import type { ChainFamily } from "../../domain/family/chain-family.js";
 import type { TypedDataPayload, TypedDataSignature } from "../../domain/types/index.js";
 
 export interface PayerSigner {
   // Base58 for TRON; 0x hex for EVM.
   readonly address: string;
+  // Refuses a payload for another payer, over the fee ceiling, or past its deadline.
   signTypedData(payload: TypedDataPayload): Promise<TypedDataSignature>;
+  // EVM transactions only; a TRON transaction must go through signPermit2Approval.
   signTransaction(tx: unknown): Promise<unknown>;
+  // Signs `tx` only when `decoded` is the Permit2 approve the payment policy allows.
+  signPermit2Approval(tx: unknown, decoded: DecodedTronApprove): Promise<SignedPermit2Approval>;
 }
 
-export interface PayerPolicy {
-  readonly family: ChainFamily;
-  readonly warn?: (message: string) => void;
-  // GasFree maxFee ceiling in base units; absent means no ceiling.
-  readonly maxGasfreeFeeRaw?: string;
-  // Whole-token ceiling converted using the token actually named by the signing payload.
-  readonly maxGasfreeFee?: string;
+// The adapter's reading of a TRON transaction the SDK asks to sign; absent fields were missing or malformed.
+export interface DecodedTronApprove {
+  readonly contractCount: number;
+  readonly contractType?: string;
+  // Base58.
+  readonly owner?: string;
+  // Base58 token contract.
+  readonly token?: string;
+  // SUN; "0" when the transaction sets none.
+  readonly callValueSun: string;
+  // Present only when the calldata is approve(address,uint256) with a MaxUint256 amount.
+  readonly unlimitedApproveSpender?: string;
+  readonly feeLimitSun?: number;
+}
+
+export interface SignedPermit2Approval {
+  readonly signed: unknown;
+  readonly approval: Omit<SignedApproval, "txId">;
+}
+
+// Network facts the payment adapter knows and the payment policy applies.
+export interface X402PaymentFacts {
+  // Absent when the network has no Permit2 deployment.
+  readonly permit2?: {
+    // Base58 Permit2 contract.
+    readonly spender: string;
+    // Base58 token contracts the payment flow may approve.
+    readonly tokens: readonly string[];
+  };
   // Decimals by family-native token address; undefined when unknown.
-  readonly gasfreeFeeDecimals?: (token: string) => number | undefined;
-  // Unix seconds; defaults to the current wall clock.
-  readonly now?: () => number;
-  // Only approve(spender, MaxUint256) on these tokens from the payer; absent forbids TRON signing.
-  readonly approveIntent?: { readonly spender: string; readonly tokens: readonly string[] };
-  // Preserve signed-approval evidence even if payment later fails.
-  readonly onApprovalSigned?: (approval: SignedApproval) => void;
+  tokenDecimals(token: string): number | undefined;
+}
+
+export interface Permit2ApproveRequest {
+  // Base58 token contract.
+  readonly token: string;
+  // Base58 Permit2 contract.
+  readonly spender: string;
+  // Base units the payment needs.
+  readonly requiredAllowance: string;
+  // Current on-chain allowance in base units.
+  readAllowance(): Promise<string>;
+}
+
+export interface Permit2Approver {
+  // Submits approve(spender, MaxUint256) and resolves only once it is confirmed and the allowance landed.
+  approve(request: Permit2ApproveRequest): Promise<SignedApproval>;
 }
 
 export interface SignedApproval {

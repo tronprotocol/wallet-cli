@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Wallet } from "ethers";
 import { TronWeb, providers, utils as tronUtils } from "tronweb";
@@ -52,7 +53,12 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
         }),
       )
       .mockResolvedValueOnce(new Response("ok"));
-    const client = new X402PaymentClient(signers as never, fetcher);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      signers as never,
+      {} as never,
+      {} as never,
+    );
     await expect(
       client.pay(
         { activeAccount: "nile-test", timeoutMs: 1000, emit: vi.fn() } as never,
@@ -148,7 +154,12 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
       });
     return new Response("delivered");
   });
-  const client = new X402PaymentClient(signers as never, fetcher);
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    signers as never,
+    {} as never,
+    {} as never,
+  );
   await expect(
     client.pay(
       { activeAccount: "test", timeoutMs: 1000, emit: vi.fn(), warn } as never,

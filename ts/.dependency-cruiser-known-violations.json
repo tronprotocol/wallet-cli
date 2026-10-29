@@ -100,50 +100,6 @@
   },
   {
     "type": "dependency",
-    "from": "src/adapters/outbound/chain/evm/evm.ts",
-    "to": "src/application/services/broadcast-guard.ts",
-    "unresolvedTo": "../../../../application/services/broadcast-guard.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "outbound-imports-no-service-or-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/adapters/outbound/chain/tron/tron.ts",
-    "to": "src/application/services/broadcast-guard.ts",
-    "unresolvedTo": "../../../../application/services/broadcast-guard.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "outbound-imports-no-service-or-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/adapters/outbound/x402/payment-client.ts",
-    "to": "src/application/services/signer/index.ts",
-    "unresolvedTo": "../../../application/services/signer/index.js",
-    "dependencyTypes": ["local", "type-only", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "outbound-imports-no-service-or-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/adapters/outbound/x402/payment-client.ts",
-    "to": "src/application/services/x402/payer-signer.ts",
-    "unresolvedTo": "../../../application/services/x402/payer-signer.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "outbound-imports-no-service-or-use-case"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/application/use-cases/evm/transaction-service.ts",
     "to": "node_modules/ethers/lib.commonjs/index.js",
     "unresolvedTo": "ethers",

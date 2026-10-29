@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { expect, it, vi } from "vitest";
 import { X402PaymentClient } from "./payment-client.js";
 
@@ -34,7 +35,12 @@ function fixture(
         { status: 402, headers: { "content-type": "application/json" } },
       ),
   );
-  const client = new X402PaymentClient({ resolve, assertCanSign: vi.fn() } as never, fetcher);
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    { resolve, assertCanSign: vi.fn() } as never,
+    {} as never,
+    {} as never,
+  );
   const pay = (dryRun = false) =>
     client.pay({ timeoutMs: 1000, emit: vi.fn() } as never, selectedNetwork as never, {
       url: "https://example.com",
@@ -88,7 +94,12 @@ it("accepts an EVM address with different casing at the exact amount", async () 
 it("rejects a registered token precision override before HTTP or signing", async () => {
   const fetcher = vi.fn();
   const resolve = vi.fn();
-  const client = new X402PaymentClient({ resolve } as never, fetcher);
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    { resolve } as never,
+    {} as never,
+    {} as never,
+  );
   await expect(
     client.pay({ emit: vi.fn() } as never, network as never, {
       url: "https://example.test",

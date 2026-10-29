@@ -15,6 +15,7 @@ import { assertTronSignerAuthorized, tronTransactionHooks } from "../multisig-au
 import {
   ChainError,
   classifyError,
+  errorMessage,
   ExecutionError,
   UsageError,
 } from "../../../../domain/errors/index.js";
@@ -370,9 +371,13 @@ function approvalProgressError(error: unknown, approvalTxIds: readonly string[])
   if (approvalTxIds.length === 0) return error;
   const classified = classifyError(error);
   const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
+  const progress = errorMessage`; approval transactions already submitted: ${approvalTxIds.join(", ")}`;
   return new ErrorType(
     classified.code,
-    `${classified.message}; approval transactions already submitted: ${approvalTxIds.join(", ")}`,
+    {
+      message: classified.message + progress.message,
+      textMessage: classified.textMessage + progress.textMessage,
+    },
     {
       ...classified.details,
       approvalTxIds: [...approvalTxIds],

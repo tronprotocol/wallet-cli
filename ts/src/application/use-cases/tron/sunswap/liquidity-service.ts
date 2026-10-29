@@ -22,6 +22,10 @@ import { obtainSignature } from "../../../services/signing/obtain-signature.js";
 import type { TypedDataPayload } from "../../../../domain/types/index.js";
 import { describeHooks, resolveV4Pool } from "../../../../domain/sunswap/v4-pool.js";
 import {
+  parseLiquidityProtocol,
+  type LiquidityProtocol,
+} from "../../../../domain/sunswap/protocol.js";
+import {
   assertPermitAuthorizes,
   assertSignedBy,
 } from "../../../../domain/sunswap/permit2-guard.js";
@@ -78,7 +82,7 @@ const V4_TRC20_ALLOWANCE = (2n ** 256n - 1n).toString();
 const V4_PERMIT_TTL_SECONDS = 3600;
 
 export interface AddLiquidityInput extends TransactionModeInput {
-  readonly protocol: string;
+  readonly protocol: LiquidityProtocol;
   // Symbol or contract address.
   readonly token0?: string;
   readonly token1?: string;
@@ -220,7 +224,8 @@ export class SunSwapLiquidityService {
       account: tokenBookAccount(scope),
     });
     const resolved = book.input;
-    const protocol = resolved.protocol.toUpperCase();
+    // Non-CLI callers bypass the schema; an unknown protocol must not fall through to V2.
+    const protocol = parseLiquidityProtocol(resolved.protocol);
     const result =
       protocol === "V4"
         ? await this.addLiquidityV4(scope, network, resolved)

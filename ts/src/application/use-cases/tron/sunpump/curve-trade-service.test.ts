@@ -1,4 +1,9 @@
-import { UsageError } from "../../../../domain/errors/index.js";
+import {
+  UsageError,
+  ChainError,
+  errorMessage,
+  classifyError,
+} from "../../../../domain/errors/index.js";
 import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
@@ -307,6 +312,32 @@ describe("sell", () => {
     })) as Record<string, unknown>;
     expect(gateway.triggerSmartContract.mock.calls.map((call) => call[2])).toEqual([SALE]);
     expect(result).not.toHaveProperty("approvalTxIds");
+  });
+
+  it("retains the sale ID and confirmed approval IDs when submission times out", async () => {
+    const port = makePort({
+      allowance: vi.fn().mockResolvedValueOnce("0").mockResolvedValue(UNLIMITED),
+    });
+    const { service, scope, pipeline } = makeHarness(port);
+    const original = new ChainError("timeout", errorMessage`node: ${"untrusted\nvalue"}`, {
+      txId: "sale-tx",
+      nodeCode: "fixture",
+    });
+    vi.mocked(pipeline.run)
+      .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
+      .mockRejectedValueOnce(original);
+    const error = classifyError(
+      await service.sell(scope, NETWORK, { token: TOKEN, amount: "1000" }).catch((e) => e),
+    );
+    expect(error.code).toBe("timeout");
+    expect(error.details).toEqual({
+      txId: "sale-tx",
+      nodeCode: "fixture",
+      approvalTxIds: ["approval-1"],
+    });
+    expect(error.textMessage).toBe(
+      `${original.textMessage}; approval transactions already submitted: approval-1`,
+    );
   });
 
   it("never builds or broadcasts the sale when its approval fails on chain", async () => {
