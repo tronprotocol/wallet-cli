@@ -45,6 +45,50 @@
   },
   {
     "type": "dependency",
+    "from": "src/application/use-cases/evm/transaction-service.ts",
+    "to": "node_modules/ethers/lib.commonjs/index.js",
+    "unresolvedTo": "ethers",
+    "dependencyTypes": ["npm", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "domain-and-application-use-allowlisted-packages"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/domain/async/index.ts",
+    "to": "async_hooks",
+    "unresolvedTo": "async_hooks",
+    "dependencyTypes": ["core", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "domain-and-application-use-allowlisted-packages"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/domain/erc8004/revert.ts",
+    "to": "node_modules/ethers/lib.commonjs/index.js",
+    "unresolvedTo": "ethers",
+    "dependencyTypes": ["npm", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "domain-and-application-use-allowlisted-packages"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/domain/errors/redact.ts",
+    "to": "os",
+    "unresolvedTo": "os",
+    "dependencyTypes": ["core", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "domain-and-application-use-allowlisted-packages"
+    }
+  },
+  {
+    "type": "dependency",
     "from": "src/adapters/outbound/chain/evm/evm.ts",
     "to": "src/application/services/broadcast-guard.ts",
     "unresolvedTo": "../../../../application/services/broadcast-guard.js",
@@ -85,6 +129,39 @@
     "rule": {
       "severity": "error",
       "name": "outbound-imports-no-service-or-use-case"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/application/use-cases/evm/transaction-service.ts",
+    "to": "node_modules/ethers/lib.commonjs/index.js",
+    "unresolvedTo": "ethers",
+    "dependencyTypes": ["npm", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "sdks-and-http-clients-only-in-outbound"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/bootstrap/composition.ts",
+    "to": "node_modules/@bankofai/x402-core/dist/cjs/index.js",
+    "unresolvedTo": "@bankofai/x402-core",
+    "dependencyTypes": ["npm-dev", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "sdks-and-http-clients-only-in-outbound"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/domain/erc8004/revert.ts",
+    "to": "node_modules/ethers/lib.commonjs/index.js",
+    "unresolvedTo": "ethers",
+    "dependencyTypes": ["npm", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "sdks-and-http-clients-only-in-outbound"
     }
   }
 ]

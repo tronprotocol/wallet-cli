@@ -110,6 +110,50 @@ describe("dependency-cruiser layer and cycle rules", () => {
       },
     },
     {
+      rule: "domain-and-application-use-allowlisted-packages",
+      importers: [
+        "src/domain/npm-leak.ts",
+        "src/domain/core-leak.ts",
+        "src/domain/look-alike-leak.ts",
+        "src/application/services/missing-leak.ts",
+        "src/application/ports/type-leak.ts",
+      ],
+      files: {
+        "src/domain/npm-leak.ts": `import { z } from "zod";\nexport const leak = z;\n`,
+        "src/domain/core-leak.ts": `import { readFileSync } from "node:fs";\nexport const leak = readFileSync;\n`,
+        "src/domain/look-alike-leak.ts": `import { leak } from "crypto-not-installed";\nexport { leak };\n`,
+        "src/application/services/missing-leak.ts": `import { leak } from "not-an-installed-package";\nexport { leak };\n`,
+        "src/application/ports/type-leak.ts": `import type { ZodType } from "zod";\nexport type Leak = ZodType;\n`,
+      },
+    },
+    {
+      rule: "sdks-and-http-clients-only-in-outbound",
+      importers: [
+        "src/adapters/inbound/tronweb-leak.ts",
+        "src/adapters/inbound/ethers-leak.ts",
+        "src/adapters/inbound/undici-leak.ts",
+        "src/adapters/inbound/node-fetch-leak.ts",
+        "src/adapters/inbound/got-leak.ts",
+        "src/adapters/inbound/ky-leak.ts",
+        "src/bootstrap/x402-leak.ts",
+        "src/bootstrap/ledger-leak.ts",
+        "src/domain/sun-leak.ts",
+        "src/application/services/axios-leak.ts",
+      ],
+      files: {
+        "src/adapters/inbound/tronweb-leak.ts": `import { TronWeb } from "tronweb";\nexport const leak = TronWeb;\n`,
+        "src/adapters/inbound/ethers-leak.ts": `import { Wallet } from "ethers";\nexport const leak = Wallet;\n`,
+        "src/adapters/inbound/undici-leak.ts": `import { request } from "undici";\nexport const leak = request;\n`,
+        "src/adapters/inbound/node-fetch-leak.ts": `import fetch from "node-fetch";\nexport const leak = fetch;\n`,
+        "src/adapters/inbound/got-leak.ts": `import got from "got";\nexport const leak = got;\n`,
+        "src/adapters/inbound/ky-leak.ts": `import ky from "ky";\nexport const leak = ky;\n`,
+        "src/bootstrap/x402-leak.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const leak = setLogger;\n`,
+        "src/bootstrap/ledger-leak.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const leak = Trx;\n`,
+        "src/domain/sun-leak.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Leak = SunApiClient;\n`,
+        "src/application/services/axios-leak.ts": `import axios from "axios";\nexport const leak = axios;\n`,
+      },
+    },
+    {
       rule: "no-circular",
       importers: ["src/domain/first.ts"],
       files: {
@@ -214,6 +258,37 @@ describe("dependency-cruiser layer and cycle rules", () => {
       "src/application/use-cases/caller-service.test.ts": `import { marker } from "./example-service.js";\nexport const probe = marker;\n`,
       "src/application/services/signer-service.test.ts": `import { nested } from "../use-cases/tron/nested-service.js";\nexport const probe = nested;\n`,
       "src/adapters/inbound/command.ts": `import { marker } from "../../application/use-cases/example-service.js";\nexport const command = marker;\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows domain and application the allowlisted packages, their tests any package, and inbound general-purpose packages", () => {
+    const dir = buildTree({
+      "src/domain/hash.ts": `import { sha256 } from "@noble/hashes/sha2.js";\nimport { base58 } from "@scure/base";\nimport { randomUUID } from "node:crypto";\nexport const hash = [sha256, base58, randomUUID];\n`,
+      "src/domain/unresolved-scope.ts": `import { a } from "@noble/not-installed";\nimport { b } from "@scure/not-installed";\nexport const scoped = [a, b];\n`,
+      "src/application/services/curve.ts": `import { secp256k1 } from "@noble/curves/secp256k1.js";\nimport { hash } from "../../domain/hash.js";\nexport const curve = [secp256k1, hash];\n`,
+      "src/domain/hash.test.ts": `import { describe } from "vitest";\nimport { readFileSync } from "node:fs";\nimport { Wallet } from "ethers";\nexport const probe = [describe, readFileSync, Wallet];\n`,
+      "src/application/services/curve.test.ts": `import { z } from "zod";\nimport axios from "axios";\nexport const probe = [z, axios];\n`,
+      "src/adapters/inbound/schema.ts": `import { z } from "zod";\nimport { readFileSync } from "node:fs";\nexport const schema = [z, readFileSync];\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows SDKs and HTTP clients in outbound and in tests, and names that only resemble them", () => {
+    const dir = buildTree({
+      "src/adapters/outbound/chain.ts": `import { TronWeb } from "tronweb";\nimport { Wallet } from "ethers";\nimport axios from "axios";\nexport const chain = [TronWeb, Wallet, axios];\n`,
+      "src/adapters/outbound/x402.ts": `import { setLogger } from "@bankofai/x402-core";\nimport Trx from "@ledgerhq/hw-app-trx";\nexport const x402 = [setLogger, Trx];\n`,
+      "src/adapters/inbound/command.test.ts": `import { Wallet } from "ethers";\nimport axios from "axios";\nexport const probe = [Wallet, axios];\n`,
+      "src/bootstrap/composition.test.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const probe = setLogger;\n`,
+      "src/adapters/inbound/look-alike.ts": `import { kyber } from "kyber-crypto";\nimport { gotcha } from "gotcha";\nimport { wallet } from "@acme/ethers";\nexport const lookAlike = [kyber, gotcha, wallet];\n`,
     });
     try {
       expect(cruise(dir)).toContain("no dependency violations found");

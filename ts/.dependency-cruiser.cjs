@@ -64,6 +64,25 @@ module.exports = {
       to: { path: "^src/application/(services|use-cases)/" },
     },
     {
+      name: "domain-and-application-use-allowlisted-packages",
+      severity: "error",
+      comment:
+        "domain and application import outside packages only from @noble/*, @scure/*, and node:crypto",
+      from: { path: "^src/(domain|application)/", pathNot: "\\.test\\.ts$" },
+      // Node core modules resolve without the `node:` prefix.
+      to: { pathNot: "^(src/|crypto$)|(^|node_modules/)@(noble|scure)/" },
+    },
+    {
+      name: "sdks-and-http-clients-only-in-outbound",
+      severity: "error",
+      comment:
+        "chain, device, and protocol SDKs and HTTP clients are imported only in adapters/outbound",
+      from: { path: "^src/", pathNot: "^src/adapters/outbound/|\\.test\\.ts$" },
+      to: {
+        path: "(^|node_modules/)((tronweb|ethers|axios|undici|node-fetch|got|ky)(/|$)|@(sun-protocol|bankofai|ledgerhq)/)",
+      },
+    },
+    {
       name: "sdk-adapters-only",
       severity: "error",
       comment:
