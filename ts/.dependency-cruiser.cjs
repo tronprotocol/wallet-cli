@@ -33,6 +33,51 @@ const OUTBOUND_INTEGRATIONS = [
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Export-map subpaths of the modules that sign, send, or settle. Each pattern matches the bare
+// specifier and the file it resolves to, since depcruise reports whichever it ends up with.
+const LEDGER_SIGNING_MODULES = {
+  "hw-app-trx": ["Trx", "TIP712"],
+  "hw-app-eth": ["Eth", "modules/EIP712"],
+};
+const X402_PAYMENT_MODULES = {
+  "x402-core": ["client", "facilitator"],
+  "x402-evm": [
+    "exact/client",
+    "exact/facilitator",
+    "exact/v1/client",
+    "exact/v1/facilitator",
+    "upto/client",
+    "upto/facilitator",
+    "batch-settlement/client",
+    "batch-settlement/server",
+    "batch-settlement/facilitator",
+    "auth-capture/client",
+    "adapters/agent-wallet",
+  ],
+  "x402-tron": [
+    "exact",
+    "exact/client",
+    "exact/facilitator",
+    "upto",
+    "upto/client",
+    "upto/facilitator",
+    "gasfree/client",
+    "gasfree/facilitator",
+    "batch-settlement/client",
+    "batch-settlement/server",
+    "batch-settlement/facilitator",
+  ],
+};
+const LEDGER_SIGNING_PATTERN = Object.entries(LEDGER_SIGNING_MODULES)
+  .map(([app, modules]) => `${app}($|/(lib/|lib-es/|)(${modules.join("|")})(/index|)(\\.js|)$)`)
+  .join("|");
+const X402_PAYMENT_PATTERN = [
+  "x402-fetch($|/dist/(esm|cjs)/index\\.(mjs|js)$)",
+  ...Object.entries(X402_PAYMENT_MODULES).map(
+    ([pkg, modules]) => `${pkg}/(dist/(esm|cjs)/|)(${modules.join("|")})(/index|)(\\.(mjs|js)|)$`,
+  ),
+].join("|");
+
 module.exports = {
   forbidden: [
     {
@@ -162,6 +207,31 @@ module.exports = {
         "@sun-protocol/sun-sdk-runtime can broadcast (sendAction) and build a wallet from a private key; exactly one file builds a read-only runtime over a TronClient that throws on both, and nothing else may reach for it",
       from: { path: "^src/", pathNot: "^src/adapters/outbound/sunswap/sdk-runtime\\.ts$" },
       to: { path: "@sun-protocol/sun-sdk-runtime" },
+    },
+    {
+      name: "ledger-apps-only-in-ledger-wrapper",
+      severity: "error",
+      comment: "the Ledger app modules that sign; only the ledger wrapper imports them",
+      from: { path: "^src/", pathNot: "^src/adapters/outbound/ledger/index\\.ts$" },
+      to: { path: `(^|node_modules/)@ledgerhq/(${LEDGER_SIGNING_PATTERN})` },
+    },
+    {
+      name: "erc8004-sdk-only-in-registry-wrapper",
+      severity: "error",
+      comment: "the ERC-8004 SDK client can send; only the registry wrapper imports it at runtime",
+      from: { path: "^src/", pathNot: "^src/adapters/outbound/erc8004/sdk-registry\\.ts$" },
+      to: {
+        path: "(^|node_modules/)@bankofai/8004-sdk(/|$)",
+        dependencyTypesNot: ["type-only", "type-import"],
+      },
+    },
+    {
+      name: "x402-payment-modules-only-in-payment-client",
+      severity: "error",
+      comment:
+        "the x402 modules that sign, send, or settle payments; only the payment client imports them",
+      from: { path: "^src/", pathNot: "^src/adapters/outbound/x402/payment-client\\.ts$" },
+      to: { path: `(^|node_modules/)@bankofai/(${X402_PAYMENT_PATTERN})` },
     },
   ],
   options: {

@@ -11,6 +11,7 @@ import {
   readFileSync,
   appendFileSync,
   chmodSync,
+  unlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -276,6 +277,79 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
       },
     },
+    {
+      rule: "ledger-apps-only-in-ledger-wrapper",
+      importers: [
+        "src/adapters/outbound/ledger/other.ts",
+        "src/adapters/outbound/chain/evm/device.ts",
+        "src/adapters/outbound/ledger/index.test.ts",
+        "src/bootstrap/device.ts",
+        "src/adapters/outbound/ledger/tip712.ts",
+        "src/adapters/outbound/ledger/eip712.ts",
+        "src/adapters/outbound/ledger/subpath.ts",
+        "src/adapters/outbound/ledger/lib-path.ts",
+      ],
+      files: {
+        "src/adapters/outbound/ledger/tip712.ts": `import { signTIP712HashedMessage } from "@ledgerhq/hw-app-trx/TIP712/index";\nexport const sign = signTIP712HashedMessage;\n`,
+        "src/adapters/outbound/ledger/eip712.ts": `import { signEIP712Message } from "@ledgerhq/hw-app-eth/modules/EIP712/index";\nexport const sign = signEIP712Message;\n`,
+        "src/adapters/outbound/ledger/subpath.ts": `import Eth from "@ledgerhq/hw-app-eth/Eth";\nexport const app = Eth;\n`,
+        "src/adapters/outbound/ledger/lib-path.ts": `import { signTIP712HashedMessage } from "@ledgerhq/hw-app-trx/lib/TIP712/index.js";\nexport const sign = signTIP712HashedMessage;\n`,
+        "src/adapters/outbound/ledger/other.ts": `export const load = () => import("@ledgerhq/hw-app-trx");\n`,
+        "src/adapters/outbound/chain/evm/device.ts": `import Eth from "@ledgerhq/hw-app-eth";\nexport const device = Eth;\n`,
+        "src/adapters/outbound/ledger/index.test.ts": `import type Trx from "@ledgerhq/hw-app-trx";\nexport type Probe = Trx;\n`,
+        "src/bootstrap/device.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const device = Trx;\n`,
+      },
+    },
+    {
+      rule: "erc8004-sdk-only-in-registry-wrapper",
+      importers: [
+        "src/adapters/outbound/erc8004/other.ts",
+        "src/adapters/outbound/erc8004/sdk-registry.test.ts",
+        "src/adapters/outbound/erc8004/reexport.ts",
+      ],
+      files: {
+        "src/adapters/outbound/erc8004/other.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
+        "src/adapters/outbound/erc8004/sdk-registry.test.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const probe = SDK;\n`,
+        "src/adapters/outbound/erc8004/reexport.ts": `export { SDK } from "@bankofai/8004-sdk";\n`,
+      },
+    },
+    {
+      rule: "x402-payment-modules-only-in-payment-client",
+      importers: [
+        "src/adapters/outbound/x402/server.ts",
+        "src/adapters/outbound/x402/gasfree-errors.test.ts",
+        "src/adapters/outbound/x402/gasfree-client.test.ts",
+        "src/adapters/outbound/x402/evm.ts",
+        "src/adapters/outbound/x402/core-client.ts",
+        "src/adapters/outbound/x402/core-facilitator.ts",
+        "src/adapters/outbound/x402/batch.ts",
+        "src/adapters/outbound/x402/types.ts",
+        "src/adapters/outbound/x402/agent-wallet.ts",
+        "src/adapters/outbound/x402/agent-wallet-dist.ts",
+        "src/adapters/outbound/x402/exact.ts",
+        "src/adapters/outbound/x402/upto.ts",
+        "src/adapters/outbound/x402/gasfree-facilitator.ts",
+        "src/adapters/outbound/x402/batch-server.ts",
+        "src/adapters/outbound/x402/exact-dist.ts",
+      ],
+      files: {
+        "src/adapters/outbound/x402/server.ts": `import { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nexport const server = ExactTronScheme;\n`,
+        "src/adapters/outbound/x402/gasfree-errors.test.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nexport const probe = wrapFetchWithPayment;\n`,
+        "src/adapters/outbound/x402/gasfree-client.test.ts": `import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nexport const probe = ExactGasFreeTronScheme;\n`,
+        "src/adapters/outbound/x402/evm.ts": `import { registerExactEvmScheme } from "@bankofai/x402-evm/exact/v1/client";\nexport const evm = registerExactEvmScheme;\n`,
+        "src/adapters/outbound/x402/core-client.ts": `import { x402Client } from "@bankofai/x402-core/client";\nexport const client = x402Client;\n`,
+        "src/adapters/outbound/x402/core-facilitator.ts": `import { x402Facilitator } from "@bankofai/x402-core/facilitator";\nexport const facilitator = x402Facilitator;\n`,
+        "src/adapters/outbound/x402/batch.ts": `import { BatchSettlementEvmScheme } from "@bankofai/x402-evm/batch-settlement/client";\nexport const batch = BatchSettlementEvmScheme;\n`,
+        "src/adapters/outbound/x402/agent-wallet.ts": `import { createFacilitatorEvmSigner } from "@bankofai/x402-evm/adapters/agent-wallet";\nexport const signer = createFacilitatorEvmSigner;\n`,
+        "src/adapters/outbound/x402/agent-wallet-dist.ts": `import { createClientEvmSigner } from "@bankofai/x402-evm/dist/esm/adapters/agent-wallet.mjs";\nexport const signer = createClientEvmSigner;\n`,
+        "src/adapters/outbound/x402/exact.ts": `import { ExactTronScheme } from "@bankofai/x402-tron/exact";\nexport const scheme = ExactTronScheme;\n`,
+        "src/adapters/outbound/x402/upto.ts": `import { UptoTronScheme, createUptoPermit2Payload } from "@bankofai/x402-tron/upto";\nexport const scheme = [UptoTronScheme, createUptoPermit2Payload];\n`,
+        "src/adapters/outbound/x402/gasfree-facilitator.ts": `import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/facilitator";\nexport const scheme = ExactGasFreeTronScheme;\n`,
+        "src/adapters/outbound/x402/batch-server.ts": `import { BatchSettlementChannelManager } from "@bankofai/x402-tron/batch-settlement/server";\nexport const manager = BatchSettlementChannelManager;\n`,
+        "src/adapters/outbound/x402/exact-dist.ts": `import { ExactTronScheme } from "@bankofai/x402-tron/dist/cjs/exact/index.js";\nexport const scheme = ExactTronScheme;\n`,
+        "src/adapters/outbound/x402/types.ts": `import type { ExactTronScheme } from "@bankofai/x402-tron/exact/client";\nexport type Scheme = ExactTronScheme;\n`,
+      },
+    },
   ])("reports $rule", ({ rule, files, importers }) => {
     const dir = buildTree(files);
     try {
@@ -344,7 +418,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
   it("allows SDKs and HTTP clients in outbound and in tests, and names that only resemble them", () => {
     const dir = buildTree({
       "src/adapters/outbound/chain/tron/chain.ts": `import { TronWeb } from "tronweb";\nimport { Wallet } from "ethers";\nimport axios from "axios";\nexport const chain = [TronWeb, Wallet, axios];\n`,
-      "src/adapters/outbound/x402/x402.ts": `import { setLogger } from "@bankofai/x402-core";\nimport Trx from "@ledgerhq/hw-app-trx";\nexport const x402 = [setLogger, Trx];\n`,
+      "src/adapters/outbound/x402/x402.ts": `import { setLogger } from "@bankofai/x402-core";\nimport Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const x402 = [setLogger, Hid];\n`,
       "src/adapters/inbound/command.test.ts": `import { Wallet } from "ethers";\nimport axios from "axios";\nexport const probe = [Wallet, axios];\n`,
       "src/bootstrap/composition.test.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const probe = setLogger;\n`,
       "src/adapters/inbound/look-alike.ts": `import { kyber } from "kyber-crypto";\nimport { gotcha } from "gotcha";\nimport { wallet } from "@acme/ethers";\nexport const lookAlike = [kyber, gotcha, wallet];\n`,
@@ -392,6 +466,51 @@ describe("dependency-cruiser layer and cycle rules", () => {
       "src/adapters/outbound/http/client.test.ts": `import { Wallet } from "ethers";\nexport const probe = Wallet;\n`,
       "src/adapters/outbound/persistence/store.test.ts": `import { TronWeb } from "tronweb";\nexport const probe = TronWeb;\n`,
       "src/adapters/outbound/chain/coverage.test.ts": `import { Wallet } from "ethers";\nexport const probe = Wallet;\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports SDK signing and payment roots by their bare specifier when they do not resolve", () => {
+    const dir = buildTree({
+      "src/adapters/outbound/chain/tron/device.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const device = Trx;\n`,
+      "src/adapters/outbound/http/pay.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nexport const pay = wrapFetchWithPayment;\n`,
+      "src/adapters/outbound/chain/evm/registry.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
+    });
+    try {
+      unlinkSync(join(dir, "node_modules"));
+      const output = cruise(dir);
+      expect(output).toContain(
+        "ledger-apps-only-in-ledger-wrapper: src/adapters/outbound/chain/tron/device.ts → @ledgerhq/hw-app-trx\n",
+      );
+      expect(output).toContain(
+        "x402-payment-modules-only-in-payment-client: src/adapters/outbound/http/pay.ts → @bankofai/x402-fetch\n",
+      );
+      expect(output).toContain(
+        "erc8004-sdk-only-in-registry-wrapper: src/adapters/outbound/chain/evm/registry.ts → @bankofai/8004-sdk\n",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows SDK signing and payment modules in their wrappers, type imports of the ERC-8004 SDK, and other SDK modules", () => {
+    const dir = buildTree({
+      "src/adapters/outbound/ledger/index.ts": `export const apps = () => [import("@ledgerhq/hw-app-trx"), import("@ledgerhq/hw-app-eth")];\n`,
+      "src/adapters/outbound/ledger/hid.ts": `import Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const hid = Hid;\n`,
+      "src/adapters/outbound/ledger/hid.test.ts": `import Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const probe = Hid;\n`,
+      "src/adapters/outbound/ledger/path.ts": `import { splitPath } from "@ledgerhq/hw-app-trx/utils";\nimport { splitPath as libSplitPath } from "@ledgerhq/hw-app-trx/lib/utils.js";\nimport { EIP712_TYPE_PROPERTIES } from "@ledgerhq/hw-app-eth/modules/EIP712/utils";\nimport type { LedgerEthTransactionResolution } from "@ledgerhq/hw-app-eth/services/types";\nexport const path = [splitPath, libSplitPath, EIP712_TYPE_PROPERTIES];\nexport type Resolution = LedgerEthTransactionResolution;\n`,
+      "src/adapters/outbound/erc8004/sdk-registry.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
+      "src/adapters/outbound/erc8004/types.ts": `import type { SDK } from "@bankofai/8004-sdk";\nexport type Sdk = SDK;\n`,
+      "src/adapters/outbound/erc8004/sdk-registry.test.ts": `export type Probe = typeof import("@bankofai/8004-sdk");\n`,
+      "src/adapters/outbound/x402/payment-client.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nimport { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";\nimport { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nimport { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nimport { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";\nimport { x402Client } from "@bankofai/x402-core/client";\nimport { createClientEvmSigner } from "@bankofai/x402-evm/adapters/agent-wallet";\nimport { UptoTronScheme } from "@bankofai/x402-tron/upto";\nexport const client = [wrapFetchWithPayment, registerExactTronScheme, registerExactGasFreeTronScheme, ExactTronScheme, registerExactEvmScheme, x402Client, createClientEvmSigner, UptoTronScheme];\n`,
+      "src/adapters/outbound/x402/gasfree-relay.ts": `import { GasFreeAPIClient } from "@bankofai/x402-tron/gasfree";\nexport const relay = GasFreeAPIClient;\n`,
+      "src/adapters/outbound/x402/server.ts": `import { encodePaymentRequiredHeader } from "@bankofai/x402-core/http";\nimport { scheme } from "@bankofai/x402-tron/exact/server";\nimport type { Network } from "@bankofai/x402-core/types";\nexport const server = [encodePaymentRequiredHeader, scheme];\nexport type Net = Network;\n`,
+      "src/adapters/outbound/x402/tokens.ts": `import { registerToken } from "@bankofai/x402-tron";\nimport { fetcher } from "@bankofai/x402-fetcher";\nimport { clients } from "@bankofai/x402-tron/clients";\nimport { exactly } from "@bankofai/x402-tron/exactly";\nexport const tokens = [registerToken, fetcher, clients, exactly];\n`,
+      "src/adapters/outbound/x402/storage.ts": `import { FileClientChannelStorage } from "@bankofai/x402-evm/batch-settlement/client/file-storage";\nimport { FileClientChannelStorage as DistStorage } from "@bankofai/x402-evm/dist/esm/batch-settlement/client/file-storage.mjs";\nimport { RedisChannelStorage } from "@bankofai/x402-evm/batch-settlement/server/redis-storage";\nimport type { ClientWallet } from "@bankofai/x402-core/wallets";\nexport const storage = [FileClientChannelStorage, DistStorage, RedisChannelStorage];\nexport type Wallet = ClientWallet;\n`,
     });
     try {
       expect(cruise(dir)).toContain("no dependency violations found");
