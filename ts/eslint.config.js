@@ -11,6 +11,36 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ["src/**/*.ts"],
+    ignores: ["src/adapters/inbound/**", "**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...["http", "https", "http2", "net", "tls"].flatMap((module) =>
+              [module, `node:${module}`].map((name) => ({
+                name,
+                importNames:
+                  module === "http2"
+                    ? ["createServer", "createSecureServer", "Server"]
+                    : ["createServer", "Server"],
+                allowTypeImports: true,
+                message: "Import server capabilities only in adapters/inbound.",
+              })),
+            ),
+            {
+              name: "ws",
+              importNames: ["WebSocketServer", "Server"],
+              allowTypeImports: true,
+              message: "Import server capabilities only in adapters/inbound.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     plugins: { "wallet-cli": { rules: { "environment-reads": environmentReads } } },
     rules: { "wallet-cli/environment-reads": "error" },
   },
