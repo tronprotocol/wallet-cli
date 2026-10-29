@@ -72,8 +72,7 @@ own directory, whichever families it serves. **depcruise**.
   so ports carry no input paths (3.4).
 
 Libraries that only compute or format (for example `zod`, `lossless-json`, `wrap-ansi`) are not integrations;
-1.5 limits which of them `domain` and `application` use. **depcruise** for `node:http` and `node:net` servers,
-**review**.
+1.5 limits which of them `domain` and `application` use. **lint** for servers, **review**.
 
 ## 2. Rule ownership
 
@@ -137,7 +136,7 @@ adapter owns path resolution, file layout, permissions, and the no-overwrite rul
   with fault tests.
 - Inbound reaches stored state only through application use cases, never through a repository port.
 
-**test**, **depcruise**.
+**test**, **review**.
 
 3.6 An adapter does not drive application flow: it does not build signers or decide when to sign. It receives
 what it needs through the port call. **depcruise** for the import direction (1.2), **review** and **test** for
@@ -205,8 +204,8 @@ origin, and its payload. It refuses a payload whose embedded chain identity (EVM
 `domain.chainId`) disagrees with the named network; a TRON transaction is refused when the named network's node
 does not hold its reference block. Submitting happens only
 through the guarded paths of 6.1. An integration whose SDK can sign or send wraps it so those functions are
-unreachable elsewhere, and builds no signer of its own. **depcruise** for SDK entry points that sign or send,
-**test** for chain identity mismatches, **review**.
+unreachable elsewhere, and builds no signer of its own. **depcruise** and **lint** for SDK entry points
+that sign or send, **test** for chain identity mismatches, **review**.
 
 6.5 Secrets (private keys, mnemonics, BIP39 passphrases, passwords) are encrypted at rest and never read from
 argv or environment variables, only from the dedicated stdin channel or a hidden TTY prompt. **lint**:
@@ -240,4 +239,4 @@ the registry against the contract.
 ## Review-only rules
 
 Check these in every review until they are automated: 2.1, 2.2, 3.4, 4.2, 5.2, and the review parts of 1.9,
-3.2, 3.6, 5.1, 6.3, 6.4, and 7.1.
+3.2, 3.5, 3.6, 5.1, 6.3, 6.4, and 7.1.
