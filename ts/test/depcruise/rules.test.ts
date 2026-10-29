@@ -61,12 +61,29 @@ describe("dependency-cruiser layer and cycle rules", () => {
   it.each<{ rule: string; files: Record<string, string>; importers: string[] }>([
     {
       rule: "ports-are-innermost",
-      importers: ["src/application/ports/leak.ts", "src/application/ports/use-case-leak.ts"],
+      importers: [
+        "src/application/ports/leak.ts",
+        "src/application/ports/use-case-leak.ts",
+        "src/application/contracts/leak.ts",
+        "src/application/contracts/use-case-leak.ts",
+        "src/application/ports/root-leak.ts",
+        "src/application/ports/new-dir-leak.ts",
+        "src/application/contracts/root-leak.ts",
+        "src/application/contracts/new-dir-leak.ts",
+      ],
       files: {
         "src/application/ports/leak.ts": `import { marker } from "../services/marker.js";\nexport const leak = marker;\n`,
         "src/application/services/marker.ts": `export const marker = 1;\n`,
         "src/application/ports/use-case-leak.ts": `import { marker } from "../use-cases/example-service.js";\nexport const leak = marker;\n`,
         "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
+        "src/application/contracts/leak.ts": `import { marker } from "../services/marker.js";\nexport const leak = marker;\n`,
+        "src/application/contracts/use-case-leak.ts": `import { marker } from "../use-cases/example-service.js";\nexport const leak = marker;\n`,
+        "src/application/helper.ts": `export type Helper = 1;\n`,
+        "src/application/policy/helper.ts": `export type Helper = 1;\n`,
+        "src/application/ports/root-leak.ts": `import type { Helper } from "../helper.js";\nexport type Leak = Helper;\n`,
+        "src/application/ports/new-dir-leak.ts": `import type { Helper } from "../policy/helper.js";\nexport type Leak = Helper;\n`,
+        "src/application/contracts/root-leak.ts": `import type { Helper } from "../helper.js";\nexport type Leak = Helper;\n`,
+        "src/application/contracts/new-dir-leak.ts": `import type { Helper } from "../policy/helper.js";\nexport type Leak = Helper;\n`,
       },
     },
     {
@@ -140,6 +157,24 @@ describe("dependency-cruiser layer and cycle rules", () => {
       for (const importer of importers) {
         expect(output).toContain(`${rule}: ${importer} →`);
       }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows ports and contracts to import domain and each other, and their tests to import anything", () => {
+    const dir = buildTree({
+      "src/domain/marker.ts": `export const marker = 1;\n`,
+      "src/application/contracts/contract.ts": `import { marker } from "../../domain/marker.js";\nexport const contract = marker;\n`,
+      "src/application/ports/port.ts": `import { marker } from "../../domain/marker.js";\nimport { contract } from "../contracts/contract.js";\nexport const port = marker + contract;\n`,
+      "src/application/contracts/other.ts": `import { port } from "../ports/port.js";\nexport const other = port;\n`,
+      "src/application/services/marker.ts": `export const marker = 1;\n`,
+      "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
+      "src/application/ports/port.test.ts": `import { marker } from "../services/marker.js";\nimport { marker as useCase } from "../use-cases/example-service.js";\nexport const probe = marker + useCase;\n`,
+      "src/application/contracts/contract.test.ts": `import { marker } from "../services/marker.js";\nimport { marker as useCase } from "../use-cases/example-service.js";\nexport const probe = marker + useCase;\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

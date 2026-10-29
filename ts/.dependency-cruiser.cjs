@@ -11,8 +11,8 @@ module.exports = {
     {
       name: "ports-are-innermost",
       severity: "error",
-      from: { path: "^src/application/ports/" },
-      to: { path: "^src/application/(use-cases|services)/" },
+      from: { path: "^src/application/(ports|contracts)/", pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/application/", pathNot: "^src/application/(ports|contracts)/" },
     },
     {
       name: "no-circular",
