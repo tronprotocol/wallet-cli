@@ -1,5 +1,5 @@
 import type { ChainFamily, ContactEntry } from "../types/index.js";
-import { UsageError } from "../errors/index.js";
+import { errorMessage, UsageError } from "../errors/index.js";
 import { addressCodec, CHAIN_FAMILIES } from "../family/index.js";
 
 // Match mistyped addresses too, so recipient typos cannot redirect through contact names.
@@ -63,4 +63,21 @@ export function resemblesAddress(input: string): boolean {
 export function resembledFamily(input: string): ChainFamily | undefined {
   const value = input.trim();
   return ADDRESS_SHAPED.find(([, shape]) => shape.test(value))?.[0];
+}
+
+// A new contact must not reuse a name or an address held in any family.
+export function assertContactAddable(existing: readonly ContactEntry[], entry: ContactEntry): void {
+  const clash = existing.find((e) => e.nameKey === entry.nameKey || e.address === entry.address);
+  if (!clash) return;
+  throw new UsageError(
+    "already_exists",
+    clash.nameKey === entry.nameKey
+      ? errorMessage`a contact named ${clash.name} already exists`
+      : errorMessage`that address is already stored as ${clash.name}`,
+  );
+}
+
+// Names are unique across families in a stored book.
+export function hasDuplicateContactName(entries: readonly ContactEntry[]): boolean {
+  return new Set(entries.map((e) => e.nameKey)).size !== entries.length;
 }

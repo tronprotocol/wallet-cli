@@ -19,7 +19,7 @@ describe("ConfigService timeoutMs validation", () => {
   it("rejects a non-positive timeoutMs (0ms bound aborts instantly)", () => {
     const { svc, update } = service();
     expect(() => svc.execute({ key: "timeoutMs", value: "0" }, effective, networks)).toThrow(
-      /positive/,
+      /timeoutMs must be a number >= 1/,
     );
     expect(() => svc.execute({ key: "timeoutMs", value: "-5" }, effective, networks)).toThrow();
     expect(update).not.toHaveBeenCalled();

@@ -17,7 +17,7 @@ export const PACKAGE_VERSION = (
 ).version;
 export const MNEMONIC = "test test test test test test test test test test test junk";
 export const TRON1 = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
-export const DEFAULT_PW = "testpw123A";
+export const DEFAULT_PW = "testpw123A!";
 
 export let testHome: string;
 beforeEach(() => {

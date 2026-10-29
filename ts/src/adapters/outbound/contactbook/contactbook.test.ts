@@ -113,13 +113,37 @@ describe("ContactBook holds every family", () => {
     expect(book.list("evm").map((c) => c.address)).toEqual([EVM]);
   });
 
-  it("keeps the two families' name spaces separate", () => {
+  it("refuses, under its lock, a name another family already holds", () => {
+    const dir = root();
+    new ContactBook(dir, new AtomicFileStore()).add(createContact("tron", "friend", TRON));
+
+    expect(() =>
+      new ContactBook(dir, new AtomicFileStore()).add(createContact("evm", "Friend", EVM)),
+    ).toThrowError(expect.objectContaining({ code: "already_exists" }));
+    expect(new ContactBook(dir, new AtomicFileStore()).list("evm")).toEqual([]);
+  });
+
+  it("refuses an address already stored under another name", () => {
     const book = new ContactBook(root(), new AtomicFileStore());
-    book.add(createContact("tron", "friend", TRON));
     book.add(createContact("evm", "friend", EVM));
 
-    expect(book.find("tron", "friend")?.address).toBe(TRON);
-    expect(book.find("evm", "friend")?.address).toBe(EVM);
+    expect(() => book.add(createContact("evm", "other", EVM.toLowerCase()))).toThrowError(
+      expect.objectContaining({ code: "already_exists", message: expect.stringMatching(/friend/) }),
+    );
+  });
+
+  it("rejects a loaded file that holds one name in two families", () => {
+    const dir = root();
+    const book = new ContactBook(dir, new AtomicFileStore());
+    book.add(createContact("tron", "friend", TRON));
+    const path = join(dir, "contacts.json");
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    doc.entries.evm = [createContact("evm", "friend", EVM)];
+    writeFileSync(path, JSON.stringify(doc));
+
+    expect(() => new ContactBook(dir, new AtomicFileStore()).list("tron")).toThrowError(
+      expect.objectContaining({ code: "encoding_error" }),
+    );
   });
 
   it("rejects a file whose entry sits under the wrong family key", () => {

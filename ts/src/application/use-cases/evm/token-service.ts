@@ -1,5 +1,6 @@
 import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.js";
 import { ExecutionError } from "../../../domain/errors/index.js";
+import { canonicalTokenId } from "../../../domain/token/index.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
@@ -47,7 +48,7 @@ export class EvmTokenService {
     }
     const token: TokenEntry = {
       kind: "erc20",
-      id: input.contract,
+      id: canonicalTokenId("erc20", input.contract),
       symbol: meta.symbol,
       decimals: meta.decimals,
       ...(meta.name === undefined ? {} : { name: meta.name }),

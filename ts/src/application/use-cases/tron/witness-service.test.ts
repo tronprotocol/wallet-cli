@@ -79,6 +79,24 @@ describe("TronWitnessService", () => {
     expect(build).not.toHaveBeenCalled();
   });
 
+  it.each([-1, 101, 1.5])("refuses brokerage %s before any chain call", async (value) => {
+    const build = vi.fn();
+    const service = createService({ buildWitnessSetBrokerage: build });
+    await expect(service.setBrokerage(scope, NET, { percent: value })).rejects.toMatchObject({
+      code: "invalid_value",
+    });
+    expect(build).not.toHaveBeenCalled();
+  });
+
+  it("refuses a witness URL over 256 UTF-8 bytes before any chain call", async () => {
+    const build = vi.fn();
+    const service = createService({ buildWitnessUpdate: build });
+    await expect(
+      service.update(scope, NET, { url: `https://${"é".repeat(125)}` }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    expect(build).not.toHaveBeenCalled();
+  });
+
   it("passes brokerage through unchanged: percent is the SR-retained share", async () => {
     const build = vi.fn(async () => ({}));
     const service = createService({

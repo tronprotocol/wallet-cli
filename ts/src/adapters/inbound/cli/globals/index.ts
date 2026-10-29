@@ -1,5 +1,11 @@
 // Global flag specs also define help display order.
 import type { SecretKind } from "../contracts/index.js";
+import {
+  OUTPUT_MODES,
+  TIMEOUT_MS_RULE,
+  WAIT_TIMEOUT_MS_RULE,
+  type ValueRule,
+} from "../../../../domain/config/index.js";
 
 export type GlobalFlagKind = "value" | "boolean" | "secret-stdin";
 
@@ -12,8 +18,8 @@ export interface GlobalFlagSpec {
   // Value flags only.
   valueType?: "string" | "number";
   choices?: readonly string[];
-  // Inclusive minimum for numeric flags; defaults to zero.
-  min?: number;
+  // Numeric flags without a rule accept any number >= 0.
+  rule?: ValueRule<number>;
   // Secret-stdin flags only.
   secretKey?: SecretKind;
   // Overrides the default camelCase runtime field.
@@ -31,7 +37,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     alias: "o",
     kind: "value",
     valueType: "string",
-    choices: ["text", "json"],
+    choices: OUTPUT_MODES,
     description: "result format",
     defaultValue: "config.defaultOutput (built-in: text)",
   },
@@ -54,7 +60,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     kind: "value",
     valueType: "number",
     field: "timeoutMs",
-    min: 1,
+    rule: TIMEOUT_MS_RULE,
     description: "per node, service, or device call timeout, in milliseconds",
     defaultValue: "config.timeoutMs (built-in: 60000)",
   },
@@ -78,6 +84,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     kind: "value",
     valueType: "number",
     field: "waitTimeoutMs",
+    rule: WAIT_TIMEOUT_MS_RULE,
     description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt",
     defaultValue: "config.waitTimeoutMs (built-in: 60000)",
   },
@@ -108,7 +115,8 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     kind: "secret-stdin",
     secretKey: "apiKey",
     commandScoped: true,
-    description: "read the B.AI API key from stdin (fd 0); accepted only by config baiApiKey",
+    description:
+      "read a credential value from stdin (fd 0); accepted only by config <credential key>, e.g. config baiApiKey --api-key-stdin",
   },
 ];
 
@@ -128,10 +136,14 @@ export function coerceGlobalValue(field: string, raw: string): GlobalCoercion {
   if (!spec) return { ok: true, value: raw };
   if (spec.valueType === "number") {
     const n = Number(raw);
-    const min = spec.min ?? 0;
-    return Number.isFinite(n) && n >= min
+    if (spec.rule) {
+      return spec.rule.accepts(n)
+        ? { ok: true, value: n }
+        : { ok: false, reason: `must be ${spec.rule.description}` };
+    }
+    return Number.isFinite(n) && n >= 0
       ? { ok: true, value: n }
-      : { ok: false, reason: `must be a number >= ${min}` };
+      : { ok: false, reason: "must be a number >= 0" };
   }
   if (spec.choices) {
     return spec.choices.includes(raw)

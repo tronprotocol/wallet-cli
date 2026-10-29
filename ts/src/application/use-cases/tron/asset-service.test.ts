@@ -85,6 +85,27 @@ describe("asset issue", () => {
     expect(build).not.toHaveBeenCalled();
   });
 
+  it("refuses a TRC10 precision above 6 before building", async () => {
+    const build = vi.fn();
+    const svc = service({ getAssetByIssuer: async () => undefined, buildAssetIssue: build });
+    await expect(svc.issue(scope, NET, { ...ISSUE, precision: 7 })).rejects.toMatchObject({
+      code: "invalid_value",
+    });
+    expect(build).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ supply: "0" }, "--supply must be greater than zero"],
+    [{ freeze: ["0:30"] }, "--freeze amount must be greater than zero"],
+    [{ freeze: ["100:0"] }, "--freeze days must be greater than zero"],
+  ])("refuses a zero count %j with invalid_value", async (override, message) => {
+    const svc = service({ getAssetByIssuer: async () => undefined });
+    await expect(svc.issue(scope, NET, { ...ISSUE, ...override })).rejects.toMatchObject({
+      code: "invalid_value",
+      message,
+    });
+  });
+
   it("scales supply and tranches by precision and reduces the price", async () => {
     let issuance: Record<string, unknown> | undefined;
     const svc = service(
@@ -223,6 +244,13 @@ describe("asset participate", () => {
     await expect(
       svc.participate(scope, NET, { assetRef: "1000123", pay: "10.5" }),
     ).resolves.toMatchObject({ paidSun: "10500000", receivedAmount: "1050000000" });
+  });
+
+  it("refuses a zero payment with invalid_value", async () => {
+    const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX }) });
+    await expect(
+      svc.participate(scope, NET, { assetRef: "1000123", pay: "0" }),
+    ).rejects.toMatchObject({ code: "invalid_value", message: "--pay must be greater than zero" });
   });
 
   it("refuses a payment too small to buy one unit", async () => {

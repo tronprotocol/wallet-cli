@@ -634,3 +634,65 @@ describe("ConfigLoader sunswap network block", () => {
     expect(tronNetwork(config, "tron:728126428").sunpump?.curve).toBe(true);
   });
 });
+
+describe("ConfigLoader permission check covers every credential key", () => {
+  it.each([
+    "tronlinkSecretId",
+    "tronlinkSecretKey",
+    "gasfreeApiKey",
+    "gasfreeApiSecret",
+    "baiApiKey",
+  ])("refuses a group-readable file that holds only %s", (key) => {
+    expect(() => ConfigLoader.load(envWithConfig(`${key}: fake-credential\n`, 0o644))).toThrowError(
+      expect.objectContaining({ code: "insecure_config" }),
+    );
+  });
+
+  it("refuses a group-readable file that holds only a network apiKey", () => {
+    const yaml = "networks:\n  tron:3448148188:\n    apiKey: fake-credential\n";
+    expect(() => ConfigLoader.load(envWithConfig(yaml, 0o644))).toThrowError(
+      expect.objectContaining({ code: "insecure_config" }),
+    );
+  });
+});
+
+describe("ConfigLoader applies the config set rules", () => {
+  it.each(["-1", "0", "0.5", ".inf", "'5000'"])(
+    "ignores timeoutMs %s and keeps the default",
+    (v) => {
+      expect(ConfigLoader.load(envWithConfig(`timeoutMs: ${v}\n`)).timeoutMs).toBe(60000);
+    },
+  );
+
+  it("keeps a valid timeoutMs", () => {
+    expect(ConfigLoader.load(envWithConfig("timeoutMs: 1500\n")).timeoutMs).toBe(1500);
+  });
+
+  it.each([
+    ["httpEndpoint", "ftp://node.invalid"],
+    ["apiKeyHeader", "X-Key: injected"],
+  ])("rejects a network %s that config set would refuse", (field, value) => {
+    const yaml = `networks:\n  tron:3448148188:\n    ${field}: "${value}"\n`;
+    expect(() => ConfigLoader.load(envWithConfig(yaml))).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+  });
+
+  it("rejects a network apiKey with control characters without echoing it", () => {
+    const yaml = 'networks:\n  tron:3448148188:\n    apiKey: "fake\\u0001key"\n';
+    let error: unknown;
+    try {
+      ConfigLoader.load(envWithConfig(yaml, 0o600));
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toMatchObject({ code: "invalid_value" });
+    expect(String((error as Error).message)).not.toContain("fake");
+  });
+
+  it("trims a hand-edited header name as config set does", () => {
+    const yaml = 'networks:\n  tron:3448148188:\n    apiKeyHeader: " X-Key "\n';
+    const config = ConfigLoader.load(envWithConfig(yaml));
+    expect(config.networks["tron:3448148188"]!.apiKeyHeader).toBe("X-Key");
+  });
+});

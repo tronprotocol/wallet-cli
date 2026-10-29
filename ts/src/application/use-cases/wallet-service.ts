@@ -7,6 +7,7 @@ import {
   resolveDerivation,
 } from "../../domain/wallet/derivation-match.js";
 import { walletAddress } from "../../domain/wallet/index.js";
+import { assertPasswordPolicy } from "../../domain/wallet/password-policy.js";
 import {
   CHAIN_FAMILIES,
   canonicalAddress,
@@ -134,6 +135,7 @@ export class WalletService {
   }
 
   changePassword(oldPassword: string, newPassword: string) {
+    assertPasswordPolicy(newPassword);
     return this.wallets.changePassword(oldPassword, newPassword);
   }
 
@@ -169,14 +171,7 @@ export class WalletService {
           : `${wallet.source.type} account is not HD; select an account belonging to an HD wallet or pass --seed-id <wlt_…>`,
       );
     }
-    const baseLabel = this.wallets.describe(`${wallet.id}.0`).label;
-    const result = this.wallets.addAccount(wallet.id, request.index);
-    if (request.label) {
-      this.wallets.rename(result.accountId, request.label);
-    } else if (result.created) {
-      const newIndex = Number(result.accountId.split(".")[1]);
-      this.wallets.rename(result.accountId, `${baseLabel ?? "hd"}-${newIndex}`);
-    }
+    const result = this.wallets.addAccount(wallet.id, request.index, request.label);
     const descriptor = this.#describeWithVerifiedDerivation(result.accountId);
     const tronPath = descriptor.derivationPath?.tron;
     if (

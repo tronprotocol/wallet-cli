@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { icoPriceLabel, icoRate, icoTokensFor } from "./index.js";
+import { icoPriceLabel, icoRate, icoTokensFor, trc10Precision } from "./index.js";
 
 describe("TRC10 ICO rate", () => {
   it("scales the same price by precision", () => {
@@ -53,5 +53,14 @@ describe("TRC10 ICO rate", () => {
     ] as const) {
       expect(icoPriceLabel(icoRate(trx, tokens, precision), precision)).toEqual({ trx, tokens });
     }
+  });
+});
+
+describe("trc10Precision", () => {
+  it.each([0, 6])("accepts %s", (v) => expect(trc10Precision(v)).toBe(v));
+  it.each([-1, 7, 1.5])("rejects %s", (v) => {
+    expect(() => trc10Precision(v)).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
   });
 });

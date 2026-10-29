@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import {
   CONFIG_KEYS,
+  isCredentialKey,
   NETWORK_CONFIG_FIELDS,
   type ConfigService,
 } from "../../../../application/use-cases/config-service.js";
@@ -32,7 +33,7 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
     stdin: "apiKey",
     summary: "Show / get / set configuration values",
     description:
-      "Read or update configuration. Setting baiApiKey only saves the key locally; no network, account, password or wallet binding is required. Recharge checks binding when used.",
+      "Read or update configuration. Credentials (tronlinkSecretId, tronlinkSecretKey, gasfreeApiKey, gasfreeApiSecret, baiApiKey, networks.<id>.apiKey) are read only from --api-key-stdin, never from the command line. Setting baiApiKey only saves the key locally; no network, account, password or wallet binding is required. Recharge checks binding when used.",
     positionals: [{ field: "key" }, { field: "value" }],
     fields,
     input: fields,
@@ -49,20 +50,21 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
     formatText: TextFormatters.config,
     run: async (ctx, _network, input) => {
       const hasApiKeyInput = ctx.secrets.has("apiKey");
-      if (input.key === "baiApiKey" && input.value !== undefined) {
+      const credential = input.key !== undefined && isCredentialKey(input.key);
+      if (credential && input.value !== undefined) {
         throw new UsageError(
           "invalid_option",
-          "B.AI API key must not be passed on the command line; use --api-key-stdin",
+          `${input.key} must not be passed on the command line; use --api-key-stdin`,
         );
       }
-      if (hasApiKeyInput && input.key !== "baiApiKey") {
+      if (hasApiKeyInput && !credential) {
         throw new UsageError(
           "invalid_option",
-          "--api-key-stdin is accepted only with config baiApiKey",
+          "--api-key-stdin is accepted only with a credential key: tronlinkSecretId, tronlinkSecretKey, gasfreeApiKey, gasfreeApiSecret, baiApiKey or networks.<id>.apiKey",
         );
       }
       const effectiveInput = hasApiKeyInput
-        ? { key: "baiApiKey", value: ctx.secrets.require("apiKey") }
+        ? { key: input.key, value: ctx.secrets.require("apiKey") }
         : input;
       return service.execute(effectiveInput, ctx.config, ctx.networkRegistry);
     },

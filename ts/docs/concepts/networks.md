@@ -41,8 +41,10 @@ Point a network at your own node, or at a commercial endpoint, with [`config`](.
 ```bash
 wallet-cli config networks.tron:3448148188.httpEndpoint http://127.0.0.1:8090
 wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY
-wallet-cli config networks.tron:728126428.apiKey <your-key>
+printf '%s\n' "$TRONGRID_KEY" | wallet-cli config networks.tron:728126428.apiKey --api-key-stdin
 ```
+
+The API key is a credential: it is read only from `--api-key-stdin`, never from the command line, so it stays out of shell history and process listings.
 
 Listings (`networks`, `config`) print an endpoint's **host only**, because a commercial URL can carry a key in its path; a named read (`config networks.<id>.httpEndpoint`) gives the full value.
 

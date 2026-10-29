@@ -6,7 +6,16 @@ vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
-import { mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  cpSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -27,7 +36,7 @@ const EVM_KEY_OF_MNEMONIC_ACCOUNT_0 = bytesToHex(
 
 function freshKeystore() {
   const root = mkdtempSync(join(tmpdir(), "ks-"));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
 function storageSnapshot(root: string): Record<string, Buffer | null> {
@@ -134,7 +143,10 @@ describe("Keystore", () => {
     const ledger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
     expect(ks.activeAccount()).toBe(ledger.accountId);
 
-    const watch = ks.registerWatch({ family: "tron", address: "Twatch-active" });
+    const watch = ks.registerWatch({
+      family: "tron",
+      address: "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz",
+    });
     expect(ks.activeAccount()).toBe(ledger.accountId);
 
     const repeatedLedger = ks.registerLedger({
@@ -181,34 +193,48 @@ describe("Keystore", () => {
     expect(b.accountId).toBe(a.accountId);
     expect(b.created).toBe(false);
     expect(ks.list()).toHaveLength(1);
-    const c = ks.registerLedger({ family: "tron", path: LEDGER_PATH, address: "TDIFFERENT" });
+    const c = ks.registerLedger({
+      family: "tron",
+      path: LEDGER_PATH,
+      address: "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8",
+    });
     expect(c.accountId).toBe(a.accountId);
     expect(ks.list()).toHaveLength(1);
-    const d = ks.registerLedger({ family: "tron", path: "m/44'/195'/1'/0/0", address: "TOTHER" });
+    const d = ks.registerLedger({
+      family: "tron",
+      path: "m/44'/195'/1'/0/0",
+      address: "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz",
+    });
     expect(d.accountId).not.toBe(a.accountId);
     expect(d.created).toBe(true);
     expect(ks.list()).toHaveLength(2);
   });
 
   it("registerWatch stores a secret-less, index-less watch account", () => {
-    const wRef = ks.registerWatch({ family: "tron", address: "Twatch1", label: "obs" }).accountId;
+    const wRef = ks.registerWatch({
+      family: "tron",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+      label: "obs",
+    }).accountId;
     expect(wRef).toMatch(/^wlt_[a-z0-9]+$/);
     expect(wRef).not.toContain(".");
     const { wallet, index } = ks.resolveAccount(wRef);
     expect(index).toBe(-1);
     expect(wallet.source.type).toBe("watch");
-    expect(walletAddress(wallet, "tron")).toBe("Twatch1");
+    expect(walletAddress(wallet, "tron")).toBe("TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC");
   });
 
   it("registerWatch dedupes by (family, address)", () => {
-    const a = ks.registerWatch({ family: "tron", address: "Twatch1" });
-    const b = ks.registerWatch({ family: "tron", address: "Twatch1" });
+    const a = ks.registerWatch({ family: "tron", address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC" });
+    const b = ks.registerWatch({ family: "tron", address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC" });
     expect(b.accountId).toBe(a.accountId);
     expect(b.created).toBe(false);
     expect(ks.list()).toHaveLength(1);
-    // Synthetic address tests family-scoped deduplication without address validation.
-    const c = ks.registerWatch({ family: "evm" as any, address: "Twatch1" });
-    const d = ks.registerWatch({ family: "tron", address: "Twatch2" });
+    const c = ks.registerWatch({
+      family: "evm",
+      address: "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D",
+    });
+    const d = ks.registerWatch({ family: "tron", address: "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8" });
     expect(c.accountId).not.toBe(a.accountId);
     expect(d.accountId).not.toBe(a.accountId);
     expect(ks.list()).toHaveLength(3);
@@ -224,7 +250,10 @@ describe("Keystore", () => {
   });
 
   it("add-account on a watch wallet is rejected", () => {
-    const wRef = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
+    const wRef = ks.registerWatch({
+      family: "tron",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    }).accountId;
     expect(() => ks.addAccount(wRef.split(".")[0]!)).toThrow(/not HD/i);
   });
 
@@ -423,6 +452,48 @@ describe("Keystore", () => {
     expect(() => ks.decryptSeed(vaultId)).toThrow(/missing vault/);
   });
 
+  it.each([
+    ["the whole wallet", false],
+    ["the only remaining sub-account", true],
+  ])("deleting %s keeps the secret file while the index still names it", (_label, subAccount) => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" }).accountId;
+    const walletId = ref.split(".")[0]!;
+    const vaultId = (ks.resolveAccount(ref).wallet.source as any).vaultId;
+    let target = walletId;
+    if (subAccount) {
+      ks.addAccount(walletId, 1);
+      const file = JSON.parse(readFileSync(ks.walletsPath, "utf8")) as WalletsFile;
+      delete (file.wallets[0]!.source as any).addresses["0"];
+      writeFileSync(ks.walletsPath, JSON.stringify(file));
+      target = `${walletId}.1`;
+    }
+    const before = readFileSync(ks.walletsPath, "utf8");
+    const store = (ks as any).store as AtomicFileStore;
+    store.writeJson = () => {
+      throw Object.assign(new Error("ENOSPC"), { code: "ENOSPC" });
+    };
+
+    expect(() => ks.delete(target)).toThrow(/ENOSPC/);
+    expect(readFileSync(ks.walletsPath, "utf8")).toBe(before);
+    expect(() => ks.decryptSeed(vaultId)).not.toThrow();
+  });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "reports secretRemoved false when the secret file cannot be deleted after the index commit",
+    () => {
+      const ref = ks.import({ secret: MNEMONIC, type: "seed" }).accountId;
+      const vaults = join(dirname((ks as any).walletsPath), "vaults");
+      chmodSync(vaults, 0o500);
+      try {
+        const del = ks.delete(ref.split(".")[0]!);
+        expect(del.secretRemoved).toBe(false);
+        expect(ks.list()).toEqual([]);
+      } finally {
+        chmodSync(vaults, 0o700);
+      }
+    },
+  );
+
   it("delete by wallet-level ref removes the whole seed wallet and its vault", () => {
     const ref = ks.import({ secret: MNEMONIC, type: "seed" }).accountId;
     const walletId = ref.split(".")[0]!;
@@ -554,7 +625,7 @@ function keystoreWithDuplicateEvmAddress(): Keystore {
     labels: {},
   };
   writeFileSync(join(root, "wallets.json"), JSON.stringify(file));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
 describe("resolving an address held by more than one account", () => {
@@ -594,7 +665,7 @@ describe("resolving an address held by more than one account", () => {
 
   it("refuses to guess when one of the candidates has no local key (watch)", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-watch-dup-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     const evmAddr = ks.list()[0]!.addresses.evm!;
     ks.registerWatch({ family: "evm", address: evmAddr });
@@ -631,7 +702,7 @@ function keystoreWithUnknownSourceType(): Keystore {
     labels: {},
   };
   writeFileSync(join(root, "wallets.json"), JSON.stringify(file));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
 describe("an account whose source kind this build does not know", () => {
@@ -710,6 +781,16 @@ describe("password sentinel queries", () => {
     expect(ks.verifyPassword("Abcdef1!")).toBe(true);
     expect(ks.verifyPassword("wrong")).toBe(false);
   });
+
+  it("refuses to create the sentinel with a password that fails the policy", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-sentinel-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "weakpass");
+    expect(() => ks.import({ secret: "a".repeat(64), type: "privateKey" })).toThrowError(
+      expect.objectContaining({ code: "weak_password" }),
+    );
+    expect(ks.isInitialized()).toBe(false);
+    expect(readdirSync(root)).not.toContain("wallets.json");
+  });
 });
 
 describe("changePassword", () => {
@@ -746,42 +827,13 @@ describe("changePassword", () => {
   it("throws no_software_wallet when only watch/ledger wallets exist", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
     const ksWatchOnly = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
-    ksWatchOnly.registerWatch({ family: "tron", address: "Twatch-only" });
+    ksWatchOnly.registerWatch({ family: "tron", address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC" });
     expect(() => ksWatchOnly.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow(
       /no software wallet/,
     );
   });
 
-  it("maps a write failure to io_error and leaves the keystore usable under the old password", () => {
-    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
-    const store = new AtomicFileStore();
-    const ks = new Keystore(root, store, () => "OldPw1!aa");
-    ks.import({ secret: MNEMONIC, type: "seed" });
-    store.writeJsonAll = () => {
-      throw new Error("disk full");
-    };
-    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrowError(
-      expect.objectContaining({ code: "io_error" }),
-    );
-    expect(ks.verifyPassword("OldPw1!aa")).toBe(true);
-  }, 15_000);
-
-  function residue(root: string): string[] {
-    const out: string[] = [];
-    const walk = (dir: string) => {
-      for (const e of readdirSync(dir, { withFileTypes: true })) {
-        const p = join(dir, e.name);
-        if (e.isDirectory()) walk(p);
-        else if (p.endsWith(".tmp") || p.includes(".bak")) out.push(p);
-      }
-    };
-    walk(root);
-    return out;
-  }
-
-  it("a partial mid-commit crash rolls back: every secret still opens with the OLD password, none with the new", () => {
-    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
-    const store = new AtomicFileStore();
+  function twoWallets(root: string, store: AtomicFileStore) {
     const ks = new Keystore(root, store, () => "OldPw1!aa");
     const seedRef = ks.import({ secret: MNEMONIC, type: "seed", label: "seed" }).accountId;
     const keyRef = ks.import({
@@ -789,27 +841,115 @@ describe("changePassword", () => {
       type: "privateKey",
       label: "hot",
     }).accountId;
-    const vaultId = (ks.resolveAccount(seedRef).wallet.source as any).vaultId;
-    const keyId = (ks.resolveAccount(keyRef).wallet.source as any).keyId;
+    const vaultId = (ks.resolveAccount(seedRef).wallet.source as any).vaultId as string;
+    const keyId = (ks.resolveAccount(keyRef).wallet.source as any).keyId as string;
+    return { ks, vaultId, keyId };
+  }
 
+  // Restarts on root and reports the one password that opens the verifier and every secret.
+  function passwordAfterRestart(root: string, vaultId: string, keyId: string): string[] {
+    return ["OldPw1!aa", "NewPw2@bb"].filter((pw) => {
+      const reopened = new Keystore(root, new AtomicFileStore(), () => pw);
+      if (!reopened.verifyPassword(pw)) return false;
+      reopened.decryptSeed(vaultId);
+      reopened.decryptKey(keyId);
+      return true;
+    });
+  }
+
+  function residue(root: string): string[] {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (/\.(tmp|next|lock)$|\.bak|journal/.test(p)) out.push(p);
+      }
+    };
+    walk(root);
+    return out;
+  }
+
+  it("keeps the old password and leaves no staged files when staging fails", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const { ks, vaultId, keyId } = twoWallets(root, store);
+    const fsyncFile = store.fsyncFile.bind(store);
+    let staged = 0;
+    store.fsyncFile = (path: string) => {
+      if (path.endsWith(".next") && ++staged === 2) {
+        throw Object.assign(new Error("ENOSPC"), { code: "ENOSPC" });
+      }
+      fsyncFile(path);
+    };
+
+    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrowError(
+      expect.objectContaining({ code: "io_error", message: expect.stringMatching(/old password/) }),
+    );
+    expect(residue(root)).toEqual([]);
+    expect(passwordAfterRestart(root, vaultId, keyId)).toEqual(["OldPw1!aa"]);
+  }, 15_000);
+
+  it("reports a failure after the commit point truthfully and finishes on the next command", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const { ks, vaultId, keyId } = twoWallets(root, store);
     let installs = 0;
     store.commitRename = (from: string, to: string) => {
-      if (from.includes(".tmp")) {
-        installs++;
-        if (installs === 2) throw Object.assign(new Error("EIO"), { code: "EIO" });
-      }
+      if (++installs === 2) throw Object.assign(new Error("EIO"), { code: "EIO" });
       renameSync(from, to);
     };
 
-    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow();
-
-    expect(ks.verifyPassword("OldPw1!aa")).toBe(true);
-    expect(ks.verifyPassword("NewPw2@bb")).toBe(false);
-    const reopened = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
-    expect(() => reopened.decryptSeed(vaultId)).not.toThrow();
-    expect(() => reopened.decryptKey(keyId)).not.toThrow();
+    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrowError(
+      expect.objectContaining({
+        code: "io_error",
+        message: expect.stringMatching(/new password is in effect/),
+      }),
+    );
+    expect(passwordAfterRestart(root, vaultId, keyId)).toEqual(["NewPw2@bb"]);
     expect(residue(root)).toEqual([]);
   }, 15_000);
+
+  it("a process killed at any step restarts with exactly one password: old before the commit point, new after", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const { ks, vaultId, keyId } = twoWallets(root, store);
+    const snapshots: string[] = [];
+    // A copy of root taken mid-operation is the state a killed process leaves behind.
+    const snapshot = () => {
+      const copy = mkdtempSync(join(tmpdir(), "ks-killed-"));
+      cpSync(root, copy, { recursive: true });
+      rmSync(join(copy, "wallets.json.lock"), { force: true });
+      snapshots.push(copy);
+    };
+    const fsyncFile = store.fsyncFile.bind(store);
+    store.fsyncFile = (path: string) => {
+      fsyncFile(path);
+      snapshot();
+    };
+    store.commitRename = (from: string, to: string) => {
+      snapshot();
+      renameSync(from, to);
+      snapshot();
+    };
+
+    ks.changePassword("OldPw1!aa", "NewPw2@bb");
+
+    const outcomes = snapshots.map((copy) => passwordAfterRestart(copy, vaultId, keyId));
+    for (const [i, copy] of snapshots.entries()) {
+      expect(outcomes[i], `kill point ${i}`).toHaveLength(1);
+      // The next wallet command recovers, including a temp file of an interrupted journal write.
+      const { activeAccount } = JSON.parse(readFileSync(join(copy, "wallets.json"), "utf8"));
+      new Keystore(copy, new AtomicFileStore(), () => outcomes[i]![0]!).setActive(activeAccount);
+      expect(residue(copy), `kill point ${i}`).toEqual([]);
+    }
+    const sequence = outcomes.map((o) => o[0]);
+    const firstNew = sequence.indexOf("NewPw2@bb");
+    expect(firstNew).toBeGreaterThan(1);
+    expect(sequence.slice(0, firstNew).every((pw) => pw === "OldPw1!aa")).toBe(true);
+    expect(sequence.slice(firstNew).every((pw) => pw === "NewPw2@bb")).toBe(true);
+    expect(sequence.length - firstNew).toBeGreaterThan(1);
+  }, 60_000);
 
   it("a successful rotation lands durably with no .tmp/.bak residue (fsync + backup cleanup)", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
@@ -833,10 +973,25 @@ describe("changePassword", () => {
   }, 15_000);
 });
 
+describe("wallets.json loading applies the write rules", () => {
+  it("rejects a hand-edited watch address that registerWatch would refuse", () => {
+    const ks = freshKeystore();
+    ks.registerWatch({ family: "tron", address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6" });
+    const file = JSON.parse(readFileSync(ks.walletsPath, "utf8")) as WalletsFile;
+    (file.wallets[0]!.source as { address: string }).address = "Tnot-an-address";
+    writeFileSync(ks.walletsPath, JSON.stringify(file));
+
+    expect(() => ks.list()).toThrowError(expect.objectContaining({ code: "encoding_error" }));
+    expect(() => ks.registerWatch({ family: "tron", address: "Tnot-an-address" })).toThrowError(
+      expect.objectContaining({ code: "invalid_address" }),
+    );
+  });
+});
+
 describe("wallets.json schema version", () => {
   it("stamps a newly created keystore at the current version", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.registerWatch({ family: "tron", address: "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6" });
 
     const doc = JSON.parse(readFileSync(join(root, "wallets.json"), "utf8"));
@@ -848,7 +1003,7 @@ describe("wallets.json schema version", () => {
 describe("descriptor carries each family's derivation path", () => {
   it("reports no derivation information when one family's path is ambiguous", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     ks.addAccount(ks.list()[0]!.seedId!, 2);
 
@@ -858,7 +1013,7 @@ describe("descriptor carries each family's derivation path", () => {
 
   it("still reports both paths for index 0, where the templates agree", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
 
     expect(ks.list()[0]!.derivationPath).toEqual({
@@ -869,7 +1024,7 @@ describe("descriptor carries each family's derivation path", () => {
 
   it("reports null for an account that was not derived", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.registerWatch({ family: "evm", address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" });
 
     expect(ks.list()[0]!.derivationPath).toBeNull();
@@ -877,7 +1032,7 @@ describe("descriptor carries each family's derivation path", () => {
 
   it("gives a ledger account only its own family's path", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.registerLedger({
       family: "tron",
       path: "m/44'/195'/5'/0/0",
@@ -894,7 +1049,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
   function keystoreWithLegacyAccount() {
     const root = mkdtempSync(join(tmpdir(), "ks-legacy-"));
     const store = new AtomicFileStore();
-    const ks = new Keystore(root, store, () => "masterpw123A");
+    const ks = new Keystore(root, store, () => "masterpw123A!");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     const path = join(root, "wallets.json");
     const file = store.readJson<WalletsFile>(path)!;
@@ -907,7 +1062,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
       evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     };
     store.writeJsonAll([{ path, value: file }]);
-    return new Keystore(root, store, () => "masterpw123A");
+    return new Keystore(root, store, () => "masterpw123A!");
   }
 
   it("refuses, rather than adding a second template to the same wallet", () => {
@@ -954,7 +1109,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
   it("refuses with derivation_mismatch when a slot matches no template at all", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-mismatch-"));
     const store = new AtomicFileStore();
-    const ks = new Keystore(root, store, () => "masterpw123A");
+    const ks = new Keystore(root, store, () => "masterpw123A!");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     const path = join(root, "wallets.json");
     const file = store.readJson<WalletsFile>(path)!;
@@ -968,7 +1123,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
       evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     };
     store.writeJsonAll([{ path, value: file }]);
-    const fresh = new Keystore(root, store, () => "masterpw123A");
+    const fresh = new Keystore(root, store, () => "masterpw123A!");
 
     expect(() => fresh.addAccount(fresh.list()[0]!.seedId!)).toThrowError(
       expect.objectContaining({ code: "derivation_mismatch" }),
@@ -978,7 +1133,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
   it("does not change the active account when an existing slot fails verification", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-mismatch-existing-"));
     const store = new AtomicFileStore();
-    const ks = new Keystore(root, store, () => "masterpw123A");
+    const ks = new Keystore(root, store, () => "masterpw123A!");
     const rootRef = ks.import({ secret: MNEMONIC, type: "seed", label: "main" }).accountId;
     const path = join(root, "wallets.json");
     const file = store.readJson<WalletsFile>(path)!;
@@ -991,7 +1146,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
       evm: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     };
     store.writeJsonAll([{ path, value: file }]);
-    const fresh = new Keystore(root, store, () => "masterpw123A");
+    const fresh = new Keystore(root, store, () => "masterpw123A!");
 
     expect(() => fresh.addAccount(rootRef.split(".")[0]!, 1)).toThrowError(
       expect.objectContaining({ code: "derivation_mismatch" }),
@@ -1001,7 +1156,7 @@ describe("derive on a wallet holding a pre-correction account", () => {
 
   it("allows a wallet that only ever held index 0", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-clean-"));
-    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+    const ks = new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
     ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
 
     const result = ks.addAccount(ks.list()[0]!.seedId!);

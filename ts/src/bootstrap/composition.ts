@@ -34,7 +34,7 @@ import { SignerResolver } from "../application/services/signer/index.js";
 import { TargetResolver } from "../application/services/target/index.js";
 import { TxPipeline } from "../application/services/pipeline/index.js";
 import { X402Permit2Approvals } from "../application/use-cases/x402-permit2-approval.js";
-import { ConfigService } from "../application/use-cases/config-service.js";
+import { ConfigService, configuredCredentials } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
 import { familyMap } from "./family-registry.js";
 import { registerTronChainCommands } from "./families/tron.js";
@@ -87,7 +87,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
   const streams = new StreamManager(output, options.globals.verbose);
-  const formatter = createOutputFormatter(output, streams, options.startedAt);
+  const credentials = configuredCredentials(config);
+  const formatter = createOutputFormatter(output, streams, options.startedAt, credentials);
 
   const root = ConfigLoader.resolveRoot();
   const store = new AtomicFileStore();
@@ -302,6 +303,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     root,
     store,
     config,
+    credentials,
     streams,
     formatter,
     prompter,

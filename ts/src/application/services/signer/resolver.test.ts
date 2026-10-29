@@ -18,7 +18,7 @@ import type { WalletsFile } from "../../../domain/types/index.js";
 
 function freshKeystore() {
   const root = mkdtempSync(join(tmpdir(), "sr-"));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
 // Same EVM address, different TRON addresses: ambiguity depends on the target family.
@@ -43,14 +43,14 @@ function keystoreWithDuplicateEvmAddress(): Keystore {
         source: {
           type: "privateKey",
           keyId: "key_key1",
-          addresses: { evm: EVM_ADDR, tron: "TDpBe64DqirkKWj6HWuR3xtLoBqTAKitYb" },
+          addresses: { evm: EVM_ADDR, tron: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" },
         },
       },
     ],
     labels: {},
   };
   writeFileSync(join(root, "wallets.json"), JSON.stringify(file));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
 describe("SignerResolver — watch accounts", () => {
@@ -65,7 +65,10 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("refuses to sign for a watch-only account (watch_only_no_signer)", () => {
-    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
+    const ref = ks.registerWatch({
+      family: "tron",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.resolve(ref, "tron");
@@ -76,7 +79,10 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("assertCanSign rejects a watch-only account before any RPC/decrypt", () => {
-    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
+    const ref = ks.registerWatch({
+      family: "tron",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.assertCanSign(ref, "tron");
@@ -95,7 +101,7 @@ describe("SignerResolver — watch accounts", () => {
     const ref = ks.registerLedger({
       family: "tron",
       path: "m/44'/195'/0'/0/0",
-      address: "Tledger1",
+      address: "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8",
     }).accountId;
     let err: { code?: string } | undefined;
     try {
@@ -138,7 +144,7 @@ describe("SignerResolver — watch accounts", () => {
     const ref = ks.registerLedger({
       family: "tron",
       path: "m/44'/195'/0'/0/0",
-      address: "Tledger2",
+      address: "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz",
     }).accountId;
     expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
   });

@@ -3,7 +3,11 @@ import { join } from "node:path";
 import type { ContactRepository } from "../../../application/ports/contact-repository.js";
 import type { ChainFamily, ContactEntry } from "../../../domain/types/index.js";
 import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
-import { createContact } from "../../../domain/contact/index.js";
+import {
+  assertContactAddable,
+  createContact,
+  hasDuplicateContactName,
+} from "../../../domain/contact/index.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 
@@ -28,10 +32,8 @@ export class ContactBook implements ContactRepository {
   add(entry: ContactEntry): ContactEntry {
     return this.store.withLock(this.#path, () => {
       const document = this.#read();
+      assertContactAddable(allEntries(document), entry);
       const entries = document.entries[entry.family] ?? [];
-      if (entries.some((item) => item.nameKey === entry.nameKey)) {
-        throw new UsageError("already_exists", `contact already exists: ${entry.name}`);
-      }
       if (entries.length >= MAX_CONTACTS) {
         throw new UsageError(
           "limit_exceeded",
@@ -105,7 +107,6 @@ export class ContactBook implements ContactRepository {
       ) {
         throw corrupt();
       }
-      const seen = new Set<string>();
       result.entries[family] = items.map((value) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) {
           throw corrupt();
@@ -120,17 +121,13 @@ export class ContactBook implements ContactRepository {
         }
         // Validate against the bucket's family, not the entry's claimed family.
         const validated = createContact(family, item.name, item.address, item.note ?? undefined);
-        if (
-          item.nameKey !== validated.nameKey ||
-          item.family !== family ||
-          seen.has(validated.nameKey)
-        ) {
+        if (item.nameKey !== validated.nameKey || item.family !== family) {
           throw corrupt();
         }
-        seen.add(validated.nameKey);
         return validated;
       });
     }
+    if (hasDuplicateContactName(allEntries(result))) throw corrupt();
     return result;
   }
 
@@ -183,6 +180,10 @@ export class ContactBook implements ContactRepository {
       closeSync(descriptor);
     }
   }
+}
+
+function allEntries(document: ContactDocument): ContactEntry[] {
+  return CHAIN_FAMILIES.flatMap((family) => document.entries[family] ?? []);
 }
 
 function corrupt(): ExecutionError {

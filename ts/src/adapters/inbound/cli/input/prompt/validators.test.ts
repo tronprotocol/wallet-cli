@@ -1,27 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  passwordPolicyErrors,
-  isValidPrivateKeyHex,
-  isValidMnemonic,
-  PASSWORD_SPECIALS,
-} from "./validators.js";
-
-describe("passwordPolicyErrors", () => {
-  it("accepts a strong password", () => {
-    expect(passwordPolicyErrors("Abcdef1!")).toEqual([]);
-  });
-  it("rejects too short", () => {
-    expect(passwordPolicyErrors("Ab1!")).toContainEqual(expect.stringContaining("8"));
-  });
-  it("flags each missing class", () => {
-    const errs = passwordPolicyErrors("abcdefgh");
-    expect(errs.length).toBe(3);
-  });
-  it("uses the documented special set", () => {
-    expect(PASSWORD_SPECIALS).toContain("!");
-    expect(passwordPolicyErrors("Abcdefg1#")).toEqual([]);
-  });
-});
+import { isValidPrivateKeyHex, isValidMnemonic } from "./validators.js";
 
 describe("isValidPrivateKeyHex", () => {
   it("accepts 64 hex with or without 0x", () => {

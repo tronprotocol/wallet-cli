@@ -2,6 +2,18 @@ import { endpointHost, type Config } from "../../domain/types/index.js";
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
+import {
+  CREDENTIAL_VALUE_RULE,
+  HEADER_NAME_RULE,
+  type ValueRule,
+  HTTP_URL_RULE,
+  isCredentialConfigKey,
+  isOutputMode,
+  NETWORK_CREDENTIAL_FIELD,
+  OUTPUT_MODES,
+  TIMEOUT_MS_RULE,
+  WAIT_TIMEOUT_MS_RULE,
+} from "../../domain/config/index.js";
 
 export const TRONLINK_CONFIG_KEYS = [
   "tronlinkSecretId",
@@ -48,6 +60,24 @@ interface NetworkKey {
   networkRef: string;
   // Absent selects the whole network.
   field?: string;
+}
+
+// True for the six credential keys, which are accepted only from the secret input channel.
+export function isCredentialKey(key: string): boolean {
+  return isCredentialConfigKey(key) || parseNetworkKey(key)?.field === NETWORK_CREDENTIAL_FIELD;
+}
+
+// Every credential value in effect; outputs mask them.
+export function configuredCredentials(config: Config): string[] {
+  const values = [
+    config.tronlinkSecretId,
+    config.tronlinkSecretKey,
+    config.gasfreeApiKey,
+    config.gasfreeApiSecret,
+    config.baiApiKey,
+    ...Object.values(config.networks).map((network) => network.apiKey),
+  ];
+  return values.filter((value): value is string => typeof value === "string" && value !== "");
 }
 
 // The last dot separates the field; dotted aliases cannot be addressed unambiguously.
@@ -101,15 +131,7 @@ export class ConfigService {
 
     const key = input.key as WritableConfigKey;
     const value = this.normalize(key, input.value, networks);
-    if (
-      [
-        "tronlinkSecretId",
-        "tronlinkSecretKey",
-        "gasfreeApiKey",
-        "gasfreeApiSecret",
-        "baiApiKey",
-      ].includes(key)
-    ) {
+    if (isCredentialConfigKey(key)) {
       return this.documents.update((current) => ({
         document: { ...current, [key]: value },
         result: { key, value: maskSecret(String(value)), input: "********" },
@@ -131,7 +153,7 @@ export class ConfigService {
     const key = `networks.${id}.${configurable}`;
     const normalized = normalizeNetworkValue(configurable, value, key);
     // Never echo the API key, including in the input field.
-    const secret = configurable === "apiKey";
+    const secret = configurable === NETWORK_CREDENTIAL_FIELD;
     return this.documents.update((current) => {
       const existing =
         (current as { networks?: Record<string, Record<string, unknown>> }).networks ?? {};
@@ -168,46 +190,23 @@ export class ConfigService {
     raw: string,
     networks: NetworkRegistry,
   ): string | number {
-    if (key === "timeoutMs") {
-      const value = Number(raw);
-      if (!Number.isFinite(value) || value <= 0) {
-        throw new UsageError("invalid_value", "timeoutMs must be a positive number");
-      }
-      return value;
-    }
-    if (key === "waitTimeoutMs") {
-      const value = Number(raw);
-      if (!Number.isInteger(value) || value < 0) {
-        throw new UsageError("invalid_value", "waitTimeoutMs must be a non-negative integer");
-      }
-      return value;
-    }
+    if (key === "timeoutMs") return ruled(key, Number(raw), TIMEOUT_MS_RULE);
+    if (key === "waitTimeoutMs") return ruled(key, Number(raw), WAIT_TIMEOUT_MS_RULE);
     if (key === "defaultOutput") {
-      if (raw !== "text" && raw !== "json") {
-        throw new UsageError("invalid_value", "defaultOutput must be 'text' or 'json'");
+      if (!isOutputMode(raw)) {
+        throw new UsageError(
+          "invalid_value",
+          `defaultOutput must be ${OUTPUT_MODES.map((m) => `'${m}'`).join(" or ")}`,
+        );
       }
       return raw;
     }
     if (
       (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key) ||
-      (GASFREE_CONFIG_KEYS as readonly string[]).includes(key)
+      (GASFREE_CONFIG_KEYS as readonly string[]).includes(key) ||
+      key === "baiApiKey"
     ) {
-      if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
-        throw new UsageError(
-          "invalid_value",
-          `${key} must be 1 to 256 characters without control characters`,
-        );
-      }
-      return raw;
-    }
-    if (key === "baiApiKey") {
-      if (raw.length === 0 || raw.length > 256 || /[\u0000-\u001f\u007f]/.test(raw)) {
-        throw new UsageError(
-          "invalid_value",
-          `${key} must be 1 to 256 characters without control characters`,
-        );
-      }
-      return raw;
+      return ruled(key, raw, CREDENTIAL_VALUE_RULE);
     }
     return networks.resolve(raw).id;
   }
@@ -262,42 +261,13 @@ function omitUndefined(value: Record<string, unknown>): Record<string, unknown> 
 }
 
 function normalizeNetworkValue(field: NetworkConfigField, value: string, key: string): string {
-  if (field === "httpEndpoint") return httpsEndpoint(value, key);
-  if (field === "apiKeyHeader") return headerName(value, key);
-  return credentialValue(value, key);
+  if (field === "httpEndpoint") return new URL(ruled(key, value, HTTP_URL_RULE).trim()).toString();
+  if (field === "apiKeyHeader") return ruled(key, value, HEADER_NAME_RULE).trim();
+  return ruled(key, value, CREDENTIAL_VALUE_RULE);
 }
 
-// HTTP token syntax excludes separators and control characters that permit header injection.
-function headerName(value: string, key: string): string {
-  const name = value.trim();
-  if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,64}$/.test(name)) {
-    throw new UsageError(
-      "invalid_value",
-      `${key} must be an HTTP header name: 1 to 64 characters, no spaces, colons or control characters`,
-    );
-  }
-  return name;
-}
-
-function credentialValue(value: string, key: string): string {
-  if (value.length === 0 || value.length > 256 || /[\u0000-\u001f\u007f]/.test(value)) {
-    throw new UsageError(
-      "invalid_value",
-      `${key} must be 1 to 256 characters without control characters`,
-    );
-  }
+function ruled<T>(key: string, value: unknown, rule: ValueRule<T>): T {
+  if (!rule.accepts(value))
+    throw new UsageError("invalid_value", `${key} must be ${rule.description}`);
   return value;
-}
-
-function httpsEndpoint(value: string, key: string): string {
-  let parsed: URL;
-  try {
-    parsed = new URL(value.trim());
-  } catch {
-    throw new UsageError("invalid_value", `${key} must be an absolute URL`);
-  }
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    throw new UsageError("invalid_value", `${key} must be an http(s) URL`);
-  }
-  return parsed.toString();
 }

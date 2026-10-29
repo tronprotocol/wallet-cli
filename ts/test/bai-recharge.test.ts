@@ -25,7 +25,7 @@ it.each([
     const hash = (chain === "tron" ? "" : "0x") + "a".repeat(64);
     try {
       const store = new AtomicFileStore();
-      new Keystore(home, store, () => "testPassword123").import({
+      new Keystore(home, store, () => "testPassword123!").import({
         type: "privateKey",
         secret: "11".repeat(32),
         label: "payer",
@@ -100,7 +100,7 @@ it.each([
             ...DETACHED,
             env: { ...process.env, WALLET_CLI_HOME: home, WALLET_CLI_BAI_REPORT_DELAY_MS: "0" },
             encoding: "utf8",
-            input: withPassword ? "testPassword123\n" : undefined,
+            input: withPassword ? "testPassword123!\n" : undefined,
             timeout: 20000,
           },
         );

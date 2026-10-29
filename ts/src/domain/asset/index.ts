@@ -1,6 +1,7 @@
 import { UsageError } from "../errors/index.js";
 
 const INT32_MAX = 2_147_483_647n;
+export const TRC10_MAX_PRECISION = 6;
 const SUN_PER_TRX = 1_000_000n;
 
 // trxNum SUN buys num minimal token units.
@@ -53,4 +54,14 @@ export function icoPriceLabel(rate: IcoRate, precision: number): { trx: bigint; 
   const trx = BigInt(rate.trxNum) * scale;
   const divisor = gcd(tokens, trx);
   return { trx: trx / divisor, tokens: tokens / divisor };
+}
+
+export function trc10Precision(value: number): number {
+  if (!Number.isInteger(value) || value < 0 || value > TRC10_MAX_PRECISION) {
+    throw new UsageError(
+      "invalid_value",
+      `TRC10 precision must be an integer from 0 to ${TRC10_MAX_PRECISION}`,
+    );
+  }
+  return value;
 }

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { fromBaseUnits, toBaseUnits } from "./index.js";
+import {
+  assertPositive,
+  fromBaseUnits,
+  isZeroAmount,
+  positiveBaseUnits,
+  toBaseUnits,
+} from "./index.js";
 import { UsageError } from "../errors/index.js";
 
 describe("supported token precision", () => {
@@ -80,5 +86,35 @@ describe("toBaseUnits", () => {
     it("still returns the converted value when the input is fine", () => {
       expect(toBaseUnits("1.5", 6, "TRX", "--min-received")).toBe("1500000");
     });
+  });
+});
+
+describe("positive amount rule", () => {
+  it("accepts a positive base-unit amount", () => {
+    expect(positiveBaseUnits("1", "amount")).toBe("1");
+  });
+  it.each(["0", "00", "", "1.5", "-1"])("rejects base units %j", (raw) => {
+    expect(() => positiveBaseUnits(raw, "amount")).toThrowError(
+      expect.objectContaining({ code: "invalid_amount" }),
+    );
+  });
+  it.each([1n, 1])("assertPositive accepts %s", (value) => {
+    expect(assertPositive(value, "--count")).toBe(value);
+  });
+  it.each([0n, -1n, 0, -1])("assertPositive rejects %s with invalid_value", (value) => {
+    expect(() => assertPositive(value, "--count")).toThrowError(
+      expect.objectContaining({
+        code: "invalid_value",
+        message: "--count must be greater than zero",
+      }),
+    );
+  });
+  it.each([
+    ["0", true],
+    ["0.000", true],
+    ["0.01", false],
+    ["10", false],
+  ])("isZeroAmount(%s) is %s", (text, zero) => {
+    expect(isZeroAmount(text)).toBe(zero);
   });
 });

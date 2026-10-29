@@ -1,6 +1,6 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { toBaseUnits } from "../../../domain/amounts/index.js";
+import { assertPositive, isPositive, toBaseUnits } from "../../../domain/amounts/index.js";
 import {
   TRX_TOKEN_ID,
   bancorOutput,
@@ -366,9 +366,7 @@ export class TronExchangeService {
       input.amount !== undefined
         ? toBaseUnits(input.amount, meta.decimals, meta.label)
         : input.rawAmount!;
-    const value = BigInt(raw);
-    if (value <= 0n) throw new UsageError("invalid_value", `${flag} must be greater than zero`);
-    return value;
+    return assertPositive(BigInt(raw), flag);
   }
 
   async #pairAmounts(
@@ -392,7 +390,7 @@ export class TronExchangeService {
       if (!/^\d+$/.test(raw))
         throw new UsageError("invalid_value", `${flag} must hold two whole numbers`);
       const parsed = BigInt(raw);
-      if (parsed <= 0n)
+      if (!isPositive(parsed))
         throw new UsageError("invalid_value", `${flag} sides must both be greater than zero`);
       return parsed;
     };

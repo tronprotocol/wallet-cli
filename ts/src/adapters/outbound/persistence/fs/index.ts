@@ -4,15 +4,17 @@ import {
   fsyncSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   statSync,
   unlinkSync,
   writeFileSync,
   writeSync,
 } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { dirname } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 
 function sleepMs(ms: number): void {
@@ -165,6 +167,97 @@ export class AtomicFileStore {
     }
   }
 
+  // Commit point: the journal switching from "staged" to "committed". Callers run recoverJournal under
+  // the same lock first; it rolls back an earlier interruption and rolls forward a later one.
+  writeJsonJournaled(
+    journalPath: string,
+    entries: Array<{ path: string; value: unknown }>,
+  ): JournaledWriteOutcome {
+    const root = dirname(journalPath);
+    const files = entries.map(({ path }) => journalFile(root, path));
+    try {
+      this.writeJson(journalPath, { version: 1, state: "staged", files } satisfies Journal);
+      for (const { path, value } of entries) {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(stagedPath(path), JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
+        this.fsyncFile(stagedPath(path));
+      }
+      for (const dir of new Set(entries.map(({ path }) => dirname(path)))) this.fsyncDir(dir);
+      this.writeJson(journalPath, { version: 1, state: "committed", files } satisfies Journal);
+    } catch (error) {
+      // A journal published before its directory fsync failed is still committed.
+      if (this.#readJournal(journalPath)?.state !== "committed") {
+        try {
+          this.recoverJournal(journalPath);
+        } catch {
+          // The previous files are untouched; the next recoverJournal removes the staged copies.
+        }
+        throwIoError(error, "journaled write failed before its commit point; nothing was changed");
+      }
+    }
+    try {
+      this.recoverJournal(journalPath);
+      return { complete: true };
+    } catch (error) {
+      return { complete: false, error };
+    }
+  }
+
+  // Idempotent; safe to rerun after an interruption at any step.
+  recoverJournal(journalPath: string): void {
+    this.#removeJournalTemps(journalPath);
+    const journal = this.#readJournal(journalPath);
+    if (journal === null) return;
+    const root = dirname(journalPath);
+    const paths = journal.files.map((file) => join(root, file));
+    try {
+      if (journal.state === "committed") {
+        for (const path of paths) {
+          if (existsSync(stagedPath(path))) this.commitRename(stagedPath(path), path);
+        }
+      } else {
+        for (const path of paths) rmSync(stagedPath(path), { force: true });
+      }
+      for (const dir of new Set(paths.map((path) => dirname(path)))) this.fsyncDir(dir);
+      unlinkSync(journalPath);
+      this.fsyncDir(root);
+    } catch (error) {
+      throwIoError(error, `could not finish the interrupted write recorded in ${journalPath}`);
+    }
+  }
+
+  // Callers hold the lock that guards journal writes, so a temp file of the journal belongs to a killed
+  // process; a published journal never depends on one.
+  #removeJournalTemps(journalPath: string): void {
+    const dir = dirname(journalPath);
+    const prefix = `${basename(journalPath)}.`;
+    try {
+      if (!existsSync(dir)) return;
+      for (const name of readdirSync(dir)) {
+        if (name.startsWith(prefix) && /^\d+\.\d+\.tmp$/.test(name.slice(prefix.length))) {
+          rmSync(join(dir, name), { force: true });
+        }
+      }
+    } catch (error) {
+      throwIoError(error, `could not remove the temporary files of ${journalPath}`);
+    }
+  }
+
+  #readJournal(journalPath: string): Journal | null {
+    const raw = this.readJson<unknown>(journalPath);
+    if (raw === null) return null;
+    const journal = raw as Partial<Journal>;
+    if (
+      journal.version !== 1 ||
+      (journal.state !== "staged" && journal.state !== "committed") ||
+      !Array.isArray(journal.files) ||
+      !journal.files.every(isJournalFile)
+    ) {
+      throw new ExecutionError("encoding_error", `invalid write journal at ${journalPath}`);
+    }
+    return journal as Journal;
+  }
+
   commitRename(from: string, to: string): void {
     renameSync(from, to);
   }
@@ -266,6 +359,37 @@ export class AtomicFileStore {
   }
 
   #counter = 0;
+}
+
+export type JournaledWriteOutcome = { complete: true } | { complete: false; error: unknown };
+
+interface Journal {
+  version: 1;
+  state: "staged" | "committed";
+  // Relative to the journal's directory.
+  files: string[];
+}
+
+function stagedPath(path: string): string {
+  return `${path}.next`;
+}
+
+function journalFile(root: string, path: string): string {
+  const file = relative(root, path).split(sep).join("/");
+  if (!isJournalFile(file)) {
+    throw new ExecutionError("io_error", `journaled write target is outside ${root}: ${path}`);
+  }
+  return file;
+}
+
+// A tampered journal must not name a path outside its directory.
+function isJournalFile(file: unknown): file is string {
+  return (
+    typeof file === "string" &&
+    file !== "" &&
+    !isAbsolute(file) &&
+    file.split(/[\\/]/).every((part) => part !== "" && part !== "." && part !== "..")
+  );
 }
 
 function throwIoError(error: unknown, message: string): never {

@@ -16,7 +16,7 @@ import type { LedgerDevice } from "../../ports/ledger-device.js";
 import type { WalletsFile } from "../../../domain/types/index.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
-const PW = "masterpw123A";
+const PW = "masterpw123A!";
 const TRON_LEGACY_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
 const TRON_INDEX_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"; // m/44'/195'/0'/0/0
 

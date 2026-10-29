@@ -6,6 +6,7 @@ import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
+import { maskCredentials } from "./mask.js";
 
 export interface OutputFormatter {
   // Return the result frame for streams.result.
@@ -26,6 +27,8 @@ abstract class BaseOutputFormatter {
   constructor(
     protected readonly streams: StreamManager,
     protected readonly startedAt: number,
+    // External error text can echo the credentials a request used.
+    protected readonly credentials: readonly string[],
   ) {}
 
   protected meta() {
@@ -48,7 +51,7 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
 
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void {
     const env = OutputEnvelope.error(ctx?.commandId ?? "", ctx?.net, err.toEnvelope(), this.meta());
-    this.streams.result(toJson(env));
+    this.streams.result(maskCredentials(toJson(env), this.credentials));
   }
 
   event(e: ProgressEvent): string {
@@ -120,7 +123,8 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   error(err: CliError): void {
     const line = `error [${err.code}]: ${err.textMessage}`;
     const candidates = renderErrorDetails(err.details);
-    this.streams.errorLine(sanitizeText(candidates ? `${line}\n${candidates}` : line));
+    const text = candidates ? `${line}\n${candidates}` : line;
+    this.streams.errorLine(sanitizeText(maskCredentials(text, this.credentials)));
   }
 
   event(e: ProgressEvent): string {
@@ -132,10 +136,11 @@ export function createOutputFormatter(
   output: OutputMode,
   streams: StreamManager,
   startedAt: number,
+  credentials: readonly string[] = [],
 ): OutputFormatter {
   return output === "json"
-    ? new JsonOutputFormatter(streams, startedAt)
-    : new HumanOutputFormatter(streams, startedAt);
+    ? new JsonOutputFormatter(streams, startedAt, credentials)
+    : new HumanOutputFormatter(streams, startedAt, credentials);
 }
 
 function renderEvent(e: ProgressEvent): string {

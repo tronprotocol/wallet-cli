@@ -1,8 +1,14 @@
 // Inputs use whole tokens; chain quantities and returned supply amounts use minimal units.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { toBaseUnits } from "../../../domain/amounts/index.js";
-import { icoPriceLabel, icoRate, icoTokensFor, type IcoRate } from "../../../domain/asset/index.js";
+import { assertPositive, toBaseUnits } from "../../../domain/amounts/index.js";
+import {
+  icoPriceLabel,
+  icoRate,
+  icoTokensFor,
+  trc10Precision,
+  type IcoRate,
+} from "../../../domain/asset/index.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -96,7 +102,7 @@ export class TronAssetService {
     const gateway = this.gateways.get(network, "tron");
     const owner = scope.resolveAddress("tron");
 
-    const precision = input.precision ?? 0;
+    const precision = trc10Precision(input.precision ?? 0);
     const name = requireVisibleAscii(input.name, "--name");
     const abbr = input.abbr === undefined ? "" : requireVisibleAscii(input.abbr, "--abbr");
     const url = requireByteLength(input.url, 256, "--url", { allowEmpty: false });
@@ -254,8 +260,7 @@ export class TronAssetService {
         `${asset.name} is not accepting participation right now`,
       );
     }
-    const paidSun = BigInt(toBaseUnits(input.pay, TRX_DECIMALS, "TRX"));
-    if (paidSun <= 0n) throw new UsageError("invalid_value", "--pay must be greater than zero");
+    const paidSun = assertPositive(BigInt(toBaseUnits(input.pay, TRX_DECIMALS, "TRX")), "--pay");
     const rate: IcoRate = { trxNum: asset.trx_num, num: asset.num };
     const received = icoTokensFor(paidSun, rate);
     if (received === 0n) {
@@ -424,11 +429,8 @@ function parseTranche(value: string, scale: bigint): TronAssetTranche {
   const match = /^(\d+):(\d+)$/.exec(value.trim());
   if (!match)
     throw new UsageError("invalid_value", "--freeze must be <amount>:<days>, e.g. 100000000:30");
-  const amount = BigInt(match[1]!);
-  const days = Number(match[2]!);
-  if (amount <= 0n)
-    throw new UsageError("invalid_value", "--freeze amount must be greater than zero");
-  if (days <= 0) throw new UsageError("invalid_value", "--freeze days must be greater than zero");
+  const amount = assertPositive(BigInt(match[1]!), "--freeze amount");
+  const days = assertPositive(Number(match[2]!), "--freeze days");
   return { frozen_amount: toSafeInteger(amount * scale, "--freeze"), frozen_days: days };
 }
 
@@ -477,9 +479,7 @@ function requirePositiveInteger(value: string, flag: string): bigint {
   if (!/^\d+$/.test(value.trim())) {
     throw new UsageError("invalid_value", `${flag} must be a whole number`);
   }
-  const parsed = BigInt(value.trim());
-  if (parsed <= 0n) throw new UsageError("invalid_value", `${flag} must be greater than zero`);
-  return parsed;
+  return assertPositive(BigInt(value.trim()), flag);
 }
 
 // TronWeb passes int64 fields as JS numbers; reject precision loss.

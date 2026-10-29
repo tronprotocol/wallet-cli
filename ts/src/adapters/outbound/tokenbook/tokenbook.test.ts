@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TokenBook } from "./index.js";
@@ -26,7 +26,7 @@ const NILE_OFFICIAL: TokenEntry[] = [
 const REF = "wlt_abc.0";
 const customToken: TokenEntry = {
   kind: "trc20",
-  id: "TCustomContractXXXXXXXXXXXXXXXXXXXX",
+  id: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
   symbol: "CUS",
   decimals: 8,
   name: "Custom",
@@ -113,9 +113,105 @@ describe("TokenBook", () => {
     );
   });
 
-  it("user entries override duplicate-id collisions only within their own kind", () => {
-    tb.add("tron:3448148188", REF, { kind: "trc10", id: "1002000", symbol: "TEN", decimals: 0 });
-    tb.add("tron:3448148188", REF, { kind: "trc20", id: "1002000", symbol: "TWENTY", decimals: 6 });
-    expect(tb.user("tron:3448148188", REF)).toHaveLength(2);
+  it("rejects an entry whose id or decimals the token book would refuse to load", () => {
+    expectCode(
+      () =>
+        tb.add("tron:3448148188", REF, {
+          kind: "trc20",
+          id: "1002000",
+          symbol: "TWENTY",
+          decimals: 6,
+        }),
+      "invalid_address",
+    );
+    expectCode(
+      () =>
+        tb.add("tron:3448148188", REF, { kind: "trc10", id: "1002000", symbol: "T", decimals: 78 }),
+      "invalid_node_response",
+    );
+    expect(tb.user("tron:3448148188", REF)).toEqual([]);
+  });
+});
+
+describe("TokenBook stores EVM contracts in canonical form", () => {
+  const SEPOLIA = "eip155:11155111";
+  const MAINNET = "eip155:1";
+  const CONTRACT = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+  const token = (id: string, symbol = "TKN"): TokenEntry => ({
+    kind: "erc20",
+    id,
+    symbol,
+    decimals: 18,
+  });
+
+  it("keeps one entry for two spellings of the same contract", () => {
+    const tb = freshBook();
+    expect(tb.add(SEPOLIA, REF, token(CONTRACT.toLowerCase()))).toBe("added");
+    expect(tb.add(SEPOLIA, REF, token(CONTRACT))).toBe("refreshed");
+    expect(tb.user(SEPOLIA, REF)).toEqual([token(CONTRACT)]);
+  });
+
+  it("removes a contract given in another case", () => {
+    const tb = freshBook();
+    tb.add(SEPOLIA, REF, token(CONTRACT));
+    expect(tb.remove(SEPOLIA, REF, "erc20", CONTRACT.toLowerCase()).id).toBe(CONTRACT);
+    expect(tb.user(SEPOLIA, REF)).toEqual([]);
+  });
+
+  it("refuses a lowercase spelling of an official token", () => {
+    const tb = freshBook();
+    const official = tb.official(MAINNET)[0]!;
+    expectCode(
+      () => tb.add(MAINNET, REF, token(official.id.toLowerCase())),
+      "token_already_listed",
+    );
+    expectCode(
+      () => tb.remove(MAINNET, REF, "erc20", official.id.toLowerCase()),
+      "token_is_official",
+    );
+  });
+
+  it("collapses entries that load as the same contract, keeping the later fields in the earlier slot", () => {
+    const root = mkdtempSync(join(tmpdir(), "tb-"));
+    const other = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
+    writeFileSync(
+      join(root, "tokens.json"),
+      JSON.stringify({
+        version: 2,
+        entries: {
+          [`${SEPOLIA}|${REF}`]: [
+            token(CONTRACT.toLowerCase(), "OLD"),
+            token(other, "OTHER"),
+            token(CONTRACT, "NEW"),
+          ],
+        },
+      }),
+    );
+    const tb = new TokenBook(root, new AtomicFileStore());
+
+    expect(tb.user(SEPOLIA, REF)).toEqual([token(CONTRACT, "NEW"), token(other, "OTHER")]);
+    expect(tb.effective(SEPOLIA, REF)).toHaveLength(2);
+  });
+});
+
+describe("TokenBook loading applies the write rules", () => {
+  it.each([
+    [
+      "a contract that is not an address",
+      { kind: "trc20", id: "TNotAnAddress", symbol: "X", decimals: 6 },
+    ],
+    ["decimals out of range", { kind: "trc20", id: USDT, symbol: "X", decimals: 78 }],
+    ["an unknown kind", { kind: "bep20", id: USDT, symbol: "X", decimals: 6 }],
+    ["a missing symbol", { kind: "trc20", id: USDT, decimals: 6 }],
+  ])("rejects %s with encoding_error", (_label, entry) => {
+    const root = mkdtempSync(join(tmpdir(), "tb-"));
+    writeFileSync(
+      join(root, "tokens.json"),
+      JSON.stringify({ version: 2, entries: { [`tron:3448148188|${REF}`]: [entry] } }),
+    );
+    expectCode(
+      () => new TokenBook(root, new AtomicFileStore()).user("tron:3448148188", REF),
+      "encoding_error",
+    );
   });
 });

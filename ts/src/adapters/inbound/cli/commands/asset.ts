@@ -4,6 +4,7 @@ import type { TronAssetService } from "../../../../application/use-cases/tron/as
 import { txModeFields, tronTxModeFields } from "./shared.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
+import { TRC10_MAX_PRECISION } from "../../../../domain/asset/index.js";
 
 const LEDGER_NOTE =
   "The Ledger TRON app cannot decode TRC10 issuance contracts, so this command needs a software account.";
@@ -45,7 +46,13 @@ export const assetIssueSpec: ChainSpec = {
     end: z.string().min(1).describe("ICO end, same format, must be after --start"),
     url: z.string().describe("project page, must not be empty"),
     abbr: z.string().optional().describe("token abbreviation"),
-    precision: z.coerce.number().int().min(0).max(6).default(0).describe("decimal places"),
+    precision: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(TRC10_MAX_PRECISION)
+      .default(0)
+      .describe("decimal places"),
     description: z.string().optional().describe("short description, up to 200 bytes"),
     freeNetPerAccount: z.coerce
       .number()

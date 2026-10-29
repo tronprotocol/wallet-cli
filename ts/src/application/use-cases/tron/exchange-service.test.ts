@@ -122,6 +122,15 @@ describe("exchange create", () => {
     ).rejects.toThrow(/not a token id/);
   });
 
+  it("refuses a zero side with invalid_value", async () => {
+    await expect(
+      service({}).create(scope, NET, { pair: "TRX:1000123", rawAmounts: "0:1" }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: "--raw-amounts sides must both be greater than zero",
+    });
+  });
+
   it("requires exactly one of --amounts and --raw-amounts", async () => {
     await expect(service({}).create(scope, NET, { pair: "TRX:1000123" })).rejects.toThrow(
       /exactly one of --amounts/,
@@ -177,6 +186,16 @@ describe("exchange inject / withdraw", () => {
     await expect(svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "1" })).rejects.toThrow(
       /too small for this pair's current ratio/,
     );
+  });
+
+  it("refuses a zero amount with invalid_value", async () => {
+    const svc = service({ getExchangeById: async () => pool() });
+    await expect(
+      svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "0" }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: "--amount must be greater than zero",
+    });
   });
 
   it("refuses withdrawing more than the pair holds", async () => {

@@ -11,7 +11,7 @@ import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-iden
 import { FAMILIES } from "../../../domain/family/index.js";
 import { evmChecksumAddress } from "../../../domain/address/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
-import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
+import { fromBaseUnits, positiveBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
 import { buildEvmUnsignedTx } from "./tx-build.js";
@@ -63,6 +63,7 @@ export class EvmTransactionService {
     const gateway = this.gateways.get(network, "evm");
     const recipient = this.recipients.resolve("evm", input.to);
     const transfer = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
+    positiveBaseUnits(transfer.rawAmount, "amount");
 
     // Keep fee metadata outside the transaction echoed by dry-run/build-only.
     let plan: Record<string, unknown> = {};

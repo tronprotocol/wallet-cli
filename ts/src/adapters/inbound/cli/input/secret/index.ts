@@ -7,11 +7,11 @@ import type {
 } from "../../contracts/index.js";
 import { ExecutionError, UsageError } from "../../../../../domain/errors/index.js";
 import type { Prompter } from "../prompt/index.js";
+import { isValidMnemonic, isValidPrivateKeyHex } from "../prompt/validators.js";
 import {
+  assertPasswordPolicy,
   passwordPolicyErrors,
-  isValidMnemonic,
-  isValidPrivateKeyHex,
-} from "../prompt/validators.js";
+} from "../../../../../domain/wallet/password-policy.js";
 
 // Configured stdin sources use "-" (fd 0).
 export type SecretPaths = Partial<Record<SecretKind, string>>;
@@ -125,11 +125,7 @@ export class SecretResolver implements ISecretResolver {
     }
     if (this.has("password")) {
       const pw = this.read("password");
-      if (plan.mode === "set") {
-        const errs = passwordPolicyErrors(pw);
-        if (errs.length)
-          throw new UsageError("weak_password", `password too weak: ${errs.join("; ")}`);
-      }
+      if (plan.mode === "set") assertPasswordPolicy(pw);
       if (plan.mode === "verify" && plan.verify && !plan.verify(pw)) {
         throw new ExecutionError("auth_failed", "incorrect master password");
       }

@@ -4,7 +4,7 @@ vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../../adapters/outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -20,7 +20,7 @@ import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { WalletService } from "./wallet-service.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
-const PW = "masterpw123A";
+const PW = "masterpw123A!";
 const RAW_KEY = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d";
 const NOW = Date.UTC(2026, 7, 5, 11, 40, 30, 123);
 
@@ -140,7 +140,7 @@ describe("WalletService.backupKeystore", () => {
   it("refuses a watch-only account, which has no key to export", () => {
     const { accountId } = h.keystore.registerWatch({
       family: "tron",
-      address: "TQ5NMqJjCu5zSvSHSsuMEwjZ8pmpBRhkHm",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
     });
     expect(() => h.service.backupKeystore(accountId, undefined, PW, "tron")).toThrowError(
       /hold no exportable secret/,
@@ -248,6 +248,52 @@ describe("WalletService derive selection", () => {
     expect(warnings[0]).toContain("legacy TRON path m/44'/195'/1'/0/0");
     expect(warnings[0]).toContain("recovery phrase can still derive this key");
     expect(warnings[0]).toContain("default mnemonic recovery will not recreate");
+  });
+});
+
+describe("WalletService derive with a label", () => {
+  it("names the new account in the same commit", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+
+    expect(h.service.derive({ seedId, index: 1, label: "savings" })).toMatchObject({
+      accountId: `${seedId}.1`,
+      label: "savings",
+    });
+  });
+
+  it("commits nothing when the label is already in use", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+    const seedId = accountId.split(".")[0]!;
+    const before = readFileSync(join(h.root, "wallets.json"), "utf8");
+
+    expect(() => h.service.derive({ seedId, index: 1, label: "MAIN" })).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+    expect(readFileSync(join(h.root, "wallets.json"), "utf8")).toBe(before);
+    expect(h.keystore.list().map((a) => a.accountId)).toEqual([accountId]);
+    expect(h.keystore.activeAccount()).toBe(accountId);
+  });
+
+  it("gives an unnamed new account the wallet's default derived label", () => {
+    const h = harness();
+    const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    expect(h.service.derive({ seedId: accountId.split(".")[0]!, index: 3 }).label).toBe("main-3");
+  });
+});
+
+describe("WalletService.changePassword", () => {
+  it("applies the password policy before touching the keystore", () => {
+    const h = harness();
+    h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
+
+    expect(() => h.service.changePassword(PW, "")).toThrowError(
+      expect.objectContaining({ code: "weak_password" }),
+    );
+    expect(h.keystore.verifyPassword(PW)).toBe(true);
   });
 });
 

@@ -9,7 +9,7 @@ import { Derivation } from "../domain/derivation/index.js";
 import { evmAddressFromPublicKey } from "../domain/address/index.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
-const PASSWORD = "masterpw123A";
+const PASSWORD = "masterpw123A!";
 
 // Seed a v1 document backed by a real encrypted vault.
 function realV1Keystore() {

@@ -270,3 +270,27 @@ describe("AtomicFileStore I/O error mapping", () => {
     expect(readdirSync(root)).toEqual(["wallets.json"]);
   });
 });
+
+describe("AtomicFileStore.recoverJournal", () => {
+  it.each([
+    ["no journal was published", undefined],
+    ["the journal is staged", { version: 1, state: "staged", files: ["a.json"] }],
+  ])("removes journal temp files a killed process left when %s", (_label, journal) => {
+    const root = mkdtempSync(join(tmpdir(), "afs-journal-"));
+    const journalPath = join(root, "op.journal.json");
+    writeFileSync(join(root, "a.json"), '"old"\n');
+    writeFileSync(join(root, "a.json.next"), '"new"\n');
+    if (journal) writeFileSync(journalPath, JSON.stringify(journal));
+    writeFileSync(`${journalPath}.4242.0.tmp`, "{}");
+    writeFileSync(join(root, "a.json.4242.1.tmp"), "{}");
+
+    new AtomicFileStore().recoverJournal(journalPath);
+
+    // Another file's temp is not the journal's to remove.
+    const expected = journal
+      ? ["a.json", "a.json.4242.1.tmp"]
+      : ["a.json", "a.json.4242.1.tmp", "a.json.next"];
+    expect(readdirSync(root).sort()).toEqual(expected);
+    expect(readFileSync(join(root, "a.json"), "utf8")).toBe('"old"\n');
+  });
+});

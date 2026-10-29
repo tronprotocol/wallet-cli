@@ -77,3 +77,19 @@ describe("TronTransactionService recipient resolution", () => {
     expect(pipeline.assertCanSign).not.toHaveBeenCalled();
   });
 });
+
+describe("TronTransactionService amount rule", () => {
+  it.each(["0", "-1", "1e6"])("refuses rawAmount %s before building", async (rawAmount) => {
+    const pipeline = { assertCanSign: vi.fn(), run: vi.fn() } as unknown as TxPipeline;
+    const service = new TronTransactionService(
+      { get: () => ({}) } as unknown as ChainGatewayProvider,
+      {} as never,
+      pipeline,
+      { resolve: () => ({ address: RECEIVER }) } as never,
+    );
+    await expect(
+      service.send(scope(), NETWORK, { to: RECEIVER, rawAmount, feeLimit: "1", dryRun: true }),
+    ).rejects.toMatchObject({ code: "invalid_amount" });
+    expect(pipeline.run).not.toHaveBeenCalled();
+  });
+});

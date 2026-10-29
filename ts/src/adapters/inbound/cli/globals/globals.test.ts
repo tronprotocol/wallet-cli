@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GLOBAL_FLAG_SPECS } from "./index.js";
+import { coerceGlobalValue, GLOBAL_FLAG_SPECS } from "./index.js";
 import { gasFreeTransferSpec } from "../commands/gasfree.js";
 
 const spec = (name: string) => GLOBAL_FLAG_SPECS.find((f) => f.name === name)!;
@@ -22,5 +22,17 @@ describe("global --wait / --timeout wording holds for every command that shows t
     expect(text).toMatch(/service/i);
     expect(text).toMatch(/device/i);
     expect(text).toMatch(/node/i);
+  });
+});
+
+describe("timeout flags apply the config value rules", () => {
+  it.each([
+    ["timeoutMs", "0.5", false],
+    ["timeoutMs", "1", true],
+    ["waitTimeoutMs", "1.5", false],
+    ["waitTimeoutMs", "0", true],
+    ["waitTimeoutMs", "-1", false],
+  ])("%s %s accepted: %s", (field, raw, ok) => {
+    expect(coerceGlobalValue(field, raw).ok).toBe(ok);
   });
 });

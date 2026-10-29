@@ -1,4 +1,5 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
+import { percent, witnessUrl } from "../../../domain/governance/limits.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -31,6 +32,7 @@ export class TronWitnessService {
   ) {}
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
+    const url = witnessUrl(input.url);
     const gateway = this.gateways.get(network, "tron");
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
@@ -64,7 +66,7 @@ export class TronWitnessService {
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
       build: async (address) =>
-        gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
+        gateway.buildWitnessCreate(address, url, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
         feeModel: "tron-resource",
         feeSun: registrationFeeSun.toString(),
@@ -72,7 +74,7 @@ export class TronWitnessService {
       }),
     });
     return witnessReceipt("witness-create", outcomeData(outcome), owner, {
-      url: input.url,
+      url,
       // Registration burns getAccountUpgradeCost in addition to receipt resource fees.
       feeSun: registrationFeeSun.toString(),
       registrationFeeSun: registrationFeeSun.toString(),
@@ -80,6 +82,7 @@ export class TronWitnessService {
   }
 
   async update(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
+    const url = witnessUrl(input.url);
     const gateway = this.gateways.get(network, "tron");
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
@@ -93,10 +96,10 @@ export class TronWitnessService {
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
       build: async (address) =>
-        gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
+        gateway.buildWitnessUpdate(address, url, { permissionId: input.permissionId }),
       estimate: bandwidthEstimate,
     });
-    return witnessReceipt("witness-update", outcomeData(outcome), owner, { url: input.url });
+    return witnessReceipt("witness-update", outcomeData(outcome), owner, { url });
   }
 
   async setBrokerage(
@@ -104,6 +107,7 @@ export class TronWitnessService {
     network: NetworkDescriptor,
     input: WitnessBrokerageInput,
   ) {
+    const brokerage = percent(input.percent, "brokerage");
     const gateway = this.gateways.get(network, "tron");
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
@@ -117,13 +121,13 @@ export class TronWitnessService {
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
       build: async (address) =>
-        gateway.buildWitnessSetBrokerage(address, input.percent, {
+        gateway.buildWitnessSetBrokerage(address, brokerage, {
           permissionId: input.permissionId,
         }),
       estimate: bandwidthEstimate,
     });
     return witnessReceipt("witness-set-brokerage", outcomeData(outcome), owner, {
-      brokerage: input.percent,
+      brokerage,
     });
   }
 }

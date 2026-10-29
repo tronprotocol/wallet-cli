@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { GasFreeService } from "../../../../application/use-cases/tron/gasfree-service.js";
 import { TextFormatters } from "../render/index.js";
+import { isZeroAmount } from "../../../../domain/amounts/index.js";
 
 export const gasFreeInfoSpec: ChainSpec = {
   path: ["gasfree", "info"],
@@ -27,7 +28,7 @@ const transferFields = z.object({
   amount: z
     .string()
     .regex(/^\d+(\.\d+)?$/, "must be a positive decimal amount")
-    .refine((value) => !/^0+(\.0+)?$/.test(value), "must be greater than zero")
+    .refine((value) => !isZeroAmount(value), "must be greater than zero")
     .describe("human token amount to transfer, in token units"),
   token: z
     .string()

@@ -7,7 +7,6 @@ import { errorMessage, UsageError } from "../../domain/errors/index.js";
 export class ContactService {
   constructor(private readonly contacts: ContactRepository) {}
 
-  // Names and addresses must be unique across all families.
   add(name: string, address: string, note?: string): ContactView {
     const value = address.trim();
     const family = familyOf(value);
@@ -15,16 +14,6 @@ export class ContactService {
       throw new UsageError(
         "invalid_address",
         errorMessage`not a recognised chain address: ${address}`,
-      );
-    }
-    const key = contactNameKey(name);
-    const clash = this.#entries().find((e) => e.nameKey === key || e.address === value);
-    if (clash) {
-      throw new UsageError(
-        "already_exists",
-        clash.nameKey === key
-          ? errorMessage`a contact named ${clash.name} already exists`
-          : errorMessage`that address is already stored as ${clash.name}`,
       );
     }
     return publicContact(this.contacts.add(createContact(family, name, value, note)));

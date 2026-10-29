@@ -100,6 +100,15 @@ describe("TronContractService governance", () => {
     ).rejects.toMatchObject({ code: "contract_not_found" });
   });
 
+  it("refuses a user resource percent above 100 before building", async () => {
+    const build = vi.fn();
+    const { service } = createService({ buildUpdateUserResourcePercent: build });
+    await expect(
+      service.setUserResourcePercent(scope, NET, { address: CONTRACT, percent: 101 }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    expect(build).not.toHaveBeenCalled();
+  });
+
   it("passes the caller-paid percentage through without reversing it", async () => {
     const build = vi.fn(async () => ({}));
     const { service } = createService({

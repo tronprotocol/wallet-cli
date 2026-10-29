@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { ChainFamily } from "../../../../domain/types/index.js";
 import { addressCodec } from "../../../../domain/family/index.js";
 import { slippageToBips } from "../../../../domain/sunpump/curve.js";
+import { isZeroAmount } from "../../../../domain/amounts/index.js";
+import { MAX_LABEL_LENGTH } from "../../../../domain/wallet/label.js";
 
 export const Schemas = {
   addressFor: (family: ChainFamily) =>
@@ -16,9 +18,9 @@ export const Schemas = {
       .string()
       .regex(/^\d+$/, "must be a positive integer string")
       // Zod runs refinements after regex failure; BigInt could throw outside safeParse.
-      .refine((v) => !/^0+$/.test(v), { message: "must be greater than zero" }),
+      .refine((v) => !isZeroAmount(v), { message: "must be greater than zero" }),
   amount: () => z.string().regex(/^\d+$/, "amount must be a non-negative integer string"),
-  label: () => z.string().trim().min(1).max(64),
+  label: () => z.string().trim().min(1).max(MAX_LABEL_LENGTH),
 };
 
 export function addressFieldsFor(

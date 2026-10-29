@@ -12,6 +12,38 @@ export function checkedTokenDecimals(decimals: number): number {
   return decimals;
 }
 
+// True for decimal or integer text whose value is zero.
+export function isZeroAmount(text: string): boolean {
+  return /^0+(\.0+)?$/.test(text);
+}
+
+// Amounts that move value must be greater than zero.
+export function assertPositiveAmount(value: bigint, label: string): bigint {
+  if (value <= 0n) throw new UsageError("invalid_amount", `${label} must be greater than zero`);
+  return value;
+}
+
+export function isPositive(value: bigint | number): boolean {
+  return value > 0;
+}
+
+// Counts and protocol parameters; money uses assertPositiveAmount and its invalid_amount code.
+export function assertPositive<T extends bigint | number>(value: T, label: string): T {
+  if (!isPositive(value)) {
+    throw new UsageError("invalid_value", `${label} must be greater than zero`);
+  }
+  return value;
+}
+
+// Base units are integer text.
+export function positiveBaseUnits(raw: string, label: string): string {
+  if (!/^\d+$/.test(raw)) {
+    throw new UsageError("invalid_amount", `${label} must be an integer amount in base units`);
+  }
+  assertPositiveAmount(BigInt(raw), label);
+  return raw;
+}
+
 // Converts integer base units to decimals; passes non-integer input through.
 export function fromBaseUnits(value: string | number | bigint, decimals: number): string {
   checkedTokenDecimals(decimals);

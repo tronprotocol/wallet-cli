@@ -22,7 +22,7 @@ import {
   normalizeGasFreeSignature,
   recoverGasFreeSigner,
 } from "../../../domain/gasfree/index.js";
-import { toBaseUnits } from "../../../domain/amounts/index.js";
+import { assertPositiveAmount, toBaseUnits } from "../../../domain/amounts/index.js";
 import { obtainSignature } from "../../services/signing/obtain-signature.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
@@ -137,9 +137,7 @@ export class GasFreeService {
     }
     const asset = selectAsset(addressInfo, token);
     const value = toBaseUnits(input.amount, token.decimals, token.symbol);
-    if (BigInt(value) <= 0n) {
-      throw new UsageError("invalid_amount", "--amount must be greater than zero");
-    }
+    assertPositiveAmount(BigInt(value), "--amount");
     const activateFee = addressInfo.active ? "0" : asset.activateFee;
     // Authorize activation plus transfer fees even when activation is already paid.
     const authorizedMaxFee = add(asset.activateFee, asset.transferFee);

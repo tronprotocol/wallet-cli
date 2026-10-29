@@ -14,7 +14,7 @@ it.skipIf(!process.env.WALLET_CLI_TEST_ENTRY)(
   () => {
     const home = mkdtempSync(join(tmpdir(), "beta-signing-"));
     try {
-      new Keystore(home, new AtomicFileStore(), () => "test-password").import({
+      new Keystore(home, new AtomicFileStore(), () => "Test-password1").import({
         secret: Wallet.createRandom().privateKey.slice(2),
         type: "privateKey",
         label: "payer",
@@ -72,7 +72,7 @@ import {writeFileSync} from 'node:fs';
         ],
         {
           env: { ...process.env, WALLET_CLI_HOME: home },
-          input: "test-password\n",
+          input: "Test-password1\n",
           encoding: "utf8",
           timeout: 20000,
         },

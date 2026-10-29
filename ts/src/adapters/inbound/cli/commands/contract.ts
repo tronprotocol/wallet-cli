@@ -17,6 +17,7 @@ import {
   txModeFields,
 } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
+import { MAX_PERCENT } from "../../../../domain/governance/limits.js";
 
 function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
   if (!raw) return [];
@@ -685,8 +686,8 @@ export const contractSetUserResourcePercentSpec: ChainSpec = {
       .number()
       .int()
       .min(0)
-      .max(100)
-      .describe("percentage of energy paid by the caller (0-100)"),
+      .max(MAX_PERCENT)
+      .describe(`percentage of energy paid by the caller (0-${MAX_PERCENT})`),
     ...governanceTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli contract set-user-resource-percent TQ5... 100 --wait" }],

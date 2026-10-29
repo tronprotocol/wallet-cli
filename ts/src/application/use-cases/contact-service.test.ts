@@ -2,6 +2,11 @@ import { describe, it, expect } from "vitest";
 import { ContactService } from "./contact-service.js";
 import type { ContactRepository } from "../ports/contact-repository.js";
 import type { ContactEntry } from "../../domain/types/index.js";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ContactBook } from "../../adapters/outbound/contactbook/index.js";
+import { AtomicFileStore } from "../../adapters/outbound/persistence/fs/index.js";
 
 const TRON = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
 const EVM = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
@@ -69,34 +74,26 @@ describe("ContactService removes by name alone", () => {
 });
 
 describe("ContactService keeps names and addresses unique across the whole book", () => {
+  // Uniqueness is enforced by the repository under its lock.
+  const bookService = () =>
+    new ContactService(
+      new ContactBook(mkdtempSync(join(tmpdir(), "contacts-")), new AtomicFileStore()),
+    );
+
   it("refuses a name already used on another chain", () => {
-    const { port } = repo();
-    const svc = new ContactService(port);
+    const svc = bookService();
     svc.add("exchange", TRON);
 
-    expect(() => svc.add("exchange", EVM)).toThrow();
-  });
-
-  it("names the clash rather than reporting a generic failure", () => {
-    const { port } = repo();
-    const svc = new ContactService(port);
-    svc.add("exchange", TRON);
-
-    let code: string | undefined;
-    try {
-      svc.add("exchange", EVM);
-    } catch (e) {
-      code = (e as { code?: string }).code;
-    }
-    expect(code).toBe("already_exists");
+    expect(() => svc.add("exchange", EVM)).toThrowError(
+      expect.objectContaining({ code: "already_exists" }),
+    );
   });
 
   it("refuses an address already stored under another name", () => {
-    const { port } = repo();
-    const svc = new ContactService(port);
+    const svc = bookService();
     svc.add("exchange", EVM);
 
-    expect(() => svc.add("exchange-2", EVM)).toThrow(/already_exists|already stored/);
+    expect(() => svc.add("exchange-2", EVM)).toThrow(/already stored/);
   });
 
   it("still accepts a genuinely new name and address", () => {

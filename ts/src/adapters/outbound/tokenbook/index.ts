@@ -8,6 +8,7 @@ import type {
 } from "../../../domain/types/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
+import { canonicalTokenId, parseTokensFile, tokenEntry } from "../../../domain/token/index.js";
 import { OFFICIAL_TOKENS } from "./builtins.js";
 import type { TokenRepository } from "../../../application/ports/token-repository.js";
 
@@ -41,7 +42,8 @@ export class TokenBook implements TokenRepository {
     return [...official, ...userOnly];
   }
 
-  add(networkId: string, ref: AccountRef, entry: TokenEntry): "added" | "refreshed" {
+  add(networkId: string, ref: AccountRef, input: TokenEntry): "added" | "refreshed" {
+    const entry = tokenEntry(input);
     if (this.official(networkId).some((o) => sameToken(o, entry))) {
       throw new UsageError(
         "token_already_listed",
@@ -62,7 +64,8 @@ export class TokenBook implements TokenRepository {
     });
   }
 
-  remove(networkId: string, ref: AccountRef, kind: TokenEntry["kind"], id: string): TokenEntry {
+  remove(networkId: string, ref: AccountRef, kind: TokenEntry["kind"], input: string): TokenEntry {
+    const id = canonicalTokenId(kind, input);
     if (this.official(networkId).some((o) => sameToken(o, { kind, id }))) {
       throw new UsageError("token_is_official", `cannot remove an official token: ${id}`);
     }
@@ -83,9 +86,8 @@ export class TokenBook implements TokenRepository {
   }
 
   #read(): TokensFile {
-    return (
-      this.store.readJson<TokensFile>(this.tokensPath) ?? { version: TOKENS_VERSION, entries: {} }
-    );
+    const raw = this.store.readJson<unknown>(this.tokensPath);
+    return raw === null ? { version: TOKENS_VERSION, entries: {} } : parseTokensFile(raw);
   }
   #write(file: TokensFile): void {
     this.store.writeJson(this.tokensPath, file);

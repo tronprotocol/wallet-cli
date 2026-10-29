@@ -1,4 +1,5 @@
 import { currentTronEnergyPrice } from "../../../domain/amounts/tron-energy-price.js";
+import { percent } from "../../../domain/governance/limits.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -201,16 +202,17 @@ export class TronContractService {
     network: NetworkDescriptor,
     input: GovernanceTransactionInput & { address: string; percent: number },
   ) {
+    const userPercent = percent(input.percent, "user resource percent");
     return this.govern(
       scope,
       network,
       input,
       "contract-set-user-resource-percent",
       (gateway, owner) =>
-        gateway.buildUpdateUserResourcePercent(owner, input.address, input.percent, {
+        gateway.buildUpdateUserResourcePercent(owner, input.address, userPercent, {
           permissionId: input.permissionId,
         }),
-      { consumeUserResourcePercent: input.percent },
+      { consumeUserResourcePercent: userPercent },
     );
   }
 

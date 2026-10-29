@@ -8,6 +8,16 @@ import { UsageError } from "../../../domain/errors/index.js";
 import { BUILTIN_ALIASES, BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import type { ChainFamily } from "../../../domain/family/index.js";
+import {
+  CREDENTIAL_CONFIG_KEYS,
+  CREDENTIAL_VALUE_RULE,
+  HEADER_NAME_RULE,
+  HTTP_URL_RULE,
+  isOutputMode,
+  NETWORK_CREDENTIAL_FIELD,
+  TIMEOUT_MS_RULE,
+  WAIT_TIMEOUT_MS_RULE,
+} from "../../../domain/config/index.js";
 
 export class ConfigLoader {
   static resolveRoot(env: NodeJS.ProcessEnv = process.env): string {
@@ -42,10 +52,7 @@ export class ConfigLoader {
     if (existsSync(path)) {
       const raw = readConfigDocument(path);
       if (
-        (typeof raw.tronlinkSecretKey === "string" && raw.tronlinkSecretKey !== "") ||
-        (typeof raw.gasfreeApiSecret === "string" && raw.gasfreeApiSecret !== "") ||
-        (typeof raw.baiApiKey === "string" && raw.baiApiKey !== "") ||
-        // Nested RPC API keys require the same file permissions as service credentials.
+        CREDENTIAL_CONFIG_KEYS.some((key) => typeof raw[key] === "string" && raw[key] !== "") ||
         holdsNetworkApiKey(raw.networks)
       ) {
         assertSecretConfigPermissions(path);
@@ -53,23 +60,24 @@ export class ConfigLoader {
       if (typeof raw.defaultNetwork === "string" && raw.defaultNetwork.trim() !== "") {
         defaultNetwork = raw.defaultNetwork;
       }
-      if (raw.defaultOutput === "json" || raw.defaultOutput === "text")
-        defaultOutput = raw.defaultOutput;
-      if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
-      if (Number.isInteger(raw.waitTimeoutMs) && raw.waitTimeoutMs >= 0)
-        waitTimeoutMs = raw.waitTimeoutMs;
+      // Invalid scalar values fall back to their defaults.
+      if (isOutputMode(raw.defaultOutput)) defaultOutput = raw.defaultOutput;
+      if (TIMEOUT_MS_RULE.accepts(raw.timeoutMs)) timeoutMs = raw.timeoutMs;
+      if (WAIT_TIMEOUT_MS_RULE.accepts(raw.waitTimeoutMs)) waitTimeoutMs = raw.waitTimeoutMs;
       if (raw.price && typeof raw.price === "object") {
         const p = raw.price as Record<string, unknown>;
         const provider = p.provider === "none" ? "none" : "coingecko";
         price = { provider };
         if (typeof p.baseUrl === "string" && p.baseUrl.trim() !== "") price.baseUrl = p.baseUrl;
       }
-      if (validCredential(raw.tronlinkSecretId)) tronlinkSecretId = raw.tronlinkSecretId;
-      if (validCredential(raw.tronlinkSecretKey)) tronlinkSecretKey = raw.tronlinkSecretKey;
-      if (validCredential(raw.tronlinkChannel)) tronlinkChannel = raw.tronlinkChannel;
-      if (validCredential(raw.gasfreeApiKey)) gasfreeApiKey = raw.gasfreeApiKey;
-      if (validCredential(raw.gasfreeApiSecret)) gasfreeApiSecret = raw.gasfreeApiSecret;
-      if (validCredential(raw.baiApiKey)) baiApiKey = raw.baiApiKey;
+      const credential = (value: unknown) =>
+        CREDENTIAL_VALUE_RULE.accepts(value) ? value : undefined;
+      tronlinkSecretId = credential(raw.tronlinkSecretId);
+      tronlinkSecretKey = credential(raw.tronlinkSecretKey);
+      tronlinkChannel = credential(raw.tronlinkChannel);
+      gasfreeApiKey = credential(raw.gasfreeApiKey);
+      gasfreeApiSecret = credential(raw.gasfreeApiSecret);
+      baiApiKey = credential(raw.baiApiKey);
       // Load aliases before networks so alias-keyed network overrides resolve correctly.
       if (raw.aliases && typeof raw.aliases === "object" && !Array.isArray(raw.aliases)) {
         for (const [alias, target] of Object.entries(raw.aliases as Record<string, unknown>)) {
@@ -99,7 +107,8 @@ export class ConfigLoader {
           }
           seen.set(id, key);
           const base = networks[id] ?? {};
-          networks[id] = validNetwork(id, { ...base, ...d, ...mergedFeatureBlocks(base, d), id });
+          const own = { ...d, ...validConnectionFields(id, d) };
+          networks[id] = validNetwork(id, { ...base, ...own, ...mergedFeatureBlocks(base, d), id });
         }
       }
     }
@@ -121,13 +130,29 @@ export class ConfigLoader {
   }
 }
 
-function validCredential(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= 256 &&
-    !/[\u0000-\u001f\u007f]/.test(value)
-  );
+// The fields `config set networks.<id>.<field>` writes; messages never echo the values.
+function validConnectionFields(
+  id: string,
+  network: Record<string, unknown>,
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+  const rules = {
+    httpEndpoint: HTTP_URL_RULE,
+    apiKeyHeader: HEADER_NAME_RULE,
+    [NETWORK_CREDENTIAL_FIELD]: CREDENTIAL_VALUE_RULE,
+  };
+  for (const [field, rule] of Object.entries(rules)) {
+    const value = network[field];
+    if (value === undefined) continue;
+    if (!rule.accepts(value)) {
+      throw new UsageError(
+        "invalid_value",
+        `network ${id} in config.yaml has an invalid ${field}: expected ${rule.description}`,
+      );
+    }
+    if (field === "apiKeyHeader") fields[field] = value.trim();
+  }
+  return fields;
 }
 
 function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescriptor {

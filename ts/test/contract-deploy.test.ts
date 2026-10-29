@@ -13,7 +13,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
   ? [process.env.WALLET_CLI_TEST_ENTRY]
   : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
-const PW = "testpw123A";
+const PW = "testpw123A!";
 
 const ABI = JSON.stringify([
   {

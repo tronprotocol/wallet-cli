@@ -14,7 +14,7 @@ import {
 } from "../../../../application/services/ledger-account.js";
 import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
 import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
-import { passwordPolicyErrors } from "../input/prompt/validators.js";
+import { passwordPolicyErrors } from "../../../../domain/wallet/password-policy.js";
 import { readBoundedTextFile } from "./artifact.js";
 import { TextFormatters } from "../render/index.js";
 

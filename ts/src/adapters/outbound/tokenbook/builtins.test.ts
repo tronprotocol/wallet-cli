@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { OFFICIAL_TOKENS } from "./builtins.js";
 import { isEvmAddress } from "../../../domain/address/index.js";
+import { canonicalTokenId } from "../../../domain/token/index.js";
 
 describe("official EVM token entries", () => {
   const evmNetworks = Object.entries(OFFICIAL_TOKENS).filter(([id]) => id.startsWith("eip155:"));
@@ -37,4 +38,13 @@ describe("official EVM token entries", () => {
   it.each(["eip155:11155111", "eip155:97"])("leaves the testnet %s empty", (id) => {
     expect(OFFICIAL_TOKENS[id] ?? []).toEqual([]);
   });
+});
+
+describe("official token ids", () => {
+  it.each(Object.entries(OFFICIAL_TOKENS))(
+    "%s stores every id in canonical form",
+    (_id, tokens) => {
+      for (const token of tokens) expect(canonicalTokenId(token.kind, token.id)).toBe(token.id);
+    },
+  );
 });

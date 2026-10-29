@@ -17,7 +17,8 @@ export interface WalletRepository extends AccountStore {
     label?: string;
   }): MutationResult;
   registerWatch(input: { family: ChainFamily; address: string; label?: string }): MutationResult;
-  addAccount(walletId: string, index?: number): MutationResult;
+  // Without a label, a newly derived account gets the wallet's default derived label.
+  addAccount(walletId: string, index?: number, label?: string): MutationResult;
   resolveWallet(idOrLabel: string): Wallet;
   rename(
     refOrLabel: string,

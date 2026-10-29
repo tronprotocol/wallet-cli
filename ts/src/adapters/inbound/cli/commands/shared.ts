@@ -3,6 +3,7 @@ import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
+import { isZeroAmount } from "../../../../domain/amounts/index.js";
 
 export const LEDGER_TRON_SETTINGS_NOTE =
   'Ledger: enable "Custom contracts" and "Sign by Hash" in the TRON app settings.\n';
@@ -76,7 +77,7 @@ export function governanceTxRefine(
 const positiveDecimalAmount = z
   .string()
   .regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string")
-  .refine((v) => !/^0+(\.0+)?$/.test(v), { message: "must be greater than zero" });
+  .refine((v) => !isZeroAmount(v), { message: "must be greater than zero" });
 
 export function unifiedAmountFields(amountDesc: string, rawDesc: string) {
   return {

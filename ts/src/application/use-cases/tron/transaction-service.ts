@@ -7,7 +7,7 @@ import type {
   TxStatusView,
 } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
+import { fromBaseUnits, positiveBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type {
@@ -51,6 +51,7 @@ export class TronTransactionService {
     const gateway = this.gateways.get(network, "tron");
     const recipient = this.recipients.resolve("tron", input.to);
     const resolved = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
+    positiveBaseUnits(resolved.rawAmount, "amount");
     const outcome = await this.pipeline.run({
       ctx: scope,
       net: network,
