@@ -96,9 +96,9 @@ describe("TronProposalService", () => {
   });
 
   it("maps --cancel to Java is_add_approval=false and preserves permission/expiration", async () => {
-    const build = vi.fn(async () => ({
-      raw_data: { contract: [{ type: "ProposalApproveContract" }] },
-    }));
+    const build = vi.fn(
+      async () => ({ raw_data: { contract: [{ type: "ProposalApproveContract" }] } }) as never,
+    );
     const { service, captured } = createService({
       getProposal: async () => ({
         id: 47,
@@ -190,9 +190,8 @@ describe("proposal create --wait identifies the proposal it created, or admits i
       {
         getChainParameters: async () => [{ key: "getTransactionFee", value: 10 }],
         getWitness: async () => ({ address: OWNER, voteCount: "1" }),
-        buildProposalCreate: async () => ({
-          raw_data: { contract: [{ type: "ProposalCreateContract" }] },
-        }),
+        buildProposalCreate: async () =>
+          ({ raw_data: { contract: [{ type: "ProposalCreateContract" }] } }) as never,
         getProposals: async () => listings[Math.min(calls.push(1) - 1, listings.length - 1)]!,
       },
       async () => ({ stage: "confirmed", txId: "tx", confirmed: true }) as never,

@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { AgentService } from "./agent-service.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
-import type { AgentRegistryReader, AgentRegistrationLoader } from "../ports/agent-sdk.js";
+import type {
+  AgentRegistrationMetadata,
+  AgentRegistryReader,
+  AgentRegistrationLoader,
+  AgentRegistryValue,
+} from "../ports/agent-sdk.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 
@@ -23,17 +28,18 @@ function fixture(stage = "submitted") {
   } as AgentContractPorts;
   const reader = {
     registry: vi.fn(() => registryAddress),
-    read: vi.fn(async (_net: NetworkDescriptor, method: string): Promise<unknown> => {
+    read: vi.fn(async (_net: NetworkDescriptor, method: string): Promise<AgentRegistryValue> => {
       if (method === "ownerOf(uint256)") return owner;
       if (method === "tokenURI(uint256)") return "ipfs://old";
       if (method === "getApproved(uint256)") return operator;
       return true;
     }),
     registeredAgentId: vi.fn(async () => "9007199254740993"),
-    writeError: vi.fn(() => undefined),
   } satisfies AgentRegistryReader;
   const metadata = {
-    load: vi.fn(async () => ({ metadata: { name: "Example" } })),
+    load: vi.fn(async () => ({
+      metadata: { name: "Example" } as unknown as AgentRegistrationMetadata,
+    })),
   } satisfies AgentRegistrationLoader;
   const scope = {
     wait: stage !== "submitted",

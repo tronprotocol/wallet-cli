@@ -4,6 +4,7 @@ import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapCollectFeesService } from "../../../../../application/use-cases/tron/sunswap/collect-fees-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
 
 const V4_ONLY = ["token0", "token1", "fee", "deadline"] as const;
 
@@ -166,7 +167,7 @@ export const sunswapCollectFeesTronBinding = (
       ...(input.token1 === undefined ? {} : { token1: input.token1 }),
       ...(input.fee === undefined ? {} : { fee: input.fee }),
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
     }),

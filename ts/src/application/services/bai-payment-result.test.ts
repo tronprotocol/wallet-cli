@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { baiPaymentResult } from "./bai-payment-result.js";
+import type { X402Json } from "../ports/x402-payment.js";
 
 const payer = "0x1111111111111111111111111111111111111111";
 const transaction = "0x" + "a".repeat(64);
@@ -30,7 +31,7 @@ it("does not accept HTTP delivery or a legacy MCP hash as proof of settlement", 
         delivered: true,
         payer: { address: payer },
         response: { result: { transaction_hash: transaction, network: "eip155:56" } },
-      },
+      } as never,
       "eip155:56",
     ),
   ).toThrow();
@@ -63,7 +64,7 @@ it.each([
         settled: true,
         payer: { address: "tron-payer" },
         paymentResponse: { success: true, network, transaction: "a".repeat(64) },
-      },
+      } as never,
       "tron:728126428",
     ),
   ).toThrow(
@@ -128,7 +129,7 @@ it("does not expose malformed evidence or discard a hash when payer metadata is 
 
 const tronPayer = "TTiN7EB8cAagLXN1MfmPxEFwJUETWRV314";
 const tronHash = "9360d276f33638d7c10578d0cebc01ac5716f286d00bd534736772e86b3fffeb";
-const tronPayment = (payer: unknown) => ({
+const tronPayment = (payer: X402Json) => ({
   settled: true,
   payer: { address: tronPayer },
   paymentResponse: { success: true, network: "tron:0x2b6653dc", transaction: tronHash, payer },

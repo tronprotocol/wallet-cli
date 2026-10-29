@@ -14,6 +14,7 @@ import {
   classifyError,
 } from "../../../../domain/errors/index.js";
 import { SigningService } from "../../../services/signing/signing-service.js";
+import { baseUnitAmount, sunAmount } from "../../../../domain/amounts/index.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -70,7 +71,7 @@ function makePort(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
     v2LiquidityResult: vi.fn(async () => undefined),
     balanceOf: vi.fn(async () => "999999999999"),
     nativeBalance: vi.fn(async () => "999999999999"),
-    allowance: vi.fn(async () => "0"),
+    allowance: vi.fn(async () => baseUnitAmount("0")),
     approvalPayload: vi.fn(
       (_n: NetworkDescriptor, token: string, spender: string, amount: string) => ({
         target: token,
@@ -220,6 +221,21 @@ describe("SunSwapLiquidityService.addLiquidityV2 — planning", () => {
 
     expect(result.token0).toMatchObject({ amount: "1000000", amountMinimum: "950000" });
     expect(result.token1).toMatchObject({ amount: "686044", amountMinimum: "651741" });
+    expect(result.token0).not.toHaveProperty("acceptsAnyAmount");
+    expect(result.token1).not.toHaveProperty("acceptsAnyAmount");
+  });
+
+  it("flags only the side given a zero floor as accepting any amount", async () => {
+    const { service, scope } = makeHarness();
+
+    const result = (await service.addLiquidityV2(scope, NETWORK, {
+      ...BASE,
+      min1: "0",
+      dryRun: true,
+    })) as Record<string, Record<string, unknown>>;
+
+    expect(result.token0).not.toHaveProperty("acceptsAnyAmount");
+    expect(result.token1).toMatchObject({ amountMinimum: "0", acceptsAnyAmount: true });
   });
 
   it("reports the LP tokens the deposit should mint", async () => {
@@ -292,7 +308,9 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the approval decision", () 
   });
 
   it("plans no approval at all when the allowances already suffice", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope } = makeHarness(port);
 
     const result = (await service.addLiquidityV2(scope, NETWORK, {
@@ -326,7 +344,9 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --dry-run", () => {
   });
 
   it("prices the deposit for real once the allowances are in place", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope, estimated } = makeHarness(port);
 
     const result = (await service.addLiquidityV2(scope, NETWORK, {
@@ -391,7 +411,9 @@ describe("SunSwapLiquidityService.addLiquidityV2 — --build-only", () => {
   });
 
   it("keeps the ordinary single-transaction shape when nothing needs approving", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope } = makeHarness(port);
 
     const result = (await service.addLiquidityV2(scope, NETWORK, {
@@ -437,7 +459,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — broadcasting", () => {
   });
 
   it("re-reads the allowance after each approval and refuses to deposit if it fell short", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "0") as never });
+    const port = makePort({ allowance: vi.fn(async () => baseUnitAmount("0")) as never });
     const { service, scope } = makeHarness(port);
 
     await expect(service.addLiquidityV2(scope, NETWORK, BASE)).rejects.toMatchObject({
@@ -597,11 +619,11 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
     let pairReads = 0;
     const port = makePort({
       v2LiquidityResult: vi.fn(async () => ({
-        amount0: "900000",
-        amount1: "686044",
-        lpAmount: "780258",
+        amount0: baseUnitAmount("900000"),
+        amount1: baseUnitAmount("686044"),
+        lpAmount: baseUnitAmount("780258"),
       })),
-      allowance: vi.fn(async () => "999999999999") as never,
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
       v2PairState: vi.fn(async () => {
         pairReads += 1;
         return pairReads === 1
@@ -626,7 +648,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
   });
 
   it("keeps estimates explicit when the router result is missing", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") });
+    const port = makePort({ allowance: vi.fn(async () => baseUnitAmount("999999999999")) });
     const { service, scope } = confirming(port);
     const result = await service.addLiquidityV2(scope, NETWORK, BASE);
     expect(result.stage).toBe("confirmed");
@@ -636,7 +658,9 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
   });
 
   it("leaves a submitted receipt alone — there is nothing on chain to read back", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope, pipeline } = makeHarness(port);
     (pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
       async (p: PipelineParams) => {
@@ -656,11 +680,11 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
     let pairReads = 0;
     const port = makePort({
       v2LiquidityResult: vi.fn(async () => ({
-        amount0: "900000",
-        amount1: "686044",
-        lpAmount: "780258",
+        amount0: baseUnitAmount("900000"),
+        amount1: baseUnitAmount("686044"),
+        lpAmount: baseUnitAmount("780258"),
       })),
-      allowance: vi.fn(async () => "999999999999") as never,
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
       v2PairState: vi.fn(async () => {
         pairReads += 1;
         if (pairReads > 1) throw new Error("node unavailable");
@@ -748,6 +772,8 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
 
     expect(result.token0!.amountMinimum).toBe("0");
     expect(result.token1!.amountMinimum).toBe("0");
+    expect(result.token0).toMatchObject({ acceptsAnyAmount: true });
+    expect(result.token1).toMatchObject({ acceptsAnyAmount: true });
   });
 
   it.each([
@@ -768,7 +794,9 @@ describe("SunSwapLiquidityService.addLiquidity — V3 mint", () => {
   });
 
   it("keeps liquidity, not liquidityExpected, on the confirmed receipt", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope } = makeHarness(port);
 
     const result = (await service.addLiquidity(scope, NETWORK, MINT)) as Record<string, unknown>;
@@ -927,7 +955,9 @@ describe("SunSwapLiquidityService — the minted position's id", () => {
   }
 
   it("reads it from the confirmed transaction's own log", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope } = confirmingHarness(port);
 
     const result = (await service.addLiquidity(scope, NETWORK, {
@@ -944,7 +974,7 @@ describe("SunSwapLiquidityService — the minted position's id", () => {
 
   it("warns rather than fails when the log cannot be read", async () => {
     const port = makePort({
-      allowance: vi.fn(async () => "999999999999") as never,
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
       v3MintedPositionId: vi.fn(async () => undefined) as never,
     });
     const { service, scope } = confirmingHarness(port);
@@ -964,7 +994,9 @@ describe("SunSwapLiquidityService — the minted position's id", () => {
   });
 
   it("does not look for one when adding to a position that already exists", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope } = confirmingHarness(port);
 
     await service.addLiquidity(scope, NETWORK, {
@@ -991,12 +1023,12 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
 
   it("uses the V3 IncreaseLiquidity receipt even if later position state has changed", async () => {
     const port = makePort({
-      allowance: vi.fn(async () => "999999999999"),
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")),
       v3DepositedAmounts: vi.fn(async () => ({
         tokenId: "686",
         liquidity: "12345",
-        amount0: "999000",
-        amount1: "173000",
+        amount0: baseUnitAmount("999000"),
+        amount1: baseUnitAmount("173000"),
       })),
     });
     const { service, scope } = confirmingHarness(port);
@@ -1017,7 +1049,7 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
   it("reads the position back rather than echoing what was planned", async () => {
     let reads = 0;
     const port = makePort({
-      allowance: vi.fn(async () => "999999999999") as never,
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
       v3Position: vi.fn(async (_n: NetworkDescriptor, tokenId: string) => {
         reads += 1;
         return {
@@ -1046,7 +1078,7 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
 
   it("counts a new position's whole liquidity as what this call added", async () => {
     const port = makePort({
-      allowance: vi.fn(async () => "999999999999") as never,
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
       v3Position: vi.fn(async (_n: NetworkDescriptor, tokenId: string) => ({
         tokenId,
         owner: OWNER,
@@ -1144,7 +1176,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
   }
 
   it("builds unsigned approvals before the V4 deposit without checking that they landed", async () => {
-    const port = v4Port({ allowance: vi.fn(async () => "0") });
+    const port = v4Port({ allowance: vi.fn(async () => baseUnitAmount("0")) });
     const { result, estimated, pipeline } = run({ ...BASE_V4, buildOnly: true }, port);
     await expect(result).resolves.toMatchObject({
       mode: "build-only",
@@ -1374,7 +1406,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     const port = v4Port({
       v4Position: vi.fn(async () => ({ ...POSITION, currency0: TRX })),
       v4PoolState: vi.fn(async () => ({ ...POOL, currency0: TRX })),
-      nativeBalance: vi.fn(async () => SIZED.amount0),
+      nativeBalance: vi.fn(async () => sunAmount(SIZED.amount0)),
     } as Partial<LiquidityPort>);
     const { result } = run({ ...BASE_V4, token0: "TRX", slippage: "0.01", dryRun: true }, port);
     await expect(result).rejects.toMatchObject({ code: "insufficient_balance" });
@@ -1470,7 +1502,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   }
 
   it("publishes unlimited approvals and explains an unsigned Permit2 fee", async () => {
-    const port = v4Port({ allowance: vi.fn(async () => "0") });
+    const port = v4Port({ allowance: vi.fn(async () => baseUnitAmount("0")) });
     const h = makeHarness(port, { planPermit: async () => ({}) }, signers);
     const out = await h.service.addLiquidity(h.scope, NETWORK, { ...BASE_V4, dryRun: true });
     expect(out.approvals).toEqual(
@@ -1517,7 +1549,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     },
   );
   it("uses an existing finite allowance when it covers the deposit ceiling", async () => {
-    const port = v4Port({ allowance: vi.fn(async () => "4000000") });
+    const port = v4Port({ allowance: vi.fn(async () => baseUnitAmount("4000000")) });
     const out = await run({ ...BASE_V4, dryRun: true }, port).result;
     expect(out.approvals ?? []).toEqual([]);
   });
@@ -1525,7 +1557,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   it("refuses a TRC20 side the account cannot cover in a dry run", async () => {
     const port = v4Port({
       balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
-        token === WTRX ? "173467" : "999999999999",
+        baseUnitAmount(token === WTRX ? "173467" : "999999999999"),
       ),
     } as Partial<LiquidityPort>);
     await expect(run({ ...BASE_V4, dryRun: true }, port).result).rejects.toMatchObject({
@@ -1534,8 +1566,8 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   });
   it("refuses an uncovered TRC20 side before any approval or Permit2 signature", async () => {
     const port = v4Port({
-      allowance: vi.fn(async () => "0"),
-      balanceOf: vi.fn(async () => "1"),
+      allowance: vi.fn(async () => baseUnitAmount("0")),
+      balanceOf: vi.fn(async () => baseUnitAmount("1")),
     } as Partial<LiquidityPort>);
     const permits = { planPermit: vi.fn(async () => ({})) };
     const resolve = vi.fn(() => ({}));
@@ -1550,7 +1582,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   it("checks a TRC20 side against the ceiling, not the deposit", async () => {
     const port = v4Port({
       balanceOf: vi.fn(async (_n: NetworkDescriptor, token: string) =>
-        token === USDT ? "1000000" : "999999999999",
+        baseUnitAmount(token === USDT ? "1000000" : "999999999999"),
       ),
     } as Partial<LiquidityPort>);
     await expect(
@@ -1559,12 +1591,19 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
   });
   it("compares finite allowance to the ceiling, and grants unlimited only to the short side", async () => {
     const port = v4Port({
-      allowance: vi.fn(async (_n, token) => (token === USDT ? "1000000" : "4000000")),
+      allowance: vi.fn(async (_n, token) => baseUnitAmount(token === USDT ? "1000000" : "4000000")),
     });
     const out = await run({ ...BASE_V4, slippage: "0.01", dryRun: true }, port).result;
     expect(out.approvals).toEqual([
-      expect.objectContaining({ token: USDT, amount: "unlimited", currentAllowance: "1000000" }),
+      expect.objectContaining({
+        token: USDT,
+        amount: "unlimited",
+        isUnlimited: true,
+        currentAllowance: "1000000",
+      }),
     ]);
+    expect(out.token0).not.toHaveProperty("acceptsAnyAmount");
+    expect(out.token1).not.toHaveProperty("acceptsAnyAmount");
   });
   it("keeps confirmed approvals when Permit2 preparation later fails", async () => {
     const port = v4Port({
@@ -1807,7 +1846,7 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
     ),
   )("publishes pool-order amounts for $mode (reversed=$reversed)", async ({ reversed, mode }) => {
     const port = makePort({
-      allowance: vi.fn(async () => "999999999999"),
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")),
       v3PoolState: vi.fn(async () => ({
         poolAddress: MANAGER,
         liquidity: "1000000",
@@ -1818,8 +1857,8 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
         token0: USDT,
       })),
       v3DepositedAmounts: vi.fn(async () => ({
-        amount0: "1000000",
-        amount1: "493089",
+        amount0: baseUnitAmount("1000000"),
+        amount1: baseUnitAmount("493089"),
         liquidity: "123",
         tokenId: "1846",
       })),

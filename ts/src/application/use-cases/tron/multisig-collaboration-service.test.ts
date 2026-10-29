@@ -1,15 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  TronLinkCollaborationPort,
-  TronLinkRemoteRecord,
-} from "../../ports/tronlink-collaboration.js";
+import type { TronLinkCollaborationPort } from "../../ports/tronlink-collaboration.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import {
   decodeTransactionHex,
   encodeTransactionHex,
+  encodeTransactionJson,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
+import {
+  parseTronLinkEntry,
+  unsignedOpenCount,
+} from "../../../adapters/outbound/tronlink/client.js";
 import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { TronMultisigService } from "./multisig-service.js";
 import { TronMultisigCollaborationService } from "./multisig-collaboration-service.js";
@@ -49,10 +51,10 @@ function unsignedHex(amount = 1): string {
   });
 }
 
-function remote(
-  hex = unsignedHex(),
-  overrides: Partial<TronLinkRemoteRecord> = {},
-): TronLinkRemoteRecord {
+// A TronLink list row as the service sends it.
+type WireRecord = Record<string, unknown>;
+
+function remote(hex = unsignedHex(), overrides: WireRecord = {}): WireRecord {
   const transaction = decodeTransactionHex(hex);
   const signed = transaction.signature?.length ?? 0;
   return {
@@ -78,7 +80,7 @@ function remote(
   };
 }
 
-function undecodable(hex = unsignedHex()): TronLinkRemoteRecord {
+function undecodable(hex = unsignedHex()): WireRecord {
   const record = remote(hex);
   return {
     ...record,
@@ -89,6 +91,7 @@ function undecodable(hex = unsignedHex()): TronLinkRemoteRecord {
 function gateway(): TronGateway {
   return {
     encodeTransactionHex,
+    encodeTransactionJson,
     decodeTransactionHex,
     decodeTransaction: () => ({ kind: "trx", from: A, to: B, rawAmount: "1" }),
     getSignWeight: vi.fn(async () => ({
@@ -137,16 +140,18 @@ function approval(hex: string) {
   };
 }
 
-function setup(...given: TronLinkRemoteRecord[]) {
+function setup(...given: WireRecord[]) {
   const records = given.length ? given : [remote()];
   const collaboration = {
-    list: vi.fn(async () => ({ total: records.length, records })),
+    list: vi.fn(async () => ({ total: records.length, entries: records.map(parseTronLinkEntry) })),
     submit: vi.fn(async () => {}),
-    watch: vi.fn(async (_network, _address, _signal, onMessage) => {
-      onMessage([
-        { state: 0, is_sign: 0 },
-        { state: 0, is_sign: 1 },
-      ]);
+    watch: vi.fn(async (_network, _address, _signal, onUnsignedCount) => {
+      onUnsignedCount(
+        unsignedOpenCount([
+          { state: 0, is_sign: 0 },
+          { state: 0, is_sign: 1 },
+        ]),
+      );
     }),
   } as unknown as TronLinkCollaborationPort;
   const chain = gateway();
@@ -250,6 +255,19 @@ describe("TronLink multi-sign collaboration workflow", () => {
     await expect(
       service.sign(scope(), NETWORK, decodeTransactionHex(target).txID),
     ).resolves.toMatchObject({ action: "sign", accepted: true });
+  });
+
+  it("finds a record behind a malformed one, but fails a listing that contains it", async () => {
+    const target = unsignedHex(2);
+    const { service } = setup(remote(unsignedHex(), { state: 3 }), remote(target));
+
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(target).txID),
+    ).resolves.toMatchObject({ action: "sign", accepted: true });
+    await expect(service.list(NETWORK, A)).rejects.toMatchObject({
+      code: "provider_error",
+      message: "TronLink returned unsupported transaction state 3",
+    });
   });
 
   it("names why the requested record could not be decoded", async () => {

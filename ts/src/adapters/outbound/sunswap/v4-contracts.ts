@@ -39,11 +39,13 @@ import type { TronGateway } from "../../../application/ports/chain/tron-gateway.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { tronBytesToBase58 } from "../../../domain/address/index.js";
+import { tronAddressFromHash20 } from "../../../domain/address/index.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 import { normalisePoolId } from "../../../domain/sunswap/protocol.js";
 import { assertPositionPool, decodeV4PositionInfo } from "../../../domain/sunswap/v4-position.js";
 import { decodeV4LiquidityReceipt } from "./v4-liquidity-receipt.js";
 import { V4_NO_HOOKS } from "../../../domain/sunswap/v4-pool.js";
+import { sunAmount, baseUnitAmount } from "../../../domain/amounts/index.js";
 
 const SDK_NETWORKS: Readonly<Record<string, string>> = {
   "tron:728126428": "mainnet",
@@ -158,7 +160,7 @@ export class SunSwapV4Contracts {
     );
     const data = hex(words);
     if (data.length < 2 * 64 || !/^[0-9a-f]+$/i.test(data.slice(0, 2 * 64))) return undefined;
-    return { amount0: word(words, 0), amount1: word(words, 1) };
+    return { amount0: baseUnitAmount(word(words, 0)), amount1: baseUnitAmount(word(words, 1)) };
   }
 
   // Set sweepRecipient to return unused native TRX from the sent ceiling.
@@ -295,7 +297,7 @@ export class SunSwapV4Contracts {
       parameters: (call.parameters ?? []).map(plainParameter),
       ...(call.callValue === undefined || call.callValue === 0n
         ? {}
-        : { callValueSun: call.callValue.toString() }),
+        : { callValueSun: sunAmount(call.callValue) }),
     };
   }
 
@@ -445,7 +447,7 @@ function signedWord(words: readonly string[], index: number): number {
 
 // Decode the low 20 bytes as TRON base58.
 function addressFromWord(data: string): string {
-  return tronBytesToBase58(Uint8Array.from(Buffer.from(`41${data.slice(24, 64)}`, "hex")));
+  return tronAddressFromHash20(data.slice(24, 64));
 }
 
 function assertTokenId(tokenId: string): string {
@@ -459,7 +461,7 @@ function assertTokenId(tokenId: string): string {
   return text;
 }
 
-const ZERO_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const ZERO_ADDRESS = FAMILIES.tron.zeroAddress;
 
 // Use strings across the gateway boundary; bigint cannot cross JSON.
 function plainParameter(parameter: { type: string; value: unknown }): ContractParameter {

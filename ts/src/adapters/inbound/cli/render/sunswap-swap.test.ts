@@ -30,8 +30,14 @@ const routerSwap = (extra: Record<string, unknown> = {}) => ({
   slippage: "0.005",
   tradingFee: "50",
   route: { path: [TOKEN_SIDE, TRX_SIDE], protocols: ["V2"], poolFees: ["0", "0"] },
-  approvals: [{ spender: PERMIT2, amount: "1000000" }],
-  permit: { permit2: PERMIT2, spender: ROUTER, amount: "1000000", expiration: "1790234906" },
+  approvals: [{ spender: PERMIT2, amount: "1000000", isUnlimited: false }],
+  permit: {
+    permit2: PERMIT2,
+    spender: ROUTER,
+    amount: "1000000",
+    expiration: "1790234906",
+    ttlSeconds: 3600,
+  },
   ...extra,
 });
 
@@ -46,7 +52,7 @@ const curveSwap = (extra: Record<string, unknown> = {}) => ({
   slippage: "0.05",
   tradingFee: "10000",
   route: { path: [{ symbol: "Justin" }, { symbol: "TRX" }] },
-  approvals: [{ spender: LAUNCHPAD, amount: "unlimited" }],
+  approvals: [{ spender: LAUNCHPAD, amount: "unlimited", isUnlimited: true }],
   ...extra,
 });
 
@@ -123,6 +129,13 @@ describe("the approval note follows the market, not the presence of approvals", 
     expect(out).toContain("approves the SunPump proxy without limit");
     expect(out).toContain("upgradeable proxy");
   });
+
+  it("takes the unlimited grant from the result, not from the market", () => {
+    const out = render(
+      curveSwap({ mode: "dry-run", approvals: [{ spender: LAUNCHPAD, amount: "5" }] }),
+    );
+    expect(out).not.toContain("without limit");
+  });
 });
 
 describe("the Permit2 grant is shown, not only stored", () => {
@@ -132,6 +145,13 @@ describe("the Permit2 grant is shown, not only stored", () => {
     expect(out).toContain("1000000 to TQqgNg13s2");
     expect(out).toContain("Permit expires");
     expect(out).toContain("(1 hour)");
+  });
+
+  it("states the permit lifetime the result carries", () => {
+    const permit = { ...(routerSwap().permit as object), ttlSeconds: 1800 };
+    const out = render(routerSwap({ mode: "dry-run", feeCovers: "approvals", permit }));
+    expect(out).toContain("(30 minutes)");
+    expect(out).not.toContain("(1 hour)");
   });
 
   it("keeps the grant on a confirmed receipt", () => {
@@ -201,12 +221,19 @@ describe("an unverified hook", () => {
 
 describe("a swap that failed on chain", () => {
   it("says the grant outlived the failed transaction, and when it lapses", () => {
-    const out = render(routerSwap({ stage: "failed", txId: "abc", result: "REVERT" }));
+    const out = render(
+      routerSwap({ stage: "failed", txId: "abc", result: "REVERT", approvalRemains: true }),
+    );
     expect(out).toContain("still in place");
     expect(out).toContain("limited to this trade");
     expect(out).toContain("does not expire automatically");
     expect(out).toContain("expires at");
     expect(out).not.toContain("both are limited to this trade and expire");
+  });
+
+  it("takes the lingering approval from the result, not from the stage", () => {
+    const out = render(routerSwap({ stage: "failed", txId: "abc", result: "REVERT" }));
+    expect(out).not.toContain("still in place");
   });
 
   it("says nothing of the sort when there was no permit", () => {

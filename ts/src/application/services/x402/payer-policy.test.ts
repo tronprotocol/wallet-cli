@@ -17,7 +17,7 @@ const APPROVE: DecodedEvmApprove = {
 const payerOf = () => ({
   address: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
   signTypedData: vi.fn(),
-  signTransaction: vi.fn(async (tx: unknown) => tx),
+  signTransaction: vi.fn(async (tx: unknown) => tx) as never,
 });
 
 describe("withPayerPolicy", () => {
@@ -25,7 +25,7 @@ describe("withPayerPolicy", () => {
     const payer = payerOf();
 
     await expect(
-      withPayerPolicy(payer, { family: "tron" }).signTransaction({ txID: "ab" }, APPROVE),
+      withPayerPolicy(payer, { family: "tron" }).signTransaction({ txID: "ab" } as never, APPROVE),
     ).rejects.toMatchObject({ code: "signed_payload_mismatch" });
     expect(payer.signTransaction).not.toHaveBeenCalled();
   });

@@ -16,7 +16,7 @@ describe("TronRpcClient error redaction (I-03)", () => {
     }) as never;
 
     await expect(client.broadcast(SIGNED)).rejects.toMatchObject({ code: "rpc_error" });
-    const err = await client.broadcast(SIGNED).catch((e) => e as Error);
+    const err = (await client.broadcast(SIGNED).catch((e) => e)) as Error;
     expect(err.message).toContain("TRON broadcast failed:");
     expect(err.message).toContain("https://rpc.provider.com");
     expect(err.message).not.toContain("APIKEY_SECRET123");
@@ -34,7 +34,7 @@ describe("TronRpcClient error redaction (I-03)", () => {
         message: Buffer.from(SECRET_URL).toString("hex"),
       })) as never;
 
-    const err = await client.broadcast(SIGNED).catch((e) => e as Error);
+    const err = (await client.broadcast(SIGNED).catch((e) => e)) as Error;
     expect(err.message).toContain("TRON broadcast rejected:");
     expect(err.message).not.toContain("APIKEY_SECRET123");
   });

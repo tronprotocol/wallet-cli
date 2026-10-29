@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
+import { parseTronTxInfo } from "../chain/tron/tron-responses.js";
 import { readPosition } from "../../../application/use-cases/tron/sunswap/position-read.js";
 
 const sqrtAt = (tick: number): string => TickMath.getSqrtRatioAtTick(tick).toString();
 const TICK_SQRT = sqrtAt(-85);
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { baseUnitAmount } from "../../../domain/amounts/index.js";
 
 const NILE = {
   id: "tron:3448148188",
@@ -173,10 +175,10 @@ describe("v2AddLiquidityPayload", () => {
   const request = {
     token0: { address: USDT, decimals: 6, symbol: "USDT" },
     token1: { address: WTRX, decimals: 6, symbol: "WTRX" },
-    amount0Desired: "1000000",
-    amount1Desired: "2000000",
-    amount0Min: "950000",
-    amount1Min: "1900000",
+    amount0Desired: baseUnitAmount("1000000"),
+    amount1Desired: baseUnitAmount("2000000"),
+    amount0Min: baseUnitAmount("950000"),
+    amount1Min: baseUnitAmount("1900000"),
     recipient: "TRecipient",
     deadline: 1790000000,
   };
@@ -250,9 +252,9 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   const v3Pool = { currentTick: TICK, sqrtPriceX96: REAL_SQRT, exists: true } as never;
 
   it.each([
-    ["token0 named", { amount0: "1000000" }],
-    ["token1 named", { amount1: "1000000" }],
-    ["both named", { amount0: "1000000", amount1: "2000000" }],
+    ["token0 named", { amount0: baseUnitAmount("1000000") }],
+    ["token1 named", { amount1: baseUnitAmount("1000000") }],
+    ["both named", { amount0: baseUnitAmount("1000000"), amount1: baseUnitAmount("2000000") }],
   ])("gives V3 and V4 the same answer, %s", (_name, given) => {
     expect(contracts.v4Amounts(v4Pool, RANGE, given)).toEqual(
       contracts.v3Amounts(v3Pool, RANGE, given),
@@ -260,11 +262,11 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   });
 
   it("is not the answer the tick's price gives", () => {
-    const real = contracts.v4Amounts(v4Pool, RANGE, { amount0: "1000000" });
+    const real = contracts.v4Amounts(v4Pool, RANGE, { amount0: baseUnitAmount("1000000") });
     const atTickEdge = contracts.v4Amounts(
       { currentTick: TICK, sqrtPriceX96: TICK_SQRT, exists: true } as never,
       RANGE,
-      { amount0: "1000000" },
+      { amount0: baseUnitAmount("1000000") },
     );
     expect(BigInt(real.amount1)).toBeGreaterThan(BigInt(atTickEdge.amount1));
     expect(atTickEdge.amount1).toBe("170007");
@@ -278,7 +280,7 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   });
 
   it("a plan's amounts are the ceiling for its own liquidity", () => {
-    const plan = contracts.v4Amounts(v4Pool, RANGE, { amount0: "1000000" });
+    const plan = contracts.v4Amounts(v4Pool, RANGE, { amount0: baseUnitAmount("1000000") });
     expect(contracts.v4AmountsForLiquidityCeiling(v4Pool, RANGE, plan.liquidity)).toEqual({
       amount0: plan.amount0,
       amount1: plan.amount1,
@@ -286,15 +288,15 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   });
 
   it("sizes both sides of an in-range deposit", () => {
-    const plan = contracts.v4Amounts(v4Pool, RANGE, { amount0: "1000000" });
+    const plan = contracts.v4Amounts(v4Pool, RANGE, { amount0: baseUnitAmount("1000000") });
     expect(BigInt(plan.amount0)).toBeGreaterThan(0n);
     expect(BigInt(plan.amount1)).toBeGreaterThan(0n);
     expect(BigInt(plan.liquidity)).toBeGreaterThan(0n);
   });
 
   it.each([
-    ["above the range", { amount0: "1" }, 20000, /takes only token1/],
-    ["below the range", { amount1: "1" }, -20000, /takes only token0/],
+    ["above the range", { amount0: baseUnitAmount("1") }, 20000, /takes only token1/],
+    ["below the range", { amount1: baseUnitAmount("1") }, -20000, /takes only token0/],
   ])("refuses a one-sided range named from the wrong side, %s", (_name, given, tick, message) => {
     const moved = { currentTick: tick, sqrtPriceX96: sqrtAt(tick), exists: true } as never;
     expect(() => contracts.v4Amounts(moved, RANGE, given)).toThrow(message);
@@ -309,8 +311,8 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   });
 
   it.each([
-    ["v4Amounts", () => contracts.v4Amounts(EMPTY, RANGE, { amount0: "1" })],
-    ["v3Amounts", () => contracts.v3Amounts(EMPTY, RANGE, { amount0: "1" })],
+    ["v4Amounts", () => contracts.v4Amounts(EMPTY, RANGE, { amount0: baseUnitAmount("1") })],
+    ["v3Amounts", () => contracts.v3Amounts(EMPTY, RANGE, { amount0: baseUnitAmount("1") })],
     ["v4AmountsForLiquidity", () => contracts.v4AmountsForLiquidity(EMPTY, RANGE, "1")],
     ["v3AmountsForLiquidity", () => contracts.v3AmountsForLiquidity(EMPTY, RANGE, "1")],
     [
@@ -322,10 +324,10 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   });
 
   it("says the pool is uninitialised, not that it is empty", () => {
-    expect(() => contracts.v4Amounts(EMPTY, RANGE, { amount0: "1" })).toThrow(
+    expect(() => contracts.v4Amounts(EMPTY, RANGE, { amount0: baseUnitAmount("1") })).toThrow(
       /nothing has initialised it/,
     );
-    expect(() => contracts.v4Amounts(EMPTY, RANGE, { amount0: "1" })).not.toThrow(
+    expect(() => contracts.v4Amounts(EMPTY, RANGE, { amount0: baseUnitAmount("1") })).not.toThrow(
       /nothing has been deposited/,
     );
   });
@@ -333,7 +335,9 @@ describe("sizing uses the pool's own price, on both protocols", () => {
   it("accepts a price the caller supplied for a pool that does not exist yet", () => {
     const creating = { currentTick: 0, sqrtPriceX96: REAL_SQRT, exists: false } as never;
     expect(
-      BigInt(contracts.v4Amounts(creating, RANGE, { amount0: "1000000" }).liquidity),
+      BigInt(
+        contracts.v4Amounts(creating, RANGE, { amount0: baseUnitAmount("1000000") }).liquidity,
+      ),
     ).toBeGreaterThan(0n);
   });
 });
@@ -346,14 +350,14 @@ describe("the sizing round trip rounds outward", () => {
   const pool = { currentTick: -85, sqrtPriceX96: "78894563934534620073206563176" } as never;
 
   it("never reports a ceiling below what the same liquidity is worth", () => {
-    const plan = contracts.v4Amounts(pool, RANGE, { amount0: "1000000" });
+    const plan = contracts.v4Amounts(pool, RANGE, { amount0: baseUnitAmount("1000000") });
     const worth = contracts.v4AmountsForLiquidity(pool, RANGE, plan.liquidity);
     expect(BigInt(plan.amount0)).toBeGreaterThanOrEqual(BigInt(worth.amount0));
     expect(BigInt(plan.amount1)).toBeGreaterThanOrEqual(BigInt(worth.amount1));
   });
 
   it("differs from the withdrawal figure, so the rounding is real", () => {
-    const plan = contracts.v4Amounts(pool, RANGE, { amount0: "1000001" });
+    const plan = contracts.v4Amounts(pool, RANGE, { amount0: baseUnitAmount("1000001") });
     const worth = contracts.v4AmountsForLiquidity(pool, RANGE, plan.liquidity);
     const grew =
       BigInt(plan.amount0) > BigInt(worth.amount0) || BigInt(plan.amount1) > BigInt(worth.amount1);
@@ -378,8 +382,8 @@ describe("the V4 deposit payload", () => {
     tickLower: -120,
     tickUpper: 120,
     liquidity: "97941773",
-    amount0Max: "1000000",
-    amount1Max: "173468",
+    amount0Max: baseUnitAmount("1000000"),
+    amount1Max: baseUnitAmount("173468"),
     recipient: OWNER,
     permitOwner: OWNER,
     sweepRecipient: OWNER,
@@ -538,7 +542,7 @@ describe("the V4 deposit payload", () => {
   });
 
   it.each([
-    ["the ceiling", { amount1Max: "173469" }],
+    ["the ceiling", { amount1Max: baseUnitAmount("173469") }],
     ["the range", { tickUpper: 132 }],
     ["the liquidity", { liquidity: "97941774" }],
   ])("changes the encoded call when %s changes", (_name, change) => {
@@ -582,8 +586,8 @@ describe("the V4 increase payload", () => {
     pool,
     tokenId: "12",
     liquidity: "97941773",
-    amount0Max: "1000000",
-    amount1Max: "173468",
+    amount0Max: baseUnitAmount("1000000"),
+    amount1Max: baseUnitAmount("173468"),
     owner: OWNER,
     sweepRecipient: OWNER,
     deadline: 1790240000,
@@ -617,8 +621,8 @@ describe("the V4 increase payload", () => {
   it.each([
     ["the position", { tokenId: "13" }],
     ["the liquidity", { liquidity: "97941774" }],
-    ["the ceiling on currency0", { amount0Max: "1000001" }],
-    ["the ceiling on currency1", { amount1Max: "173469" }],
+    ["the ceiling on currency0", { amount0Max: baseUnitAmount("1000001") }],
+    ["the ceiling on currency1", { amount1Max: baseUnitAmount("173469") }],
     ["the deadline", { deadline: 1790240001 }],
     ["a currency", { pool: { ...pool, currency1: "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a" } }],
   ])("changes the encoded call when %s changes", (_name, change) => {
@@ -799,7 +803,8 @@ describe("V2 transaction return amounts", () => {
   function portFor(contractResult: unknown, result = "SUCCESS") {
     return new SunSwapLiquidityContracts({
       get: () => ({
-        getTransactionInfoById: async () => ({ receipt: { result }, contractResult }),
+        getTransactionInfoById: async () =>
+          parseTronTxInfo({ receipt: { result }, contractResult }),
       }),
     } as unknown as ChainGatewayProvider);
   }
@@ -862,7 +867,9 @@ describe("V3 deposited amounts", () => {
   };
   const port = (logs: unknown[], result = "SUCCESS") =>
     new SunSwapLiquidityContracts({
-      get: () => ({ getTransactionInfoById: async () => ({ receipt: { result }, log: logs }) }),
+      get: () => ({
+        getTransactionInfoById: async () => parseTronTxInfo({ receipt: { result }, log: logs }),
+      }),
     } as unknown as ChainGatewayProvider);
   it("reads exact amounts and position liquidity from one transaction", async () => {
     await expect(port([event]).v3DepositedAmounts(NILE, "tx", "686")).resolves.toEqual({
@@ -1011,7 +1018,9 @@ describe("V3 Collect receipt identity", () => {
   });
   const port = (log: unknown[], result = "SUCCESS") =>
     new SunSwapLiquidityContracts({
-      get: () => ({ getTransactionInfoById: async () => ({ receipt: { result }, log }) }),
+      get: () => ({
+        getTransactionInfoById: async () => parseTronTxInfo({ receipt: { result }, log }),
+      }),
     } as never);
 
   it("selects the requested tokenId even when another position emitted first", async () => {

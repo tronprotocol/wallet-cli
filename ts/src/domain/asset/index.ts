@@ -1,8 +1,9 @@
 import { UsageError } from "../errors/index.js";
+import { FAMILIES } from "../family/index.js";
 
 const INT32_MAX = 2_147_483_647n;
 export const TRC10_MAX_PRECISION = 6;
-const SUN_PER_TRX = 1_000_000n;
+const SUN_PER_TRX = 10n ** BigInt(FAMILIES.tron.nativeDecimals);
 
 // trxNum SUN buys num minimal token units.
 export interface IcoRate {

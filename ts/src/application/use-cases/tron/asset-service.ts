@@ -22,9 +22,10 @@ import {
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
 const DAY_MS = 86_400_000;
-const TRX_DECIMALS = 6;
+const TRX_DECIMALS = FAMILIES.tron.nativeDecimals;
 // The chain rejects spaces and non-ASCII bytes in names and abbreviations.
 const VISIBLE_ASCII = /^[\x21-\x7E]{1,32}$/;
 

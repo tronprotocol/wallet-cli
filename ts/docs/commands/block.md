@@ -58,12 +58,15 @@ Base fee      1.119025 gwei
 
 ## Output
 
-`data.block` is the raw block as returned by the node, unmodified — a TRON block object on TRON, an `eth_getBlockByNumber` result on EVM. Its exact shape follows the node's block structure, so **only the text summary is normalized across families**; the key fields are below (large hashes and the full transaction list are elided as `…` above).
+`data.block` is the raw block as returned by the node, unmodified — a TRON block object on TRON, an `eth_getBlockByNumber` result on EVM. Its exact shape follows the node's block structure; the key fields are below (large hashes and the full transaction list are elided as `…` above). On EVM, `data` also carries the block's decoded fields beside `data.block`.
 
-TRON:
+TRON also reports a normalized summary beside `block`:
 
 | Field | Type | Meaning |
 |---|---|---|
+| `number` | number | Block height |
+| `timestampMs` | number | Block time (ms since epoch, UTC) |
+| `transactionCount` | number | Transactions in the block |
 | `block.blockID` | string | Block hash |
 | `block.block_header.raw_data.number` | number | Block height |
 | `block.block_header.raw_data.timestamp` | number | Block time (ms since epoch, UTC) |
@@ -81,6 +84,17 @@ EVM — the node's own hex QUANTITY encoding throughout:
 | `block.baseFeePerGas` | string | Base fee per gas, hex wei |
 | `block.miner` | string | Address credited with the block |
 | `block.transactions` | array | Transaction hashes, or full objects, as the node returns them |
+
+EVM decoded fields, beside `data.block`. A block without a number or timestamp fails with `invalid_node_response`:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `number` | number | Block height |
+| `timestamp` | number | Block time, ms since epoch (UTC) |
+| `hash` / `parentHash` | string | Block and parent hash; omitted when the node omits them |
+| `transactionCount` | number | Transactions in the block; omitted when the node omits the list |
+| `gasUsed` / `gasLimit` | string | Gas consumed and authorised, decimal; omitted when absent |
+| `baseFeeWei` | string | Base fee per gas, decimal wei; omitted before EIP-1559 |
 
 ## Exit status
 

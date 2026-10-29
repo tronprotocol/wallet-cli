@@ -18,6 +18,8 @@ export interface PendingUpgrade {
 export interface MigrationGateOutcome {
   status: "current" | "upgraded" | "cancelled";
   files: PendingUpgrade[];
+  // Temporary rollback copies that could not be removed after an upgrade.
+  retainedBackups?: string[];
 }
 
 export interface MigrationPrompt {
@@ -60,8 +62,8 @@ export async function runMigrationGate(
   }
 
   prompt.applying?.(pending);
-  runner.apply(plan.stale, password);
-  return { status: "upgraded", files: pending };
+  const retainedBackups = runner.apply(plan.stale, password);
+  return { status: "upgraded", files: pending, retainedBackups };
 }
 
 function pendingUpgrade(file: StaleFile): PendingUpgrade {

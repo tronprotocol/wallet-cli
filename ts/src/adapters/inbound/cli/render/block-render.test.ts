@@ -7,58 +7,59 @@ const ctxFor = (family: "tron" | "evm") => ({
   net: { family } as NetworkDescriptor,
 });
 
-const TRON_BLOCK = {
-  blockID: "0000000000abcdef",
-  block_header: { raw_data: { number: 1234567, timestamp: 1722925264000 } },
-  transactions: [{}, {}],
+const TRON_RESULT = {
+  block: { blockID: "0000000000abcdef", block_header: { raw_data: { number: 1 } } },
+  number: 1234567,
+  timestampMs: 1722925264000,
+  transactionCount: 2,
 };
 
-const EVM_BLOCK = {
-  number: "0x12d687",
-  timestamp: "0x66b1c0d0",
+// The EVM block result: normalized fields beside the node's verbatim block.
+const EVM_RESULT = {
+  block: { number: "0x12d687", timestamp: "0x66b1c0d0" },
+  number: 1234567,
+  timestamp: 1722925264000,
   hash: "0xabc",
   parentHash: "0xparent",
-  gasUsed: "0xc3ed1d",
-  gasLimit: "0x1c9c380",
-  baseFeePerGas: "0x448b9b800",
-  transactions: ["0xdead", "0xbeef"],
+  transactionCount: 2,
+  gasUsed: "12840221",
+  gasLimit: "30000000",
+  baseFeeWei: "18400000000",
 };
 
 describe("block renderer", () => {
-  it("reads TRON's nested header and millisecond timestamp", () => {
-    const out = TextFormatters.block!({ block: TRON_BLOCK }, ctxFor("tron"))!;
+  it("formats TRON's summary fields, not the raw header", () => {
+    const out = TextFormatters.block!(TRON_RESULT, ctxFor("tron"))!;
 
     expect(out).toContain("1,234,567");
     expect(out).toContain("2024-08-06 06:21:04 UTC");
     expect(out).toContain("2");
   });
 
-  it("decodes EVM hex quantities instead of printing them raw", () => {
-    const out = TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!;
+  it("prints the normalized EVM number and millisecond timestamp", () => {
+    const out = TextFormatters.block!(EVM_RESULT, ctxFor("evm"))!;
 
-    expect(out).toContain("1,234,567");
+    expect(out).toContain("#1,234,567");
+    expect(out).toContain("2024-08-06 06:21:04 UTC");
     expect(out).not.toContain("0x12d687");
   });
 
-  it("treats the EVM timestamp as seconds", () => {
-    const out = TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!;
+  it("does not decode the node's raw EVM block", () => {
+    const out = TextFormatters.block!(
+      { block: { number: "0x12d687", timestamp: "0x66b1c0d0" } },
+      ctxFor("evm"),
+    )!;
 
-    expect(out).toContain("2024-08-06 06:21:04 UTC");
-    expect(out).not.toContain("1970");
-  });
-
-  it("counts EVM transactions", () => {
-    expect(TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!).toContain("2");
-  });
-
-  it("says unknown rather than crashing when the chain has no such block", () => {
-    const out = TextFormatters.block!({ block: null }, ctxFor("evm"))!;
-
+    expect(out).not.toContain("1,234,567");
     expect(out).toContain("unknown");
   });
 
+  it("counts EVM transactions", () => {
+    expect(TextFormatters.block!(EVM_RESULT, ctxFor("evm"))!).toMatch(/Transactions\s+2/);
+  });
+
   it("reports the EVM hash, parent, gas usage and base fee", () => {
-    const out = TextFormatters.block!({ block: EVM_BLOCK }, ctxFor("evm"))!;
+    const out = TextFormatters.block!(EVM_RESULT, ctxFor("evm"))!;
 
     expect(out).toContain("Hash");
     expect(out).toContain("Parent hash");
@@ -67,14 +68,14 @@ describe("block renderer", () => {
   });
 
   it("omits the base fee row entirely on a pre-1559 chain", () => {
-    const { baseFeePerGas: _dropped, ...legacy } = EVM_BLOCK;
-    const out = TextFormatters.block!({ block: legacy }, ctxFor("evm"))!;
+    const { baseFeeWei: _dropped, ...legacy } = EVM_RESULT;
+    const out = TextFormatters.block!(legacy, ctxFor("evm"))!;
 
     expect(out).not.toContain("Base fee");
   });
 
   it("leaves the TRON block rows unchanged", () => {
-    const out = TextFormatters.block!({ block: TRON_BLOCK }, ctxFor("tron"))!;
+    const out = TextFormatters.block!(TRON_RESULT, ctxFor("tron"))!;
 
     expect(out).not.toContain("Base fee");
     expect(out).not.toContain("Gas used");

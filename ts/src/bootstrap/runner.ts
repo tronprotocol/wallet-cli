@@ -120,6 +120,12 @@ export async function main(argv: string[]): Promise<ExitCode> {
     }
 
     if (migration.status === "upgraded") {
+      for (const path of migration.retainedBackups ?? []) {
+        runtime.streams.diagnostic("warn", {
+          code: "backup_file_not_removed",
+          message: `the upgrade is complete, but its temporary rollback copy could not be removed: ${path}; delete that file yourself`,
+        });
+      }
       const data = {
         upgraded: true,
         files: migration.files.map(({ path, from, to, backup }) => ({ path, from, to, backup })),

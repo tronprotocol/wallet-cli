@@ -4,6 +4,7 @@ import {
   TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
+import { addressShape, CHAIN_FAMILIES, isTxHash } from "../../../domain/family/index.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
 const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
@@ -171,12 +172,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
   let reason: string | undefined;
   if (/^Insufficient balance in GasFree wallet /.test(cause)) {
     reason = "gasfree_insufficient_balance";
-  } else if (
-    phase === "create_payment" &&
-    /^Asset T[1-9A-HJ-NP-Za-km-z]{33} not found in GasFree account T[1-9A-HJ-NP-Za-km-z]{33}\.$/.test(
-      cause,
-    )
-  ) {
+  } else if (phase === "create_payment" && gasFreeAssetMissing(cause)) {
     reason = "gasfree_asset_unsupported";
   } else if (/^GasFree account for .* is not activated\.$/.test(cause)) {
     reason = "gasfree_not_activated";
@@ -210,6 +206,13 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
   );
 }
 
+function gasFreeAssetMissing(cause: string): boolean {
+  const match = /^Asset (\S+) not found in GasFree account (\S+)\.$/.exec(cause);
+  return (
+    match !== null && match.slice(1).every((address) => addressShape(address) === "tron-base58")
+  );
+}
+
 function candidateEvidence(value?: Record<string, unknown>) {
   const hash = value?.transaction ?? value?.candidateTxHash;
   const network = value?.network ?? value?.candidateNetwork;
@@ -220,7 +223,7 @@ function candidateEvidence(value?: Record<string, unknown>) {
     (transportCodes as readonly string[]).includes(transportCode)
       ? { transportCode }
       : {}),
-    ...(typeof hash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(hash)
+    ...(typeof hash === "string" && CHAIN_FAMILIES.some((family) => isTxHash(family, hash))
       ? { candidateTxHash: hash }
       : {}),
     ...(typeof network === "string" &&

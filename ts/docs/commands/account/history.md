@@ -60,11 +60,11 @@ wallet-cli account history --limit 2 --network nile -o json
 | `records[].amount` | string | Transfer amount; empty when not a value transfer |
 | `records[].symbol` | string | Asset symbol (e.g. `TRX`) |
 | `records[].from` / `to` / `counterparty` | string | Addresses (may be empty per type) |
-| `records[].status` | string | `ok` or failure marker |
+| `records[].status` | string | `ok`, `failed`, or `unknown` when the record carries no execution result |
 
 ## Exit status
 
-`0` · `1` execution failure (`history_not_supported` — a missing or incompatible TronGrid endpoint) · `2` usage error (limit out of 1–200; `family_mismatch` on an EVM network).
+`0` · `1` execution failure (`history_not_supported` — no TronGrid endpoint is configured, or it answers HTTP 404; `timeout`, `rpc_error` — the endpoint did not answer or failed, retry; `provider_rate_limited` — HTTP 429, `error.details.httpStatus: 429`, retry later; `invalid_node_response` — the endpoint returned a body that is not a history page) · `2` usage error (limit out of 1–200; `family_mismatch` on an EVM network).
 
 ## See also
 

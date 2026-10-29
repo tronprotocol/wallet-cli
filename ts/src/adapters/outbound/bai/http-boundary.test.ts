@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { BaiClient } from "./client.js";
 import { BaiRechargeClient } from "./recharge-client.js";
+import { baiRechargeAmount } from "../../../domain/bai/recharge-policy.js";
 
 for (const kind of ["query", "recharge"] as const) {
   const call = (fetcher: typeof fetch, timeout = 1000) =>
@@ -11,7 +12,7 @@ for (const kind of ["query", "recharge"] as const) {
           walletAddress: "payer",
           chain: "tron",
           tokenName: "USDT",
-          amount: "1",
+          amount: baiRechargeAmount("1"),
           deviceType: "web",
         });
   it(`${kind} cancels oversized chunked responses before reading to the end`, async () => {

@@ -8,7 +8,7 @@ import type { EvmContractService } from "../../../../application/use-cases/evm/c
 import type { TronContractParameter } from "../../../../application/ports/chain/tron-gateway.js";
 import { Schemas, addressFieldsFor } from "../schemas/index.js";
 import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
-import { toBaseUnits } from "../../../../domain/amounts/index.js";
+import { toBaseUnits, sunAmount, type Sun } from "../../../../domain/amounts/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";
 import {
   governanceTxModeFields,
@@ -347,12 +347,13 @@ export const contractSendTronBinding = (svc: TronContractService): FamilyBinding
     svc.send(ctx, net, {
       ...input,
       callValueSun: tronCallValueSun(input),
+      feeLimit: sunAmount(input.feeLimit),
       parameters: typedParams(input.params),
     }),
 });
 
 // --value is whole TRX; --call-value-sun is SUN. Reject conflicting amount sources.
-function tronCallValueSun(input: { value?: string; callValueSun?: string }): string {
+function tronCallValueSun(input: { value?: string; callValueSun?: string }): Sun {
   if (input.value !== undefined && input.callValueSun !== undefined) {
     throw new UsageError(
       "invalid_option",
@@ -360,9 +361,9 @@ function tronCallValueSun(input: { value?: string; callValueSun?: string }): str
     );
   }
   if (input.value !== undefined) {
-    return toBaseUnits(input.value, FAMILIES.tron.nativeDecimals, "call value");
+    return sunAmount(toBaseUnits(input.value, FAMILIES.tron.nativeDecimals, "call value"));
   }
-  return input.callValueSun ?? "0";
+  return sunAmount(input.callValueSun ?? "0");
 }
 
 const deployFields = z.object({
@@ -584,6 +585,7 @@ export const contractDeployTronBinding = (svc: TronContractService): FamilyBindi
     assertConstructorEncodable(abi);
     return svc.deploy(ctx, net, {
       ...input,
+      feeLimit: sunAmount(input.feeLimit),
       abi,
       bytecode: source.bytecode,
       // TronWeb takes bare values; their types come from the ABI.

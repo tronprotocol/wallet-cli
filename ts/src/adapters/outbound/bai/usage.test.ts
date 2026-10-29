@@ -11,7 +11,6 @@ describe("documented BAI usage API", () => {
       new BaiClient({ baiApiKey: "test" }, 1000, fetcher).usageList({
         page: 1,
         pageSize: 20,
-        sortBy: "created_at",
         sortOrder: "desc",
       }),
     ).resolves.toMatchObject({ hasMore: true, nextCursor: "next" });

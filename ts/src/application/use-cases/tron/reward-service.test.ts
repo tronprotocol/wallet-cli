@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { TronRewardService } from "./reward-service.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronAccountState, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 
 const NET: NetworkDescriptor = {
@@ -24,6 +25,17 @@ const scope: TransactionScope = {
   emit: () => {},
   warn: () => {},
 };
+
+function accountState(latestWithdrawAt?: number): TronAccountState {
+  return {
+    balanceSun: "0",
+    ...(latestWithdrawAt === undefined ? {} : { latestWithdrawAt }),
+    stake: { energySun: "0", bandwidthSun: "0", tronPowerSun: "0", totalSun: "0" },
+    unfreezing: [],
+    votes: [],
+    raw: {} as TronAccountState["raw"],
+  };
+}
 
 function service(
   gateway: Partial<TronGateway>,
@@ -46,7 +58,7 @@ describe("TronRewardService.balance", () => {
   it("returns claimable reward and available-now status for first withdrawal", async () => {
     const svc = service({
       getReward: async () => "123456789",
-      getAccount: async () => ({}),
+      getAccountState: async () => accountState(),
     });
     await expect(svc.balance(scope, NET)).resolves.toEqual({
       address: OWNER,
@@ -58,18 +70,18 @@ describe("TronRewardService.balance", () => {
 
   it("returns the next withdrawable timestamp inside the 24h interval", async () => {
     const now = 1_700_000_000_000;
-    const latest = String(now - 6 * 60 * 60 * 1000);
+    const latest = now - 6 * 60 * 60 * 1000;
     const svc = service(
       {
         getReward: async () => "1",
-        getAccount: async () => ({ latest_withdraw_time: latest }),
+        getAccountState: async () => accountState(latest),
       },
       undefined,
       now,
     );
     await expect(svc.balance(scope, NET)).resolves.toMatchObject({
       withdrawableNow: false,
-      withdrawableAt: Number(latest) + 24 * 60 * 60 * 1000,
+      withdrawableAt: latest + 24 * 60 * 60 * 1000,
     });
   });
 });
@@ -78,7 +90,7 @@ describe("TronRewardService.withdraw", () => {
   it("rejects when no reward is claimable", async () => {
     const svc = service({
       getReward: async () => "0",
-      getAccount: async () => ({}),
+      getAccountState: async () => accountState(),
     });
     await expect(svc.withdraw(scope, NET, {})).rejects.toMatchObject({
       code: "no_reward",
@@ -91,7 +103,7 @@ describe("TronRewardService.withdraw", () => {
     const svc = service(
       {
         getReward: async () => "10",
-        getAccount: async () => ({ latest_withdraw_time: String(now - 1_000) }),
+        getAccountState: async () => accountState(now - 1_000),
       },
       undefined,
       now,
@@ -105,8 +117,8 @@ describe("TronRewardService.withdraw", () => {
   it("echoes submitted rewardSun and confirmed withdrawnSun as rewardSun", async () => {
     const baseGateway = {
       getReward: async () => "10",
-      getAccount: async () => ({}),
-      buildWithdrawBalance: async () => ({}),
+      getAccountState: async () => accountState(),
+      buildWithdrawBalance: async () => ({}) as never,
     };
     const submitted = service(baseGateway).withdraw(scope, NET, {});
     await expect(submitted).resolves.toMatchObject({
@@ -114,10 +126,11 @@ describe("TronRewardService.withdraw", () => {
       stage: "submitted",
       txId: "txid",
       rewardSun: "10",
+      withdrawIntervalMs: 24 * 60 * 60 * 1000,
     });
 
     const confirmed = service(baseGateway, {
-      run: async () => ({ stage: "confirmed", txId: "txid", withdrawnSun: "12" }),
+      run: async () => ({ stage: "confirmed", txId: "txid", withdrawnSun: sunAmount("12") }),
     }).withdraw(scope, NET, {});
     await expect(confirmed).resolves.toMatchObject({
       kind: "reward-withdraw",

@@ -1,7 +1,7 @@
 // The only path to a signature: checks the payload's chain identity against the named network first.
 import type {
   NetworkDescriptor,
-  SignedTx,
+  SignedTxOf,
   Signer,
   SignerSignOpts,
   TypedDataPayload,
@@ -45,8 +45,11 @@ export interface SignRequest<P extends SignPayload = SignPayload> {
   readonly payload: P;
 }
 
-export type SignResult<P extends SignPayload> = P extends { kind: "transaction" }
-  ? SignedTx
+export type SignResult<P extends SignPayload> = P extends {
+  kind: "transaction";
+  transaction: infer T extends UnsignedTx;
+}
+  ? SignedTxOf<T>
   : P extends { kind: "message" }
     ? string
     : TypedDataSignature;
@@ -62,7 +65,7 @@ export class SigningService {
   ): Promise<SignResult<P>> {
     await this.#assertChainIdentity(scope, request);
     const { signer, payload } = request;
-    return (await deviceBounded(signer, scope, (opts) => {
+    return (await deviceBounded<SignResult<SignPayload>>(signer, scope, (opts) => {
       switch (payload.kind) {
         case "transaction":
           return signer.sign(payload.transaction, opts);

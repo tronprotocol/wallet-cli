@@ -1,4 +1,5 @@
 import type { DeployConstructorArgs } from "../ports/chain/gateway-provider.js";
+import type { Wei } from "../../domain/amounts/index.js";
 
 export type ApprovalKind = "erc721";
 
@@ -22,8 +23,8 @@ export interface EvmContractWriteInput extends TransactionModeInput {
   bytecode?: string;
   constructorArgs?: DeployConstructorArgs;
   gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
+  maxFee?: Wei;
+  priorityFee?: Wei;
   nonce?: number;
 }
 

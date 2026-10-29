@@ -75,10 +75,10 @@ Shared summary:
 |---|---|---|
 | `txid` | string | Transaction id |
 | `from` | string | Sender address |
-| `to` | string | Recipient address |
+| `to` | string | Recipient address; omitted for an EVM contract creation |
 | `amount` | string | Transfer amount (human units) |
 | `symbol` | string | Native coin or token symbol |
-| `status` | string | Lower-cased, so match on `"success"` and never `"SUCCESS"`. On EVM it is `success` or `revert`; on TRON it is the node's own `contractRet` lower-cased — `success`, `revert`, `out_of_energy`, and so on. It is never `failed` |
+| `status` | string | Lower-cased, so match on `"success"` and never `"SUCCESS"`. On EVM it is `success` or `revert`; on TRON it is the node's own result code lower-cased — `success`, `revert`, `out_of_energy`, and so on — or `failed` when the node marks the transaction failed without a result code |
 | `blockNumber` | number | Block height |
 | `confirmations` | number | Blocks on top of the including block |
 
@@ -101,7 +101,7 @@ EVM adds:
 | `gasUsed` | string | Gas actually consumed |
 | `feeWei` | string | Fee actually charged, in wei |
 | `effectiveGasPriceWei` | string | Price per gas actually paid |
-| `transaction` | object | `eth_getTransactionByHash` result, as returned |
+| `transaction` | object | `eth_getTransactionByHash` result, as returned. A result without `from`, `value` or `input` fails with `invalid_node_response` |
 | `receipt` | object | Decoded receipt (`success`, `gasUsed`, `feeWei`, `effectiveGasPriceWei`, `blockNumber`) with the node's own response under `raw` |
 
 ## Exit status

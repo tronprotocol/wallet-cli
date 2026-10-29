@@ -1,7 +1,7 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 import { UsageError } from "../errors/index.js";
-import { tronBase58ToBytes, tronBytesToBase58 } from "../address/index.js";
+import { tronAddressFromHash20, tronBase58ToBytes } from "../address/index.js";
 
 const MIN_INT64 = -(1n << 63n);
 const MAX_INT64 = (1n << 63n) - 1n;
@@ -44,9 +44,6 @@ export function computeTronCreate2Address(
   new DataView(saltBytes.buffer).setBigInt64(24, salt, false);
   const codeHashBytes = keccak_256(hexToBytes(codeHex));
   const digest = keccak_256(concatBytes(deployer, saltBytes, codeHashBytes));
-  const payload = new Uint8Array(21);
-  payload[0] = 0x41;
-  payload.set(digest.slice(12), 1);
 
   const safeSalt =
     salt >= BigInt(Number.MIN_SAFE_INTEGER) && salt <= BigInt(Number.MAX_SAFE_INTEGER)
@@ -57,6 +54,6 @@ export function computeTronCreate2Address(
     salt: safeSalt,
     saltHex: `0x${bytesToHex(saltBytes)}`,
     codeHash: bytesToHex(codeHashBytes),
-    address: tronBytesToBase58(payload),
+    address: tronAddressFromHash20(digest.slice(12)),
   };
 }

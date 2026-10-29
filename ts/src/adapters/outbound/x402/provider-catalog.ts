@@ -4,8 +4,13 @@ import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type {
+  ProviderCatalogJson,
   ProviderCatalogPort,
+  ProviderCatalogUpdate,
+  ProviderEndpointsView,
   ProviderListInput,
+  ProviderListView,
+  ProviderRecord,
 } from "../../../application/ports/provider-catalog.js";
 import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 
@@ -18,7 +23,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     private readonly timeoutMs = 60000,
   ) {}
 
-  async list(input: ProviderListInput) {
+  async list(input: ProviderListInput): Promise<ProviderListView> {
     const payload = await this.catalog();
     let providers = arrayOfObjects(payload.providers).map(normalizeObject);
     validateFilter(providers, "type", input.type, "type is not exposed by the catalog yet");
@@ -41,8 +46,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     const total = providers.length;
     return {
       catalog: CATALOG_URL,
-      ...(payload.generated_at === undefined ? {} : { generatedAt: payload.generated_at }),
-      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings }),
+      ...(payload.generated_at === undefined
+        ? {}
+        : { generatedAt: payload.generated_at as string }),
+      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings as string[] }),
       count: Math.min(input.limit, Math.max(0, total - input.offset)),
       filters: Object.fromEntries(
         Object.entries({
@@ -66,7 +73,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  async show(fqn: string) {
+  async show(fqn: string): Promise<ProviderRecord> {
     safeFqn(fqn);
     const cached = await this.cached();
     const details = cached?.cached_details as Record<string, Record<string, unknown>> | undefined;
@@ -74,7 +81,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
   }
 
-  async endpoints(fqn: string) {
+  async endpoints(fqn: string): Promise<ProviderEndpointsView> {
     const provider = await this.show(fqn);
     return {
       fqn,
@@ -83,7 +90,7 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  async update() {
+  async update(): Promise<ProviderCatalogUpdate> {
     const payload = validateCatalog(await this.readJson(CATALOG_URL));
     const details: Record<string, Record<string, unknown>> = {};
     // Cache provider details for offline show/endpoints calls.
@@ -107,8 +114,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
       updated: true,
       cache: this.cacheFile,
       providers: arrayOfObjects(payload.providers).length,
-      ...(payload.generated_at === undefined ? {} : { generatedAt: payload.generated_at }),
-      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings }),
+      ...(payload.generated_at === undefined
+        ? {}
+        : { generatedAt: payload.generated_at as string }),
+      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings as string[] }),
     };
   }
 
@@ -174,17 +183,18 @@ function arrayOfObjects(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
-function normalizeObject(value: Record<string, unknown>): Record<string, unknown> {
+function normalizeObject(value: Record<string, unknown>): ProviderRecord {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [camel(key), normalize(item)]),
   );
 }
 
-function normalize(value: unknown): unknown {
+// Values come from parsed catalog JSON.
+function normalize(value: unknown): ProviderCatalogJson {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object") return normalizeObject(value as Record<string, unknown>);
   if (typeof value === "string") return normalizeNetwork(value);
-  return value;
+  return value as ProviderCatalogJson;
 }
 
 function camel(value: string): string {

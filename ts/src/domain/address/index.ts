@@ -51,6 +51,42 @@ export function tronHexAddress(address: string): string {
   return bytesToHex(tronAddressBytes(address));
 }
 
+// 21-byte TRON hex without a 0x prefix.
+export function isTronHexAddress(value: string): boolean {
+  return /^41[0-9a-fA-F]{40}$/.test(value);
+}
+
+// Lowercase 20-byte hex of Base58Check, 21-byte hex (41 or 0x41), 0x-prefixed or bare 20-byte hex.
+export function tronHash20Hex(address: string): string {
+  if (/^(?:0x41|0x|41)?[0-9a-fA-F]{40}$/.test(address)) return address.slice(-40).toLowerCase();
+  return bytesToHex(tronAddressBytes(address).slice(1));
+}
+
+// Prefixes 20-byte hex with 41 without validating it.
+export function tronHexFromHash20(hash20Hex: string): string {
+  return `41${hash20Hex}`;
+}
+
+// Base58Check address of a 20-byte account hash, given as bytes or 40 hex digits.
+export function tronAddressFromHash20(hash20: Bytes | string): string {
+  const body = typeof hash20 === "string" ? hexToBytes(hash20) : hash20;
+  if (body.length !== 20) throw new Error("TRON account hash must be 20 bytes");
+  const payload = new Uint8Array(21);
+  payload[0] = 0x41;
+  payload.set(body, 1);
+  return b58c.encode(payload);
+}
+
+// Converts 0x-prefixed 20-byte hex to Base58Check; passes other values through.
+export function tronAddressFromEvmHex(value: string): string {
+  return /^0x[0-9a-f]{40}$/i.test(value) ? tronAddressFromHash20(value.slice(2)) : value;
+}
+
+// 0x-prefixed lowercase 20-byte hex for any form tronHash20Hex accepts.
+export function tronAddressToEvmHex(address: string): string {
+  return `0x${tronHash20Hex(address)}`;
+}
+
 export function evmChecksumAddress(hash20: Bytes): string {
   if (hash20.length !== 20) {
     throw new Error("EVM address payload must be 20 bytes");
@@ -73,10 +109,7 @@ export function evmAddressFromPublicKey(pub: Bytes): string {
 export class TronAddress implements AddressCodec {
   readonly family: ChainFamily = "tron";
   fromPublicKey(pub: Bytes): string {
-    const payload = new Uint8Array(21);
-    payload[0] = 0x41;
-    payload.set(publicKeyHash20(pub), 1);
-    return b58c.encode(payload);
+    return tronAddressFromHash20(publicKeyHash20(pub));
   }
   validate(addr: string): boolean {
     if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(addr)) return false;
@@ -111,7 +144,7 @@ export class EvmAddress implements AddressCodec {
 export function tronHexToBase58(address: unknown): string {
   const value = String(address ?? "");
   const hex = value.replace(/^0x/, "");
-  if (!/^41[0-9a-fA-F]{40}$/.test(hex)) return value;
+  if (!isTronHexAddress(hex)) return value;
   try {
     return b58c.encode(hexToBytes(hex));
   } catch {

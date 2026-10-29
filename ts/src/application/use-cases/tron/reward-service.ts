@@ -2,7 +2,6 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAccount } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -27,12 +26,12 @@ export class TronRewardService {
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
       gateway.getReward(address),
-      gateway.getAccount(address),
+      gateway.getAccountState(address),
     ]);
     return {
       address,
       rewardSun,
-      ...withdrawStatus(account, this.now()),
+      ...withdrawStatus(account.latestWithdrawAt, this.now()),
     };
   }
 
@@ -42,12 +41,12 @@ export class TronRewardService {
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
       gateway.getReward(address),
-      gateway.getAccount(address),
+      gateway.getAccountState(address),
     ]);
     if (toUnsignedBigInt(rewardSun) === 0n) {
       throw new ChainError("no_reward", "no voting/block reward is currently claimable");
     }
-    const status = withdrawStatus(account, this.now());
+    const status = withdrawStatus(account.latestWithdrawAt, this.now());
     if (!status.withdrawableNow) {
       throw new ChainError(
         "withdraw_too_frequent",
@@ -73,17 +72,17 @@ export class TronRewardService {
       kind: "reward-withdraw" as const,
       ...data,
       rewardSun: String(data.withdrawnSun ?? rewardSun),
+      withdrawIntervalMs: WITHDRAW_INTERVAL_MS,
     };
   }
 }
 
 function withdrawStatus(
-  account: TronAccount,
+  latestWithdrawAt: number | undefined,
   now: number,
 ): { withdrawableNow: boolean; withdrawableAt: number | null } {
-  const latest = toUnsignedBigInt(account.latest_withdraw_time);
-  if (latest === 0n) return { withdrawableNow: true, withdrawableAt: null };
-  const at = Number(latest) + WITHDRAW_INTERVAL_MS;
+  if (latestWithdrawAt === undefined) return { withdrawableNow: true, withdrawableAt: null };
+  const at = latestWithdrawAt + WITHDRAW_INTERVAL_MS;
   return at <= now
     ? { withdrawableNow: true, withdrawableAt: null }
     : { withdrawableNow: false, withdrawableAt: at };

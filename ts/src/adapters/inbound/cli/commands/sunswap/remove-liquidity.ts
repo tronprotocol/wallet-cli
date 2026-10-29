@@ -4,6 +4,7 @@ import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapRemoveLiquidityService } from "../../../../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
 
 const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
@@ -242,7 +243,7 @@ export const sunswapRemoveLiquidityTronBinding = (
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
       ...(input.fee === undefined ? {} : { fee: input.fee }),
       ...(input.slippage === undefined ? {} : { slippage: input.slippage }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
     }),

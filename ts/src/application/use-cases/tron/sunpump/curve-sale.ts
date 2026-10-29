@@ -1,21 +1,26 @@
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import type { LaunchpadPort, LaunchpadTokenFacts } from "../../../ports/sunpump/launchpad.js";
+import type {
+  LaunchpadPort,
+  LaunchpadTokenFacts,
+  SellQuote,
+} from "../../../ports/sunpump/launchpad.js";
 import { UsageError } from "../../../../domain/errors/index.js";
+import type { BaseUnits, Sun } from "../../../../domain/amounts/index.js";
 
 export interface CurveSaleQuote {
-  // Seller proceeds in SUN, already net of the fee.
-  readonly trxOutSun: string;
-  // Fee in SUN, paid by the curve on top of seller proceeds.
-  readonly feeSun: string;
+  // Seller proceeds, already net of the fee.
+  readonly trxOutSun: Sun;
+  // Paid by the curve on top of seller proceeds.
+  readonly feeSun: Sun;
 }
 
 export async function quoteCurveSale(
   launchpad: LaunchpadPort,
   network: NetworkDescriptor,
   facts: LaunchpadTokenFacts,
-  tokensIn: string,
+  tokensIn: BaseUnits,
 ): Promise<CurveSaleQuote> {
-  let quoted: { trxAmountSun: string; feeSun: string };
+  let quoted: SellQuote;
   try {
     quoted = await launchpad.quoteSell(network, facts.address, tokensIn);
   } catch (error) {

@@ -92,7 +92,7 @@ EVM:
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`, `timeout`) · `2` usage error.
+`0` success · `1` execution failure (`rpc_error`, `timeout`; `invalid_node_response` when a TRON price timeline is empty or malformed) · `2` usage error.
 
 ## See also
 

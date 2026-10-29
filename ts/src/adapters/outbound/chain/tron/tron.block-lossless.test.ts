@@ -36,7 +36,7 @@ describe("TronRpcClient.getBlock", () => {
       ],
     })) as never;
 
-    const block = (await client.getBlock("69628067")) as {
+    const block = (await client.getBlock("69628067"))!.raw as unknown as {
       transactions: Array<{ raw_data: { timestamp: unknown } }>;
     };
 

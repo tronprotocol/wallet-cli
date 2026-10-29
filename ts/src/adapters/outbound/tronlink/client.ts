@@ -5,26 +5,33 @@ import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type {
   TronLinkCollaborationPort,
   TronLinkListFilter,
+  TronLinkRemoteEntry,
   TronLinkRemotePage,
   TronLinkRemoteRecord,
 } from "../../../application/ports/tronlink-collaboration.js";
 import type {
   Config,
   NetworkDescriptor,
+  TronLinkSignatureProgressView,
+  TronProtocolValue,
   TronTransactionArtifact,
 } from "../../../domain/types/index.js";
 import type { BroadcastGuard } from "../../../application/contracts/broadcast-guard.js";
 import { CliError, ChainError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
 import {
   encodeTronLinkQuery,
   signTronLinkRequest,
   tronLinkAuthParameters,
   type TronLinkCredentials,
 } from "./auth.js";
+import { normalizeTxHash } from "../../../domain/family/index.js";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_REQUEST_BYTES = 1024 * 1024;
 const SOCKET_PATH = "/multi/socket";
+const ADDRESS = new TronAddress();
+const STATE_CODES = { all: 255, open: 0, success: 1, failed: 2 } as const;
 
 type Fetch = typeof globalThis.fetch;
 type SocketOptions = ClientOptions;
@@ -68,7 +75,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       address,
       start: String(filter.start),
       limit: String(filter.limit),
-      state: String(filter.state),
+      state: String(STATE_CODES[filter.state]),
       ...(filter.isSigned === undefined ? {} : { is_sign: String(filter.isSigned) }),
       ...auth,
       sign,
@@ -94,7 +101,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     network: NetworkDescriptor,
     address: string,
     signal: AbortSignal,
-    onMessage: (payload: unknown) => void,
+    onUnsignedCount: (count: number) => void,
   ): Promise<void> {
     const credentials = this.#credentials();
     const endpoint = tronLinkEndpoint(network);
@@ -144,7 +151,10 @@ export class TronLinkClient implements TronLinkCollaborationPort {
           );
         }
         try {
-          onMessage(normalizeLossless(parseLosslessJson(bytes.toString("utf8"))));
+          const count = unsignedOpenCount(
+            normalizeLossless(parseLosslessJson(bytes.toString("utf8"))),
+          );
+          if (count !== undefined) onUnsignedCount(count);
         } catch {
           // Ignore parse or callback errors and keep the connection alive.
         }
@@ -339,22 +349,115 @@ function parsePage(value: unknown, requestedLimit: number): TronLinkRemotePage {
       "TronLink response contains an invalid transaction page",
     );
   }
-  const records = data.data.map((value, index) => {
-    const item = record(value, `data.data[${index}]`);
-    return {
-      hash: item.hash,
-      contract_type: item.contract_type,
-      state: item.state,
-      is_sign: item.is_sign,
-      current_weight: item.current_weight,
-      threshold: item.threshold,
-      contract_data: item.contract_data,
-      originator_address: item.originator_address,
-      current_transaction: item.current_transaction,
-      signature_progress: item.signature_progress,
-    } satisfies TronLinkRemoteRecord;
+  const entries = data.data.map((value, index) =>
+    parseTronLinkEntry(record(value, `data.data[${index}]`)),
+  );
+  return { total, entries };
+}
+
+export function parseTronLinkEntry(item: Record<string, unknown>): TronLinkRemoteEntry {
+  const claimedTxId = claimedHash(item.hash);
+  try {
+    return { kind: "record", claimedTxId, record: remoteRecord(item) };
+  } catch (error) {
+    if (!(error instanceof CliError)) throw error;
+    return { kind: "malformed", claimedTxId, error };
+  }
+}
+
+function remoteRecord(item: Record<string, unknown>): TronLinkRemoteRecord {
+  const txId = hash(stringValue(item.hash, "hash"));
+  const contractType = stringValue(item.contract_type, "contract_type");
+  const contractData = record(item.contract_data, "contract_data");
+  const ownerAddress = base58Address(contractData.owner_address, "contract_data.owner_address");
+  const originatorAddress = base58Address(item.originator_address, "originator_address");
+  const stateCode = safeInteger(item.state, "state", 0);
+  const signed = booleanFlag(item.is_sign, "is_sign");
+  const status = recordStatus(stateCode);
+  return {
+    txId,
+    contractType,
+    status,
+    signed,
+    currentWeight: safeInteger(item.current_weight, "current_weight", 0),
+    threshold: safeInteger(item.threshold, "threshold", 1),
+    ownerAddress,
+    originatorAddress,
+    signatureProgress: signatureProgress(item.signature_progress),
+    // normalizeLossless has already turned the body into plain JSON values.
+    currentTransaction: (item.current_transaction ?? null) as TronProtocolValue,
+  };
+}
+
+function signatureProgress(value: unknown): TronLinkSignatureProgressView[] {
+  if (!Array.isArray(value)) {
+    throw new ChainError("provider_error", "TronLink signature_progress must be an array");
+  }
+  return value.map((entry, index) => {
+    const item = record(entry, `signature_progress[${index}]`);
+    const address = base58Address(item.address, `signature_progress[${index}].address`);
+    const weight = safeInteger(item.weight, `signature_progress[${index}].weight`, 1);
+    const signed = booleanFlag(item.is_sign, `signature_progress[${index}].is_sign`);
+    // sign_time is in seconds; 0 means not signed.
+    const signTime = safeInteger(item.sign_time ?? 0, `signature_progress[${index}].sign_time`, 0);
+    const signedAt = signTime === 0 ? null : signTime * 1000;
+    if (!Number.isSafeInteger(signedAt ?? 0)) {
+      throw new ChainError("provider_error", "TronLink signature timestamp is inconsistent");
+    }
+    return { address, weight, signed, signedAt };
   });
-  return { total, records };
+}
+
+function recordStatus(code: number): TronLinkRemoteRecord["status"] {
+  if (code === 0) return "open";
+  if (code === 1) return "success";
+  if (code === 2) return "failed";
+  throw new ChainError("provider_error", `TronLink returned unsupported transaction state ${code}`);
+}
+
+// A malformed entry discards the whole message.
+export function unsignedOpenCount(payload: unknown): number | undefined {
+  if (!Array.isArray(payload)) return undefined;
+  return payload.filter((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const item = entry as Record<string, unknown>;
+    return (
+      booleanFlag(item.is_sign, "is_sign") === false && safeInteger(item.state, "state", 0) === 0
+    );
+  }).length;
+}
+
+function claimedHash(value: unknown): string | null {
+  return (typeof value === "string" ? normalizeTxHash("tron", value) : undefined) ?? null;
+}
+
+function hash(value: string): string {
+  const normalized = normalizeTxHash("tron", value);
+  if (normalized === undefined) {
+    throw new UsageError("invalid_value", "TronLink txId must be a 32-byte hex string");
+  }
+  return normalized;
+}
+
+function base58Address(value: unknown, field: string): string {
+  const normalized = tronHexToBase58(stringValue(value, field));
+  if (!ADDRESS.validate(normalized)) {
+    throw new ChainError("provider_error", `TronLink ${field} is not a valid TRON address`);
+  }
+  return normalized;
+}
+
+function stringValue(value: unknown, field: string): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 256) {
+    throw new ChainError("provider_error", `TronLink ${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+function booleanFlag(value: unknown, field: string): boolean {
+  if (value === true || value === 1 || value === "1" || value === "true") return true;
+  if (value === false || value === 0 || value === "0" || value === "false") return false;
+  throw new ChainError("provider_error", `TronLink ${field} must be a boolean flag`);
 }
 
 function record(value: unknown, field: string): Record<string, unknown> {

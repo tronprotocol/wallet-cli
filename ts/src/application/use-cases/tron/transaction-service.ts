@@ -7,7 +7,12 @@ import type {
   TxStatusView,
 } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { fromBaseUnits, positiveBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
+import {
+  fromBaseUnits,
+  positiveBaseUnits,
+  toBaseUnits,
+  type Sun,
+} from "../../../domain/amounts/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type {
@@ -27,13 +32,14 @@ import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
 export interface TronSendInput extends TransactionModeInput {
   to: string;
   token?: string;
   contract?: string;
   assetId?: string;
-  feeLimit: string;
+  feeLimit: Sun;
   amount?: string;
   rawAmount?: string;
 }
@@ -107,25 +113,12 @@ export class TronTransactionService {
     };
   }
 
-  // Signs external transactions without checking ownership or contract type here.
-  async sign(scope: TransactionScope, network: NetworkDescriptor, tx: unknown) {
-    const outcome = await this.pipeline.signOnly({
-      ctx: scope,
-      net: network,
-      account: scope.activeAccount,
-      tx,
-      // The JSON form is signed without contacting a node.
-      origin: "offline",
-    });
-    return { kind: "sign" as const, ...outcomeData(outcome) };
-  }
-
   async status(network: NetworkDescriptor, txid: string): Promise<TxStatusView> {
     const gateway = this.gateways.get(network, "tron");
     // Transaction info alone cannot distinguish pending from unknown transactions.
     const [exists, info, head] = await Promise.all([
       gateway.getTransactionById(txid).then(
-        (tx) => tx?.txID !== undefined,
+        (tx) => tx.txId !== undefined,
         // Treat lookup rejection as absent; the separate info request can still fail.
         () => false,
       ),
@@ -134,8 +127,7 @@ export class TronTransactionService {
       headBlockNumber(gateway),
     ]);
     const confirmed = info.blockNumber !== undefined;
-    const result = info.receipt?.result;
-    const failed = confirmed && result !== undefined && result !== "SUCCESS";
+    const failed = confirmed && info.execution === "failed";
     const state = confirmed ? (failed ? "failed" : "confirmed") : exists ? "pending" : "not_found";
     return {
       txid,
@@ -152,19 +144,19 @@ export class TronTransactionService {
     // Info and head reads are optional enrichment; transaction lookup determines existence.
     const [transaction, info, head] = await Promise.all([
       gateway.getTransactionById(txid),
-      gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
+      gateway.getTransactionInfoById(txid).catch(() => undefined),
       headBlockNumber(gateway),
     ]);
     return {
       txid,
-      ...(await this.enrichParties(gateway, gateway.decodeTransaction(transaction))),
-      status: lowerCaseStatus(info.receipt?.result ?? transaction.ret?.[0]?.contractRet),
-      blockNumber: info.blockNumber,
-      ...confirmationsOf(head, info.blockNumber),
-      energyUsed: info.receipt?.energy_usage_total,
-      feeSun: info.fee,
-      transaction,
-      info,
+      ...(await this.enrichParties(gateway, transaction.parties)),
+      status: executionStatus(info, transaction.contractResult),
+      blockNumber: info?.blockNumber,
+      ...confirmationsOf(head, info?.blockNumber),
+      energyUsed: info?.energyUsed,
+      feeSun: info?.feeSun,
+      transaction: transaction.raw,
+      info: info?.raw ?? {},
     };
   }
 
@@ -249,7 +241,9 @@ export class TronTransactionService {
         decimals,
       };
     }
-    return { rawAmount: input.rawAmount ?? toBaseUnits(input.amount!, 6, "TRX") };
+    return {
+      rawAmount: input.rawAmount ?? toBaseUnits(input.amount!, FAMILIES.tron.nativeDecimals, "TRX"),
+    };
   }
 
   private async enrichParties(
@@ -260,7 +254,7 @@ export class TronTransactionService {
       return {
         from: decoded.from,
         to: decoded.to,
-        amount: fromBaseUnits(decoded.rawAmount ?? "0", 6),
+        amount: fromBaseUnits(decoded.rawAmount ?? "0", FAMILIES.tron.nativeDecimals),
         symbol: "TRX",
       };
     }
@@ -295,14 +289,18 @@ export class TronTransactionService {
 // Head lookup is optional; failure omits confirmations.
 async function headBlockNumber(gateway: TronGateway): Promise<number | undefined> {
   try {
-    const block = (await gateway.getBlock()) as
-      { block_header?: { raw_data?: { number?: number } } } | undefined;
-    return block?.block_header?.raw_data?.number;
+    return (await gateway.getHeadBlock()).number;
   } catch {
     return undefined;
   }
 }
 
-function lowerCaseStatus(value: string | undefined): string | undefined {
-  return value === undefined ? undefined : value.toLowerCase();
+// Lower-case node codes; the transaction's own code stands in when the receipt reports no result.
+function executionStatus(
+  info: TronTxInfo | undefined,
+  transactionResult: string | undefined,
+): string | undefined {
+  if (info?.execution === "failed") return info.failureReason!.toLowerCase();
+  if (info?.execution === "success") return "success";
+  return transactionResult?.toLowerCase();
 }

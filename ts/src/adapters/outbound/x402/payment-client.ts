@@ -30,8 +30,12 @@ import type { Network } from "@bankofai/x402-core/types";
 import { decodePaymentRequiredHeader } from "@bankofai/x402-core/http";
 import { open, unlink, type FileHandle } from "node:fs/promises";
 import type {
+  X402Inspection,
+  X402Json,
   X402RequestInput,
+  X402Requirement,
   X402Resource,
+  X402ResponseResult,
   X402PaymentPort,
 } from "../../../application/ports/x402-payment.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
@@ -53,6 +57,7 @@ import { silenceX402SdkLogs } from "./sdk-logs.js";
 import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
 import { toX402Network, sameX402Network } from "../../../domain/x402/network-id.js";
 import { fromBaseUnits } from "../../../domain/amounts/index.js";
+import { sameAddress, type ChainFamily } from "../../../domain/family/index.js";
 
 type PaidFetchFactory = (
   network: NetworkDescriptor,
@@ -209,7 +214,7 @@ export class X402PaymentClient implements X402PaymentPort {
     signer?: Pick<PayerSigner, "address">,
     out?: OutputReservation,
     expectedNetwork?: string,
-  ) {
+  ): Promise<X402ResponseResult> {
     const declaredLength = Number(response.headers.get("content-length"));
     if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
       throw new TransportError("response_too_large", "x402 response exceeds the 10 MB limit");
@@ -266,7 +271,7 @@ export class X402PaymentClient implements X402PaymentPort {
       delivered: response.ok,
       settled: successfulSettlement(paymentResponse, expectedNetwork),
       ...(signer ? { payer: { address: signer.address } } : {}),
-      ...(paymentResponse === undefined ? {} : { paymentResponse }),
+      ...(paymentResponse === undefined ? {} : { paymentResponse: paymentResponse as X402Json }),
     };
     try {
       if (!response.ok && !base.settled) {
@@ -345,7 +350,7 @@ export class X402PaymentClient implements X402PaymentPort {
           throw providerPaymentError(failure.reason ?? failure.code, failure.phase, failure);
         }
       }
-      return { ...base, response: body };
+      return { ...base, response: body as X402Json };
     } catch (error) {
       throw settlementError(error, response, expectedNetwork, signer);
     }
@@ -634,21 +639,19 @@ async function reserveOutput(path: string): Promise<OutputReservation> {
 function metadata(network: string, asset: string) {
   const tokens = X402_TOKENS[network] ?? {};
   const entry = [...Object.entries(tokens), ...Object.entries(GASFREE_TOKENS[network] ?? {})].find(
-    ([, token]) =>
-      network.startsWith("eip155:")
-        ? token.address.toLowerCase() === asset.toLowerCase()
-        : token.address === asset,
+    ([, token]) => sameAddress(x402Family(network), token.address, asset),
   );
   return entry ? { ...entry[1], symbol: entry[0] } : undefined;
 }
 
 function tokenSymbol(network: string, asset: string, scheme: string): string | undefined {
   return Object.entries(tokensForScheme(network, scheme)).find(([, token]) =>
-    network.startsWith("eip155:")
-      ? token.address.toLowerCase() === asset.toLowerCase()
-      : token.address === asset,
+    sameAddress(x402Family(network), token.address, asset),
   )?.[0];
 }
+
+const x402Family = (network: string): ChainFamily =>
+  network.startsWith("eip155:") ? "evm" : "tron";
 
 function paymentDecimals(network: string, asset: string, explicit?: number): number {
   const known = metadata(network, asset)?.decimals;
@@ -723,7 +726,7 @@ function selectMatching<T extends OfferedRequirement>(
     if (requirement.scheme !== "exact" && requirement.scheme !== "exact_gasfree") return false;
     if (requirement.scheme === "exact_gasfree" && network.family !== "tron") return false;
     if (input.scheme && requirement.scheme !== input.scheme) return false;
-    if (input.asset && requirement.asset.toLowerCase() !== input.asset.toLowerCase()) return false;
+    if (input.asset && !sameAddress(network.family, requirement.asset, input.asset)) return false;
     if (
       input.token &&
       tokenSymbol(network.id, requirement.asset, requirement.scheme) !== input.token.toUpperCase()
@@ -731,9 +734,7 @@ function selectMatching<T extends OfferedRequirement>(
       return false;
     if (input.expectedPayTo) {
       if (typeof requirement.payTo !== "string") return false;
-      const normalize = (address: string) =>
-        network.family === "evm" ? address.toLowerCase() : address;
-      if (normalize(requirement.payTo) !== normalize(input.expectedPayTo)) return false;
+      if (!sameAddress(network.family, requirement.payTo, input.expectedPayTo)) return false;
     }
     if (input.exactAmount !== undefined) {
       const expected = decimalToRaw(
@@ -774,7 +775,7 @@ async function inspectChallenge(
   response: Response,
   network: NetworkDescriptor,
   input: X402RequestInput,
-) {
+): Promise<X402Inspection> {
   const decoded = await decodeChallenge(response.clone());
   const selected = selectMatching(decoded.accepts, network, input)[0]!;
   return {
@@ -784,7 +785,7 @@ async function inspectChallenge(
     settled: false,
     dryRun: true,
     paymentRequired: true,
-    selected: { ...selected, network: network.id },
+    selected: { ...selected, network: network.id } as X402Requirement,
   };
 }
 

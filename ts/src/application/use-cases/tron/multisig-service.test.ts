@@ -1,6 +1,6 @@
 import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
 import { describe, expect, it, vi } from "vitest";
-import type { Signer } from "../../../domain/types/index.js";
+import type { SignedTx, Signer, UnsignedTx } from "../../../domain/types/index.js";
 import { encodeOperations } from "../../../domain/permission/index.js";
 import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -314,7 +314,7 @@ describe("reference block check", () => {
   const signerSpy = () => ({
     kind: "software" as const,
     address: A,
-    sign: vi.fn(async (transaction: unknown) => transaction),
+    sign: vi.fn(async (transaction: UnsignedTx) => transaction as SignedTx),
     signMessage: async () => "",
     signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
   });

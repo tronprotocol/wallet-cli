@@ -66,11 +66,17 @@ export class TronTokenService {
     input: TokenSelector,
   ): Promise<{ symbol?: string; decimals?: number }> {
     try {
-      const info = input.contract
-        ? await gateway.getTokenInfo(input.contract)
-        : await gateway.getTrc10Info(input.assetId!);
-      const symbol = this.decodeMaybeHex(info.symbol ?? info.abbr ?? info.name);
-      const decimals = input.contract ? info.decimals : Number(info.precision ?? 0);
+      let symbol: string | undefined;
+      let decimals: number | undefined;
+      if (input.contract) {
+        const info = await gateway.getTokenInfo(input.contract);
+        symbol = (info.symbol ?? info.abbr ?? info.name) || undefined;
+        decimals = info.decimals;
+      } else {
+        const info = await gateway.getTrc10Info(input.assetId!);
+        symbol = (info.abbr ?? info.name) || undefined;
+        decimals = Number(info.precision ?? 0);
+      }
       return {
         ...(symbol ? { symbol } : {}),
         ...(decimals !== undefined ? { decimals } : {}),
@@ -83,7 +89,7 @@ export class TronTokenService {
   private async fetchEntry(gateway: TronGateway, input: TokenSelector): Promise<TokenEntry> {
     if (input.contract) {
       const info = await gateway.getTokenInfo(input.contract);
-      const symbol = typeof info.symbol === "string" ? info.symbol : undefined;
+      const symbol = info.symbol;
       if (!symbol || info.decimals === undefined) {
         throw new ExecutionError(
           "token_metadata_unavailable",
@@ -95,11 +101,11 @@ export class TronTokenService {
         id: input.contract,
         symbol,
         decimals: Number(info.decimals),
-        name: typeof info.name === "string" ? info.name : undefined,
+        name: info.name,
       };
     }
     const info = await gateway.getTrc10Info(input.assetId!);
-    const symbol = this.decodeMaybeHex(info.abbr) ?? this.decodeMaybeHex(info.name);
+    const symbol = info.abbr || info.name;
     if (!symbol) {
       throw new ExecutionError(
         "token_metadata_unavailable",
@@ -111,20 +117,7 @@ export class TronTokenService {
       id: input.assetId!,
       symbol,
       decimals: Number(info.precision ?? 0),
-      name: this.decodeMaybeHex(info.name),
+      name: info.name || undefined,
     };
-  }
-
-  private decodeMaybeHex(value: unknown): string | undefined {
-    if (typeof value !== "string" || value === "") return undefined;
-    if (/^[0-9a-fA-F]+$/.test(value) && value.length % 2 === 0) {
-      try {
-        const decoded = Buffer.from(value, "hex").toString("utf8");
-        if (/^[\x20-\x7e]+$/.test(decoded)) return decoded;
-      } catch {
-        // Fall back to the original text.
-      }
-    }
-    return value;
   }
 }

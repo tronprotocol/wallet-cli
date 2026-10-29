@@ -4,7 +4,7 @@ import { Wallet, Interface } from "ethers";
 import { TronWeb, providers, utils } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
-import type { TypedDataPayload } from "../../../domain/types/index.js";
+import type { TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { Permit2ApproveRequest } from "../../../application/contracts/x402-payer.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
@@ -58,7 +58,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
     const key = Wallet.createRandom().privateKey;
     const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
     const calls: string[] = [];
-    const sign = vi.fn(async (tx: unknown) => {
+    const sign = vi.fn(async (tx: UnsignedTx) => {
       calls.push("approve-sign");
       return tronSignStrategy.sign(key, tx);
     });
@@ -226,7 +226,7 @@ it.each([
   const key = Wallet.createRandom().privateKey;
   const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
   const calls: string[] = [];
-  const sign = vi.fn(async (tx: unknown) => {
+  const sign = vi.fn(async (tx: UnsignedTx) => {
     calls.push("approve-sign");
     return tronSignStrategy.sign(key, tx);
   });
@@ -427,7 +427,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
   it("reports the confirmed approval and a not-sent payment when the payment signature is refused", async () => {
     const { key, address, broadcast, challenge } = harness("auto");
     const warnings: string[] = [];
-    const sign = vi.fn(async (tx: unknown) => tronSignStrategy.sign(key, tx));
+    const sign = vi.fn(async (tx: UnsignedTx) => tronSignStrategy.sign(key, tx));
     const signTypedData = vi.fn(async () => {
       throw new ChainError("signing_rejected", "declined on device");
     });
@@ -483,7 +483,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
     "retains the approval after a settled %s response",
     async (contentType) => {
       const { key, address, broadcast, challenge } = harness("auto");
-      const sign = vi.fn(async (tx: unknown) => tronSignStrategy.sign(key, tx));
+      const sign = vi.fn(async (tx: UnsignedTx) => tronSignStrategy.sign(key, tx));
       const signTypedData = vi.fn(async (p: TypedDataPayload) =>
         tronSignStrategy.signTypedData(key, p),
       );
@@ -554,7 +554,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
 
   it("marks a sponsored approval as exported when the payment request then fails", async () => {
     const { key, address, broadcast, challenge } = harness("sponsored");
-    const sign = vi.fn(async (tx: unknown) => tronSignStrategy.sign(key, tx));
+    const sign = vi.fn(async (tx: UnsignedTx) => tronSignStrategy.sign(key, tx));
     const signTypedData = vi.fn(async (p: TypedDataPayload) =>
       tronSignStrategy.signTypedData(key, p),
     );

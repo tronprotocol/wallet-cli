@@ -1,5 +1,16 @@
 import { resolveTronAccount } from "../../../services/tron-account.js";
-import type { FeeReport, NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
+import {
+  sunAmount,
+  type Sun,
+  baseUnitAmount,
+  type BaseUnits,
+} from "../../../../domain/amounts/index.js";
+import type {
+  FeeReport,
+  NetworkDescriptor,
+  TronFeeReport,
+  TxOutcome,
+} from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { TokenFacts } from "../../../ports/sunswap/liquidity.js";
 import type {
@@ -20,30 +31,33 @@ import {
   UsageError,
 } from "../../../../domain/errors/index.js";
 
-// 100 TRX in SUN.
-export const DEFAULT_FEE_LIMIT_SUN = "100000000";
+// 100 TRX.
+export const DEFAULT_FEE_LIMIT_SUN = sunAmount("100000000");
+
+// Max uint256: a TRC20 allowance that spending never lowers.
+export const UNLIMITED_ALLOWANCE = baseUnitAmount(2n ** 256n - 1n);
 
 export interface ApprovalPlan {
   readonly token: string;
   readonly symbol: string;
   readonly decimals: number;
   readonly spender: string;
-  // Base units; may be unlimited.
-  readonly amount: string;
-  // Base units.
-  readonly currentAllowance: string;
+  // May be unlimited.
+  readonly amount: BaseUnits;
+  readonly isUnlimited: boolean;
+  readonly currentAllowance: BaseUnits;
 }
 
 export type FeeCoverage = "all" | "approvals" | "none";
 
 export interface SideAmount {
-  // Base units to grant when allowance is insufficient; defaults to amount.
-  readonly approvalAmount?: string;
+  // To grant when allowance is insufficient; defaults to amount.
+  readonly approvalAmount?: BaseUnits;
   readonly facts: TokenFacts;
   readonly amount: string;
 }
 
-const FEE_NOT_YET_ESTIMABLE: FeeReport = {
+const FEE_NOT_YET_ESTIMABLE: TronFeeReport = {
   feeModel: "tron-resource",
   note: "not estimable until the approval is on-chain",
 };
@@ -67,7 +81,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     approvals: readonly ApprovalPlan[],
     main: ContractCallPayload,
     mode: ResolvedTransactionMode,
-    feeLimit: string | undefined,
+    feeLimit: Sun | undefined,
   ): Promise<{ fee: FeeReport; feeCovers: FeeCoverage }> {
     if (approvals.length === 0) {
       const outcome = await this.run(scope, network, main, { mode, estimable: true, feeLimit });
@@ -90,7 +104,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     network: NetworkDescriptor,
     approvals: readonly ApprovalPlan[],
     mode: ResolvedTransactionMode,
-    feeLimit: string | undefined,
+    feeLimit: Sun | undefined,
   ): Promise<{ fee: FeeReport; feeCovers: FeeCoverage; feeUnavailableReason: string }> {
     const fees: FeeReport[] = [];
     for (const approval of approvals) {
@@ -117,7 +131,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     approvals: readonly ApprovalPlan[],
     main: ContractCallPayload,
     mode: ResolvedTransactionMode,
-    feeLimit: string | undefined,
+    feeLimit: Sun | undefined,
   ): Promise<Record<string, unknown>> {
     // Allow time for offline approval signing and confirmation; preserve explicit expiration.
     if (approvals.length > 0) mode = { ...mode, expiration: mode.expiration ?? 3_600_000 };
@@ -158,7 +172,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     approvals: readonly ApprovalPlan[],
     owner: string,
     mode: ResolvedTransactionMode,
-    feeLimit: string | undefined,
+    feeLimit: Sun | undefined,
     action: (approvalTxIds: string[]) => Promise<T>,
   ): Promise<T> {
     const txIds = await this.sendApprovals(scope, network, approvals, owner, mode, feeLimit);
@@ -175,7 +189,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     approvals: readonly ApprovalPlan[],
     owner: string,
     mode: ResolvedTransactionMode,
-    feeLimit: string | undefined,
+    feeLimit: Sun | undefined,
   ): Promise<string[]> {
     const txIds: string[] = [];
     // Always await approvals; explicit forwarding preserves scope getters and prototype methods.
@@ -233,7 +247,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     scope: TransactionScope,
     network: NetworkDescriptor,
     payload: ContractCallPayload,
-    options: { mode: ResolvedTransactionMode; estimable: boolean; feeLimit?: string },
+    options: { mode: ResolvedTransactionMode; estimable: boolean; feeLimit?: Sun },
   ): Promise<TxOutcome> {
     const gateway = this.gateways.get(network, "tron");
     return this.pipeline.run({
@@ -245,7 +259,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       ...tronTransactionHooks(gateway),
       // Check signer membership before signing; enforce the combined threshold before broadcast.
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
-      confirm: tronConfirmation(gateway, scope, { requireReceiptResult: true }),
+      confirm: tronConfirmation(gateway, scope),
       build: async (from) =>
         gateway.triggerSmartContract(
           from,
@@ -254,7 +268,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
           [...payload.parameters],
           {
             // The node requires both fields, including zero call value for token-only calls.
-            callValue: payload.callValueSun ?? "0",
+            callValue: payload.callValueSun ?? sunAmount("0"),
             feeLimit: options.feeLimit ?? DEFAULT_FEE_LIMIT_SUN,
             permissionId: 0,
           },
@@ -273,12 +287,14 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     for (const side of sides) {
       const current = await this.liquidity.allowance(network, side.facts.address, owner, spender);
       if (BigInt(current) >= BigInt(side.amount)) continue;
+      const amount = side.approvalAmount ?? baseUnitAmount(side.amount);
       approvals.push({
         token: side.facts.address,
         symbol: side.facts.symbol,
         decimals: side.facts.decimals,
         spender,
-        amount: side.approvalAmount ?? side.amount,
+        amount,
+        isUnlimited: amount === UNLIMITED_ALLOWANCE,
         currentAllowance: current,
       });
     }
@@ -329,6 +345,13 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
   }
 }
 
+// A zero floor lets that side settle at any amount.
+export function withZeroMinimumFlag<S extends { readonly amountMinimum: string }>(
+  side: S,
+): S & { readonly acceptsAnyAmount?: true } {
+  return side.amountMinimum === "0" ? { ...side, acceptsAnyAmount: true } : side;
+}
+
 export function withPositionManager<T extends { readonly router: string }>(
   view: T,
 ): Omit<T, "router"> & { positionManager: string } {
@@ -355,10 +378,12 @@ export function sumEnergyFees(fees: readonly FeeReport[]): FeeReport {
   if (fees.length === 0) return FEE_NOT_YET_ESTIMABLE;
   let energy = 0;
   for (const fee of fees) {
-    if (typeof fee.energy !== "number") return FEE_NOT_YET_ESTIMABLE;
+    if (fee.feeModel !== "tron-resource" || typeof fee.energy !== "number") {
+      return FEE_NOT_YET_ESTIMABLE;
+    }
     energy += fee.energy;
   }
-  const first = fees[0] as FeeReport;
+  const first = fees[0] as TronFeeReport;
   return {
     feeModel: "tron-resource",
     energy,

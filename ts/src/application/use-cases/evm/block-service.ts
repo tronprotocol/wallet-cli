@@ -21,6 +21,17 @@ export class EvmBlockService {
               "than that it never existed",
           );
     }
-    return { block };
+    return {
+      block: block.raw,
+      number: block.number,
+      // RPC seconds become milliseconds in this view.
+      timestamp: block.timestamp * 1000,
+      ...(block.hash === undefined ? {} : { hash: block.hash }),
+      ...(block.parentHash === undefined ? {} : { parentHash: block.parentHash }),
+      ...(block.transactionCount === undefined ? {} : { transactionCount: block.transactionCount }),
+      ...(block.gasUsed === undefined ? {} : { gasUsed: block.gasUsed }),
+      ...(block.gasLimit === undefined ? {} : { gasLimit: block.gasLimit }),
+      ...(block.baseFeeWei === undefined ? {} : { baseFeeWei: block.baseFeeWei }),
+    };
   }
 }

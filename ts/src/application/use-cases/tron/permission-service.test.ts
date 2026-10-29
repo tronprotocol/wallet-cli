@@ -1,9 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
-import type { AccountPermissionsView } from "../../../domain/types/index.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AccountPermissionsView, Signer } from "../../../domain/types/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { AccountStore } from "../../ports/account-store.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import { TxPipeline, type TxPipelineParams } from "../../services/pipeline/index.js";
+import type { SignerResolver } from "../../services/signer/index.js";
+import { SigningService } from "../../services/signing/signing-service.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { TronPermissionService } from "./permission-service.js";
 
@@ -219,5 +221,63 @@ describe("TRON permission service", () => {
         code: "permission_postcheck_mismatch",
       }),
     );
+  });
+});
+
+describe("TRON permission update signing lifecycle", () => {
+  const NOW = 1_900_000_000_000;
+
+  afterEach(() => vi.useRealTimers());
+
+  it("refuses to broadcast a transaction that expired while it was being signed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    const transaction = {
+      txID: "tx",
+      raw_data: {
+        contract: [{ type: "AccountPermissionUpdateContract", Permission_id: 0 }],
+        timestamp: NOW,
+        expiration: NOW + 1_000,
+      },
+      raw_data_hex: "",
+    };
+    const broadcast = vi.fn(async () => ({ txId: "tx" }));
+    const gateway = {
+      getUpdateAccountPermissionFee: async () => 100_000_000,
+      getNativeBalance: async () => "200000000",
+      buildAccountPermissionUpdate: async () => transaction,
+      prepareTransaction: (tx: unknown) => tx,
+      encodeTransactionHex: () => "abcd",
+      getSignWeight: async () => ({
+        permission: { id: 0, name: "owner", threshold: 1, keys: [{ address: A, weight: 1 }] },
+        approvedList: [],
+        currentWeight: 0,
+        resultCode: "NOT_ENOUGH_PERMISSION",
+      }),
+      getApprovedList: async () => [],
+      broadcast,
+    } as unknown as TronGateway;
+    const signer: Signer = {
+      kind: "software",
+      address: A,
+      sign: async (tx) => {
+        vi.setSystemTime(NOW + 5_000);
+        return { ...(tx as object), signature: ["ab"] } as never;
+      },
+      signMessage: async () => "",
+      signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+    };
+    const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
+    const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
+    const service = new TronPermissionService(
+      provider,
+      accounts(),
+      new TxPipeline(signers, new SigningService(provider)),
+    );
+
+    await expect(service.update(scope(), NETWORK, {}, permissions())).rejects.toMatchObject({
+      code: "tx_expired",
+    });
+    expect(broadcast).not.toHaveBeenCalled();
   });
 });

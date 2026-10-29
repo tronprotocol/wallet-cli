@@ -10,12 +10,17 @@ import type {
   RouterExecutionPort,
   RouterSwapCall,
 } from "../../../application/ports/sunswap/router-execution.js";
-import type { Permit2Plan, Permit2Port } from "../../../application/ports/sunswap/permit2.js";
+import type {
+  Permit2Grant,
+  Permit2Plan,
+  Permit2Port,
+} from "../../../application/ports/sunswap/permit2.js";
 import type { ContractParameter } from "../../../application/contracts/tron-contract-call.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { readOnlySdkRuntime, sdkNetworkName } from "./sdk-runtime.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
 const MATERIALIZATION = "universal-router-swap";
 const SIGNATURE_ACTION = "wallet-cli-permit2-signature";
@@ -93,8 +98,9 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
     return {
       permit2: this.#permit2(network),
       spender: input.spender,
-      typedData: (signature as { typedData?: unknown }).typedData,
-      grant: plan.permitSingle,
+      // The domain Permit2 guard validates this payload before signing.
+      typedData: (signature as { typedData?: unknown }).typedData as TypedDataPayload,
+      grant: plan.permitSingle as unknown as Permit2Grant,
       amount: String(grant.details?.amount ?? ""),
       expiration: String(grant.details?.expiration ?? ""),
       mode: plan.mode,
@@ -200,7 +206,7 @@ function plain(parameter: { type: string; value: unknown }): ContractParameter {
   return { type, value: typeof value === "bigint" ? value.toString() : String(value) };
 }
 
-const ZERO_READER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const ZERO_READER = FAMILIES.tron.zeroAddress;
 
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);

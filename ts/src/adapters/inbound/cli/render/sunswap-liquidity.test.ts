@@ -23,8 +23,20 @@ function preview(mode: string): Record<string, unknown> {
     tickLower: -8030,
     tickUpper: -6030,
     liquidityExpected: "14398816",
-    token0: { symbol: "USDT", decimals: 6, amount: "1000000", amountMinimum: "0" },
-    token1: { symbol: "WTRX", decimals: 6, amount: "493089", amountMinimum: "0" },
+    token0: {
+      symbol: "USDT",
+      decimals: 6,
+      amount: "1000000",
+      amountMinimum: "0",
+      acceptsAnyAmount: true,
+    },
+    token1: {
+      symbol: "WTRX",
+      decimals: 6,
+      amount: "493089",
+      amountMinimum: "0",
+      acceptsAnyAmount: true,
+    },
     fee: { feeModel: "tron-resource", energy: 1000, energyPriceSun: "100" },
     feeCovers: "all",
   };
@@ -42,5 +54,24 @@ describe("sunswap add-liquidity dry run — the No-minimum warning comes last", 
     expect(text).toContain("no established price");
     expect(text).toContain("until the approval is on-chain");
     expect(text.trimEnd().endsWith(NO_MINIMUM)).toBe(true);
+  });
+
+  it("names the one side without a floor instead of claiming any output is accepted", () => {
+    const value = preview("dry-run");
+    const text = render({
+      ...value,
+      token0: { symbol: "USDT", decimals: 6, amount: "1000000", amountMinimum: "950000" },
+    });
+    expect(text).not.toContain(NO_MINIMUM);
+    expect(text.trimEnd()).toMatch(
+      /No minimum set for WTRX — this transaction accepts any amount of WTRX\.$/,
+    );
+  });
+
+  it("prints no zero-minimum note when the result flags no side", () => {
+    const value = preview("dry-run");
+    const strip = (side: unknown) => ({ ...(side as object), acceptsAnyAmount: undefined });
+    const text = render({ ...value, token0: strip(value.token0), token1: strip(value.token1) });
+    expect(text).not.toContain("No minimum set");
   });
 });

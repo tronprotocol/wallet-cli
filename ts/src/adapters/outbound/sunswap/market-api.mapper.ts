@@ -1,6 +1,7 @@
 // Keep monetary values as text to preserve every digit.
 import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
 import type {
+  MarketExtraValue,
   PositionRecord,
   PositionTokenRecord,
   PoolRecord,
@@ -116,7 +117,7 @@ export function mapPool(raw: RawPool): PoolRecord {
 }
 
 // V4 tick spacing is packed in parameters; an absent hook means no hooks.
-function v4PoolKeyParts(raw: RawPool): Record<string, unknown> {
+function v4PoolKeyParts(raw: RawPool): Record<string, MarketExtraValue> {
   const parameters = raw.extraInfo?.["parameters"];
   if (raw.protocol !== "V4" || typeof parameters !== "string") return {};
   const decoded = decodeV4PoolParameters(prefixed(parameters) as never) as {
@@ -170,9 +171,11 @@ export function epochMsToUtcMinute(value: string): string {
   return date.toISOString().slice(0, 16).replace("T", " ");
 }
 
-function mapExtra(extraInfo: Record<string, unknown> | undefined): Record<string, unknown> {
+function mapExtra(
+  extraInfo: Record<string, unknown> | undefined,
+): Record<string, MarketExtraValue> {
   if (!extraInfo) return {};
-  const out: Record<string, unknown> = {};
+  const out: Record<string, MarketExtraValue> = {};
   for (const [key, value] of Object.entries(extraInfo)) {
     const name = camelCase(key);
     if (EXTRA_CONSUMED_KEYS.has(name)) continue;
@@ -181,11 +184,13 @@ function mapExtra(extraInfo: Record<string, unknown> | undefined): Record<string
   return out;
 }
 
-function mapExtraValue(name: string, value: unknown): unknown {
+// Values come from parsed service JSON.
+function mapExtraValue(name: string, value: unknown): MarketExtraValue {
   if (Array.isArray(value)) return value.map((item) => mapExtraValue(name, item));
-  if (typeof value === "boolean" || value === null || value === undefined) return value;
+  if (typeof value === "boolean" || value === null || value === undefined)
+    return value as MarketExtraValue;
   // LosslessNumber objects must become digit strings, not leak their object shape.
-  if (!isLosslessNumber(value) && typeof value === "object") return value;
+  if (!isLosslessNumber(value) && typeof value === "object") return value as MarketExtraValue;
   const text = String(value);
   if (EXTRA_INTEGER_KEYS.has(name)) {
     const numeric = Number(text);

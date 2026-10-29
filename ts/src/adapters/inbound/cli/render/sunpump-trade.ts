@@ -21,6 +21,7 @@ interface TradeView {
   readonly slippage?: string;
   readonly platformFee: string;
   readonly platformFeePercent?: string;
+  readonly platformFeeMinimum?: string;
   readonly trxIn?: string;
   readonly tokensOutExpected?: string;
   readonly tokensOut?: string;
@@ -157,8 +158,12 @@ function tradeRows(value: TradeView): Pair[] {
 function withFooters(body: string, value: TradeView): string {
   const lines = [body];
   if (value.platformFeePercent !== undefined) {
+    const minimum =
+      value.platformFeeMinimum === undefined
+        ? ""
+        : ` (${formatSun(value.platformFeeMinimum)} TRX minimum)`;
     lines.push(
-      `${warn()} Platform fee is ${value.platformFeePercent}% of this ${direction(value)} (${formatSun("10000")} TRX minimum).`,
+      `${warn()} Platform fee is ${value.platformFeePercent}% of this ${direction(value)}${minimum}.`,
     );
   }
   return lines.join("\n\n");

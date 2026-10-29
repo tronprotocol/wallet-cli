@@ -15,6 +15,7 @@ import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js"
 import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import { isTxHash, sameAddress } from "../../domain/family/index.js";
 
 export interface BaiListCommandInput {
   cursor?: string;
@@ -102,11 +103,7 @@ export class BaiService {
       );
     }
     const identifier = input.to?.trim();
-    const self =
-      !identifier ||
-      (network.family === "evm"
-        ? identifier.toLowerCase() === payer.toLowerCase()
-        : identifier === payer);
+    const self = !identifier || sameAddress(network.family, identifier, payer);
     let rechargeTarget: BaiRechargeTarget | undefined;
     if (!self) {
       scope.emit({ type: "activity", message: "Checking the recharge recipient…" });
@@ -190,8 +187,7 @@ export class BaiService {
         "invalid_value",
         "Recharge report requires the original tron, bnb or base chain",
       );
-    const hashPattern = input.chain === "tron" ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/;
-    if (!hashPattern.test(input.txHash))
+    if (!isTxHash(input.chain === "tron" ? "tron" : "evm", input.txHash))
       throw new UsageError("invalid_value", "Invalid transaction hash for the recharge chain");
     const to = input.to?.trim();
     const targetId = input.targetId?.trim();
@@ -239,17 +235,7 @@ export class BaiService {
       ...(input.cursor ? { cursor: input.cursor } : {}),
     });
     return {
-      records: result.items.map((row) => ({
-        id: optionalString(row.id),
-        createdAt: optionalString(row.created_at ?? row.createdAt),
-        model: optionalString(row.model),
-        inputTokens: optionalScalar(row.input_tokens ?? row.inputTokens),
-        outputTokens: optionalScalar(row.output_tokens ?? row.outputTokens),
-        totalTokens: optionalScalar(row.total_tokens ?? row.totalTokens),
-        credits: optionalScalar(row.cost_points ?? row.credits),
-        latencyMs: secondsToMilliseconds(row.duration_sec ?? row.durationSec),
-        source: optionalString(row.source_type ?? row.source),
-      })),
+      records: result.items,
       pagination: {
         offset: input.offset,
         limit: input.limit,
@@ -264,7 +250,7 @@ export class BaiService {
     const limit = Math.min(input.limit, 100);
     const page = Math.floor(input.offset / limit) + 1;
     const skip = input.offset % limit;
-    const request = { page, pageSize: limit, sortBy: "created_at" as const, sortOrder: input.sort };
+    const request = { page, pageSize: limit, sortOrder: input.sort };
     const result = await this.api.rechargeList(request);
     let orders = result.items.slice(skip);
     if (
@@ -298,24 +284,10 @@ function pageInput(input: BaiListCommandInput): BaiPageInput {
   return {
     page: input.offset / input.limit + 1,
     pageSize: input.limit,
-    sortBy: "created_at",
     sortOrder: input.sort,
   };
 }
 
 function utcMonth(date: Date): string {
   return date.toISOString().slice(0, 7);
-}
-
-function optionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function optionalScalar(value: unknown): string | undefined {
-  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
-}
-
-function secondsToMilliseconds(value: unknown): number | undefined {
-  const seconds = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : undefined;
 }

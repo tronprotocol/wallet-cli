@@ -5,10 +5,10 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 export class TronBlockService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  // Nodes return {} for unknown heights; a missing latest block is an invalid response.
+  // A missing latest block is an invalid response.
   async get(network: NetworkDescriptor, number?: string) {
     const block = await this.gateways.get(network, "tron").getBlock(number);
-    if (block === null || typeof block !== "object" || !("blockID" in block)) {
+    if (block === null) {
       throw number === undefined
         ? new ChainError(
             "invalid_node_response",
@@ -21,6 +21,11 @@ export class TronBlockService {
               "than that it never existed",
           );
     }
-    return { block };
+    return {
+      block: block.raw,
+      number: block.number,
+      timestampMs: block.timestampMs,
+      transactionCount: block.transactionCount,
+    };
   }
 }

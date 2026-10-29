@@ -48,7 +48,6 @@ function fixture(
     balance?: string;
     mismatchReceipt?: boolean;
     badDigest?: boolean;
-    expiredAtSeconds?: boolean;
     terminal?: "success" | "fee-exceeded" | "mutated-recipient";
     trace?: (call: number) => Promise<unknown>;
   } = {},
@@ -69,9 +68,7 @@ function fixture(
         amount: authorization.value,
         maxFee: authorization.maxFee,
         nonce: authorization.nonce,
-        expiredAt: options.expiredAtSeconds
-          ? authorization.deadline
-          : `${authorization.deadline}000`,
+        expiredAt: `${authorization.deadline}000`,
       };
     },
   );
@@ -277,7 +274,7 @@ describe("GasFreeService", () => {
     expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
   });
 
-  it("rejects a receipt that differs from the signed authorization", async () => {
+  it("rejects a receipt that differs from the signed authorization and keeps its trace id", async () => {
     const fixtureValue = fixture({ mismatchReceipt: true });
     await expect(
       fixtureValue.service.transfer(scope(), NETWORK, {
@@ -286,7 +283,7 @@ describe("GasFreeService", () => {
         token: "USDT",
         dryRun: false,
       }),
-    ).rejects.toMatchObject({ code: "gasfree_integrity" });
+    ).rejects.toMatchObject({ code: "gasfree_integrity", details: { traceId: "trace-1" } });
   });
 
   it("fails before signing when the balance cannot cover amount plus fees", async () => {

@@ -49,13 +49,34 @@ describe("TronRpcClient governance builders", () => {
       timestamp: 1_000_000,
     });
     const transaction = await client.buildProposalCreate(OWNER, [
-      { key: 17, value: "9223372036854775807" },
+      { key: 17, value: 9223372036854775807n },
     ]);
 
-    const value = transaction.raw_data.contract[0]!.parameter.value as unknown as {
+    const value = transaction.raw_data.contract[0]!.parameter!.value as unknown as {
       parameters: Array<{ value: unknown }>;
     };
     expect(value.parameters[0]!.value).toBe("9223372036854775807");
     expect(() => assertTronTxIntegrity(transaction)).not.toThrow();
+  });
+});
+
+describe("TronRpcClient chain parameters", () => {
+  it("passes safe integer values through and keeps an absent value absent", async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+    // Protobuf JSON omits a zero value.
+    vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([
+      { key: "getEnergyFee", value: 100 },
+      { key: "getAllowCreationOfContracts" },
+    ] as never);
+    await expect(client.getChainParameters()).resolves.toEqual([
+      { key: "getEnergyFee", value: 100 },
+      { key: "getAllowCreationOfContracts" },
+    ]);
+  });
+
+  it.each([2 ** 53 + 2, 1.5, -1])("refuses a value it cannot prove exact: %s", async (value) => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+    vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([{ key: "getEnergyFee", value }]);
+    await expect(client.getChainParameters()).rejects.toMatchObject({ code: "provider_error" });
   });
 });

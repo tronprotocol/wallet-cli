@@ -13,8 +13,9 @@ const net = {
   capabilities: [],
 } as NetworkDescriptor;
 
-const HEAD = { number: "0x12d687", timestamp: "0x66b1c0d0" };
-const FINALIZED = { number: "0x12d600" };
+// Normalized block views, as the gateway returns them.
+const HEAD = { number: 1234567, timestamp: 1722925264, raw: {} };
+const FINALIZED = { number: 1234432, timestamp: 1722925000, raw: {} };
 
 function service(over: Partial<Record<string, unknown>> = {}) {
   const gateway = {
@@ -80,6 +81,19 @@ describe("EvmChainService.node", () => {
 
     expect(out.solidBlock).toEqual({ number: 1234432 });
     expect(out.lagBlocks).toBe(1234567 - 1234432);
+  });
+
+  it("reports the head block's time in milliseconds", async () => {
+    expect((await service().node(net)).headBlock).toEqual({
+      number: 1234567,
+      timestamp: 1722925264000,
+    });
+  });
+
+  it("fails with invalid_node_response, not head 0, when the node reports no latest block", async () => {
+    await expect(service({ head: null }).node(net)).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
   });
 
   it("reads sync state from eth_syncing rather than a timestamp heuristic", async () => {

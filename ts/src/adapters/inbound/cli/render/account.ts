@@ -8,7 +8,18 @@ import {
   num,
   quote,
 } from "./scalars.js";
-import { type Obj, type Pair, asObj, query, receipt, table, ok, fail, warn } from "./layout.js";
+import {
+  type Obj,
+  type Pair,
+  asObj,
+  query,
+  receipt,
+  table,
+  ok,
+  fail,
+  unknown,
+  warn,
+} from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 
 function humanBalance(d: Obj): string {
@@ -122,21 +133,15 @@ function renderAccountInfo(d: Obj, ctx: TextRenderContext): string {
   return query(pairs);
 }
 
+const HISTORY_STATUS: Record<string, () => string> = { ok, failed: fail, unknown };
+
 function historyRow(r: Obj): string[] {
-  const ts = r.time ?? r.block_timestamp ?? r.timestamp;
-  const type = r.type ?? r.transfer_type ?? r.direction ?? "";
-  const amount = r.amount ?? r.value ?? r.quant ?? "";
-  const symbol =
-    r.symbol ??
-    (r.token_info && typeof r.token_info === "object" ? asObj(r.token_info).symbol : undefined);
-  const counterparty = r.counterparty ?? r.to ?? r.from ?? "";
-  const status = r.status === "failed" || r.confirmed === false ? "failed" : "ok";
   return [
-    formatTime(ts),
-    String(type),
-    `${formatScalar(amount)}${symbol ? ` ${String(symbol)}` : ""}`,
-    String(counterparty),
-    status === "ok" ? ok() : fail(),
+    formatTime(r.time),
+    String(r.type ?? ""),
+    `${formatScalar(r.amount ?? "")}${r.symbol ? ` ${String(r.symbol)}` : ""}`,
+    String(r.counterparty ?? ""),
+    (HISTORY_STATUS[String(r.status)] ?? unknown)(),
   ];
 }
 

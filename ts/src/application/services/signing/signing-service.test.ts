@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { SigningService, type SignRequest } from "./signing-service.js";
-import type { Signer, TypedDataPayload } from "../../../domain/types/index.js";
+import type { Signer, TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
 
 const NILE = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
 const SEPOLIA = { id: "eip155:11155111", family: "evm", chainId: "11155111" } as never;
-const TX = { txID: "ab", raw_data: {}, raw_data_hex: "0a" };
+const TX = { txID: "ab", raw_data: {}, raw_data_hex: "0a" } as unknown as UnsignedTx;
 
 const scope = () => ({
   timeoutMs: 50,

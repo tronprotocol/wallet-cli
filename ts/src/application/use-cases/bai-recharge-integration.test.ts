@@ -2,6 +2,11 @@ import { X402HttpServer } from "../../adapters/outbound/x402/server.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
+import type { X402PaymentResult, X402ResponseResult } from "../ports/x402-payment.js";
+import type { X402ServeDetails } from "../ports/x402-server.js";
+import type { BaiRawOrder } from "../ports/bai-recharge.js";
+
+const rawOrder = (value: object) => value as unknown as BaiRawOrder;
 const payer = "0x1111111111111111111111111111111111111111";
 const txHash = "0x" + "a".repeat(64);
 const network = { id: "eip155:56", chainId: "56", family: "evm" } as const;
@@ -18,11 +23,11 @@ function fixture(
     bind: vi.fn(),
     createOrder: vi.fn(async () => {
       calls.push("order");
-      return { id: 1 };
+      return rawOrder({ id: 1 });
     }),
     reportTxHash: vi.fn(async () => {
       calls.push("report");
-      return { success: true as const, order: { id: 1, points: 100000 } };
+      return { success: true as const, order: rawOrder({ id: 1, points: 100000 }) };
     }),
   };
   const payments = {
@@ -31,12 +36,12 @@ function fixture(
     roundtrip: vi.fn(async () => {
       calls.push("pay");
       return {
-        serve: {},
+        serve: {} as X402ServeDetails,
         pay: {
           settled: true,
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
-        },
+        } as unknown as X402PaymentResult,
       };
     }),
   };
@@ -362,12 +367,12 @@ function liveBindingFixture() {
     roundtrip: vi.fn(async () => {
       calls.push("pay");
       return {
-        serve: {},
+        serve: {} as X402ServeDetails,
         pay: {
           settled: true,
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
-        },
+        } as unknown as X402PaymentResult,
       };
     }),
   };
@@ -449,12 +454,15 @@ it.each([false, true])(
           settled: true,
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: network.id },
-        },
+        } as unknown as X402ResponseResult,
       };
     });
     const payments = new X402Service({ request }, { prepare } as never, {} as never, {} as never, {
       validate: vi.fn(),
-      start: async () => ({ details: { payUrl: "https://example.test" }, close }),
+      start: async () => ({
+        details: { payUrl: "https://example.test" } as X402ServeDetails,
+        close,
+      }),
     });
     const service = new BaiService({} as never, undefined, payments, f.binding, f.api as never, {
       facilitatorUrl: "https://example.test",

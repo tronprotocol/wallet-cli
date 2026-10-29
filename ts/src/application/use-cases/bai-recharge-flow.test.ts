@@ -1,11 +1,15 @@
 import { errorMessage, TransportError, UsageError } from "../../domain/errors/index.js";
 import { expect, it, vi } from "vitest";
 import { BaiRechargeFlow } from "./bai-recharge-flow.js";
+import type { BaiRawOrder } from "../ports/bai-recharge.js";
+import { baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
+
+const rawOrder = (value: object) => value as unknown as BaiRawOrder;
 const input = {
   channel: "crypto" as const,
   chain: "bnb",
   tokenName: "USDT",
-  amount: "10",
+  amount: baiRechargeAmount("10"),
   walletAddress: "payer",
   deviceType: "web" as const,
   rechargeTarget: {
@@ -23,11 +27,11 @@ function fixture() {
     bind: vi.fn(async () => ({ userId: "payer-id", address: "payer", chain: "bnb" })),
     createOrder: vi.fn(async () => {
       sequence.push("order");
-      return { id: 1 };
+      return rawOrder({ id: 1 });
     }),
     reportTxHash: vi.fn(async () => {
       sequence.push("report");
-      return { success: true as const, order: { id: 1, points: 100000 } };
+      return { success: true as const, order: rawOrder({ id: 1, points: 100000 }) };
     }),
   };
   const pay = vi.fn(async () => {
@@ -48,7 +52,7 @@ it("creates the target preorder, pays once and reports without repeating setup b
   expect(api.reportTxHash).toHaveBeenCalledWith({
     chain: "bnb",
     txHash: "hash",
-    amount: "10",
+    amount: baiRechargeAmount("10"),
     rechargeTarget: input.rechargeTarget,
   });
   expect(pay).toHaveBeenCalledTimes(1);

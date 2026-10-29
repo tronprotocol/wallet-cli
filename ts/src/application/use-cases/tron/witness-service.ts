@@ -139,7 +139,7 @@ async function requireWitness(gateway: TronGateway, address: string): Promise<vo
 }
 
 async function bandwidthEstimate(_tx: UnsignedTx) {
-  return { feeModel: "tron-resource", note: "witness governance uses bandwidth only" };
+  return { feeModel: "tron-resource" as const, note: "witness governance uses bandwidth only" };
 }
 
 function witnessReceipt(

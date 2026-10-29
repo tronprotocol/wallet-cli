@@ -52,20 +52,77 @@ describe("BaiClient", () => {
     expect(init.redirect).toBe("error");
   });
 
-  it("maps the shared creation sort field to the order API's accepted spelling", async () => {
+  it("sorts each list by creation time in the spelling its API accepts", async () => {
     const fetcher = vi.fn(async () =>
       response([{ result: { data: { json: { data: [], page: 1, pageSize: 5 } } } }]),
     );
-    await new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher).rechargeList({
-      page: 1,
-      pageSize: 5,
-      sortBy: "created_at",
-      sortOrder: "desc",
-    });
-    const [url] = fetcher.mock.calls[0]! as unknown as [string];
-    expect(JSON.parse(new URL(url).searchParams.get("input")!)).toEqual({
+    const client = new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher);
+    await client.rechargeList({ page: 1, pageSize: 5, sortOrder: "desc" });
+    await client.usageList({ page: 1, pageSize: 5, sortOrder: "asc", cursor: "c1" });
+    const [orders] = fetcher.mock.calls[0]! as unknown as [string];
+    expect(JSON.parse(new URL(orders).searchParams.get("input")!)).toEqual({
       0: { json: { page: 1, pageSize: 5, sortBy: "createdAt", order: "desc" } },
     });
+    const [records] = fetcher.mock.calls[1]! as unknown as [string];
+    expect(new URL(records).search).toBe(
+      "?page=1&pageSize=5&sortBy=created_at&sortOrder=asc&cursor=c1&mode=all",
+    );
+  });
+
+  it("reads usage record fields in either spelling and reports latency in milliseconds", async () => {
+    const fetcher = vi.fn(async () =>
+      response({
+        data: [
+          {
+            id: "u1",
+            created_at: "2026-09-01T00:00:00Z",
+            model: "m",
+            input_tokens: 1,
+            output_tokens: "2",
+            total_tokens: 3,
+            cost_points: 4,
+            duration_sec: 1.5,
+            source_type: "api",
+          },
+          {
+            createdAt: "2026-09-02T00:00:00Z",
+            inputTokens: 5,
+            credits: "6",
+            durationSec: "0.25",
+            source: "chat",
+          },
+        ],
+      }),
+    );
+    const { items } = await new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher).usageList({
+      page: 1,
+      pageSize: 2,
+      sortOrder: "desc",
+    });
+    expect(items).toEqual([
+      {
+        id: "u1",
+        createdAt: "2026-09-01T00:00:00Z",
+        model: "m",
+        inputTokens: "1",
+        outputTokens: "2",
+        totalTokens: "3",
+        credits: "4",
+        latencyMs: 1500,
+        source: "api",
+      },
+      {
+        id: undefined,
+        createdAt: "2026-09-02T00:00:00Z",
+        model: undefined,
+        inputTokens: "5",
+        outputTokens: undefined,
+        totalTokens: undefined,
+        credits: "6",
+        latencyMs: 250,
+        source: "chat",
+      },
+    ]);
   });
   it("queries points with a bearer key and unwraps a tRPC batch envelope", async () => {
     const fetcher = vi.fn(async () =>
@@ -130,16 +187,14 @@ describe("BaiClient", () => {
       "https://bai.example",
     );
 
-    await expect(
-      client.usageList({ page: 2, pageSize: 10, sortBy: "createdAt", sortOrder: "desc" }),
-    ).resolves.toEqual({
-      items: [{ id: "u1", total_tokens: 42 }],
+    await expect(client.usageList({ page: 2, pageSize: 10, sortOrder: "desc" })).resolves.toEqual({
+      items: [expect.objectContaining({ id: "u1", totalTokens: "42" })],
       page: 2,
       pageSize: 10,
       total: 11,
     });
     await expect(
-      client.rechargeList({ page: 1, pageSize: 20, sortBy: "createdAt", sortOrder: "desc" }),
+      client.rechargeList({ page: 1, pageSize: 20, sortOrder: "desc" }),
     ).resolves.toMatchObject({ items: [{ id: "o1", status: "paid" }], page: 1, pageSize: 20 });
   });
 

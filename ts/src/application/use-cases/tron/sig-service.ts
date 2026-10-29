@@ -2,6 +2,7 @@ import type {
   NetworkDescriptor,
   TronTransactionArtifact,
   OfflineTxSignView,
+  TronProtocolValue,
   TxSignTransactionView,
 } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
@@ -11,6 +12,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import type { SigningService } from "../../services/signing/signing-service.js";
+import { localTxId } from "../../services/broadcast-identity.js";
 import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
 
 export interface TronSignOptions {
@@ -37,10 +39,60 @@ export class TronSigService {
   ): Promise<OfflineTxSignView> {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(hex);
-    assertNotExpired(transaction, this.now());
-    const originalTxId = transaction.txID;
-    const originalRawDataHex = transaction.raw_data_hex;
-    const previousSignatures = [...(transaction.signature ?? [])];
+    const { signer, decoded, signedHex } = await this.#sign(
+      scope,
+      network,
+      gateway,
+      transaction,
+      transaction,
+      options,
+    );
+    return {
+      kind: "tx-sign",
+      signer: signer.address,
+      hex: signedHex,
+      checked: false,
+      transaction: this.#transactionView(gateway, decoded),
+    };
+  }
+
+  // The JSON form of an artifact; the signer receives the caller's object, checked like the hex form.
+  async signJson(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    json: TronProtocolValue,
+    options: TronSignOptions,
+  ) {
+    const gateway = this.gateways.get(network, "tron");
+    const { transaction, hex } = gateway.encodeTransactionJson(json);
+    const original = gateway.decodeTransactionHex(hex);
+    const { signer, signed } = await this.#sign(
+      scope,
+      network,
+      gateway,
+      original,
+      transaction,
+      options,
+    );
+    return {
+      kind: "sign" as const,
+      mode: "sign-only" as const,
+      signed,
+      address: signer.address,
+      txId: localTxId(signed) ?? original.txID,
+    };
+  }
+
+  async #sign(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    gateway: TronGateway,
+    original: TronTransactionArtifact,
+    transaction: TronTransactionArtifact,
+    options: TronSignOptions,
+  ) {
+    assertNotExpired(original, this.now());
+    const previousSignatures = [...(original.signature ?? [])];
 
     this.signers.assertCanSign(scope.activeAccount, "tron");
     const signer = this.signers.resolve(scope.activeAccount, "tron");
@@ -58,7 +110,7 @@ export class TronSigService {
     });
     const signedHex = gateway.encodeTransactionHex(signed);
     const decoded = gateway.decodeTransactionHex(signedHex);
-    if (decoded.txID !== originalTxId || decoded.raw_data_hex !== originalRawDataHex) {
+    if (decoded.txID !== original.txID || decoded.raw_data_hex !== original.raw_data_hex) {
       throw new ChainError(
         "invalid_transaction",
         "signer changed the transaction raw_data or txID",
@@ -75,13 +127,7 @@ export class TronSigService {
       );
     }
     assertNotExpired(decoded, this.now());
-    return {
-      kind: "tx-sign",
-      signer: signer.address,
-      hex: signedHex,
-      checked: false,
-      transaction: this.#transactionView(gateway, decoded),
-    };
+    return { signer, signed, signedHex, decoded };
   }
 
   #transactionView(

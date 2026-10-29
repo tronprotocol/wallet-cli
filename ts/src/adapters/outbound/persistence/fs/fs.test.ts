@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   renameSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,14 +23,37 @@ describe("AtomicFileStore.writeJsonAll", () => {
     writeFileSync(a, '"old-A"\n');
 
     const store = new AtomicFileStore();
-    store.writeJsonAll([
-      { path: a, value: "new-A" },
-      { path: b, value: "new-B" }, // b did not exist before
-    ]);
+    expect(
+      store.writeJsonAll([
+        { path: a, value: "new-A" },
+        { path: b, value: "new-B" }, // b did not exist before
+      ]),
+    ).toEqual([]);
 
     expect(JSON.parse(readFileSync(a, "utf8"))).toBe("new-A");
     expect(JSON.parse(readFileSync(b, "utf8"))).toBe("new-B");
     expect(readdirSync(root).filter((f) => f.endsWith(".tmp") || f.includes(".bak"))).toEqual([]);
+  });
+
+  it("returns the backup it could not remove after the commit", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    const a = join(root, "a.json");
+    writeFileSync(a, '"old-A"\n');
+
+    const store = new AtomicFileStore();
+    let backup = "";
+    store.commitRename = (from: string, to: string) => {
+      if (!to.endsWith(".bak")) return renameSync(from, to);
+      // A non-empty directory in place of the backup makes the final unlink fail.
+      backup = to;
+      unlinkSync(from);
+      mkdirSync(to);
+      writeFileSync(join(to, "keep"), "");
+    };
+
+    expect(store.writeJsonAll([{ path: a, value: "new-A" }])).toEqual([backup]);
+    expect(JSON.parse(readFileSync(a, "utf8"))).toBe("new-A");
+    expect(existsSync(backup)).toBe(true);
   });
 
   it("restores every already-committed file when a later rename fails mid-commit", () => {

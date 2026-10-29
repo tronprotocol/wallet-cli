@@ -1,5 +1,6 @@
 import { formatAmount, formatUsd, formatUsdPrice, sanitizeText } from "./scalars.js";
 import { query as keyValues, table } from "./layout.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 const EMPTY = "—";
 
@@ -125,7 +126,9 @@ export const SunPumpMarketFormatters = {
       ["24h change", changePercent(market.priceChange24HrPercent)],
       [
         "Vol 24h",
-        market.volume24HrSun === "" ? EMPTY : `${formatAmount(market.volume24HrSun, 6)} TRX`,
+        market.volume24HrSun === ""
+          ? EMPTY
+          : `${formatAmount(market.volume24HrSun, FAMILIES.tron.nativeDecimals)} TRX`,
       ],
       ["SunSwap pool", token.swapPoolAddress ?? ""],
       ["Website", untrusted(token.links.website ?? "")],

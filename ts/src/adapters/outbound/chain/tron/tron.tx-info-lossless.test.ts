@@ -19,16 +19,16 @@ const client = () => new TronRpcClient("https://node.invalid", 1000);
 
 describe("transaction-info realised amounts survive as exact decimal strings", () => {
   it.each([
-    ["unfreeze_amount", "899999999999999999"],
-    ["withdraw_amount", "9007199254740993"],
-    ["exchange_received_amount", "900000000000000001"],
-    ["exchange_inject_another_amount", "900000000000000003"],
-    ["exchange_withdraw_another_amount", "900000000000000005"],
-  ])("%s", async (field, exact) => {
+    ["unfreeze_amount", "unfreezeAmount", "899999999999999999"],
+    ["withdraw_amount", "withdrawnSun", "9007199254740993"],
+    ["exchange_received_amount", "exchangeReceived", "900000000000000001"],
+    ["exchange_inject_another_amount", "exchangeInjectedOther", "900000000000000003"],
+    ["exchange_withdraw_another_amount", "exchangeWithdrawnOther", "900000000000000005"],
+  ] as const)("%s", async (field, normalized, exact) => {
     const calls = nodeReturns(`{"blockNumber": 1, "${field}": ${exact}}`);
     const info = await client().getTransactionInfoById("abc");
 
-    expect(String((info as Record<string, unknown>)[field])).toBe(exact);
+    expect(info[normalized]).toBe(exact);
     expect(calls[0]!.url).toContain("/wallet/gettransactioninfobyid");
     expect(calls[0]!.body).toMatchObject({ value: "abc" });
   });
@@ -41,11 +41,21 @@ describe("transaction-info realised amounts survive as exact decimal strings", (
     }`);
     const info = await client().getTransactionInfoById("abc");
 
-    expect(info.fee).toBe(1_100_000);
-    expect(info.blockNumber).toBe(12);
-    expect(info.receipt?.energy_usage_total).toBe(31_895);
-    expect(info.receipt?.net_usage).toBe(345);
-    expect(info.receipt?.result).toBe("SUCCESS");
+    expect(info).toMatchObject({
+      feeSun: 1_100_000,
+      blockNumber: 12,
+      energyUsed: 31_895,
+      netUsed: 345,
+      receiptResult: "SUCCESS",
+      execution: "success",
+    });
+  });
+
+  it("rejects a fee beyond 2^53 instead of rounding it", async () => {
+    nodeReturns(`{"blockNumber": 12, "fee": 9007199254740993}`);
+    await expect(client().getTransactionInfoById("abc")).rejects.toMatchObject({
+      code: "provider_error",
+    });
   });
 
   it("still reports a pending transaction as having no block", async () => {

@@ -1,5 +1,11 @@
 // Signing closures handle device prechecks, prompts, and aborts for the payment flow.
-import type { TypedDataPayload, TypedDataSignature } from "../../domain/types/index.js";
+import type {
+  EvmSignedTx,
+  EvmUnsignedTx,
+  TronTransactionArtifact,
+  TypedDataPayload,
+  TypedDataSignature,
+} from "../../domain/types/index.js";
 
 export interface PayerSigner {
   // Base58 for TRON; 0x hex for EVM.
@@ -7,9 +13,12 @@ export interface PayerSigner {
   // Refuses a payload for another payer, over the fee ceiling, or past its deadline.
   signTypedData(payload: TypedDataPayload): Promise<TypedDataSignature>;
   // EVM only: signs `tx` only when `decoded` is the Permit2 approve the payment policy allows.
-  signTransaction(tx: unknown, decoded: DecodedEvmApprove): Promise<unknown>;
+  signTransaction(tx: EvmUnsignedTx, decoded: DecodedEvmApprove): Promise<EvmSignedTx>;
   // Signs `tx` only when `decoded` is the Permit2 approve the payment policy allows.
-  signPermit2Approval(tx: unknown, decoded: DecodedTronApprove): Promise<SignedPermit2Approval>;
+  signPermit2Approval(
+    tx: TronTransactionArtifact,
+    decoded: DecodedTronApprove,
+  ): Promise<SignedPermit2Approval>;
 }
 
 // The adapter's reading of a TRON transaction the SDK asks to sign; absent fields were missing or malformed.
@@ -24,6 +33,7 @@ export interface DecodedTronApprove {
   readonly callValueSun: string;
   // Present only when the calldata is approve(address,uint256) with a MaxUint256 amount.
   readonly unlimitedApproveSpender?: string;
+  // A safe integer; absent when the transaction sets none or a malformed one.
   readonly feeLimitSun?: number;
 }
 
@@ -38,7 +48,7 @@ export interface DecodedEvmApprove {
 }
 
 export interface SignedPermit2Approval {
-  readonly signed: unknown;
+  readonly signed: TronTransactionArtifact;
   readonly approval: Omit<SignedApproval, "txId">;
 }
 
@@ -76,5 +86,6 @@ export interface SignedApproval {
   readonly token: string;
   readonly spender: string;
   readonly allowance: "unlimited";
+  // A safe integer within the approve budget.
   readonly feeLimitSun: number;
 }

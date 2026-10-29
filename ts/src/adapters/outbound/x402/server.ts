@@ -1,6 +1,6 @@
 import { facilitatorUrl } from "./facilitator-url.js";
 import { facilitatorNetwork } from "./facilitator-network.js";
-import { addressCodec } from "../../../domain/family/index.js";
+import { addressCodec, sameAddress } from "../../../domain/family/index.js";
 import { tokensForScheme } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
@@ -83,9 +83,7 @@ export class X402HttpServer implements X402ServerPort {
       throw new UsageError("invalid_option", "decimals requires an asset and must be from 0 to 18");
     const known = input.asset
       ? Object.values(registered).find((item) =>
-          network.family === "evm"
-            ? item.address.toLowerCase() === input.asset!.toLowerCase()
-            : item.address === input.asset,
+          sameAddress(network.family, item.address, input.asset!),
         )
       : registered[(input.token ?? "USDT").toUpperCase()];
     if (known && input.decimals !== undefined && input.decimals !== known.decimals)

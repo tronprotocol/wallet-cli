@@ -1,6 +1,7 @@
 import { utils as tronUtils } from "tronweb";
 import type {
   SignStrategy,
+  TronTransactionArtifact,
   TypedDataPayload,
   TypedDataSignature,
 } from "../../../../domain/types/index.js";
@@ -11,7 +12,10 @@ import { assertTronTxIntegrity } from "./tx-integrity.js";
 export const tronSignStrategy: SignStrategy = {
   async sign(pkHex, tx) {
     assertTronTxIntegrity(tx);
-    return tronUtils.crypto.signTransaction(pkHex.slice(2), tx as any);
+    return tronUtils.crypto.signTransaction(
+      pkHex.slice(2),
+      tx as any,
+    ) as unknown as TronTransactionArtifact;
   },
   async signMessage(pkHex, message) {
     try {

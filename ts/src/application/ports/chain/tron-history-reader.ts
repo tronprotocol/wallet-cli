@@ -5,11 +5,25 @@ export interface TronHistoryQuery {
   only?: "native" | "token";
 }
 
+// amount is a decimal display amount in symbol units; time is epoch milliseconds.
+// status is "unknown" when the source does not report the execution result.
+export interface TronHistoryRecord {
+  txId?: string;
+  time?: number;
+  type: string;
+  amount: string;
+  symbol?: string;
+  from?: string;
+  to?: string;
+  counterparty?: string;
+  status: "ok" | "failed" | "unknown";
+}
+
 export interface TronHistoryResult {
   address: string;
   only: "all" | "native" | "token";
   count: number;
-  records: Array<Record<string, unknown>>;
+  records: TronHistoryRecord[];
 }
 
 export interface TronHistoryReader {

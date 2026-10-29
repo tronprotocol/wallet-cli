@@ -1,11 +1,40 @@
+import type { Sun } from "../amounts/index.js";
 import type { TypedDataPayload } from "../typed-data/index.js";
 
 export type Bytes = Uint8Array;
 export type KeyPair = { privateKey: Bytes; publicKey: Bytes };
 
-export type UnsignedTx = unknown;
-export type SignedTx = unknown;
-export type FeeReport = Record<string, unknown>;
+export type UnsignedTx = TronTransactionArtifact | EvmUnsignedTx;
+export type SignedTx = TronTransactionArtifact | EvmSignedTx;
+// The signed form of an unsigned transaction of the same family.
+export type SignedTxOf<T extends UnsignedTx> = T extends TronTransactionArtifact
+  ? TronTransactionArtifact
+  : EvmSignedTx;
+
+// SUN amounts are decimal strings; energy is in resource units.
+export interface TronFeeReport {
+  feeModel: "tron-resource";
+  energy?: number;
+  energyPriceSun?: string;
+  availableEnergy?: number;
+  feeSun?: string | number;
+  balanceSun?: string;
+  bandwidthBurnSunIfNoFreeze?: number;
+  createAccountFeeSun?: string;
+  systemContractFeeSun?: string;
+  minimumFeeSun?: string;
+  note?: string;
+}
+
+// Wei amounts are decimal strings; gasLimit is in gas units.
+export interface EvmFeeReport {
+  feeModel: "eip1559" | "legacy";
+  maxCostWei: string;
+  gasLimit: string;
+  maxPerGasWei?: string;
+}
+
+export type FeeReport = TronFeeReport | EvmFeeReport;
 
 // EIP-712/TIP-712 signature, signed digest, and resolved primary type.
 export interface TypedDataSignature {
@@ -14,30 +43,68 @@ export interface TypedDataSignature {
   primaryType: string;
 }
 
-// Lossless JSON projection of a complete TRON protocol.Transaction.
+// TRON protocol JSON as TronWeb and the node produce it.
+export type TronProtocolValue =
+  string | number | boolean | null | TronProtocolValue[] | TronProtocolObject;
+
+export interface TronProtocolObject {
+  [field: string]: TronProtocolValue;
+}
+
+export interface TronTransactionContract {
+  type: string;
+  Permission_id?: number;
+  parameter?: { value?: TronProtocolObject; type_url?: string };
+}
+
+// Lossless JSON projection of a complete TRON protocol.Transaction; signature holds prior approvals.
 export interface TronTransactionArtifact {
   visible?: boolean;
   txID: string;
   raw_data: {
-    contract: Array<{
-      type: string;
-      Permission_id?: number;
-      parameter?: { value?: Record<string, unknown>; type_url?: string };
-      [key: string]: unknown;
-    }>;
+    contract: TronTransactionContract[];
+    ref_block_bytes?: string;
+    ref_block_hash?: string;
     expiration?: number;
     timestamp?: number;
-    [key: string]: unknown;
+    fee_limit?: number;
+    data?: string;
   };
   raw_data_hex: string;
   signature?: string[];
-  [key: string]: unknown;
+  // 41-prefixed hex address a deployment creates; present only on CreateSmartContract transactions.
+  contract_address?: string;
 }
 
+// ethers TransactionLike. Built transactions carry chainId and nonce as safe integers and quantities as
+// decimal strings; decoded ones carry chainId as a decimal string and null for absent fields. A payment SDK
+// may pass bigint or 0x hex quantities.
+export interface EvmUnsignedTx {
+  type?: number | null;
+  to?: string | null;
+  data?: string;
+  value?: string | bigint | null;
+  nonce?: number;
+  gasLimit?: string | bigint | null;
+  gasPrice?: string | bigint | null;
+  maxPriorityFeePerGas?: string | bigint | null;
+  maxFeePerGas?: string | bigint | null;
+  chainId?: number | string | bigint | null;
+  accessList?: Array<{ address: string; storageKeys: string[] }> | null;
+  sig?: { r: string; s: string; v: number; networkV: string | null } | null;
+}
+
+// 0x hex of the signed serialization and its hash.
+export interface EvmSignedTx {
+  raw: string;
+  hash: string;
+}
+
+// alreadyKnown means the node already holds the transaction.
 export interface BroadcastResult {
   txId?: string;
   hash?: string;
-  [k: string]: unknown;
+  alreadyKnown?: boolean;
 }
 
 // submitted means node acceptance; confirmed/failed require an on-chain result.
@@ -55,7 +122,32 @@ export type TxOutcome =
       address?: string;
       txId?: string;
     }
-  | ({ stage: BroadcastStage } & BroadcastResult);
+  | ({ stage: BroadcastStage } & BroadcastResult & Partial<TxConfirmation>);
+
+// A mined transaction's receipt. TRON fees are SUN and resources are units; EVM quantities are decimal strings.
+export interface TxConfirmation {
+  confirmed: true;
+  failed: boolean;
+  blockNumber?: number;
+  feeSun?: number;
+  energyUsed?: number;
+  netUsed?: number;
+  energyFeeSun?: number;
+  netFeeSun?: number;
+  withdrawnSun?: Sun;
+  assetIssueID?: string;
+  unfreezeAmount?: Sun;
+  exchangeId?: number;
+  exchangeReceived?: string;
+  exchangeInjectedOther?: string;
+  exchangeWithdrawnOther?: string;
+  // TRON receipt.result as the node reported it.
+  result?: string;
+  gasUsed?: string;
+  feeWei?: string;
+  effectiveGasPriceWei?: string;
+  contractAddress?: string;
+}
 
 // pending means known but unmined; not_found means absent from this node.
 export type TxState = "confirmed" | "failed" | "pending" | "not_found";
@@ -150,7 +242,7 @@ export interface TxReceiptView {
   // Completed or skipped dry-run checks; blockers throw.
   checks?: Array<{ name: string; status: "ok" | "warning" | "skipped"; detail: string }>;
   rawAmount?: string;
-  amountSun?: string | number;
+  amountSun?: Sun;
   token?: string;
   contract?: string;
   assetId?: string;
@@ -161,7 +253,11 @@ export interface TxReceiptView {
   resource?: string;
   votes?: Array<{ witness: string; count: number }>;
   totalVotes?: number;
-  rewardSun?: string | number;
+  // Time until cast votes are tallied.
+  maintenanceIntervalMs?: number;
+  rewardSun?: Sun;
+  // Minimum time between reward withdrawals.
+  withdrawIntervalMs?: number;
   method?: string;
   contractAddress?: string;
   // Approval spender and token-unit allowance; "unlimited" denotes 2^256-1.
@@ -224,17 +320,39 @@ export interface TxReceiptView {
   stillFrozenAmount?: string;
   blockNumber?: number;
   energyUsed?: number;
-  feeSun?: string | number;
+  feeSun?: number;
   feeWei?: string;
-  // Gas consumed (EVM).
-  gasUsed?: string | number;
+  // Gas consumed (EVM), decimal gas units.
+  gasUsed?: string;
   // Settled gas price in decimal wei.
   effectiveGasPriceWei?: string;
   // EVM nonce captured before signing, available without a receipt.
   nonce?: number | string;
-  withdrawnSun?: string | number;
+  withdrawnSun?: Sun;
   result?: string;
   failed?: boolean;
+}
+
+declare const rawNodePayload: unique symbol;
+
+// Node JSON passed through verbatim for output; opaque so inner layers cannot read it.
+export interface RawNodePayload {
+  readonly [rawNodePayload]: true;
+}
+
+// JSON as a node returned it, passed through for output; inner layers do not branch on it.
+export type NodeJson =
+  string | number | boolean | null | NodeJson[] | { readonly [field: string]: NodeJson };
+
+// A mined EVM receipt; quantities are decimal strings.
+export interface EvmReceipt {
+  readonly success: boolean;
+  readonly gasUsed?: string;
+  readonly feeWei?: string;
+  readonly effectiveGasPriceWei?: string;
+  readonly blockNumber?: number;
+  readonly contractAddress?: string;
+  readonly raw: NodeJson;
 }
 
 // Normalized fields across families, plus raw transaction/receipt data for JSON output.
@@ -255,9 +373,10 @@ export interface TxInfoView extends TxParties {
   gasUsed?: string; // evm execution resource
   feeSun?: number; // tron native fee (sun)
   feeWei?: string;
-  transaction: unknown;
-  info?: unknown; // tron
-  receipt?: unknown; // tron
+  transaction: RawNodePayload | NodeJson;
+  info?: RawNodePayload | NodeJson; // tron
+  // EVM; null while pending.
+  receipt?: EvmReceipt | null;
 }
 
 export interface SignerSignOpts {

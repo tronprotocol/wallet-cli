@@ -1,9 +1,17 @@
-import type { NetworkDescriptor, TxReceiptKind, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  NetworkDescriptor,
+  TronTransactionArtifact,
+  TxReceiptKind,
+} from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { toRpcCode, type Resource } from "../../../domain/resources/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type {
+  TronGateway,
+  TronResourceUsage,
+  TronStakeTotals,
+} from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -27,7 +35,7 @@ export interface StakeDelegateInput extends StakeAmountInput {
 
 export interface StakeInfoView {
   address: string;
-  staked: { energySun: string; bandwidthSun: string };
+  staked: TronStakeTotals;
   votingPower: { total: number; used: number; available: number };
   resource: {
     energy: { used: number; limit: number };
@@ -62,46 +70,26 @@ export class TronStakeService {
     network: NetworkDescriptor,
     address: string,
   ): Promise<{ total: number; used: number; available: number }> {
-    const res = await this.gateways.get(network, "tron").getAccountResources(address);
-    const total = Number((res as Record<string, unknown>).tronPowerLimit ?? 0);
-    const used = Number((res as Record<string, unknown>).tronPowerUsed ?? 0);
-    return { total, used, available: total - used };
+    return votingPowerView(await this.gateways.get(network, "tron").getAccountResources(address));
   }
 
   async info(scope: AccountScope, network: NetworkDescriptor): Promise<StakeInfoView> {
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
     const [account, resources, withdrawableSun, remaining] = await Promise.all([
-      gateway.getAccount(address),
+      gateway.getAccountState(address),
       gateway.getAccountResources(address),
       gateway.getCanWithdrawUnfreezeAmount(address),
       gateway.getAvailableUnfreezeCount(address),
     ]);
-    const unfrozen = account.unfrozenV2 ?? [];
-    const r = resources as Record<string, number | undefined>;
-    const total = Number(r.tronPowerLimit ?? 0);
-    const used = Number(r.tronPowerUsed ?? 0);
     return {
       address,
-      staked: {
-        energySun: stakedSun(account, "energy").toString(),
-        bandwidthSun: stakedSun(account, "bandwidth").toString(),
-      },
-      votingPower: { total, used, available: total - used },
-      resource: {
-        energy: { used: Number(r.EnergyUsed ?? 0), limit: Number(r.EnergyLimit ?? 0) },
-        // Node bandwidth totals separate free and staked allowances.
-        bandwidth: {
-          used: Number(r.NetUsed ?? 0) + Number(r.freeNetUsed ?? 0),
-          limit: Number(r.NetLimit ?? 0) + Number(r.freeNetLimit ?? 0),
-        },
-      },
-      unfreezing: unfrozen.map((u) => ({
-        amountSun: String((u as Record<string, unknown>).unfreeze_amount ?? "0"),
-        withdrawableAt: Number((u as Record<string, unknown>).unfreeze_expire_time ?? 0),
-      })),
+      staked: account.stake,
+      votingPower: votingPowerView(resources),
+      resource: { energy: resources.energy, bandwidth: resources.bandwidth },
+      unfreezing: account.unfreezing,
       withdrawableSun,
-      unfreeze: { used: unfrozen.length, max: 32, remaining },
+      unfreeze: { used: account.unfreezing.length, max: 32, remaining },
     };
   }
 
@@ -172,7 +160,8 @@ export class TronStakeService {
   unfreeze(scope: TransactionScope, network: NetworkDescriptor, input: StakeAmountInput) {
     return this.transact("stake-unfreeze", scope, network, input, async (gateway, owner) => {
       // Check stake during build so dry runs detect insufficient stake too.
-      const staked = stakedSun(await gateway.getAccount(owner), input.resource);
+      const { stake } = await gateway.getAccountState(owner);
+      const staked = BigInt(input.resource === "energy" ? stake.energySun : stake.bandwidthSun);
       if (BigInt(input.amountSun) > staked) {
         throw new ChainError(
           "insufficient_stake",
@@ -243,7 +232,7 @@ export class TronStakeService {
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: TransactionModeInput & Partial<StakeAmountInput & StakeDelegateInput>,
-    build: (gateway: TronGateway, owner: string) => Promise<UnsignedTx>,
+    build: (gateway: TronGateway, owner: string) => Promise<TronTransactionArtifact>,
     opts?: { requireSoftware?: boolean },
   ) {
     if (transactionRequiresSigner(input))
@@ -276,13 +265,6 @@ export class TronStakeService {
   }
 }
 
-// Nodes omit frozenV2.type for the default BANDWIDTH enum.
-function stakedSun(
-  account: { frozenV2?: Array<{ type?: unknown; amount?: string }> },
-  resource: Resource,
-): bigint {
-  const want = toRpcCode(resource);
-  return (account.frozenV2 ?? [])
-    .filter((entry) => (entry.type ?? "BANDWIDTH") === want)
-    .reduce((total, entry) => total + BigInt(entry.amount ?? "0"), 0n);
+function votingPowerView({ votingPower }: TronResourceUsage) {
+  return { ...votingPower, available: votingPower.total - votingPower.used };
 }

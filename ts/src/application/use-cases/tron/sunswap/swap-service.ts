@@ -21,9 +21,18 @@ import {
   withTokenBook,
   type SunSwapTokenResolver,
 } from "../../../services/sunswap-token-resolver.js";
-import { LiquidityTransactions, type ApprovalPlan } from "./liquidity-transactions.js";
+import {
+  LiquidityTransactions,
+  UNLIMITED_ALLOWANCE,
+  type ApprovalPlan,
+} from "./liquidity-transactions.js";
 import { ChainError, UsageError, WalletError } from "../../../../domain/errors/index.js";
-import { toBaseUnits } from "../../../../domain/amounts/index.js";
+import {
+  toBaseUnits,
+  type Sun,
+  sunAmount,
+  baseUnitAmount,
+} from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import type { RouterExecutionPort } from "../../../ports/sunswap/router-execution.js";
 import type { Permit2Port } from "../../../ports/sunswap/permit2.js";
@@ -43,17 +52,16 @@ import {
   LAUNCHPAD_STATE,
   slippageToBips,
 } from "../../../../domain/sunpump/curve.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 const KIND = "sunswap-swap" as const;
-
-const UNLIMITED = (2n ** 256n - 1n).toString();
 
 // Keep grants short-lived while allowing approval confirmation and signing time.
 const PERMIT_TTL_SECONDS = 3600;
 const SWAP_VALID_SECONDS = 1800;
 
 // Set an explicit fee limit instead of inheriting the encoder's default.
-const DEFAULT_SWAP_FEE_LIMIT_SUN = "100000000";
+const DEFAULT_SWAP_FEE_LIMIT_SUN = sunAmount("100000000");
 
 interface SwapSide {
   readonly address: string;
@@ -69,7 +77,7 @@ export interface SwapInput extends TransactionModeInput {
   readonly slippage?: string;
   readonly quote?: boolean;
   readonly all?: boolean;
-  readonly feeLimit?: string;
+  readonly feeLimit?: Sun;
 }
 
 export type SwapMarket = "sunpump" | "sunswap";
@@ -231,7 +239,7 @@ export class SunSwapSwapService {
       owner,
       token: spending.tokenAddress,
       spender: this.routerExec.routerAddress(network),
-      amount: spending.amountIn,
+      amount: baseUnitAmount(spending.amountIn),
       ttlSeconds: PERMIT_TTL_SECONDS,
     });
     if (permit === undefined) {
@@ -284,6 +292,7 @@ export class SunSwapSwapService {
       spender: permit.spender,
       amount: permit.amount,
       expiration: permit.expiration,
+      ttlSeconds: PERMIT_TTL_SECONDS,
     };
 
     if (mode.dryRun) {
@@ -312,11 +321,13 @@ export class SunSwapSwapService {
           nativeIn: false,
           permit: { grant: permit.grant, signature: signed.signature, facts: signed.facts },
         });
-        return this.#send(scope, network, input, mode, call, approvalTxIds, {
+        const sent = await this.#send(scope, network, input, mode, call, approvalTxIds, {
           ...view,
           approvals: approvals.map(publishedApproval),
           permit: authorization,
         });
+        // The TRC20 allowance to Permit2 has no expiry and survives a failed swap.
+        return sent.stage === "failed" ? { ...sent, approvalRemains: true } : sent;
       },
     );
   }
@@ -352,7 +363,7 @@ export class SunSwapSwapService {
   async #signPermit(
     scope: TransactionScope,
     network: NetworkDescriptor,
-    permit: { typedData: unknown; permit2: string; spender: string },
+    permit: { typedData: TypedDataPayload; permit2: string; spender: string },
     owner: string,
     spending: { amountIn: string; tokenAddress: string },
   ): Promise<{ signature: string; facts: PermitFacts }> {
@@ -372,7 +383,7 @@ export class SunSwapSwapService {
       network,
       origin: "service",
       signer,
-      payload: { kind: "typed-data", typedData: permit.typedData as TypedDataPayload },
+      payload: { kind: "typed-data", typedData: permit.typedData },
     });
     assertSignedBy(
       recoverTronSigner(signed.digest, signed.signature),
@@ -388,7 +399,7 @@ export class SunSwapSwapService {
     owner: string,
     bips: number,
     minimumOut: string,
-    feeLimit: string,
+    feeLimit: Sun,
     spending: {
       amountIn: string;
       nativeIn: boolean;
@@ -409,7 +420,7 @@ export class SunSwapSwapService {
     });
     // Use the encoder's memoized chain time so deadline checks share its clock.
     const now = await this.routerExec.transactionTime(network);
-    assertRouterCallMatches(call, {
+    const checked = assertRouterCallMatches(call, {
       router: this.routerExec.routerAddress(network),
       amountIn: spending.amountIn,
       minimumOut,
@@ -431,7 +442,7 @@ export class SunSwapSwapService {
       target: call.target,
       method: call.functionSelector,
       parameters: call.parameters,
-      ...(call.callValue === "0" ? {} : { callValueSun: call.callValue }),
+      ...(checked.callValue === "0" ? {} : { callValueSun: checked.callValue }),
     };
   }
 
@@ -590,18 +601,20 @@ export class SunSwapSwapService {
     const tokenOut = buying ? published(facts) : NATIVE_TRX;
 
     const amountIn = buying
-      ? toBaseUnits(input.amountIn, 6, "TRX", "<amountIn>")
+      ? toBaseUnits(input.amountIn, FAMILIES.tron.nativeDecimals, "TRX", "<amountIn>")
       : toBaseUnits(input.amountIn, facts.decimals, facts.symbol, "<amountIn>");
 
     // Both expected outputs are net of the platform fee.
     const quoted = buying
       ? await this.launchpad
-          .quoteBuy(network, tokenAddress, amountIn)
+          .quoteBuy(network, tokenAddress, sunAmount(amountIn))
           .then((q) => ({ expected: q.tokenAmount, feeSun: q.feeSun }))
-      : await quoteCurveSale(this.launchpad, network, facts, amountIn).then((q) => ({
-          expected: q.trxOutSun,
-          feeSun: q.feeSun,
-        }));
+      : await quoteCurveSale(this.launchpad, network, facts, baseUnitAmount(amountIn)).then(
+          (q) => ({
+            expected: q.trxOutSun,
+            feeSun: q.feeSun,
+          }),
+        );
     const expected = quoted.expected;
     if (buying && BigInt(expected) <= 0n) {
       throw new UsageError("invalid_amount", `${input.amountIn} TRX buys no ${facts.symbol}`);
@@ -668,13 +681,13 @@ export class SunSwapSwapService {
     const payload = buying
       ? this.launchpad.buyPayload(network, {
           token: tokenAddress,
-          trxSun: amountIn,
-          minTokenAmount: minimum,
+          trxSun: sunAmount(amountIn),
+          minTokenAmount: baseUnitAmount(minimum),
         })
       : this.launchpad.sellPayload(network, {
           token: tokenAddress,
-          tokenAmount: amountIn,
-          minTrxSun: minimum,
+          tokenAmount: baseUnitAmount(amountIn),
+          minTrxSun: sunAmount(minimum),
         });
 
     const approvals = buying ? [] : await this.#sellApprovals(network, owner, facts, amountIn);
@@ -700,7 +713,7 @@ export class SunSwapSwapService {
       );
     }
     return this.tx.planApprovals(network, owner, this.launchpad.launchpadAddress(network), [
-      { facts, amount: UNLIMITED },
+      { facts, amount: UNLIMITED_ALLOWANCE },
     ]);
   }
 
@@ -791,7 +804,11 @@ function chainIdOf(network: NetworkDescriptor): string {
   );
 }
 
-const NATIVE_TRX = { address: NATIVE_TRX_ADDRESS, symbol: "TRX", decimals: 6 } as const;
+const NATIVE_TRX = {
+  address: NATIVE_TRX_ADDRESS,
+  symbol: "TRX",
+  decimals: FAMILIES.tron.nativeDecimals,
+} as const;
 
 function published(facts: LaunchpadTokenFacts): {
   address: string;
@@ -805,7 +822,8 @@ function publishedApproval(approval: ApprovalPlan): Record<string, unknown> {
   return {
     token: approval.token,
     spender: approval.spender,
-    amount: approval.amount === UNLIMITED ? "unlimited" : approval.amount,
+    amount: approval.isUnlimited ? "unlimited" : approval.amount,
+    isUnlimited: approval.isUnlimited,
     symbol: approval.symbol,
     decimals: approval.decimals,
   };

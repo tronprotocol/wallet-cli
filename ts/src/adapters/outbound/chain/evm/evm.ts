@@ -9,10 +9,16 @@ import {
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
 import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
+import { evmChecksumAddress, isEvmAddress } from "../../../../domain/address/index.js";
+import { decodeErc20Transfer } from "../../../../domain/evm/index.js";
+import { hexToBytes } from "@noble/hashes/utils.js";
 import type {
   DeployConstructorArgs,
+  EvmBlockView,
   EvmGateway,
   EvmRawTransaction,
+  EvmRpcJson,
+  EvmTxView,
 } from "../../../../application/ports/chain/gateway-provider.js";
 import {
   UNWIRED_BROADCAST_GUARD,
@@ -26,7 +32,21 @@ import {
   type HttpEndpointConfig,
   type HttpTransport,
 } from "../../http/index.js";
-import type { NetworkDescriptor, UnsignedTx } from "../../../../domain/types/index.js";
+import type {
+  BroadcastResult,
+  EvmReceipt,
+  EvmUnsignedTx,
+  NetworkDescriptor,
+  SignedTx,
+  UnsignedTx,
+} from "../../../../domain/types/index.js";
+import { isTxHash } from "../../../../domain/family/index.js";
+import {
+  weiAmount,
+  baseUnitAmount,
+  type Wei,
+  type BaseUnits,
+} from "../../../../domain/amounts/index.js";
 
 interface JsonRpcResponse {
   result?: unknown;
@@ -61,8 +81,8 @@ export class EvmRpcClient implements EvmGateway {
     this.#broadcastGuard = guard;
   }
 
-  async getNativeBalance(address: string): Promise<string> {
-    return toDecimalString(await this.#call("eth_getBalance", [address, "latest"]));
+  async getNativeBalance(address: string): Promise<Wei> {
+    return weiAmount(toDecimalString(await this.#call("eth_getBalance", [address, "latest"])));
   }
 
   async getTransactionCount(
@@ -81,28 +101,28 @@ export class EvmRpcClient implements EvmGateway {
     return toDecimalString(await this.#call("eth_blockNumber", []));
   }
 
-  // Return the raw block with hex quantities; null means absent, but a missing result is invalid.
-  async getBlock(numberOrTag?: string): Promise<unknown> {
+  async getBlock(numberOrTag?: string): Promise<EvmBlockView | null> {
+    const raw = await this.#rawBlock(numberOrTag);
+    return raw === null ? null : normalizeBlock(raw);
+  }
+
+  // Null means absent, but a missing result is invalid.
+  async #rawBlock(numberOrTag?: string): Promise<RpcObject | null> {
     const target =
       numberOrTag === undefined
         ? "latest"
         : /^\d+$/.test(numberOrTag)
           ? `0x${BigInt(numberOrTag).toString(16)}`
           : numberOrTag;
-    const result = await this.#call("eth_getBlockByNumber", [target, false]);
-    if (result === undefined) {
-      throw new ChainError(
-        "invalid_node_response",
-        "the node's answer to eth_getBlockByNumber had neither a result nor an error field, " +
-          "in violation of JSON-RPC",
-      );
-    }
-    return result;
+    return rpcObjectOrNull(
+      await this.#call("eth_getBlockByNumber", [target, false]),
+      "eth_getBlockByNumber",
+    );
   }
 
   // False when synced; otherwise the node's progress object.
-  async syncing(): Promise<unknown> {
-    return this.#call("eth_syncing", []);
+  async syncing(): Promise<boolean> {
+    return (await this.#call("eth_syncing", [])) !== false;
   }
 
   async peerCount(): Promise<string> {
@@ -111,23 +131,25 @@ export class EvmRpcClient implements EvmGateway {
 
   // Preserve a zero base fee as EIP-1559 data; the suggested priority fee is optional.
   async feeData(): Promise<{
-    baseFeeWei?: string;
-    gasPriceWei: string;
-    suggestedPriorityWei?: string;
+    baseFeeWei?: Wei;
+    gasPriceWei: Wei;
+    suggestedPriorityWei?: Wei;
   }> {
     // Validate the block response before treating a missing base fee as legacy.
     const [head, gasPrice, priority] = await Promise.all([
-      this.getBlock("latest"),
+      this.#rawBlock("latest"),
       this.#call("eth_gasPrice", []),
       this.#call("eth_maxPriorityFeePerGas", []).catch(() => undefined),
     ]);
-    const baseFee = (head as Record<string, unknown> | null)?.baseFeePerGas;
+    const baseFee = head?.baseFeePerGas;
     return {
       ...(baseFee === undefined || baseFee === null
         ? {}
-        : { baseFeeWei: toDecimalString(baseFee) }),
-      gasPriceWei: toDecimalString(gasPrice),
-      ...(priority === undefined ? {} : { suggestedPriorityWei: toDecimalString(priority) }),
+        : { baseFeeWei: weiAmount(toDecimalString(baseFee)) }),
+      gasPriceWei: weiAmount(toDecimalString(gasPrice)),
+      ...(priority === undefined
+        ? {}
+        : { suggestedPriorityWei: weiAmount(toDecimalString(priority)) }),
     };
   }
 
@@ -168,7 +190,7 @@ export class EvmRpcClient implements EvmGateway {
         { nodeMessage: message },
       );
     }
-    if (typeof body.result !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(body.result)) {
+    if (typeof body.result !== "string" || !isTxHash("evm", body.result)) {
       throw new ChainError(
         "invalid_node_response",
         `EVM broadcast returned no transaction hash: ${JSON.stringify(body.result ?? null)}`,
@@ -179,7 +201,7 @@ export class EvmRpcClient implements EvmGateway {
 
   // Null means pending; a missing result is invalid.
   // A mined receipt can still indicate failure; feeWei is the actual gasUsed × effectiveGasPrice.
-  async getTransactionReceipt(hash: string): Promise<Record<string, unknown> | null> {
+  async getTransactionReceipt(hash: string): Promise<EvmReceipt | null> {
     const raw = await this.#call("eth_getTransactionReceipt", [hash]);
     if (raw === null) return null;
     if (raw === undefined || typeof raw !== "object") {
@@ -209,10 +231,8 @@ export class EvmRpcClient implements EvmGateway {
               rpcIntegerError,
             ),
           }),
-      ...(r.contractAddress === undefined || r.contractAddress === null
-        ? {}
-        : { contractAddress: r.contractAddress }),
-      raw,
+      ...(typeof r.contractAddress === "string" ? { contractAddress: r.contractAddress } : {}),
+      raw: raw as EvmRpcJson,
     };
   }
 
@@ -251,8 +271,7 @@ export class EvmRpcClient implements EvmGateway {
     return body as JsonRpcResponse;
   }
 
-  // rawAmount is in token base units.
-  encodeErc20Transfer(to: string, rawAmount: string): string {
+  encodeErc20Transfer(to: string, rawAmount: BaseUnits): string {
     try {
       return ERC20_WRITE.encodeFunctionData("transfer", [to, BigInt(rawAmount)]);
     } catch (e) {
@@ -263,7 +282,7 @@ export class EvmRpcClient implements EvmGateway {
     }
   }
 
-  async broadcast(signed: unknown): Promise<Record<string, unknown>> {
+  async broadcast(signed: SignedTx): Promise<BroadcastResult> {
     this.#broadcastGuard.assertAllowed();
     const raw = (signed as { raw?: unknown })?.raw;
     if (typeof raw !== "string" || raw === "") {
@@ -344,17 +363,12 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   // Null means this node has no record; a missing result is invalid.
-  async getTransactionByHash(hash: string): Promise<Record<string, unknown> | null> {
-    const raw = await this.#call("eth_getTransactionByHash", [hash]);
-    if (raw === null) return null;
-    if (raw === undefined || typeof raw !== "object") {
-      throw new ChainError(
-        "invalid_node_response",
-        "the node's answer to eth_getTransactionByHash had neither a result nor an error field, " +
-          "in violation of JSON-RPC",
-      );
-    }
-    return raw as Record<string, unknown>;
+  async getTransactionByHash(hash: string): Promise<EvmTxView | null> {
+    const raw = rpcObjectOrNull(
+      await this.#call("eth_getTransactionByHash", [hash]),
+      "eth_getTransactionByHash",
+    );
+    return raw === null ? null : normalizeTransaction(raw);
   }
 
   async clientVersion(): Promise<string> {
@@ -374,7 +388,7 @@ export class EvmRpcClient implements EvmGateway {
     return toData(await this.#call("eth_call", [{ to, data }, "latest"]));
   }
 
-  async getErc20Balance(contract: string, owner: string): Promise<string> {
+  async getErc20Balance(contract: string, owner: string): Promise<BaseUnits> {
     const raw = await this.call(contract, ERC20.encodeFunctionData("balanceOf", [owner])).catch(
       (e: unknown) => {
         if (isContractAnswer(e)) return "0x";
@@ -388,7 +402,7 @@ export class EvmRpcClient implements EvmGateway {
         `${contract} did not answer balanceOf — it may not be a token contract`,
       );
     }
-    return (ERC20.decodeFunctionResult("balanceOf", raw)[0] as bigint).toString(10);
+    return baseUnitAmount(ERC20.decodeFunctionResult("balanceOf", raw)[0] as bigint);
   }
 
   // Treat empty returns and reverts as absent metadata; propagate node failures.
@@ -508,6 +522,87 @@ function toRpcQuantities(tx: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+type RpcObject = { readonly [field: string]: EvmRpcJson };
+
+// A missing result is invalid; a non-object result contradicts the method.
+function rpcObjectOrNull(result: unknown, method: string): RpcObject | null {
+  if (result === null) return null;
+  if (result === undefined) {
+    throw new ChainError(
+      "invalid_node_response",
+      `the node's answer to ${method} had neither a result nor an error field, ` +
+        "in violation of JSON-RPC",
+    );
+  }
+  if (typeof result !== "object" || Array.isArray(result)) {
+    throw new ChainError(
+      "invalid_node_response",
+      `the node's answer to ${method} is not an object`,
+    );
+  }
+  return result as RpcObject;
+}
+
+// A mined block always carries its number and timestamp; their absence is a malformed answer.
+function normalizeBlock(block: RpcObject): EvmBlockView {
+  const gasUsed = optionalQuantity(block.gasUsed, "block gasUsed");
+  const gasLimit = optionalQuantity(block.gasLimit, "block gasLimit");
+  const baseFeeWei = optionalQuantity(block.baseFeePerGas, "block baseFeePerGas");
+  return {
+    number: quantityToSafeNumber(block.number, "block number", nodeResponseError),
+    timestamp: quantityToSafeNumber(block.timestamp, "block timestamp", nodeResponseError),
+    ...(typeof block.hash === "string" ? { hash: block.hash } : {}),
+    ...(typeof block.parentHash === "string" ? { parentHash: block.parentHash } : {}),
+    ...(Array.isArray(block.transactions) ? { transactionCount: block.transactions.length } : {}),
+    ...(gasUsed === undefined ? {} : { gasUsed }),
+    ...(gasLimit === undefined ? {} : { gasLimit }),
+    ...(baseFeeWei === undefined ? {} : { baseFeeWei }),
+    raw: block,
+  };
+}
+
+// Sender, value and calldata decide the reported parties and amount, so a missing one is an error.
+function normalizeTransaction(tx: RpcObject): EvmTxView {
+  if (typeof tx.input !== "string" || !/^0x(?:[0-9a-fA-F]{2})*$/.test(tx.input)) {
+    throw new ChainError("invalid_node_response", "transaction input must be hex data");
+  }
+  const valueWei = optionalQuantity(tx.value, "transaction value");
+  if (valueWei === undefined) {
+    throw new ChainError("invalid_node_response", "transaction value is missing");
+  }
+  const erc20Transfer = decodeErc20Transfer(tx.input);
+  return {
+    from: nodeAddress(tx.from, "transaction from"),
+    ...(tx.to === undefined || tx.to === null ? {} : { to: nodeAddress(tx.to, "transaction to") }),
+    valueWei,
+    input: tx.input,
+    ...(tx.nonce === undefined || tx.nonce === null
+      ? {}
+      : { nonce: quantityToSafeNumber(tx.nonce, "transaction nonce", nodeResponseError) }),
+    ...(erc20Transfer === undefined ? {} : { erc20Transfer }),
+    raw: tx,
+  };
+}
+
+function optionalQuantity(value: EvmRpcJson | undefined, field: string): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string" && /^0x[0-9a-fA-F]+$/.test(value)) {
+    return BigInt(value).toString(10);
+  }
+  throw new ChainError("invalid_node_response", `${field} must be a hex quantity`);
+}
+
+function nodeAddress(value: EvmRpcJson | undefined, field: string): string {
+  if (typeof value !== "string" || !isEvmAddress(value)) {
+    throw new ChainError("invalid_node_response", `${field} must be an EVM address`);
+  }
+  return evmChecksumAddress(hexToBytes(value.slice(2).toLowerCase()));
+}
+
+function nodeResponseError(message: string) {
+  return new ChainError("invalid_node_response", message);
+}
+
 function rpcIntegerError(message: string) {
   return new ChainError("rpc_error", message);
 }
@@ -575,7 +670,7 @@ export function decodeEvmRawTransaction(hex: string): EvmRawTransaction {
     ...(parsed.gasPrice === null ? {} : { gasPriceWei: parsed.gasPrice.toString() }),
     valueWei: parsed.value.toString(),
     ...(signed ? { hash: parsed.hash!, serialized: parsed.serialized } : {}),
-    transaction: JSON.parse(JSON.stringify(parsed.toJSON())) as UnsignedTx,
+    transaction: JSON.parse(JSON.stringify(parsed.toJSON())) as EvmUnsignedTx,
   };
 }
 

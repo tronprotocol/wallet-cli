@@ -9,8 +9,9 @@ import type {
 import { expandScientificNotation, toBaseUnitsTruncating } from "../../../domain/sunswap/amount.js";
 import { multiplyDecimalTruncating } from "../../../domain/sunpump/market.js";
 import type { RawToken } from "./market-api.schema.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
-const SUN_DECIMALS = 6;
+const SUN_DECIMALS = FAMILIES.tron.nativeDecimals;
 
 const USD_PRICE_PLACES = 18;
 

@@ -891,8 +891,8 @@ describe("EvmTransactionService.info", () => {
       getTransactionByHash: vi.fn(async () => tx),
       getTransactionReceipt: vi.fn(async () => receipt),
       getBlockNumber: vi.fn(async () => "42"),
-      // RPC timestamps are seconds.
-      getBlock: vi.fn(async () => ({ timestamp: "0x66b1c0d0" })),
+      // Normalized block timestamps are seconds.
+      getBlock: vi.fn(async () => ({ number: 5, timestamp: 1722925264, raw: {} })),
       getErc20Metadata: vi.fn(async () => meta),
     };
     return new EvmTransactionService(
@@ -904,18 +904,24 @@ describe("EvmTransactionService.info", () => {
   }
   const HASH = `0x${"cd".repeat(32)}`;
   const TO = "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB";
+  const RAW = { hash: HASH, value: "0xde0b6b3a7640000" };
+  const view = (fields: Record<string, unknown> = {}) => ({
+    from: OWNER,
+    to: TO,
+    valueWei: "0",
+    input: "0x",
+    raw: RAW,
+    ...fields,
+  });
 
   it("reports a native transfer's parties and amount", async () => {
-    const svc = infoHarness(
-      { hash: HASH, from: OWNER, to: TO, value: "0xde0b6b3a7640000", input: "0x", nonce: "0x7" },
-      {
-        success: true,
-        blockNumber: 5,
-        gasUsed: "21000",
-        feeWei: "1000",
-        effectiveGasPriceWei: "50",
-      },
-    );
+    const svc = infoHarness(view({ valueWei: "1000000000000000000", nonce: 7 }), {
+      success: true,
+      blockNumber: 5,
+      gasUsed: "21000",
+      feeWei: "1000",
+      effectiveGasPriceWei: "50",
+    });
 
     await expect(svc.info(scope(), SEPOLIA, HASH)).resolves.toMatchObject({
       txid: HASH,
@@ -932,28 +938,34 @@ describe("EvmTransactionService.info", () => {
       rawAmount: "1000000000000000000",
       blockTime: 1722925264,
       effectiveGasPriceWei: "50",
+      transaction: RAW,
     });
   });
 
   it.each([
-    [{ to: TO, input: "0x" }, "transfer"],
-    [{ to: TO, input: "0xdeadbeef" }, "contract-call"],
-    [{ to: null, input: "0x6080" }, "contract-creation"],
+    [{ input: "0x" }, "transfer"],
+    [{ input: "0xdeadbeef" }, "contract-call"],
+    [{ to: undefined, input: "0x6080" }, "contract-creation"],
+    [{ input: "0xa9059cbb", erc20Transfer: { to: TO, rawAmount: "1" } }, "transfer"],
   ])("classifies %o as %s", async (fields, expected) => {
-    const svc = infoHarness({ hash: HASH, from: OWNER, value: "0x0", ...fields });
+    const svc = infoHarness(view(fields));
 
     await expect(svc.info(scope(), SEPOLIA, HASH)).resolves.toMatchObject({ type: expected });
   });
 
+  it("omits the recipient of a contract creation instead of reporting an empty one", async () => {
+    const out = await infoHarness(view({ to: undefined, input: "0x6080" })).info(
+      scope(),
+      SEPOLIA,
+      HASH,
+    );
+
+    expect(out).not.toHaveProperty("to");
+  });
+
   it("still answers when the block's timestamp cannot be read", async () => {
     const gateway = {
-      getTransactionByHash: async () => ({
-        hash: HASH,
-        from: OWNER,
-        to: TO,
-        value: "0x0",
-        input: "0x",
-      }),
+      getTransactionByHash: async () => view(),
       getTransactionReceipt: async () => ({ success: true, blockNumber: 5 }),
       getBlockNumber: async () => "42",
       getBlock: async () => {
@@ -973,11 +985,10 @@ describe("EvmTransactionService.info", () => {
     expect(out.blockTime).toBeUndefined();
   });
 
-  it("decodes an ERC-20 transfer to its real recipient and amount", async () => {
-    const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${5000000n
-      .toString(16)
-      .padStart(64, "0")}`;
-    const svc = infoHarness({ hash: HASH, from: OWNER, to: USDT, value: "0x0", input });
+  it("reports an ERC-20 transfer's token recipient and amount", async () => {
+    const svc = infoHarness(
+      view({ to: USDT, input: "0xa9059cbb", erc20Transfer: { to: TO, rawAmount: "5000000" } }),
+    );
 
     const out = await svc.info(scope(), SEPOLIA, HASH);
     expect(out).toMatchObject({
@@ -990,22 +1001,17 @@ describe("EvmTransactionService.info", () => {
   });
 
   it("falls back to the base-unit amount when the token's decimals are unreadable", async () => {
-    const input = `0xa9059cbb${"0".repeat(24)}${TO.slice(2).toLowerCase()}${5000000n
-      .toString(16)
-      .padStart(64, "0")}`;
-    const svc = infoHarness({ hash: HASH, from: OWNER, to: USDT, value: "0x0", input }, null, {});
+    const svc = infoHarness(
+      view({ to: USDT, input: "0xa9059cbb", erc20Transfer: { to: TO, rawAmount: "5000000" } }),
+      null,
+      {},
+    );
 
     await expect(svc.info(scope(), SEPOLIA, HASH)).resolves.toMatchObject({ amount: "5000000" });
   });
 
   it("leaves calldata it does not recognise alone", async () => {
-    const svc = infoHarness({
-      hash: HASH,
-      from: OWNER,
-      to: USDT,
-      value: "0x0",
-      input: "0xdeadbeef",
-    });
+    const svc = infoHarness(view({ to: USDT, input: "0xdeadbeef" }));
 
     const out = await svc.info(scope(), SEPOLIA, HASH);
     expect(out.to).toBe(USDT);
@@ -1027,35 +1033,6 @@ describe("EvmTransactionService.info", () => {
     } catch (e) {
       expect((e as { exitCode(): number }).exitCode()).toBe(1);
     }
-  });
-});
-
-describe("EvmTransactionService.info address style", () => {
-  const HASH = `0x${"ef".repeat(32)}`;
-  it("checksums the transaction's own from and to", async () => {
-    const gateway = {
-      getTransactionByHash: async () => ({
-        hash: HASH,
-        from: "0xe4aad11792f7e74f1b5cbce65f9a1e207c952961",
-        to: "0x000000000000000000000000000000000000dead",
-        value: "0x0",
-        input: "0x",
-      }),
-      getTransactionReceipt: async () => null,
-      getBlockNumber: async () => "42",
-      getBlock: async () => ({ timestamp: "0x66b1c0d0" }),
-      getErc20Metadata: async () => ({}),
-    };
-    const svc = new EvmTransactionService(
-      { get: () => gateway } as unknown as ChainGatewayProvider,
-      { effective: () => [] } as never,
-      {} as never,
-      { resolve: vi.fn() } as never,
-    );
-
-    const out = await svc.info(scope(), SEPOLIA, HASH);
-    expect(out.from).toBe("0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961");
-    expect(out.to).toBe("0x000000000000000000000000000000000000dEaD");
   });
 });
 

@@ -10,6 +10,7 @@ import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapLiquidityService } from "../../../../../application/use-cases/tron/sunswap/liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
 
 const fields = z.object({
   // Do not use txModeFields: this command does not support sign-only.
@@ -375,7 +376,7 @@ export const sunswapAddLiquidityTronBinding = (
       ...(input.min1 === undefined ? {} : { min1: input.min1 }),
       ...(input.recipient === undefined ? {} : { recipient: input.recipient }),
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
       ...(input.createPool === undefined ? {} : { createPool: input.createPool }),

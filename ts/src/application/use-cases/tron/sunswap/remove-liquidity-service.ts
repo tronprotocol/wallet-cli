@@ -28,7 +28,12 @@ import {
 } from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
-import { toBaseUnits } from "../../../../domain/amounts/index.js";
+import {
+  toBaseUnits,
+  type Sun,
+  sunAmount,
+  baseUnitAmount,
+} from "../../../../domain/amounts/index.js";
 import {
   applyMinimumShare,
   DEFAULT_V2_MIN_BASIS_POINTS,
@@ -41,8 +46,10 @@ import {
   LiquidityTransactions,
   outcomeTxId,
   withPositionManager,
+  withZeroMinimumFlag,
   type ApprovalPlan,
 } from "./liquidity-transactions.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 const RESOLVED = { caller: "liquidity" } as const;
 
@@ -59,7 +66,7 @@ export interface RemoveLiquidityInput extends TransactionModeInput {
   readonly min1?: string;
   readonly recipient?: string;
   readonly deadline?: number;
-  readonly feeLimit?: string;
+  readonly feeLimit?: Sun;
   // V4 fee-tier cross-check; the position selects the pool.
   readonly fee?: number;
   // V4 decimal tolerance that lowers the withdrawal floors.
@@ -74,6 +81,9 @@ export interface RemovalSide {
   readonly amount: string;
   // Minimum received, in base units.
   readonly amountMinimum: string;
+  readonly acceptsAnyAmount?: true;
+  // Base units reaching the recipient: principal plus any fees collected with it.
+  readonly receivedAmount: string;
 }
 
 export interface RemovalPlanView {
@@ -101,6 +111,8 @@ export interface RemovalPlanView {
   readonly hooks?: string;
   readonly tickLower?: number;
   readonly tickUpper?: number;
+  // V3/V4 withdrawals also collect the position's accrued fees.
+  readonly collectsFees?: true;
 }
 
 export class SunSwapRemoveLiquidityService {
@@ -285,8 +297,8 @@ export class SunSwapRemoveLiquidityService {
       return this.liquidity.v2RemoveLiquidityEthPayload(network, {
         token: factsOf(native.token),
         liquidity: plan.lpAmount ?? "0",
-        amountTokenMin: native.token.amountMinimum,
-        amountNativeMin: native.native.amountMinimum,
+        amountTokenMin: baseUnitAmount(native.token.amountMinimum),
+        amountNativeMin: sunAmount(native.native.amountMinimum),
         recipient: plan.recipient,
         deadline: plan.deadline,
       });
@@ -295,8 +307,8 @@ export class SunSwapRemoveLiquidityService {
       token0: factsOf(plan.token0),
       token1: factsOf(plan.token1),
       liquidity: plan.lpAmount ?? "0",
-      amount0Min: plan.token0.amountMinimum,
-      amount1Min: plan.token1.amountMinimum,
+      amount0Min: baseUnitAmount(plan.token0.amountMinimum),
+      amount1Min: baseUnitAmount(plan.token1.amountMinimum),
       recipient: plan.recipient,
       deadline: plan.deadline,
     });
@@ -322,8 +334,8 @@ export class SunSwapRemoveLiquidityService {
       );
       if (!actual) return "the router result could not be read; amounts remain estimates";
       Object.assign(settled, {
-        token0: { ...publishedSide(plan.token0), amount: actual.amount0 },
-        token1: { ...publishedSide(plan.token1), amount: actual.amount1 },
+        token0: publishedSide(plan.token0, actual.amount0),
+        token1: publishedSide(plan.token1, actual.amount1),
         amountsEstimated: false,
       });
       return undefined;
@@ -387,6 +399,7 @@ export class SunSwapRemoveLiquidityService {
       nftTokenId: plan.nftTokenId,
       liquidity: plan.liquidity,
       recipient: plan.recipient,
+      collectsFees: true,
       token0: publishedSide(plan.token0),
       token1: publishedSide(plan.token1),
       ...outcomeData(main),
@@ -447,6 +460,7 @@ export class SunSwapRemoveLiquidityService {
         liquidity: burn,
         token0: side(token0, expected.amount0, this.#v3Minimum(input.min0, token0)),
         token1: side(token1, expected.amount1, this.#v3Minimum(input.min1, token1)),
+        collectsFees: true,
       },
       position,
       pool,
@@ -464,8 +478,8 @@ export class SunSwapRemoveLiquidityService {
     return this.liquidity.v3RemovePayload(network, {
       tokenId: plan.nftTokenId ?? "0",
       liquidity: plan.liquidity ?? "0",
-      amount0Min: plan.token0.amountMinimum,
-      amount1Min: plan.token1.amountMinimum,
+      amount0Min: baseUnitAmount(plan.token0.amountMinimum),
+      amount1Min: baseUnitAmount(plan.token1.amountMinimum),
       recipient: plan.recipient,
       deadline: plan.deadline,
     });
@@ -578,8 +592,8 @@ export class SunSwapRemoveLiquidityService {
     return {
       kind: KIND,
       ...withPositionManager(plan),
-      token0: withFees(publishedSide(plan.token0), owed?.amount0),
-      token1: withFees(publishedSide(plan.token1), owed?.amount1),
+      token0: publishedSide(plan.token0, plan.token0.amount, owed?.amount0),
+      token1: publishedSide(plan.token1, plan.token1.amount, owed?.amount1),
       ...outcomeData(main),
       amountsEstimated: true,
       ...settled,
@@ -670,14 +684,15 @@ export class SunSwapRemoveLiquidityService {
         hooks: describeHooks(pool.hooks),
         tickLower: range.tickLower,
         tickUpper: range.tickUpper,
+        collectsFees: true,
       },
       position,
       request: {
         pool: key,
         tokenId: position.tokenId,
         liquidity: burn,
-        amount0Min,
-        amount1Min,
+        amount0Min: baseUnitAmount(amount0Min),
+        amount1Min: baseUnitAmount(amount1Min),
         recipient: owner,
         deadline,
       },
@@ -813,40 +828,40 @@ export class SunSwapRemoveLiquidityService {
   }
 
   async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
-    if (isNative(address)) return { address, decimals: 6, symbol: "TRX" };
+    if (isNative(address))
+      return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX" };
     return this.liquidity.tokenFacts(network, address);
   }
 }
 
 function side(facts: TokenFacts, amount: string, amountMinimum: string): RemovalSide {
-  return {
+  return withZeroMinimumFlag({
     address: facts.address,
     symbol: facts.symbol,
     decimals: facts.decimals,
     amount,
     amountMinimum,
-  };
+    receivedAmount: amount,
+  });
 }
 
 function factsOf(entry: RemovalSide): TokenFacts {
   return { address: entry.address, decimals: entry.decimals, symbol: entry.symbol };
 }
 
-function publishedSide(entry: RemovalSide): Record<string, unknown> {
+function publishedSide(
+  entry: RemovalSide,
+  amount: string = entry.amount,
+  feeAmount?: string,
+): Record<string, unknown> {
   return {
     address: entry.address,
     symbol: entry.symbol,
     decimals: entry.decimals,
-    amount: entry.amount,
+    amount,
+    ...(feeAmount === undefined ? {} : { feeAmount }),
+    receivedAmount: (BigInt(amount) + BigInt(feeAmount ?? "0")).toString(),
   };
-}
-
-// Attach pre-send fee estimates until settlement supplies actual amounts.
-function withFees(
-  side: Record<string, unknown>,
-  owed: string | undefined,
-): Record<string, unknown> {
-  return owed === undefined ? side : { ...side, feeAmount: owed };
 }
 
 function splitSide(
@@ -854,13 +869,9 @@ function splitSide(
   collected: string,
   owed: string | undefined,
 ): Record<string, unknown> {
-  if (owed === undefined) return { ...publishedSide(entry), amount: collected };
+  if (owed === undefined) return publishedSide(entry, collected);
   const fees = BigInt(owed) > BigInt(collected) ? BigInt(collected) : BigInt(owed);
-  return {
-    ...publishedSide(entry),
-    amount: (BigInt(collected) - fees).toString(),
-    feeAmount: fees.toString(),
-  };
+  return publishedSide(entry, (BigInt(collected) - fees).toString(), fees.toString());
 }
 
 function share(amount: string, reserve: string, totalSupply: string): string {

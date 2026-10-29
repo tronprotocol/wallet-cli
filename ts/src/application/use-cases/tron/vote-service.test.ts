@@ -29,6 +29,14 @@ const scope: TransactionScope = {
   warn: () => {},
 };
 
+function votingPower(total: number, used: number) {
+  return {
+    energy: { used: 0, limit: 0 },
+    bandwidth: { used: 0, limit: 0 },
+    votingPower: { total, used },
+  };
+}
+
 function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) {
   const g = gateway as TronGateway;
   const gateways = { get: () => g } as unknown as ChainGatewayProvider;
@@ -43,7 +51,7 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
 describe("TronVoteService.cast", () => {
   it("rejects a full vote allocation above voting power", async () => {
     const svc = service({
-      getAccountResources: async () => ({ tronPowerLimit: 100, tronPowerUsed: 0 }) as never,
+      getAccountResources: async () => votingPower(100, 0),
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=101`] })).rejects.toMatchObject({
       code: "insufficient_voting_power",
@@ -73,14 +81,15 @@ describe("TronVoteService.cast", () => {
 
   it("echoes parsed votes and total votes after pipeline submission", async () => {
     const svc = service({
-      getAccountResources: async () => ({ tronPowerLimit: 1000, tronPowerUsed: 0 }) as never,
-      buildVoteWitness: async () => ({}),
+      getAccountResources: async () => votingPower(1000, 0),
+      buildVoteWitness: async () => ({}) as never,
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=6`, `${SR2}=4`] })).resolves.toMatchObject({
       kind: "vote-cast",
       stage: "submitted",
       txId: "txid",
       totalVotes: 10,
+      maintenanceIntervalMs: 6 * 60 * 60 * 1000,
       votes: [
         { witness: SR1, count: 6 },
         { witness: SR2, count: 4 },
@@ -126,8 +135,8 @@ describe("TronVoteService.list/status", () => {
     const warnings: string[] = [];
     const warnScope = { ...scope, warn: (m: string) => warnings.push(m) };
     const svc = service({
-      getAccount: async () => ({ votes: [{ vote_address: SR2, vote_count: "400" }] }),
-      getAccountResources: async () => ({ tronPowerLimit: 1500, tronPowerUsed: 400 }) as never,
+      getAccountState: async () => ({ votes: [{ witness: SR2, count: "400" }] }) as never,
+      getAccountResources: async () => votingPower(1500, 400),
       getReward: async () => "12345678",
       getWitnesses: async () => [{ address: SR2, voteCount: "200", url: "https://beta.example" }],
       getBrokerage: async () => 100,

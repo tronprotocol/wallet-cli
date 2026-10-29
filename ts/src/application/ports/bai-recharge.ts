@@ -1,3 +1,5 @@
+import type { BaiRechargeAmount } from "../../domain/bai/recharge-policy.js";
+
 // Trusted deployment settings; not user configuration.
 export interface BaiRechargeConfig {
   readonly facilitatorUrl: string;
@@ -22,7 +24,7 @@ export interface BaiCreateOrderInput {
   channel: "crypto";
   chain: string;
   tokenName: string;
-  amount: string;
+  amount: BaiRechargeAmount;
   walletAddress: string;
   deviceType: "web";
   rechargeTarget?: BaiRechargeTarget;
@@ -31,11 +33,18 @@ export interface BaiReportTransactionInput {
   chain: string;
   txHash: string;
   rechargeTarget?: BaiRechargeTarget;
-  amount?: string;
+  amount?: BaiRechargeAmount;
 }
+
+declare const baiRawOrder: unique symbol;
+
+// B.AI order JSON passed through verbatim; inner layers never read it.
+export interface BaiRawOrder {
+  readonly [baiRawOrder]: true;
+}
+
 export type BaiReportResult =
-  | { success: true; order: Record<string, unknown> }
-  | { success: false; code: string; message?: string };
+  { success: true; order: BaiRawOrder } | { success: false; code: string; message?: string };
 export interface BaiRechargeApi {
   resolveTarget(
     identifier: string,
@@ -43,13 +52,13 @@ export interface BaiRechargeApi {
   isBound(input: BaiWalletBindingInput): Promise<boolean>;
   bind(input: BaiBindWalletInput): Promise<{ userId: string; address: string; chain: string }>;
   // Do not infer a payment destination from the untyped order response.
-  createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>>;
+  createOrder(input: BaiCreateOrderInput): Promise<BaiRawOrder>;
   reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult>;
 }
 
 export interface BaiRechargePayment {
   pay(
-    order: Record<string, unknown>,
+    order: BaiRawOrder,
     input: BaiCreateOrderInput,
   ): Promise<{
     txHash: string;

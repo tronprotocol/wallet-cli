@@ -1,10 +1,13 @@
 import type {
   AccountPermissionsView,
   BroadcastResult,
-  FeeReport,
+  RawNodePayload,
+  TronFeeReport,
+  TronProtocolValue,
   TronTransactionArtifact,
   UnsignedTx,
 } from "../../../domain/types/index.js";
+import type { Sun } from "../../../domain/amounts/index.js";
 import type { RpcResourceCode } from "../../../domain/resources/index.js";
 import type { Broadcaster } from "./broadcaster.js";
 
@@ -13,48 +16,59 @@ export interface TronContractParameter {
   value: unknown;
 }
 
-export interface TronAccountResources {
-  NetUsed?: number;
-  freeNetUsed?: number;
-  NetLimit?: number;
-  freeNetLimit?: number;
-  EnergyUsed?: number;
-  EnergyLimit?: number;
+declare const rawNodeJson: unique symbol;
+
+// Node JSON passed through for verbatim display; opaque so inner layers cannot read its fields.
+export interface TronRawJson<Kind extends string> extends RawNodePayload {
+  readonly [rawNodeJson]: Kind;
+}
+export type TronRawBlock = TronRawJson<"block">;
+export type TronRawAccount = TronRawJson<"account">;
+export type TronRawContract = TronRawJson<"contract">;
+export type TronRawContractInfo = TronRawJson<"contract-info">;
+
+// Resource units; voting power in TP. Bandwidth includes the free allowance.
+export interface TronResourceUsage {
+  energy: { used: number; limit: number };
+  bandwidth: { used: number; limit: number };
+  votingPower: { total: number; used: number };
 }
 
-export interface TronAccountAsset {
-  key?: string;
-  value?: string;
-  [key: string]: unknown;
+// Staked TRX in SUN by resource; tronPowerSun is stake that yields voting power only.
+export interface TronStakeTotals {
+  energySun: string;
+  bandwidthSun: string;
+  tronPowerSun: string;
+  totalSun: string;
 }
 
-export interface TronFrozenBalance {
-  type?: unknown;
-  amount?: string;
-  unfreeze_amount?: string;
-  frozen_balance?: string;
-  [key: string]: unknown;
+export interface TronUnfreezing {
+  amountSun: string;
+  // Epoch milliseconds.
+  withdrawableAt: number;
 }
 
-export interface TronVoteAllocation {
-  vote_address?: unknown;
-  voteAddress?: unknown;
-  vote_count?: unknown;
-  voteCount?: unknown;
-  [key: string]: unknown;
+// Times are epoch milliseconds.
+export interface TronAccountState {
+  // Base58; absent when the account is not activated.
+  address?: string;
+  balanceSun: string;
+  // Decoded on-chain account name and id; absent when unset.
+  name?: string;
+  id?: string;
+  createdAt?: number;
+  // Absent when the account has never withdrawn rewards.
+  latestWithdrawAt?: number;
+  stake: TronStakeTotals;
+  unfreezing: TronUnfreezing[];
+  votes: TronVote[];
+  raw: TronRawAccount;
 }
 
-// SUN and token quantities are decimal strings.
+// address is the node's hex address, absent when the account is not activated; balance is SUN.
 export interface TronAccount {
+  address?: string;
   balance?: string;
-  allowance?: string;
-  asset?: TronAccountAsset[];
-  assetV2?: TronAccountAsset[];
-  frozen?: TronFrozenBalance[];
-  frozenV2?: TronFrozenBalance[];
-  unfrozenV2?: TronFrozenBalance[];
-  votes?: TronVoteAllocation[];
-  [key: string]: unknown;
 }
 
 export interface TronWitness {
@@ -66,7 +80,6 @@ export interface TronWitness {
   latestBlockNum?: number;
   latestSlotNum?: number;
   isJobs?: boolean;
-  [key: string]: unknown;
 }
 
 export type TronProposalState = "PENDING" | "DISAPPROVED" | "APPROVED" | "CANCELED";
@@ -91,15 +104,15 @@ export interface TronVote {
   count: string;
 }
 
+// Text fields are decoded.
 export interface TronTokenInfo {
   contract?: string;
-  name?: unknown;
-  abbr?: unknown;
-  symbol?: unknown;
+  name?: string;
+  abbr?: string;
+  symbol?: string;
   decimals?: number;
   precision?: number;
   totalSupply?: string;
-  [key: string]: unknown;
 }
 
 // Non-visible broadcasts require numeric JSON int64 fields; issuance must stay within safe integers.
@@ -170,30 +183,70 @@ export interface TronExchange {
   secondTokenBalance: string;
 }
 
-export interface TronTxInfo {
-  blockNumber?: number;
-  fee?: number;
-  receipt?: {
-    result?: string;
-    energy_usage_total?: number;
-    energy_fee?: number;
-    net_usage?: number;
-    net_fee?: number;
-    [key: string]: unknown;
-  };
-  [key: string]: unknown;
+declare const rawTxInfo: unique symbol;
+declare const rawTransaction: unique symbol;
+
+// Node JSON passed through verbatim for display; inner layers never read it.
+export interface TronRawTxInfo extends RawNodePayload {
+  readonly [rawTxInfo]: true;
+}
+export interface TronRawTransaction extends RawNodePayload {
+  readonly [rawTransaction]: true;
 }
 
-export interface TronTxContract {
-  type?: string;
-  parameter?: { value?: Record<string, unknown>; [key: string]: unknown };
-  [key: string]: unknown;
+// "unknown": the node reported no execution result; native transactions never carry one.
+export type TronExecution = "success" | "failed" | "unknown";
+
+// Hex fields are as the node returns them.
+export interface TronTxLog {
+  readonly address?: string;
+  readonly topics?: string[];
+  readonly data?: string;
+}
+
+export interface TronInternalTransaction {
+  readonly caller_address?: string;
+  readonly transferTo_address?: string;
+  readonly rejected?: boolean;
+  // callValue is an exact base-unit decimal string.
+  readonly callValueInfo?: Array<{ readonly callValue?: string; readonly tokenId?: string }>;
+}
+
+// Number fields are proven safe integers; string amounts are exact base-unit decimal strings.
+export interface TronTxInfo {
+  // Absent while the node has not included the transaction.
+  readonly blockNumber?: number;
+  readonly execution: TronExecution;
+  // Present only for a failed execution: the receipt result code, or "FAILED".
+  readonly failureReason?: string;
+  // receipt.result as the node reported it.
+  readonly receiptResult?: string;
+  readonly feeSun?: number;
+  readonly energyUsed?: number;
+  readonly energyFeeSun?: number;
+  readonly netUsed?: number;
+  readonly netFeeSun?: number;
+  readonly withdrawnSun?: Sun;
+  readonly unfreezeAmount?: Sun;
+  readonly assetIssueId?: string;
+  readonly exchangeId?: number;
+  readonly exchangeReceived?: string;
+  readonly exchangeInjectedOther?: string;
+  readonly exchangeWithdrawnOther?: string;
+  // Absent when the node returned none or a malformed one.
+  readonly contractResult?: string[];
+  readonly log?: TronTxLog[];
+  readonly internal_transactions?: TronInternalTransaction[];
+  readonly raw: TronRawTxInfo;
 }
 
 export interface TronTx {
-  ret?: Array<{ contractRet?: string; [key: string]: unknown }>;
-  raw_data?: { contract?: TronTxContract[]; [key: string]: unknown };
-  [key: string]: unknown;
+  // Absent when the node does not know the transaction.
+  readonly txId?: string;
+  // ret[0].contractRet as the node reported it.
+  readonly contractResult?: string;
+  readonly parties: DecodedTronTransaction;
+  readonly raw: TronRawTransaction;
 }
 
 export interface DecodedTronTransaction {
@@ -208,12 +261,12 @@ export interface TronContractMetadata {
   name?: string;
   methods: string[];
   originAddress?: string;
-  contract: unknown;
-  info?: unknown;
+  contract: TronRawContract;
+  // Absent when the node returned no contract info.
+  info?: TronRawContractInfo;
 }
 
-export interface TronFeeEstimate extends FeeReport {
-  feeModel: "tron-resource";
+export interface TronFeeEstimate extends TronFeeReport {
   energy: number;
 }
 
@@ -227,13 +280,29 @@ export interface TronDelegatedResource {
   expireTimeForBandwidth: number | null;
 }
 
+// Fields are absent when the node does not report them.
 export interface TronNodeInfo {
-  block?: string; // "Num:84120345,ID:…"
-  solidityBlock?: string;
-  currentConnectCount?: number;
-  activeConnectCount?: number;
-  configNodeInfo?: { codeVersion?: string; p2pVersion?: string; [key: string]: unknown };
-  [key: string]: unknown;
+  solidBlockNumber?: number;
+  peers?: { connected: number; active: number };
+  codeVersion?: string;
+  p2pVersion?: string;
+}
+
+// Timestamps are epoch milliseconds.
+export interface TronHeadBlock {
+  number: number;
+  timestampMs: number;
+}
+
+export interface TronBlock extends TronHeadBlock {
+  transactionCount: number;
+  raw: TronRawBlock;
+}
+
+// One step of a node price timeline: SUN per resource unit from sinceMs on.
+export interface TronPricePoint {
+  sinceMs: number;
+  sunPerUnit: number;
 }
 
 export interface TronSignWeight {
@@ -256,63 +325,78 @@ export type TronReferenceBlockStatus = "held" | "different" | "not-reached";
 
 export interface TronGateway extends Broadcaster {
   prepareTransaction(
-    transaction: UnsignedTx,
+    transaction: TronTransactionArtifact,
     options: { permissionId: number; expiration?: number },
-  ): UnsignedTx;
-  encodeTransactionHex(transaction: UnsignedTx): string;
+  ): TronTransactionArtifact;
+  encodeTransactionHex(transaction: TronTransactionArtifact): string;
+  // Rejects JSON whose raw_data, raw_data_hex and txID disagree; returns the caller's object unchanged.
+  encodeTransactionJson(json: TronProtocolValue): {
+    transaction: TronTransactionArtifact;
+    hex: string;
+  };
   decodeTransactionHex(hex: string): TronTransactionArtifact;
   getAccountPermissions(address: string): Promise<AccountPermissionsView>;
   buildAccountPermissionUpdate(
     owner: string,
     permissions: AccountPermissionsView,
-  ): Promise<UnsignedTx>;
-  getSignWeight(transaction: UnsignedTx): Promise<TronSignWeight>;
-  getApprovedList(transaction: UnsignedTx): Promise<string[]>;
+  ): Promise<TronTransactionArtifact>;
+  getSignWeight(transaction: TronTransactionArtifact): Promise<TronSignWeight>;
+  getApprovedList(transaction: TronTransactionArtifact): Promise<string[]>;
   broadcastHex(hex: string): Promise<BroadcastResult>;
   getUpdateAccountPermissionFee(): Promise<number>;
   getMultiSignFee(): Promise<number>;
-  getNativeBalance(address: string): Promise<string>;
+  getNativeBalance(address: string): Promise<Sun>;
   getAccount(address: string): Promise<TronAccount>;
-  getAccountById(accountId: string): Promise<TronAccount>;
-  getAccountResources(address: string): Promise<TronAccountResources>;
-  getBlock(number?: string): Promise<unknown>;
+  getAccountState(address: string): Promise<TronAccountState>;
+  getAccountStateById(accountId: string): Promise<TronAccountState>;
+  getAccountResources(address: string): Promise<TronResourceUsage>;
+  // Latest block when number is omitted; null when the node holds no block at that height.
+  getBlock(number?: string): Promise<TronBlock | null>;
+  getHeadBlock(): Promise<TronHeadBlock>;
   // TAPOS: whether this node holds the block the transaction references; reads the head block.
   referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
   // Net base units received, verified from transaction logs or internal native transfers.
   receivedAmount(txid: string, token: string, recipient: string): Promise<string | undefined>;
-  getChainParameters(): Promise<Array<{ key: string; value?: number | string }>>;
-  getEnergyPrices(): Promise<string>;
-  getBandwidthPrices(): Promise<string>;
+  // Values are proven safe integers.
+  getChainParameters(): Promise<Array<{ key: string; value?: number }>>;
+  // Non-empty, oldest first; the last point is the current price.
+  getEnergyPrices(): Promise<TronPricePoint[]>;
+  getBandwidthPrices(): Promise<TronPricePoint[]>;
   getNodeInfo(): Promise<TronNodeInfo>;
   getDelegatedResourceV2(from: string, to: string): Promise<TronDelegatedResource[]>;
   getDelegatedIndexV2(address: string): Promise<{ fromAccounts: string[]; toAccounts: string[] }>;
   getCanDelegatedMaxSize(address: string, resource: RpcResourceCode): Promise<string>;
   getCanWithdrawUnfreezeAmount(address: string): Promise<string>;
   getAvailableUnfreezeCount(address: string): Promise<number>;
-  decodeTransaction(transaction: TronTx): DecodedTronTransaction;
+  decodeTransaction(transaction: TronTransactionArtifact): DecodedTronTransaction;
   getTrc20Balance(contract: string, address: string): Promise<string>;
   getTokenInfo(contract: string): Promise<TronTokenInfo>;
   getTrc10Balance(assetId: string, address: string): Promise<string>;
-  getTrc10Info(assetId: string): Promise<TronTokenInfo>;
-  buildNativeTransfer(from: string, to: string, amountSun: string): Promise<UnsignedTx>;
-  buildAccountCreate(owner: string, target: string): Promise<UnsignedTx>;
-  buildAccountUpdate(owner: string, accountName: string): Promise<UnsignedTx>;
-  buildSetAccountId(owner: string, accountId: string): Promise<UnsignedTx>;
+  // The node's asset record, including fields TronAsset does not name.
+  getTrc10Info(assetId: string): Promise<TronAsset>;
+  buildNativeTransfer(
+    from: string,
+    to: string,
+    amountSun: string,
+  ): Promise<TronTransactionArtifact>;
+  buildAccountCreate(owner: string, target: string): Promise<TronTransactionArtifact>;
+  buildAccountUpdate(owner: string, accountName: string): Promise<TronTransactionArtifact>;
+  buildSetAccountId(owner: string, accountId: string): Promise<TronTransactionArtifact>;
   buildTrc20Transfer(
     from: string,
     to: string,
     contract: string,
     amount: string,
-    feeLimit: string,
-  ): Promise<UnsignedTx>;
+    feeLimit: Sun,
+  ): Promise<TronTransactionArtifact>;
   buildTrc10Transfer(
     from: string,
     to: string,
     assetId: string,
     amount: string,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
 
   getAssetById(assetId: string): Promise<TronAsset | undefined>;
   // Names can identify multiple assets.
@@ -321,15 +405,15 @@ export interface TronGateway extends Broadcaster {
   getAssetByIssuer(address: string): Promise<TronAsset | undefined>;
   // One server-side page only.
   listAssets(limit: number, offset: number): Promise<TronAsset[]>;
-  buildAssetIssue(owner: string, issuance: TronAssetIssuance): Promise<UnsignedTx>;
-  buildAssetUpdate(owner: string, update: TronAssetUpdate): Promise<UnsignedTx>;
+  buildAssetIssue(owner: string, issuance: TronAssetIssuance): Promise<TronTransactionArtifact>;
+  buildAssetUpdate(owner: string, update: TronAssetUpdate): Promise<TronTransactionArtifact>;
   buildAssetParticipate(
     owner: string,
     issuer: string,
     assetId: string,
     amountSun: string,
-  ): Promise<UnsignedTx>;
-  buildAssetUnfreeze(owner: string): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
+  buildAssetUnfreeze(owner: string): Promise<TronTransactionArtifact>;
 
   getExchangeById(exchangeId: number): Promise<TronExchange | undefined>;
   // Server-side page in ID order.
@@ -340,19 +424,19 @@ export interface TronGateway extends Broadcaster {
     firstBalance: string,
     secondTokenId: string,
     secondBalance: string,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildExchangeInject(
     owner: string,
     exchangeId: number,
     tokenId: string,
     quant: string,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildExchangeWithdraw(
     owner: string,
     exchangeId: number,
     tokenId: string,
     quant: string,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   // expected is the on-chain slippage floor; lower output reverts.
   buildExchangeTrade(
     owner: string,
@@ -360,18 +444,26 @@ export interface TronGateway extends Broadcaster {
     tokenId: string,
     quant: string,
     expected: string,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   estimateResources(
     from: string,
     contract: string,
     method: string,
     parameters: TronContractParameter[],
-    callValueSun?: string,
+    callValueSun?: Sun,
   ): Promise<TronFeeEstimate>;
-  buildFreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<UnsignedTx>;
-  buildUnfreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<UnsignedTx>;
-  buildWithdrawExpireUnfreeze(owner: string): Promise<UnsignedTx>;
-  buildCancelAllUnfreezeV2(owner: string): Promise<UnsignedTx>;
+  buildFreezeV2(
+    owner: string,
+    amountSun: string,
+    resource: RpcResourceCode,
+  ): Promise<TronTransactionArtifact>;
+  buildUnfreezeV2(
+    owner: string,
+    amountSun: string,
+    resource: RpcResourceCode,
+  ): Promise<TronTransactionArtifact>;
+  buildWithdrawExpireUnfreeze(owner: string): Promise<TronTransactionArtifact>;
+  buildCancelAllUnfreezeV2(owner: string): Promise<TronTransactionArtifact>;
   buildDelegateResource(
     owner: string,
     amountSun: string,
@@ -379,50 +471,50 @@ export interface TronGateway extends Broadcaster {
     receiver: string,
     lock: boolean,
     lockPeriod?: string,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildUndelegateResource(
     owner: string,
     amountSun: string,
     resource: RpcResourceCode,
     receiver: string,
-  ): Promise<UnsignedTx>;
-  buildVoteWitness(owner: string, votes: TronVote[]): Promise<UnsignedTx>;
-  buildWithdrawBalance(owner: string): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
+  buildVoteWitness(owner: string, votes: TronVote[]): Promise<TronTransactionArtifact>;
+  buildWithdrawBalance(owner: string): Promise<TronTransactionArtifact>;
   getWitnesses(limit: number): Promise<TronWitness[]>;
   getWitness(address: string): Promise<TronWitness | null>;
   getProposals(): Promise<TronProposal[]>;
   getProposal(id: number): Promise<TronProposal | null>;
   buildProposalCreate(
     owner: string,
-    parameters: Array<{ key: number; value: number | string }>,
+    parameters: Array<{ key: number; value: bigint }>,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildProposalApprove(
     owner: string,
     proposalId: number,
     addApproval: boolean,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildProposalDelete(
     owner: string,
     proposalId: number,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildWitnessCreate(
     owner: string,
     url: string,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildWitnessUpdate(
     owner: string,
     url: string,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildWitnessSetBrokerage(
     owner: string,
     brokerage: number,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   getBrokerage(address: string): Promise<number>;
   getReward(address: string): Promise<string>;
   triggerConstantContract(
@@ -436,36 +528,36 @@ export interface TronGateway extends Broadcaster {
     contract: string,
     method: string,
     parameters: TronContractParameter[],
-    options?: { feeLimit?: string; callValue?: string; permissionId?: number },
-  ): Promise<UnsignedTx>;
+    options?: { feeLimit?: Sun; callValue?: Sun; permissionId?: number },
+  ): Promise<TronTransactionArtifact>;
   deployContract(
     from: string,
     input: {
       abi: unknown;
       bytecode: string;
-      feeLimit: string;
+      feeLimit: Sun;
       parameters?: unknown[];
       permissionId?: number;
     },
-  ): Promise<UnsignedTx>;
-  getContract(address: string): Promise<unknown>;
-  getContractInfo(address: string): Promise<unknown>;
+  ): Promise<TronTransactionArtifact>;
+  // Base58 address a prepared deployment creates; preparation changes it with the txID.
+  deployedContractAddress(transaction: TronTransactionArtifact): string | undefined;
   getContractMetadata(address: string): Promise<TronContractMetadata>;
   buildClearContractAbi(
     owner: string,
     contract: string,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildUpdateOriginEnergyLimit(
     owner: string,
     contract: string,
     energy: number | string,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
   buildUpdateUserResourcePercent(
     owner: string,
     contract: string,
     percent: number,
     options?: TronTransactionBuildOptions,
-  ): Promise<UnsignedTx>;
+  ): Promise<TronTransactionArtifact>;
 }

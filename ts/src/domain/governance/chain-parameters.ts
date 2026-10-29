@@ -1,4 +1,5 @@
 import { UsageError } from "../errors/index.js";
+import { FAMILIES } from "../family/index.js";
 
 export interface ChainParameterDefinition {
   id: number;
@@ -12,7 +13,7 @@ export interface ChainParameterDefinition {
 export interface ChainParameterChange {
   id: number;
   name: string;
-  currentValue: number | string | null;
+  currentValue: number | null;
   proposedValue: number | string;
   unit: string;
 }
@@ -129,25 +130,27 @@ const ranges = new Map<number, readonly [bigint, bigint]>([
   [92, [1n, 31_536_003_000n]],
 ]);
 
+const SUN = FAMILIES.tron.nativeUnit;
+
 const units: Readonly<Record<string, string>> = {
   getMaintenanceTimeInterval: "ms",
-  getAccountUpgradeCost: "sun",
-  getCreateAccountFee: "sun",
-  getTransactionFee: "sun/byte",
-  getAssetIssueFee: "sun",
-  getWitnessPayPerBlock: "sun",
-  getWitnessStandbyAllowance: "sun",
-  getCreateNewAccountFeeInSystemContract: "sun",
-  getEnergyFee: "sun",
-  getExchangeCreateFee: "sun",
+  getAccountUpgradeCost: SUN,
+  getCreateAccountFee: SUN,
+  getTransactionFee: `${SUN}/byte`,
+  getAssetIssueFee: SUN,
+  getWitnessPayPerBlock: SUN,
+  getWitnessStandbyAllowance: SUN,
+  getCreateNewAccountFeeInSystemContract: SUN,
+  getEnergyFee: SUN,
+  getExchangeCreateFee: SUN,
   getMaxCpuTimeOfOneTx: "ms",
-  getUpdateAccountPermissionFee: "sun",
-  getMultiSignFee: "sun",
-  getWitness127PayPerBlock: "sun",
-  getMarketSellFee: "sun",
-  getMarketCancelFee: "sun",
-  getMaxFeeLimit: "sun",
-  getMemoFee: "sun",
+  getUpdateAccountPermissionFee: SUN,
+  getMultiSignFee: SUN,
+  getWitness127PayPerBlock: SUN,
+  getMarketSellFee: SUN,
+  getMarketCancelFee: SUN,
+  getMaxFeeLimit: SUN,
+  getMemoFee: SUN,
   getProposalExpireTime: "ms",
 };
 
@@ -178,7 +181,7 @@ export function chainParameterByName(name: string): ChainParameterDefinition | u
 
 export function parseChainParameterAssignments(
   assignments: readonly string[],
-  current: ReadonlyArray<{ key: string; value?: number | string }>,
+  current: ReadonlyArray<{ key: string; value?: number }>,
 ): ChainParameterChange[] {
   const currentByName = new Map(current.map((entry) => [entry.key.toLowerCase(), entry.value]));
   const selected = new Map<number, ChainParameterChange>();

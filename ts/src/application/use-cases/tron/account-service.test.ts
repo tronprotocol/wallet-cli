@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { TronAccountService } from "./account-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
@@ -170,8 +171,8 @@ function writeService(
   } = {},
 ) {
   const gateway = {
-    getAccount: vi.fn(options.getAccount ?? (async () => ({}))),
-    getAccountById: vi.fn(options.getAccountById ?? (async () => ({}))),
+    getAccountState: vi.fn(options.getAccount ?? (async () => ({}))),
+    getAccountStateById: vi.fn(options.getAccountById ?? (async () => ({}))),
     getChainParameters: vi.fn(async () => [
       { key: "getCreateAccountFee", value: 100_000 },
       { key: "getCreateNewAccountFeeInSystemContract", value: 1_000_000 },
@@ -218,6 +219,69 @@ function writeService(
   );
   return { service, gateway, pipeline, captured: () => captured };
 }
+
+describe("TronAccountService.info", () => {
+  const RAW = { address: "41...", balance: "9000000" };
+  const STAKE = {
+    energySun: "1000000",
+    bandwidthSun: "2000000",
+    tronPowerSun: "3000000",
+    totalSun: "6000000",
+  };
+  function infoService(permissions: () => Promise<unknown>) {
+    const gateway = {
+      getAccountState: async () => ({
+        address: OWNER,
+        balanceSun: "9000000",
+        createdAt: 1700000000000,
+        stake: STAKE,
+        unfreezing: [],
+        votes: [],
+        raw: RAW,
+      }),
+      getAccountResources: async () => ({
+        energy: { used: 1, limit: 2 },
+        bandwidth: { used: 3, limit: 4 },
+        votingPower: { total: 6, used: 0 },
+      }),
+      getAccountPermissions: permissions,
+    };
+    return new TronAccountService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as TronHistoryReader,
+      {} as TokenRepository,
+      {} as PriceProvider,
+      {} as TxPipeline,
+    );
+  }
+
+  it("returns the balance, stake, creation time and permission summary as fields", async () => {
+    const service = infoService(async () => ({
+      address: OWNER,
+      owner: { id: 0, name: "owner", threshold: 2, keys: [{}, {}] },
+      witness: null,
+      actives: [{}],
+    }));
+
+    expect(await service.info({ ...scope, resolveAddress: () => OWNER }, net)).toEqual({
+      address: OWNER,
+      account: RAW,
+      resources: { bandwidth: { used: 3, limit: 4 }, energy: { used: 1, limit: 2 } },
+      balanceSun: "9000000",
+      staked: STAKE,
+      createdAt: 1700000000000,
+      permissions: { ownerThreshold: 2, ownerKeys: 2, activeGroups: 1 },
+    });
+  });
+
+  it("reports no permissions for an account the node does not hold", async () => {
+    const service = infoService(async () => {
+      throw new ChainError("not_found", "TRON account is not activated");
+    });
+
+    await expect(service.info(scope, net)).resolves.toMatchObject({ permissions: null });
+  });
+});
 
 describe("TronAccountService account lifecycle writes", () => {
   it("dry-runs activation with both dynamic creation fees and no signer gate", async () => {
@@ -305,14 +369,14 @@ describe("TronAccountService account lifecycle writes", () => {
       address: OWNER,
     });
     expect(gateway.buildAccountUpdate).toHaveBeenCalledWith(OWNER, "Acme Treasury");
-    expect(gateway.getAccountById).not.toHaveBeenCalled();
+    expect(gateway.getAccountStateById).not.toHaveBeenCalled();
   });
 
   it("rejects a previously set name and a globally occupied ID", async () => {
     const named = writeService({
       getAccount: async () => ({
         address: OWNER,
-        account_name: Buffer.from("existing", "utf8").toString("hex"),
+        name: "existing",
       }),
     });
     await expect(
@@ -475,7 +539,7 @@ describe("TronAccountService account lifecycle writes", () => {
         address: TARGET,
       }),
     ).rejects.toMatchObject({ code: "watch_only_no_signer" });
-    expect(gateway.getAccount).not.toHaveBeenCalled();
+    expect(gateway.getAccountState).not.toHaveBeenCalled();
   });
 
   describe("contract types the Ledger TRON app cannot parse", () => {
@@ -496,7 +560,7 @@ describe("TronAccountService account lifecycle writes", () => {
           address: TARGET,
         }),
       ).rejects.toMatchObject({ code: "ledger_unsupported" });
-      expect(gateway.getAccount).not.toHaveBeenCalled();
+      expect(gateway.getAccountState).not.toHaveBeenCalled();
     });
 
     it("refuses `set --id` on a Ledger account before any RPC", async () => {
@@ -510,7 +574,7 @@ describe("TronAccountService account lifecycle writes", () => {
           id: "acme-001",
         }),
       ).rejects.toMatchObject({ code: "ledger_unsupported" });
-      expect(gateway.getAccount).not.toHaveBeenCalled();
+      expect(gateway.getAccountState).not.toHaveBeenCalled();
     });
 
     it("still allows `set --name` on a Ledger account", async () => {

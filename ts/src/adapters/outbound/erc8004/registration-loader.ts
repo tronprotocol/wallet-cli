@@ -7,11 +7,13 @@ import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 
+import type { AgentRegistrationMetadata } from "../../../application/ports/agent-sdk.js";
+
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_JSON_DEPTH = 20;
 
 export interface RegistrationLoadResult {
-  metadata?: Record<string, unknown>;
+  metadata?: AgentRegistrationMetadata;
   warning?: string;
 }
 
@@ -320,7 +322,7 @@ function parseMetadata(text: string): RegistrationLoadResult {
       }
     }
   }
-  return { metadata: value as Record<string, unknown> };
+  return { metadata: value as AgentRegistrationMetadata };
 }
 
 function warningFor(error: unknown): string {

@@ -88,7 +88,7 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
 
   // Settlement costs are only available after confirmation.
   if (stage === "submitted") {
-    pairs.push(["Status", submittedStatus(r.kind)]);
+    pairs.push(["Status", submittedStatus(r)]);
     const body = receipt(pending(), summary, pairs);
     const networkFlag = ctx?.net ? ` --network ${ctx.net.id}` : "";
     return txid ? `${body}\n! Track it: wallet-cli tx info${networkFlag} --txid ${txid}` : body;
@@ -104,30 +104,30 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
     if (r.result) pairs.push(["Reason", String(r.result)]);
     return receipt(fail(), summary, pairs);
   }
-  pairs.push(["Status", successStatus(r.kind)]);
+  pairs.push(["Status", successStatus(r)]);
   return receipt(ok(), summary, pairs);
 }
 
-function submittedStatus(kind: TxReceiptKind): string {
-  switch (kind) {
-    case "vote-cast":
-      return "pending — tallied at next maintenance cycle (~6h)";
-    case "reward-withdraw":
-      return "pending — next withdrawal available in ~24h";
-    default:
-      return "pending — not yet on-chain";
+const hours = (ms: number) => `~${Math.round(ms / 3_600_000)}h`;
+
+function timingNote(r: TxReceiptView): string | undefined {
+  if (r.kind === "vote-cast") {
+    const interval = r.maintenanceIntervalMs;
+    return `tallied at next maintenance cycle${interval === undefined ? "" : ` (${hours(interval)})`}`;
   }
+  if (r.kind === "reward-withdraw" && r.withdrawIntervalMs !== undefined) {
+    return `next withdrawal available in ${hours(r.withdrawIntervalMs)}`;
+  }
+  return undefined;
 }
 
-function successStatus(kind: TxReceiptKind): string {
-  switch (kind) {
-    case "vote-cast":
-      return "success — tallied at next maintenance cycle (~6h)";
-    case "reward-withdraw":
-      return "success — next withdrawal available in ~24h";
-    default:
-      return "success";
-  }
+function submittedStatus(r: TxReceiptView): string {
+  return `pending — ${timingNote(r) ?? "not yet on-chain"}`;
+}
+
+function successStatus(r: TxReceiptView): string {
+  const note = timingNote(r);
+  return note ? `success — ${note}` : "success";
 }
 
 function receiptSummary(r: TxReceiptView, family: ChainFamily, symbol: string): string {

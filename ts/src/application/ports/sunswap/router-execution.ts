@@ -1,8 +1,9 @@
 // Return unsigned calls; the transaction pipeline owns signing and broadcasting.
 import type { ContractParameter } from "../../contracts/tron-contract-call.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { Sun } from "../../../domain/amounts/index.js";
 
-// Encoder output for domain validation; callValue and feeLimit are SUN.
+// Unvalidated encoder output; assertRouterCallMatches checks it and returns its SUN amounts.
 export interface RouterSwapCall {
   readonly target: string;
   readonly functionSelector: string;
@@ -26,7 +27,7 @@ export interface RouterExecutionPort {
       readonly slippageBips: number;
       readonly recipient: string;
       readonly validForSeconds: number;
-      readonly feeLimitSun: string;
+      readonly feeLimitSun: Sun;
       // Absent for native TRX, which needs no permit.
       readonly permit?: { readonly grant: unknown; readonly signature: string };
     },

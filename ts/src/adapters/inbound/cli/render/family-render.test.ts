@@ -162,19 +162,39 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.tron.accountInfoRows(
       {
         address: "TXP3YPS3mgoHRioz42gMhL6x5VvusPTMk6",
-        account: {
-          balance: "9000000000",
-          owner_permission: { threshold: 1, keys: [{}] },
-          active_permission: [{}],
-        },
+        account: { balance: "1", owner_permission: { threshold: 9, keys: [] } },
+        balanceSun: "9000000000",
+        staked: { energySun: "0", bandwidthSun: "0", tronPowerSun: "0", totalSun: "0" },
+        createdAt: 1700000000000,
+        permissions: { ownerThreshold: 1, ownerKeys: 1, activeGroups: 1 },
         resources: { energy: { used: 12, limit: 65 }, bandwidth: { used: 6, limit: 15 } },
       },
       "TRX",
     );
 
     expect(rows).toContainEqual(["Balance", "9,000 TRX"]);
+    expect(rows).toContainEqual(["Created", "2023-11-14"]);
     expect(rows).toContainEqual(["Permissions", "owner 1-of-1, 1 active group"]);
     expect(rows.map((r) => r[0])).toContain("Energy");
+    expect(rows.map((r) => r[0])).not.toContain("Staked");
+  });
+
+  it("shows no permission summary for an account without permissions", () => {
+    const rows = FAMILY_RENDER.tron.accountInfoRows(
+      {
+        address: "TXP3YPS3mgoHRioz42gMhL6x5VvusPTMk6",
+        account: {},
+        balanceSun: "0",
+        staked: { energySun: "0", bandwidthSun: "0", tronPowerSun: "0", totalSun: "0" },
+        createdAt: null,
+        permissions: null,
+        resources: {},
+      },
+      "TRX",
+    );
+
+    expect(rows).toContainEqual(["Permissions", "—"]);
+    expect(rows).toContainEqual(["Created", ""]);
   });
 });
 

@@ -1,10 +1,10 @@
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
-import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
+import { TronAddress } from "../../../domain/address/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAccount, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TronHistoryQuery, TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
 import { holding, portfolioTotal, unavailableHolding } from "../portfolio-holdings.js";
@@ -45,8 +45,8 @@ export class TronAccountService {
     }
     const mode = transactionMode(input);
     const gateway = this.gateways.get(network, "tron");
-    const existing = await gateway.getAccount(input.address);
-    if (accountExists(existing, input.address)) {
+    const existing = await gateway.getAccountState(input.address);
+    if (existing.address !== undefined) {
       throw new ChainError(
         "account_already_active",
         `TRON account is already active: ${input.address}`,
@@ -80,8 +80,8 @@ export class TronAccountService {
     });
     if (outcome.stage === "confirmed" && !outcome.failed) {
       await warnOnPostCheck(scope, "account_activate_postcheck", async () => {
-        const activated = await gateway.getAccount(input.address);
-        return accountExists(activated, input.address)
+        const activated = await gateway.getAccountState(input.address);
+        return activated.address !== undefined
           ? undefined
           : "confirmed account activation is not visible from the selected node";
       });
@@ -110,20 +110,19 @@ export class TronAccountService {
     const value = validateAccountText(field, input.name ?? input.id!);
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
-    const account = await gateway.getAccount(address);
-    if (!accountExists(account, address)) {
+    const account = await gateway.getAccountState(address);
+    if (account.address === undefined) {
       throw new ChainError("not_found", `TRON account is not activated: ${address}`);
     }
-    const current = field === "name" ? account.account_name : account.account_id;
-    if (accountTextIsSet(current, field)) {
+    if (account[field] !== undefined) {
       throw new ChainError(
         field === "name" ? "name_already_set" : "id_already_set",
         `on-chain account ${field} is already set`,
       );
     }
     if (field === "id") {
-      const taken = await gateway.getAccountById(value);
-      if (accountExists(taken)) {
+      const taken = await gateway.getAccountStateById(value);
+      if (taken.address !== undefined) {
         throw new ChainError("id_taken", `account id is already in use: ${value}`);
       }
     }
@@ -146,9 +145,8 @@ export class TronAccountService {
     });
     if (outcome.stage === "confirmed" && !outcome.failed) {
       await warnOnPostCheck(scope, "account_set_postcheck", async () => {
-        const updated = await gateway.getAccount(address);
-        const raw = field === "name" ? updated.account_name : updated.account_id;
-        return decodeAccountText(raw, field) === value
+        const updated = await gateway.getAccountState(address);
+        return updated[field] === value
           ? undefined
           : `confirmed account ${field} does not match the submitted value`;
       });
@@ -165,23 +163,26 @@ export class TronAccountService {
   async info(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
-    const [account, resources] = await Promise.all([
-      gateway.getAccount(address),
+    const [account, resources, permissions] = await Promise.all([
+      gateway.getAccountState(address),
       gateway.getAccountResources(address),
+      gateway.getAccountPermissions(address).catch((error: unknown) => {
+        // An account that is not activated has no permissions.
+        if (error instanceof ChainError && error.code === "not_found") return null;
+        throw error;
+      }),
     ]);
-    const number = (value: unknown) => Number(value ?? 0);
     return {
       address,
-      account,
-      resources: {
-        bandwidth: {
-          used: number(resources.NetUsed) + number(resources.freeNetUsed),
-          limit: number(resources.NetLimit) + number(resources.freeNetLimit),
-        },
-        energy: {
-          used: number(resources.EnergyUsed),
-          limit: number(resources.EnergyLimit),
-        },
+      account: account.raw,
+      resources: { bandwidth: resources.bandwidth, energy: resources.energy },
+      balanceSun: account.balanceSun,
+      staked: account.stake,
+      createdAt: account.createdAt ?? null,
+      permissions: permissions && {
+        ownerThreshold: permissions.owner.threshold,
+        ownerKeys: permissions.owner.keys.length,
+        activeGroups: permissions.actives.length,
       },
     };
   }
@@ -288,43 +289,4 @@ function validateAccountText(field: "name" | "id", input: string): string {
     );
   }
   return input;
-}
-
-function accountExists(account: TronAccount, expected?: string): boolean {
-  const raw = account.address;
-  if (raw === undefined || raw === null || raw === "") return false;
-  if (typeof raw !== "string") {
-    throw new ChainError("provider_error", "TRON node returned a malformed account address");
-  }
-  const normalized = tronHexToBase58(raw);
-  if (!ADDRESS.validate(normalized)) {
-    throw new ChainError("provider_error", "TRON node returned an invalid account address");
-  }
-  if (expected !== undefined && normalized !== expected) {
-    throw new ChainError(
-      "provider_error",
-      "TRON node returned an account address different from the query",
-    );
-  }
-  return true;
-}
-
-function accountTextIsSet(value: unknown, field: "name" | "id"): boolean {
-  if (value === undefined || value === null || value === "") return false;
-  if (typeof value !== "string") {
-    throw new ChainError("provider_error", `TRON node returned malformed account_${field}`);
-  }
-  return true;
-}
-
-function decodeAccountText(value: unknown, field: "name" | "id"): string | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string" || !/^(?:[0-9a-fA-F]{2})+$/.test(value)) {
-    throw new ChainError("provider_error", `TRON node returned malformed account_${field}`);
-  }
-  const decoded = Buffer.from(value, "hex").toString("utf8");
-  if (Buffer.from(decoded, "utf8").toString("hex") !== value.toLowerCase()) {
-    throw new ChainError("provider_error", `TRON node returned invalid UTF-8 account_${field}`);
-  }
-  return decoded;
 }

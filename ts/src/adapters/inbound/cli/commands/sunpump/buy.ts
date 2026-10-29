@@ -5,6 +5,7 @@ import type { SunPumpCurveTradeService } from "../../../../../application/use-ca
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
 import { CURVE_TRADE_NOTES, curveTradeFields, refuseQuoteWithSendingFlags } from "./shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
 
 const fields = z.object({
   token: Schemas.address().describe("the SunPump token's contract address"),
@@ -57,6 +58,6 @@ export const sunpumpBuyTronBinding = (service: SunPumpCurveTradeService): Family
       ...(input.quote === undefined ? {} : { quote: input.quote }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
     }),
 });

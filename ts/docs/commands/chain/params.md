@@ -12,7 +12,7 @@ wallet-cli chain params [--key <name>] [options]
 
 > **TRON only.** SR-governed system parameters have no EVM counterpart; on an EVM network this fails with `family_mismatch` before any node call.
 
-Lists the chain's governance parameters — network-wide system settings changed by SR proposals (see [`proposal create`](../proposal/create.md)); this command only reads them. `--key` returns a single one. Keys pass through exactly as the chain returns them; text output adds thousands separators and units (SUN / ms) for known numeric keys, `-o json` keeps raw values.
+Lists the chain's governance parameters — network-wide system settings changed by SR proposals (see [`proposal create`](../proposal/create.md)); this command only reads them. `--key` returns a single one. Keys pass through exactly as the chain returns them; each parameter carries its `unit` from wallet-cli's parameter catalog (empty when it has none); text output adds thousands separators and that unit, `-o json` keeps raw values.
 
 Frequently used keys:
 
@@ -44,7 +44,7 @@ wallet-cli chain params --key getEnergyFee --network nile
 
 ```console
 Key    getEnergyFee
-Value  210 SUN
+Value  210 sun
 ```
 
 All parameters (excerpt):
@@ -56,10 +56,10 @@ wallet-cli chain params --network nile
 ```console
 | Key                        | Value          |
 | -------------------------- | -------------- |
-| getEnergyFee               | 210 SUN        |
-| getTransactionFee          | 1,000 SUN      |
-| getCreateAccountFee        | 100,000 SUN    |
-| getWitnessPayPerBlock      | 16,000,000 SUN |
+| getEnergyFee               | 210 sun        |
+| getTransactionFee          | 1,000 sun/byte |
+| getCreateAccountFee        | 100,000 sun    |
+| getWitnessPayPerBlock      | 16,000,000 sun |
 | getMaintenanceTimeInterval | 21,600,000 ms  |
 ```
 
@@ -68,7 +68,7 @@ wallet-cli chain params --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":210},{"key":"getTransactionFee","value":1000},{"key":"getCreateAccountFee","value":100000}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":210,"unit":"sun"},{"key":"getTransactionFee","value":1000,"unit":"sun/byte"},{"key":"getCreateAccountFee","value":100000,"unit":"sun"}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -78,7 +78,8 @@ wallet-cli chain params --network nile -o json
 | Field | Type | Meaning |
 |---|---|---|
 | `key` | string | Parameter name, verbatim from the chain |
-| `value` | number | Raw chain value, no unit suffix (text adds SUN / ms). Absent altogether for a parameter the node reports without one |
+| `value` | number | Raw chain value, no unit suffix. Absent altogether for a parameter the node reports without one |
+| `unit` | string | Unit of `value` (`sun`, `sun/byte`, `ms`); empty for a flag, a count, or a key wallet-cli does not know |
 
 ## Exit status
 

@@ -9,7 +9,7 @@ import { utils as tronUtils } from "tronweb";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { tronBytesToBase58 } from "../../../domain/address/index.js";
+import { tronAddressFromHash20 } from "../../../domain/address/index.js";
 
 const SDK_NETWORKS: Readonly<Record<string, string>> = {
   "tron:728126428": "mainnet",
@@ -128,7 +128,7 @@ function decode(
 function plain(value: unknown, type: string): unknown {
   if (typeof value === "bigint") return value.toString();
   if (type === "address" && typeof value === "string" && value.startsWith("0x")) {
-    return tronBytesToBase58(Uint8Array.from(Buffer.from(`41${value.slice(2)}`, "hex")));
+    return tronAddressFromHash20(value.slice(2));
   }
   return value;
 }

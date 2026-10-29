@@ -41,7 +41,7 @@ wallet-cli account info --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"account.info","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","account":{"balance":"1976489000","create_time":1782787719000,"owner_permission":{},"active_permission":[],"frozenV2":[{},{"type":"ENERGY","amount":"12000000"},{"type":"TRON_POWER"}]},"resources":{"bandwidth":{"used":0,"limit":600},"energy":{"used":0,"limit":888}}},"meta":{"durationMs":1914,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"account.info","data":{"address":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","account":{"balance":"1976489000","create_time":1782787719000,"owner_permission":{},"active_permission":[],"frozenV2":[{},{"type":"ENERGY","amount":"12000000"},{"type":"TRON_POWER"}]},"resources":{"bandwidth":{"used":0,"limit":600},"energy":{"used":0,"limit":888}},"balanceSun":"1976489000","staked":{"energySun":"12000000","bandwidthSun":"0","tronPowerSun":"0","totalSun":"12000000"},"createdAt":1782787719000,"permissions":{"ownerThreshold":1,"ownerKeys":1,"activeGroups":1}},"meta":{"durationMs":1914,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 On an EVM network the same command reports the EVM account state:
@@ -78,8 +78,12 @@ TRON:
 | `account` | object | Account object returned as-is by the TRON node: `balance` (SUN string), timestamps, `owner_permission` / `active_permission` (multi-sig keys & thresholds), `frozenV2` (staked amounts by type), etc.; fields are determined by the node, wallet-cli does not reshape them |
 | `resources.bandwidth` | object | `used` / `limit` (bytes) |
 | `resources.energy` | object | `used` / `limit` |
+| `balanceSun` | string | Balance in SUN |
+| `staked.energySun` / `.bandwidthSun` / `.tronPowerSun` / `.totalSun` | string | Staked TRX in SUN by resource, and their sum. `tronPowerSun` is stake that yields voting power only; `frozenV2` entries of any other type are not counted |
+| `createdAt` | number \| null | Account creation time, epoch ms; `null` when the node reports none |
+| `permissions` | object \| null | `{ownerThreshold, ownerKeys, activeGroups}`; `null` when the account is not activated |
 
-The `resources` block is normalized by wallet-cli — stable, safe to program against; `account` is returned as-is by the node, its fields vary with the node/protocol and are not guaranteed stable.
+Every field except `account` is normalized by wallet-cli — stable, safe to program against; `account` is returned as-is by the node, its fields vary with the node/protocol and are not guaranteed stable.
 
 EVM:
 

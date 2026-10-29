@@ -9,19 +9,16 @@ import {
 import { walletAddress } from "../../domain/wallet/index.js";
 import { assertPasswordPolicy } from "../../domain/wallet/password-policy.js";
 import {
+  addressCodec,
   CHAIN_FAMILIES,
   canonicalAddress,
   familyOf,
+  tronHexAddress,
   type ChainFamily,
 } from "../../domain/family/index.js";
 import { resembledFamily } from "../../domain/contact/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
-import {
-  TronAddress,
-  evmAddressFromPublicKey,
-  tronHexAddress,
-} from "../../domain/address/index.js";
-import type { AccountDescriptor, Bytes } from "../../domain/types/index.js";
+import type { AccountDescriptor, Bytes, WarningView } from "../../domain/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
@@ -44,6 +41,8 @@ const notExportable = (type: string) =>
 
 // Preferred record identity for native backups covering every family.
 const RECORD_IDENTITY_FAMILY: ChainFamily = "tron";
+
+export const SECRET_FILE_NOT_REMOVED_WARNING = "secret_file_not_removed";
 
 export interface BackupRecordQuery {
   // Inclusive UTC ISO-8601 bounds; caller parses and validates both.
@@ -212,8 +211,15 @@ export class WalletService {
     );
   }
 
-  delete(account: string) {
-    return this.wallets.delete(account);
+  delete(account: string, warn: (warning: WarningView) => void) {
+    const { retainedSecretFile, ...result } = this.wallets.delete(account);
+    if (retainedSecretFile !== undefined) {
+      warn({
+        code: SECRET_FILE_NOT_REMOVED_WARNING,
+        message: `the account was deleted, but its encrypted secret file could not be removed: ${retainedSecretFile}; delete that file yourself`,
+      });
+    }
+    return result;
   }
 
   verifyPassword(password: string) {
@@ -443,9 +449,8 @@ export class WalletService {
 // Informational address: TRON uses 41-prefixed hex; EVM uses 0x-prefixed hex.
 function keystoreAddress(family: ChainFamily, privateKey: Bytes): string {
   const publicKey = Derivation.publicKeyFromPrivate(privateKey);
-  return family === "tron"
-    ? tronHexAddress(new TronAddress().fromPublicKey(publicKey))
-    : evmAddressFromPublicKey(publicKey);
+  const address = addressCodec(family).fromPublicKey(publicKey);
+  return family === "tron" ? tronHexAddress(address) : address;
 }
 
 function addressRejection(value: string): string {

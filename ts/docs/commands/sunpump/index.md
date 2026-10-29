@@ -46,7 +46,7 @@ The two closed states get different messages: one is a wait, the other is a redi
 
 ## The platform fee is not the chain's fee
 
-SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%. When it does, the `--quote` and `--dry-run` output warn with the rate it actually worked out to, and JSON carries it as `platformFeePercent`:
+SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%. When it does, the `--quote` and `--dry-run` output warn with the rate it actually worked out to, and JSON carries it as `platformFeePercent`, with the minimum in SUN as `platformFeeMinimum`:
 
 ```
 ⚠️ Platform fee is 25.38% of this sell (0.01 TRX minimum).

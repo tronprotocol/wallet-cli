@@ -1,4 +1,4 @@
-import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type {
   EvmContractWriteInput,
@@ -6,6 +6,7 @@ import type {
   GovernanceTransactionInput,
 } from "../contracts/transaction-input.js";
 import type { TronContractParameter } from "./chain/tron-gateway.js";
+import type { Sun } from "../../domain/amounts/index.js";
 
 export interface EvmContractPort {
   call(
@@ -18,7 +19,7 @@ export interface EvmContractPort {
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: EvmContractWriteInput,
-  ): Promise<Record<string, unknown>>;
+  ): Promise<TxReceiptView>;
 }
 
 export interface TronContractPort {
@@ -36,10 +37,10 @@ export interface TronContractPort {
       method: string;
       approvalKind?: ApprovalKind;
       parameters: TronContractParameter[];
-      callValueSun: string;
-      feeLimit: string;
+      callValueSun: Sun;
+      feeLimit: Sun;
     },
-  ): Promise<Record<string, unknown>>;
+  ): Promise<TxReceiptView>;
 }
 
 export interface AgentContractPorts {

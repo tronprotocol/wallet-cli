@@ -1,7 +1,8 @@
 // Scalars are checked exactly; encoded inputs are checked only for word containment.
 // Containment does not prove field roles: another field or a small integer can satisfy a check.
-import { tronHexAddress } from "../address/index.js";
+import { tronHash20Hex } from "../address/index.js";
 import { ChainError } from "../errors/index.js";
+import { sunAmount, type Sun } from "../amounts/index.js";
 
 const SELECTOR = "execute(bytes,bytes[],uint256)";
 
@@ -14,7 +15,7 @@ export interface RouterCallExpectation {
   readonly recipient: string;
   // Native input travels as callValue in SUN; token input sends zero.
   readonly nativeIn: boolean;
-  readonly feeLimit: string;
+  readonly feeLimit: Sun;
   // Latest deadline and current time, Unix seconds.
   readonly notAfter: number;
   readonly now: number;
@@ -24,8 +25,8 @@ export interface RouterCallExpectation {
 
 export interface RouterCallFacts {
   readonly target: string;
-  readonly callValue: string;
-  readonly feeLimit: string;
+  readonly callValue: Sun;
+  readonly feeLimit: Sun;
   readonly deadline: string;
 }
 
@@ -95,7 +96,12 @@ export function assertRouterCallMatches(
     absent(words, (2n ** 256n - 1n).toString(), "an unlimited token allowance");
   }
 
-  return { target: expected.router, callValue, feeLimit, deadline };
+  return {
+    target: expected.router,
+    callValue: sunAmount(callValue),
+    feeLimit: sunAmount(feeLimit),
+    deadline,
+  };
 }
 
 // Complete 32-byte ABI words as decimal strings; trailing partial words are ignored.
@@ -150,10 +156,7 @@ function array(value: unknown, label: string): readonly unknown[] {
 }
 
 function evm(address: string): string {
-  const text = address.trim();
-  if (/^0x[0-9a-fA-F]{40}$/.test(text)) return text.slice(2).toLowerCase();
-  if (/^(41)?[0-9a-fA-F]{40}$/.test(text)) return text.slice(-40).toLowerCase();
-  return tronHexAddress(text).slice(2).toLowerCase();
+  return tronHash20Hex(address.trim());
 }
 
 function refuse(because: string): ChainError {

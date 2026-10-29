@@ -100,6 +100,34 @@ describe("GasFreeClient", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a trace expiry given in seconds in milliseconds", async () => {
+    const client = new GasFreeClient(
+      CONFIG,
+      1000,
+      processBroadcastGuard,
+      vi.fn(async () =>
+        response({
+          code: 200,
+          data: {
+            id: "trace-1",
+            state: "WAITING",
+            tokenAddress: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+            providerAddress: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+            accountAddress: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+            gasFreeAddress: "TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+            targetAddress: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+            amount: 1,
+            nonce: 8,
+            expiredAt: 1747909695,
+          },
+        }),
+      ) as typeof fetch,
+    );
+    await expect(client.trace(NETWORK, "trace-1")).resolves.toMatchObject({
+      expiredAt: "1747909695000",
+    });
+  });
+
   it("maps authentication errors without leaking credentials", async () => {
     const client = new GasFreeClient(
       CONFIG,

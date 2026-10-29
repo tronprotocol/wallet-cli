@@ -30,6 +30,8 @@ import { resolveDeadline } from "../../../../domain/sunswap/liquidity.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import { describeHooks } from "../../../../domain/sunswap/v4-pool.js";
 import { LiquidityTransactions, outcomeTxId } from "./liquidity-transactions.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
+import type { Sun } from "../../../../domain/amounts/index.js";
 
 const RESOLVED = { caller: "liquidity" } as const;
 
@@ -47,7 +49,7 @@ export interface CollectFeesInput extends TransactionModeInput {
   readonly fee?: number;
   // V4 only; Unix seconds.
   readonly deadline?: number;
-  readonly feeLimit?: string;
+  readonly feeLimit?: Sun;
 }
 
 export interface CollectedSide {
@@ -478,7 +480,8 @@ export class SunSwapCollectFeesService {
 
   // Native TRX has no token contract; V4 keys carry it unwrapped.
   async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
-    if (address === NATIVE_TRX_ADDRESS) return { address, decimals: 6, symbol: "TRX" };
+    if (address === NATIVE_TRX_ADDRESS)
+      return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX" };
     return this.liquidity.tokenFacts(network, address);
   }
 }

@@ -83,3 +83,34 @@ export function toBaseUnits(
   const digits = `${whole}${frac.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");
   return digits === "" ? "0" : digits;
 }
+
+declare const amountUnit: unique symbol;
+
+// Non-negative integer decimal text; the brand names the unit so amounts of different units do not mix.
+type UnitAmount<Unit extends string> = string & { readonly [amountUnit]: Unit };
+
+export type Sun = UnitAmount<"sun">;
+export type Wei = UnitAmount<"wei">;
+// Base units of a token whose decimals are known separately.
+export type BaseUnits = UnitAmount<"base-units">;
+
+// Callers validate user and node input first; a value rejected here is a programming error.
+function unitAmount(value: string | bigint, unit: string): string {
+  const text = typeof value === "bigint" ? value.toString() : value;
+  if (!/^\d+$/.test(text)) {
+    throw new RangeError(`${unit} amount must be non-negative integer text`);
+  }
+  return text;
+}
+
+export function sunAmount(value: string | bigint): Sun {
+  return unitAmount(value, "SUN") as Sun;
+}
+
+export function weiAmount(value: string | bigint): Wei {
+  return unitAmount(value, "wei") as Wei;
+}
+
+export function baseUnitAmount(value: string | bigint): BaseUnits {
+  return unitAmount(value, "base-unit") as BaseUnits;
+}

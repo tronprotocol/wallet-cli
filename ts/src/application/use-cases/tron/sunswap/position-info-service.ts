@@ -19,6 +19,7 @@ import {
   usdValue,
   type RangeStatus,
 } from "../../../../domain/sunswap/position-info.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 type WarnScope = Pick<TransactionScope, "warn">;
 
@@ -293,7 +294,7 @@ export class SunSwapPositionInfoService {
     address: string,
   ): Promise<TokenFacts & { name?: string }> {
     if (address === NATIVE_TRX_ADDRESS) {
-      return { address, decimals: 6, symbol: "TRX", name: "TRON" };
+      return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX", name: "TRON" };
     }
     const [facts, name] = await Promise.all([
       this.liquidity.tokenFacts(network, address),

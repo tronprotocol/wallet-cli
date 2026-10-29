@@ -1,7 +1,10 @@
 import { endpointHost, type Config } from "../../domain/types/index.js";
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import { UsageError } from "../../domain/errors/index.js";
-import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
+import type {
+  ConfigDocument,
+  ConfigDocumentRepository,
+} from "../ports/config-document-repository.js";
 import {
   CREDENTIAL_VALUE_RULE,
   HEADER_NAME_RULE,
@@ -155,8 +158,7 @@ export class ConfigService {
     // Never echo the API key, including in the input field.
     const secret = configurable === NETWORK_CREDENTIAL_FIELD;
     return this.documents.update((current) => {
-      const existing =
-        (current as { networks?: Record<string, Record<string, unknown>> }).networks ?? {};
+      const existing = (current as { networks?: Record<string, ConfigDocument> }).networks ?? {};
       // Fold alias entries into the canonical ID; duplicate network keys are invalid.
       const sameNetwork = (candidate: string): boolean => {
         try {
@@ -165,8 +167,8 @@ export class ConfigService {
           return false;
         }
       };
-      const kept: Record<string, Record<string, unknown>> = {};
-      let folded: Record<string, unknown> = {};
+      const kept: Record<string, ConfigDocument> = {};
+      let folded: ConfigDocument = {};
       for (const [existingKey, fields] of Object.entries(existing)) {
         if (sameNetwork(existingKey)) folded = { ...folded, ...fields };
         else kept[existingKey] = fields;

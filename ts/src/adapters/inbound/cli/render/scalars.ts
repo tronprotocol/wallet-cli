@@ -1,4 +1,6 @@
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
+import { GWEI_DECIMALS } from "../../../../domain/fees/evm-gas.js";
 
 export function formatScalar(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -69,16 +71,16 @@ export function formatAmount(v: unknown, decimals: number): string {
 }
 
 export function formatSun(v: unknown): string {
-  return formatAmount(v, 6);
+  return formatAmount(v, FAMILIES.tron.nativeDecimals);
 }
 
 export function formatWei(v: unknown): string {
-  return formatAmount(v, 18);
+  return formatAmount(v, FAMILIES.evm.nativeDecimals);
 }
 
 // Input is wei; output is gwei.
 export function formatGwei(v: unknown): string {
-  return formatAmount(v, 9);
+  return formatAmount(v, GWEI_DECIMALS);
 }
 
 export function formatTime(v: unknown): string {

@@ -60,7 +60,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000,"maintenanceIntervalMs":21600000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until the vote is confirmed on chain (adds real block / fee):
@@ -84,7 +84,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "vote-cast"`, `stage: "submitted"`, `txId`, `votes[]` (`witness`, `count`), `totalVotes` |
+| default (submit) | `kind: "vote-cast"`, `stage: "submitted"`, `txId`, `votes[]` (`witness`, `count`), `totalVotes`, `maintenanceIntervalMs` (approximate time until the votes are tallied, in ms) |
 | `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status

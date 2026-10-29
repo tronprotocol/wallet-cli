@@ -54,6 +54,26 @@ describe("normalizeTypedData", () => {
     expect(() => normalizeTypedData({ domain: "x", types: TYPES, message: {} })).toThrow(/domain/);
   });
 
+  it.each([
+    ["a function", { trader: () => "T1" }],
+    ["a class instance", { trader: new Date(0) }],
+    ["a non-finite number", { size: Number.NaN }],
+    ["a nested non-JSON member", { trader: { inner: [Symbol("x")] } }],
+  ])("rejects a message with %s", (_label, message) => {
+    expect(() => normalizeTypedData({ domain: DOMAIN, types: TYPES, message })).toThrow(/message/);
+  });
+
+  it("rejects a domain with a non-JSON member", () => {
+    expect(() =>
+      normalizeTypedData({ domain: { chainId: new Map() }, types: TYPES, message: {} }),
+    ).toThrow(/domain/);
+  });
+
+  it("accepts bigint uint values and nested JSON members", () => {
+    const message = { trader: "T1", size: 10n ** 30n, extra: { list: [1, true, null] } };
+    expect(normalizeTypedData({ domain: DOMAIN, types: TYPES, message }).message).toEqual(message);
+  });
+
   it("rejects a primaryType that is not declared", () => {
     expect(() =>
       normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType: "Nope", message: {} }),

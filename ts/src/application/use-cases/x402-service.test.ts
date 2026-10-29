@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { X402Service } from "./x402-service.js";
 import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
+import type { X402Inspection, X402PaidResult } from "../ports/x402-payment.js";
+import type { X402ServeDetails } from "../ports/x402-server.js";
 import type { SignerResolver } from "../services/signer/index.js";
 import { WalletError } from "../../domain/errors/index.js";
 import { processBroadcastGuard } from "../services/broadcast-guard.js";
@@ -12,12 +14,12 @@ const input = { url: "https://example.test", method: "GET", headers: [] };
 function fixture(failure?: "prepare" | "resolve" | "pay") {
   const pay = vi.fn(async () => {
     if (failure === "pay") throw new Error("settlement failed");
-    return { settled: true };
+    return { settled: true } as X402PaidResult;
   });
   const close = vi.fn(async () => {});
   const request = vi.fn(async () => ({
     kind: "payment-required" as const,
-    inspection: { dryRun: true },
+    inspection: { dryRun: true } as X402Inspection,
     facts: { tokenDecimals: () => undefined },
     pay,
     close,
@@ -46,7 +48,10 @@ function fixture(failure?: "prepare" | "resolve" | "pay") {
     { resolve: vi.fn() },
     {
       validate: vi.fn(),
-      start: async () => ({ details: { payUrl: input.url }, close: serverClose }),
+      start: async () => ({
+        details: { payUrl: input.url } as X402ServeDetails,
+        close: serverClose,
+      }),
     },
   );
   return { service, request, pay, close, signers, catalog, serverClose };

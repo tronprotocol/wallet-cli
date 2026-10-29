@@ -57,7 +57,7 @@ wallet-cli gasfree info --account main --network nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`gasfree_integrity` — the provider's fee metadata disagreed between the token list and the address response, `provider_error` — the service failed, answered with malformed or oversized JSON, returned a field this CLI will not act on, or returned any non-429 error status; `provider_rate_limited` — the service returned 429, with `details.retryAfter` when it sent one) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`).
+`0` success · `1` execution failure (`gasfree_integrity` — the provider's fee metadata disagreed between the token list and the address response, `not_found` — the service returned 404 or no data, `gasfree_rejected` — the service declined the request or returned a 4xx status other than 401, 403, 404 and 429, `timeout` — the service did not answer within `--timeout`, `gasfree_auth_failed` — the service rejected the API credentials (HTTP 401 or 403), `provider_error` — the service could not be reached, returned a 5xx status, answered with malformed or oversized JSON, or returned a field this CLI will not act on; `provider_rate_limited` — the service returned 429, with `details.retryAfter` when it sent one) · `2` usage error (`gasfree_credentials_missing`, `unsupported_network`, `invalid_value`, `invalid_config` — the network's GasFree `baseUrl` or `apiPrefix` is invalid).
 
 ## See also
 

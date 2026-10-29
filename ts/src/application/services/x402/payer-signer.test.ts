@@ -7,6 +7,8 @@ import { WalletError } from "../../../domain/errors/index.js";
 import { SigningService } from "../signing/signing-service.js";
 import type { PayerPolicy } from "./payer-policy.js";
 
+const PAYER = "0x000000000000000000000000000000000000dEaD";
+
 const NETWORK = { id: "eip155:56", family: "evm", chainId: "56" } as never;
 const TOKEN = "0x55d398326f99059fF775485246999027B3197955";
 const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
@@ -24,7 +26,7 @@ const PAYLOAD: TypedDataPayload = {
   domain: { name: "x402" },
   types: { Transfer: [{ name: "from", type: "address" }] },
   primaryType: "Transfer",
-  message: { from: "0xdead" },
+  message: { from: PAYER },
 };
 
 const scope = (): TransactionScope & { emitted: unknown[] } => ({
@@ -37,7 +39,7 @@ const scope = (): TransactionScope & { emitted: unknown[] } => ({
     (this.emitted as unknown[]).push(e);
   },
   warn() {},
-  resolveAddress: () => "0xdead",
+  resolveAddress: () => PAYER,
 });
 
 const resolverOf = (signer: Signer, assertCanSign = vi.fn()) => {
@@ -59,12 +61,12 @@ describe("createPayerSigner", () => {
   });
 
   it("exposes the resolved signer's address", () => {
-    const signer = { kind: "software", address: "0xdead" } as unknown as Signer;
-    expect(payerFor(resolverOf(signer)).address).toBe("0xdead");
+    const signer = { kind: "software", address: PAYER } as unknown as Signer;
+    expect(payerFor(resolverOf(signer)).address).toBe(PAYER);
   });
 
   it("calls assertCanSign and resolve with the active account and family, in that order", () => {
-    const signer = { kind: "software", address: "0xdead" } as unknown as Signer;
+    const signer = { kind: "software", address: PAYER } as unknown as Signer;
     const assertCanSign = vi.fn();
     const signers = resolverOf(signer, assertCanSign);
     payerFor(signers);
@@ -80,7 +82,7 @@ describe("createPayerSigner", () => {
       digest: "0xdig",
       primaryType: "Transfer",
     }));
-    const signer = { kind: "software", address: "0xdead", signTypedData } as unknown as Signer;
+    const signer = { kind: "software", address: PAYER, signTypedData } as unknown as Signer;
     const s = scope();
     const out = await payerFor(resolverOf(signer), s).signTypedData(PAYLOAD);
     expect(out.signature).toBe("0xsig");
@@ -92,7 +94,7 @@ describe("createPayerSigner", () => {
     const precheck = vi.fn(async () => {});
     const signer = {
       kind: "device",
-      address: "0xdead",
+      address: PAYER,
       precheck,
       signTypedData: async () => ({ signature: "0xsig", digest: "0xdig", primaryType: "Transfer" }),
     } as unknown as Signer;
@@ -106,7 +108,7 @@ describe("createPayerSigner", () => {
     const precheck = vi.fn(async () => {});
     const signer = {
       kind: "device",
-      address: "0xdead",
+      address: PAYER,
       precheck,
       sign: async () => ({ raw: "0xraw", hash: "0xhash" }),
       signTypedData: async () => ({ signature: "0xsig", digest: "0xdig", primaryType: "Transfer" }),
@@ -121,7 +123,7 @@ describe("createPayerSigner", () => {
 
   it("returns what the signer returned for a transaction", async () => {
     const sign = vi.fn(async () => ({ raw: "0xraw", hash: "0xhash" }));
-    const signer = { kind: "software", address: "0xdead", sign } as unknown as Signer;
+    const signer = { kind: "software", address: PAYER, sign } as unknown as Signer;
     const tx = { to: TOKEN };
     const out = await payerFor(resolverOf(signer)).signTransaction(tx, APPROVE);
     expect(sign).toHaveBeenCalledWith(tx, {});
@@ -130,7 +132,7 @@ describe("createPayerSigner", () => {
 
   it("refuses SDK typed data for another chain before the signer runs", async () => {
     const signTypedData = vi.fn();
-    const signer = { kind: "software", address: "0xdead", signTypedData } as unknown as Signer;
+    const signer = { kind: "software", address: PAYER, signTypedData } as unknown as Signer;
     const payload = { ...PAYLOAD, domain: { name: "x402", chainId: 1 } };
     await expect(payerFor(resolverOf(signer)).signTypedData(payload)).rejects.toMatchObject({
       code: "chain_id_mismatch",
@@ -143,7 +145,7 @@ describe("createPayerSigner", () => {
     ["no chain", undefined],
   ])("refuses an SDK transaction for %s before the signer runs", async (_label, chainId) => {
     const sign = vi.fn();
-    const signer = { kind: "software", address: "0xdead", sign } as unknown as Signer;
+    const signer = { kind: "software", address: PAYER, sign } as unknown as Signer;
     const payer = payerFor(resolverOf(signer), scope(), signingOn(chainId));
     await expect(payer.signTransaction({ to: TOKEN }, APPROVE)).rejects.toMatchObject({
       code: "chain_id_mismatch",

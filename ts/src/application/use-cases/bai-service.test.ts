@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
+import type { BaiRawOrder } from "../ports/bai-recharge.js";
 
 function api(): BaiApi {
   return {
@@ -50,7 +51,6 @@ it("passes the usage cursor through and exposes continuation metadata", async ()
   expect(remote.usageList).toHaveBeenCalledWith({
     page: 2,
     pageSize: 20,
-    sortBy: "created_at",
     sortOrder: "desc",
     cursor: "previous",
   });
@@ -60,7 +60,7 @@ it.each([100, 101, 200])(
   "caps recharge list %s without losing an unaligned offset",
   async (limit) => {
     const remote = api();
-    const rows = Array.from({ length: 400 }, (_, id) => ({ id }));
+    const rows = Array.from({ length: 400 }, (_, id) => ({ id }) as unknown as BaiRawOrder);
     vi.mocked(remote.rechargeList).mockImplementation(async ({ page, pageSize }) => ({
       items: rows.slice((page - 1) * pageSize, page * pageSize),
       page,

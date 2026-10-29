@@ -42,24 +42,24 @@ describe("tx sign spec", () => {
 });
 
 describe("tx sign binding", () => {
-  it("parses the JSON payload and hands it to the service", async () => {
+  it("hands the parsed JSON payload to the checked offline signing service", async () => {
     let received: unknown;
     const svc = {
-      sign: async (_c: unknown, _n: unknown, tx: unknown) => {
-        received = tx;
+      signJson: async (_c: unknown, _n: unknown, tx: unknown, options: unknown) => {
+        received = { tx, options };
         return { kind: "sign" };
       },
     };
-    await txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+    await txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
       transaction: '{"txID":"abc"}',
     });
-    expect(received).toEqual({ txID: "abc" });
+    expect(received).toEqual({ tx: { txID: "abc" }, options: { origin: "offline" } });
   });
 
   it("rejects malformed JSON with invalid_value", async () => {
-    const svc = { sign: async () => ({}) };
+    const svc = { signJson: async () => ({}) };
     await expect(
-      txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+      txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
         transaction: "not json",
       }),
     ).rejects.toMatchObject({ code: "invalid_value" });
@@ -98,34 +98,31 @@ describe("tx sign binding", () => {
 
   it("routes hex signing through the multisig authorization service by default", async () => {
     await expect(
-      txSignTronBinding(
-        {} as never,
-        rejectOffline as never,
-        checkedSigner() as never,
-        {} as never,
-      ).run(ctx, net, { hex: "abcd", offline: false }),
+      txSignTronBinding(rejectOffline as never, checkedSigner() as never, {} as never).run(
+        ctx,
+        net,
+        { hex: "abcd", offline: false },
+      ),
     ).resolves.toMatchObject({ checked: true, signerWeight: 1 });
   });
 
   it("treats an absent --offline exactly like --offline false", async () => {
     await expect(
-      txSignTronBinding(
-        {} as never,
-        rejectOffline as never,
-        checkedSigner() as never,
-        {} as never,
-      ).run(ctx, net, { hex: "abcd" }),
+      txSignTronBinding(rejectOffline as never, checkedSigner() as never, {} as never).run(
+        ctx,
+        net,
+        { hex: "abcd" },
+      ),
     ).resolves.toMatchObject({ checked: true });
   });
 
   it("routes --offline through the local signing service, never touching the node", async () => {
     await expect(
-      txSignTronBinding(
-        {} as never,
-        offlineSigner() as never,
-        rejectChecked as never,
-        {} as never,
-      ).run(ctx, net, { hex: "abcd", offline: true }),
+      txSignTronBinding(offlineSigner() as never, rejectChecked as never, {} as never).run(
+        ctx,
+        net,
+        { hex: "abcd", offline: true },
+      ),
     ).resolves.toMatchObject({ checked: false });
   });
 
@@ -141,7 +138,6 @@ describe("tx sign binding", () => {
         },
       };
       const result = await txSignTronBinding(
-        {} as never,
         offlineSigner() as never,
         checkedSigner() as never,
         writer as never,
@@ -152,9 +148,9 @@ describe("tx sign binding", () => {
   });
 
   it("rejects --offline with the JSON payload route, which has no online check to skip", async () => {
-    const svc = { sign: async () => ({ kind: "sign" }) };
+    const svc = { signJson: async () => ({ kind: "sign" }) };
     await expect(
-      txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+      txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
         transaction: "{}",
         offline: true,
       }),
@@ -184,7 +180,7 @@ describe("EVM tx sign binding", () => {
 });
 
 describe("tx sign legacy JSON compatibility", () => {
-  it("returns the transaction service result unwrapped and unannotated", async () => {
+  it("returns the signing service result unwrapped and unannotated", async () => {
     const legacy = {
       kind: "sign",
       mode: "sign-only",
@@ -192,12 +188,10 @@ describe("tx sign legacy JSON compatibility", () => {
       address: "T1",
       txId: "abc",
     };
-    const svc = { sign: async () => legacy };
-    const result = await txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(
-      ctx,
-      net,
-      { transaction: '{"txID":"abc"}' },
-    );
+    const svc = { signJson: async () => legacy };
+    const result = await txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
+      transaction: '{"txID":"abc"}',
+    });
     expect(result).toEqual(legacy);
     expect(result).not.toHaveProperty("checked");
     expect(result).not.toHaveProperty("approval");

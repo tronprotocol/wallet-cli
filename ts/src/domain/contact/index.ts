@@ -1,11 +1,11 @@
 import type { ChainFamily, ContactEntry } from "../types/index.js";
 import { errorMessage, UsageError } from "../errors/index.js";
-import { addressCodec, CHAIN_FAMILIES } from "../family/index.js";
+import { addressBodyLength, addressCodec, CHAIN_FAMILIES } from "../family/index.js";
 
 // Match mistyped addresses too, so recipient typos cannot redirect through contact names.
-const ADDRESS_SHAPED: Array<[ChainFamily, RegExp]> = [
-  ["tron", /^T[1-9A-HJ-NP-Za-km-z]{25,40}$/],
-  ["evm", /^0x[0-9a-fA-F]{38,42}$/],
+const ADDRESS_SHAPED: Array<[ChainFamily, { min: number; max: number }]> = [
+  ["tron", { min: 25, max: 40 }],
+  ["evm", { min: 38, max: 42 }],
 ];
 const UNSAFE_TEXT = /[\p{Cc}\p{Cf}]/u;
 
@@ -62,7 +62,10 @@ export function resemblesAddress(input: string): boolean {
 // Identifies the family by shape, without validating the address.
 export function resembledFamily(input: string): ChainFamily | undefined {
   const value = input.trim();
-  return ADDRESS_SHAPED.find(([, shape]) => shape.test(value))?.[0];
+  return ADDRESS_SHAPED.find(([family, { min, max }]) => {
+    const length = addressBodyLength(family, value);
+    return length !== undefined && length >= min && length <= max;
+  })?.[0];
 }
 
 // A new contact must not reuse a name or an address held in any family.

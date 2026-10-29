@@ -1,5 +1,5 @@
 // Check planner output before signing; PermitSingle owner verification also requires signature recovery.
-import { tronHexAddress } from "../address/index.js";
+import { tronHash20Hex } from "../address/index.js";
 import { ChainError } from "../errors/index.js";
 
 // Expected addresses are base58; amounts are base units.
@@ -159,10 +159,7 @@ function object(value: unknown, label: string): Record<string, unknown> {
 
 // Normalize to lowercase 20-byte hex for comparison.
 function evm(address: string): string {
-  const text = address.trim();
-  if (/^0x[0-9a-fA-F]{40}$/.test(text)) return text.slice(2).toLowerCase();
-  if (/^(41)?[0-9a-fA-F]{40}$/.test(text)) return text.slice(-40).toLowerCase();
-  return tronHexAddress(text).slice(2).toLowerCase();
+  return tronHash20Hex(address.trim());
 }
 
 function refuse(because: string): ChainError {

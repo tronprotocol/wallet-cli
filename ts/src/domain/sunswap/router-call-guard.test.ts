@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertRouterCallMatches, type RouterCallExpectation } from "./router-call-guard.js";
+import { sunAmount } from "../amounts/index.js";
 
 const ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
 const OWNER = "TDbWLnRxt8f7e81BBccGEKoSoDGR4pmnuJ";
@@ -31,7 +32,7 @@ const EXPECT: RouterCallExpectation = {
   minimumOut: "289525473",
   recipient: OWNER,
   nativeIn: false,
-  feeLimit: "100000000",
+  feeLimit: sunAmount("100000000"),
   notAfter: NOW + 1800,
   now: NOW,
   permit: { amount: "100000000", expiration: "1790231426" },

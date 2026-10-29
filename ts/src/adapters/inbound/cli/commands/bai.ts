@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
+import { isTxHash } from "../../../../domain/family/index.js";
 
 const requires = ["config baiApiKey"];
 
@@ -156,9 +157,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
       "Recover a failed B.AI report using the original API key, chain, hash, amount and recipient. For recipient recharge, supply both original --to and --target-id; omit both only for self recharge. Reconcile any unconfirmed candidate hash before reporting. This command does not create an order, sign, pay, or resolve a new recipient. B.AI verifies whether the reported transaction can be credited.",
     fields: reportFields,
     input: reportFields.superRefine((value, ctx) => {
-      if (
-        !(value.chain === "tron" ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/).test(value.txHash)
-      )
+      if (!isTxHash(value.chain === "tron" ? "tron" : "evm", value.txHash))
         ctx.addIssue({
           code: "custom",
           path: ["txHash"],

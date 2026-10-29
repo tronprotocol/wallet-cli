@@ -1,6 +1,7 @@
 // Encode proposal int64 values exactly; TronWeb's numeric map rounds unsafe integers.
 import { TronWeb, utils as tronUtils } from "tronweb";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
+import { isTronHexAddress } from "../../../../domain/family/index.js";
 
 const INT64_MIN = -(1n << 63n);
 const INT64_MAX = (1n << 63n) - 1n;
@@ -140,7 +141,7 @@ function encodeUpdateEnergyLimit(owner: string, contract: string, energy: string
 
 function addressBytes(address: string): Uint8Array {
   const hex = TronWeb.address.toHex(address).replace(/^0x/, "");
-  if (!/^41[0-9a-fA-F]{40}$/.test(hex)) throw new Error("invalid TRON address");
+  if (!isTronHexAddress(hex)) throw new Error("invalid TRON address");
   return hexToBytes(hex);
 }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TronChainService } from "./chain-service.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
@@ -24,18 +25,25 @@ describe("TronChainService.params", () => {
       { key: "getMemoFee", value: 1000000 },
     ],
   };
-  it("lists all parameters", async () => {
+  it("lists all parameters with the catalog unit", async () => {
     expect(await svc(gateway).params(net)).toEqual({
       params: [
-        { key: "getEnergyFee", value: 210 },
-        { key: "getMemoFee", value: 1000000 },
+        { key: "getEnergyFee", value: 210, unit: "sun" },
+        { key: "getMemoFee", value: 1000000, unit: "sun" },
       ],
+    });
+  });
+  it("gives a parameter without a catalog unit an empty unit", async () => {
+    const flags = { getChainParameters: async () => [{ key: "getAllowMultiSign", value: 1 }] };
+    expect(await svc(flags).params(net)).toEqual({
+      params: [{ key: "getAllowMultiSign", value: 1, unit: "" }],
     });
   });
   it("returns a single key, and unknown_parameter for unknown keys", async () => {
     expect(await svc(gateway).params(net, "getEnergyFee")).toEqual({
       key: "getEnergyFee",
       value: 210,
+      unit: "sun",
     });
     await expect(svc(gateway).params(net, "getNope")).rejects.toMatchObject({
       code: "unknown_parameter",
@@ -43,11 +51,14 @@ describe("TronChainService.params", () => {
   });
 });
 
+const points = (...pairs: Array<[number, number]>) =>
+  pairs.map(([sinceMs, sunPerUnit]) => ({ sinceMs, sunPerUnit }));
+
 describe("TronChainService.prices", () => {
-  it("parses price history strings; current = last segment; memo fee from params", async () => {
+  it("reports the last point as current and keeps the timeline; memo fee from params", async () => {
     const gateway = {
-      getEnergyPrices: async () => "0:100,1670515200000:210",
-      getBandwidthPrices: async () => "0:10,1614456000000:1000",
+      getEnergyPrices: async () => points([0, 100], [1670515200000, 210]),
+      getBandwidthPrices: async () => points([0, 10], [1614456000000, 1000]),
       getChainParameters: async () => [{ key: "getMemoFee", value: 1000000 }],
     };
     expect(await svc(gateway).prices(net)).toEqual({
@@ -69,53 +80,31 @@ describe("TronChainService.prices", () => {
     });
   });
 
-  it("drops malformed segments so NaN never reaches the output", async () => {
+  it("fails instead of reporting a price when the node's timeline is unusable", async () => {
     const gateway = {
-      getEnergyPrices: async () => "0:100,1670515200000:oops,1670515300000:230",
-      getBandwidthPrices: async () => "abc:def,x:y",
-      getChainParameters: async () => [{ key: "getMemoFee", value: 1000000 }],
-    };
-    const view = await svc(gateway).prices(net);
-    expect(view.energy).toEqual({
-      currentSunPerUnit: 230,
-      history: [
-        { since: 0, price: 100 },
-        { since: 1670515300000, price: 230 },
-      ],
-    });
-    expect(view.bandwidth).toEqual({ currentSunPerUnit: 0, history: [] });
-    expect(Number.isNaN(view.energy.currentSunPerUnit)).toBe(false);
-    expect(
-      view.energy.history.every((h) => Number.isFinite(h.since) && Number.isFinite(h.price)),
-    ).toBe(true);
-  });
-
-  it("handles an empty price string without producing NaN", async () => {
-    const gateway = {
-      getEnergyPrices: async () => "",
-      getBandwidthPrices: async () => "",
+      getEnergyPrices: async () => {
+        throw new ChainError("invalid_node_response", "malformed energy price timeline");
+      },
+      getBandwidthPrices: async () => points([0, 10]),
       getChainParameters: async () => [],
     };
-    const view = await svc(gateway).prices(net);
-    expect(view.energy).toEqual({ currentSunPerUnit: 0, history: [] });
-    expect(view.bandwidth).toEqual({ currentSunPerUnit: 0, history: [] });
+    await expect(svc(gateway).prices(net)).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
   });
 });
 
 describe("TronChainService.node", () => {
-  it("derives head/solid/lag/inSync; missing best-effort fields become null", async () => {
+  it("derives head/solid/lag/inSync from the normalized node facts", async () => {
     const now = Date.now();
     const gateway = {
       getNodeInfo: async () => ({
-        block: "Num:84120345,ID:abc",
-        solidityBlock: "Num:84120326,ID:def",
-        currentConnectCount: 30,
-        activeConnectCount: 27,
-        configNodeInfo: { codeVersion: "4.7.7", p2pVersion: "11111" },
+        solidBlockNumber: 84120326,
+        peers: { connected: 30, active: 27 },
+        codeVersion: "4.7.7",
+        p2pVersion: "11111",
       }),
-      getBlock: async () => ({
-        block_header: { raw_data: { number: 84120345, timestamp: now - 2000 } },
-      }),
+      getHeadBlock: async () => ({ number: 84120345, timestampMs: now - 2000 }),
     };
     const view = await svc(gateway).node(net);
     expect(view).toMatchObject({
@@ -132,7 +121,7 @@ describe("TronChainService.node", () => {
   it("never echoes an endpoint's path or query, which is where API keys live", async () => {
     const gateway = {
       getNodeInfo: async () => ({}),
-      getBlock: async () => ({ block_header: { raw_data: { number: 1, timestamp: Date.now() } } }),
+      getHeadBlock: async () => ({ number: 1, timestampMs: Date.now() }),
     };
     const withKey = { ...net, httpEndpoint: "https://tron.example/wallet?apikey=SECRET-KEY" };
     const view = await svc(gateway).node(withKey as typeof net);
@@ -144,13 +133,23 @@ describe("TronChainService.node", () => {
   it("nulls unexposed fields (public gateway)", async () => {
     const gateway = {
       getNodeInfo: async () => ({}),
-      getBlock: async () => ({
-        block_header: { raw_data: { number: 100, timestamp: Date.now() - 60_000 } },
-      }),
+      getHeadBlock: async () => ({ number: 100, timestampMs: Date.now() - 60_000 }),
     };
     const view = await svc(gateway).node(net);
     expect(view.version).toBeNull();
+    expect(view.solidBlock).toBeNull();
+    expect(view.lagBlocks).toBeNull();
     expect(view.peers).toBeNull();
     expect(view.inSync).toBe(false);
+  });
+
+  it("fails instead of reporting head block 0 when the node returns no head", async () => {
+    const gateway = {
+      getNodeInfo: async () => ({}),
+      getHeadBlock: async () => {
+        throw new ChainError("invalid_node_response", "the node reported no latest block");
+      },
+    };
+    await expect(svc(gateway).node(net)).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 });

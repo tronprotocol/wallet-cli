@@ -46,48 +46,14 @@ export const MiscFormatters = {
       ["Signature", String(d.signature ?? "")],
     ]);
   }) satisfies TextFormatter,
-  // TRON block timestamps are milliseconds; EVM timestamps are hex seconds.
-  block: ((data, ctx) => {
-    const block = asObj(asObj(data).block);
-    const header = asObj(asObj(block.block_header).raw_data);
-    const raw = block.timestamp ?? header.timestamp;
-    const family = renderFamily(ctx);
-    const timestampMs =
-      raw === undefined || raw === null
-        ? undefined
-        : family === "evm"
-          ? Number(BigInt(String(raw))) * 1000
-          : Number(raw);
-    return query(FAMILY_RENDER[family].blockRows(block, timestampMs));
-  }) satisfies TextFormatter,
+  block: ((data, ctx) =>
+    query(FAMILY_RENDER[renderFamily(ctx)].blockRows(asObj(data)))) satisfies TextFormatter,
 };
 
 function renderContractInfo(d: Obj): string {
-  let names: string[];
-  let count: number;
-  if (Array.isArray(d.methods)) {
-    names = d.methods.map(String);
-    count = num(d.functionCount, names.length);
-  } else {
-    const contract = asObj(d.contract);
-    const info = asObj(d.info);
-    const abi = contract.abi ?? info.abi ?? contract.ABI ?? info.ABI;
-    const nestedEntries = asObj(abi).entrys;
-    const entries: unknown[] = Array.isArray(abi)
-      ? abi
-      : Array.isArray(nestedEntries)
-        ? nestedEntries
-        : [];
-    const methods = entries
-      .map(asObj)
-      .filter((e) => e.type === "Function" || e.type === "function");
-    names = methods
-      .map((e) => e.name)
-      .filter(Boolean)
-      .map(String);
-    count = methods.length;
-  }
-  const name = String(d.name ?? asObj(d.contract).name ?? asObj(d.info).name ?? "");
+  const names = Array.isArray(d.methods) ? d.methods.map(String) : [];
+  const count = num(d.functionCount, names.length);
+  const name = String(d.name ?? "");
   const preview = names.slice(0, 3).join(" / ");
   return query([
     ["Contract", String(d.address ?? "")],

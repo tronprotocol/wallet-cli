@@ -71,7 +71,7 @@ wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --quote
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"platformFee":"10000","platformFeePercent":"25.38","tokensIn":"1000000000000000000000","mode":"quote","trxOutExpected":"29401"},"meta":{"durationMs":2395,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"platformFee":"10000","platformFeePercent":"25.38","platformFeeMinimum":"10000","tokensIn":"1000000000000000000000","mode":"quote","trxOutExpected":"29401"},"meta":{"durationMs":2395,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 The point of the warning: 1,000 tokens gross 0.039401 TRX, the fee floor takes 0.01 of it, and a quarter of the sale goes to the platform. A sale large enough that the fee is the plain 1% shows no rate and no warning.
@@ -103,7 +103,7 @@ echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"slippage":"0.05","platformFee":"10000","platformFeePercent":"25.38","tokensIn":"1000000000000000000000","account":"TANkYWRT6NZ2YLtWkFfKYBEGJroMa6MTwn","trxOutExpected":"29401","trxOutMinimum":"27930","approvalTxIds":["9e4b1c7a2d5f8e03b6c9a4d1f7e2b5c8a0d3f6e9b2c5a8d1e4f7b0c3a6d9e2f5"],"stage":"confirmed","txId":"c5f2a8d1e7b40c9f3a6d2e8b5c1f7a04d9e3b6c2a8f5d1e7c4b0a9f3e6d2c8b1","confirmed":true,"blockNumber":86922988,"feeSun":7528400,"energyUsed":71834,"energyFeeSun":7183400,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"trxOut":"29401"},"meta":{"durationMs":19841,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"slippage":"0.05","platformFee":"10000","platformFeePercent":"25.38","platformFeeMinimum":"10000","tokensIn":"1000000000000000000000","account":"TANkYWRT6NZ2YLtWkFfKYBEGJroMa6MTwn","trxOutExpected":"29401","trxOutMinimum":"27930","approvalTxIds":["9e4b1c7a2d5f8e03b6c9a4d1f7e2b5c8a0d3f6e9b2c5a8d1e4f7b0c3a6d9e2f5"],"stage":"confirmed","txId":"c5f2a8d1e7b40c9f3a6d2e8b5c1f7a04d9e3b6c2a8f5d1e7c4b0a9f3e6d2c8b1","confirmed":true,"blockNumber":86922988,"feeSun":7528400,"energyUsed":71834,"energyFeeSun":7183400,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"trxOut":"29401"},"meta":{"durationMs":19841,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
@@ -116,9 +116,9 @@ echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount
 | `tokensIn` | string | Base units sold |
 | `trxOutExpected` | string | SUN **net** of the platform fee — what arrives |
 | `trxOutMinimum` / `slippage` | string | The floor on that net figure and the tolerance it came from; absent from a quote |
-| `platformFee` / `platformFeePercent` | string | SunPump's fee in SUN, and its share of the gross (`trxOutExpected + platformFee`) — only when the 0.01 TRX minimum pushed it above 1% |
+| `platformFee` / `platformFeePercent` / `platformFeeMinimum` | string | SunPump's fee in SUN, and its share of the gross (`trxOutExpected + platformFee`) with the minimum fee in SUN — the last two only when the 0.01 TRX minimum pushed it above 1% |
 | `account` | string | The selling address; absent from a quote |
-| `approvals[]` | array | The unlimited grant (`amount: "unlimited"`) with its spender, when one is needed |
+| `approvals[]` | array | The unlimited grant (`amount: "unlimited"`, `isUnlimited: true`) with its spender, when one is needed |
 | `fee` / `feeCovers` | — | The chain's energy estimate and what it covers (`approvals` while the grant is pending, else `all`) |
 | `approvalTxIds[]` | string[] | Once sent: the approval, beside the sale's own `txId` |
 | `trxOut` | string | Confirmed receipts only: the TRX that actually arrived, read from the transaction (`amountsEstimated: false`); otherwise `trxOutExpected` stands with `amountsEstimated: true` and a warning |

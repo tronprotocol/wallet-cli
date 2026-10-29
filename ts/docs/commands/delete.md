@@ -80,7 +80,7 @@ Without `--yes`, the command asks you to type the account's label to confirm, an
 |---|---|---|
 | `accountId` | string | Id of the deleted account/wallet (`wlt_….N` for a sub-account, the wallet id `wlt_…` for a wallet) |
 | `scope` | string | `account` (only that account) or `wallet` (cascaded whole wallet) |
-| `secretRemoved` | boolean | Whether encrypted secret material was removed. Deleting an HD sub-account keeps the seed, so `false`. Deleting a wallet reports whether that wallet held a secret at all: `true` for seed and private-key wallets, `false` for Ledger and watch-only ones, which never stored one |
+| `secretRemoved` | boolean | Whether encrypted secret material was removed. Deleting an HD sub-account keeps the seed, so `false`. Deleting a wallet reports whether its secret was removed: `true` for seed and private-key wallets, `false` for Ledger and watch-only ones, which never stored one. It is also `false` when the encrypted secret file could not be deleted; the wallet is still deleted, and a `secret_file_not_removed` warning in `meta.warnings` names the file to delete yourself |
 | `newActive` | string \| null | New active account id after deletion; `null` if none remain |
 
 ## Exit status

@@ -12,6 +12,7 @@ import type { LaunchpadPort } from "../../../ports/sunpump/launchpad.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
 import { LAUNCHPAD_STATE } from "../../../../domain/sunpump/curve.js";
 import { SunPumpCurveTradeService } from "./curve-trade-service.js";
+import { baseUnitAmount } from "../../../../domain/amounts/index.js";
 
 const LAUNCHPAD = "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw";
 const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
@@ -19,7 +20,7 @@ const OWNER = "TDbWLnRxt8f7e81BBccGEKoSoDGR4pmnuJ";
 const PURCHASE = "purchaseToken(address,uint256)";
 const SALE = "saleToken(address,uint256,uint256)";
 const APPROVE = "approve(address,uint256)";
-const UNLIMITED = (2n ** 256n - 1n).toString();
+const UNLIMITED = baseUnitAmount(2n ** 256n - 1n);
 
 const NETWORK = {
   id: "tron:728126428",
@@ -37,7 +38,7 @@ function makePort(overrides: Partial<LaunchpadPort> = {}): LaunchpadPort {
     tokenState: vi.fn(async () => LAUNCHPAD_STATE.TRADING),
     tokenFacts: vi.fn(async () => ({ address: TOKEN, decimals: 18, symbol: "Justin" })),
     balanceOf: vi.fn(async () => "99999999999999999999999999"),
-    allowance: vi.fn(async () => "0"),
+    allowance: vi.fn(async () => baseUnitAmount("0")),
     approvalPayload: vi.fn((_n: NetworkDescriptor, token: string) => ({
       target: token,
       method: APPROVE,
@@ -222,6 +223,7 @@ describe("buy", () => {
       quote: true,
     })) as Record<string, unknown>;
     expect(small.platformFeePercent).toBe("10");
+    expect(small.platformFeeMinimum).toBe("10000");
 
     const ordinary = (await service.buy(scope, NETWORK, {
       token: TOKEN,
@@ -229,6 +231,7 @@ describe("buy", () => {
       quote: true,
     })) as Record<string, unknown>;
     expect(ordinary).not.toHaveProperty("platformFeePercent");
+    expect(ordinary).not.toHaveProperty("platformFeeMinimum");
   });
 
   it("takes an explicit --min-out over a slippage it was not given", async () => {
@@ -274,6 +277,7 @@ describe("sell", () => {
     expect(result.platformFee).toBe("10000");
     // Fee rate uses proceeds plus the fee as its denominator.
     expect(result.platformFeePercent).toBe("30.55");
+    expect(result.platformFeeMinimum).toBe("10000");
   });
 
   it("reports no fee rate when the fee is the plain one percent", async () => {
@@ -299,7 +303,7 @@ describe("sell", () => {
     })) as { approvals: { spender: string; amount: string }[] };
     expect(port.allowance).toHaveBeenCalledWith(NETWORK, TOKEN, OWNER, LAUNCHPAD);
     expect(result.approvals).toEqual([
-      expect.objectContaining({ spender: LAUNCHPAD, amount: "unlimited" }),
+      expect.objectContaining({ spender: LAUNCHPAD, amount: "unlimited", isUnlimited: true }),
     ]);
   });
 

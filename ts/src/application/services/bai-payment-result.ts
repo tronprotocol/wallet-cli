@@ -1,13 +1,16 @@
-import { tronAddressBytes, tronHexToBase58 } from "../../domain/address/index.js";
+import { CHAIN_FAMILIES, isTxHash, sameAddress } from "../../domain/family/index.js";
 import { TransportError } from "../../domain/errors/index.js";
 import { sameX402Network } from "../../domain/x402/network-id.js";
+import type { X402ResponseResult } from "../ports/x402-payment.js";
 
 /** Only a successful x402 settlement can be reported to B.AI as a payment. */
-export function baiPaymentResult(payment: Record<string, unknown>, network: string) {
+export function baiPaymentResult(
+  payment: Pick<X402ResponseResult, "settled" | "payer" | "paymentResponse">,
+  network: string,
+) {
   const settlement = record(payment.paymentResponse);
   const payer = record(payment.payer)?.address;
   const txHash = settlement?.transaction;
-  const validHash = network.startsWith("tron:") ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/;
   const invalid = (reason: string) =>
     invalidSettlement(reason, txHash, settlement?.network, network);
   if (!settlement) throw invalid("missing_settlement");
@@ -15,15 +18,13 @@ export function baiPaymentResult(payment: Record<string, unknown>, network: stri
     throw invalid("settlement_unconfirmed");
   if (typeof settlement.network !== "string" || !sameX402Network(settlement.network, network))
     throw invalid("network_mismatch");
-  if (typeof txHash !== "string" || !validHash.test(txHash))
+  if (typeof txHash !== "string" || !isTxHash(network.startsWith("tron:") ? "tron" : "evm", txHash))
     throw invalid("invalid_transaction_hash");
   if (typeof payer !== "string" || !payer) throw invalid("missing_payer");
   if (
     settlement.payer !== undefined &&
     (typeof settlement.payer !== "string" ||
-      (network.startsWith("eip155:")
-        ? settlement.payer.toLowerCase() !== payer.toLowerCase()
-        : !sameTronPayer(settlement.payer, payer)))
+      !sameAddress(network.startsWith("eip155:") ? "evm" : "tron", settlement.payer, payer))
   ) {
     throw invalid("payer_mismatch");
   }
@@ -38,7 +39,9 @@ function invalidSettlement(
 ) {
   // Candidate evidence is bounded and unconfirmed.
   const candidateTxHash =
-    typeof txHash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(txHash) ? txHash : undefined;
+    typeof txHash === "string" && CHAIN_FAMILIES.some((family) => isTxHash(family, txHash))
+      ? txHash
+      : undefined;
   return new TransportError(
     "invalid_x402_response",
     "Recharge settlement is unconfirmed; reconcile before paying again",
@@ -61,20 +64,4 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
-}
-
-/** TRON typed data uses 20-byte hex; wallet identities use Base58Check. */
-function sameTronPayer(left: string, right: string): boolean {
-  const normalize = (value: string): string => {
-    const full = /^0x[0-9a-f]{40}$/i.test(value) ? `41${value.slice(2)}` : value;
-    const address = tronHexToBase58(full);
-    // Do not accept equal malformed strings as evidence of the same account.
-    tronAddressBytes(address);
-    return address;
-  };
-  try {
-    return normalize(left) === normalize(right);
-  } catch {
-    return false;
-  }
 }

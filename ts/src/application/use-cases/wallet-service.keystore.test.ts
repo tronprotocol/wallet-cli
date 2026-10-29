@@ -750,3 +750,47 @@ describe("native backup warns about accounts the default recovery flow will not 
     expect(warnings).toEqual([]);
   });
 });
+
+describe("WalletService.delete", () => {
+  function serviceDeleting(result: object) {
+    return new WalletService(
+      { delete: () => result } as never,
+      {} as never,
+      fakeWriter(),
+      fakeRecords(),
+    );
+  }
+
+  it("warns with the file name when the secret file stayed on disk", () => {
+    const warn = vi.fn();
+    const result = serviceDeleting({
+      accountId: "wlt_a",
+      scope: "wallet",
+      secretRemoved: false,
+      retainedSecretFile: "/root/vaults/vlt_a.json",
+      newActive: null,
+    }).delete("wlt_a", warn);
+
+    expect(result).toEqual({
+      accountId: "wlt_a",
+      scope: "wallet",
+      secretRemoved: false,
+      newActive: null,
+    });
+    expect(warn).toHaveBeenCalledWith({
+      code: "secret_file_not_removed",
+      message: expect.stringContaining("/root/vaults/vlt_a.json"),
+    });
+  });
+
+  it("does not warn when the secret file was removed", () => {
+    const warn = vi.fn();
+    serviceDeleting({
+      accountId: "wlt_a",
+      scope: "wallet",
+      secretRemoved: true,
+      newActive: null,
+    }).delete("wlt_a", warn);
+    expect(warn).not.toHaveBeenCalled();
+  });
+});

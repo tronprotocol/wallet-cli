@@ -394,7 +394,8 @@ it.each([1024 * 1024, 1024 * 1024 + 1])("bounds decompressed gzip at %s bytes", 
   expect(Buffer.byteLength(body)).toBe(size);
   replyHttps(gzipSync(body), 200, { "content-encoding": "gzip" });
   const result = await new RegistrationLoader(1000).load("https://example.test/a");
-  if (size === 1024 * 1024) expect(result.metadata?.name).toHaveLength(size - 11);
+  if (size === 1024 * 1024)
+    expect((result.metadata as { name?: string } | undefined)?.name).toHaveLength(size - 11);
   else expect(result.warning).toContain("1 MiB");
 });
 it("rejects corrupt gzip without returning metadata", async () => {

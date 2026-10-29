@@ -44,6 +44,26 @@ describe("resolveLedgerPath", () => {
     expect(path).toBe("m/44'/195'/2'/0/0");
   });
 
+  it.each([
+    ["lowercase", (a: string) => a.toLowerCase()],
+    ["checksummed", (a: string) => a],
+  ])("finds a device EVM address given in %s form", async (_label, spell) => {
+    const device = "0x52908400098527886E0F7030069857D2E4169EE7";
+    const ledger = fakeLedger({ "m/44'/60'/1'/0/0": device.toLowerCase() });
+    const path = await resolveLedgerPath(ledger, "evm", { address: spell(device), scanLimit: 3 });
+    expect(path).toBe("m/44'/60'/1'/0/0");
+  });
+
+  it("finds a checksummed device EVM address given in lowercase", async () => {
+    const device = "0x52908400098527886E0F7030069857D2E4169EE7";
+    const ledger = fakeLedger({ "m/44'/60'/2'/0/0": device });
+    const path = await resolveLedgerPath(ledger, "evm", {
+      address: device.toLowerCase(),
+      scanLimit: 3,
+    });
+    expect(path).toBe("m/44'/60'/2'/0/0");
+  });
+
   it("throws ledger_address_not_found past the scan limit, citing the recovery flags", async () => {
     const err = await resolveLedgerPath(fakeLedger(), "tron", {
       address: "Tnope",

@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { NetworkDescriptor, TronTransactionArtifact } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
 import { TronTransactionService } from "./transaction-service.js";
+import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 
 const OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 const RECEIVER = "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT";
@@ -62,7 +64,7 @@ describe("TronTransactionService recipient resolution", () => {
     const result = await service.send(scope(), NETWORK, {
       to: "alice",
       rawAmount: "1000000",
-      feeLimit: "100000000",
+      feeLimit: sunAmount("100000000"),
       dryRun: true,
     });
 
@@ -88,8 +90,51 @@ describe("TronTransactionService amount rule", () => {
       { resolve: () => ({ address: RECEIVER }) } as never,
     );
     await expect(
-      service.send(scope(), NETWORK, { to: RECEIVER, rawAmount, feeLimit: "1", dryRun: true }),
+      service.send(scope(), NETWORK, {
+        to: RECEIVER,
+        rawAmount,
+        feeLimit: sunAmount("1"),
+        dryRun: true,
+      }),
     ).rejects.toMatchObject({ code: "invalid_amount" });
     expect(pipeline.run).not.toHaveBeenCalled();
+  });
+});
+
+describe("TronTransactionService TRC20 --wait", () => {
+  const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
+  it("does not confirm a mined TRC20 transfer whose execution result is unknown", async () => {
+    const built = { txID: "tx", raw_data: { contract: [{ type: "TriggerSmartContract" }] } };
+    const gateway = {
+      buildTrc20Transfer: vi.fn(async () => built),
+      prepareTransaction: vi.fn((transaction) => transaction),
+      encodeTransactionHex: vi.fn(() => "abcd"),
+      getTransactionInfoById: vi.fn(async () => parseTronTxInfo({ blockNumber: 7, receipt: {} })),
+    } as unknown as TronGateway;
+    let confirmed: unknown = "not called";
+    const pipeline = {
+      assertCanSign: vi.fn(),
+      run: vi.fn(async (params: TxPipelineParams<TronTransactionArtifact>) => {
+        const transaction = await params.build(OWNER);
+        confirmed = await params.confirm!("tx", transaction);
+        return { stage: "submitted" as const, txId: "tx" };
+      }),
+    } as unknown as TxPipeline;
+    const service = new TronTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as never,
+      pipeline,
+      { resolve: () => ({ address: RECEIVER }) } as never,
+    );
+
+    await service.send({ ...scope(), wait: true, waitTimeoutMs: 0 }, NETWORK, {
+      to: RECEIVER,
+      contract: CONTRACT,
+      rawAmount: "1",
+      feeLimit: sunAmount("100000000"),
+    });
+
+    expect(confirmed).toBeUndefined();
   });
 });

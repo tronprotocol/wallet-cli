@@ -80,7 +80,7 @@ it("renders V4 actual settlement even when a hook changes principal plus fees", 
         feeAmount: "3132",
         receivedAmount: "3734",
       },
-    },
+    } as never,
     ctx,
   );
   expect(text).toContain("0.0064 TRX");

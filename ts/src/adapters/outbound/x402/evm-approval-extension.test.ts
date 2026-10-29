@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { Interface, Transaction, Wallet } from "ethers";
 import { X402PaymentClient } from "./payment-client.js";
 import { evmSignStrategy } from "../chain/evm/signing-strategy.js";
-import type { TypedDataPayload } from "../../../domain/types/index.js";
+import type { TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
 
@@ -38,7 +38,7 @@ it.each(["56", "8453"])(
       return Response.json({ jsonrpc: "2.0", id: body.id, result });
     });
     vi.stubGlobal("fetch", rpc);
-    const sign = vi.fn((tx: unknown) => evmSignStrategy.sign(wallet.privateKey, tx));
+    const sign = vi.fn((tx: UnsignedTx) => evmSignStrategy.sign(wallet.privateKey, tx));
     const signTypedData = vi.fn((payload: TypedDataPayload) =>
       evmSignStrategy.signTypedData(wallet.privateKey, payload),
     );

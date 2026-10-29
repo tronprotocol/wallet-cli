@@ -1,3 +1,4 @@
+import type { TxConfirmation } from "../../domain/types/index.js";
 import type { EvmGateway } from "../ports/chain/gateway-provider.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 
@@ -8,7 +9,7 @@ const sleep = (milliseconds: number) =>
 export function evmConfirmation(
   gateway: EvmGateway,
   scope: TransactionScope,
-): (hash: string) => Promise<Record<string, unknown> | undefined> {
+): (hash: string) => Promise<TxConfirmation | undefined> {
   return async (hash) => {
     const deadline = Date.now() + Math.max(0, scope.waitTimeoutMs);
     for (;;) {

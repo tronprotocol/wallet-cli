@@ -5,6 +5,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 
 const NETWORK = {
   id: "tron:3448148188",
@@ -49,8 +50,8 @@ describe("TronContractService.send fee-limit guidance", () => {
         contract: "Tcontract",
         method: "transfer(address,uint256)",
         parameters: [],
-        callValueSun: "8847971",
-        feeLimit: "1",
+        callValueSun: sunAmount("8847971"),
+        feeLimit: sunAmount("1"),
         dryRun: true,
       });
 

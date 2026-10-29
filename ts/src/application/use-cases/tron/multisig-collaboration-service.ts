@@ -16,6 +16,7 @@ import type {
 import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
 import { TronMultisigService } from "./multisig-service.js";
+import { normalizeTxHash } from "../../../domain/family/index.js";
 
 const LIST_LIMIT = 20;
 const MAX_LOOKUP_RECORDS = 1000;
@@ -39,7 +40,7 @@ export class TronMultisigCollaborationService {
 
   async list(network: NetworkDescriptor, address: string): Promise<TronLinkMultisigListView> {
     const page = await this.collaboration.list(network, address, {
-      state: 255,
+      state: "all",
       start: 0,
       limit: LIST_LIMIT,
     });
@@ -47,9 +48,10 @@ export class TronMultisigCollaborationService {
     // Skip undecodable rows when listing; signing still rejects them.
     const validated: ValidatedRemoteRecord[] = [];
     let unreadable = 0;
-    for (const record of page.records) {
+    for (const entry of page.entries) {
+      if (entry.kind === "malformed") throw entry.error;
       try {
-        validated.push(this.#validate(gateway, address, record));
+        validated.push(this.#validate(gateway, address, entry.record));
       } catch (error) {
         if (!isUndecodable(error)) throw error;
         unreadable += 1;
@@ -139,16 +141,7 @@ export class TronMultisigCollaborationService {
     onPending: (count: number) => void,
   ) {
     let notifications = 0;
-    await this.collaboration.watch(network, address, signal, (payload) => {
-      if (!Array.isArray(payload)) return;
-      const count = payload.filter((entry) => {
-        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
-        const record = entry as Record<string, unknown>;
-        return (
-          booleanFlag(record.is_sign, "is_sign") === false &&
-          safeInteger(record.state, "state", 0) === 0
-        );
-      }).length;
+    await this.collaboration.watch(network, address, signal, (count) => {
       if (count > 0) {
         notifications += 1;
         onPending(count);
@@ -167,20 +160,21 @@ export class TronMultisigCollaborationService {
     let total = Number.MAX_SAFE_INTEGER;
     while (start < total && start < MAX_LOOKUP_RECORDS) {
       const page = await this.collaboration.list(network, address, {
-        state: 255,
+        state: "all",
         start,
         limit: LOOKUP_PAGE_SIZE,
       });
       total = page.total;
-      for (const record of page.records) {
+      for (const entry of page.entries) {
         // Filter by claimed hash, then validate it against the transaction bytes.
-        if (claimedTxId(record) !== txId) continue;
-        const validated = this.#validate(gateway, address, record);
+        if (entry.claimedTxId !== txId) continue;
+        if (entry.kind === "malformed") throw entry.error;
+        const validated = this.#validate(gateway, address, entry.record);
         await this.#verifyOnChain(network, address, validated);
         return validated;
       }
-      if (page.records.length === 0) break;
-      start += page.records.length;
+      if (page.entries.length === 0) break;
+      start += page.entries.length;
     }
     if (total > MAX_LOOKUP_RECORDS) {
       throw new ChainError(
@@ -196,11 +190,10 @@ export class TronMultisigCollaborationService {
     currentAddress: string,
     remote: TronLinkRemoteRecord,
   ): ValidatedRemoteRecord {
-    const hash = normalizeTxId(stringValue(remote.hash, "hash"));
     let hex: string;
     let transaction: TronTransactionArtifact;
     try {
-      hex = gateway.encodeTransactionHex(remote.current_transaction);
+      hex = gateway.encodeTransactionJson(remote.currentTransaction).hex;
       transaction = gateway.decodeTransactionHex(hex);
     } catch (error) {
       throw new ChainError(
@@ -208,7 +201,7 @@ export class TronMultisigCollaborationService {
         `this client cannot reconstruct the TronLink transaction bytes: ${reason(error)}`,
       );
     }
-    if (transaction.txID !== hash) {
+    if (transaction.txID !== remote.txId) {
       throw new ChainError(
         "provider_error",
         "TronLink record hash does not match transaction raw_data",
@@ -216,7 +209,7 @@ export class TronMultisigCollaborationService {
     }
 
     const contract = transaction.raw_data.contract[0];
-    const contractType = stringValue(remote.contract_type, "contract_type");
+    const contractType = remote.contractType;
     if (!contract || contract.type !== contractType) {
       throw new ChainError(
         "provider_error",
@@ -228,30 +221,18 @@ export class TronMultisigCollaborationService {
       "transaction owner_address",
       this.#address,
     );
-    const contractData = objectValue(remote.contract_data, "contract_data");
-    const metadataOwner = normalizedAddress(
-      contractData.owner_address,
-      "contract_data.owner_address",
-      this.#address,
-    );
-    if (metadataOwner !== txOwner) {
+    if (remote.ownerAddress !== txOwner) {
       throw new ChainError(
         "provider_error",
         "TronLink owner metadata does not match transaction raw_data",
       );
     }
 
-    const originator = normalizedAddress(
-      remote.originator_address,
-      "originator_address",
-      this.#address,
-    );
-    const stateCode = safeInteger(remote.state, "state", 0);
-    const isSigned = booleanFlag(remote.is_sign, "is_sign");
-    const state = recordState(stateCode, isSigned);
-    const currentWeight = safeInteger(remote.current_weight, "current_weight", 0);
-    const threshold = safeInteger(remote.threshold, "threshold", 1);
-    const signatureProgress = progress(remote.signature_progress, this.#address);
+    const isSigned = remote.signed;
+    const state = recordState(remote.status, isSigned);
+    const currentWeight = remote.currentWeight;
+    const threshold = remote.threshold;
+    const signatureProgress = progress(remote.signatureProgress);
     const currentProgress = signatureProgress.find((item) => item.address === currentAddress);
     if (!currentProgress) {
       throw new ChainError(
@@ -287,10 +268,10 @@ export class TronMultisigCollaborationService {
       view: {
         // Chain approval verification is still pending.
         verified: false,
-        txId: hash,
+        txId: remote.txId,
         state,
         contractType,
-        originator,
+        originator: remote.originatorAddress,
         owner: txOwner,
         permission: {
           id: contract.Permission_id ?? 0,
@@ -300,7 +281,7 @@ export class TronMultisigCollaborationService {
         currentWeight,
         missingWeight: Math.max(0, threshold - currentWeight),
         thresholdReached: currentWeight >= threshold,
-        awaitingMySignature: stateCode === 0 && !isSigned,
+        awaitingMySignature: remote.status === "open" && !isSigned,
         signedByCurrentAccount: isSigned,
         createdAt,
         expiration,
@@ -427,52 +408,35 @@ function convertAddressFields(value: unknown): void {
   }
 }
 
-function progress(value: unknown, addressCodec: TronAddress): TronLinkSignatureProgressView[] {
-  if (!Array.isArray(value)) {
-    throw new ChainError("provider_error", "TronLink signature_progress must be an array");
-  }
+// Copies the entries: on-chain verification replaces their weights.
+function progress(entries: TronLinkSignatureProgressView[]): TronLinkSignatureProgressView[] {
   const addresses = new Set<string>();
-  return value.map((entry, index) => {
-    const item = objectValue(entry, `signature_progress[${index}]`);
-    const address = normalizedAddress(
-      item.address,
-      `signature_progress[${index}].address`,
-      addressCodec,
-    );
-    if (addresses.has(address)) {
+  return entries.map((entry) => {
+    if (addresses.has(entry.address)) {
       throw new ChainError(
         "provider_error",
         "TronLink signature_progress contains duplicate addresses",
       );
     }
-    addresses.add(address);
-    const weight = safeInteger(item.weight, `signature_progress[${index}].weight`, 1);
-    const signed = booleanFlag(item.is_sign, `signature_progress[${index}].is_sign`);
-    const signTime = safeInteger(item.sign_time ?? 0, `signature_progress[${index}].sign_time`, 0);
-    const signedAt = signTime === 0 ? null : signTime * 1000;
-    if (!Number.isSafeInteger(signedAt ?? 0) || (!signed && signTime !== 0)) {
+    addresses.add(entry.address);
+    if (!entry.signed && entry.signedAt !== null) {
       throw new ChainError("provider_error", "TronLink signature timestamp is inconsistent");
     }
-    return { address, weight, signed, signedAt };
+    return { ...entry };
   });
 }
 
-function recordState(code: number, signed: boolean): TronLinkMultisigState {
-  if (code === 0) return signed ? "signed" : "pending";
-  if (code === 1) return "success";
-  if (code === 2) return "failed";
-  throw new ChainError("provider_error", `TronLink returned unsupported transaction state ${code}`);
-}
-
-function claimedTxId(remote: TronLinkRemoteRecord): string | null {
-  return typeof remote.hash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(remote.hash)
-    ? remote.hash.replace(/^0x/i, "").toLowerCase()
-    : null;
+function recordState(
+  status: TronLinkRemoteRecord["status"],
+  signed: boolean,
+): TronLinkMultisigState {
+  if (status === "open") return signed ? "signed" : "pending";
+  return status;
 }
 
 function normalizeTxId(value: string): string {
-  const normalized = value.replace(/^0x/i, "").toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(normalized)) {
+  const normalized = normalizeTxHash("tron", value);
+  if (normalized === undefined) {
     throw new UsageError("invalid_value", "TronLink txId must be a 32-byte hex string");
   }
   return normalized;
@@ -484,13 +448,6 @@ function normalizedAddress(value: unknown, field: string, codec: TronAddress): s
     throw new ChainError("provider_error", `TronLink ${field} is not a valid TRON address`);
   }
   return normalized;
-}
-
-function objectValue(value: unknown, field: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ChainError("provider_error", `TronLink ${field} must be an object`);
-  }
-  return value as Record<string, unknown>;
 }
 
 function stringValue(value: unknown, field: string): string {
@@ -507,12 +464,6 @@ function safeInteger(value: unknown, field: string, minimum: number): number {
     if (Number.isSafeInteger(parsed) && parsed >= minimum) return parsed;
   }
   throw new ChainError("provider_error", `TronLink ${field} must be a safe integer`);
-}
-
-function booleanFlag(value: unknown, field: string): boolean {
-  if (value === true || value === 1 || value === "1" || value === "true") return true;
-  if (value === false || value === 0 || value === "0" || value === "false") return false;
-  throw new ChainError("provider_error", `TronLink ${field} must be a boolean flag`);
 }
 
 async function mapWithConcurrency<T>(

@@ -82,7 +82,7 @@ wallet-cli chain node --network sepolia -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`, `timeout`) · `2` usage error.
+`0` success · `1` execution failure (`rpc_error`, `timeout`; `invalid_node_response` when a TRON node returns no head block number or timestamp) · `2` usage error.
 
 ## See also
 

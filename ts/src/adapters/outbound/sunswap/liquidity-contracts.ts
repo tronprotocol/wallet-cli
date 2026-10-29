@@ -1,5 +1,11 @@
 // Read token decimals on chain; keep monetary values as decimal strings or BigInt.
-import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
+import {
+  checkedTokenDecimals,
+  baseUnitAmount,
+  type BaseUnits,
+  type Sun,
+  sunAmount,
+} from "../../../domain/amounts/index.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import {
@@ -43,13 +49,14 @@ import { sdkNetworkName } from "./sdk-runtime.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import {
-  tronAddressBytes,
-  tronBytesToBase58,
-  tronHexAddress,
+  tronAddressFromHash20,
+  tronAddressToEvmHex,
+  tronHash20Hex,
 } from "../../../domain/address/index.js";
+import { FAMILIES, sameAddress } from "../../../domain/family/index.js";
 
 // A missing pair returns the zero address rather than reverting.
-const ZERO_ADDRESS_HEX = "0".repeat(40);
+const ZERO_ADDRESS_HEX = tronHash20Hex(FAMILIES.tron.zeroAddress);
 
 interface TronLogEntry {
   readonly address?: string;
@@ -233,7 +240,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     ]);
     // Return reserves in the caller's token order, not the pair's sorted order.
     const [reserveA, reserveB] = [word(reserves, 0), word(reserves, 1)];
-    const sameOrder = addressFromWord(pairToken0).toLowerCase() === token0.toLowerCase();
+    const sameOrder = sameAddress("tron", addressFromWord(pairToken0), token0);
     return {
       pairAddress,
       reserve0: sameOrder ? reserveA : reserveB,
@@ -244,16 +251,16 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     };
   }
 
-  async balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<string> {
+  async balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits> {
     const raw = await this.#read(network, token, "balanceOf(address)", [
       { type: "address", value: owner },
     ]);
-    return BigInt(`0x${raw}`).toString();
+    return baseUnitAmount(BigInt(`0x${raw}`));
   }
 
-  async nativeBalance(network: NetworkDescriptor, owner: string): Promise<string> {
+  async nativeBalance(network: NetworkDescriptor, owner: string): Promise<Sun> {
     const account = await this.gateways.get(network, "tron").getAccount(owner);
-    return String(account.balance ?? "0");
+    return sunAmount(String(account.balance ?? "0"));
   }
 
   async allowance(
@@ -261,12 +268,12 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     token: string,
     owner: string,
     spender: string,
-  ): Promise<string> {
+  ): Promise<BaseUnits> {
     const raw = await this.#read(network, token, "allowance(address,address)", [
       { type: "address", value: owner },
       { type: "address", value: spender },
     ]);
-    return BigInt(`0x${raw}`).toString();
+    return baseUnitAmount(BigInt(`0x${raw}`));
   }
 
   // Approve only the supplied amount.
@@ -396,7 +403,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   v3Amounts(
     pool: V3PoolState,
     range: { tickLower: number; tickUpper: number },
-    given: { amount0?: string; amount1?: string },
+    given: { amount0?: BaseUnits; amount1?: BaseUnits },
   ): V3AmountPlan {
     // Use the actual sqrt price; the tick is only the lower edge of its price band.
     return amountsForDeposit(poolPrice(pool), range, given);
@@ -405,7 +412,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   v4Amounts(
     pool: V4PoolState,
     range: { tickLower: number; tickUpper: number },
-    given: { amount0?: string; amount1?: string },
+    given: { amount0?: BaseUnits; amount1?: BaseUnits },
   ): V3AmountPlan {
     // Use the actual sqrt price; V4 deposit amounts are rounded-up spending ceilings.
     return amountsForDeposit(poolPrice(pool), range, given);
@@ -415,7 +422,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     pool: V4PoolState,
     range: { tickLower: number; tickUpper: number },
     liquidity: string,
-  ): { amount0: string; amount1: string } {
+  ): { amount0: BaseUnits; amount1: BaseUnits } {
     return amountsForLiquidity(poolPrice(pool), range, liquidity);
   }
 
@@ -424,7 +431,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     pool: V4PoolState,
     range: { tickLower: number; tickUpper: number },
     liquidity: string,
-  ): { amount0: string; amount1: string } {
+  ): { amount0: BaseUnits; amount1: BaseUnits } {
     return amountsForLiquidity(poolPrice(pool), range, liquidity, true);
   }
 
@@ -433,7 +440,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     pool: V3PoolState,
     range: { tickLower: number; tickUpper: number },
     liquidity: string,
-  ): { amount0: string; amount1: string } {
+  ): { amount0: BaseUnits; amount1: BaseUnits } {
     return amountsForLiquidity(poolPrice(pool), range, liquidity);
   }
 
@@ -588,7 +595,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     tokenId: string,
     recipient: string,
     owner: string,
-  ): Promise<{ amount0: string; amount1: string }> {
+  ): Promise<{ amount0: BaseUnits; amount1: BaseUnits }> {
     const raw = await this.#read(
       network,
       this.#positionManager(network),
@@ -601,7 +608,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
       ],
       owner,
     );
-    return { amount0: word(raw, 0), amount1: word(raw, 1) };
+    return { amount0: baseUnitAmount(word(raw, 0)), amount1: baseUnitAmount(word(raw, 1)) };
   }
 
   async v2LiquidityResult(
@@ -609,9 +616,9 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     txId: string,
     operation: "add" | "remove",
     nativeFirst: boolean,
-  ): Promise<{ amount0: string; amount1: string; lpAmount?: string } | undefined> {
+  ): Promise<{ amount0: BaseUnits; amount1: BaseUnits; lpAmount?: BaseUnits } | undefined> {
     const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
-    if (info.receipt?.result !== "SUCCESS") return undefined;
+    if (info.execution !== "success") return undefined;
     const results = info.contractResult;
     if (!Array.isArray(results) || results.length !== 1 || typeof results[0] !== "string") {
       return undefined;
@@ -620,21 +627,21 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     const words = operation === "add" ? 3 : 2;
     if (raw.length !== words * 64 || !/^[0-9a-f]+$/i.test(raw)) return undefined;
     return {
-      amount0: word(raw, nativeFirst ? 1 : 0),
-      amount1: word(raw, nativeFirst ? 0 : 1),
-      ...(operation === "add" ? { lpAmount: word(raw, 2) } : {}),
+      amount0: baseUnitAmount(word(raw, nativeFirst ? 1 : 0)),
+      amount1: baseUnitAmount(word(raw, nativeFirst ? 0 : 1)),
+      ...(operation === "add" ? { lpAmount: baseUnitAmount(word(raw, 2)) } : {}),
     };
   }
 
   async v3DepositedAmounts(network: NetworkDescriptor, txId: string, tokenId?: string) {
-    const managerHex = tronHexAddress(this.#positionManager(network)).slice(2).toLowerCase();
+    const manager = this.#positionManager(network);
     const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
-    if (info.receipt?.result !== "SUCCESS" || !Array.isArray(info.log)) return undefined;
+    if (info.execution !== "success" || !Array.isArray(info.log)) return undefined;
     const topic = eventTopic("IncreaseLiquidity(uint256,uint128,uint256,uint256)");
     const matches = (info.log as TronLogEntry[]).filter((entry) => {
       const topics = entry.topics ?? [];
       return (
-        String(entry.address ?? "").toLowerCase() === managerHex &&
+        sameAddress("tron", String(entry.address ?? ""), manager) &&
         topics.length === 2 &&
         String(topics[0]).toLowerCase() === topic &&
         /^[0-9a-f]{64}$/i.test(String(topics[1])) &&
@@ -648,8 +655,8 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     return {
       tokenId: BigInt(`0x${event.topics![1]}`).toString(),
       liquidity: word(data, 0),
-      amount0: word(data, 1),
-      amount1: word(data, 2),
+      amount0: baseUnitAmount(word(data, 1)),
+      amount1: baseUnitAmount(word(data, 2)),
     };
   }
 
@@ -657,17 +664,16 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     network: NetworkDescriptor,
     txId: string,
     tokenId: string,
-  ): Promise<{ amount0: string; amount1: string } | undefined> {
+  ): Promise<{ amount0: BaseUnits; amount1: BaseUnits } | undefined> {
     const manager = this.#positionManager(network);
-    const managerHex = tronHexAddress(manager).slice(2).toLowerCase();
     const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
-    if (info.receipt?.result !== "SUCCESS" || !Array.isArray(info.log)) return undefined;
+    if (info.execution !== "success" || !Array.isArray(info.log)) return undefined;
     const logs = info.log as TronLogEntry[];
     const topic = COLLECT_TOPIC.toLowerCase();
     const matches = logs.filter((entry) => {
       const topics = entry.topics ?? [];
       return (
-        String(entry.address ?? "").toLowerCase() === managerHex &&
+        sameAddress("tron", String(entry.address ?? ""), manager) &&
         topics.length === 2 &&
         String(topics[0]).toLowerCase() === topic &&
         /^[0-9a-f]{64}$/i.test(String(topics[1])) &&
@@ -678,7 +684,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     // Only tokenId is indexed; recipient precedes the two amounts in the data.
     const data = String(matches[0]!.data ?? "");
     if (!/^[0-9a-f]{192}$/i.test(data)) return undefined;
-    return { amount0: word(data, 1), amount1: word(data, 2) };
+    return { amount0: baseUnitAmount(word(data, 1)), amount1: baseUnitAmount(word(data, 2)) };
   }
 
   // Use transaction logs to identify the mint; current holdings may have changed.
@@ -695,12 +701,11 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     txId: string,
     manager: string,
   ): Promise<string | undefined> {
-    const managerHex = tronHexAddress(manager).slice(2).toLowerCase();
     const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
     const logs = Array.isArray(info.log) ? (info.log as TronLogEntry[]) : [];
     for (const entry of logs) {
       const topics = entry.topics ?? [];
-      if (String(entry.address ?? "").toLowerCase() !== managerHex) continue;
+      if (!sameAddress("tron", String(entry.address ?? ""), manager)) continue;
       if (topics.length < 4 || String(topics[0]).toLowerCase() !== ERC721_TRANSFER_TOPIC) continue;
       if (BigInt(`0x${String(topics[1])}`) !== 0n) continue;
       return BigInt(`0x${String(topics[3])}`).toString();
@@ -788,7 +793,7 @@ function jsbiMin<T extends { toString(): string }>(a: T, b: T): T {
 
 // ABI tuple addresses use 20-byte 0x hex.
 function evmAddress(base58: string): string {
-  return `0x${Buffer.from(tronAddressBytes(base58)).toString("hex").slice(2)}`;
+  return tronAddressToEvmHex(base58);
 }
 
 // ABI signed integers are sign-extended to 256 bits.
@@ -815,8 +820,7 @@ function word(data: string, index: number): string {
 
 // Decode the low 20 bytes as TRON base58.
 function addressFromWord(data: string): string {
-  const hex = `41${data.slice(24, 64)}`;
-  return tronBytesToBase58(Uint8Array.from(Buffer.from(hex, "hex")));
+  return tronAddressFromHash20(data.slice(24, 64));
 }
 
 // ABI string layout: offset, length, then bytes.
@@ -829,7 +833,7 @@ function decodeString(data: string): string {
 function amountsForDeposit(
   currentSqrtPriceX96: SqrtPrice,
   range: { tickLower: number; tickUpper: number },
-  given: { amount0?: string; amount1?: string },
+  given: { amount0?: BaseUnits; amount1?: BaseUnits },
 ): V3AmountPlan {
   const current = currentSqrtPriceX96;
   const lower = TickMath.getSqrtRatioAtTick(range.tickLower);
@@ -859,12 +863,16 @@ function amountsForDeposit(
     true,
   );
   return {
-    amount0: takes0
-      ? SqrtPriceMath.getAmount0Delta(jsbiMax(current, lower), upper, liquidity, true).toString()
-      : "0",
-    amount1: takes1
-      ? SqrtPriceMath.getAmount1Delta(lower, jsbiMin(current, upper), liquidity, true).toString()
-      : "0",
+    amount0: baseUnitAmount(
+      takes0
+        ? SqrtPriceMath.getAmount0Delta(jsbiMax(current, lower), upper, liquidity, true).toString()
+        : "0",
+    ),
+    amount1: baseUnitAmount(
+      takes1
+        ? SqrtPriceMath.getAmount1Delta(lower, jsbiMin(current, upper), liquidity, true).toString()
+        : "0",
+    ),
     liquidity: liquidity.toString(),
   };
 }
@@ -875,7 +883,7 @@ function amountsForLiquidity(
   liquidity: string,
   // Round down for withdrawal proceeds; round up for deposit ceilings.
   roundUp = false,
-): { amount0: string; amount1: string } {
+): { amount0: BaseUnits; amount1: BaseUnits } {
   const current = currentSqrtPriceX96;
   const lower = TickMath.getSqrtRatioAtTick(range.tickLower);
   const upper = TickMath.getSqrtRatioAtTick(range.tickUpper);
@@ -883,11 +891,15 @@ function amountsForLiquidity(
   const takes1 = jsbiLess(lower, current);
   const burned = jsbiOf(liquidity);
   return {
-    amount0: takes0
-      ? SqrtPriceMath.getAmount0Delta(jsbiMax(current, lower), upper, burned, roundUp).toString()
-      : "0",
-    amount1: takes1
-      ? SqrtPriceMath.getAmount1Delta(lower, jsbiMin(current, upper), burned, roundUp).toString()
-      : "0",
+    amount0: baseUnitAmount(
+      takes0
+        ? SqrtPriceMath.getAmount0Delta(jsbiMax(current, lower), upper, burned, roundUp).toString()
+        : "0",
+    ),
+    amount1: baseUnitAmount(
+      takes1
+        ? SqrtPriceMath.getAmount1Delta(lower, jsbiMin(current, upper), burned, roundUp).toString()
+        : "0",
+    ),
   };
 }

@@ -1,18 +1,10 @@
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { evmFeeMode } from "../../../domain/fees/evm-gas.js";
-import { decimalToSafeNumber, quantityToSafeNumber } from "../../../domain/numbers/index.js";
+import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 
 const NATIVE_TRANSFER_GAS = 21_000;
-
-// Parses a hex RPC quantity; invalid or unsafe values become null.
-function quantity(value: unknown): number | null {
-  try {
-    return quantityToSafeNumber(value, "quantity", (message) => new Error(message));
-  } catch {
-    return null;
-  }
-}
 
 function decimal(value: unknown): number | null {
   try {
@@ -66,10 +58,13 @@ export class EvmChainService {
       optional(() => gateway.chainId()),
     ]);
 
-    const headBlock = head as Record<string, unknown> | null;
-    const headNumber = quantity(headBlock?.number) ?? 0;
-    const solidNumber = quantity((finalized as Record<string, unknown> | null)?.number);
-    const headTimestamp = quantity(headBlock?.timestamp);
+    if (head === null) {
+      throw new ChainError(
+        "invalid_node_response",
+        `the node reported no latest block on ${network.id}`,
+      );
+    }
+    const solidNumber = finalized?.number ?? null;
     const peerCount = peers === null ? null : decimal(peers);
 
     return {
@@ -79,14 +74,14 @@ export class EvmChainService {
       chainId,
       p2pVersion: null,
       headBlock: {
-        number: headNumber,
+        number: head.number,
         // RPC seconds become milliseconds in this view.
-        timestamp: headTimestamp === null ? 0 : headTimestamp * 1000,
+        timestamp: head.timestamp * 1000,
       },
       solidBlock: solidNumber === null ? null : { number: solidNumber },
-      lagBlocks: solidNumber === null ? null : headNumber - solidNumber,
+      lagBlocks: solidNumber === null ? null : head.number - solidNumber,
       // False means caught up; null means unknown.
-      inSync: syncing === null ? null : syncing === false,
+      inSync: syncing === null ? null : !syncing,
       peers: peerCount === null ? null : { connected: peerCount, active: peerCount },
     };
   }

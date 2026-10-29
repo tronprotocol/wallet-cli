@@ -3,7 +3,7 @@ import { mkdtemp, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ExecutionError } from "../domain/errors/index.js";
-import type { X402ServerHandle } from "../application/ports/x402-server.js";
+import type { X402ServeDetails, X402ServerHandle } from "../application/ports/x402-server.js";
 
 // Announce the detached daemon only after its listener is ready.
 export async function startX402Daemon(): Promise<X402ServerHandle> {
@@ -24,7 +24,7 @@ export async function startX402Daemon(): Promise<X402ServerHandle> {
     : fork(process.argv[1]!, process.argv.slice(2), options);
   await log.close();
   try {
-    const details = await new Promise<Record<string, unknown>>((resolve, reject) => {
+    const details = await new Promise<X402ServeDetails>((resolve, reject) => {
       const timer = setTimeout(() => fail(), 30_000);
       const cleanup = () => {
         clearTimeout(timer);
@@ -43,7 +43,7 @@ export async function startX402Daemon(): Promise<X402ServerHandle> {
       const ready = (message: unknown) => {
         if (!message || typeof message !== "object" || !("x402Ready" in message)) return;
         cleanup();
-        resolve((message as { x402Ready: Record<string, unknown> }).x402Ready);
+        resolve((message as { x402Ready: X402ServeDetails }).x402Ready);
       };
       child.once("error", fail);
       child.once("exit", fail);

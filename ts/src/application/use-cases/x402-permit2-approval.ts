@@ -1,5 +1,6 @@
 import type { NetworkDescriptor, TxOutcome } from "../../domain/types/index.js";
 import { ChainError } from "../../domain/errors/index.js";
+import { sunAmount } from "../../domain/amounts/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type {
   Permit2ApproveRequest,
@@ -70,11 +71,11 @@ export class X402Permit2Approvals {
       permissionId: 0,
       ...tronTransactionHooks(gateway),
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
-      confirm: tronConfirmation(gateway, approvalScope, { requireReceiptResult: true }),
+      confirm: tronConfirmation(gateway, approvalScope),
       build: (from) =>
         gateway.triggerSmartContract(from, request.token, APPROVE, parameters, {
-          callValue: "0",
-          feeLimit: String(X402_APPROVE_FEE_LIMIT_SUN),
+          callValue: sunAmount("0"),
+          feeLimit: sunAmount(String(X402_APPROVE_FEE_LIMIT_SUN)),
           permissionId: 0,
         }),
       estimate: () => gateway.estimateResources(owner, request.token, APPROVE, parameters),

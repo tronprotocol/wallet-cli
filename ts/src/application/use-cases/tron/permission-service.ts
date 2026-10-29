@@ -18,7 +18,7 @@ import {
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { warnOnPostCheck } from "../../services/post-check.js";
-import { assertTronSignerAuthorized } from "./multisig-authorization.js";
+import { assertTronSignerAuthorized, tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronPermissionService {
   constructor(
@@ -71,8 +71,7 @@ export class TronPermissionService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
-      prepare: (tx, options) => gateway.prepareTransaction(tx, options),
-      artifact: (tx) => gateway.encodeTransactionHex(tx),
+      ...tronTransactionHooks(gateway),
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
       confirm: tronConfirmation(gateway, scope),
       build: () => gateway.buildAccountPermissionUpdate(address, permissions),

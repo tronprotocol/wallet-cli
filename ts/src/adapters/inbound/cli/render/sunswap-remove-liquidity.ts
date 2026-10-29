@@ -3,12 +3,13 @@ import { formatAmount, formatInt, shorten } from "./scalars.js";
 import { fail, ok, pending, receipt, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 import { formatFee } from "./tx.js";
+import { zeroMinimumNote } from "./sunswap-minimum.js";
 
 interface Side {
   readonly symbol: string;
   readonly amount: string;
   readonly amountMinimum?: string;
-  readonly feeAmount?: string;
+  readonly acceptsAnyAmount?: boolean;
   readonly receivedAmount?: string;
   readonly decimals: number;
 }
@@ -44,6 +45,7 @@ interface RemovalView {
   readonly tickLower?: number;
   readonly tickUpper?: number;
   readonly reservesAfter?: { readonly token0: string; readonly token1: string };
+  readonly collectsFees?: boolean;
   readonly approvals?: readonly ApprovalRow[];
   readonly fee?: unknown;
   readonly feeCovers?: string;
@@ -59,14 +61,13 @@ type Pair = [string, string];
 const deadline = (seconds: number): string =>
   `${new Date(seconds * 1000).toISOString().replace("T", " ").slice(0, 19)} UTC`;
 
-// Prefer actual settlement; otherwise sum principal and fees.
-const arrived = (side: Side): bigint =>
+const arrived = (side: Side): string =>
   side.receivedAmount === undefined
-    ? BigInt(side.amount) + BigInt(side.feeAmount ?? "0")
-    : BigInt(side.receivedAmount);
+    ? ""
+    : `${formatAmount(side.receivedAmount, side.decimals)} ${side.symbol}`;
 
 const received = (value: RemovalView): string =>
-  `${formatAmount(arrived(value.token0).toString(), value.token0.decimals)} ${value.token0.symbol} / ${formatAmount(arrived(value.token1).toString(), value.token1.decimals)} ${value.token1.symbol}`;
+  `${arrived(value.token0)} / ${arrived(value.token1)}`;
 
 export const SunSwapRemoveLiquidityFormatters = {
   sunswapRemoveLiquidity: (value: RemovalView, ctx: TextRenderContext): string => {
@@ -171,16 +172,14 @@ function dryRun(value: RemovalView, rows: Pair[], ctx: TextRenderContext): strin
       `${warn()} The withdrawal's own fee cannot be estimated until the approval is on-chain.`,
     );
   }
-  // V3 and V4 withdrawals collect accrued fees in the same transaction.
-  if (value.protocol === "V3" || value.protocol === "V4") {
+  if (value.collectsFees) {
     lines.push(
       `${warn()} Any fees this position has accrued are collected in the same transaction, so more may arrive than the estimate above.`,
     );
   }
   // Keep the zero-minimum warning last.
-  if (value.token0.amountMinimum === "0" || value.token1.amountMinimum === "0") {
-    lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
-  }
+  const unprotected = zeroMinimumNote(value.token0, value.token1);
+  if (unprotected !== undefined) lines.push(`${warn()} ${unprotected}`);
   return lines.join("\n\n");
 }
 

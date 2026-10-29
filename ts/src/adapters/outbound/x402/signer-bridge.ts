@@ -4,10 +4,14 @@ import type {
   PayerSigner,
   SignedApproval,
 } from "../../../application/contracts/x402-payer.js";
-import type { TypedDataPayload } from "../../../domain/types/index.js";
+import type {
+  EvmUnsignedTx,
+  TronTransactionArtifact,
+  TypedDataPayload,
+} from "../../../domain/types/index.js";
 import type { ChainFamily } from "../../../domain/family/chain-family.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { EvmAddress, tronHexToBase58 } from "../../../domain/address/index.js";
+import { EvmAddress, tronHexFromHash20, tronHexToBase58 } from "../../../domain/address/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
 
 // TRON reads getAddress(); EVM reads address.
@@ -59,7 +63,7 @@ function unlimitedApproveSpenderHex(data: unknown): string | undefined {
 
 function unlimitedApproveSpender(data: unknown): string | undefined {
   const spender = unlimitedApproveSpenderHex(data);
-  return spender === undefined ? undefined : tronAddressField(`41${spender}`);
+  return spender === undefined ? undefined : tronAddressField(tronHexFromHash20(spender));
 }
 
 const evmAddress = new EvmAddress();
@@ -80,7 +84,7 @@ function quantityText(value: unknown): string | undefined {
   return undefined;
 }
 
-export function decodeEvmApprove(tx: Record<string, unknown>): DecodedEvmApprove {
+export function decodeEvmApprove(tx: EvmUnsignedTx): DecodedEvmApprove {
   const token = evmAddressField(tx.to);
   const spender = unlimitedApproveSpenderHex(tx.data);
   const unlimitedApproveSpender =
@@ -109,7 +113,7 @@ export function decodeTronApprove(tx: unknown): DecodedTronApprove {
     ...(token === undefined ? {} : { token }),
     callValueSun: value.call_value === undefined ? "0" : String(value.call_value),
     ...(spender === undefined ? {} : { unlimitedApproveSpender: spender }),
-    ...(typeof feeLimit === "number" ? { feeLimitSun: feeLimit } : {}),
+    ...(Number.isSafeInteger(feeLimit) ? { feeLimitSun: feeLimit as number } : {}),
   };
 }
 
@@ -138,7 +142,12 @@ export function toX402Wallet(payer: PayerSigner, options: X402WalletOptions): X4
         const input = evmTransactionInput(tx);
         return evmRawTransaction(await payer.signTransaction(input, decodeEvmApprove(input)));
       }
-      const { signed, approval } = await payer.signPermit2Approval(tx, decodeTronApprove(tx));
+      // The signer checks the SDK's transaction against its raw_data_hex before signing.
+      const transaction = tx as TronTransactionArtifact;
+      const { signed, approval } = await payer.signPermit2Approval(
+        transaction,
+        decodeTronApprove(transaction),
+      );
       // The signer verifies txID against raw_data_hex.
       const txId = (signed as { txID?: unknown })?.txID ?? (tx as { txID?: unknown })?.txID;
       if (typeof txId === "string") options.onApprovalSigned?.({ ...approval, txId });
@@ -148,11 +157,12 @@ export function toX402Wallet(payer: PayerSigner, options: X402WalletOptions): X4
 }
 
 // x402 uses viem's gas; wallet signers use ethers' gasLimit.
-function evmTransactionInput(tx: unknown): Record<string, unknown> {
+function evmTransactionInput(tx: unknown): EvmUnsignedTx {
   if (!tx || typeof tx !== "object" || Array.isArray(tx)) {
     throw new ChainError("signed_payload_mismatch", "EVM transaction must be an object");
   }
   const { gas, ...transaction } = tx as Record<string, unknown>;
   if (gas !== undefined && transaction.gasLimit == null) transaction.gasLimit = gas;
-  return transaction;
+  // ethers checks the field types when the signer encodes the transaction.
+  return transaction as EvmUnsignedTx;
 }

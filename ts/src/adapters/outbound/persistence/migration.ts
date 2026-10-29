@@ -53,20 +53,21 @@ export class MigrationRunner {
     };
   }
 
-  // Migrated documents and backup copies share one rollback batch.
-  apply(stale: StaleFile[], password?: string): void {
-    if (stale.length === 0) return;
-    this.write(stale, password);
+  // Migrated documents and backup copies share one rollback batch. Returns the rollback copies left
+  // on disk after the commit.
+  apply(stale: StaleFile[], password?: string): string[] {
+    if (stale.length === 0) return [];
+    return this.write(stale, password);
   }
 
   // Hold all file locks across the complete read-modify-write.
-  private write(stale: StaleFile[], password: string | undefined, held = 0): void {
+  private write(stale: StaleFile[], password: string | undefined, held = 0): string[] {
     if (held === stale.length) return this.commit(stale, password);
-    this.store.withLock(stale[held]!.step.path, () => this.write(stale, password, held + 1));
+    return this.store.withLock(stale[held]!.step.path, () => this.write(stale, password, held + 1));
   }
 
   // Re-read under lock to preserve changes made while confirmation or password prompts were open.
-  private commit(stale: StaleFile[], password: string | undefined): void {
+  private commit(stale: StaleFile[], password: string | undefined): string[] {
     const writes: Array<{ path: string; value: unknown }> = [];
     for (const { step, storedVersion } of stale) {
       const doc = this.store.readJson<unknown>(step.path);
@@ -84,7 +85,7 @@ export class MigrationRunner {
         { path: step.path, value: step.migrate(doc, password) },
       );
     }
-    if (writes.length === 0) return;
-    this.store.writeJsonAll(writes);
+    if (writes.length === 0) return [];
+    return this.store.writeJsonAll(writes);
   }
 }

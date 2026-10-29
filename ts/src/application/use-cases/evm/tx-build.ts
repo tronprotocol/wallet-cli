@@ -1,22 +1,34 @@
-import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  EvmFeeReport,
+  EvmUnsignedTx,
+  NetworkDescriptor,
+} from "../../../domain/types/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
 import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
+import type { Wei } from "../../../domain/amounts/index.js";
 
 export interface EvmGasInput {
   gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
+  maxFee?: Wei;
+  priorityFee?: Wei;
   nonce?: number;
+}
+
+// Absent `to` creates a contract; value is decimal wei.
+export interface EvmCall {
+  to?: string;
+  data?: string;
+  value: string;
 }
 
 export interface EvmBuildRequest {
   gateway: EvmGateway;
   network: NetworkDescriptor;
   from: string;
-  call: Record<string, unknown>;
+  call: EvmCall;
   input: EvmGasInput;
   // Best-effort check of an explicit nonce against the mined count.
   dryRun?: boolean;
@@ -24,8 +36,8 @@ export interface EvmBuildRequest {
 }
 
 export interface EvmBuildResult {
-  tx: UnsignedTx;
-  fee: Record<string, unknown>;
+  tx: EvmUnsignedTx;
+  fee: EvmFeeReport;
   warnings?: string[];
 }
 

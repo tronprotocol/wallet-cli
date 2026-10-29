@@ -6,6 +6,10 @@ vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return { ...actual, rmSync: vi.fn(actual.rmSync) };
+});
 import {
   chmodSync,
   cpSync,
@@ -491,6 +495,28 @@ describe("Keystore", () => {
       } finally {
         chmodSync(vaults, 0o700);
       }
+    },
+  );
+
+  it.each(["seed", "privateKey"] as const)(
+    "names the %s secret file that could not be deleted after the index commit",
+    (type) => {
+      const secret = type === "seed" ? MNEMONIC : EVM_KEY_OF_MNEMONIC_ACCOUNT_0;
+      const ref = ks.import({ secret, type }).accountId;
+      const source = ks.resolveAccount(ref).wallet.source as any;
+      const blob =
+        type === "seed"
+          ? join(dirname(ks.walletsPath), "vaults", `${source.vaultId}.json`)
+          : join(dirname(ks.walletsPath), "keys", `${source.keyId}.json`);
+      vi.mocked(rmSync).mockImplementationOnce(() => {
+        throw Object.assign(new Error("EACCES"), { code: "EACCES" });
+      });
+
+      const del = ks.delete(ref.split(".")[0]!);
+
+      expect(del).toMatchObject({ secretRemoved: false, retainedSecretFile: blob });
+      expect(ks.list()).toEqual([]);
+      expect(readFileSync(blob, "utf8")).not.toBe("");
     },
   );
 

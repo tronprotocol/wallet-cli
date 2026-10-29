@@ -3,11 +3,14 @@ import { formatAmount, formatInt, shorten } from "./scalars.js";
 import { fail, ok, receipt, pending, warn } from "./layout.js";
 import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 import { formatFee } from "./tx.js";
+import { zeroMinimumNote } from "./sunswap-minimum.js";
+import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 
 interface Side {
   readonly symbol: string;
   readonly amount: string;
   readonly amountMinimum?: string;
+  readonly acceptsAnyAmount?: boolean;
   readonly decimals: number;
   readonly address?: string;
 }
@@ -16,6 +19,7 @@ interface ApprovalRow {
   readonly symbol: string;
   readonly spender: string;
   readonly amount: string;
+  readonly isUnlimited?: boolean;
   readonly decimals: number;
 }
 
@@ -191,10 +195,9 @@ function dryRun(value: LiquidityView, rows: Pair[], ctx: TextRenderContext): str
       `${warn()} This pool has no established price — it was initialised and never traded. A deposit into it will be one-sided.`,
     );
   }
-  // Keep the zero-minimum warning last; V4 deposits use ceilings instead.
-  if (!isV4(value) && acceptsAnything(value)) {
-    lines.push(`${warn()} No minimum set — this transaction accepts any output amount.`);
-  }
+  // Keep the zero-minimum warning last.
+  const unprotected = zeroMinimumNote(value.token0, value.token1);
+  if (unprotected !== undefined) lines.push(`${warn()} ${unprotected}`);
   return lines.join("\n\n");
 }
 
@@ -231,10 +234,6 @@ function minimumRow(value: LiquidityView): string {
   return `${formatAmount(min0, value.token0.decimals)} ${value.token0.symbol} / ${formatAmount(min1, value.token1.decimals)} ${value.token1.symbol}`;
 }
 
-function acceptsAnything(value: LiquidityView): boolean {
-  return value.token0.amountMinimum === "0" || value.token1.amountMinimum === "0";
-}
-
 function approvalRows(value: LiquidityView): Pair[] {
   if (!value.approvals?.length) return [];
   return value.approvals.flatMap((approval, index): Pair[] => {
@@ -244,22 +243,16 @@ function approvalRows(value: LiquidityView): Pair[] {
       [
         `Allowance${label}`,
         // Name unlimited allowances explicitly instead of displaying a huge decimal.
-        `${isUnlimited(approval.amount) ? "unlimited" : `${formatAmount(approval.amount, approval.decimals)} ${approval.symbol}`}  (approval tx will be sent first)`,
+        `${approval.isUnlimited ? "unlimited" : `${formatAmount(approval.amount, approval.decimals)} ${approval.symbol}`}  (approval tx will be sent first)`,
       ],
     ];
   });
 }
 
-const MAX_UINT256 = (2n ** 256n - 1n).toString();
-
-function isUnlimited(amount: string): boolean {
-  return amount === MAX_UINT256 || amount === "unlimited";
-}
-
 const isV4 = (value: LiquidityView): boolean => value.protocol === "V4";
 
 // V4 uses the zero address for native TRX.
-const isNativeSide = (side: Side): boolean => side.address === "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const isNativeSide = (side: Side): boolean => side.address === NATIVE_TRX_ADDRESS;
 
 function ceilingRows(value: LiquidityView): Pair[] {
   if (value.amount0Max === undefined || value.amount1Max === undefined) return [];

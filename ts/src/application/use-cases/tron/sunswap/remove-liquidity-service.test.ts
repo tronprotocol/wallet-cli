@@ -8,6 +8,7 @@ import { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.j
 import type { TokenRepository } from "../../../ports/token-repository.js";
 import { SunSwapRemoveLiquidityService } from "./remove-liquidity-service.js";
 import { ChainError } from "../../../../domain/errors/index.js";
+import { baseUnitAmount } from "../../../../domain/amounts/index.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const MANAGER = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
@@ -71,7 +72,7 @@ function makePort(overrides: Partial<LiquidityPort> = {}): LiquidityPort {
     v2LiquidityResult: vi.fn(async () => undefined),
     balanceOf: vi.fn(async () => "999999999999"),
     nativeBalance: vi.fn(async () => "999999999999"),
-    allowance: vi.fn(async () => "0"),
+    allowance: vi.fn(async () => baseUnitAmount("0")),
     approvalPayload: vi.fn((_n: NetworkDescriptor, token: string) => ({
       target: token,
       method: APPROVE,
@@ -235,15 +236,17 @@ describe("remove-liquidity V2 — gross native receipts", () => {
       const after = before + BigInt(received) - (recipient === OWNER ? BigInt(fee) : 0n) + 1000000n;
       const port = makePort({
         v2LiquidityResult: vi.fn(async () => ({
-          amount0: side === "token0" ? received : "0",
-          amount1: side === "token1" ? received : "0",
+          amount0: baseUnitAmount(side === "token0" ? received : "0"),
+          amount1: baseUnitAmount(side === "token1" ? received : "0"),
         })),
-        allowance: vi.fn(async () => "999999999999"),
+        allowance: vi.fn(async () => baseUnitAmount("999999999999")),
         nativeBalance: vi
           .fn()
           .mockResolvedValueOnce(before.toString())
           .mockResolvedValue(after.toString()),
-        balanceOf: vi.fn(async (_n, token) => (token === PAIR_ADDRESS ? "999999999999" : "0")),
+        balanceOf: vi.fn(async (_n, token) =>
+          baseUnitAmount(token === PAIR_ADDRESS ? "999999999999" : "0"),
+        ),
       });
       const { service, scope } = makeHarness(port, true, Number(fee));
       const result = await service.removeLiquidity(scope, NETWORK, {
@@ -268,8 +271,11 @@ describe("remove-liquidity V2 — gross native receipts", () => {
 describe("V2 removal receipt availability", () => {
   it("preserves confirmed amounts if the later reserves query fails", async () => {
     const port = makePort({
-      allowance: vi.fn(async () => "999999999999"),
-      v2LiquidityResult: vi.fn(async () => ({ amount0: "12", amount1: "34" })),
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")),
+      v2LiquidityResult: vi.fn(async () => ({
+        amount0: baseUnitAmount("12"),
+        amount1: baseUnitAmount("34"),
+      })),
       v2PairState: vi.fn().mockResolvedValueOnce(PAIR).mockRejectedValue(new Error("offline")),
     });
     const { service, scope } = makeHarness(port, true);
@@ -284,7 +290,7 @@ describe("V2 removal receipt availability", () => {
     "marks missing receipt amounts as estimates (throws=%s)",
     async (throws) => {
       const port = makePort({
-        allowance: vi.fn(async () => "999999999999"),
+        allowance: vi.fn(async () => baseUnitAmount("999999999999")),
         v2LiquidityResult: vi.fn(async () => {
           if (throws) throw new Error("offline");
           return undefined;
@@ -396,6 +402,8 @@ describe("remove-liquidity V3", () => {
 
     expect(result.token0!.amountMinimum).toBe("0");
     expect(result.token1!.amountMinimum).toBe("0");
+    expect(result.token0).toMatchObject({ acceptsAnyAmount: true });
+    expect(result.token1).toMatchObject({ acceptsAnyAmount: true });
   });
 });
 
@@ -442,7 +450,9 @@ describe("remove-liquidity V3 — the principal and fee split", () => {
 
 describe("remove-liquidity V2 — the burned amount reads the same before and after", () => {
   it("publishes lpDecimals in every mode, not only in the plan", async () => {
-    const port = makePort({ allowance: vi.fn(async () => "999999999999") as never });
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
+    });
     const { service, scope } = makeHarness(port);
 
     const planned = (await service.removeLiquidity(scope, NETWORK, {
@@ -820,7 +830,10 @@ describe("remove-liquidity V4 — the fees that arrive with the principal", () =
 describe("V4 confirmed receipt amounts", () => {
   it("uses actual principal and fees even when the pre-send estimates differ", async () => {
     const port = makeV4Port({
-      v4OwedFees: vi.fn(async () => ({ amount0: "1", amount1: "2" })),
+      v4OwedFees: vi.fn(async () => ({
+        amount0: baseUnitAmount("1"),
+        amount1: baseUnitAmount("2"),
+      })),
       v4LiquidityResult: vi.fn(async () => ({
         tokenId: "12",
         liquidityDelta: "-1000",
@@ -851,7 +864,7 @@ describe("V4 confirmed receipt amounts", () => {
     const { service, scope } = makeHarness(port, true);
     const result = await service.removeLiquidity(scope, NETWORK, V4);
     expect(result.amountsEstimated).toBe(true);
-    expect(result.token0).not.toHaveProperty("receivedAmount");
+    expect(result.token0).toMatchObject({ receivedAmount: V4_WORTH.amount0 });
     expect(scope.warn).toHaveBeenCalledWith(
       expect.objectContaining({ code: "sunswap_removal_amounts_mismatch" }),
     );
@@ -911,5 +924,88 @@ describe("remove-liquidity — the contract's key", () => {
     const result = await service.removeLiquidity(scope, NETWORK, { ...V2, dryRun: true });
     expect(result).toHaveProperty("router");
     expect(result).not.toHaveProperty("positionManager");
+  });
+});
+
+describe("remove-liquidity — the risks the result states", () => {
+  it("flags only the side whose floor is zero", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.removeLiquidity(scope, NETWORK, {
+      ...V2,
+      min0: "0",
+      dryRun: true,
+    })) as Record<string, Record<string, unknown>>;
+    expect(result.token0).toMatchObject({ amountMinimum: "0", acceptsAnyAmount: true });
+    expect(result.token1).not.toHaveProperty("acceptsAnyAmount");
+  });
+
+  it("flags neither side when both have a floor", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.removeLiquidity(scope, NETWORK, {
+      ...V2,
+      dryRun: true,
+    })) as Record<string, Record<string, unknown>>;
+    expect(result.token0).not.toHaveProperty("acceptsAnyAmount");
+    expect(result.token1).not.toHaveProperty("acceptsAnyAmount");
+  });
+
+  it.each([
+    ["V3 dry run", () => makePort(), { ...V3, dryRun: true }],
+    ["V3 build", () => makePort(), { ...V3, buildOnly: true }],
+    ["V3 receipt", () => makePort(), V3],
+    ["V4 dry run", () => makeV4Port(), { ...V4, dryRun: true }],
+    ["V4 receipt", () => makeV4Port(), V4],
+  ])("says a %s also collects the position's fees", async (_name, port, input) => {
+    const { service, scope } = makeHarness(port(), true);
+    const result = await service.removeLiquidity(scope, NETWORK, input);
+    expect(result.collectsFees).toBe(true);
+  });
+
+  it("does not say a V2 withdrawal collects fees", async () => {
+    const { service, scope } = makeHarness();
+    const result = await service.removeLiquidity(scope, NETWORK, { ...V2, dryRun: true });
+    expect(result).not.toHaveProperty("collectsFees");
+  });
+});
+
+describe("remove-liquidity — what reaches the recipient", () => {
+  it("is the estimate on a dry run", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.removeLiquidity(scope, NETWORK, {
+      ...V2,
+      dryRun: true,
+    })) as Record<string, Record<string, unknown>>;
+    expect(result.token0).toMatchObject({ amount: "640812", receivedAmount: "640812" });
+  });
+
+  it("is the router's amount on a confirmed V2 receipt", async () => {
+    const port = makePort({
+      allowance: vi.fn(async () => baseUnitAmount("999999999999")),
+      v2LiquidityResult: vi.fn(async () => ({
+        amount0: baseUnitAmount("12"),
+        amount1: baseUnitAmount("34"),
+      })),
+    });
+    const { service, scope } = makeHarness(port, true);
+    const result = await service.removeLiquidity(scope, NETWORK, V2);
+    expect(result.token0).toMatchObject({ amount: "12", receivedAmount: "12" });
+    expect(result.token1).toMatchObject({ amount: "34", receivedAmount: "34" });
+  });
+
+  it("is the whole Collect amount on a confirmed V3 receipt", async () => {
+    const { service, scope } = makeHarness(makePort(), true);
+    const result = await service.removeLiquidity(scope, NETWORK, V3);
+    expect(result.token0).toMatchObject({ amount: "999999", receivedAmount: "1001199" });
+    expect(result.token1).toMatchObject({ amount: "493088", receivedAmount: "493888" });
+  });
+
+  it("adds the owed fees to the principal estimate on a submitted V4 receipt", async () => {
+    const port = makeV4Port({
+      v4OwedFees: vi.fn(async () => ({ amount0: "4821", amount1: "3132" })) as never,
+    });
+    const { service, scope } = makeHarness(port, false);
+    const result = await service.removeLiquidity(scope, NETWORK, V4);
+    expect(result.token0).toMatchObject({ feeAmount: "4821", receivedAmount: "1004820" });
+    expect(result.token1).toMatchObject({ feeAmount: "3132", receivedAmount: "496220" });
   });
 });

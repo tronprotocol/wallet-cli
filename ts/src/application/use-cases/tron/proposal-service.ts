@@ -106,7 +106,7 @@ export class TronProposalService {
       build: async (address) =>
         gateway.buildProposalCreate(
           address,
-          changes.map((change) => ({ key: change.id, value: change.proposedValue })),
+          changes.map((change) => ({ key: change.id, value: BigInt(change.proposedValue) })),
           { permissionId: input.permissionId },
         ),
       estimate: async (_tx: UnsignedTx) => ({

@@ -30,7 +30,7 @@ it.each([
   "normalizes EVM gas without mutating the SDK transaction (case %#)",
   async (fields, expected) => {
     const tx = Object.freeze({ ...EVM_APPROVE, ...fields });
-    const signTransaction = vi.fn(async () => ({ raw: "0xraw" }));
+    const signTransaction = vi.fn(async () => ({ raw: "0xraw" })) as never;
     const payer = { ...payerOf(EVM_ADDRESS), signTransaction };
     await bridged(payer, EVM_POLICY).signTransaction(tx);
     expect(signTransaction).toHaveBeenCalledWith({ ...EVM_APPROVE, gasLimit: expected });
@@ -62,7 +62,7 @@ const bridged = (
 const payerOf = (address: string, signature = "sig", primaryType = "Transfer"): UnguardedPayer => ({
   address,
   signTypedData: vi.fn(async () => ({ signature, digest: "0xdig", primaryType })),
-  signTransaction: vi.fn(async (tx: unknown) => tx),
+  signTransaction: vi.fn(async (tx: unknown) => tx) as never,
 });
 
 const evmPayload = (from: string): TypedDataPayload => ({
@@ -239,7 +239,7 @@ describe("toX402Wallet", () => {
     const payer: UnguardedPayer = {
       address: EVM_ADDRESS,
       signTypedData: vi.fn(),
-      signTransaction: vi.fn(async () => ({ raw: "0xraw", hash: "0xhash" })),
+      signTransaction: vi.fn(async () => ({ raw: "0xraw", hash: "0xhash" })) as never,
     };
     expect(await bridged(payer, EVM_POLICY).signTransaction(EVM_APPROVE)).toBe("0xraw");
   });
@@ -248,7 +248,7 @@ describe("toX402Wallet", () => {
     const payer: UnguardedPayer = {
       address: EVM_ADDRESS,
       signTypedData: vi.fn(),
-      signTransaction: vi.fn(async () => ({ hash: "0xhash" })),
+      signTransaction: vi.fn(async () => ({ hash: "0xhash" })) as never,
     };
     await expect(bridged(payer, EVM_POLICY).signTransaction(EVM_APPROVE)).rejects.toMatchObject({
       code: "signed_payload_mismatch",
@@ -497,6 +497,7 @@ describe("toX402Wallet signs only the Permit2 approve it was asked for (TRON)", 
     ["TRX attached to the call", {}, { call_value: 1 }],
     ["a fee limit above the approve budget", { fee_limit: 100_000_001 }, {}],
     ["no fee limit at all", { fee_limit: undefined }, {}],
+    ["a fee limit that is not a whole SUN amount", { fee_limit: 1.5 }, {}],
   ])("refuses %s before the signer is asked", async (_label, over, valueOver) => {
     const payer = payerOf(TRON_ADDRESS);
     await expect(

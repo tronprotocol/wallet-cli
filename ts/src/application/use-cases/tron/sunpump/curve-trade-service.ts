@@ -14,16 +14,27 @@ import {
   transactionMode,
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
-import { LiquidityTransactions, type ApprovalPlan } from "../sunswap/liquidity-transactions.js";
+import {
+  LiquidityTransactions,
+  UNLIMITED_ALLOWANCE,
+  type ApprovalPlan,
+} from "../sunswap/liquidity-transactions.js";
 import { ChainError } from "../../../../domain/errors/index.js";
-import { toBaseUnits } from "../../../../domain/amounts/index.js";
+import {
+  toBaseUnits,
+  type Sun,
+  sunAmount,
+  baseUnitAmount,
+} from "../../../../domain/amounts/index.js";
 import {
   bipsToSlippage,
   feeRatePercent,
   LAUNCHPAD_STATE,
+  MIN_PLATFORM_FEE_SUN,
   selectFloor,
   type LaunchpadState,
 } from "../../../../domain/sunpump/curve.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 export interface CurveTradeInput extends TransactionModeInput {
   readonly token: string;
@@ -33,7 +44,7 @@ export interface CurveTradeInput extends TransactionModeInput {
   readonly minOut?: string;
   // Read-only pricing without an account or transaction.
   readonly quote?: boolean;
-  readonly feeLimit?: string;
+  readonly feeLimit?: Sun;
 }
 
 interface TradeSide {
@@ -45,6 +56,8 @@ interface TradeSide {
   // Platform fee in SUN.
   readonly platformFee: string;
   readonly platformFeePercent?: string;
+  // Fee floor in SUN; published with platformFeePercent, which it explains.
+  readonly platformFeeMinimum?: string;
 }
 
 export class SunPumpCurveTradeService {
@@ -65,7 +78,9 @@ export class SunPumpCurveTradeService {
   ): Promise<Record<string, unknown>> {
     if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
-    const trxSun = toBaseUnits(input.amount, 6, "TRX", "--trx");
+    const trxSun = sunAmount(
+      toBaseUnits(input.amount, FAMILIES.tron.nativeDecimals, "TRX", "--trx"),
+    );
     const quoted = await this.launchpad.quoteBuy(network, facts.address, trxSun);
 
     // Quotes require no account and publish no unenforceable minimum output.
@@ -91,7 +106,7 @@ export class SunPumpCurveTradeService {
     const payload = this.launchpad.buyPayload(network, {
       token: facts.address,
       trxSun,
-      minTokenAmount: floor.amount,
+      minTokenAmount: baseUnitAmount(floor.amount),
     });
 
     return this.#execute(scope, network, input, payload, [], {
@@ -109,7 +124,9 @@ export class SunPumpCurveTradeService {
   ): Promise<Record<string, unknown>> {
     if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
-    const tokensIn = toBaseUnits(input.amount, facts.decimals, facts.symbol, "--amount");
+    const tokensIn = baseUnitAmount(
+      toBaseUnits(input.amount, facts.decimals, facts.symbol, "--amount"),
+    );
     // Sale proceeds are net; add the fee only to calculate the gross fee rate.
     const quoted = await quoteCurveSale(this.launchpad, network, facts, tokensIn);
     const netSun = quoted.trxOutSun;
@@ -148,13 +165,13 @@ export class SunPumpCurveTradeService {
       // Sales request a standing unlimited allowance for the launchpad proxy.
       {
         facts: { address: facts.address, decimals: facts.decimals, symbol: facts.symbol },
-        amount: UNLIMITED,
+        amount: UNLIMITED_ALLOWANCE,
       },
     ]);
     const payload = this.launchpad.sellPayload(network, {
       token: facts.address,
       tokenAmount: tokensIn,
-      minTrxSun: floor.amount,
+      minTrxSun: sunAmount(floor.amount),
     });
 
     return this.#execute(scope, network, input, payload, approvals, {
@@ -185,7 +202,9 @@ export class SunPumpCurveTradeService {
       tokenDecimals: facts.decimals,
       ...(floor.slippage === undefined ? {} : { slippage: floor.slippage }),
       platformFee: feeSun,
-      ...(percent === undefined ? {} : { platformFeePercent: percent }),
+      ...(percent === undefined
+        ? {}
+        : { platformFeePercent: percent, platformFeeMinimum: MIN_PLATFORM_FEE_SUN }),
     };
   }
 
@@ -286,8 +305,6 @@ export class SunPumpCurveTradeService {
   }
 }
 
-const UNLIMITED = (2n ** 256n - 1n).toString();
-
 function assertTradeable(state: LaunchpadState, token: string): void {
   if (state === LAUNCHPAD_STATE.TRADING) return;
   if (state === LAUNCHPAD_STATE.NOT_EXIST) {
@@ -312,7 +329,8 @@ function published(approval: ApprovalPlan): Record<string, unknown> {
   return {
     token: approval.token,
     spender: approval.spender,
-    amount: approval.amount === UNLIMITED ? "unlimited" : approval.amount,
+    amount: approval.isUnlimited ? "unlimited" : approval.amount,
+    isUnlimited: approval.isUnlimited,
     decimals: approval.decimals,
     symbol: approval.symbol,
   };

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { TxPipeline, type TxPipelineParams } from "./index.js";
 import type { SignerResolver } from "../signer/index.js";
-import type { Signer } from "../../../domain/types/index.js";
+import type {
+  FeeReport,
+  Signer,
+  TronTransactionArtifact,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
 import { SigningService } from "../signing/signing-service.js";
@@ -19,7 +24,10 @@ function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   } as TransactionScope;
 }
 
-function params(signer: Signer, over: Partial<TxPipelineParams> = {}): TxPipelineParams {
+function params<T extends UnsignedTx = UnsignedTx>(
+  signer: Signer,
+  over: Partial<TxPipelineParams<T>> = {},
+): TxPipelineParams<T> {
   return {
     ctx: scope(),
     net: { family: "tron", nativeSymbol: "TRX" } as never,
@@ -169,8 +177,11 @@ describe("TxPipeline build-only", () => {
       throw new Error("signing must not be asserted");
     });
     const signers = { resolve, assertCanSign } as unknown as SignerResolver;
-    const build = vi.fn(async (address: string) => ({ raw_data_hex: "0102", owner: address }));
-    const estimate = vi.fn(async () => ({ feeSun: "1000" }));
+    const build = vi.fn(
+      async (address: string) =>
+        ({ raw_data_hex: "0102", owner: address }) as unknown as UnsignedTx,
+    );
+    const estimate = vi.fn(async () => ({ feeSun: "1000" }) as unknown as FeeReport);
     const artifact = vi.fn(() => "0a02010202");
 
     await expect(
@@ -203,7 +214,8 @@ describe("TxPipeline build-only", () => {
         params({} as Signer, {
           ctx: scope({ resolveAddress: () => "TWatchOnly" }),
           buildOnly: true,
-          build: async (address: string) => ({ raw_data_hex: "0102", owner: address }),
+          build: async (address: string) =>
+            ({ raw_data_hex: "0102", owner: address }) as unknown as UnsignedTx,
         }),
       ),
     ).rejects.toMatchObject({ code: "invalid_option" });
@@ -278,7 +290,9 @@ describe("TRON signing lifetime", () => {
     async (explicit) => {
       const now = 1_900_000_000_000;
       const clock = vi.spyOn(Date, "now").mockReturnValue(now);
-      const tx = { raw_data: { timestamp: now, expiration: now + 60_000, contract: [{}] } };
+      const tx = {
+        raw_data: { timestamp: now, expiration: now + 60_000, contract: [{}] },
+      } as unknown as TronTransactionArtifact;
       const prepare = vi.fn((value: typeof tx, options: { expiration?: number }) => ({
         ...value,
         raw_data: {
@@ -286,7 +300,7 @@ describe("TRON signing lifetime", () => {
           expiration:
             options.expiration === undefined
               ? value.raw_data.expiration
-              : value.raw_data.timestamp + options.expiration,
+              : value.raw_data.timestamp! + options.expiration,
         },
       }));
       const gateway = {
@@ -322,7 +336,9 @@ describe("TRON signing lifetime", () => {
   it("refuses a transaction that expires while signing instead of broadcasting or signing it again", async () => {
     const now = 1_900_000_000_000;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
-    const tx = { raw_data: { timestamp: now, expiration: now + 60_000, contract: [{}] } };
+    const tx = {
+      raw_data: { timestamp: now, expiration: now + 60_000, contract: [{}] },
+    } as unknown as TronTransactionArtifact;
     const gateway = {
       prepareTransaction: (value: unknown) => value,
       encodeTransactionHex: () => "hex",

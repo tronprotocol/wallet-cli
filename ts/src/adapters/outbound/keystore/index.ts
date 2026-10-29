@@ -437,6 +437,7 @@ export class Keystore {
     accountId: AccountRef;
     scope: "account" | "wallet";
     secretRemoved: boolean;
+    retainedSecretFile?: string;
     newActive: AccountRef | null;
   } {
     return this.#locked(() => {
@@ -473,7 +474,9 @@ export class Keystore {
         return {
           accountId: ref,
           scope: remaining.length === 0 ? "wallet" : "account",
-          secretRemoved: remaining.length === 0 && this.#removeBlobFiles(wallet.source),
+          ...(remaining.length === 0
+            ? this.#removeBlobFiles(wallet.source)
+            : { secretRemoved: false }),
           newActive: file.activeAccount,
         };
       }
@@ -491,8 +494,9 @@ export class Keystore {
       return {
         accountId: walletId!,
         scope: "wallet",
-        secretRemoved:
-          SOURCE_KINDS[wallet.source.type].hasSecret && this.#removeBlobFiles(wallet.source),
+        ...(SOURCE_KINDS[wallet.source.type].hasSecret
+          ? this.#removeBlobFiles(wallet.source)
+          : { secretRemoved: false }),
         newActive: file.activeAccount,
       };
     });
@@ -644,19 +648,20 @@ export class Keystore {
     this.store.writeJson(this.#blobPath(dir, blob.id), blob);
   }
   // Runs after the index no longer references the blob; false means the secret file remains.
-  #removeBlobFiles(source: Source): boolean {
+  // Runs after the index commit, so a failure is reported, not thrown.
+  #removeBlobFiles(source: Source): { secretRemoved: boolean; retainedSecretFile?: string } {
     const path =
       source.type === "seed"
         ? this.#blobPath("vaults", source.vaultId)
         : source.type === "privateKey"
           ? this.#blobPath("keys", source.keyId)
           : undefined;
-    if (path === undefined) return false;
+    if (path === undefined) return { secretRemoved: false };
     try {
       rmSync(path, { force: true });
-      return true;
+      return { secretRemoved: true };
     } catch {
-      return false;
+      return { secretRemoved: false, retainedSecretFile: path };
     }
   }
 

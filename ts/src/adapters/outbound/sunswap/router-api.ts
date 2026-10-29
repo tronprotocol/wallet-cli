@@ -1,11 +1,15 @@
 // Use amountInRaw/amountOutRaw: response amountIn/amountOut are human decimals.
 import { RouterApiClient } from "@sun-protocol/sun-sdk-api";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
-import type { RouterPort, RouterRoute } from "../../../application/ports/sunswap/router.js";
+import type {
+  RouterPort,
+  RouterRoute,
+  RouterWireRoute,
+} from "../../../application/ports/sunswap/router.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
-import { tronHexAddress } from "../../../domain/address/index.js";
+import { sameAddress } from "../../../domain/family/index.js";
 import { createTimedFetch } from "../http/timed-fetch.js";
 import { RateLimited, rateLimitAware } from "./market-api.js";
 
@@ -114,7 +118,7 @@ function normalise(
     poolFees: (route.poolFees ?? []).map(String),
     containsUnverifiedHook: route.containsUnverifiedHook === true,
     // The SDK requires plain numbers for pool-key fees and ticks.
-    source: plainNumbers(route),
+    source: plainNumbers(route) as RouterWireRoute,
   };
 }
 
@@ -130,13 +134,13 @@ function assertMatchesRequest(
       "the route service returned a route for a different input amount than requested",
     );
   }
-  if (!sameTronAddress(tokens[0]!, request.fromToken)) {
+  if (!sameAddress("tron", tokens[0]!, request.fromToken)) {
     throw new ChainError(
       "provider_error",
       "the route service returned a route for a different input token than requested",
     );
   }
-  if (!sameTronAddress(tokens[tokens.length - 1]!, request.toToken)) {
+  if (!sameAddress("tron", tokens[tokens.length - 1]!, request.toToken)) {
     throw new ChainError(
       "provider_error",
       "the route service returned a route for a different output token than requested",
@@ -148,20 +152,6 @@ function assertMatchesRequest(
 function sameInteger(left: string, right: string): boolean {
   if (!/^\d+$/.test(right)) return false;
   return left.replace(/^0+(?=\d)/, "") === right.replace(/^0+(?=\d)/, "");
-}
-
-function sameTronAddress(left: string, right: string): boolean {
-  try {
-    return tronIdentity(left) === tronIdentity(right);
-  } catch {
-    return false;
-  }
-}
-
-function tronIdentity(address: string): string {
-  if (/^0x[0-9a-fA-F]{40}$/.test(address)) return address.slice(2).toLowerCase();
-  if (/^41[0-9a-fA-F]{40}$/.test(address)) return address.slice(2).toLowerCase();
-  return tronHexAddress(address).slice(2).toLowerCase();
 }
 
 // Convert lossless wrappers to numbers only when their text round-trips; otherwise keep strings.

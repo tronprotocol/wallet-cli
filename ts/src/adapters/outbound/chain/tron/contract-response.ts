@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { TronContractMetadata } from "../../../../application/ports/chain/tron-gateway.js";
+import type {
+  TronContractMetadata,
+  TronRawContract,
+  TronRawContractInfo,
+} from "../../../../application/ports/chain/tron-gateway.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 
 const ContractEntrySchema = z.looseObject({
@@ -42,7 +46,7 @@ export function normalizeContractResponses(contract: unknown, info: unknown): Tr
     name: contractView.name ?? infoView.name,
     methods,
     originAddress: origin === undefined ? undefined : tronHexToBase58(origin),
-    contract,
-    info: info ?? undefined,
+    contract: contract as TronRawContract,
+    info: (info ?? undefined) as TronRawContractInfo | undefined,
   };
 }

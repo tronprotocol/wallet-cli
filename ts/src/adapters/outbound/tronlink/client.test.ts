@@ -68,7 +68,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       () => NOW,
       () => UUID,
     );
-    await client.list(NETWORK, ADDRESS, { state: 0, isSigned: false, start: 20, limit: 10 });
+    await client.list(NETWORK, ADDRESS, { state: "open", isSigned: false, start: 20, limit: 10 });
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(calledUrl.pathname).toBe("/multi/list");
@@ -185,10 +185,72 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(connectedUrl?.searchParams.get("address")).toBe(ADDRESS);
     expect(socket.sent).toEqual([JSON.stringify({ address: ADDRESS, version: "v1" })]);
 
-    socket.emit("message", Buffer.from('[{"state":0,"is_sign":0}]'));
+    socket.emit("message", Buffer.from('[{"state":0,"is_sign":0},{"state":0,"is_sign":1}]'));
+    socket.emit("message", Buffer.from('[{"state":0,"is_sign":"maybe"}]'));
+    socket.emit("message", Buffer.from('{"state":0,"is_sign":0}'));
     controller.abort();
     await watching;
-    expect(messages).toEqual([[{ state: 0, is_sign: 0 }]]);
+    expect(messages).toEqual([1]);
+  });
+
+  it("normalizes list rows and keeps a malformed row with its claimed id", async () => {
+    const txId = "AB".repeat(32);
+    const row = {
+      hash: `0x${txId}`,
+      contract_type: "TransferContract",
+      state: "0",
+      is_sign: "true",
+      current_weight: 1,
+      threshold: "2",
+      contract_data: { owner_address: "417445076632894b7b844887d2bcd2e8c30bb6c6f2" },
+      originator_address: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+      current_transaction: { raw_data_hex: "00" },
+      signature_progress: [
+        {
+          address: "417445076632894b7b844887d2bcd2e8c30bb6c6f2",
+          weight: 1,
+          is_sign: 1,
+          sign_time: 1_900_000_001,
+        },
+      ],
+    };
+    const fetchMock = vi.fn(async () =>
+      response({ code: 0, data: { range_total: 2, data: [row, { ...row, state: 3 }] } }),
+    );
+    const client = new TronLinkClient(CONFIG, 1_000, processBroadcastGuard, fetchMock as never);
+    const page = await client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 });
+
+    expect(page.entries[0]).toEqual({
+      kind: "record",
+      claimedTxId: txId.toLowerCase(),
+      record: {
+        txId: txId.toLowerCase(),
+        contractType: "TransferContract",
+        status: "open",
+        signed: true,
+        currentWeight: 1,
+        threshold: 2,
+        ownerAddress: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+        originatorAddress: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+        signatureProgress: [
+          {
+            address: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+            weight: 1,
+            signed: true,
+            signedAt: 1_900_000_001_000,
+          },
+        ],
+        currentTransaction: { raw_data_hex: "00" },
+      },
+    });
+    expect(page.entries[1]).toMatchObject({
+      kind: "malformed",
+      claimedTxId: txId.toLowerCase(),
+      error: {
+        code: "provider_error",
+        message: "TronLink returned unsupported transaction state 3",
+      },
+    });
   });
 
   it("carries the service's rejection message into the error details", async () => {
@@ -204,7 +266,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       () => UUID,
     );
     await expect(
-      client.list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }),
+      client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 }),
     ).rejects.toMatchObject({
       code: "provider_error",
       details: { providerCode: 4000, providerMessage: "Authentication failed." },
@@ -225,7 +287,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     let rejection: { details?: { providerMessage?: string } } = {};
     try {
       await client({ code: 20004, message: noisy }).list(NETWORK, ADDRESS, {
-        state: 255,
+        state: "all",
         start: 0,
         limit: 20,
       });
@@ -239,14 +301,14 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
 
     await expect(
       client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
-        state: 255,
+        state: "all",
         start: 0,
         limit: 20,
       }),
     ).rejects.toMatchObject({ code: "provider_error", details: { providerCode: 20004 } });
     await expect(
       client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
-        state: 255,
+        state: "all",
         start: 0,
         limit: 20,
       }),
@@ -262,7 +324,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
         processBroadcastGuard,
         fetchMock as typeof fetch,
       ).list(NETWORK, ADDRESS, {
-        state: 255,
+        state: "all",
         start: 0,
         limit: 20,
       }),
@@ -274,7 +336,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
         insecure,
         ADDRESS,
         {
-          state: 255,
+          state: "all",
           start: 0,
           limit: 20,
         },

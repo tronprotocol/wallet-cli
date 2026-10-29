@@ -5,6 +5,7 @@ import { Transaction, TypedDataEncoder, type TransactionLike } from "ethers";
 import { assertTronTxIntegrity } from "../chain/tron/tx-integrity.js";
 import type {
   SignedTx,
+  TronTransactionArtifact,
   TypedDataPayload,
   TypedDataSignature,
   UnsignedTx,
@@ -313,7 +314,7 @@ export class Ledger {
             signature = await trx.signTransactionHash(ledgerPath(path), hash);
           }
           return {
-            ...(tx as object),
+            ...(tx as TronTransactionArtifact),
             signature: prior.includes(signature) ? prior : [...prior, signature],
           };
         },

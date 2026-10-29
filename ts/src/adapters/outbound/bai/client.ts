@@ -7,7 +7,9 @@ import type {
   BaiPageInput,
   BaiPageView,
   BaiStatusView,
+  BaiUsageRecord,
 } from "../../../application/ports/bai-api.js";
+import type { BaiRawOrder } from "../../../application/ports/bai-recharge.js";
 import type { Config } from "../../../domain/types/index.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
 
@@ -40,23 +42,31 @@ export class BaiClient implements BaiApi {
     };
   }
 
-  async usageList(input: BaiPageInput): Promise<BaiPageView> {
-    const raw = await this.call("usage.records", { ...input, mode: "all" });
+  async usageList(input: BaiPageInput): Promise<BaiPageView<BaiUsageRecord>> {
+    const raw = await this.call("usage.records", {
+      page: input.page,
+      pageSize: input.pageSize,
+      sortBy: "created_at",
+      sortOrder: input.sortOrder,
+      ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+      mode: "all",
+    });
     const parsed = z.looseObject({ data: z.array(ObjectSchema) }).safeParse(raw);
     if (!parsed.success)
       throw new TransportError("provider_error", "B.AI returned invalid usage records");
-    return page(parsed.data);
+    const result = page(parsed.data);
+    return { ...result, items: result.items.map(usageRecord) };
   }
 
-  async rechargeList(input: BaiPageInput): Promise<BaiPageView> {
+  async rechargeList(input: BaiPageInput): Promise<BaiPageView<BaiRawOrder>> {
     return page(
       await this.call("order.listOrders", {
         page: input.page,
         pageSize: input.pageSize,
-        sortBy: input.sortBy === "created_at" ? "createdAt" : input.sortBy,
+        sortBy: "createdAt",
         order: input.sortOrder,
       }),
-    );
+    ) as unknown as BaiPageView<BaiRawOrder>;
   }
 
   private async call(procedure: string, input: unknown): Promise<unknown> {
@@ -172,7 +182,35 @@ function arrayOfObjects(value: unknown): Record<string, unknown>[] {
   });
 }
 
-function page(raw: unknown): BaiPageView {
+// The service has sent both snake_case and camelCase field names.
+function usageRecord(row: Record<string, unknown>): BaiUsageRecord {
+  return {
+    id: optionalString(row.id),
+    createdAt: optionalString(row.created_at ?? row.createdAt),
+    model: optionalString(row.model),
+    inputTokens: optionalScalar(row.input_tokens ?? row.inputTokens),
+    outputTokens: optionalScalar(row.output_tokens ?? row.outputTokens),
+    totalTokens: optionalScalar(row.total_tokens ?? row.totalTokens),
+    credits: optionalScalar(row.cost_points ?? row.credits),
+    latencyMs: secondsToMilliseconds(row.duration_sec ?? row.durationSec),
+    source: optionalString(row.source_type ?? row.source),
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function optionalScalar(value: unknown): string | undefined {
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+function secondsToMilliseconds(value: unknown): number | undefined {
+  const seconds = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : undefined;
+}
+
+function page(raw: unknown): BaiPageView<Record<string, unknown>> {
   const value = responseObject(raw);
   const items = arrayOfObjects(Array.isArray(value.data) ? value.data : value.orders);
   const pageNumber = finiteInteger(value.page, 1) ?? 1;

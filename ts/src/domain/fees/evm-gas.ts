@@ -1,5 +1,6 @@
 // Prices are decimal wei strings; BigInt preserves precision beyond Number.MAX_SAFE_INTEGER.
 import { UsageError } from "../errors/index.js";
+import { weiAmount, type Wei } from "../amounts/index.js";
 
 export type EvmFeeMode = "eip1559" | "legacy";
 
@@ -99,7 +100,9 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
 // Require a leading number to distinguish foreign units from non-numeric input.
 const FOREIGN_UNIT = /^[\d.]+\s*([a-z]+)$/i;
 
-export function gweiToWei(gwei: string): string {
+export const GWEI_DECIMALS = 9; // 1 gwei = 10^9 wei
+
+export function gweiToWei(gwei: string): Wei {
   const value = gwei.trim().replace(/\s*gwei$/i, "");
   const foreign = FOREIGN_UNIT.exec(value);
   if (foreign) {
@@ -111,8 +114,8 @@ export function gweiToWei(gwei: string): string {
   const match = /^(\d+)(?:\.(\d+))?$/.exec(value);
   if (!match) throw new UsageError("invalid_value", `not a gwei amount: ${gwei}`);
   const fraction = match[2] ?? "";
-  if (fraction.length > 9) {
+  if (fraction.length > GWEI_DECIMALS) {
     throw new UsageError("invalid_value", `${value} gwei is finer than one wei`);
   }
-  return BigInt(`${match[1]}${fraction.padEnd(9, "0")}`).toString(10);
+  return weiAmount(BigInt(`${match[1]}${fraction.padEnd(GWEI_DECIMALS, "0")}`));
 }

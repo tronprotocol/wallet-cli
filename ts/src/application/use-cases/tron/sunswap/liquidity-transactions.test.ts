@@ -4,14 +4,16 @@ import { ChainError, normalizeError, errorMessage } from "../../../../domain/err
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { AccountRef, NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
 import type { TxPipelineParams } from "../../../services/pipeline/index.js";
+import { baseUnitAmount } from "../../../../domain/amounts/index.js";
 
 const approval = {
   token: "token",
   symbol: "USDT",
   decimals: 6,
   spender: "spender",
-  amount: "10",
-  currentAllowance: "0",
+  amount: baseUnitAmount("10"),
+  isUnlimited: false,
+  currentAllowance: baseUnitAmount("0"),
 };
 // Exercise forwarding of prototype methods and a private-state account getter.
 class TestScope implements TransactionScope {

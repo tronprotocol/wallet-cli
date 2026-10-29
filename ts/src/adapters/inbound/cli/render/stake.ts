@@ -14,13 +14,13 @@ export const StakeFormatters = {
     const bandwidth = asObj(res.bandwidth);
     const unfreeze = asObj(d.unfreeze);
     const unfreezing = Array.isArray(d.unfreezing) ? d.unfreezing.map(asObj) : [];
-    const totalStaked =
-      BigInt(String(staked.energySun ?? "0")) + BigInt(String(staked.bandwidthSun ?? "0"));
+    const tronPower =
+      staked.tronPowerSun === "0" ? "" : ` + for TRON Power ${trx(staked.tronPowerSun)}`;
     const lines: Pair[] = [
       ["Label", ctx.accountLabel ?? ""],
       [
         "Staked",
-        `${trx(totalStaked.toString())}  (for energy ${trx(staked.energySun)} + for bandwidth ${trx(staked.bandwidthSun)})`,
+        `${trx(staked.totalSun)}  (for energy ${trx(staked.energySun)} + for bandwidth ${trx(staked.bandwidthSun)}${tronPower})`,
       ],
       [
         "Voting power",

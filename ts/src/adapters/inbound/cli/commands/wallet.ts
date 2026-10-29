@@ -545,7 +545,7 @@ export function registerWalletCommands(
         });
         if (!ok) throw new UsageError("aborted", "deletion not confirmed");
       }
-      return wallets.delete(input.account);
+      return wallets.delete(input.account, (warning) => ctx.warn(warning));
     },
   } satisfies CommandDefinition);
 

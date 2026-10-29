@@ -60,7 +60,8 @@ export class AtomicFileStore {
   }
 
   // Stage all files, then commit with rollback on failure; the batch is not crash-atomic.
-  writeJsonAll(entries: Array<{ path: string; value: unknown }>): void {
+  // Returns the backup copies that could not be removed after the commit.
+  writeJsonAll(entries: Array<{ path: string; value: unknown }>): string[] {
     const staged: Array<{ tmp: string; path: string }> = [];
     try {
       for (const { path, value } of entries) {
@@ -156,15 +157,17 @@ export class AtomicFileStore {
         { error: String(e), files: committed.map((c) => c.path).join(", ") },
       );
     }
+    const retained: string[] = [];
     for (const { bak } of committed) {
       if (bak) {
         try {
           unlinkSync(bak);
         } catch {
-          // Best-effort cleanup.
+          retained.push(bak);
         }
       }
     }
+    return retained;
   }
 
   // Commit point: the journal switching from "staged" to "committed". Callers run recoverJournal under

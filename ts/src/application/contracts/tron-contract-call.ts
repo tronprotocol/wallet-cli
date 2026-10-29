@@ -1,3 +1,4 @@
+import type { BaseUnits, Sun } from "../../domain/amounts/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 
 // The gateway ABI-encodes parameters; callers supply typed values.
@@ -7,8 +8,8 @@ export interface ContractCallPayload {
   // Full signature, e.g. purchaseToken(address,uint256), not a selector.
   readonly method: string;
   readonly parameters: readonly ContractParameter[];
-  // Native value in SUN; absent for a pure token call.
-  readonly callValueSun?: string;
+  // Absent for a pure token call.
+  readonly callValueSun?: Sun;
 }
 
 // Struct values are arrays of member values.
@@ -29,12 +30,12 @@ export interface ApprovalCapablePort {
     token: string,
     owner: string,
     spender: string,
-  ): Promise<string>;
+  ): Promise<BaseUnits>;
 
   approvalPayload(
     network: NetworkDescriptor,
     token: string,
     spender: string,
-    amount: string,
+    amount: BaseUnits,
   ): ContractCallPayload;
 }

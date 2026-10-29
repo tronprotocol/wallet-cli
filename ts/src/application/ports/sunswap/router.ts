@@ -1,6 +1,13 @@
 // Raw input/output amounts are base units; protocol names are uppercase.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
+declare const routerWireRoute: unique symbol;
+
+// Service route JSON; only the router adapter reads it.
+export interface RouterWireRoute {
+  readonly [routerWireRoute]: true;
+}
+
 export interface RouterHop {
   readonly address: string;
   readonly symbol: string;
@@ -22,7 +29,7 @@ export interface RouterRoute {
   readonly poolFees: readonly string[];
   readonly containsUnverifiedHook: boolean;
   // Opaque wire route, returned unchanged to the encoder so execution uses the quoted route.
-  readonly source: unknown;
+  readonly source: RouterWireRoute;
 }
 
 export interface RouterPort {

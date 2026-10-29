@@ -425,7 +425,7 @@ export function registerTronChainCommands(
   reg.addChain(
     txSignSpec,
     "tron",
-    txSignTronBinding(transaction, signing, multisig, new SecureTransactionArtifactWriter()),
+    txSignTronBinding(signing, multisig, new SecureTransactionArtifactWriter()),
   );
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));

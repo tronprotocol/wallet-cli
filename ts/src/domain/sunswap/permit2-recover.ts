@@ -1,6 +1,6 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
-import { publicKeyHash20, tronAddressFromBytes } from "../address/index.js";
+import { publicKeyHash20, tronAddressFromHash20 } from "../address/index.js";
 import { ChainError } from "../errors/index.js";
 
 // Recover a base58 TRON address from hex digest and r||s||v; v may be 0/1 or 27/28.
@@ -25,7 +25,7 @@ export function recoverTronSigner(digest: string, signature: string): string {
       .addRecoveryBit(recovery)
       .recoverPublicKey(hexToBytes(hash));
     const hash20 = publicKeyHash20(point.toBytes(false));
-    return tronAddressFromBytes(Uint8Array.from([0x41, ...hash20]));
+    return tronAddressFromHash20(hash20);
   } catch (error) {
     throw fault(
       `a signature no public key recovers from: ${error instanceof Error ? error.message : String(error)}`,

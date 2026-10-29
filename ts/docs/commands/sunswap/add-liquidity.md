@@ -266,7 +266,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --position-id 188 --
 | `mode` | string | `dry-run` or `build-only`; absent once sent (`stage` instead) |
 | `account` / `recipient` / `deadline` | string / string / number | Who deposits, who receives, and the deadline (Unix seconds) |
 | `protocol` | string | `V2`, `V3` or `V4` |
-| `token0` / `token1` | object | `{address, symbol, decimals, amount}` in base units, plus `amountMinimum` (V2 / V3) |
+| `token0` / `token1` | object | `{address, symbol, decimals, amount}` in base units, plus `amountMinimum` (V2 / V3) and `acceptsAnyAmount: true` on a side whose `amountMinimum` is `0` |
 | `router` (V2) / `positionManager` (V3, V4) | string | The contract the deposit goes through |
 | `lpAmountExpected` → `lpAmount`, `lpDecimals` | string / number | V2: LP tokens expected, then received |
 | `pool`, `reservesAfter` | string / object | V2, once confirmed: the pair contract, and its reserves read back after the deposit |
@@ -276,7 +276,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --position-id 188 --
 | `poolId`, `tickSpacing`, `hooks` | string / number / string | V4: the pool key and the id it hashes to |
 | `amount0Max` / `amount1Max`, `nativeLocked` | string | V4: the ceiling (only when `--slippage` raised it) and the TRX locked as the call's value |
 | `poolCreated`, `initialSqrtPriceX96` | boolean / string | V4 with `--create-pool` |
-| `approvals[]` | array | `{token, symbol, decimals, spender, amount, currentAllowance}` — the approvals to be sent first; `amount` is `"unlimited"` on V4 |
+| `approvals[]` | array | `{token, symbol, decimals, spender, amount, isUnlimited, currentAllowance}` — the approvals to be sent first; on V4 `amount` is `"unlimited"` and `isUnlimited` is `true` |
 | `permits[]` | array | V4: `{token, amount, expiration}` — the Permit2 grants the deposit will sign |
 | `fee` / `feeCovers` / `feeUnavailableReason` | — | The estimate and what it covers (`all`, `approvals` or `none`) |
 | `approvalTxIds[]` | string[] | Once sent: the approvals, in the order sent, beside the deposit's own `txId` |

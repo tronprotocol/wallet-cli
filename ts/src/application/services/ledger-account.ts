@@ -1,7 +1,7 @@
 import type { ChainFamily } from "../../domain/types/index.js";
 import type { PromptPort } from "../ports/prompt.js";
 import { Derivation } from "../../domain/derivation/index.js";
-import { FAMILIES } from "../../domain/family/index.js";
+import { FAMILIES, canonicalAddress } from "../../domain/family/index.js";
 import { UsageError, WalletError } from "../../domain/errors/index.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
 
@@ -43,10 +43,11 @@ export async function resolveLedgerPath(
   }
   if (locator.address !== undefined) {
     const limit = locator.scanLimit ?? DEFAULT_SCAN_LIMIT;
+    const wanted = canonicalAddress(locator.address);
     for (let index = 0; index < limit; index++) {
       const path = Derivation.ledgerPath(family, index);
-      if ((await ledger.getAddress(family, path, { display: false })) === locator.address)
-        return path;
+      const found = await ledger.getAddress(family, path, { display: false });
+      if (canonicalAddress(found) === wanted) return path;
     }
     throw new WalletError(
       "ledger_address_not_found",

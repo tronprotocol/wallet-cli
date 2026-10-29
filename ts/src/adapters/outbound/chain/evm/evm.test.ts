@@ -7,6 +7,7 @@ import { Transaction } from "ethers";
 import { EvmRpcClient } from "./evm.js";
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
 import { UsageError, type CliError } from "../../../../domain/errors/index.js";
+import { baseUnitAmount } from "../../../../domain/amounts/index.js";
 
 const ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -253,7 +254,39 @@ describe("EvmRpcClient.getBlock", () => {
     expect(seen[0]).toMatchObject({ params: ["finalized", false] });
   });
 
-  it("returns the node's object verbatim — hex quantities and all", async () => {
+  it("decodes the block's quantities once and keeps the node's object verbatim", async () => {
+    stubRpc({
+      ...RPC_BLOCK,
+      gasUsed: "0xc3ed1d",
+      gasLimit: "0x1c9c380",
+      baseFeePerGas: "0x448b9b800",
+    });
+    const block = await new EvmRpcClient(
+      "https://node.example",
+      5_000,
+      undefined,
+      processBroadcastGuard,
+    ).getBlock();
+
+    expect(block).toEqual({
+      number: 1234567,
+      timestamp: 1722925264,
+      hash: RPC_BLOCK.hash,
+      parentHash: RPC_BLOCK.parentHash,
+      transactionCount: 2,
+      gasUsed: "12840221",
+      gasLimit: "30000000",
+      baseFeeWei: "18400000000",
+      raw: {
+        ...RPC_BLOCK,
+        gasUsed: "0xc3ed1d",
+        gasLimit: "0x1c9c380",
+        baseFeePerGas: "0x448b9b800",
+      },
+    });
+  });
+
+  it("omits the fields a pre-1559 block does not carry", async () => {
     stubRpc(RPC_BLOCK);
     const block = await new EvmRpcClient(
       "https://node.example",
@@ -262,7 +295,20 @@ describe("EvmRpcClient.getBlock", () => {
       processBroadcastGuard,
     ).getBlock();
 
-    expect(block).toEqual(RPC_BLOCK);
+    expect(block).not.toHaveProperty("baseFeeWei");
+    expect(block).not.toHaveProperty("gasUsed");
+  });
+
+  it.each([
+    ["number", { ...RPC_BLOCK, number: undefined }],
+    ["number", { ...RPC_BLOCK, number: null }],
+    ["timestamp", { ...RPC_BLOCK, timestamp: undefined }],
+    ["gasUsed", { ...RPC_BLOCK, gasUsed: "lots" }],
+  ])("rejects a block with a missing or malformed %s instead of reporting 0", async (_f, raw) => {
+    stubRpc(raw);
+    await expect(
+      new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).getBlock(),
+    ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 
   it("returns null for a height the chain does not have", async () => {
@@ -1020,7 +1066,7 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
       5_000,
       undefined,
       processBroadcastGuard,
-    ).encodeErc20Transfer(ADDR, "5000000");
+    ).encodeErc20Transfer(ADDR, baseUnitAmount("5000000"));
 
     // transfer(address,uint256) selector followed by recipient and amount.
     expect(data).toBe(
@@ -1037,7 +1083,7 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
         5_000,
         undefined,
         processBroadcastGuard,
-      ).encodeErc20Transfer("nope", "1"),
+      ).encodeErc20Transfer("nope", baseUnitAmount("1")),
     ).toThrow();
   });
 
@@ -1049,7 +1095,7 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
         5_000,
         undefined,
         processBroadcastGuard,
-      ).encodeErc20Transfer("nope", "1");
+      ).encodeErc20Transfer("nope", baseUnitAmount("1"));
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
@@ -1257,18 +1303,69 @@ describe("EvmRpcClient contract-write encoding", () => {
 });
 
 describe("EvmRpcClient.getTransactionByHash", () => {
-  it("returns the node's transaction object", async () => {
-    const seen = stubRpc({ hash: "0xabc", input: "0x", value: "0x0" });
-    const tx = await new EvmRpcClient(
+  const RPC_TX = {
+    hash: "0xabc",
+    from: "0xe4aad11792f7e74f1b5cbce65f9a1e207c952961",
+    to: "0x000000000000000000000000000000000000dead",
+    value: "0xde0b6b3a7640000",
+    input: "0x",
+    nonce: "0x7",
+  };
+  const fetchTx = () =>
+    new EvmRpcClient(
       "https://node.example",
       5_000,
       undefined,
       processBroadcastGuard,
     ).getTransactionByHash("0xabc");
 
+  it("normalizes the node's transaction and keeps it verbatim", async () => {
+    const seen = stubRpc(RPC_TX);
+    const tx = await fetchTx();
+
     expect(seen[0]).toMatchObject({ method: "eth_getTransactionByHash", params: ["0xabc"] });
-    expect(tx).toMatchObject({ hash: "0xabc" });
+    expect(tx).toEqual({
+      from: "0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961",
+      to: "0x000000000000000000000000000000000000dEaD",
+      valueWei: "1000000000000000000",
+      input: "0x",
+      nonce: 7,
+      raw: RPC_TX,
+    });
   });
+
+  it("omits the recipient of a contract creation", async () => {
+    stubRpc({ ...RPC_TX, to: null, input: "0x6080" });
+    expect(await fetchTx()).not.toHaveProperty("to");
+  });
+
+  it("decodes ERC-20 transfer calldata to its token recipient and amount", async () => {
+    const input = `0xa9059cbb${"0".repeat(24)}bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb${5000000n
+      .toString(16)
+      .padStart(64, "0")}`;
+    stubRpc({ ...RPC_TX, value: "0x0", input });
+
+    expect(await fetchTx()).toMatchObject({
+      erc20Transfer: {
+        to: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+        rawAmount: "5000000",
+      },
+    });
+  });
+
+  it.each([
+    ["value", { ...RPC_TX, value: undefined }],
+    ["from", { ...RPC_TX, from: undefined }],
+    ["from", { ...RPC_TX, from: "0x1234" }],
+    ["input", { ...RPC_TX, input: undefined }],
+    ["nonce", { ...RPC_TX, nonce: "seven" }],
+  ])(
+    "rejects a transaction with a missing or malformed %s instead of 0 or empty",
+    async (_f, raw) => {
+      stubRpc(raw);
+      await expect(fetchTx()).rejects.toMatchObject({ code: "invalid_node_response" });
+    },
+  );
 
   it("returns null when the node has no record of the hash", async () => {
     stubRpc(null);

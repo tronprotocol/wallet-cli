@@ -21,24 +21,23 @@ function svc(gateway: Record<string, unknown>) {
 const scope = (addr: string) => ({ resolveAddress: () => addr }) as never;
 
 describe("TronStakeService.info", () => {
-  it("aggregates staked split, voting power, resources, unfreezing and slots", async () => {
+  it("passes through the adapter's stake totals, unfreezing entries and resources", async () => {
+    const stake = {
+      energySun: "1000000000",
+      bandwidthSun: "500000000",
+      tronPowerSun: "0",
+      totalSun: "1500000000",
+    };
+    const unfreezing = [
+      { amountSun: "500000000", withdrawableAt: 1784073600000 },
+      { amountSun: "300000000", withdrawableAt: 1784160000000 },
+    ];
     const gateway = {
-      getAccount: async () => ({
-        frozenV2: [{ type: "ENERGY", amount: "1000000000" }, { amount: "500000000" }],
-        unfrozenV2: [
-          { unfreeze_amount: "500000000", unfreeze_expire_time: 1784073600000 },
-          { type: "ENERGY", unfreeze_amount: "300000000", unfreeze_expire_time: 1784160000000 },
-        ],
-      }),
+      getAccountState: async () => ({ stake, unfreezing }),
       getAccountResources: async () => ({
-        EnergyUsed: 12000,
-        EnergyLimit: 65000,
-        NetUsed: 100,
-        NetLimit: 1000,
-        freeNetUsed: 500,
-        freeNetLimit: 500,
-        tronPowerLimit: 1500,
-        tronPowerUsed: 1000,
+        energy: { used: 12000, limit: 65000 },
+        bandwidth: { used: 600, limit: 1500 },
+        votingPower: { total: 1500, used: 1000 },
       }),
       getCanWithdrawUnfreezeAmount: async () => "0",
       getAvailableUnfreezeCount: async () => 30,
@@ -46,13 +45,10 @@ describe("TronStakeService.info", () => {
     const view = await svc(gateway).info(scope(OWNER), net);
     expect(view).toEqual({
       address: OWNER,
-      staked: { energySun: "1000000000", bandwidthSun: "500000000" },
+      staked: stake,
       votingPower: { total: 1500, used: 1000, available: 500 },
       resource: { energy: { used: 12000, limit: 65000 }, bandwidth: { used: 600, limit: 1500 } },
-      unfreezing: [
-        { amountSun: "500000000", withdrawableAt: 1784073600000 },
-        { amountSun: "300000000", withdrawableAt: 1784160000000 },
-      ],
+      unfreezing,
       withdrawableSun: "0",
       unfreeze: { used: 2, max: 32, remaining: 30 },
     });
@@ -112,7 +108,7 @@ describe("TronStakeService.delegated", () => {
 describe("TronStakeService.votingPower", () => {
   it("derives available from limit - used", async () => {
     const gateway = {
-      getAccountResources: async () => ({ tronPowerLimit: 1500, tronPowerUsed: 1000 }),
+      getAccountResources: async () => ({ votingPower: { total: 1500, used: 1000 } }),
     };
     expect(await svc(gateway).votingPower(net, OWNER)).toEqual({
       total: 1500,

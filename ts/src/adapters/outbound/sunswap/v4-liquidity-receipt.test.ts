@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../domain/sunswap/tokens.js";
-import type { TronTxInfo } from "../../../application/ports/chain/tron-gateway.js";
+import { parseTronTxInfo } from "../chain/tron/tron-responses.js";
 import { decodeV4LiquidityReceipt } from "./v4-liquidity-receipt.js";
 import removal from "./fixtures/v4-remove.json";
 import collection from "./fixtures/v4-collect.json";
@@ -17,7 +17,7 @@ const query = {
   token1: tronHexToBase58("41eca9bc828a3005b9a3b909f2cc5c2a54794de05f"),
 };
 const decode = (info: unknown, overrides = {}) =>
-  decodeV4LiquidityReceipt(info as TronTxInfo, { ...query, ...overrides }, manager, pool);
+  decodeV4LiquidityReceipt(parseTronTxInfo(info), { ...query, ...overrides }, manager, pool);
 describe("V4 liquidity receipt settlement", () => {
   it("matches real withdrawal principal, fees and transfers without subtracting gas", () => {
     expect(decode(removal)).toEqual({

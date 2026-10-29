@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import { TronTransactionService } from "./transaction-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway, TronTxInfo, TronTx } from "../../ports/chain/tron-gateway.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { NetworkDescriptor, TronTransactionArtifact } from "../../../domain/types/index.js";
+import {
+  parseTronTx,
+  parseTronTxInfo,
+} from "../../../adapters/outbound/chain/tron/tron-responses.js";
+import { stageTronBroadcast } from "../../services/tron-confirmation.js";
 
 const NET = {
   id: "tron:3448148188",
@@ -12,23 +17,28 @@ const NET = {
   chainId: "nile",
 } as unknown as NetworkDescriptor;
 
-function service(opts: { tx?: TronTx | Error; info?: TronTxInfo | Error; head?: number | Error }) {
-  const gateway = {
-    async getTransactionById(): Promise<TronTx> {
+// Node JSON goes through the adapter's parsers, so tests see the facts the adapter derives.
+function nodeGateway(opts: { tx?: object | Error; info?: object | Error; head?: number | Error }) {
+  return {
+    async getTransactionById() {
       if (opts.tx instanceof Error) throw opts.tx;
       if (!opts.tx) throw new Error("Transaction not found");
-      return opts.tx;
+      return parseTronTx(opts.tx);
     },
-    async getTransactionInfoById(): Promise<TronTxInfo> {
+    async getTransactionInfoById() {
       if (opts.info instanceof Error) throw opts.info;
-      return opts.info ?? {};
+      return parseTronTxInfo(opts.info ?? {});
     },
-    async getBlock(): Promise<unknown> {
+    async getHeadBlock() {
       if (opts.head instanceof Error) throw opts.head;
       if (opts.head === undefined) throw new Error("no head configured");
-      return { block_header: { raw_data: { number: opts.head } } };
+      return { number: opts.head, timestampMs: 0 };
     },
   } as unknown as TronGateway;
+}
+
+function service(opts: { tx?: object | Error; info?: object | Error; head?: number | Error }) {
+  const gateway = nodeGateway(opts);
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   return new TronTransactionService(gateways, {} as never, {} as never, {} as never);
 }
@@ -36,7 +46,7 @@ function service(opts: { tx?: TronTx | Error; info?: TronTxInfo | Error; head?: 
 describe("TronTransactionService.status — four-state", () => {
   it("confirmed: node knows tx + block + SUCCESS receipt", async () => {
     const s = await service({
-      tx: { txID: "abc" } as TronTx,
+      tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
     }).status(NET, "abc");
     expect(s.state).toBe("confirmed");
@@ -47,7 +57,7 @@ describe("TronTransactionService.status — four-state", () => {
 
   it("failed: has block but receipt result ≠ SUCCESS", async () => {
     const s = await service({
-      tx: { txID: "abc" } as TronTx,
+      tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "REVERT" } },
     }).status(NET, "abc");
     expect(s.state).toBe("failed");
@@ -55,7 +65,7 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("pending: node knows tx (getTransactionById) but no block yet", async () => {
-    const s = await service({ tx: { txID: "abc" } as TronTx, info: {} }).status(NET, "abc");
+    const s = await service({ tx: { txID: "abc" }, info: {} }).status(NET, "abc");
     expect(s.state).toBe("pending");
     expect(s.confirmed).toBe(false);
     expect(s.failed).toBe(false);
@@ -71,7 +81,7 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("not_found: getTransactionById resolves without a txID", async () => {
-    const s = await service({ tx: {} as TronTx, info: {} }).status(NET, "abc");
+    const s = await service({ tx: {}, info: {} }).status(NET, "abc");
     expect(s.state).toBe("not_found");
   });
 
@@ -93,10 +103,61 @@ describe("TronTransactionService.status — four-state", () => {
   });
 });
 
+describe("tx status and --wait read one execution fact", () => {
+  const NATIVE: TronTransactionArtifact = {
+    txID: "abc",
+    raw_data: { contract: [{ type: "TransferContract" }] },
+    raw_data_hex: "",
+  };
+  const waitScope = {
+    wait: true,
+    waitTimeoutMs: 0,
+    timeoutMs: 1000,
+    activeAccount: {} as never,
+    resolveAddress: () => "T",
+    emit: () => {},
+    warn: () => {},
+  };
+
+  it.each([
+    [{ blockNumber: 42, result: "FAILED", receipt: {} }, "failed"],
+    [{ blockNumber: 42, receipt: { result: "DEFAULT" } }, "confirmed"],
+    [{ blockNumber: 42, receipt: { result: "REVERT" } }, "failed"],
+    [{ blockNumber: 42, receipt: { result: "SUCCESS" } }, "confirmed"],
+  ])("%j → %s in both", async (info, expected) => {
+    const status = await service({ tx: { txID: "abc" }, info }).status(NET, "abc");
+    const waited = await stageTronBroadcast(
+      nodeGateway({ info }),
+      waitScope,
+      { txId: "abc" },
+      NATIVE,
+    );
+
+    expect(status.state).toBe(expected);
+    expect(waited.stage).toBe(expected);
+  });
+});
+
+describe("TronTransactionService.info status", () => {
+  it.each([
+    [{ blockNumber: 42, result: "FAILED", receipt: {} }, "failed"],
+    [{ blockNumber: 42, receipt: { result: "OUT_OF_ENERGY" } }, "out_of_energy"],
+    [{ blockNumber: 42, receipt: { result: "SUCCESS" } }, "success"],
+    [{ blockNumber: 42 }, "success"],
+  ])("%j → %s", async (info, expected) => {
+    const tx = { txID: "abc", ret: [{ contractRet: "SUCCESS" }] };
+    const view = await service({ tx, info, head: 50 }).info(NET, "abc");
+
+    expect(view.status).toBe(expected);
+    expect(view.info).toBe(info);
+    expect(view.transaction).toBe(tx);
+  });
+});
+
 describe("TronTransactionService.status — confirmations", () => {
   it("reports head minus the transaction's block", async () => {
     const s = await service({
-      tx: { txID: "abc" } as TronTx,
+      tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
       head: 78,
     }).status(NET, "abc");
@@ -106,7 +167,7 @@ describe("TronTransactionService.status — confirmations", () => {
 
   it("reports zero for a transaction in the head block", async () => {
     const s = await service({
-      tx: { txID: "abc" } as TronTx,
+      tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
       head: 42,
     }).status(NET, "abc");
@@ -116,7 +177,7 @@ describe("TronTransactionService.status — confirmations", () => {
 
   it("omits the field when the head could not be read, and still answers", async () => {
     const s = await service({
-      tx: { txID: "abc" } as TronTx,
+      tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
       head: new Error("node unreachable"),
     }).status(NET, "abc");
@@ -126,10 +187,7 @@ describe("TronTransactionService.status — confirmations", () => {
   });
 
   it("omits the field while the transaction has no block", async () => {
-    const s = await service({ tx: { txID: "abc" } as TronTx, info: {}, head: 78 }).status(
-      NET,
-      "abc",
-    );
+    const s = await service({ tx: { txID: "abc" }, info: {}, head: 78 }).status(NET, "abc");
 
     expect(s.state).toBe("pending");
     expect(s.confirmations).toBeUndefined();

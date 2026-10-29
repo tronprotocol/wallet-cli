@@ -22,8 +22,9 @@ import {
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
-const TRX_DECIMALS = 6;
+const TRX_DECIMALS = FAMILIES.tron.nativeDecimals;
 // The protocol requires expected > 0, even without slippage protection.
 const UNPROTECTED_FLOOR = 1n;
 

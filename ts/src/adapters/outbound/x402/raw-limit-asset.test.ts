@@ -5,7 +5,7 @@ import { TronWeb, providers } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { evmSignStrategy } from "../chain/evm/signing-strategy.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
-import type { X402PayInput } from "../../../application/ports/x402-payment.js";
+import type { X402PaidResult, X402PayInput } from "../../../application/ports/x402-payment.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
@@ -38,7 +38,7 @@ const scope = {
 } as unknown as TransactionScope;
 
 interface Outcome {
-  result?: Record<string, unknown>;
+  result?: Partial<X402PaidResult>;
   error?: { code?: string };
   typedData: TypedDataPayload[];
   txs: unknown[];

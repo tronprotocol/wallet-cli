@@ -1,11 +1,14 @@
 import { SDK } from "@bankofai/8004-sdk";
 import { Interface, type InterfaceAbi } from "ethers";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
-import type { AgentRegistryReader } from "../../../application/ports/agent-sdk.js";
+import type {
+  AgentRegistryReader,
+  AgentRegistryValue,
+} from "../../../application/ports/agent-sdk.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import { UsageError, ExecutionError, type CliError } from "../../../domain/errors/index.js";
-import { agentWriteError } from "./revert.js";
+import { UsageError, ExecutionError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { sameAddress } from "../../../domain/family/index.js";
 
 interface SupportedNetwork {
   family: "evm" | "tron";
@@ -58,7 +61,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     network: NetworkDescriptor,
     method: string,
     params: Array<{ type: string; value: unknown }>,
-  ): Promise<unknown> {
+  ): Promise<AgentRegistryValue> {
     const configured = this.#for(network);
     let decoded;
     try {
@@ -110,11 +113,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     const output = configured.identity.getFunction(method)?.outputs[0];
     return output?.baseType === "address"
       ? configured.sdk.chain.toChainAddress(String(value))
-      : value;
-  }
-
-  writeError(error: unknown): CliError | undefined {
-    return agentWriteError(error);
+      : (value as AgentRegistryValue);
   }
 
   async registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
@@ -122,8 +121,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     if (network.family === "evm") {
       const receipt = await this.gateways.get(network, "evm").getTransactionReceipt(txId);
       if (!receipt) return undefined;
-      const source = record(receipt.raw) ?? receipt;
-      const logs = matchingLogs(source.logs, configured.sdk);
+      const logs = matchingLogs(record(receipt.raw)?.logs, configured.sdk);
       return configured.sdk.chain.parseRegisteredAgentId({ logs });
     }
 
@@ -174,18 +172,19 @@ function matchingLogs(value: unknown, sdk: SDK): Record<string, unknown>[] {
     const log = record(entry);
     if (!log || typeof log.address !== "string") return false;
     try {
-      return normalizedAddress(log.address, sdk) === normalizedAddress(sdk.identityRegistry, sdk);
+      return sameAddress(
+        sdk.chainType,
+        logAddress(log.address, sdk),
+        logAddress(sdk.identityRegistry, sdk),
+      );
     } catch {
       return false;
     }
   });
 }
 
-function normalizedAddress(address: string, sdk: SDK): string {
+// TRON compares any address form directly; EVM goes through the SDK's conversion.
+function logAddress(address: string, sdk: SDK): string {
   const raw = address.trim();
-  if (sdk.chainType === "tron") {
-    if (/^[0-9a-fA-F]{40}$/.test(raw)) return `0x${raw.toLowerCase()}`;
-    if (/^41[0-9a-fA-F]{40}$/.test(raw)) return `0x${raw.slice(2).toLowerCase()}`;
-  }
-  return sdk.chain.toEvmAddress(raw).toLowerCase();
+  return sdk.chainType === "tron" ? raw : sdk.chain.toEvmAddress(raw);
 }

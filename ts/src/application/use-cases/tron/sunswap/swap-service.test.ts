@@ -1,20 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { utils as tronUtils } from "tronweb";
-import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+import type { NetworkDescriptor, TypedDataPayload } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../../ports/chain/gateway-provider.js";
 import type { LaunchpadPort } from "../../../ports/sunpump/launchpad.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { LAUNCHPAD_STATE } from "../../../../domain/sunpump/curve.js";
-import type { RouterPort, RouterRoute } from "../../../ports/sunswap/router.js";
+import type { RouterPort, RouterRoute, RouterWireRoute } from "../../../ports/sunswap/router.js";
 import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { RouterExecutionPort } from "../../../ports/sunswap/router-execution.js";
-import type { Permit2Port } from "../../../ports/sunswap/permit2.js";
+import type { Permit2Grant, Permit2Port } from "../../../ports/sunswap/permit2.js";
 import type { SignerResolver } from "../../../services/signer/index.js";
 import { SunSwapSwapService } from "./swap-service.js";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
 import { SigningService } from "../../../services/signing/signing-service.js";
+import { baseUnitAmount } from "../../../../domain/amounts/index.js";
 
 const UNIVERSAL_ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
 const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
@@ -28,7 +29,7 @@ const SIGNING_KEY = `${"0".repeat(63)}1`;
 const BEST_OUT = 34376047n;
 const BEST_FLOOR = ((BEST_OUT * 9950n) / 10000n).toString();
 
-function permitTypedData(): Record<string, unknown> {
+function permitTypedData(): TypedDataPayload {
   return {
     primaryType: "PermitSingle",
     domain: {
@@ -159,7 +160,7 @@ const routerRoutes: RouterRoute[] = [
     protocols: ["V2", "V3"],
     poolFees: ["500", "0"],
     containsUnverifiedHook: false,
-    source: {},
+    source: {} as RouterWireRoute,
   },
   {
     amountInRaw: "100000000",
@@ -173,7 +174,7 @@ const routerRoutes: RouterRoute[] = [
     protocols: ["V1", "V4"],
     poolFees: ["3000", "0"],
     containsUnverifiedHook: false,
-    source: {},
+    source: {} as RouterWireRoute,
   },
 ];
 
@@ -405,7 +406,7 @@ describe("the curve branch", () => {
       dryRun: true,
     })) as { approvals: { spender: string; amount: string }[] };
     expect(result.approvals).toEqual([
-      expect.objectContaining({ spender: LAUNCHPAD, amount: "unlimited" }),
+      expect.objectContaining({ spender: LAUNCHPAD, amount: "unlimited", isUnlimited: true }),
     ]);
   });
 
@@ -694,7 +695,7 @@ describe("the router branch", () => {
         protocols: ["V2", "V2"],
         poolFees: ["300", "300"],
         containsUnverifiedHook: false,
-        source: {},
+        source: {} as RouterWireRoute,
       },
     ]);
     const result = await quoteUsdt(harness);
@@ -768,7 +769,9 @@ describe("sending a router swap", () => {
     );
     // A fresh harness is required because the first swap leaves sufficient mock allowance.
     const approvals = (await sell(sending())).approvals as { spender: string; amount: string }[];
-    expect(approvals).toEqual([expect.objectContaining({ spender: PERMIT2, amount: "100000000" })]);
+    expect(approvals).toEqual([
+      expect.objectContaining({ spender: PERMIT2, amount: "100000000", isUnlimited: false }),
+    ]);
   });
 
   it("does not approve again when the allowance already covers the trade", async () => {
@@ -786,7 +789,31 @@ describe("sending a router swap", () => {
       spender: UNIVERSAL_ROUTER,
       amount: "100000000",
       expiration: String(NOW + 3600),
+      ttlSeconds: 3600,
     });
+  });
+
+  it("says the Permit2 allowance outlives a swap that failed on chain", async () => {
+    const harness = sending();
+    const run = vi.mocked(harness.pipeline.run);
+    const confirm = run.getMockImplementation()!;
+    run.mockImplementation(async (params) => {
+      const outcome = (await confirm(params)) as unknown as Record<string, unknown>;
+      return (
+        String(outcome.txId).includes("execute")
+          ? { ...outcome, stage: "failed", result: "REVERT" }
+          : outcome
+      ) as never;
+    });
+    const result = await sell(harness);
+    expect(result.stage).toBe("failed");
+    expect(result.approvalRemains).toBe(true);
+  });
+
+  it("does not say so when the swap confirmed", async () => {
+    const result = await sell(sending());
+    expect(result.stage).toBe("confirmed");
+    expect(result).not.toHaveProperty("approvalRemains");
   });
 
   it("enforces its own floor and publishes it", async () => {
@@ -815,7 +842,7 @@ describe("sending a router swap", () => {
       permit2: PERMIT2,
       spender: UNIVERSAL_ROUTER,
       typedData,
-      grant: {},
+      grant: {} as Permit2Grant,
       amount: (2n ** 160n - 1n).toString(),
       expiration: String(NOW + 3600),
       mode: "typed-data",
@@ -834,7 +861,7 @@ describe("sending a router swap", () => {
       permit2: PERMIT2,
       spender: UNIVERSAL_ROUTER,
       typedData,
-      grant: {},
+      grant: {} as Permit2Grant,
       amount: "100000000",
       expiration: String(NOW + 30 * 86400),
       mode: "typed-data",
@@ -958,7 +985,7 @@ describe("when the grant already covers the trade", () => {
 
   it("prices the swap itself on a dry run once the allowance covers it", async () => {
     const harness = covered();
-    vi.mocked(harness.liquidity.allowance).mockResolvedValue("100000000");
+    vi.mocked(harness.liquidity.allowance).mockResolvedValue(baseUnitAmount("100000000"));
     const result = await sell(harness, { dryRun: true });
     expect(result.mode).toBe("dry-run");
     expect(result.feeCovers).toBe("all");
@@ -1031,7 +1058,7 @@ describe("balances on a router swap", () => {
 
   it.each(MODES)("refuses a short token balance in %s, approving nothing", async (_n, mode) => {
     const h = harness();
-    vi.mocked(h.liquidity.balanceOf).mockResolvedValue("0");
+    vi.mocked(h.liquidity.balanceOf).mockResolvedValue(baseUnitAmount("0"));
     const withApprovals = vi.spyOn(LiquidityTransactions.prototype, "withApprovals");
     try {
       await expect(
@@ -1090,7 +1117,7 @@ describe("balances on a router swap", () => {
 
   it("goes ahead when the balance covers the trade exactly", async () => {
     const h = harness();
-    vi.mocked(h.liquidity.balanceOf).mockResolvedValue("100000000");
+    vi.mocked(h.liquidity.balanceOf).mockResolvedValue(baseUnitAmount("100000000"));
     const result = await h.service.swap(h.scope, NETWORK, {
       tokenIn: "USDT",
       tokenOut: "TRX",

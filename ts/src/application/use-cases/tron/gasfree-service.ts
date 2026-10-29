@@ -223,7 +223,7 @@ export class GasFreeService {
       ...authorization,
       sig: signature,
     });
-    assertAccepted(submitted, authorization, addressInfo.gasFreeAddress);
+    assertAccepted(submitted, authorization, addressInfo.gasFreeAddress, { traceId: submitted.id });
     const accepted: GasFreeTransferView = {
       ...base,
       stage: "submitted",
@@ -457,8 +457,7 @@ function assertAccepted(
 ): void {
   const deadlineMatches =
     record.expiredAt === undefined ||
-    record.expiredAt === authorization.deadline ||
-    record.expiredAt === `${authorization.deadline}000`;
+    BigInt(record.expiredAt) === BigInt(authorization.deadline) * 1000n;
   if (
     record.tokenAddress !== authorization.token ||
     record.providerAddress !== authorization.serviceProvider ||
@@ -477,11 +476,15 @@ function assertAccepted(
       context,
     );
   }
-  assertFeeIntegrity(record, authorization.maxFee);
+  assertFeeIntegrity(record, authorization.maxFee, context);
 }
 
 // Bound provider estimates and final charges by the signed maxFee when available.
-function assertFeeIntegrity(record: GasFreeTransferRecord, authorizedMaxFee?: string): void {
+function assertFeeIntegrity(
+  record: GasFreeTransferRecord,
+  authorizedMaxFee?: string,
+  context?: object,
+): void {
   const feeSets = [
     [
       record.estimatedTransferFee,
@@ -502,7 +505,11 @@ function assertFeeIntegrity(record: GasFreeTransferRecord, authorizedMaxFee?: st
       authorizedMaxFee !== undefined &&
       observedTotal > BigInt(authorizedMaxFee)
     ) {
-      throw new ChainError("gasfree_integrity", "GasFree provider fee exceeds the signed maxFee");
+      throw new ChainError(
+        "gasfree_integrity",
+        "GasFree provider fee exceeds the signed maxFee",
+        context,
+      );
     }
     if (
       componentTotal !== undefined &&
@@ -512,6 +519,7 @@ function assertFeeIntegrity(record: GasFreeTransferRecord, authorizedMaxFee?: st
       throw new ChainError(
         "gasfree_integrity",
         "GasFree provider fee components do not match the total fee",
+        context,
       );
     }
     if (
@@ -522,6 +530,7 @@ function assertFeeIntegrity(record: GasFreeTransferRecord, authorizedMaxFee?: st
       throw new ChainError(
         "gasfree_integrity",
         "GasFree provider total cost does not match amount plus fees",
+        context,
       );
     }
   }

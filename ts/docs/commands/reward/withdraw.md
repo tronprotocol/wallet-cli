@@ -54,7 +54,7 @@ echo "$PW" | wallet-cli reward withdraw --network nile --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789","withdrawIntervalMs":86400000},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Add `--wait` to block until confirmed (adds real block / fee):
@@ -78,7 +78,7 @@ echo "$PW" | wallet-cli reward withdraw --network nile --wait --password-stdin
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "reward-withdraw"`, `stage: "submitted"`, `txId`, `rewardSun` (string) |
+| default (submit) | `kind: "reward-withdraw"`, `stage: "submitted"`, `txId`, `rewardSun` (string), `withdrawIntervalMs` (minimum time between withdrawals, in ms) |
 | `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status

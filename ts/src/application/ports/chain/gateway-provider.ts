@@ -1,31 +1,39 @@
 import type { ChainFamily } from "../../../domain/family/index.js";
-import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  EvmReceipt,
+  EvmUnsignedTx,
+  NetworkDescriptor,
+  NodeJson,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
+import type { Erc20Transfer } from "../../../domain/evm/index.js";
 import type { Broadcaster } from "./broadcaster.js";
 import type { TronGateway } from "./tron-gateway.js";
+import type { BaseUnits, Sun, Wei } from "../../../domain/amounts/index.js";
 
-export interface NativeBalanceReader {
-  getNativeBalance(address: string): Promise<string>;
+export interface NativeBalanceReader<Amount extends Sun | Wei = Sun | Wei> {
+  getNativeBalance(address: string): Promise<Amount>;
 }
 
-// Scalar quantities are decimal strings; block, transaction, and sync objects retain node fields.
-export interface EvmGateway extends NativeBalanceReader, Broadcaster {
+// Scalar quantities are decimal strings; sync objects retain node fields.
+export interface EvmGateway extends NativeBalanceReader<Wei>, Broadcaster {
   // Decimal nonce; pending includes unmined transactions.
   getTransactionCount(address: string, block?: "latest" | "pending"): Promise<string>;
   // Hex bytecode; 0x means no code.
   getCode(address: string): Promise<string>;
   // Decimal height.
   getBlockNumber(): Promise<string>;
-  // Raw block with hex quantities and epoch seconds, or null; accepts a decimal height or tag.
-  getBlock(numberOrTag?: string): Promise<unknown>;
+  // Null when the node has no such block; accepts a decimal height or tag.
+  getBlock(numberOrTag?: string): Promise<EvmBlockView | null>;
   // Node-reported decimal chain ID.
   chainId(): Promise<string>;
-  // False when synced; otherwise raw node progress.
-  syncing(): Promise<unknown>;
+  // True while the node reports sync progress.
+  syncing(): Promise<boolean>;
   // Decimal peer count; hosted endpoints may refuse.
   peerCount(): Promise<string>;
   clientVersion(): Promise<string>;
-  // Decimal wei; zero base fee is distinct from absence and must retain EIP-1559 handling.
-  feeData(): Promise<{ baseFeeWei?: string; gasPriceWei: string; suggestedPriorityWei?: string }>;
+  // Zero base fee is distinct from absence and must retain EIP-1559 handling.
+  feeData(): Promise<{ baseFeeWei?: Wei; gasPriceWei: Wei; suggestedPriorityWei?: Wei }>;
   // Decimal gas units.
   estimateGas(tx: Record<string, unknown>): Promise<string>;
   encodeFunctionCall(signature: string, params: Array<{ type: string; value: unknown }>): string;
@@ -33,8 +41,7 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   encodeDeploy(bytecode: string, args: DeployConstructorArgs): string;
   // CREATE address from sender and nonce.
   contractAddressFor(from: string, nonce: string): string;
-  // rawAmount is in token base units.
-  encodeErc20Transfer(to: string, rawAmount: string): string;
+  encodeErc20Transfer(to: string, rawAmount: BaseUnits): string;
   // Transaction hex for tx sign / tx broadcast.
   encodeTransactionHex(tx: unknown): string;
   // Decodes a serialized transaction without contacting the node.
@@ -43,10 +50,10 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   transactionChainId(tx: UnsignedTx): string | undefined;
   // alreadyKnown means the signed transaction is already in the mempool.
   sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }>;
-  // Raw node transaction, or null when unknown.
-  getTransactionByHash(hash: string): Promise<Record<string, unknown> | null>;
+  // Null when the node has no record of the hash.
+  getTransactionByHash(hash: string): Promise<EvmTxView | null>;
   // Normalized mined receipt, or null while pending; success reflects execution status.
-  getTransactionReceipt(hash: string): Promise<Record<string, unknown> | null>;
+  getTransactionReceipt(hash: string): Promise<EvmReceipt | null>;
   // Input and result are hex DATA.
   call(to: string, data: string): Promise<string>;
   // Returns raw hex DATA.
@@ -55,12 +62,45 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
     signature: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<string>;
-  // Decimal token base units.
-  getErc20Balance(contract: string, owner: string): Promise<string>;
+  getErc20Balance(contract: string, owner: string): Promise<BaseUnits>;
   // Unavailable metadata fields are omitted, not defaulted.
   getErc20Metadata(
     contract: string,
   ): Promise<{ symbol?: string; decimals?: number; name?: string }>;
+}
+
+// Node JSON passed through verbatim for display; inner layers do not branch on it.
+export type EvmRpcJson = NodeJson;
+
+// A mined block; gas quantities are decimal strings.
+export interface EvmBlockView {
+  readonly number: number;
+  // Unix seconds.
+  readonly timestamp: number;
+  readonly hash?: string;
+  readonly parentHash?: string;
+  // Absent when the node omits the transaction list.
+  readonly transactionCount?: number;
+  readonly gasUsed?: string;
+  readonly gasLimit?: string;
+  // Absent before EIP-1559.
+  readonly baseFeeWei?: string;
+  readonly raw: EvmRpcJson;
+}
+
+// A transaction as the node reports it, mined or pending.
+export interface EvmTxView {
+  // EIP-55 sender.
+  readonly from: string;
+  // EIP-55 recipient; absent for a contract creation.
+  readonly to?: string;
+  readonly valueWei: string;
+  // Hex calldata; "0x" when empty.
+  readonly input: string;
+  readonly nonce?: number;
+  // Present when input is an ERC-20 transfer call.
+  readonly erc20Transfer?: Erc20Transfer;
+  readonly raw: EvmRpcJson;
 }
 
 // Quantities are decimal strings.
@@ -83,7 +123,7 @@ export interface EvmRawTransaction {
   readonly hash?: string;
   readonly serialized?: string;
   // JSON form, as signers and command output take it.
-  readonly transaction: UnsignedTx;
+  readonly transaction: EvmUnsignedTx;
 }
 
 // Types come from the ABI or explicit signature, never inferred from values.

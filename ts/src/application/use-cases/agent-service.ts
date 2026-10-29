@@ -2,9 +2,14 @@ import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
-import type { AgentRegistryReader, AgentRegistrationLoader } from "../ports/agent-sdk.js";
+import type {
+  AgentRegistryReader,
+  AgentRegistrationLoader,
+  AgentRegistryValue,
+} from "../ports/agent-sdk.js";
 import { resolveAgentId } from "../../domain/erc8004/index.js";
-import { tronHexToBase58 } from "../../domain/address/index.js";
+import { FAMILIES, sameAddress, tronAddressFromEvmHex } from "../../domain/family/index.js";
+import { type Sun, sunAmount } from "../../domain/amounts/index.js";
 
 interface TransactionOptions {
   dryRun?: boolean;
@@ -12,7 +17,7 @@ interface TransactionOptions {
   buildOnly?: boolean;
   permissionId?: number;
   expiration?: number;
-  feeLimit?: string;
+  feeLimit?: Sun;
 }
 
 export class AgentService {
@@ -102,7 +107,7 @@ export class AgentService {
     network: NetworkDescriptor,
     input: TransactionOptions & { id: string; newOwner: string },
   ) {
-    if (input.newOwner.toLowerCase() === zeroAddress(network).toLowerCase()) {
+    if (sameAddress(network.family, input.newOwner, FAMILIES[network.family].zeroAddress)) {
       throw new UsageError("invalid_address", "Agent owner must not be the zero address");
     }
     const id = resolveAgentId(input.id, network).toString();
@@ -146,7 +151,7 @@ export class AgentService {
     network: NetworkDescriptor,
     input: TransactionOptions & { id: string; operator?: string; revoke?: boolean },
   ) {
-    const operator = input.revoke ? zeroAddress(network) : input.operator!;
+    const operator = input.revoke ? FAMILIES[network.family].zeroAddress : input.operator!;
     return this.write(scope, network, input, "approve(address,uint256)", [
       { type: "address", value: operator },
       { type: "uint256", value: resolveAgentId(input.id, network).toString() },
@@ -210,25 +215,11 @@ export class AgentService {
     _registry: string,
     method: string,
     params: Array<{ type: string; value: unknown }>,
-  ): Promise<unknown> {
+  ): Promise<AgentRegistryValue> {
     return this.registry.read(network, method, params);
   }
 
-  private async write(
-    scope: TransactionScope,
-    network: NetworkDescriptor,
-    input: TransactionOptions,
-    method: string,
-    params: Array<{ type: string; value: unknown }>,
-  ) {
-    try {
-      return await this.send(scope, network, input, method, params);
-    } catch (error) {
-      throw this.registry.writeError(error) ?? error;
-    }
-  }
-
-  private send(
+  private write(
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: TransactionOptions,
@@ -251,19 +242,12 @@ export class AgentService {
       contract,
       method,
       parameters: params,
-      callValueSun: "0",
-      feeLimit: input.feeLimit ?? "100000000",
+      callValueSun: sunAmount("0"),
+      feeLimit: input.feeLimit ?? sunAmount("100000000"),
     });
   }
 
   private address(network: NetworkDescriptor, value: string): string {
-    if (network.family !== "tron" || !/^0x[0-9a-fA-F]{40}$/.test(value)) return value;
-    return tronHexToBase58(`41${value.slice(2)}`);
+    return network.family === "tron" ? tronAddressFromEvmHex(value) : value;
   }
-}
-
-function zeroAddress(network: NetworkDescriptor): string {
-  return network.family === "tron"
-    ? "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb"
-    : "0x0000000000000000000000000000000000000000";
 }

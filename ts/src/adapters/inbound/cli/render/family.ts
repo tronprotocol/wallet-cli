@@ -1,5 +1,4 @@
 import type { TxInfoView, TxReceiptView } from "../../../../domain/types/index.js";
-import { RESOURCES, resourceOfRpcCode, type Resource } from "../../../../domain/resources/index.js";
 import type { TextRenderContext } from "../contracts/index.js";
 import { ChainFamily } from "../../../../domain/family/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
@@ -16,7 +15,7 @@ interface FamilyRenderHooks {
   accountInfoRows(d: Obj, symbol: string): Pair[];
   chainPricesRows(d: Obj, symbol: string): Pair[];
   chainNodeRows(d: Obj): Pair[];
-  blockRows(block: Obj, timestampMs: number | undefined): Pair[];
+  blockRows(data: Obj): Pair[];
   receiptIdentityRows(r: TxReceiptView): Pair[];
   receiptSettlementRows(r: TxReceiptView, symbol: string): Pair[];
 }
@@ -57,22 +56,18 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
     feeFallback: (fee, symbol) => `${formatSun(fee)} ${symbol}`,
     addressLabel: "TRON address",
     accountInfoRows: (d, symbol) => {
-      const account = asObj(d.account);
-      const owner = asObj(account.owner_permission);
-      const active = Array.isArray(account.active_permission)
-        ? account.active_permission.length
-        : 0;
-      const created = account.create_time
-        ? new Date(Number(account.create_time)).toISOString().slice(0, 10)
-        : "";
-      const ownerKeys = Array.isArray(owner.keys) ? owner.keys.length : "?";
+      const permissions = asObj(d.permissions);
+      const active = Number(permissions.activeGroups);
+      const created =
+        typeof d.createdAt === "number" ? new Date(d.createdAt).toISOString().slice(0, 10) : "";
       const resources = asObj(d.resources);
       const bandwidth = asObj(resources.bandwidth);
       const energy = asObj(resources.energy);
       const rows: Pair[] = [["Address", String(d.address ?? "")]];
-      rows.push(["Balance", `${formatSun(account.balance)} ${symbol}`]);
-      const staked = stakedSummary(account, symbol);
-      if (staked) rows.push(["Staked", staked]);
+      rows.push(["Balance", `${formatSun(d.balanceSun)} ${symbol}`]);
+      const staked = asObj(d.staked);
+      if (staked.totalSun !== undefined && staked.totalSun !== "0")
+        rows.push(["Staked", stakedSummary(staked, symbol)]);
       if (resources.energy)
         rows.push(["Energy", `used ${formatInt(energy.used)} / ${formatInt(energy.limit)}`]);
       if (resources.bandwidth)
@@ -83,7 +78,9 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       rows.push(["Created", created]);
       rows.push([
         "Permissions",
-        `owner ${String(owner.threshold ?? "?")}-of-${ownerKeys}, ${active} active group${active === 1 ? "" : "s"}`,
+        d.permissions
+          ? `owner ${formatInt(permissions.ownerThreshold)}-of-${formatInt(permissions.ownerKeys)}, ${active} active group${active === 1 ? "" : "s"}`
+          : "—",
       ]);
       return rows;
     },
@@ -117,16 +114,11 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
         ],
       ];
     },
-    blockRows: (block, timestampMs) => {
-      const header = asObj(asObj(block.block_header).raw_data);
-      const number = block.number ?? header.number;
-      const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
-      return [
-        ["Number", number === undefined ? "" : `#${formatInt(number)}`],
-        ["Time", timestampMs ? formatUtc(timestampMs) : "unknown"],
-        ["Transactions", String(txs)],
-      ];
-    },
+    blockRows: (d) => [
+      ["Number", `#${formatInt(d.number)}`],
+      ["Time", formatUtc(d.timestampMs)],
+      ["Transactions", String(d.transactionCount)],
+    ],
     receiptIdentityRows: () => [],
     receiptSettlementRows: (r, symbol) => {
       const rows: Pair[] = [];
@@ -200,29 +192,31 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
         ],
       ];
     },
-    // EVM block numbers arrive as hex QUANTITY values.
-    blockRows: (block, timestampMs) => {
-      const txs = Array.isArray(block.transactions) ? block.transactions.length : 0;
-      const gasUsed = quantity(block.gasUsed);
-      const gasLimit = quantity(block.gasLimit);
-      const baseFee = quantity(block.baseFeePerGas);
+    // Reads the normalized block fields of the result, not the node's block.
+    blockRows: (block) => {
+      const timestampMs = typeof block.timestamp === "number" ? block.timestamp : undefined;
       const rows: Pair[] = [
-        ["Number", block.number === undefined ? "" : `#${formatInt(quantity(block.number))}`],
+        ["Number", block.number === undefined ? "" : `#${formatInt(block.number)}`],
         ["Hash", String(block.hash ?? "")],
         ["Parent hash", String(block.parentHash ?? "")],
         ["Time", timestampMs ? formatUtc(timestampMs) : "unknown"],
-        ["Transactions", String(txs)],
+        [
+          "Transactions",
+          block.transactionCount === undefined ? "unknown" : formatInt(block.transactionCount),
+        ],
       ];
-      if (gasUsed !== undefined) {
+      if (block.gasUsed !== undefined) {
         rows.push([
           "Gas used",
-          gasLimit === undefined
-            ? formatInt(gasUsed)
-            : `${formatInt(gasUsed)} / ${formatInt(gasLimit)}`,
+          block.gasLimit === undefined
+            ? formatInt(block.gasUsed)
+            : `${formatInt(block.gasUsed)} / ${formatInt(block.gasLimit)}`,
         ]);
       }
       // Pre-1559 chains have no base fee.
-      if (baseFee !== undefined) rows.push(["Base fee", `${formatGwei(baseFee)} gwei`]);
+      if (block.baseFeeWei !== undefined) {
+        rows.push(["Base fee", `${formatGwei(block.baseFeeWei)} gwei`]);
+      }
       return rows;
     },
     // Show the nonce before confirmation so stuck transactions can be identified.
@@ -249,16 +243,6 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
     ],
   },
 };
-
-// Decode EVM hex QUANTITY values or plain numbers.
-function quantity(v: unknown): number | undefined {
-  if (v === undefined || v === null) return undefined;
-  try {
-    return Number(BigInt(String(v)));
-  } catch {
-    return undefined;
-  }
-}
 
 export function familyAddressLabel(family: string): string {
   return FAMILY_RENDER[family as ChainFamily]?.addressLabel ?? `${family} address`;
@@ -287,28 +271,11 @@ export function renderFamily(ctx?: TextRenderContext): ChainFamily {
   return family;
 }
 
-function stakedSummary(account: Obj, symbol: string): string {
-  const frozen = Array.isArray(account.frozenV2) ? account.frozenV2.map(asObj) : [];
-  // Bandwidth entries in frozenV2 omit type.
-  const sums = new Map<Resource, bigint>(RESOURCES.map((r) => [r, 0n]));
-  for (const f of frozen) {
-    const r = resourceOfRpcCode(String(f.type ?? "")) ?? "bandwidth";
-    const amount = safeUnsignedBigInt(f.amount ?? 0);
-    // Omit the summary if an amount is invalid or has already lost precision.
-    if (amount === null) return "";
-    sums.set(r, (sums.get(r) ?? 0n) + amount);
-  }
-  const total = RESOURCES.reduce((t, r) => t + (sums.get(r) ?? 0n), 0n);
-  if (total === 0n) return "";
-  const parts = RESOURCES.map((r) => `${r} ${formatSun(sums.get(r) ?? 0n)}`).join(" + ");
-  return `${formatSun(total)} ${symbol} (${parts})`;
-}
-
-function safeUnsignedBigInt(value: unknown): bigint | null {
-  if (typeof value === "bigint") return value >= 0n ? value : null;
-  if (typeof value === "number") {
-    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : null;
-  }
-  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
-  return null;
+function stakedSummary(staked: Obj, symbol: string): string {
+  const parts = [
+    `energy ${formatSun(staked.energySun)}`,
+    `bandwidth ${formatSun(staked.bandwidthSun)}`,
+  ];
+  if (staked.tronPowerSun !== "0") parts.push(`TRON Power ${formatSun(staked.tronPowerSun)}`);
+  return `${formatSun(staked.totalSun)} ${symbol} (${parts.join(" + ")})`;
 }

@@ -5,7 +5,13 @@ import {
   evmAddressFromPublicKey,
   evmChecksumAddress,
   isEvmAddress,
+  isTronHexAddress,
   tronAddressBytes,
+  tronAddressFromEvmHex,
+  tronAddressFromHash20,
+  tronAddressToEvmHex,
+  tronHash20Hex,
+  tronHexFromHash20,
 } from "./index.js";
 import { Derivation } from "../derivation/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
@@ -124,5 +130,43 @@ describe("AddressCodec.canonical", () => {
   it("is the identity for TRON", () => {
     const tron = "TBhCfAytweLuLLL2gr8xxxxxxxxxxxxxxx";
     expect(new TronAddress().canonical(tron)).toBe(tron);
+  });
+});
+
+describe("TRON hex conversions", () => {
+  const base58 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const hash20 = "a614f803b6fd780986a42c78ec9c7f77e6ded13c";
+
+  it("reads the 20-byte hash from every accepted form", () => {
+    for (const form of [
+      base58,
+      `41${hash20}`,
+      `0x41${hash20}`,
+      `0x${hash20}`,
+      hash20.toUpperCase(),
+    ]) {
+      expect(tronHash20Hex(form)).toBe(hash20);
+    }
+    expect(() => tronHash20Hex("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwc")).toThrow();
+  });
+
+  it("builds Base58Check and hex forms from the 20-byte hash", () => {
+    expect(tronAddressFromHash20(hash20)).toBe(base58);
+    expect(tronAddressFromHash20(hexToBytes(hash20))).toBe(base58);
+    expect(() => tronAddressFromHash20(hash20.slice(2))).toThrow();
+    expect(tronHexFromHash20(hash20)).toBe(`41${hash20}`);
+    expect(tronAddressToEvmHex(base58)).toBe(`0x${hash20}`);
+  });
+
+  it("converts only 0x-prefixed 20-byte hex from the EVM form", () => {
+    expect(tronAddressFromEvmHex(`0x${hash20}`)).toBe(base58);
+    expect(tronAddressFromEvmHex(`41${hash20}`)).toBe(`41${hash20}`);
+    expect(tronAddressFromEvmHex(base58)).toBe(base58);
+  });
+
+  it("recognizes unprefixed 21-byte TRON hex", () => {
+    expect(isTronHexAddress(`41${hash20}`)).toBe(true);
+    expect(isTronHexAddress(`0x41${hash20}`)).toBe(false);
+    expect(isTronHexAddress(`42${hash20}`)).toBe(false);
   });
 });

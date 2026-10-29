@@ -2,6 +2,15 @@
 
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
+// Service JSON passed through for display.
+export type MarketExtraValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly MarketExtraValue[]
+  | { readonly [field: string]: MarketExtraValue };
+
 export interface ListPositionsQuery {
   // Base58; this layer does not default to the active account.
   readonly owner: string;
@@ -45,7 +54,7 @@ export interface PositionRecord {
   // UTC minute, YYYY-MM-DD HH:mm.
   readonly lastActiveAt: string;
   // Protocol-specific extras with camelCased keys.
-  readonly extra: Readonly<Record<string, unknown>>;
+  readonly extra: { readonly [field: string]: MarketExtraValue };
 }
 
 export interface PositionPage {
@@ -147,7 +156,7 @@ export interface PoolRecord {
   readonly createdAt: string;
   readonly createTxHash: string;
   // Protocol-specific extras with camelCased keys.
-  readonly extra: Readonly<Record<string, unknown>>;
+  readonly extra: { readonly [field: string]: MarketExtraValue };
   // Raw token0-per-token1 rates; converted to quoted prices before publication.
   readonly rates: readonly string[];
 }

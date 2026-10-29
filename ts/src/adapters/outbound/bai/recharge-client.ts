@@ -10,8 +10,10 @@ import type {
   BaiCreateOrderInput,
   BaiReportTransactionInput,
   BaiReportResult,
+  BaiRawOrder,
 } from "../../../application/ports/bai-recharge.js";
 import { DEFAULT_BAI_BASE_URL } from "./client.js";
+import { sameAddress } from "../../../domain/family/index.js";
 
 const text = z.string().trim().min(1);
 const wallet = z.object({ address: text, chain: text });
@@ -100,8 +102,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
     ).binding;
     const evm = ["bnb", "base", "eth"].includes(checked.chain);
     const matchingAddress = evm
-      ? /^0x[0-9a-fA-F]{40}$/.test(checked.address) &&
-        result.address.toLowerCase() === checked.address.toLowerCase()
+      ? sameAddress("evm", result.address, checked.address)
       : result.address === checked.address;
     const matchingChain = result.chain === checked.chain || (evm && result.chain === "eth");
     if (!matchingAddress)
@@ -122,13 +123,13 @@ export class BaiRechargeClient implements BaiRechargeApi {
       });
     return result;
   }
-  async createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>> {
+  async createOrder(input: BaiCreateOrderInput): Promise<BaiRawOrder> {
     const result = this.decode(
       object,
       await this.call("order.createOrder", this.input(orderInput, input)),
     );
     if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
-    return result;
+    return result as unknown as BaiRawOrder;
   }
   async reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult> {
     const result = this.decode(
@@ -136,7 +137,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
       await this.call("order.reportTxHash", this.input(reportInput, input)),
     );
     return result.success
-      ? result
+      ? (result as unknown as BaiReportResult)
       : {
           ...result,
           message:

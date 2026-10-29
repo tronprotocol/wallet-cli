@@ -34,6 +34,8 @@ export interface WalletRepository extends AccountStore {
     accountId: AccountRef;
     scope: "account" | "wallet";
     secretRemoved: boolean;
+    // The secret's file that could not be deleted after the index stopped naming it.
+    retainedSecretFile?: string;
     newActive: AccountRef | null;
   };
   revealMnemonic(vaultId: string): { mnemonic: string; passphraseSet: boolean };

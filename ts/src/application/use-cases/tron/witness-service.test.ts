@@ -45,7 +45,7 @@ function createService(gateway: Partial<TronGateway>) {
 
 describe("TronWitnessService", () => {
   it("uses getAccountUpgradeCost exactly and reports the irreversible burn as feeSun", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const service = createService({
       getWitness: async () => null,
       getAccount: async () => ({ address: OWNER, balance: "10000000000" }),
@@ -98,7 +98,7 @@ describe("TronWitnessService", () => {
   });
 
   it("passes brokerage through unchanged: percent is the SR-retained share", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const service = createService({
       getWitness: async () => ({ address: OWNER, voteCount: "1" }),
       buildWitnessSetBrokerage: build,
@@ -110,7 +110,7 @@ describe("TronWitnessService", () => {
   });
 
   it("refuses an unactivated account before demanding the registration fee", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const service = createService({
       getWitness: async () => null,
       getAccount: async () => ({}),

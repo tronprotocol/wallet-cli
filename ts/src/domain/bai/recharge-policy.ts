@@ -26,8 +26,13 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
   }
 }
 
+declare const rechargeAmount: unique symbol;
+
+// Positive decimal text in whole units of the recharge token.
+export type BaiRechargeAmount = string & { readonly [rechargeAmount]: true };
+
 // Validates and normalizes positive decimal strings without floating-point conversion.
-export function baiRechargeAmount(value: string): string {
+export function baiRechargeAmount(value: string): BaiRechargeAmount {
   if (value.length > 100 || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
     throw new UsageError("invalid_amount", "Recharge amount must be a positive decimal string");
   const normalized = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
@@ -38,5 +43,5 @@ export function baiRechargeAmount(value: string): string {
     (whole === "9007199254740991" && fraction !== "")
   )
     throw new UsageError("invalid_amount", "Recharge amount exceeds the supported positive range");
-  return normalized;
+  return normalized as BaiRechargeAmount;
 }

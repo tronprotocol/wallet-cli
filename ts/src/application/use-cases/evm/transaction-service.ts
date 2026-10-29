@@ -1,23 +1,33 @@
 import type {
   AccountRef,
+  EvmFeeReport,
+  EvmSignedTx,
+  EvmUnsignedTx,
   NetworkDescriptor,
   TxInfoView,
   TxStatusView,
-  UnsignedTx,
 } from "../../../domain/types/index.js";
 import { ChainError, ExecutionError } from "../../../domain/errors/index.js";
 import { assertEvmTransactionChain } from "../../services/signing/chain-identity.js";
 import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import { FAMILIES } from "../../../domain/family/index.js";
-import { evmChecksumAddress } from "../../../domain/address/index.js";
-import { hexToBytes } from "@noble/hashes/utils.js";
-import { fromBaseUnits, positiveBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
+import {
+  fromBaseUnits,
+  positiveBaseUnits,
+  toBaseUnits,
+  baseUnitAmount,
+  type Wei,
+} from "../../../domain/amounts/index.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
 import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { EvmGateway, EvmRawTransaction } from "../../ports/chain/gateway-provider.js";
+import type {
+  EvmGateway,
+  EvmRawTransaction,
+  EvmTxView,
+} from "../../ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
@@ -30,12 +40,6 @@ import {
 
 type EvmTokenMetadata = Awaited<ReturnType<EvmGateway["getErc20Metadata"]>>;
 
-// EVM signed artifact: raw serialized bytes and their hash.
-interface EvmSignedTx {
-  raw: string;
-  hash: string;
-}
-
 export interface EvmSendInput extends TransactionModeInput {
   to: string;
   token?: string;
@@ -45,8 +49,8 @@ export interface EvmSendInput extends TransactionModeInput {
   amount?: string;
   rawAmount?: string;
   gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
+  maxFee?: Wei;
+  priorityFee?: Wei;
   nonce?: number;
 }
 
@@ -66,7 +70,7 @@ export class EvmTransactionService {
     positiveBaseUnits(transfer.rawAmount, "amount");
 
     // Keep fee metadata outside the transaction echoed by dry-run/build-only.
-    let plan: Record<string, unknown> = {};
+    let plan = {} as EvmFeeReport;
     let nonce: number | undefined;
     const outcome = await this.pipeline.run({
       ctx: scope,
@@ -87,7 +91,7 @@ export class EvmTransactionService {
           input,
         );
         plan = fee;
-        nonce = (tx as { nonce?: number }).nonce;
+        nonce = tx.nonce;
         return tx;
       },
       estimate: async () => plan,
@@ -191,13 +195,13 @@ export class EvmTransactionService {
     to: string,
     transfer: { contract?: string; rawAmount: string },
     input: EvmSendInput,
-  ): Promise<{ tx: UnsignedTx; fee: Record<string, unknown> }> {
+  ): Promise<{ tx: EvmUnsignedTx; fee: EvmFeeReport }> {
     // ERC20 recipient and amount belong in calldata; native value must be zero.
     const call = transfer.contract
       ? {
           to: transfer.contract,
           value: "0",
-          data: gateway.encodeErc20Transfer(to, transfer.rawAmount),
+          data: gateway.encodeErc20Transfer(to, baseUnitAmount(transfer.rawAmount)),
         }
       : { to, value: transfer.rawAmount };
 
@@ -416,7 +420,7 @@ export class EvmTransactionService {
     };
   }
 
-  // Decode ERC20 transfer parties from calldata; leave other selectors uninterpreted.
+  // An ERC-20 transfer reports its token recipient and amount; other calldata is uninterpreted.
   async info(
     scope: TransactionScope,
     network: NetworkDescriptor,
@@ -431,27 +435,26 @@ export class EvmTransactionService {
     if (!transaction) {
       throw new ChainError("not_found", `no transaction with hash ${hash} on ${network.id}`);
     }
-    const transfer = decodeErc20Transfer(String(transaction.input ?? "0x"));
-    const value = BigInt(String(transaction.value ?? "0x0"));
+    const transfer = transaction.erc20Transfer;
     // Timestamp enrichment is optional; an unreadable block must not hide transaction details.
     const blockTime =
       receipt?.blockNumber === undefined
         ? undefined
         : await gateway
             .getBlock(String(receipt.blockNumber))
-            .then((block) => quantityToNumber((block as { timestamp?: unknown } | null)?.timestamp))
+            .then((block) => block?.timestamp)
             .catch(() => undefined);
     return {
       txid: hash,
-      type: transactionType(transaction, transfer !== undefined),
-      from: checksummed(transaction.from),
-      ...(transaction.nonce === undefined ? {} : { nonce: quantityToNumber(transaction.nonce) }),
-      ...(transfer
-        ? await this.#erc20Parties(gateway, checksummed(transaction.to), transfer)
+      type: transactionType(transaction),
+      from: transaction.from,
+      ...(transaction.nonce === undefined ? {} : { nonce: transaction.nonce }),
+      ...(transfer && transaction.to !== undefined
+        ? await this.#erc20Parties(gateway, transaction.to, transfer)
         : {
-            to: checksummed(transaction.to),
-            rawAmount: value.toString(10),
-            amount: fromBaseUnits(value.toString(10), FAMILIES.evm.nativeDecimals),
+            ...(transaction.to === undefined ? {} : { to: transaction.to }),
+            rawAmount: transaction.valueWei,
+            amount: fromBaseUnits(transaction.valueWei, FAMILIES.evm.nativeDecimals),
             symbol: network.nativeSymbol,
           }),
       ...(blockTime === undefined ? {} : { blockTime }),
@@ -469,7 +472,7 @@ export class EvmTransactionService {
               : { effectiveGasPriceWei: String(receipt.effectiveGasPriceWei) }),
             ...confirmationsOf(head, receipt.blockNumber),
           }),
-      transaction,
+      transaction: transaction.raw,
       receipt,
     };
   }
@@ -480,37 +483,8 @@ function assertChainId(tx: EvmRawTransaction, network: NetworkDescriptor): void 
   assertEvmTransactionChain(tx.chainId === "0" ? undefined : tx.chainId, network);
 }
 
-function transactionType(transaction: Record<string, unknown>, isErc20Transfer: boolean): string {
-  if (transaction.to === null || transaction.to === undefined) return "contract-creation";
-  if (isErc20Transfer) return "transfer";
-  const input = String(transaction.input ?? "0x");
-  return input === "0x" || input === "" ? "transfer" : "contract-call";
-}
-
-// Parses hex or decimal integers to Number; does not enforce the safe-integer range.
-function quantityToNumber(value: unknown): number | undefined {
-  if (value === undefined || value === null) return undefined;
-  try {
-    return Number(BigInt(String(value)));
-  } catch {
-    return undefined;
-  }
-}
-
-/** ERC-20 `transfer(address,uint256)` calldata → its recipient and base-unit amount. */
-function decodeErc20Transfer(input: string): { to: string; rawAmount: string } | undefined {
-  // Transfer selector followed by two 32-byte ABI words.
-  if (!/^0xa9059cbb[0-9a-fA-F]{128}$/.test(input)) return undefined;
-  const body = input.slice(10);
-  return {
-    to: evmChecksumAddress(hexToBytes(body.slice(24, 64))),
-    rawAmount: BigInt(`0x${body.slice(64, 128)}`).toString(10),
-  };
-}
-
-// Checksum 20-byte hex addresses; stringify other values, mapping nullish values to empty text.
-function checksummed(value: unknown): string {
-  const text = String(value ?? "");
-  if (!/^0x[0-9a-fA-F]{40}$/.test(text)) return text;
-  return evmChecksumAddress(hexToBytes(text.slice(2)));
+function transactionType(transaction: EvmTxView): string {
+  if (transaction.to === undefined) return "contract-creation";
+  if (transaction.erc20Transfer !== undefined) return "transfer";
+  return transaction.input === "0x" ? "transfer" : "contract-call";
 }

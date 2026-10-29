@@ -4,6 +4,7 @@ import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapSwapService } from "../../../../../application/use-cases/tron/sunswap/swap-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
 
 const fields = z.object({
   tokenIn: z.string().describe("token to spend, symbol or contract address"),
@@ -128,7 +129,7 @@ export const sunswapSwapTronBinding = (service: SunSwapSwapService): FamilyBindi
       ...(input.all === undefined ? {} : { all: input.all }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
     });
   },
 });

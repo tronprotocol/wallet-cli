@@ -2,6 +2,7 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 import type { ContractCallPayload } from "../../contracts/tron-contract-call.js";
+import type { BaseUnits, Sun } from "../../../domain/amounts/index.js";
 
 export type { ContractCallPayload, ContractParameter } from "../../contracts/tron-contract-call.js";
 
@@ -81,28 +82,25 @@ export interface LiquidityPort {
     txId: string,
     operation: "add" | "remove",
     nativeFirst: boolean,
-  ): Promise<{ amount0: string; amount1: string; lpAmount?: string } | undefined>;
+  ): Promise<{ amount0: BaseUnits; amount1: BaseUnits; lpAmount?: BaseUnits } | undefined>;
 
-  // Token base units.
-  balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<string>;
+  balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits>;
 
-  // SUN.
-  nativeBalance(network: NetworkDescriptor, owner: string): Promise<string>;
+  nativeBalance(network: NetworkDescriptor, owner: string): Promise<Sun>;
 
-  // Allowance in token base units.
   allowance(
     network: NetworkDescriptor,
     token: string,
     owner: string,
     spender: string,
-  ): Promise<string>;
+  ): Promise<BaseUnits>;
 
-  // TRC20 amount in base units; may be unlimited on V4.
+  // May be unlimited on V4.
   approvalPayload(
     network: NetworkDescriptor,
     token: string,
     spender: string,
-    amount: string,
+    amount: BaseUnits,
   ): ContractCallPayload;
 
   v2AddLiquidityPayload(
@@ -146,34 +144,34 @@ export interface LiquidityPort {
   v3Amounts(
     pool: V3PoolState,
     range: { tickLower: number; tickUpper: number },
-    given: { amount0?: string; amount1?: string },
+    given: { amount0?: BaseUnits; amount1?: BaseUnits },
   ): V3AmountPlan;
 
   v3AmountsForLiquidity(
     pool: V3PoolState,
     range: { tickLower: number; tickUpper: number },
     liquidity: string,
-  ): { amount0: string; amount1: string };
+  ): { amount0: BaseUnits; amount1: BaseUnits };
 
   // V4 uses the pool's tick spacing and keeps TRX native.
   v4Amounts(
     pool: V4PoolState,
     range: { tickLower: number; tickUpper: number },
-    given: { amount0?: string; amount1?: string },
+    given: { amount0?: BaseUnits; amount1?: BaseUnits },
   ): V3AmountPlan;
 
   v4AmountsForLiquidity(
     pool: V4PoolState,
     range: { tickLower: number; tickUpper: number },
     liquidity: string,
-  ): { amount0: string; amount1: string };
+  ): { amount0: BaseUnits; amount1: BaseUnits };
 
   // Round deposit costs up to cover the contract's demand; withdrawal values round down.
   v4AmountsForLiquidityCeiling(
     pool: V4PoolState,
     range: { tickLower: number; tickUpper: number },
     liquidity: string,
-  ): { amount0: string; amount1: string };
+  ): { amount0: BaseUnits; amount1: BaseUnits };
 
   // Initialization and permits precede the deposit atomically when supplied.
   // amount0Max/amount1Max cap spending and must cover the contract's recomputation.
@@ -247,21 +245,23 @@ export interface LiquidityPort {
     tokenId: string,
     recipient: string,
     owner: string,
-  ): Promise<{ amount0: string; amount1: string }>;
+  ): Promise<{ amount0: BaseUnits; amount1: BaseUnits }>;
 
   // From this transaction's IncreaseLiquidity event.
   v3DepositedAmounts(
     network: NetworkDescriptor,
     txId: string,
     tokenId?: string,
-  ): Promise<{ tokenId: string; liquidity: string; amount0: string; amount1: string } | undefined>;
+  ): Promise<
+    { tokenId: string; liquidity: string; amount0: BaseUnits; amount1: BaseUnits } | undefined
+  >;
 
   // From this transaction's Collect event.
   v3CollectedAmounts(
     network: NetworkDescriptor,
     txId: string,
     tokenId: string,
-  ): Promise<{ amount0: string; amount1: string } | undefined>;
+  ): Promise<{ amount0: BaseUnits; amount1: BaseUnits } | undefined>;
 
   // From the mint transaction log; unavailable before execution.
   v3MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
@@ -339,8 +339,8 @@ export interface V4OwedFeesQuery {
 
 // Exact token base units.
 export interface V4OwedFees {
-  readonly amount0: string;
-  readonly amount1: string;
+  readonly amount0: BaseUnits;
+  readonly amount1: BaseUnits;
 }
 
 export interface V4DepositRequest {
@@ -358,8 +358,8 @@ export interface V4DepositRequest {
   readonly tickUpper: number;
   readonly liquidity: string;
   // Maximum spend per side in token base units.
-  readonly amount0Max: string;
-  readonly amount1Max: string;
+  readonly amount0Max: BaseUnits;
+  readonly amount1Max: BaseUnits;
   // Recipient of the new position NFT.
   readonly recipient: string;
   // Funding account whose signed Permit2 grants are forwarded.
@@ -383,8 +383,8 @@ export interface V4IncreaseRequest {
   readonly tokenId: string;
   readonly liquidity: string;
   // Maximum spend per side in token base units.
-  readonly amount0Max: string;
-  readonly amount1Max: string;
+  readonly amount0Max: BaseUnits;
+  readonly amount1Max: BaseUnits;
   // Position owner whose Permit2 grants are forwarded.
   readonly owner: string;
   // Recipient of unspent native value.
@@ -406,15 +406,15 @@ export interface V4RemoveRequest {
   // Internal liquidity to burn, unscaled; not a token amount.
   readonly liquidity: string;
   // Minimum base units per side; zero accepts any output.
-  readonly amount0Min: string;
-  readonly amount1Min: string;
+  readonly amount0Min: BaseUnits;
+  readonly amount1Min: BaseUnits;
   readonly recipient: string;
   readonly deadline: number;
 }
 
 export interface V3AmountPlan {
-  readonly amount0: string;
-  readonly amount1: string;
+  readonly amount0: BaseUnits;
+  readonly amount1: BaseUnits;
   readonly liquidity: string;
 }
 
@@ -424,20 +424,20 @@ export interface V3MintRequest {
   readonly fee: number;
   readonly tickLower: number;
   readonly tickUpper: number;
-  readonly amount0Desired: string;
-  readonly amount1Desired: string;
-  readonly amount0Min: string;
-  readonly amount1Min: string;
+  readonly amount0Desired: BaseUnits;
+  readonly amount1Desired: BaseUnits;
+  readonly amount0Min: BaseUnits;
+  readonly amount1Min: BaseUnits;
   readonly recipient: string;
   readonly deadline: number;
 }
 
 export interface V3IncreaseRequest {
   readonly tokenId: string;
-  readonly amount0Desired: string;
-  readonly amount1Desired: string;
-  readonly amount0Min: string;
-  readonly amount1Min: string;
+  readonly amount0Desired: BaseUnits;
+  readonly amount1Desired: BaseUnits;
+  readonly amount0Min: BaseUnits;
+  readonly amount1Min: BaseUnits;
   readonly deadline: number;
 }
 
@@ -446,8 +446,8 @@ export interface V2RemoveLiquidityRequest {
   readonly token1: TokenFacts;
   // LP token base units.
   readonly liquidity: string;
-  readonly amount0Min: string;
-  readonly amount1Min: string;
+  readonly amount0Min: BaseUnits;
+  readonly amount1Min: BaseUnits;
   readonly recipient: string;
   readonly deadline: number;
 }
@@ -456,8 +456,8 @@ export interface V2RemoveLiquidityEthRequest {
   // TRC20 side; the other side returns native TRX.
   readonly token: TokenFacts;
   readonly liquidity: string;
-  readonly amountTokenMin: string;
-  readonly amountNativeMin: string;
+  readonly amountTokenMin: BaseUnits;
+  readonly amountNativeMin: Sun;
   readonly recipient: string;
   readonly deadline: number;
 }
@@ -466,8 +466,8 @@ export interface V3RemoveRequest {
   readonly tokenId: string;
   // Internal liquidity, not a token amount.
   readonly liquidity: string;
-  readonly amount0Min: string;
-  readonly amount1Min: string;
+  readonly amount0Min: BaseUnits;
+  readonly amount1Min: BaseUnits;
   // Recipient of principal and collected fees.
   readonly recipient: string;
   readonly deadline: number;
@@ -476,11 +476,11 @@ export interface V3RemoveRequest {
 export interface V2AddLiquidityEthRequest {
   // TRC20 side; native TRX needs no address.
   readonly token: TokenFacts;
-  readonly amountTokenDesired: string;
-  readonly amountTokenMin: string;
+  readonly amountTokenDesired: BaseUnits;
+  readonly amountTokenMin: BaseUnits;
   // SUN sent as callValue; must not be rounded or defaulted.
-  readonly amountNativeDesired: string;
-  readonly amountNativeMin: string;
+  readonly amountNativeDesired: Sun;
+  readonly amountNativeMin: Sun;
   readonly recipient: string;
   readonly deadline: number;
 }
@@ -489,11 +489,11 @@ export interface V2AddLiquidityRequest {
   readonly token0: TokenFacts;
   readonly token1: TokenFacts;
   // Token base units.
-  readonly amount0Desired: string;
-  readonly amount1Desired: string;
+  readonly amount0Desired: BaseUnits;
+  readonly amount1Desired: BaseUnits;
   // Minimum token base units; lower amounts revert.
-  readonly amount0Min: string;
-  readonly amount1Min: string;
+  readonly amount0Min: BaseUnits;
+  readonly amount1Min: BaseUnits;
   // LP token recipient.
   readonly recipient: string;
   // Epoch seconds.

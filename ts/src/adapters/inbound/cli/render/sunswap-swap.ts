@@ -5,6 +5,7 @@ import { FAMILY_RENDER, renderFamily, renderSymbol } from "./family.js";
 import { formatFee } from "./tx.js";
 import { fromTokenBook, TOKEN_BOOK_MARK } from "./token-book.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 interface Side {
   readonly address: string;
@@ -15,6 +16,7 @@ interface Side {
 interface ApprovalRow {
   readonly spender: string;
   readonly amount: string;
+  readonly isUnlimited?: boolean;
 }
 
 interface PermitView {
@@ -22,6 +24,7 @@ interface PermitView {
   readonly spender: string;
   readonly amount: string;
   readonly expiration: string;
+  readonly ttlSeconds?: number;
 }
 
 // Route amounts are base units, scaled by each side's decimals.
@@ -57,6 +60,7 @@ interface SwapView {
   };
   readonly approvals?: readonly ApprovalRow[];
   readonly permit?: PermitView;
+  readonly approvalRemains?: boolean;
   readonly feeCovers?: string;
   readonly feeUnavailableReason?: string;
   readonly fee?: unknown;
@@ -83,14 +87,14 @@ export const SunSwapSwapFormatters = {
     const out = value.amountOut ?? value.amountOutExpected;
     const spent =
       value.market === "sunpump" && tokenIn.address === NATIVE_TRX_ADDRESS
-        ? `${amount(value.amountIn ?? "0", tokenIn)} (incl. ${formatAmount(value.tradingFee, 6)} TRX platform fee)`
+        ? `${amount(value.amountIn ?? "0", tokenIn)} (incl. ${formatAmount(value.tradingFee, FAMILIES.tron.nativeDecimals)} TRX platform fee)`
         : amount(value.amountIn ?? "0", tokenIn);
     const received =
       value.market === "sunpump" &&
       tokenOut.address === NATIVE_TRX_ADDRESS &&
       out !== undefined &&
       value.amountOut === undefined
-        ? `${amount(out, tokenOut)} (after ${formatAmount(value.tradingFee, 6)} TRX platform fee)`
+        ? `${amount(out, tokenOut)} (after ${formatAmount(value.tradingFee, FAMILIES.tron.nativeDecimals)} TRX platform fee)`
         : out === undefined
           ? ""
           : amount(out, tokenOut);
@@ -190,7 +194,7 @@ function quote(value: SwapView): string {
       amount(route.amountIn, first),
       amount(route.amountOut, last),
       value.market === "sunpump"
-        ? `${formatAmount(route.tradingFee, 6)} TRX`
+        ? `${formatAmount(route.tradingFee, FAMILIES.tron.nativeDecimals)} TRX`
         : amount(route.tradingFee, first),
     ];
     if (impact)
@@ -236,13 +240,18 @@ function permitRows(value: SwapView): Pair[] {
   return [
     ["Permit2", permit.permit2],
     ["Permit grants", `${permit.amount} to ${shorten(permit.spender)}`],
-    ["Permit expires", `${formatTimestamp(permit.expiration)} (1 hour)`],
+    [
+      "Permit expires",
+      permit.ttlSeconds === undefined
+        ? formatTimestamp(permit.expiration)
+        : `${formatTimestamp(permit.expiration)} (${formatDuration(permit.ttlSeconds)})`,
+    ],
   ];
 }
 
 function withNotes(body: string, value: SwapView): string {
   const notes: string[] = [];
-  if (value.approvals?.length && value.market === "sunpump") {
+  if (value.market === "sunpump" && value.approvals?.some((approval) => approval.isUnlimited)) {
     notes.push(
       `${warn()} Selling into the curve approves the SunPump proxy without limit, as \`sunpump sell\` does.`,
     );
@@ -257,13 +266,22 @@ function withNotes(body: string, value: SwapView): string {
   if (value.route?.containsUnverifiedHook) {
     notes.push(`${warn()} This route passes through an unverified hook contract.`);
   }
-  // TRC20 approvals have no expiry; signed Permit2 grants do.
-  if (value.stage === "failed" && value.permit !== undefined) {
+  if (value.approvalRemains && value.permit !== undefined) {
     notes.push(
       `${warn()} The TRC20 approval is still in place and does not expire automatically. The Permit2 grant is limited to this trade and expires at ${formatTimestamp(value.permit.expiration)}.`,
     );
   }
   return notes.length === 0 ? body : `${body}\n\n${notes.join("\n\n")}`;
+}
+
+function formatDuration(seconds: number): string {
+  const [size, unit] =
+    seconds % 3600 === 0
+      ? [seconds / 3600, "hour"]
+      : seconds % 60 === 0
+        ? [seconds / 60, "minute"]
+        : [seconds, "second"];
+  return `${size} ${unit}${size === 1 ? "" : "s"}`;
 }
 
 // Input is Unix seconds; output uses UTC.

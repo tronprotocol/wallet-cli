@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import type { OfflineTxSignView, Signer } from "../../../domain/types/index.js";
+import type {
+  OfflineTxSignView,
+  Signer,
+  TronProtocolObject,
+  TronTransactionArtifact,
+} from "../../../domain/types/index.js";
 import {
   decodeTransactionHex,
   encodeTransactionHex,
+  encodeTransactionJson,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -58,6 +64,7 @@ function setup(signerOverride?: Signer, referenceBlock: TronReferenceBlockStatus
   const gateway = {
     decodeTransactionHex,
     encodeTransactionHex,
+    encodeTransactionJson,
     decodeTransaction: () => ({ kind: "trx", from: A, to: B, rawAmount: "1" }),
     referenceBlockStatus: vi.fn(async () => referenceBlock),
   } as unknown as TronGateway;
@@ -182,4 +189,80 @@ describe("TRON artifact signing", () => {
       expect(signer.sign).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("TRON JSON artifact signing", () => {
+  // The decoded artifact as the caller's parsed JSON.
+  const json = (expiration?: number) =>
+    decodeTransactionHex(unsignedHex(expiration)) as TronTransactionArtifact & TronProtocolObject;
+  const signerReturning = (sign: Signer["sign"]) =>
+    ({
+      kind: "software",
+      address: A,
+      sign: vi.fn(sign),
+      signMessage: async () => "",
+      signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+    }) as Signer;
+
+  it("signs the caller's object and returns the sign-only shape", async () => {
+    const { service, signer } = setup();
+    const transaction = json();
+    const s = scope();
+    const result = await service.signJson(s, NETWORK, transaction, { origin: "offline" });
+
+    expect(signer.sign).toHaveBeenCalledWith(transaction, {});
+    expect(result).toEqual({
+      kind: "sign",
+      mode: "sign-only",
+      signed: { ...transaction, signature: [SIGNATURE] },
+      address: A,
+      txId: transaction.txID,
+    });
+    expect(s.warn).toHaveBeenCalledWith(expect.objectContaining({ code: "network_not_verified" }));
+  });
+
+  it("rejects an expired transaction before invoking the signer", async () => {
+    const { service, signer } = setup();
+    await expect(
+      service.signJson(scope(), NETWORK, json(NOW), { origin: "offline" }),
+    ).rejects.toMatchObject({ code: "tx_expired" });
+    expect(signer.sign).not.toHaveBeenCalled();
+  });
+
+  it("rejects JSON whose raw_data disagrees with raw_data_hex", async () => {
+    const { service, signer } = setup();
+    const transaction = json();
+    transaction.raw_data.expiration = NOW + 120_000;
+    await expect(
+      service.signJson(scope(), NETWORK, transaction, { origin: "offline" }),
+    ).rejects.toMatchObject({ code: "invalid_transaction" });
+    expect(signer.sign).not.toHaveBeenCalled();
+  });
+
+  it("rejects a signer that changes the transaction", async () => {
+    const signer = signerReturning(
+      async (transaction) =>
+        ({
+          ...(transaction as object),
+          txID: "ff".repeat(32),
+          signature: [SIGNATURE],
+        }) as never,
+    );
+    await expect(
+      setup(signer).service.signJson(scope(), NETWORK, json(), { origin: "offline" }),
+    ).rejects.toMatchObject({ code: "invalid_transaction" });
+  });
+
+  it("rejects a signer that does not add exactly one signature", async () => {
+    const signer = signerReturning(
+      async (transaction) =>
+        ({
+          ...(transaction as object),
+          signature: [SIGNATURE, SIGNATURE],
+        }) as never,
+    );
+    await expect(
+      setup(signer).service.signJson(scope(), NETWORK, json(), { origin: "offline" }),
+    ).rejects.toMatchObject({ code: "signing_rejected" });
+  });
 });

@@ -1,16 +1,9 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
-import { tronHexToBase58 } from "../../../domain/address/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type {
-  TronAccount,
-  TronGateway,
-  TronVote,
-  TronVoteAllocation,
-  TronWitness,
-} from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronVote, TronWitness } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -26,6 +19,8 @@ const MAX_VOTE_ITEMS = 30;
 const MAX_REWARDED_RANK = 127;
 const ELECTED_SR_COUNT = 27;
 const BROKERAGE_CONCURRENCY = 8;
+// The chain parameter getMaintenanceTimeInterval on mainnet; votes are tallied when it ends.
+const MAINTENANCE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export interface VoteCastInput extends TransactionModeInput {
   for: string[];
@@ -110,6 +105,7 @@ export class TronVoteService {
       ...outcomeData(outcome),
       votes: votes.map((vote) => ({ witness: vote.witness, count: Number(vote.count) })),
       totalVotes: Number(totalVotes),
+      maintenanceIntervalMs: MAINTENANCE_INTERVAL_MS,
     };
   }
 
@@ -131,7 +127,7 @@ export class TronVoteService {
     const gateway = this.gateways.get(network, "tron");
     const address = scope.resolveAddress("tron");
     const [account, claimableRewardSun, witnesses, votingPower] = await Promise.all([
-      gateway.getAccount(address),
+      gateway.getAccountState(address),
       gateway.getReward(address),
       gateway.getWitnesses(MAX_REWARDED_RANK).catch((): TronWitness[] => []),
       this.stake.votingPower(network, address),
@@ -139,10 +135,9 @@ export class TronVoteService {
     const witnessMap = new Map(
       witnesses.map((witness, index) => [witness.address, { witness, rank: index + 1 }]),
     );
-    const currentVotes = normalizeAccountVotes(account);
     const cache: BrokerageCache = new Map();
     const votes = await mapWithLimit(
-      currentVotes,
+      account.votes,
       BROKERAGE_CONCURRENCY,
       async (vote): Promise<CurrentVoteView> => {
         const known = witnessMap.get(vote.witness);
@@ -219,19 +214,6 @@ function parseVoteInputs(values: string[]): TronVote[] {
   });
 }
 
-function normalizeAccountVotes(account: TronAccount): TronVote[] {
-  return (account.votes ?? [])
-    .map(normalizeAccountVote)
-    .filter((vote): vote is TronVote => vote !== null);
-}
-
-function normalizeAccountVote(vote: TronVoteAllocation): TronVote | null {
-  const witness = tronHexToBase58(vote.vote_address ?? vote.voteAddress);
-  const count = quantityString(vote.vote_count ?? vote.voteCount);
-  if (!witness || count === "0") return null;
-  return { witness, count };
-}
-
 function zeroRatioWarning(vote: CurrentVoteView): string {
   return `${vote.count} votes on ${vote.witness} (${vote.name}) earn nothing: reward ratio is 0%`;
 }
@@ -288,11 +270,6 @@ function compareUnsigned(a: unknown, b: unknown): number {
   const right = quantity(b);
   if (left === right) return 0;
   return left > right ? 1 : -1;
-}
-
-function quantityString(value: unknown): string {
-  const amount = quantity(value);
-  return amount.toString();
 }
 
 function quantity(value: unknown): bigint {

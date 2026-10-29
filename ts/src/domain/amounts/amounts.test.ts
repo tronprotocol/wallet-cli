@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   assertPositive,
+  baseUnitAmount,
+  sunAmount,
+  weiAmount,
+  type BaseUnits,
+  type Sun,
+  type Wei,
   fromBaseUnits,
   isZeroAmount,
   positiveBaseUnits,
@@ -116,5 +122,41 @@ describe("positive amount rule", () => {
     ["10", false],
   ])("isZeroAmount(%s) is %s", (text, zero) => {
     expect(isZeroAmount(text)).toBe(zero);
+  });
+});
+
+describe("unit amount constructors", () => {
+  it.each([
+    ["SUN", sunAmount],
+    ["wei", weiAmount],
+    ["base-unit", baseUnitAmount],
+  ] as const)("%s keeps exact integer text and bigint values", (_unit, amount) => {
+    expect(amount("0")).toBe("0");
+    expect(
+      amount("115792089237316195423570985008687907853269984665640564039457584007913129639935"),
+    ).toBe("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+    expect(amount(2n ** 64n)).toBe("18446744073709551616");
+  });
+
+  it.each(["", "-1", "1.5", "1e6", " 1", "0x10", "abc"])("refuses %j", (text) => {
+    for (const amount of [sunAmount, weiAmount, baseUnitAmount]) {
+      expect(() => amount(text)).toThrow(RangeError);
+    }
+    expect(() => sunAmount(-1n)).toThrow(RangeError);
+  });
+
+  it("does not let one unit stand in for another", () => {
+    expectTypeOf<Wei>().not.toMatchTypeOf<Sun>();
+    expectTypeOf<Sun>().not.toMatchTypeOf<Wei>();
+    expectTypeOf<BaseUnits>().not.toMatchTypeOf<Sun>();
+    expectTypeOf<Sun>().not.toMatchTypeOf<BaseUnits>();
+    expectTypeOf<string>().not.toMatchTypeOf<Sun>();
+    expectTypeOf<Sun>().toMatchTypeOf<string>();
+    const takesSun = (value: Sun): string => value;
+    // @ts-expect-error a Wei amount is not a SUN amount
+    takesSun(weiAmount("1"));
+    // @ts-expect-error plain text carries no unit
+    takesSun("1");
+    expect(takesSun(sunAmount("1"))).toBe("1");
   });
 });

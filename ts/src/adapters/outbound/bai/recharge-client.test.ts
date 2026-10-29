@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { BaiRechargeClient } from "./recharge-client.js";
+import { baiRechargeAmount, type BaiRechargeAmount } from "../../../domain/bai/recharge-policy.js";
 const target = {
   input: { type: "personal" as const, identifier: "recipient@example.com" },
   confirmedTarget: { type: "personal" as const, targetId: "recipient-id" },
@@ -115,7 +116,7 @@ describe("B.AI recharge API", () => {
       channel: "crypto" as const,
       chain: "bnb",
       tokenName: "USDT",
-      amount: "10",
+      amount: baiRechargeAmount("10"),
       walletAddress: "payer",
       deviceType: "web" as const,
       rechargeTarget: target,
@@ -246,7 +247,7 @@ it("rejects an empty preorder response before the caller can pay", async () => {
       channel: "crypto",
       chain: "bnb",
       tokenName: "USDT",
-      amount: "10",
+      amount: baiRechargeAmount("10"),
       walletAddress: "payer",
       deviceType: "web",
       rechargeTarget: target,
@@ -259,14 +260,14 @@ it.each(["9007199254740992", "1.00000000000000001", "0", "NaN"])(
   async (amount) => {
     const { client, fetcher } = fixture({ success: true, order: {} });
     await expect(
-      client.reportTxHash({ chain: "base", txHash: "hash", amount }),
+      client.reportTxHash({ chain: "base", txHash: "hash", amount: amount as BaiRechargeAmount }),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(fetcher).not.toHaveBeenCalled();
   },
 );
 it("converts a decimal only in the outgoing report JSON", async () => {
   const { client, fetcher } = fixture({ success: true, order: { id: 1 } });
-  const input = { chain: "base", txHash: "hash", amount: "1.2300" };
+  const input = { chain: "base", txHash: "hash", amount: "1.2300" as BaiRechargeAmount };
   await client.reportTxHash(input);
   expect(input.amount).toBe("1.2300");
   expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.amount).toBe(1.23);

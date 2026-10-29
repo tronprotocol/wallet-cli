@@ -1,11 +1,11 @@
 import type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
 export type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { EvmFeeReport, NetworkDescriptor } from "../../../domain/types/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
 import { evmConfirmation } from "../../services/evm-confirmation.js";
 import { approveRows } from "../../services/approve-receipt.js";
-import { buildEvmUnsignedTx } from "./tx-build.js";
+import { buildEvmUnsignedTx, type EvmCall } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider, EvmGateway } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
@@ -114,11 +114,11 @@ export class EvmContractService {
     network: NetworkDescriptor,
     gateway: EvmGateway,
     input: EvmContractWriteInput,
-    call: Record<string, unknown>,
+    call: EvmCall,
     onNonce?: (from: string, nonce: string) => void,
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
-    let plan: Record<string, unknown> = {};
+    let plan = {} as EvmFeeReport;
     return this.pipeline.run({
       ctx: scope,
       net: network,

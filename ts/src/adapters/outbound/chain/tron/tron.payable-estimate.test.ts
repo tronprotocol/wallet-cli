@@ -1,16 +1,22 @@
 import { expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
-it.each([undefined, "0", "8847971"])(
+import { sunAmount } from "../../../../domain/amounts/index.js";
+it.each([undefined, sunAmount("0"), sunAmount("8847971")])(
   "estimates payable calls with the supplied SUN amount: %s",
   async (value) => {
     const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 1000));
     const trigger = vi.fn(async () => ({ energy_used: 123 }));
     tronweb.transactionBuilder.triggerConstantContract = trigger as never;
-    vi.spyOn(client, "getEnergyPrices").mockResolvedValue("0:100,1754644200000:420");
-    vi.spyOn(client, "getAccountResources").mockResolvedValue(
-      {} as Awaited<ReturnType<TronRpcClient["getAccountResources"]>>,
-    );
+    vi.spyOn(client, "getEnergyPrices").mockResolvedValue([
+      { sinceMs: 0, sunPerUnit: 100 },
+      { sinceMs: 1754644200000, sunPerUnit: 420 },
+    ]);
+    vi.spyOn(client, "getAccountResources").mockResolvedValue({
+      energy: { used: 0, limit: 0 },
+      bandwidth: { used: 0, limit: 0 },
+      votingPower: { total: 0, used: 0 },
+    });
     expect(await client.estimateResources("owner", "contract", "swap()", [], value)).toMatchObject({
       energy: 123,
       energyPriceSun: "420",

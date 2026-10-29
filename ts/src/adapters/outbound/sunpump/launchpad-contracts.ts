@@ -1,4 +1,10 @@
-import { checkedTokenDecimals } from "../../../domain/amounts/index.js";
+import {
+  checkedTokenDecimals,
+  sunAmount,
+  type Sun,
+  baseUnitAmount,
+  type BaseUnits,
+} from "../../../domain/amounts/index.js";
 import {
   applySlippageMin,
   createLaunchpadApproveAction,
@@ -70,11 +76,11 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     };
   }
 
-  async balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<string> {
+  async balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits> {
     const raw = await this.#read(network, token, SELECTOR_TRC20_BALANCE_OF, [
       { type: "address", value: owner },
     ]);
-    return word(raw, 0);
+    return baseUnitAmount(word(raw, 0));
   }
 
   async allowance(
@@ -82,16 +88,16 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     token: string,
     owner: string,
     spender: string,
-  ): Promise<string> {
+  ): Promise<BaseUnits> {
     const raw = await this.#read(network, token, SELECTOR_TRC20_ALLOWANCE, [
       { type: "address", value: owner },
       { type: "address", value: spender },
     ]);
-    return word(raw, 0);
+    return baseUnitAmount(word(raw, 0));
   }
 
   // The fee is included in the requested TRX amount.
-  async quoteBuy(network: NetworkDescriptor, token: string, trxSun: string): Promise<BuyQuote> {
+  async quoteBuy(network: NetworkDescriptor, token: string, trxSun: Sun): Promise<BuyQuote> {
     const raw = await this.#read(
       network,
       this.launchpadAddress(network),
@@ -101,14 +107,14 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
         { type: "uint256", value: trxSun },
       ],
     );
-    return { tokenAmount: word(raw, 0), feeSun: word(raw, 1) };
+    return { tokenAmount: baseUnitAmount(word(raw, 0)), feeSun: sunAmount(word(raw, 1)) };
   }
 
   // trxAmount is net SUN paid to the seller; the fee is paid separately.
   async quoteSell(
     network: NetworkDescriptor,
     token: string,
-    tokenAmount: string,
+    tokenAmount: BaseUnits,
   ): Promise<SellQuote> {
     const raw = await this.#read(
       network,
@@ -119,11 +125,11 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
         { type: "uint256", value: tokenAmount },
       ],
     );
-    return { trxAmountSun: word(raw, 0), feeSun: word(raw, 1) };
+    return { trxAmountSun: sunAmount(word(raw, 0)), feeSun: sunAmount(word(raw, 1)) };
   }
 
   // Quote the token amount needed for one SUN of net proceeds.
-  async minimumSellAmount(network: NetworkDescriptor, token: string): Promise<string> {
+  async minimumSellAmount(network: NetworkDescriptor, token: string): Promise<BaseUnits> {
     const inverse = await this.#read(
       network,
       this.launchpadAddress(network),
@@ -133,7 +139,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
         { type: "uint256", value: "1" },
       ],
     );
-    return word(inverse, 0);
+    return baseUnitAmount(word(inverse, 0));
   }
 
   applyFloor(expected: string, slippageBips: number): string {
@@ -231,11 +237,23 @@ function fromAction(action: {
     target: action.target,
     method: action.functionSelector,
     parameters,
-    ...(action.callValue === undefined ? {} : { callValueSun: String(action.callValue) }),
+    ...(action.callValue === undefined ? {} : { callValueSun: sdkSun(action.callValue) }),
   };
 }
 
 // ABI hex word to a decimal string.
+// The SDK may encode callValue as a bigint, a number, or decimal text.
+function sdkSun(value: unknown): Sun {
+  const text = String(value);
+  if (!/^\d+$/.test(text)) {
+    throw new ChainError(
+      "provider_error",
+      `the launchpad SDK built a non-integer call value ${text}`,
+    );
+  }
+  return sunAmount(text);
+}
+
 function word(data: string, index: number): string {
   return BigInt(`0x${data.slice(index * 64, (index + 1) * 64)}`).toString();
 }

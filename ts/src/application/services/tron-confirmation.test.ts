@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { stageTronBroadcast, tronConfirmation } from "./tron-confirmation.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
-import type { TronGateway, TronTxInfo } from "../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../ports/chain/tron-gateway.js";
+import type { TronTransactionArtifact } from "../../domain/types/index.js";
+import { parseTronTxInfo } from "../../adapters/outbound/chain/tron/tron-responses.js";
 
 function scope(over: Partial<TransactionScope> = {}): TransactionScope & { warnings: string[] } {
   const warnings: string[] = [];
@@ -18,11 +20,19 @@ function scope(over: Partial<TransactionScope> = {}): TransactionScope & { warni
   };
 }
 
-function gateway(info: TronTxInfo | undefined): TronGateway {
+// Node JSON goes through the adapter's parser, so tests see the facts the adapter derives.
+function gateway(info: object | undefined): TronGateway {
   return {
-    getTransactionInfoById: async () => info ?? ({} as TronTxInfo),
+    getTransactionInfoById: async () => parseTronTxInfo(info ?? {}),
   } as unknown as TronGateway;
 }
+
+function transaction(type: string, txID = "abc"): TronTransactionArtifact {
+  return { txID, raw_data: { contract: [{ type }] }, raw_data_hex: "" };
+}
+
+const NATIVE = transaction("TransferContract");
+const CONTRACT_CALL = transaction("TriggerSmartContract");
 
 describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () => {
   it("confirmed: no warning, stage=confirmed", async () => {
@@ -31,6 +41,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
       gateway({ blockNumber: 42, receipt: { result: "SUCCESS" } }),
       s,
       { txId: "abc" },
+      NATIVE,
     );
     expect(out.stage).toBe("confirmed");
     expect(s.warnings).toEqual([]);
@@ -38,7 +49,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
 
   it("wait requested but never confirms within the window → submitted + a warning", async () => {
     const s = scope({ waitTimeoutMs: 0 });
-    const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" });
+    const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" }, NATIVE);
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("not confirmed");
@@ -47,7 +58,12 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
 
   it("wait requested but broadcast returned no txid → submitted + a warning", async () => {
     const s = scope();
-    const out = await stageTronBroadcast(gateway(undefined), s, {});
+    const out = await stageTronBroadcast(
+      gateway(undefined),
+      s,
+      {},
+      transaction("TransferContract", ""),
+    );
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("no txid");
@@ -55,7 +71,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
 
   it("no --wait → submitted, no warning (silence is correct here)", async () => {
     const s = scope({ wait: false });
-    const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" });
+    const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" }, NATIVE);
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toEqual([]);
   });
@@ -67,7 +83,12 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
 
   it("uses the locally derived id when the node reports a different one, and says so", async () => {
     const s = scope({ wait: false });
-    const staged = await stageTronBroadcast(gateway(undefined), s, { txId: OTHER }, LOCAL);
+    const staged = await stageTronBroadcast(
+      gateway(undefined),
+      s,
+      { txId: OTHER },
+      transaction("TransferContract", LOCAL),
+    );
 
     expect(staged).toMatchObject({ stage: "submitted", txId: LOCAL });
     expect(s.warnings.join(" ")).toContain(OTHER);
@@ -79,7 +100,7 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
       gateway(undefined),
       s,
       { txId: LOCAL.toUpperCase() },
-      LOCAL,
+      transaction("TransferContract", LOCAL),
     );
 
     expect(staged).toMatchObject({ txId: LOCAL });
@@ -91,11 +112,11 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
     const g = {
       getTransactionInfoById: async (id: string) => {
         polled.push(id);
-        return { blockNumber: 9 } as TronTxInfo;
+        return parseTronTxInfo({ blockNumber: 9 });
       },
     } as unknown as TronGateway;
 
-    await stageTronBroadcast(g, scope(), { txId: OTHER }, LOCAL);
+    await stageTronBroadcast(g, scope(), { txId: OTHER }, transaction("TransferContract", LOCAL));
 
     expect(polled).toEqual([LOCAL]);
   });
@@ -103,7 +124,12 @@ describe("stageTronBroadcast reports the transaction id we signed", () => {
   it("falls back to the node's id when the signed transaction carries none", async () => {
     const s = scope({ wait: false });
     expect(
-      await stageTronBroadcast(gateway(undefined), s, { txId: OTHER }, undefined),
+      await stageTronBroadcast(
+        gateway(undefined),
+        s,
+        { txId: OTHER },
+        transaction("TransferContract", ""),
+      ),
     ).toMatchObject({ txId: OTHER });
     expect(s.warnings).toEqual([]);
   });
@@ -116,6 +142,7 @@ describe("tronConfirmation distinguishes mined from succeeded", () => {
       gateway({ blockNumber: 42, result: "FAILED", receipt: {} }),
       s,
       { txId: "abc" },
+      NATIVE,
     );
     expect(out.stage).toBe("failed");
   });
@@ -126,23 +153,61 @@ describe("tronConfirmation distinguishes mined from succeeded", () => {
       gateway({ blockNumber: 42, receipt: { result: "17" } }),
       s,
       { txId: "abc" },
+      NATIVE,
     );
     expect(out.stage).toBe("failed");
   });
 
-  it("a contract call whose receipt carries no execution result is not confirmed", async () => {
-    const s = scope({ waitTimeoutMs: 0 });
-    const confirm = tronConfirmation(gateway({ blockNumber: 42, receipt: {} }), s, {
-      requireReceiptResult: true,
-    });
-    expect(await confirm("abc")).toBeUndefined();
+  it("a receipt result DEFAULT is no execution result, not a failure", async () => {
+    const out = await stageTronBroadcast(
+      gateway({ blockNumber: 42, receipt: { result: "DEFAULT" } }),
+      scope(),
+      { txId: "abc" },
+      NATIVE,
+    );
+    expect(out).toMatchObject({ stage: "confirmed", failed: false });
   });
 
   it("a native transaction may legitimately omit receipt.result and still confirms", async () => {
     const s = scope();
-    const out = await stageTronBroadcast(gateway({ blockNumber: 42, receipt: {} }), s, {
-      txId: "abc",
-    });
+    const out = await stageTronBroadcast(
+      gateway({ blockNumber: 42, receipt: {} }),
+      s,
+      { txId: "abc" },
+      NATIVE,
+    );
     expect(out.stage).toBe("confirmed");
+  });
+});
+
+describe("tronConfirmation requires an execution result for contract execution", () => {
+  for (const type of ["TriggerSmartContract", "CreateSmartContract"]) {
+    it(`${type} mined without a result is not confirmed`, async () => {
+      const confirm = tronConfirmation(
+        gateway({ blockNumber: 42, receipt: {} }),
+        scope({ waitTimeoutMs: 0 }),
+      );
+      expect(await confirm("abc", transaction(type))).toBeUndefined();
+    });
+  }
+
+  it("a contract call confirms once its result is known", async () => {
+    const confirm = tronConfirmation(
+      gateway({ blockNumber: 42, receipt: { result: "REVERT" } }),
+      scope({ waitTimeoutMs: 0 }),
+    );
+    expect(await confirm("abc", CONTRACT_CALL)).toMatchObject({ failed: true, result: "REVERT" });
+  });
+
+  it("tx broadcast of a contract call stays submitted while its result is unknown", async () => {
+    const s = scope({ waitTimeoutMs: 0 });
+    const out = await stageTronBroadcast(
+      gateway({ blockNumber: 42, receipt: {} }),
+      s,
+      { txId: "abc" },
+      CONTRACT_CALL,
+    );
+    expect(out.stage).toBe("submitted");
+    expect(s.warnings[0]).toContain("not confirmed");
   });
 });

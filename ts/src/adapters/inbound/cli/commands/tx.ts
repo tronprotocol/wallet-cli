@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
+import type { TronProtocolValue } from "../../../../domain/types/index.js";
 import type { TronTransactionService } from "../../../../application/use-cases/tron/transaction-service.js";
 import type { EvmTransactionService } from "../../../../application/use-cases/evm/transaction-service.js";
 import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
@@ -12,6 +13,8 @@ import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
 import { amountSelector, tronTxModeFields, txModeFields, unifiedAmountFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
+import { txHashInputPattern } from "../../../../domain/family/index.js";
+import { sunAmount } from "../../../../domain/amounts/index.js";
 
 const sendFields = z.object({
   to: z
@@ -145,7 +148,8 @@ export const txSendEvmBinding = (svc: EvmTransactionService): FamilyBinding => (
 export const txSendTronBinding = (svc: TronTransactionService): FamilyBinding => ({
   fields: tronSendFields,
   refine: allRefines(tokenOptional, addressFieldsFor("tron", "contract")),
-  run: async (ctx, net, input) => svc.send(ctx, net, input),
+  run: async (ctx, net, input) =>
+    svc.send(ctx, net, { ...input, feeLimit: sunAmount(input.feeLimit) }),
 });
 
 const tronBroadcastFields = z.object({
@@ -338,7 +342,6 @@ export const txSignSpec: ChainSpec = {
 };
 
 export const txSignTronBinding = (
-  transactionService: TronTransactionService,
   signingService: TronSigService,
   multisigService: TronMultisigService,
   writer: TransactionArtifactWriter,
@@ -387,13 +390,13 @@ export const txSignTronBinding = (
       throw new UsageError("invalid_option", "--out is only valid with --hex or --file");
     if (input.offline)
       throw new UsageError("invalid_option", "--offline is only valid with --hex or --file");
-    let tx: unknown;
+    let tx: TronProtocolValue;
     try {
-      tx = JSON.parse(input.transaction);
+      tx = JSON.parse(input.transaction) as TronProtocolValue;
     } catch {
       throw new UsageError("invalid_value", "TRON transaction must be JSON");
     }
-    return transactionService.sign(ctx, net, tx);
+    return signingService.signJson(ctx, net, tx, { origin: "offline" });
   },
 });
 
@@ -414,7 +417,7 @@ const tronLinkMultisigFields = z.object({
     .describe("file containing unsigned transaction hex used with --create"),
   sign: z
     .string()
-    .regex(/^(?:0x)?[0-9a-fA-F]{64}$/)
+    .regex(txHashInputPattern("tron"))
     .optional()
     .describe("fetch and co-sign one pending TronLink transaction by txId"),
   watch: z

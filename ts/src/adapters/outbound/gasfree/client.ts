@@ -20,10 +20,13 @@ import type {
 } from "../../../domain/types/index.js";
 import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
+import { normalizeTxHash } from "../../../domain/family/index.js";
 
 const MAX_BYTES = 1024 * 1024;
 const ADDRESS = new TronAddress();
 const STATES = new Set<GasFreeState>(["WAITING", "INPROGRESS", "CONFIRMING", "SUCCEED", "FAILED"]);
+// expiredAt below this is in seconds (before year 5138); at or above it, milliseconds (after 1973).
+const SECONDS_TIMESTAMP_LIMIT = 100_000_000_000n;
 type Fetch = typeof globalThis.fetch;
 
 // Never retry transfer submissions.
@@ -273,9 +276,11 @@ function transferRecord(value: unknown): GasFreeTransferRecord {
     targetAddress: address(data.targetAddress, "data.targetAddress"),
     amount: uint(data.amount, "data.amount"),
     nonce: uint(data.nonce, "data.nonce"),
+    ...(data.expiredAt === undefined || data.expiredAt === null
+      ? {}
+      : { expiredAt: milliseconds(uint(data.expiredAt, "data.expiredAt")) }),
     ...optionalUintFields(data, [
       "maxFee",
-      "expiredAt",
       "estimatedTransferFee",
       "estimatedActivateFee",
       "estimatedTotalFee",
@@ -313,11 +318,14 @@ function optionalUintFields(
   );
 }
 
+function milliseconds(timestamp: string): string {
+  const value = BigInt(timestamp);
+  return (value < SECONDS_TIMESTAMP_LIMIT ? value * 1000n : value).toString();
+}
+
 function transactionHash(value: unknown): string {
-  const result = text(value, "data.txnHash", 66).replace(/^0x/, "").toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(result)) {
-    throw invalid("data.txnHash", "a 32-byte transaction hash");
-  }
+  const result = normalizeTxHash("tron", text(value, "data.txnHash", 66));
+  if (result === undefined) throw invalid("data.txnHash", "a 32-byte transaction hash");
   return result;
 }
 

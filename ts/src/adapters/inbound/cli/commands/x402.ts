@@ -374,7 +374,7 @@ function checkedBody(body: Uint8Array, source: string): Uint8Array {
 
 async function providerResult(
   ctx: Parameters<CommandDefinition["run"]>[0],
-  pending: Promise<Record<string, unknown>>,
+  pending: Promise<{ warnings?: unknown }>,
 ) {
   ctx.emit({ type: "activity", message: "Loading provider catalog data…" });
   const { warnings, ...data } = await pending;

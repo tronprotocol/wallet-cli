@@ -1,5 +1,14 @@
 import type { NetworkDescriptor } from "../../domain/types/index.js";
-import type { CliError } from "../../domain/errors/index.js";
+
+declare const agentRegistrationMetadata: unique symbol;
+
+// Registration JSON passed through verbatim for display; inner layers never read it.
+export interface AgentRegistrationMetadata {
+  readonly [agentRegistrationMetadata]: true;
+}
+
+// A decoded single return value of an Identity Registry view function.
+export type AgentRegistryValue = string | boolean | bigint;
 
 export interface AgentRegistryReader {
   registry(network: NetworkDescriptor): string;
@@ -7,12 +16,10 @@ export interface AgentRegistryReader {
     network: NetworkDescriptor,
     method: string,
     params: Array<{ type: string; value: unknown }>,
-  ): Promise<unknown>;
+  ): Promise<AgentRegistryValue>;
   registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
-  // The error code a registry contract revert maps to; undefined when `error` is not one.
-  writeError(error: unknown): CliError | undefined;
 }
 
 export interface AgentRegistrationLoader {
-  load(uri: string): Promise<{ metadata?: Record<string, unknown>; warning?: string }>;
+  load(uri: string): Promise<{ metadata?: AgentRegistrationMetadata; warning?: string }>;
 }

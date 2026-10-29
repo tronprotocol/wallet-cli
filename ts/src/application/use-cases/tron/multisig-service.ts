@@ -88,7 +88,7 @@ export class TronMultisigService {
     const result = await submitWithTxId(txId, () => gateway.broadcastHex(hex));
     return {
       kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result, txId)),
+      ...(await stageTronBroadcast(gateway, scope, result, transaction)),
       transaction: approval,
       multiSignFeeSun,
     };

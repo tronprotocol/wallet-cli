@@ -3,7 +3,8 @@ import type {
   ChainFamily,
   FeeReport,
   NetworkDescriptor,
-  SignedTx,
+  SignedTxOf,
+  TxConfirmation,
   TxOutcome,
   UnsignedTx,
 } from "../../../domain/types/index.js";
@@ -20,13 +21,13 @@ export interface SignerAuthorization {
   assertBroadcastable(): void;
 }
 
-export interface TxPipelineParams {
+export interface TxPipelineParams<T extends UnsignedTx = UnsignedTx> {
   ctx: TransactionScope;
   net: NetworkDescriptor;
   account: AccountRef;
   broadcaster: Broadcaster;
-  build: (signerAddress: string) => Promise<UnsignedTx>;
-  estimate: (tx: UnsignedTx) => Promise<FeeReport>;
+  build: (signerAddress: string) => Promise<T>;
+  estimate: (tx: T) => Promise<FeeReport>;
   dryRun: boolean;
   buildOnly?: boolean;
   broadcast: boolean;
@@ -35,20 +36,17 @@ export interface TxPipelineParams {
   expiration?: number;
   signerOptions?: { requireSoftware?: boolean };
   /** Bind permission/expiration and recompute transaction identity before signing. */
-  prepare?: (
-    tx: UnsignedTx,
-    options: { permissionId: number; expiration?: number },
-  ) => Promise<UnsignedTx> | UnsignedTx;
+  prepare?: (tx: T, options: { permissionId: number; expiration?: number }) => Promise<T> | T;
   /** Extend a newly built unsigned device transaction before signing. Never used for imports. */
-  prepareForSigning?: (tx: UnsignedTx, timeoutMs: number) => Promise<UnsignedTx> | UnsignedTx;
+  prepareForSigning?: (tx: T, timeoutMs: number) => Promise<T> | T;
   /** Chain-specific expiry guard, including a second check after the signer returns. */
-  assertNotExpired?: (tx: UnsignedTx | SignedTx) => void;
+  assertNotExpired?: (tx: T | SignedTxOf<T>) => void;
   // Required for build-only; must encode the complete transaction.
-  artifact?: (tx: UnsignedTx | SignedTx) => string;
+  artifact?: (tx: T | SignedTxOf<T>) => string;
   // Runs before key decryption or device interaction; may return a post-signing broadcast gate.
-  preflight?: (tx: UnsignedTx, signerAddress: string) => Promise<SignerAuthorization | void>;
+  preflight?: (tx: T, signerAddress: string) => Promise<SignerAuthorization | void>;
   // Returns undefined on timeout; errors preserve the submitted outcome.
-  confirm?: (txId: string) => Promise<Record<string, unknown> | undefined>;
+  confirm?: (txId: string, signed: SignedTxOf<T>) => Promise<TxConfirmation | undefined>;
 }
 
 export class TxPipeline {
@@ -84,7 +82,7 @@ export class TxPipeline {
     return { stage: "signed", signed, address: signer.address, txId: txIdOf(signed) };
   }
 
-  async run(p: TxPipelineParams): Promise<TxOutcome> {
+  async run<T extends UnsignedTx>(p: TxPipelineParams<T>): Promise<TxOutcome> {
     const mode: TransactionExecutionMode =
       p.mode ??
       (p.dryRun ? "dry-run" : p.buildOnly ? "build-only" : p.broadcast ? "broadcast" : "sign-only");
@@ -164,9 +162,9 @@ export class TxPipeline {
       return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
     }
     // Confirmation failure must preserve the already-broadcast transaction.
-    let confirmed: Record<string, unknown> | undefined;
+    let confirmed: TxConfirmation | undefined;
     try {
-      confirmed = await p.confirm(txId);
+      confirmed = await p.confirm(txId, signed);
     } catch {
       confirmed = undefined;
     }

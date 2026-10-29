@@ -66,6 +66,7 @@ import { registerBaiCommands } from "../adapters/inbound/cli/commands/bai.js";
 import { EvmContractService } from "../application/use-cases/evm/contract-service.js";
 import { TronContractService } from "../application/use-cases/tron/contract-service.js";
 import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
+import { registryContracts } from "../adapters/outbound/erc8004/registry-contracts.js";
 import { RegistrationLoader } from "../adapters/outbound/erc8004/registration-loader.js";
 import { AgentService } from "../application/use-cases/agent-service.js";
 import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
@@ -173,7 +174,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     tron: new TronContractService(gatewayProvider, txPipeline),
   };
   const agents = new AgentService(
-    agentContracts,
+    registryContracts(agentContracts),
     new SdkAgentRegistry(agentContracts, gatewayProvider),
     new RegistrationLoader(timeoutMs),
   );

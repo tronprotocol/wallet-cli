@@ -25,6 +25,10 @@ function stubPipeline() {
   } as unknown as TxPipeline;
 }
 
+function staked(stake: Partial<Record<"energySun" | "bandwidthSun" | "tronPowerSun", string>>) {
+  return { stake: { energySun: "0", bandwidthSun: "0", tronPowerSun: "0", ...stake } };
+}
+
 function svc(gateway: Record<string, unknown>) {
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   return new TronStakeService(gateways, stubPipeline());
@@ -34,7 +38,7 @@ describe("TronStakeService.unfreeze pre-flight", () => {
   it("rejects when the requested amount exceeds the staked amount for that resource", async () => {
     const buildUnfreezeV2 = vi.fn();
     const gateway = {
-      getAccount: async () => ({ frozenV2: [{ type: "ENERGY", amount: "1000000" }] }),
+      getAccountState: async () => staked({ energySun: "1000000" }),
       buildUnfreezeV2,
     };
 
@@ -44,10 +48,10 @@ describe("TronStakeService.unfreeze pre-flight", () => {
     expect(buildUnfreezeV2).not.toHaveBeenCalled();
   });
 
-  it("counts the untyped frozenV2 entry as bandwidth stake", async () => {
+  it("checks bandwidth stake against the bandwidth total", async () => {
     const buildUnfreezeV2 = vi.fn(async () => ({ txID: "tx" }));
     const gateway = {
-      getAccount: async () => ({ frozenV2: [{ amount: "5000000" }] }),
+      getAccountState: async () => staked({ bandwidthSun: "5000000" }),
       buildUnfreezeV2,
     };
 
@@ -58,7 +62,7 @@ describe("TronStakeService.unfreeze pre-flight", () => {
   it("does not count the other resource's stake toward the requested one", async () => {
     const buildUnfreezeV2 = vi.fn();
     const gateway = {
-      getAccount: async () => ({ frozenV2: [{ type: "ENERGY", amount: "9000000" }] }),
+      getAccountState: async () => staked({ energySun: "9000000", tronPowerSun: "9000000" }),
       buildUnfreezeV2,
     };
 
@@ -71,7 +75,7 @@ describe("TronStakeService.unfreeze pre-flight", () => {
   it("proceeds when the requested amount equals the staked amount", async () => {
     const buildUnfreezeV2 = vi.fn(async () => ({ txID: "tx" }));
     const gateway = {
-      getAccount: async () => ({ frozenV2: [{ type: "ENERGY", amount: "1000000" }] }),
+      getAccountState: async () => staked({ energySun: "1000000" }),
       buildUnfreezeV2,
     };
 

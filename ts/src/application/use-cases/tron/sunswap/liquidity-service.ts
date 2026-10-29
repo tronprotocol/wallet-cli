@@ -19,7 +19,6 @@ import type {
 import type { Permit2Port } from "../../../ports/sunswap/permit2.js";
 import type { SignerResolver } from "../../../services/signer/index.js";
 import type { SigningService } from "../../../services/signing/signing-service.js";
-import type { TypedDataPayload } from "../../../../domain/types/index.js";
 import { describeHooks, resolveV4Pool } from "../../../../domain/sunswap/v4-pool.js";
 import {
   parseLiquidityProtocol,
@@ -41,7 +40,9 @@ import {
 import {
   LiquidityTransactions,
   outcomeTxId,
+  UNLIMITED_ALLOWANCE,
   withPositionManager,
+  withZeroMinimumFlag,
   type ApprovalPlan,
 } from "./liquidity-transactions.js";
 import { warnOnPostCheck } from "../../../services/post-check.js";
@@ -52,7 +53,13 @@ import {
 } from "../../../services/sunswap-token-resolver.js";
 import { ChainError, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
-import { toBaseUnits } from "../../../../domain/amounts/index.js";
+import {
+  toBaseUnits,
+  type Sun,
+  sunAmount,
+  baseUnitAmount,
+  type BaseUnits,
+} from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import {
   applyMinimumShare,
@@ -71,13 +78,14 @@ import {
   MIN_TICK,
   tickSpacing,
 } from "../../../../domain/sunswap/ticks.js";
+import { FAMILIES, sameAddress } from "../../../../domain/family/index.js";
 
 const RESOLVED = { caller: "liquidity" } as const;
 
 const KIND = "sunswap-add-liquidity" as const;
 
 // V4 deposits grant unlimited TRC20 allowance; Permit2 grants remain amount-limited.
-const V4_TRC20_ALLOWANCE = (2n ** 256n - 1n).toString();
+const V4_TRC20_ALLOWANCE = UNLIMITED_ALLOWANCE;
 
 const V4_PERMIT_TTL_SECONDS = 3600;
 
@@ -95,7 +103,7 @@ export interface AddLiquidityInput extends TransactionModeInput {
   // Unix seconds.
   readonly deadline?: number;
   // Energy fee cap in SUN.
-  readonly feeLimit?: string;
+  readonly feeLimit?: Sun;
   // V3/V4 NFT id to increase; absent for a new position.
   readonly positionId?: string;
   // V3 mint tier; V4 pool-key component or existing-position cross-check.
@@ -170,10 +178,11 @@ export interface PlannedSide {
   readonly address: string;
   readonly symbol: string;
   readonly decimals: number;
-  // Base units to deposit.
-  readonly amount: string;
-  // Deposit floor in base units.
-  readonly amountMinimum: string;
+  // To deposit.
+  readonly amount: BaseUnits;
+  // Deposit floor.
+  readonly amountMinimum: BaseUnits;
+  readonly acceptsAnyAmount?: true;
 }
 
 interface PlannedV4 {
@@ -189,11 +198,15 @@ interface PlannedV4 {
 interface V4Sizing {
   readonly facts0: TokenFacts;
   readonly facts1: TokenFacts;
-  readonly plan: { readonly amount0: string; readonly amount1: string; readonly liquidity: string };
+  readonly plan: {
+    readonly amount0: BaseUnits;
+    readonly amount1: BaseUnits;
+    readonly liquidity: string;
+  };
   // Ceiling tolerance in basis points.
   readonly bips: number;
-  readonly amount0Max: string;
-  readonly amount1Max: string;
+  readonly amount0Max: BaseUnits;
+  readonly amount1Max: BaseUnits;
   readonly permitsNeeded: readonly { token: string; amount: string; facts: TokenFacts }[];
   readonly approvals: readonly ApprovalPlan[];
   // Native call-value ceiling in SUN, when larger than the deposit.
@@ -255,7 +268,7 @@ export class SunSwapLiquidityService {
           owner,
           token: side.token,
           spender: this.#v4Manager(network),
-          amount: side.amount,
+          amount: baseUnitAmount(side.amount),
           ttlSeconds: V4_PERMIT_TTL_SECONDS,
         });
         if (permit !== undefined) needed.push(side);
@@ -276,7 +289,7 @@ export class SunSwapLiquidityService {
         ? {
             approvals: plan.approvals.map((a) => ({
               ...a,
-              amount: a.amount === V4_TRC20_ALLOWANCE ? "unlimited" : a.amount,
+              amount: a.isUnlimited ? "unlimited" : a.amount,
             })),
           }
         : {}),
@@ -737,8 +750,8 @@ export class SunSwapLiquidityService {
       router: this.#v4Manager(network),
       recipient,
       deadline,
-      token0: { ...sized.facts0, amount: sized.plan.amount0, amountMinimum: "0" },
-      token1: { ...sized.facts1, amount: sized.plan.amount1, amountMinimum: "0" },
+      token0: { ...sized.facts0, amount: sized.plan.amount0, amountMinimum: baseUnitAmount("0") },
+      token1: { ...sized.facts1, amount: sized.plan.amount1, amountMinimum: baseUnitAmount("0") },
       poolId: pool.poolId,
       feeTier: pool.fee,
       tickSpacing: pool.tickSpacing,
@@ -850,7 +863,8 @@ export class SunSwapLiquidityService {
   }
 
   async #v4Facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
-    if (address === NATIVE_TRX_ADDRESS) return { address, symbol: "TRX", decimals: 6 };
+    if (address === NATIVE_TRX_ADDRESS)
+      return { address, symbol: "TRX", decimals: FAMILIES.tron.nativeDecimals };
     return this.#facts(network, address);
   }
 
@@ -871,7 +885,7 @@ export class SunSwapLiquidityService {
         owner,
         token: side.token,
         spender,
-        amount: side.amount,
+        amount: baseUnitAmount(side.amount),
         ttlSeconds: V4_PERMIT_TTL_SECONDS,
       });
       if (permit === undefined) continue;
@@ -889,7 +903,7 @@ export class SunSwapLiquidityService {
         network,
         origin: "service",
         signer,
-        payload: { kind: "typed-data", typedData: permit.typedData as TypedDataPayload },
+        payload: { kind: "typed-data", typedData: permit.typedData },
       });
       assertSignedBy(
         recoverTronSigner(result.digest, result.signature),
@@ -1180,7 +1194,7 @@ export class SunSwapLiquidityService {
     }
 
     // Size in pool order, then restore input order to keep amounts and minimums bound together.
-    const poolOrder = pool.token0.toLowerCase() === scenario.token0.address.toLowerCase();
+    const poolOrder = sameAddress("tron", pool.token0, scenario.token0.address);
     const given = poolOrder
       ? { amount0: scenario.amount0, amount1: scenario.amount1 }
       : { amount0: scenario.amount1, amount1: scenario.amount0 };
@@ -1234,20 +1248,20 @@ export class SunSwapLiquidityService {
       router: manager,
       recipient: scenario.recipient,
       deadline,
-      token0: {
+      token0: withZeroMinimumFlag({
         address: scenario.token0.address,
         symbol: scenario.token0.symbol,
         decimals: scenario.token0.decimals,
         amount: amount0,
         amountMinimum: this.#v3Minimum(input.min0, scenario.token0),
-      },
-      token1: {
+      }),
+      token1: withZeroMinimumFlag({
         address: scenario.token1.address,
         symbol: scenario.token1.symbol,
         decimals: scenario.token1.decimals,
         amount: amount1,
         amountMinimum: this.#v3Minimum(input.min1, scenario.token1),
-      },
+      }),
       ...(scenario.nftTokenId === undefined ? {} : { nftTokenId: scenario.nftTokenId }),
       newPosition: scenario.nftTokenId === undefined,
       feeTier: scenario.fee,
@@ -1274,8 +1288,8 @@ export class SunSwapLiquidityService {
     tickUpper: number;
     pool: V3PoolState;
     recipient: string;
-    amount0?: string;
-    amount1?: string;
+    amount0?: BaseUnits;
+    amount1?: BaseUnits;
     nftTokenId?: string;
     feeAuto?: boolean;
     tickRangeAuto?: boolean;
@@ -1373,7 +1387,7 @@ export class SunSwapLiquidityService {
     input: AddLiquidityInput,
     token0: TokenFacts,
     token1: TokenFacts,
-  ): { amount0?: string; amount1?: string } {
+  ): { amount0?: BaseUnits; amount1?: BaseUnits } {
     if (input.amount0 === undefined && input.amount1 === undefined) {
       throw new UsageError(
         "missing_option",
@@ -1386,8 +1400,8 @@ export class SunSwapLiquidityService {
     };
   }
 
-  #v3Minimum(explicit: string | undefined, facts: TokenFacts): string {
-    return explicit === undefined ? "0" : base(explicit, facts, "--min");
+  #v3Minimum(explicit: string | undefined, facts: TokenFacts): BaseUnits {
+    return explicit === undefined ? baseUnitAmount("0") : base(explicit, facts, "--min");
   }
 
   // V3 permits funding another owner's position; reject mistyped ids locally.
@@ -1447,8 +1461,8 @@ export class SunSwapLiquidityService {
         token: sideFacts(native.token),
         amountTokenDesired: native.token.amount,
         amountTokenMin: native.token.amountMinimum,
-        amountNativeDesired: native.native.amount,
-        amountNativeMin: native.native.amountMinimum,
+        amountNativeDesired: sunAmount(native.native.amount),
+        amountNativeMin: sunAmount(native.native.amountMinimum),
         recipient: plan.recipient,
         deadline: plan.deadline,
       });
@@ -1519,20 +1533,20 @@ export class SunSwapLiquidityService {
       recipient,
       deadline,
       ...(lpAmountExpected === undefined ? {} : { lpAmountExpected, lpDecimals: pair.lpDecimals }),
-      token0: {
+      token0: withZeroMinimumFlag({
         address: token0.address,
         symbol: token0.symbol,
         decimals: token0.decimals,
         amount: amounts.amount0,
         amountMinimum: this.#minimum(input.min0, amounts.amount0, token0),
-      },
-      token1: {
+      }),
+      token1: withZeroMinimumFlag({
         address: token1.address,
         symbol: token1.symbol,
         decimals: token1.decimals,
         amount: amounts.amount1,
         amountMinimum: this.#minimum(input.min1, amounts.amount1, token1),
-      },
+      }),
       ...(approvals.length === 0 ? {} : { approvals }),
     };
     return { plan, pair };
@@ -1543,13 +1557,16 @@ export class SunSwapLiquidityService {
     token0: TokenFacts,
     token1: TokenFacts,
     pair: V2PairState,
-  ): { amount0: string; amount1: string } {
+  ): { amount0: BaseUnits; amount1: BaseUnits } {
     const selection = selectAmounts(
       input.amount0 === undefined ? undefined : base(input.amount0, token0, "--amount0"),
       input.amount1 === undefined ? undefined : base(input.amount1, token1, "--amount1"),
     );
     if (selection.kind === "both") {
-      return { amount0: selection.amount0, amount1: selection.amount1 };
+      return {
+        amount0: baseUnitAmount(selection.amount0),
+        amount1: baseUnitAmount(selection.amount1),
+      };
     }
     // An empty pool has no ratio; its first deposit must supply both sides.
     if (!pair.exists || pair.totalSupply === "0") {
@@ -1560,23 +1577,26 @@ export class SunSwapLiquidityService {
     }
     if (selection.kind === "amount0") {
       return {
-        amount0: selection.amount0,
-        amount1: pairAmount(selection.amount0, pair.reserve0, pair.reserve1),
+        amount0: baseUnitAmount(selection.amount0),
+        amount1: baseUnitAmount(pairAmount(selection.amount0, pair.reserve0, pair.reserve1)),
       };
     }
     return {
-      amount0: pairAmount(selection.amount1, pair.reserve1, pair.reserve0),
-      amount1: selection.amount1,
+      amount0: baseUnitAmount(pairAmount(selection.amount1, pair.reserve1, pair.reserve0)),
+      amount1: baseUnitAmount(selection.amount1),
     };
   }
 
-  #minimum(explicit: string | undefined, amount: string, facts: TokenFacts): string {
-    if (explicit === undefined) return applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS);
+  #minimum(explicit: string | undefined, amount: string, facts: TokenFacts): BaseUnits {
+    if (explicit === undefined) {
+      return baseUnitAmount(applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS));
+    }
     return base(explicit, facts, "--min");
   }
 
   async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
-    if (isNative(address)) return { address, decimals: 6, symbol: "TRX" };
+    if (isNative(address))
+      return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX" };
     return this.liquidity.tokenFacts(network, address);
   }
 
@@ -1619,8 +1639,8 @@ function keyOf(pool: V4PoolState): V4DepositRequest["pool"] {
   };
 }
 
-function base(human: string, facts: TokenFacts, flag: string): string {
-  return toBaseUnits(human, facts.decimals, facts.symbol, flag);
+function base(human: string, facts: TokenFacts, flag: string): BaseUnits {
+  return baseUnitAmount(toBaseUnits(human, facts.decimals, facts.symbol, flag));
 }
 
 function sideFacts(side: PlannedSide): TokenFacts {
@@ -1667,9 +1687,9 @@ function poolSideOf(contracts: LiquidityContractAddresses, address: string): str
 }
 
 // Slippage widens deposit ceilings upward.
-function raiseBy(amount: string, bips: number): string {
+function raiseBy(amount: BaseUnits, bips: number): BaseUnits {
   if (bips === 0) return amount;
-  return ((BigInt(amount) * BigInt(10_000 + bips)) / 10_000n).toString();
+  return baseUnitAmount((BigInt(amount) * BigInt(10_000 + bips)) / 10_000n);
 }
 
 // Validate the SDK permit domain against the independent network descriptor.

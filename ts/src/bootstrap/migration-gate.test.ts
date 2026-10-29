@@ -50,6 +50,23 @@ describe("runMigrationGate", () => {
     expect(JSON.parse(readFileSync(wallets, "utf8")).version).toBe(2);
   });
 
+  it("reports the rollback copies the upgrade could not remove", async () => {
+    const wallets = join(seededRoot(), "wallets.json");
+    class RetainingStore extends AtomicFileStore {
+      override writeJsonAll(entries: Array<{ path: string; value: unknown }>): string[] {
+        super.writeJsonAll(entries);
+        return [`${wallets}.left.bak`];
+      }
+    }
+    const runner = new MigrationRunner(new RetainingStore());
+
+    const outcome = await runMigrationGate(runner, [stalePasswordStep(wallets, false)], {
+      password: async () => null,
+    });
+
+    expect(outcome).toMatchObject({ status: "upgraded", retainedBackups: [`${wallets}.left.bak`] });
+  });
+
   it("hands the supplied password to the migration that asked for it", async () => {
     const wallets = join(seededRoot(), "wallets.json");
     const runner = new MigrationRunner(new AtomicFileStore());
@@ -210,6 +227,7 @@ describe("runMigrationGate consent", () => {
     expect(outcome).toEqual({
       status: "upgraded",
       files: [{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }],
+      retainedBackups: [],
     });
   });
 

@@ -65,6 +65,9 @@ export function selectFloor(
   return { kind: "slippage", bips: slippageToBips(slippage ?? fallback) };
 }
 
+// SunPump's platform fee floor in SUN (0.01 TRX); the fee is otherwise 1% of the TRX.
+export const MIN_PLATFORM_FEE_SUN = "10000";
+
 // Returns the fee percentage only when it exceeds 1%.
 export function feeRatePercent(feeSun: string, trxSun: string): string | undefined {
   const fee = BigInt(feeSun);

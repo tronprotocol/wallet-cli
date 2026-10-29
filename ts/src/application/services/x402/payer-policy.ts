@@ -4,10 +4,19 @@ import type {
   PayerSigner,
   SignedApproval,
 } from "../../contracts/x402-payer.js";
-import type { TypedDataPayload, TypedDataSignature } from "../../../domain/types/index.js";
+import type {
+  SignedTxOf,
+  TypedDataPayload,
+  TypedDataSignature,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
 import type { ChainFamily } from "../../../domain/family/chain-family.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { tronHexToBase58 } from "../../../domain/address/index.js";
+import {
+  sameAddress,
+  tronAddressFromEvmHex,
+  tronHexToBase58,
+} from "../../../domain/family/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
 
@@ -30,25 +39,13 @@ export interface PayerPolicy {
 
 // The payer's signing capability before the payment policy is applied.
 export interface UnguardedPayer extends Pick<PayerSigner, "address" | "signTypedData"> {
-  signTransaction(tx: unknown): Promise<unknown>;
+  signTransaction<T extends UnsignedTx>(tx: T): Promise<SignedTxOf<T>>;
 }
 
 const PERMIT_TRANSFER = "PermitTransfer";
 
 function declaredPayer(payload: TypedDataPayload, primaryType: string): unknown {
   return primaryType === PERMIT_TRANSFER ? payload.message.user : payload.message.from;
-}
-
-// TRON typed data uses 20-byte 0x addresses without the chain prefix.
-function canonicalTronPayer(address: string): string {
-  const full = /^0x[0-9a-f]{40}$/i.test(address) ? `41${address.slice(2)}` : address;
-  return tronHexToBase58(full);
-}
-
-function samePayer(family: ChainFamily, a: string, b: string): boolean {
-  return family === "tron"
-    ? canonicalTronPayer(a) === canonicalTronPayer(b)
-    : a.toLowerCase() === b.toLowerCase();
 }
 
 function assertPayerMatches(
@@ -59,7 +56,8 @@ function assertPayerMatches(
 ): void {
   const declared = declaredPayer(payload, primaryType);
   if (declared === undefined) return;
-  if (typeof declared !== "string" || !samePayer(family, declared, address)) {
+  // TRON typed data uses 20-byte 0x addresses without the chain prefix.
+  if (typeof declared !== "string" || !sameAddress(family, declared, address)) {
     throw new ChainError(
       "payer_mismatch",
       `this payment names a different payer than the selected account ${address}`,
@@ -104,7 +102,9 @@ function feeCapRaw(payload: TypedDataPayload, policy: PayerPolicy): string | und
   if (policy.maxGasfreeFee === undefined) return undefined;
   const token = payload.message.token;
   const decimals =
-    typeof token === "string" ? policy.gasfreeFeeDecimals?.(canonicalTronPayer(token)) : undefined;
+    typeof token === "string"
+      ? policy.gasfreeFeeDecimals?.(tronHexToBase58(tronAddressFromEvmHex(token)))
+      : undefined;
   if (decimals === undefined) {
     throw new ChainError(
       "fee_cap_exceeded",

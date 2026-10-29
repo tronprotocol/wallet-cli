@@ -9,6 +9,7 @@ import type { ChainGatewayProvider } from "../../../application/ports/chain/gate
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
 import { SunPumpLaunchpadContracts } from "./launchpad-contracts.js";
+import { sunAmount, baseUnitAmount, type BaseUnits } from "../../../domain/amounts/index.js";
 
 const LAUNCHPAD = "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw";
 const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
@@ -75,7 +76,7 @@ describe("quotes", () => {
         "getTokenAmountByPurchaseWithFee(address,uint256)": `${uint(25125337148664452174594n)}${uint(10000n)}`,
       }),
     );
-    await expect(port.quoteBuy(NETWORK, TOKEN, "1000000")).resolves.toEqual({
+    await expect(port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"))).resolves.toEqual({
       tokenAmount: "25125337148664452174594",
       feeSun: "10000",
     });
@@ -87,7 +88,7 @@ describe("quotes", () => {
         "getTrxAmountBySaleWithFee(address,uint256)": `${uint(22728n)}${uint(10000n)}`,
       }),
     );
-    await expect(port.quoteSell(NETWORK, TOKEN, "1000")).resolves.toEqual({
+    await expect(port.quoteSell(NETWORK, TOKEN, baseUnitAmount("1000"))).resolves.toEqual({
       trxAmountSun: "22728",
       feeSun: "10000",
     });
@@ -116,7 +117,7 @@ describe("quotes", () => {
         "getTokenAmountByPurchaseWithFee(address,uint256)": `${uint(25125337148664452174594n)}${uint(0n)}`,
       }),
     );
-    const quote = await port.quoteBuy(NETWORK, TOKEN, "1000000");
+    const quote = await port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"));
     expect(quote.tokenAmount).toBe("25125337148664452174594");
     expect(Number(quote.tokenAmount).toString()).not.toBe(quote.tokenAmount);
   });
@@ -141,8 +142,8 @@ describe("payloads", () => {
   it("builds a buy with TRX as the call value and the minimum as an argument", () => {
     const payload = port.buyPayload(NETWORK, {
       token: TOKEN,
-      trxSun: "1000000",
-      minTokenAmount: "23869070291231229565864",
+      trxSun: sunAmount("1000000"),
+      minTokenAmount: baseUnitAmount("23869070291231229565864"),
     });
     expect(payload).toEqual({
       target: LAUNCHPAD,
@@ -158,8 +159,8 @@ describe("payloads", () => {
   it("builds a sale with the amount and the floor, and no call value", () => {
     const payload = port.sellPayload(NETWORK, {
       token: TOKEN,
-      tokenAmount: "1000000000000000000000",
-      minTrxSun: "29401",
+      tokenAmount: baseUnitAmount("1000000000000000000000"),
+      minTrxSun: sunAmount("29401"),
     });
     expect(payload).toEqual({
       target: LAUNCHPAD,
@@ -184,8 +185,8 @@ describe("payloads", () => {
     expect(() =>
       port.buyPayload(NETWORK, {
         token: TOKEN,
-        trxSun: "1000000",
-        minTokenAmount: undefined as unknown as string,
+        trxSun: sunAmount("1000000"),
+        minTokenAmount: undefined as unknown as BaseUnits,
       }),
     ).toThrow(/empty uint256 parameter/);
   });
@@ -198,7 +199,11 @@ describe("payloads", () => {
       minTrxOut: "1",
     });
     expect(
-      port.sellPayload(NETWORK, { token: TOKEN, tokenAmount: "1", minTrxSun: "1" }).method,
+      port.sellPayload(NETWORK, {
+        token: TOKEN,
+        tokenAmount: baseUnitAmount("1"),
+        minTrxSun: sunAmount("1"),
+      }).method,
     ).toBe(action.functionSelector);
   });
 

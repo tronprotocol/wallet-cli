@@ -5,16 +5,41 @@ export interface TypedDataField {
   type: string;
 }
 
+// A JSON value; payment SDKs also pass uint fields as bigint.
+export type TypedDataValue =
+  string | number | bigint | boolean | null | TypedDataValue[] | TypedDataObject;
+
+export interface TypedDataObject {
+  [field: string]: TypedDataValue;
+}
+
 export interface TypedDataPayload {
-  domain: Record<string, unknown>;
+  domain: TypedDataObject;
   types: Record<string, TypedDataField[]>;
   // May be inferred from types when there is exactly one root.
   primaryType?: string;
-  message: Record<string, unknown>;
+  message: TypedDataObject;
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function isTypedDataValue(v: unknown): v is TypedDataValue {
+  if (v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "bigint")
+    return true;
+  if (typeof v === "number") return Number.isFinite(v);
+  if (Array.isArray(v)) return v.every(isTypedDataValue);
+  return isTypedDataObject(v);
+}
+
+// An undefined member reads as an absent field, so it is accepted.
+function isTypedDataObject(v: unknown): v is TypedDataObject {
+  return (
+    isObject(v) &&
+    [Object.prototype, null].includes(Object.getPrototypeOf(v)) &&
+    Object.values(v).every((member) => member === undefined || isTypedDataValue(member))
+  );
 }
 
 function elementType(type: string): string {
@@ -63,14 +88,17 @@ export function resolvePrimaryType(
 export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (!isObject(raw)) throw new UsageError("invalid_payload", "typed data must be a JSON object");
   const { domain, types, primaryType } = raw;
-  if (!isObject(domain))
-    throw new UsageError("invalid_payload", "typed data `domain` must be an object");
+  if (!isTypedDataObject(domain))
+    throw new UsageError("invalid_payload", "typed data `domain` must be an object of JSON values");
   if (!isObject(types))
     throw new UsageError("invalid_payload", "typed data `types` must be an object");
 
   const message = raw.message ?? raw.value;
-  if (!isObject(message))
-    throw new UsageError("invalid_payload", "typed data `message` must be an object");
+  if (!isTypedDataObject(message))
+    throw new UsageError(
+      "invalid_payload",
+      "typed data `message` must be an object of JSON values",
+    );
 
   const structs: Record<string, TypedDataField[]> = {};
   for (const [name, fields] of Object.entries(types)) {

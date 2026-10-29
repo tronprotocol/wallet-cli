@@ -1,13 +1,25 @@
-import { ExecutionError } from "../../../../domain/errors/index.js";
+import {
+  ChainError,
+  CliError,
+  ExecutionError,
+  TransportError,
+} from "../../../../domain/errors/index.js";
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import type {
   TronHistoryQuery,
   TronHistoryReader as HistoryPort,
+  TronHistoryRecord,
   TronHistoryResult,
 } from "../../../../application/ports/chain/tron-history-reader.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import { FetchHttpTransport, HttpTransportError, networkHttpConfig } from "../../http/index.js";
+import {
+  FetchHttpTransport,
+  HttpTransportError,
+  httpTransportFailure,
+  networkHttpConfig,
+} from "../../http/index.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 
 export class TronGridHistoryReader implements HistoryPort {
   constructor(private readonly timeoutMs = 60_000) {}
@@ -31,22 +43,9 @@ export class TronGridHistoryReader implements HistoryPort {
       const transport = new FetchHttpTransport(networkHttpConfig(network, this.timeoutMs));
       text = await transport.requestText({ method: "GET", path });
     } catch (error) {
-      const status = error instanceof HttpTransportError ? error.status : undefined;
-      throw new ExecutionError(
-        "history_not_supported",
-        `account history is not supported on this endpoint${status === undefined ? "" : ` (HTTP ${status})`}`,
-      );
+      throw historyTransportError(error);
     }
-    let body: { data?: unknown[] };
-    try {
-      body = JSON.parse(text) as { data?: unknown[] };
-    } catch {
-      throw new ExecutionError(
-        "history_not_supported",
-        "account history is not supported on this endpoint (malformed response)",
-      );
-    }
-    const records = (body.data ?? []).map((record) => this.normalize(record, address));
+    const records = historyRecords(text).map((record) => this.normalize(record, address));
     return {
       address,
       only: query.only ?? "all",
@@ -55,7 +54,7 @@ export class TronGridHistoryReader implements HistoryPort {
     };
   }
 
-  private normalize(raw: unknown, owner: string): Record<string, unknown> {
+  private normalize(raw: unknown, owner: string): TronHistoryRecord {
     const record = raw as any;
     if (record?.raw_data?.contract) {
       const contract = record.raw_data.contract[0] ?? {};
@@ -69,12 +68,12 @@ export class TronGridHistoryReader implements HistoryPort {
         txId: record.txID,
         time: record.block_timestamp,
         type,
-        amount: hasTrx ? fromBaseUnits(String(value.amount), 6) : "",
+        amount: hasTrx ? fromBaseUnits(String(value.amount), FAMILIES.tron.nativeDecimals) : "",
         symbol: hasTrx ? "TRX" : undefined,
         from,
         to,
         counterparty: from === owner ? to : from,
-        status: result && result !== "SUCCESS" ? "failed" : "ok",
+        status: result === undefined ? "unknown" : result === "SUCCESS" ? "ok" : "failed",
       };
     }
     const token = record?.token_info ?? {};
@@ -91,4 +90,42 @@ export class TronGridHistoryReader implements HistoryPort {
       status: "ok",
     };
   }
+}
+
+// Only a missing endpoint is "not supported"; other failures keep their retryable codes.
+function historyTransportError(error: unknown): CliError {
+  if (!(error instanceof HttpTransportError)) {
+    return new TransportError("rpc_error", "TRON account history request failed");
+  }
+  if (error.kind === "timeout") return new ChainError("timeout", "TRON account history timed out");
+  if (error.status === 404) {
+    return new ExecutionError(
+      "history_not_supported",
+      "account history is not supported on this endpoint (HTTP 404)",
+    );
+  }
+  if (error.status === 429) {
+    return new ChainError("provider_rate_limited", "TRON account history rate limit exceeded", {
+      httpStatus: 429,
+    });
+  }
+  return new TransportError(
+    "rpc_error",
+    `TRON account history failed: ${httpTransportFailure(error)}`,
+  );
+}
+
+function historyRecords(text: string): unknown[] {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = undefined;
+  }
+  const data = body && typeof body === "object" ? (body as { data?: unknown }).data : null;
+  if (data === undefined) return [];
+  if (!Array.isArray(data)) {
+    throw new ChainError("invalid_node_response", "TRON account history response is malformed");
+  }
+  return data;
 }

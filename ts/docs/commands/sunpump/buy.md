@@ -100,7 +100,7 @@ echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 -
 |---|---|---|
 | `tokenAddress` / `tokenSymbol` / `tokenDecimals` | — | The token, read from the contract |
 | `trxIn` | string | SUN spent, platform fee included |
-| `platformFee` / `platformFeePercent` | string | SunPump's fee in SUN, and the rate it worked out to (only when the 0.01 TRX minimum pushed it above 1%) |
+| `platformFee` / `platformFeePercent` / `platformFeeMinimum` | string | SunPump's fee in SUN, and the rate it worked out to with the minimum fee in SUN (the last two only when the 0.01 TRX minimum pushed it above 1%) |
 | `tokensOutExpected` | string | Base units the curve quoted |
 | `tokensOutMinimum` / `slippage` | string | The enforced floor and the tolerance it came from; absent from a quote |
 | `account` | string | The buying address; absent from a quote |

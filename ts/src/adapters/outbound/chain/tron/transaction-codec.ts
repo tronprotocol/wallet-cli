@@ -1,11 +1,16 @@
 import { utils as tronUtils } from "tronweb";
 import { ChainError } from "../../../../domain/errors/index.js";
-import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
+import type { TronProtocolValue, TronTransactionArtifact } from "../../../../domain/types/index.js";
 import { decodeOverriddenContract, encodeOverriddenContract } from "./asset-contract-codec.js";
 import {
   proposalCreateTxJsonToPbExact,
   updateEnergyLimitTxJsonToPbExact,
 } from "./proposal-protobuf.js";
+import {
+  isTronHexAddress,
+  normalizeTxHash,
+  tronHexFromHash20,
+} from "../../../../domain/family/index.js";
 
 const MAX_TRANSACTION_BYTES = 512 * 1024;
 const SIGNATURE_BYTES = 65;
@@ -71,10 +76,9 @@ function invalidTransaction(message: string): never {
 }
 
 function normalizeHash(value: unknown, field: string): string {
-  if (typeof value !== "string" || !/^(?:0x)?[0-9a-fA-F]{64}$/.test(value)) {
-    return invalidTransaction(`${field} must be a 32-byte hex value`);
-  }
-  return value.replace(/^0x/i, "").toLowerCase();
+  const hash = typeof value === "string" ? normalizeTxHash("tron", value) : undefined;
+  if (hash === undefined) return invalidTransaction(`${field} must be a 32-byte hex value`);
+  return hash;
 }
 
 function transactionProto(): TransactionProtoConstructor {
@@ -223,6 +227,15 @@ export function encodeTransactionHex(transaction: unknown): string {
   return encoded;
 }
 
+// Rejects JSON whose raw_data, raw_data_hex and txID disagree; returns the caller's object unchanged.
+export function encodeTransactionJson(json: TronProtocolValue): {
+  transaction: TronTransactionArtifact;
+  hex: string;
+} {
+  const hex = encodeTransactionHex(json);
+  return { transaction: json as unknown as TronTransactionArtifact, hex };
+}
+
 // Require an exact byte round-trip, including unknown fields and signatures.
 export function decodeTransactionHex(input: string): TronTransactionArtifact {
   const normalized = normalizeTransactionHex(input);
@@ -285,13 +298,13 @@ function deriveContractAddress(
   contract: { parameter?: { value?: Record<string, unknown> } },
 ): string {
   const owner = contract.parameter?.value?.owner_address;
-  if (typeof owner !== "string" || !/^41[0-9a-fA-F]{40}$/.test(owner)) {
+  if (typeof owner !== "string" || !isTronHexAddress(owner)) {
     return invalidTransaction("CreateSmartContract owner_address must be a 21-byte hex address");
   }
   const preimage = Uint8Array.from(
     (txId + owner.toLowerCase()).match(/../g)!.map((byte) => parseInt(byte, 16)),
   );
-  return `41${tronUtils.ethersUtils.keccak256(preimage).slice(2).slice(24)}`;
+  return tronHexFromHash20(tronUtils.ethersUtils.keccak256(preimage).slice(2).slice(24));
 }
 
 // Refresh unsigned identity fields and any supplied deployment address after raw_data changes.

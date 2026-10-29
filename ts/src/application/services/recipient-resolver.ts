@@ -1,6 +1,11 @@
 import type { ContactRepository } from "../ports/contact-repository.js";
 import type { ChainFamily, ResolvedRecipient } from "../../domain/types/index.js";
-import { addressCodec, familyOf } from "../../domain/family/index.js";
+import {
+  addressBodyLength,
+  addressCodec,
+  familyOf,
+  hasAddressPrefix,
+} from "../../domain/family/index.js";
 import { contactNameKey, resembledFamily } from "../../domain/contact/index.js";
 import { UsageError } from "../../domain/errors/index.js";
 
@@ -58,5 +63,5 @@ export class RecipientResolver {
 }
 
 function looksLikeAddressAttempt(value: string): boolean {
-  return /^0x/i.test(value) || /^T[1-9A-HJ-NP-Za-km-z]{10,}$/.test(value);
+  return hasAddressPrefix("evm", value) || (addressBodyLength("tron", value) ?? 0) >= 10;
 }

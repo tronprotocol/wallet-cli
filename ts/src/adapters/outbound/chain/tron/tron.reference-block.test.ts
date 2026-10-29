@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -31,11 +32,12 @@ function nodeAt(head: number) {
   return { client: new TronRpcClient("https://node.invalid", 1000), requested };
 }
 
-const transaction = (ref: { bytes: string; hash: string }, timestamp = HEAD_TIME - 60_000) => ({
-  txID: "ab",
-  raw_data: { ref_block_bytes: ref.bytes, ref_block_hash: ref.hash, timestamp },
-  raw_data_hex: "0a",
-});
+const transaction = (ref: { bytes: string; hash: string }, timestamp = HEAD_TIME - 60_000) =>
+  ({
+    txID: "ab",
+    raw_data: { ref_block_bytes: ref.bytes, ref_block_hash: ref.hash, timestamp },
+    raw_data_hex: "0a",
+  }) as unknown as TronTransactionArtifact;
 
 describe("TronRpcClient.referenceBlockStatus", () => {
   it("holds a reference block below the head", async () => {
