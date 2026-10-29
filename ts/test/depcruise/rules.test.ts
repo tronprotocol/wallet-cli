@@ -87,6 +87,29 @@ describe("dependency-cruiser layer and cycle rules", () => {
       },
     },
     {
+      rule: "application-imports-no-use-case",
+      importers: [
+        "src/application/use-cases/caller-service.ts",
+        "src/application/use-cases/helper.ts",
+        "src/application/use-cases/tron/caller-service.ts",
+        "src/application/services/leak.ts",
+        "src/application/ports/leak.ts",
+        "src/application/contracts/leak.ts",
+        "src/application/policy/leak.ts",
+      ],
+      files: {
+        "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
+        "src/application/use-cases/tron/nested-service.ts": `export type Nested = 1;\n`,
+        "src/application/use-cases/caller-service.ts": `import { marker } from "./example-service.js";\nexport const leak = marker;\n`,
+        "src/application/use-cases/helper.ts": `import { marker } from "./example-service.js";\nexport const leak = marker;\n`,
+        "src/application/use-cases/tron/caller-service.ts": `import type { Nested } from "./nested-service.js";\nexport type Leak = Nested;\n`,
+        "src/application/services/leak.ts": `import type { Nested } from "../use-cases/tron/nested-service.js";\nexport type Leak = Nested;\n`,
+        "src/application/ports/leak.ts": `import { marker } from "../use-cases/example-service.js";\nexport const leak = marker;\n`,
+        "src/application/contracts/leak.ts": `import { marker } from "../use-cases/example-service.js";\nexport const leak = marker;\n`,
+        "src/application/policy/leak.ts": `import { marker } from "../use-cases/example-service.js";\nexport const leak = marker;\n`,
+      },
+    },
+    {
       rule: "no-circular",
       importers: ["src/domain/first.ts"],
       files: {
@@ -172,6 +195,25 @@ describe("dependency-cruiser layer and cycle rules", () => {
       "src/application/use-cases/example-service.ts": `export const marker = 1;\n`,
       "src/application/ports/port.test.ts": `import { marker } from "../services/marker.js";\nimport { marker as useCase } from "../use-cases/example-service.js";\nexport const probe = marker + useCase;\n`,
       "src/application/contracts/contract.test.ts": `import { marker } from "../services/marker.js";\nimport { marker as useCase } from "../use-cases/example-service.js";\nexport const probe = marker + useCase;\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows use cases and services to import use-case helpers, and tests and inbound to import use cases", () => {
+    const dir = buildTree({
+      "src/application/services/signer-service.ts": `export const signer = 1;\n`,
+      "src/application/use-cases/helper.ts": `export const helper = 1;\n`,
+      "src/application/services/helper-reader.ts": `import { helper } from "../use-cases/helper.js";\nexport const reader = helper;\n`,
+      "src/application/use-cases/example-service.ts": `import { helper } from "./helper.js";\nimport { signer } from "../services/signer-service.js";\nexport const marker = helper + signer;\n`,
+      "src/application/use-cases/tron/helper.ts": `export const helper = 1;\n`,
+      "src/application/use-cases/tron/nested-service.ts": `import { helper } from "./helper.js";\nexport const nested = helper;\n`,
+      "src/application/use-cases/caller-service.test.ts": `import { marker } from "./example-service.js";\nexport const probe = marker;\n`,
+      "src/application/services/signer-service.test.ts": `import { nested } from "../use-cases/tron/nested-service.js";\nexport const probe = nested;\n`,
+      "src/adapters/inbound/command.ts": `import { marker } from "../../application/use-cases/example-service.js";\nexport const command = marker;\n`,
     });
     try {
       expect(cruise(dir)).toContain("no dependency violations found");

@@ -15,6 +15,14 @@ module.exports = {
       to: { path: "^src/application/", pathNot: "^src/application/(ports|contracts)/" },
     },
     {
+      name: "application-imports-no-use-case",
+      severity: "error",
+      comment:
+        "a use case is a *-service.ts module under application/use-cases; nothing in application imports one",
+      from: { path: "^src/application/", pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/application/use-cases/.*[^/]-service\\.ts$" },
+    },
+    {
       name: "no-circular",
       severity: "error",
       from: {},

@@ -1,6 +1,50 @@
 [
   {
     "type": "dependency",
+    "from": "src/application/use-cases/bai-wallet-binding.ts",
+    "to": "src/application/use-cases/message-service.ts",
+    "unresolvedTo": "./message-service.js",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "application-imports-no-use-case"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/application/use-cases/tron/multisig-collaboration-service.ts",
+    "to": "src/application/use-cases/tron/multisig-service.ts",
+    "unresolvedTo": "./multisig-service.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "application-imports-no-use-case"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/application/use-cases/tron/multisig-service.ts",
+    "to": "src/application/use-cases/tron/sig-service.ts",
+    "unresolvedTo": "./sig-service.js",
+    "dependencyTypes": ["local", "type-only", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "application-imports-no-use-case"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "src/application/use-cases/tron/vote-service.ts",
+    "to": "src/application/use-cases/tron/stake-service.ts",
+    "unresolvedTo": "./stake-service.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "application-imports-no-use-case"
+    }
+  },
+  {
+    "type": "dependency",
     "from": "src/adapters/outbound/chain/evm/evm.ts",
     "to": "src/application/services/broadcast-guard.ts",
     "unresolvedTo": "../../../../application/services/broadcast-guard.js",
