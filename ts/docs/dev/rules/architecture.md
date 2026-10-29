@@ -52,23 +52,19 @@ no SDK. `application` follows the same allowlist.
 Chain, device, and protocol SDKs (`tronweb`, `ethers`, `@sun-protocol/*`, `@bankofai/*`, `@ledgerhq/*`) and HTTP
 clients are used only in `adapters/outbound`. **depcruise**.
 
-1.6 Family code is code in a `tron/` or `evm/` directory. Code outside these directories does not import family
-code; the exceptions are `bootstrap`, the protocol modules listed in `ts/.dependency-cruiser.cjs`, and an inbound
-command's `import type` of the family use cases it binds. **depcruise**.
+1.6 No circular dependencies. **depcruise**.
 
-1.7 No circular dependencies. **depcruise**.
-
-1.8 Every depcruise rule has a firing test in `ts/test/depcruise/rules.test.ts` that builds a violating tree and
+1.7 Every depcruise rule has a firing test in `ts/test/depcruise/rules.test.ts` that builds a violating tree and
 asserts the rule reports it. **test**.
 
-1.9 An outbound integration is a directory under `adapters/outbound/`, such as `chain/tron`, `ledger`,
+1.8 An outbound integration is a directory under `adapters/outbound/`, such as `chain/tron`, `ledger`,
 `sunswap`, or `x402`. SDKs are imported only inside integrations, never in `bootstrap`. Integrations do not
 import each other: one that needs another's capability receives it through a port wired in `bootstrap`. Shared
 plumbing (`adapters/outbound/http/`, `adapters/outbound/persistence/`) may be imported by any integration and
 imports none. A chain node integration lives in `chain/<family>/`; a protocol or service integration has its
 own directory, whichever families it serves. **depcruise**.
 
-1.10 Everything outside the process is reached through an adapter:
+1.9 Everything outside the process is reached through an adapter:
 - What the app calls (chain nodes, Ledger, HTTP services, and the files the app owns: keystore, config, books,
   written artifacts) → `adapters/outbound`.
 - What drives the app (argv, stdin, TTY, stdout and stderr, input files the user names, servers that accept
@@ -165,10 +161,10 @@ decision. **test**.
 ## 5. Families and capabilities
 
 5.1 Chain facts are defined once in `domain`: address format, address encoding conversion, transaction hash
-format, units, and the zero address. Code outside family directories gets them through `domain/family`; family
-code and protocol modules may use their own family's codec (for example `domain/address`) directly. No module
-writes them by hand. Addresses are compared and stored in the canonical form `domain/family` defines. **lint** for
-case-folding comparisons and hand-written address or hash patterns outside `domain`, **review**.
+format, units, and the zero address. Other code gets them through `domain/family`; code in a `tron/` or `evm/`
+directory or in a protocol's directory may use its own family's codec (for example `domain/address`) directly. No
+module writes them by hand. Addresses are compared and stored in the canonical form `domain/family` defines.
+**lint** for case-folding comparisons and hand-written address or hash patterns outside `domain`, **review**.
 
 5.2 When a feature behaves differently per family (for example x402 schemes, or which use case a command runs),
 the feature module holds one table from family to behavior. It does not branch on the family in several places.
@@ -244,5 +240,5 @@ the registry against the contract.
 
 ## Review-only rules
 
-Check these in every review until they are automated: 2.1, 2.2, 3.4, 4.2, 5.2, and the review parts of 1.10,
+Check these in every review until they are automated: 2.1, 2.2, 3.4, 4.2, 5.2, and the review parts of 1.9,
 3.2, 3.6, 5.1, 6.3, 6.4, and 7.1.
