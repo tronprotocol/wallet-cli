@@ -163,17 +163,16 @@ decision. **test**.
 5.1 Chain facts are defined once in `domain`: address format, address encoding conversion, transaction hash
 format, units, and the zero address. Other code gets them through `domain/family`; code in a `tron/` or `evm/`
 directory or in a protocol's directory may use its own family's codec (for example `domain/address`) directly. No
-module writes them by hand. Addresses are compared and stored in the canonical form `domain/family` defines.
-**lint** for case-folding comparisons and hand-written address or hash patterns outside `domain`, **review**.
+module writes them by hand. Addresses are compared and stored in the canonical form `domain/family` defines. A
+`tron/` or `evm/` directory holds only that chain's own protocol. Code for a protocol built on a chain is not
+placed there. **lint** for case-folding comparisons and hand-written address or hash patterns outside `domain`,
+**review**.
 
 5.2 When a feature behaves differently per family (for example x402 schemes, or which use case a command runs),
 the feature module holds one table from family to behavior. It does not branch on the family in several places.
 **review**.
 
-5.3 Each layer keeps one family's chain operations in its `tron/` or `evm/` directory, and each protocol in its
-own directory. Commands are exempt: their `families` tag declares the family. **depcruise**.
-
-5.4 `application` owns one capability predicate per capability, over the network, the configuration, and the
+5.3 `application` owns one capability predicate per capability, over the network, the configuration, and the
 inputs the capability needs. Discovery (help, `--json-schema`) separates "supported on this network" from "needs
 these inputs here". A missing default asset is not evidence that the whole capability is unavailable. **test**:
 for each builtin network, the predicate and the execution gate agree on supported, unsupported, and
