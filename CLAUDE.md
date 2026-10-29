@@ -24,6 +24,7 @@ npm run dev -- <args>  # run from source via tsx (e.g. npm run dev -- create --l
 npm test               # vitest (tests are co-located as *.test.ts)
 npm run typecheck      # tsc --noEmit
 npm run depcruise      # dependency-cruiser — enforces the layer rules
+npm run lint           # ESLint, with known violations suppressed
 ```
 
 `npm run depcruise` uses `ts/.dependency-cruiser-known-violations.json` and fails on new violations or
@@ -32,6 +33,19 @@ run `npm run depcruise:baseline` from `ts/`, review the exact entries added or r
 `npm run depcruise`. Commit the baseline diff with the corresponding code or rule change. Regeneration records
 all current violations; fix unintended new violations before regenerating. To see unsuppressed diagnostics,
 run `npx --no-install depcruise src`.
+
+`npm run lint` uses `ts/eslint-suppressions.json`, ESLint's bulk suppressions file, which records a violation
+count per file and rule. It fails when a count rises, when it falls (the entry stays until regeneration), and
+on an entry for a file that is deleted, git-ignored, or ignored by ESLint (including `--ignore-pattern`).
+Keys must use ESLint's relative POSIX paths, such as `src/example.ts`; aliases such as `./src/example.ts` fail.
+Counts are compared, not locations, so fixing one violation and adding another of the same rule in the same
+file passes. After fixing a known
+violation or enabling a rule with existing violations, run `npm run lint:baseline` from `ts/`, review the exact
+entries added or removed, and rerun `npm run lint`; commit the diff as for depcruise. Pass the same
+`--ignore-pattern` options to both commands, for example for local git-ignored directories. To see the suppressed
+diagnostics, run `npx --no-install eslint . --format json` and read each file's `suppressedMessages`.
+Boolean ignore options use the last setting: `--ignore` or `--no-ignore`, optionally followed by `=true`
+or `=false`. The lint wrapper rejects other assignment values, including whitespace-padded booleans.
 
 ### Development rules
 
