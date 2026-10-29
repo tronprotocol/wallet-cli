@@ -10,6 +10,7 @@ import {
   copyFileSync,
   readFileSync,
   appendFileSync,
+  chmodSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -154,6 +155,68 @@ describe("dependency-cruiser layer and cycle rules", () => {
       },
     },
     {
+      rule: "integrations-do-not-import-each-other",
+      importers: [
+        "src/adapters/outbound/ledger/index.ts",
+        "src/adapters/outbound/chain/tron/family-leak.ts",
+        "src/adapters/outbound/chain/evm/nested/family-leak.ts",
+        "src/adapters/outbound/sunswap/nested/leak.ts",
+        "src/adapters/outbound/x402/loose-leak.ts",
+        "src/adapters/outbound/http/leak.ts",
+        "src/adapters/outbound/persistence/fs/leak.ts",
+        "src/adapters/outbound/foo.v2/leak.ts",
+      ],
+      files: {
+        "src/adapters/outbound/fooXv2/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/foo.v2/leak.ts": `import { marker } from "../fooXv2/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/chain/tron/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/chain/evm/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/x402/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/ledger/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/loose.ts": `export const loose = 1;\n`,
+        "src/adapters/outbound/chain/loose.ts": `export const loose = 1;\n`,
+        "src/adapters/outbound/ledger/index.ts": `import { marker } from "../chain/tron/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/chain/tron/family-leak.ts": `import { marker } from "../evm/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/chain/evm/nested/family-leak.ts": `import type { marker } from "../../tron/marker.js";\nexport type Leak = typeof marker;\n`,
+        "src/adapters/outbound/sunswap/nested/leak.ts": `import { marker } from "../../x402/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/x402/loose-leak.ts": `import { loose } from "../loose.js";\nimport { loose as chainLoose } from "../chain/loose.js";\nexport const leak = loose + chainLoose;\n`,
+        "src/adapters/outbound/http/leak.ts": `import { marker } from "../ledger/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/persistence/fs/leak.ts": `import { marker } from "../../chain/evm/marker.js";\nexport const leak = marker;\n`,
+      },
+    },
+    {
+      rule: "outbound-modules-outside-integrations-import-only-plumbing",
+      importers: [
+        "src/adapters/outbound/chain/shared.ts",
+        "src/adapters/outbound/shared.ts",
+        "src/adapters/outbound/chain/other.ts",
+      ],
+      files: {
+        "src/adapters/outbound/chain/tron/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/ledger/marker.ts": `export const marker = 1;\n`,
+        "src/adapters/outbound/chain/shared.ts": `import { marker } from "./tron/marker.js";\nexport const shared = marker;\n`,
+        "src/adapters/outbound/shared.ts": `import type { marker } from "./ledger/marker.js";\nexport type Shared = typeof marker;\n`,
+        "src/adapters/outbound/chain/other.ts": `import type { Shared } from "../shared.js";\nexport type Other = Shared;\n`,
+      },
+    },
+    {
+      rule: "sdks-only-inside-integrations",
+      importers: [
+        "src/adapters/outbound/shared.ts",
+        "src/adapters/outbound/chain/shared.ts",
+        "src/adapters/outbound/http/client.ts",
+        "src/adapters/outbound/persistence/fs/store.ts",
+        "src/adapters/outbound/persistence/sun.ts",
+      ],
+      files: {
+        "src/adapters/outbound/shared.ts": `import { Wallet } from "ethers";\nexport const shared = Wallet;\n`,
+        "src/adapters/outbound/chain/shared.ts": `import { TronWeb } from "tronweb";\nexport const shared = TronWeb;\n`,
+        "src/adapters/outbound/http/client.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const client = setLogger;\n`,
+        "src/adapters/outbound/persistence/fs/store.ts": `import type Trx from "@ledgerhq/hw-app-trx";\nexport type Store = Trx;\n`,
+        "src/adapters/outbound/persistence/sun.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Sun = SunApiClient;\n`,
+      },
+    },
+    {
       rule: "no-circular",
       importers: ["src/domain/first.ts"],
       files: {
@@ -284,8 +347,8 @@ describe("dependency-cruiser layer and cycle rules", () => {
 
   it("allows SDKs and HTTP clients in outbound and in tests, and names that only resemble them", () => {
     const dir = buildTree({
-      "src/adapters/outbound/chain.ts": `import { TronWeb } from "tronweb";\nimport { Wallet } from "ethers";\nimport axios from "axios";\nexport const chain = [TronWeb, Wallet, axios];\n`,
-      "src/adapters/outbound/x402.ts": `import { setLogger } from "@bankofai/x402-core";\nimport Trx from "@ledgerhq/hw-app-trx";\nexport const x402 = [setLogger, Trx];\n`,
+      "src/adapters/outbound/chain/tron/chain.ts": `import { TronWeb } from "tronweb";\nimport { Wallet } from "ethers";\nimport axios from "axios";\nexport const chain = [TronWeb, Wallet, axios];\n`,
+      "src/adapters/outbound/x402/x402.ts": `import { setLogger } from "@bankofai/x402-core";\nimport Trx from "@ledgerhq/hw-app-trx";\nexport const x402 = [setLogger, Trx];\n`,
       "src/adapters/inbound/command.test.ts": `import { Wallet } from "ethers";\nimport axios from "axios";\nexport const probe = [Wallet, axios];\n`,
       "src/bootstrap/composition.test.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const probe = setLogger;\n`,
       "src/adapters/inbound/look-alike.ts": `import { kyber } from "kyber-crypto";\nimport { gotcha } from "gotcha";\nimport { wallet } from "@acme/ethers";\nexport const lookAlike = [kyber, gotcha, wallet];\n`,
@@ -296,6 +359,107 @@ describe("dependency-cruiser layer and cycle rules", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("allows an integration its own modules, shared plumbing, and inner layers, and tests any integration", () => {
+    const dir = buildTree({
+      "src/domain/marker.ts": `export const marker = 1;\n`,
+      "src/application/ports/port.ts": `export type Port = 1;\n`,
+      "src/adapters/outbound/http/client.ts": `import { store } from "../persistence/store.js";\nexport const client = store;\n`,
+      "src/adapters/outbound/persistence/store.ts": `import { file } from "./fs/file.js";\nexport const store = file;\n`,
+      "src/adapters/outbound/persistence/fs/file.ts": `export const file = 1;\n`,
+      "src/adapters/outbound/ledger/hid.ts": `export const hid = 1;\n`,
+      "src/adapters/outbound/ledger/transport/node-hid.ts": `import { hid } from "../hid.js";\nexport const transport = hid;\n`,
+      "src/adapters/outbound/ledger/index.ts": `import { hid } from "./hid.js";\nimport { client } from "../http/client.js";\nimport { store } from "../persistence/store.js";\nimport { marker } from "../../../domain/marker.js";\nimport type { Port } from "../../../application/ports/port.js";\nexport const ledger: Port | number = hid + client + store + marker;\n`,
+      "src/adapters/outbound/chain/tron/codec.ts": `export const codec = 1;\n`,
+      "src/adapters/outbound/chain/tron/nested/reader.ts": `import { codec } from "../codec.js";\nimport { client } from "../../../http/client.js";\nexport const reader = codec + client;\n`,
+      "src/adapters/outbound/chain/tron/gateway.ts": `import { reader } from "./nested/reader.js";\nexport const gateway = reader;\n`,
+      "src/adapters/outbound/chain/shared.ts": `import { client } from "../http/client.js";\nimport { store } from "../persistence/store.js";\nexport const shared = client + store;\n`,
+      "src/adapters/outbound/x402/payment.test.ts": `import { gateway } from "../chain/tron/gateway.js";\nimport { ledger } from "../ledger/index.js";\nexport const probe = gateway + ledger;\n`,
+      "src/adapters/outbound/chain/coverage.test.ts": `import { gateway } from "./tron/gateway.js";\nexport const probe = gateway;\n`,
+      "src/adapters/outbound/http/wiring.test.ts": `import { gateway } from "../chain/tron/gateway.js";\nexport const probe = gateway;\n`,
+      "src/adapters/outbound/foo.v2/marker.ts": `export const marker = 1;\n`,
+      "src/adapters/outbound/foo.v2/nested/reader.ts": `import { marker } from "../marker.js";\nexport const reader = marker;\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows SDKs inside integrations and in tests, and HTTP clients in shared plumbing", () => {
+    const dir = buildTree({
+      "src/adapters/outbound/chain/tron/gateway.ts": `import { TronWeb } from "tronweb";\nexport const gateway = TronWeb;\n`,
+      "src/adapters/outbound/ledger/index.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const ledger = Trx;\n`,
+      "src/adapters/outbound/x402/client.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const client = setLogger;\n`,
+      "src/adapters/outbound/http/client.ts": `import axios from "axios";\nimport { request } from "undici";\nexport const client = [axios, request];\n`,
+      "src/adapters/outbound/http/client.test.ts": `import { Wallet } from "ethers";\nexport const probe = Wallet;\n`,
+      "src/adapters/outbound/persistence/store.test.ts": `import { TronWeb } from "tronweb";\nexport const probe = TronWeb;\n`,
+      "src/adapters/outbound/chain/coverage.test.ts": `import { Wallet } from "ethers";\nexport const probe = Wallet;\n`,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("dependency-cruiser integration discovery", () => {
+  function cruiseResult(cwd: string) {
+    return spawnSync(depcruiseBin, ["--config", configPath, "src"], { cwd, encoding: "utf8" });
+  }
+
+  it("treats a missing outbound or chain directory as having no integrations", () => {
+    const noOutbound = buildTree({ "src/domain/marker.ts": `export const marker = 1;\n` });
+    const noChain = buildTree({
+      "src/adapters/outbound/x402/marker.ts": `export const marker = 1;\n`,
+      "src/adapters/outbound/ledger/leak.ts": `import { marker } from "../x402/marker.js";\nexport const leak = marker;\n`,
+    });
+    try {
+      expect(cruiseResult(noOutbound).stdout).toContain("no dependency violations found");
+      expect(cruiseResult(noChain).stdout).toContain(
+        "integrations-do-not-import-each-other: src/adapters/outbound/ledger/leak.ts →",
+      );
+    } finally {
+      rmSync(noOutbound, { recursive: true, force: true });
+      rmSync(noChain, { recursive: true, force: true });
+    }
+  });
+
+  it("fails instead of generating no rules when chain is not a directory", () => {
+    const dir = buildTree({
+      "src/adapters/outbound/chain": `not a directory\n`,
+      "src/adapters/outbound/ledger/index.ts": `export const ledger = 1;\n`,
+    });
+    try {
+      const result = cruiseResult(dir);
+      expect(result.status).not.toBe(0);
+      expect(result.stdout + result.stderr).toContain("ENOTDIR");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Root ignores directory permissions, so the denied read cannot be reproduced there.
+  it.skipIf(process.getuid?.() === 0)(
+    "fails instead of generating no rules when outbound cannot be read",
+    () => {
+      const dir = buildTree({
+        "src/adapters/outbound/ledger/index.ts": `export const ledger = 1;\n`,
+      });
+      const outbound = join(dir, "src/adapters/outbound");
+      chmodSync(outbound, 0o000);
+      try {
+        const result = cruiseResult(dir);
+        expect(result.status).not.toBe(0);
+        expect(result.stdout + result.stderr).toContain("EACCES");
+      } finally {
+        chmodSync(outbound, 0o755);
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("dependency-cruiser SunSwap boundary rules", () => {

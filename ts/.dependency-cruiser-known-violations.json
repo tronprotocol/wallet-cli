@@ -89,6 +89,17 @@
   },
   {
     "type": "dependency",
+    "from": "src/adapters/outbound/ledger/index.ts",
+    "to": "src/adapters/outbound/chain/tron/tx-integrity.ts",
+    "unresolvedTo": "../chain/tron/tx-integrity.js",
+    "dependencyTypes": ["local", "import"],
+    "rule": {
+      "severity": "error",
+      "name": "integrations-do-not-import-each-other"
+    }
+  },
+  {
+    "type": "dependency",
     "from": "src/adapters/outbound/chain/evm/evm.ts",
     "to": "src/application/services/broadcast-guard.ts",
     "unresolvedTo": "../../../../application/services/broadcast-guard.js",

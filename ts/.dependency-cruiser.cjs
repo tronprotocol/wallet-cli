@@ -6,6 +6,33 @@
  *
  * Inbound and outbound adapters are peers. They may meet only in bootstrap/composition.
  */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { readdirSync } = require("node:fs");
+
+const SDK_PACKAGES = "(tronweb|ethers)(/|$)|@(sun-protocol|bankofai|ledgerhq)/";
+const HTTP_CLIENT_PACKAGES = "(axios|undici|node-fetch|got|ky)(/|$)";
+
+// Only a missing directory means "no integrations"; any other error would silently drop rules.
+const directories = (path) => {
+  try {
+    return readdirSync(path, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+};
+
+// Listed from the cruised tree so each name is regex-escaped; a `$1` capture would be inserted unescaped.
+const OUTBOUND_INTEGRATIONS = [
+  ...directories("src/adapters/outbound/chain").map((family) => `chain/${family}`),
+  ...directories("src/adapters/outbound").filter((name) => name !== "chain"),
+];
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 module.exports = {
   forbidden: [
     {
@@ -78,8 +105,42 @@ module.exports = {
       comment:
         "chain, device, and protocol SDKs and HTTP clients are imported only in adapters/outbound",
       from: { path: "^src/", pathNot: "^src/adapters/outbound/|\\.test\\.ts$" },
+      to: { path: `(^|node_modules/)(${SDK_PACKAGES}|${HTTP_CLIENT_PACKAGES})` },
+    },
+    ...OUTBOUND_INTEGRATIONS.map((integration) => ({
+      name: "integrations-do-not-import-each-other",
+      severity: "error",
+      comment:
+        "within outbound, an integration imports only itself and the shared http/ and persistence/ plumbing",
+      from: {
+        path: `^src/adapters/outbound/${escapeRegExp(integration)}/`,
+        pathNot: "\\.test\\.ts$",
+      },
       to: {
-        path: "(^|node_modules/)((tronweb|ethers|axios|undici|node-fetch|got|ky)(/|$)|@(sun-protocol|bankofai|ledgerhq)/)",
+        path: "^src/adapters/outbound/",
+        pathNot: `^src/adapters/outbound/(${escapeRegExp(integration)}|http|persistence)/`,
+      },
+    })),
+    {
+      name: "sdks-only-inside-integrations",
+      severity: "error",
+      comment:
+        "outbound modules outside an integration, and the shared http/ and persistence/ plumbing, import no SDK",
+      from: {
+        path: "^src/adapters/outbound/((chain/)?[^/]+$|(http|persistence)/)",
+        pathNot: "\\.test\\.ts$",
+      },
+      to: { path: `(^|node_modules/)(${SDK_PACKAGES})` },
+    },
+    {
+      name: "outbound-modules-outside-integrations-import-only-plumbing",
+      severity: "error",
+      comment:
+        "a module directly in adapters/outbound/ or chain/ belongs to no integration; within outbound it imports only http/ and persistence/",
+      from: { path: "^src/adapters/outbound/(chain/)?[^/]+$", pathNot: "\\.test\\.ts$" },
+      to: {
+        path: "^src/adapters/outbound/",
+        pathNot: "^src/adapters/outbound/(http|persistence)/",
       },
     },
     {
