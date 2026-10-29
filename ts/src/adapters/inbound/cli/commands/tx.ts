@@ -377,7 +377,7 @@ export const txSignTronBinding = (
     if (!input.transaction) {
       const hex = hexInput(input);
       const result = input.offline
-        ? await signingService.sign(ctx, net, hex)
+        ? await signingService.sign(ctx, net, hex, { origin: "offline" })
         : await multisigService.signChecked(ctx, net, hex);
       if (!input.out) return result;
       writer.write(input.out, result.hex);

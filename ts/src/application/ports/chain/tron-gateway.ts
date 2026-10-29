@@ -250,6 +250,10 @@ export interface TronSignWeight {
   message?: string;
 }
 
+// "different": the node's block at that height is another block. "not-reached": the node holds no
+// such block and its head block is older than the transaction.
+export type TronReferenceBlockStatus = "held" | "different" | "not-reached";
+
 export interface TronGateway extends Broadcaster {
   prepareTransaction(
     transaction: UnsignedTx,
@@ -272,6 +276,8 @@ export interface TronGateway extends Broadcaster {
   getAccountById(accountId: string): Promise<TronAccount>;
   getAccountResources(address: string): Promise<TronAccountResources>;
   getBlock(number?: string): Promise<unknown>;
+  // TAPOS: whether this node holds the block the transaction references; reads the head block.
+  referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus>;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
   // Net base units received, verified from transaction logs or internal native transfers.

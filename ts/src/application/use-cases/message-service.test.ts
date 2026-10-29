@@ -3,6 +3,11 @@ import { MessageService } from "./message-service.js";
 import { WalletError } from "../../domain/errors/index.js";
 import type { SignerResolver } from "../services/signer/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
+import { SigningService } from "../services/signing/signing-service.js";
+
+const TRON = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
+const EVM = { id: "eip155:1", family: "evm", chainId: "1" } as never;
+const signing = new SigningService({} as never);
 
 const scope = { timeoutMs: 1000, emit: () => {} } as unknown as TransactionScope;
 
@@ -20,14 +25,14 @@ function resolverStub(overrides: Partial<Record<"assertCanSign" | "resolve", unk
 
 describe("MessageService.sign", () => {
   it("returns address, message and signature", async () => {
-    const out = await new MessageService(resolverStub()).sign(scope, "evm", "acct", "hello");
+    const out = await new MessageService(resolverStub(), signing).sign(scope, EVM, "acct", "hello");
     expect(out).toEqual({ address: "0xabc", message: "hello", signature: "0xsig" });
   });
 
   it("returns the same field set for either family", async () => {
-    const service = new MessageService(resolverStub());
-    const tron = await service.sign(scope, "tron", "acct", "hello");
-    const evm = await service.sign(scope, "evm", "acct", "hello");
+    const service = new MessageService(resolverStub(), signing);
+    const tron = await service.sign(scope, TRON, "acct", "hello");
+    const evm = await service.sign(scope, EVM, "acct", "hello");
     expect(Object.keys(evm)).toEqual(Object.keys(tron));
   });
 
@@ -38,7 +43,7 @@ describe("MessageService.sign", () => {
       }),
     });
     await expect(
-      new MessageService(signers).sign(scope, "evm", "acct", "hi"),
+      new MessageService(signers, signing).sign(scope, EVM, "acct", "hi"),
     ).rejects.toMatchObject({ code: "watch_only_no_signer" });
     expect(signers.resolve).not.toHaveBeenCalled();
   });

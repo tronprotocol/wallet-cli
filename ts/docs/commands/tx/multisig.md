@@ -26,7 +26,7 @@ Where the on-chain path passes a hex from person to person, the service path has
 
 There is no empty collection. The service derives the starting weight from the signature the transaction arrives with, so `--create` signs before it submits and the collection opens at `1 / N` — the originator does **not** sign again afterwards, and attempting it returns `already_signed`.
 
-`--create` refuses a transaction that already carries a signature (`invalid_value`), one that has expired (`tx_expired`), and one whose permission group does not include the selected account (`not_authorized`).
+`--create` refuses a transaction that already carries a signature (`invalid_value`), one that has expired (`tx_expired`), one built for another chain — its reference block is not on the selected network (`chain_id_mismatch`) — and one whose permission group does not include the selected account (`not_authorized`). `--create` and `--sign` check the reference block before reading the permission or signing; when it is newer than the node's head, they fail with `rpc_error` and can be retried once the node has caught up. In the list, a record for another chain is shown with `verified: false`.
 
 ### Reaching the threshold
 
@@ -184,7 +184,7 @@ A record the client cannot reconcile with the chain stays visible and is labelle
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — txId not on the service, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error or rate limit; TronLink reports **every** non-404 status this way, 429 included) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
+`0` success · `1` execution failure (`not_found` — txId not on the service, `chain_id_mismatch` — the transaction was built for another chain, `rpc_error`, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error or rate limit; TronLink reports **every** non-404 status this way, 429 included) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
 
 ## See also
 

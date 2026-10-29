@@ -14,12 +14,14 @@ import type { TokenRepository } from "../../application/ports/token-repository.j
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
+import type { SigningService } from "../../application/services/signing/signing-service.js";
 
 function registry(): CommandRegistry {
   const reg = new CommandRegistry();
   registerEvmChainCommands(reg, {
     agents: {} as AgentService,
     signers: {} as SignerResolver,
+    signing: {} as SigningService,
     gateways: {} as ChainGatewayProvider,
     balances: {} as AccountBalanceService,
     tokens: {} as TokenRepository,

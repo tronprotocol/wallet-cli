@@ -3,7 +3,6 @@ import { MessageService } from "../application/use-cases/message-service.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
-import { setLogger, noopLogger } from "@bankofai/x402-core";
 import { BaiWalletBinding, baiChain } from "../application/use-cases/bai-wallet-binding.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
@@ -33,6 +32,7 @@ import { CapabilityRegistry } from "../application/services/capability/index.js"
 import { SignerResolver } from "../application/services/signer/index.js";
 import { TargetResolver } from "../application/services/target/index.js";
 import { TxPipeline } from "../application/services/pipeline/index.js";
+import { SigningService } from "../application/services/signing/signing-service.js";
 import { X402Permit2Approvals } from "../application/use-cases/x402-permit2-approval.js";
 import { ConfigService, configuredCredentials } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
@@ -81,8 +81,6 @@ export interface BootstrapOptions {
 }
 
 export function composeCliRuntime(options: BootstrapOptions) {
-  // Suppress SDK logs to protect the result envelope and request URLs.
-  setLogger(noopLogger);
   const config = ConfigLoader.load();
   const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
@@ -128,7 +126,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
     ledger,
     familyMap((definition) => definition.signStrategy),
   );
-  const txPipeline = new TxPipeline(signerResolver);
+  const signing = new SigningService(gatewayProvider);
+  const txPipeline = new TxPipeline(signerResolver, signing);
 
   const registry = new CommandRegistry();
   registerWalletCommands(registry, {
@@ -153,6 +152,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       ),
     ),
     new X402Permit2Approvals(gatewayProvider, txPipeline),
+    signing,
   );
   registerBaiCommands(
     registry,
@@ -160,7 +160,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       new BaiClient(config, timeoutMs),
       () => new Date(),
       x402Service,
-      new BaiWalletBinding(new MessageService(signerResolver)),
+      new BaiWalletBinding(new MessageService(signerResolver, signing)),
       new BaiRechargeClient(config, timeoutMs),
       { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
       { initialDelayMs: baiReportDelayMs(), wait: delay },
@@ -186,6 +186,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     tokens: tokenBook,
     prices: priceProvider,
     signers: signerResolver,
+    signing,
     transactions: txPipeline,
     accounts: keystore,
     timeoutMs,
@@ -208,6 +209,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerEvmChainCommands(registry, {
     agents,
     signers: signerResolver,
+    signing,
     gateways: gatewayProvider,
     balances: accountBalances,
     tokens: tokenBook,

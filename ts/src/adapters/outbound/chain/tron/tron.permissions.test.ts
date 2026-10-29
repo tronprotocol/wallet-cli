@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 import { decodeTransactionHex, encodeTransactionHex } from "./transaction-codec.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -100,8 +101,8 @@ describe("TronRpcClient account permission boundary", () => {
   });
 
   it("materializes the omitted protobuf current_weight default as zero", async () => {
-    const client = new TronRpcClient("https://node.invalid", 100);
-    vi.spyOn(client.tronweb.trx, "getSignWeight").mockResolvedValue({
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid", 100));
+    vi.spyOn(tronweb.trx, "getSignWeight").mockResolvedValue({
       result: { code: "NOT_ENOUGH_PERMISSION" },
       permission: {
         permission_name: "owner",

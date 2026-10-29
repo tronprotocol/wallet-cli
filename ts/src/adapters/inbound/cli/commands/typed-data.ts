@@ -45,6 +45,6 @@ export const typedDataSignBinding = (service: TypedDataService): FamilyBinding =
       throw new UsageError("invalid_value", "typed data must be JSON");
     }
     const payload = normalizeTypedData(raw);
-    return service.sign(ctx, net.family, ctx.activeAccount, payload);
+    return service.sign(ctx, net, ctx.activeAccount, payload);
   },
 });

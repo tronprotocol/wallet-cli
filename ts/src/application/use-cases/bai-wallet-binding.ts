@@ -44,7 +44,7 @@ export class BaiWalletBinding {
       type: "activity",
       message: "Wallet is not bound; signing the B.AI binding message…",
     });
-    const signed = await this.messages.sign(scope, network.family, scope.activeAccount, message);
+    const signed = await this.messages.sign(scope, network, scope.activeAccount, message, "built");
     scope.emit({ type: "activity", message: "Binding the selected wallet to B.AI…" });
     await api.bind({ chain, address, message, signature: signed.signature, version: 2 });
   }

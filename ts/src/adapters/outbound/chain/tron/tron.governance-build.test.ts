@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const OWNER = "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB";
 const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 
 function client() {
-  const c = new TronRpcClient("https://node.invalid", 1000);
-  c.tronweb.trx.getCurrentRefBlockParams = vi.fn(async () => ({
+  const { client: c, tronweb: cTronweb } = withTronWeb(
+    () => new TronRpcClient("https://node.invalid", 1000),
+  );
+  cTronweb.trx.getCurrentRefBlockParams = vi.fn(async () => ({
     ref_block_bytes: "4b6b",
     ref_block_hash: "4ad4875499feb0de",
     expiration: 1786000000000,

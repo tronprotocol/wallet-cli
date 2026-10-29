@@ -12,7 +12,7 @@ wallet-cli tx sign (--hex <hex> | --file <path> | --transaction <json>) [--offli
 
 Signs a transaction that was built somewhere else — on TRON, adding the active account's signature to an unsigned or partially signed hex and reporting how far the accumulated signing weight is from the permission group's threshold; on EVM, producing the single signature the transaction needs.
 
-Two input modes: with `--hex` / `--file` it signs the transaction hex (protobuf on TRON, RLP `0x02…` on EVM); with `--transaction` it takes unsigned TRON transaction JSON, preserving the direct single-signature flow. `--transaction` is a TRON compatibility path and never contacts a node.
+Two input modes: with `--hex` / `--file` it signs the transaction hex (protobuf on TRON, RLP `0x02…` on EVM); with `--transaction` it takes unsigned TRON transaction JSON, preserving the direct single-signature flow. `--transaction` is a TRON compatibility path and never contacts a node, so it cannot verify the network either (see `--offline` below).
 
 **On EVM there is no co-signing.** An EVM transaction carries exactly one signature, so a hex that already has one is refused with `invalid_transaction`, and there is no threshold, weight or permission group to report. The chain id inside the transaction is checked against `--network` and a mismatch is `chain_id_mismatch`.
 
@@ -22,9 +22,9 @@ Signing endorses the transaction with your key: software accounts read the maste
 
 ### What is verified before signing
 
-**TRON.** With `--hex` / `--file` the command contacts the node and refuses to sign unless this account is a key in the transaction's permission group (`not_authorized`) and has not already approved it (`already_signed`). Both are checked *before* a key is decrypted, so a mistaken signer never produces a signature at all.
+**TRON.** With `--hex` / `--file` the command contacts the node and refuses to sign unless the transaction was built for the selected network, this account is a key in the transaction's permission group (`not_authorized`), and it has not already approved it (`already_signed`). A TRON signature carries no chain id, so the network is checked through the transaction's reference block: a reference block the node does not hold is `chain_id_mismatch`, and one newer than the node's head is `rpc_error` — retry once the node has caught up, or use a node that is in sync. All three are checked *before* a key is decrypted, so a mistaken signer never produces a signature at all.
 
-`--offline` skips those two checks and never contacts a node — for signing machines with no network. Signature-eligibility errors then surface only when the transaction is broadcast, so confirm the signing account is in the group beforehand.
+`--offline` skips those checks and never contacts a node — for signing machines with no network. The result then carries the warning `network_not_verified`, and network and signature-eligibility errors surface only when the transaction is broadcast, so confirm the network and that the signing account is in the group beforehand.
 
 **EVM.** The transaction's chain id must match the selected network (`chain_id_mismatch`), and it must not already carry a signature (`invalid_transaction`). Both are local checks; no node is contacted to sign, so `--offline` changes nothing there.
 
@@ -148,7 +148,7 @@ No `fee` is reported for `--transaction`: nothing was estimated, because the tra
 
 ## Exit status
 
-`0` success · `1` execution failure (`tx_integrity` — the three TRON payload representations disagree; `invalid_transaction` — an unusable payload, or on EVM one that is already signed; `chain_id_mismatch` — the EVM transaction was built for another chain; `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value`, `missing_option`; `invalid_option` — `--transaction` on an EVM network).
+`0` success · `1` execution failure (`tx_integrity` — the three TRON payload representations disagree; `invalid_transaction` — an unusable payload, or on EVM one that is already signed; `chain_id_mismatch` — the transaction was built for another chain (on TRON, its reference block is not on the selected network); `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value`, `missing_option`; `invalid_option` — `--transaction` on an EVM network).
 
 ## See also
 

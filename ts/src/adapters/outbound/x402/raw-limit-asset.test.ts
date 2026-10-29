@@ -9,6 +9,16 @@ import type { X402PayInput } from "../../../application/ports/x402-payment.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -104,6 +114,9 @@ async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outc
       signers,
       {} as never,
       {} as never,
+      undefined,
+      undefined,
+      signing,
     ).pay(
       scope,
       {
@@ -163,6 +176,9 @@ async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Ou
       signers,
       {} as never,
       {} as never,
+      undefined,
+      undefined,
+      signing,
     ).pay(
       scope,
       {

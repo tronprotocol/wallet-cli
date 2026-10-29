@@ -1,4 +1,3 @@
-import { agentWriteError } from "../../domain/erc8004/revert.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
@@ -225,7 +224,7 @@ export class AgentService {
     try {
       return await this.send(scope, network, input, method, params);
     } catch (error) {
-      throw agentWriteError(error);
+      throw this.registry.writeError(error) ?? error;
     }
   }
 

@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { TronWeb } from "tronweb";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const TARGET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
 function client(): TronRpcClient {
-  const client = new TronRpcClient("https://node.invalid", 100);
-  client.tronweb.trx.getCurrentRefBlockParams = (async () => ({
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid", 100));
+  tronweb.trx.getCurrentRefBlockParams = (async () => ({
     ref_block_bytes: "1234",
     ref_block_hash: "0011223344556677",
     expiration: 1_900_000_060_000,
@@ -33,8 +35,8 @@ describe("TRON local account transaction builders", () => {
 
     expect(decoded.raw_data.contract[0]?.type).toBe("AccountCreateContract");
     expect(valueOf(decoded)).toMatchObject({
-      owner_address: gateway.tronweb.address.toHex(OWNER).toUpperCase(),
-      account_address: gateway.tronweb.address.toHex(TARGET).toUpperCase(),
+      owner_address: TronWeb.address.toHex(OWNER).toUpperCase(),
+      account_address: TronWeb.address.toHex(TARGET).toUpperCase(),
     });
   });
 

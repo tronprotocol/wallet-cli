@@ -23,7 +23,7 @@ import {
   recoverGasFreeSigner,
 } from "../../../domain/gasfree/index.js";
 import { assertPositiveAmount, toBaseUnits } from "../../../domain/amounts/index.js";
-import { obtainSignature } from "../../services/signing/obtain-signature.js";
+import type { SigningService } from "../../services/signing/signing-service.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
 const MAX_DEADLINE_SECONDS = 86_400n;
@@ -46,6 +46,7 @@ export class GasFreeService {
     private readonly provider: GasFreeProvider,
     private readonly gateways: ChainGatewayProvider,
     private readonly signers: SignerResolver,
+    private readonly signing: SigningService,
     private readonly recipients: RecipientResolver,
     private readonly clock: () => number = () => Date.now(),
     private readonly sleep: (milliseconds: number) => Promise<void> = (milliseconds) =>
@@ -186,9 +187,12 @@ export class GasFreeService {
       verifyingContract: metadata.verifyingContract,
     };
     const expectedDigest = gasFreeDigest(domain, authorization);
-    const signed = await obtainSignature(signer, scope, (options) =>
-      signer.signTypedData(gasFreeTypedData(domain, authorization), options),
-    );
+    const signed = await this.signing.sign(scope, {
+      network,
+      origin: "built",
+      signer,
+      payload: { kind: "typed-data", typedData: gasFreeTypedData(domain, authorization) },
+    });
     const reportedDigest = signed.digest.replace(/^0x/i, "").toLowerCase();
     if (
       !/^[0-9a-f]{64}$/.test(reportedDigest) ||

@@ -114,6 +114,8 @@ export class TronTransactionService {
       net: network,
       account: scope.activeAccount,
       tx,
+      // The JSON form is signed without contacting a node.
+      origin: "offline",
     });
     return { kind: "sign" as const, ...outcomeData(outcome) };
   }

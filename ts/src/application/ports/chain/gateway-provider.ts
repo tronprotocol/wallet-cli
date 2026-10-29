@@ -1,5 +1,5 @@
 import type { ChainFamily } from "../../../domain/family/index.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import type { Broadcaster } from "./broadcaster.js";
 import type { TronGateway } from "./tron-gateway.js";
 
@@ -37,6 +37,10 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   encodeErc20Transfer(to: string, rawAmount: string): string;
   // Transaction hex for tx sign / tx broadcast.
   encodeTransactionHex(tx: unknown): string;
+  // Decodes a serialized transaction without contacting the node.
+  decodeRawTransaction(hex: string): EvmRawTransaction;
+  // Decimal chain id an unsigned transaction names; undefined when it names none.
+  transactionChainId(tx: UnsignedTx): string | undefined;
   // alreadyKnown means the signed transaction is already in the mempool.
   sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }>;
   // Raw node transaction, or null when unknown.
@@ -57,6 +61,29 @@ export interface EvmGateway extends NativeBalanceReader, Broadcaster {
   getErc20Metadata(
     contract: string,
   ): Promise<{ symbol?: string; decimals?: number; name?: string }>;
+}
+
+// Quantities are decimal strings.
+export interface EvmRawTransaction {
+  // "0" when the transaction names no chain.
+  readonly chainId: string;
+  readonly signed: boolean;
+  // Checksummed signer; present only when signed.
+  readonly from?: string;
+  // Absent for a contract creation.
+  readonly to?: string;
+  readonly nonce: number;
+  readonly gasLimit: string;
+  // EIP-1559 transactions only.
+  readonly maxFeePerGasWei?: string;
+  // Legacy and EIP-2930 transactions only.
+  readonly gasPriceWei?: string;
+  readonly valueWei: string;
+  // Hash and 0x hex of the signed serialization; present only when signed.
+  readonly hash?: string;
+  readonly serialized?: string;
+  // JSON form, as signers and command output take it.
+  readonly transaction: UnsignedTx;
 }
 
 // Types come from the ABI or explicit signature, never inferred from values.

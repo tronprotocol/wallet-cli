@@ -8,6 +8,16 @@ import type { PaymentPayload, PaymentRequirements } from "@bankofai/x402-core/ty
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 beforeEach(() => {
   vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
@@ -148,6 +158,9 @@ it.each([true, false])(
       signers as never,
       {} as never,
       {} as never,
+      undefined,
+      undefined,
+      signing,
     );
     const payment = client.pay(
       { activeAccount: "payer", timeoutMs: 1000, emit: vi.fn() } as never,

@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { assertTronTxIntegrity } from "./tx-integrity.js";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
 describe("TronRpcClient governance builders", () => {
   it("locally builds and integrity-binds a 50M origin energy limit", async () => {
-    const client = new TronRpcClient("http://127.0.0.1:1");
-    vi.spyOn(client.tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+    vi.spyOn(tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       expiration: 2_000_000,
@@ -27,8 +28,8 @@ describe("TronRpcClient governance builders", () => {
   });
 
   it("refuses an origin energy limit no json number can hold exactly", async () => {
-    const client = new TronRpcClient("http://127.0.0.1:1");
-    vi.spyOn(client.tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+    vi.spyOn(tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       expiration: 2_000_000,
@@ -40,8 +41,8 @@ describe("TronRpcClient governance builders", () => {
   });
 
   it("builds and integrity-checks a proposal value above Number.MAX_SAFE_INTEGER", async () => {
-    const client = new TronRpcClient("http://127.0.0.1:1");
-    vi.spyOn(client.tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+    vi.spyOn(tronweb.trx, "getCurrentRefBlockParams").mockResolvedValue({
       ref_block_bytes: "1234",
       ref_block_hash: "0011223344556677",
       expiration: 2_000_000,

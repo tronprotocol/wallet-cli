@@ -6,6 +6,16 @@ import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import { X402PaymentClient } from "./payment-client.js";
 import { X402HttpServer } from "./server.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -76,6 +86,8 @@ it.each(
       {} as never,
       {} as never,
       new X402HttpServer(facilitator, 2000, () => {}),
+      undefined,
+      signing,
     );
     const pending = service.roundtrip(
       { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn(), warn: vi.fn() } as never,

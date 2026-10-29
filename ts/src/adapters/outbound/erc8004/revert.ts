@@ -1,5 +1,5 @@
 import { Interface } from "ethers";
-import { ExecutionError } from "../errors/index.js";
+import { ExecutionError } from "../../../domain/errors/index.js";
 const errors = new Interface([
   "error Error(string)",
   "error ERC721NonexistentToken(uint256 tokenId)",
@@ -7,11 +7,11 @@ const errors = new Interface([
   "error ERC721InvalidApprover(address approver)",
 ]);
 
-// Classifies decoded contract reverts; preserves other errors.
-export function agentWriteError(error: unknown): unknown {
+// Classifies decoded registry reverts; undefined for any other error.
+export function agentWriteError(error: unknown): ExecutionError | undefined {
   const value = error as { details?: { revertData?: unknown }; data?: unknown } | null;
   const data = value?.details?.revertData ?? value?.data;
-  if (typeof data !== "string") return error;
+  if (typeof data !== "string") return undefined;
   try {
     const decoded = errors.parseError(data.startsWith("0x") ? data : `0x${data}`);
     if (decoded?.name === "ERC721NonexistentToken")
@@ -25,7 +25,7 @@ export function agentWriteError(error: unknown): unknown {
         "the selected account is not authorized for this Agent operation",
       );
   } catch {
-    // Preserve undecodable errors.
+    // Undecodable revert data is not a registry revert.
   }
-  return error;
+  return undefined;
 }

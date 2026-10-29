@@ -10,12 +10,13 @@ it.each([
   const sign = vi.fn(async () => ({ address: "payer", message, signature: "signed" }));
   const bind = vi.fn(async () => ({ userId: "user", address: "payer", chain }));
   const scope = { activeAccount: "selected", emit: vi.fn() } as never;
+  const network = { family, chainId } as NetworkDescriptor;
   await new BaiWalletBinding(
     { sign },
     () => Date.parse("2026-09-17T10:00:00Z"),
     () => "nonce",
-  ).bind(scope, { family, chainId } as NetworkDescriptor, "payer", { bind });
-  expect(sign).toHaveBeenCalledWith(scope, family, "selected", message);
+  ).bind(scope, network, "payer", { bind });
+  expect(sign).toHaveBeenCalledWith(scope, network, "selected", message, "built");
   expect(bind).toHaveBeenCalledWith({
     chain,
     address: "payer",

@@ -4,6 +4,16 @@ import { Interface, Transaction, Wallet } from "ethers";
 import { X402PaymentClient } from "./payment-client.js";
 import { evmSignStrategy } from "../chain/evm/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -76,6 +86,9 @@ it.each(["56", "8453"])(
       } as never,
       {} as never,
       {} as never,
+      undefined,
+      undefined,
+      signing,
     );
     await expect(
       client.pay(

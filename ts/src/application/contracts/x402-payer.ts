@@ -6,8 +6,8 @@ export interface PayerSigner {
   readonly address: string;
   // Refuses a payload for another payer, over the fee ceiling, or past its deadline.
   signTypedData(payload: TypedDataPayload): Promise<TypedDataSignature>;
-  // EVM transactions only; a TRON transaction must go through signPermit2Approval.
-  signTransaction(tx: unknown): Promise<unknown>;
+  // EVM only: signs `tx` only when `decoded` is the Permit2 approve the payment policy allows.
+  signTransaction(tx: unknown, decoded: DecodedEvmApprove): Promise<unknown>;
   // Signs `tx` only when `decoded` is the Permit2 approve the payment policy allows.
   signPermit2Approval(tx: unknown, decoded: DecodedTronApprove): Promise<SignedPermit2Approval>;
 }
@@ -27,6 +27,16 @@ export interface DecodedTronApprove {
   readonly feeLimitSun?: number;
 }
 
+// The adapter's reading of an EVM transaction the SDK asks to sign; absent fields were missing or malformed.
+export interface DecodedEvmApprove {
+  // Checksummed contract the transaction calls; absent for a contract creation.
+  readonly token?: string;
+  // Wei; "0" when the transaction sets none.
+  readonly valueWei: string;
+  // Checksummed; present only when the calldata is approve(address,uint256) with a MaxUint256 amount.
+  readonly unlimitedApproveSpender?: string;
+}
+
 export interface SignedPermit2Approval {
   readonly signed: unknown;
   readonly approval: Omit<SignedApproval, "txId">;
@@ -36,9 +46,9 @@ export interface SignedPermit2Approval {
 export interface X402PaymentFacts {
   // Absent when the network has no Permit2 deployment.
   readonly permit2?: {
-    // Base58 Permit2 contract.
+    // Permit2 contract: base58 on TRON, checksummed on EVM.
     readonly spender: string;
-    // Base58 token contracts the payment flow may approve.
+    // Token contracts the payment flow may approve, in the same form.
     readonly tokens: readonly string[];
   };
   // Decimals by family-native token address; undefined when unknown.

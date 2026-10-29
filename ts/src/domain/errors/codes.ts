@@ -81,7 +81,7 @@ export const ERROR_CODES = {
   invalid_amount: { exit: 2, retry: "never", meaning: "the amount is not positive, or is finer than the asset's precision" },
   precision_loss: { exit: 1, retry: "never", meaning: "the amount cannot be represented exactly at the required precision" },
   tx_integrity: { exit: 1, retry: "never", meaning: "the transaction re-encoded differently than it arrived — it was altered in flight" },
-  chain_id_mismatch: { exit: 1, retry: "never", meaning: "the transaction was built for a different chain than the one selected" },
+  chain_id_mismatch: { exit: 1, retry: "never", meaning: "a transaction or typed data names a different chain than the selected network" },
   signing_rejected: { exit: 1, retry: "never", meaning: "the signature was declined on the device" },
   payer_mismatch: { exit: 1, retry: "never", meaning: "the payload names a payer other than the signing account" },
   fee_cap_exceeded: { exit: 1, retry: "never", meaning: "the payload's fee exceeds the ceiling the caller set" },

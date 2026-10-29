@@ -30,6 +30,7 @@ function fixture(stage = "submitted") {
       return true;
     }),
     registeredAgentId: vi.fn(async () => "9007199254740993"),
+    writeError: vi.fn(() => undefined),
   } satisfies AgentRegistryReader;
   const metadata = {
     load: vi.fn(async () => ({ metadata: { name: "Example" } })),

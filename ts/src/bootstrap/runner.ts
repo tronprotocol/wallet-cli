@@ -5,7 +5,7 @@ import { MigrationRunner } from "../adapters/outbound/persistence/migration.js";
 import { hideBin } from "yargs/helpers";
 import type { ExitCode, OutputMode } from "../domain/types/index.js";
 import { normalizeError, UsageError } from "../domain/errors/index.js";
-import { redactErrorMessage } from "../domain/errors/redact.js";
+import { redactErrorMessage, setRedactedHomeDirectory } from "../domain/errors/redact.js";
 import { HelpService, hasMeta } from "../adapters/inbound/cli/help/index.js";
 import { assertNoTailFlags, buildCli } from "../adapters/inbound/cli/shell/index.js";
 import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js";
@@ -14,6 +14,7 @@ import { StreamManager } from "../adapters/inbound/cli/stream/index.js";
 import { hasCommand, parseGlobals } from "./argv.js";
 import { composeCliRuntime } from "./composition.js";
 import { basename } from "node:path";
+import { homedir } from "node:os";
 
 export const VERSION = packageMetadata.version;
 
@@ -35,6 +36,7 @@ function reportBootstrapFailure(
 
 export async function main(argv: string[]): Promise<ExitCode> {
   const startedAt = Date.now();
+  setRedactedHomeDirectory(homedir());
   const tokens = hideBin(argv);
   const { globals, secretPaths, invalid, stdinFlags } = parseGlobals(tokens);
 

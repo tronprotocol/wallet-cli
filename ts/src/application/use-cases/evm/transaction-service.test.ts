@@ -5,6 +5,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import { decodeEvmRawTransaction } from "../../../adapters/outbound/chain/evm/evm.js";
 
 const OWNER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const RECEIVER = "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB";
@@ -416,7 +417,9 @@ describe("EvmTransactionService.sign", () => {
       }),
     } as unknown as TxPipeline;
     const service = new EvmTransactionService(
-      { get: () => ({}) } as unknown as ChainGatewayProvider,
+      {
+        get: () => ({ decodeRawTransaction: decodeEvmRawTransaction }),
+      } as unknown as ChainGatewayProvider,
       { effective: () => [] } as never,
       pipeline,
       { resolve: vi.fn() } as never,
@@ -487,6 +490,7 @@ describe("EvmTransactionService.broadcast", () => {
   function bcHarness(result: Record<string, unknown> = { hash: `0x${"cd".repeat(32)}` }) {
     const seen: string[] = [];
     const gateway = {
+      decodeRawTransaction: decodeEvmRawTransaction,
       sendRawTransaction: vi.fn(async (raw: string) => {
         seen.push(raw);
         return result;
@@ -588,6 +592,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
 
   function dryHarness(node: Partial<Record<string, unknown>> = {}) {
     const gateway = {
+      decodeRawTransaction: decodeEvmRawTransaction,
       sendRawTransaction: vi.fn(async () => ({ hash: `0x${"cd".repeat(32)}` })),
       getTransactionCount: vi.fn(async (_a: string, block?: string) =>
         block === "pending" ? "0" : "0",

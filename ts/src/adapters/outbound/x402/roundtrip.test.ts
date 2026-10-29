@@ -5,6 +5,16 @@ import type { ProviderCatalogPort } from "../../../application/ports/provider-ca
 import { X402PaymentClient } from "./payment-client.js";
 import { X402HttpServer } from "./server.js";
 import { baiPaymentResult } from "../../../application/services/bai-payment-result.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 it.each([
   ["eip155:56", "56", "USDT", "10000000000000000000"],
@@ -51,6 +61,8 @@ it.each([
       {} as ProviderCatalogPort,
       {} as never,
       new X402HttpServer(facilitator as typeof fetch),
+      undefined,
+      signing,
     );
     const result = await service.roundtrip(
       { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn() } as never,
@@ -108,6 +120,8 @@ it.each([
     {} as ProviderCatalogPort,
     {} as never,
     new X402HttpServer(facilitator),
+    undefined,
+    signing,
   );
   const pending = service.roundtrip(
     { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn(), warn: vi.fn() } as never,
@@ -155,6 +169,8 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
     {} as ProviderCatalogPort,
     {} as never,
     new X402HttpServer(facilitator),
+    undefined,
+    signing,
   );
   // The omitted asset uses the paywall's default token.
   const result = await service.roundtrip(

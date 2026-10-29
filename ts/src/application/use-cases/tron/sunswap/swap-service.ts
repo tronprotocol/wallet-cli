@@ -28,7 +28,7 @@ import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 import type { RouterExecutionPort } from "../../../ports/sunswap/router-execution.js";
 import type { Permit2Port } from "../../../ports/sunswap/permit2.js";
 import type { SignerResolver } from "../../../services/signer/index.js";
-import { obtainSignature } from "../../../services/signing/obtain-signature.js";
+import type { SigningService } from "../../../services/signing/signing-service.js";
 import type { TypedDataPayload } from "../../../../domain/types/index.js";
 import {
   assertPermitAuthorizes,
@@ -89,6 +89,7 @@ export class SunSwapSwapService {
     private readonly routerExec: RouterExecutionPort,
     private readonly permits: Permit2Port,
     private readonly signers: SignerResolver,
+    private readonly signing: SigningService,
   ) {
     this.tx = new LiquidityTransactions(launchpad, gateways, pipeline);
     this.routerTx = new LiquidityTransactions(liquidity, gateways, pipeline);
@@ -367,9 +368,12 @@ export class SunSwapSwapService {
     });
 
     const signer = this.signers.resolve(scope.activeAccount, "tron");
-    const signed = await obtainSignature(signer, scope, (opts) =>
-      signer.signTypedData(permit.typedData as TypedDataPayload, opts),
-    );
+    const signed = await this.signing.sign(scope, {
+      network,
+      origin: "service",
+      signer,
+      payload: { kind: "typed-data", typedData: permit.typedData as TypedDataPayload },
+    });
     assertSignedBy(
       recoverTronSigner(signed.digest, signed.signature),
       owner,

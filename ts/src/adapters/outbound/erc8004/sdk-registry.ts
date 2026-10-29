@@ -3,7 +3,8 @@ import { Interface, type InterfaceAbi } from "ethers";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
 import type { AgentRegistryReader } from "../../../application/ports/agent-sdk.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import { UsageError, ExecutionError } from "../../../domain/errors/index.js";
+import { UsageError, ExecutionError, type CliError } from "../../../domain/errors/index.js";
+import { agentWriteError } from "./revert.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 interface SupportedNetwork {
@@ -110,6 +111,10 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     return output?.baseType === "address"
       ? configured.sdk.chain.toChainAddress(String(value))
       : value;
+  }
+
+  writeError(error: unknown): CliError | undefined {
+    return agentWriteError(error);
   }
 
   async registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {

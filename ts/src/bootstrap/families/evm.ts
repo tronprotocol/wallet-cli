@@ -24,6 +24,7 @@ import { EvmRpcClient } from "../../adapters/outbound/chain/evm/evm.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
+import type { SigningService } from "../../application/services/signing/signing-service.js";
 import type { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
 import { messageSignBinding, messageSignSpec } from "../../adapters/inbound/cli/commands/shared.js";
 import {
@@ -103,6 +104,7 @@ export const evmFamily: FamilyPlugin<"evm"> = {
 export interface EvmChainCommandDependencies {
   agents: AgentService;
   signers: SignerResolver;
+  signing: SigningService;
   gateways: ChainGatewayProvider;
   balances: AccountBalanceService;
   tokens: TokenRepository;
@@ -125,8 +127,16 @@ export function registerEvmChainCommands(
   reg.addChain(operatorRemoveSpec, "evm", operatorRemoveEvmBinding(deps.agents));
   reg.addChain(operatorCheckSpec, "evm", operatorCheckEvmBinding(deps.agents));
 
-  reg.addChain(messageSignSpec, "evm", messageSignBinding(new MessageService(deps.signers)));
-  reg.addChain(typedDataSignSpec, "evm", typedDataSignBinding(new TypedDataService(deps.signers)));
+  reg.addChain(
+    messageSignSpec,
+    "evm",
+    messageSignBinding(new MessageService(deps.signers, deps.signing)),
+  );
+  reg.addChain(
+    typedDataSignSpec,
+    "evm",
+    typedDataSignBinding(new TypedDataService(deps.signers, deps.signing)),
+  );
 
   const account = new EvmAccountService(deps.gateways, deps.tokens, deps.prices);
   reg.addChain(accountBalanceSpec, "evm", accountBalanceBinding(deps.balances));

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
 import type { HttpTransport } from "../../http/index.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -52,8 +53,8 @@ describe("TronRpcClient request pacing", () => {
   // Stub below the provider wrapper so pacing remains under test.
   it("paces tronweb-backed methods too", async () => {
     const t = tracker();
-    const client = new TronRpcClient("http://localhost:1", 30_000);
-    client.tronweb.fullNode.instance.request = (async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 30_000));
+    tronweb.fullNode.instance.request = (async () => {
       await t.enter();
       return { data: {} };
     }) as never;
@@ -71,8 +72,10 @@ describe("TronRpcClient request pacing", () => {
         return "{}";
       },
     };
-    const client = new TronRpcClient("http://localhost:1", 30_000, transport);
-    client.tronweb.fullNode.instance.request = (async () => {
+    const { client, tronweb } = withTronWeb(
+      () => new TronRpcClient("http://localhost:1", 30_000, transport),
+    );
+    tronweb.fullNode.instance.request = (async () => {
       await t.enter();
       return { data: {} };
     }) as never;
@@ -119,9 +122,9 @@ describe("TronRpcClient request pacing", () => {
 
   it("keeps pacing after tronweb swaps its providers", async () => {
     const t = tracker();
-    const client = new TronRpcClient("http://localhost:1", 30_000);
-    client.tronweb.setHeader({ "TRON-PRO-API-KEY": "key" });
-    client.tronweb.fullNode.instance.request = (async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 30_000));
+    tronweb.setHeader({ "TRON-PRO-API-KEY": "key" });
+    tronweb.fullNode.instance.request = (async () => {
       await t.enter();
       return { data: {} };
     }) as never;

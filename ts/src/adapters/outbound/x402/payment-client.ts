@@ -24,7 +24,8 @@ import {
 } from "@bankofai/x402-tron";
 import { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";
 import { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
-import type { ClientEvmSigner } from "@bankofai/x402-evm";
+import { PERMIT2_ADDRESS as EVM_PERMIT2_ADDRESS, type ClientEvmSigner } from "@bankofai/x402-evm";
+import { EvmAddress } from "../../../domain/address/index.js";
 import type { Network } from "@bankofai/x402-core/types";
 import { decodePaymentRequiredHeader } from "@bankofai/x402-core/http";
 import { open, unlink, type FileHandle } from "node:fs/promises";
@@ -48,6 +49,7 @@ import type {
 } from "../../../application/contracts/x402-payer.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { toX402Wallet } from "./signer-bridge.js";
+import { silenceX402SdkLogs } from "./sdk-logs.js";
 import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
 import { toX402Network, sameX402Network } from "../../../domain/x402/network-id.js";
 import { fromBaseUnits } from "../../../domain/amounts/index.js";
@@ -65,7 +67,9 @@ export class X402PaymentClient implements X402PaymentPort {
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly paidFetchFactory?: PaidFetchFactory,
     private readonly config: Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret"> = {},
-  ) {}
+  ) {
+    silenceX402SdkLogs();
+  }
 
   validateConfiguration(
     network: NetworkDescriptor,
@@ -538,17 +542,21 @@ function isBinaryContentType(contentType: string): boolean {
   );
 }
 
+const evmAddress = new EvmAddress();
+
 function paymentFacts(network: NetworkDescriptor): X402PaymentFacts {
-  const spender = network.family === "tron" ? PERMIT2_ADDRESSES[toX402Network(network)] : undefined;
-  return {
-    ...(spender
+  const tokens = Object.values(X402_TOKENS[network.id] ?? {}).map((t) => t.address);
+  const tronSpender =
+    network.family === "tron" ? PERMIT2_ADDRESSES[toX402Network(network)] : undefined;
+  const permit2 =
+    network.family === "evm"
       ? {
-          permit2: {
-            spender,
-            tokens: Object.values(X402_TOKENS[network.id] ?? {}).map((t) => t.address),
-          },
+          spender: evmAddress.canonical(EVM_PERMIT2_ADDRESS),
+          tokens: tokens.map((token) => evmAddress.canonical(token)),
         }
-      : {}),
+      : tronSpender && { spender: tronSpender, tokens };
+  return {
+    ...(permit2 ? { permit2 } : {}),
     tokenDecimals: (token) => metadata(network.id, token)?.decimals,
   };
 }

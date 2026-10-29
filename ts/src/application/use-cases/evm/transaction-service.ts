@@ -5,8 +5,8 @@ import type {
   TxStatusView,
   UnsignedTx,
 } from "../../../domain/types/index.js";
-import { Transaction } from "ethers";
 import { ChainError, ExecutionError } from "../../../domain/errors/index.js";
+import { assertEvmTransactionChain } from "../../services/signing/chain-identity.js";
 import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { evmChecksumAddress } from "../../../domain/address/index.js";
@@ -17,7 +17,7 @@ import { confirmationsOf } from "../../services/confirmations.js";
 import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
+import type { EvmGateway, EvmRawTransaction } from "../../ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
@@ -219,10 +219,10 @@ export class EvmTransactionService {
     network: NetworkDescriptor,
     hex: string,
   ): Promise<{ kind: "sign"; signed: EvmSignedTx } & Record<string, unknown>> {
-    const parsed = parseEvmTransaction(hex);
-    // Check before signing: no node is consulted to catch a wrong-chain transaction.
+    const parsed = this.gateways.get(network, "evm").decodeRawTransaction(hex);
+    // Check before the signed check: no node is consulted to catch a wrong-chain transaction.
     assertChainId(parsed, network);
-    if (parsed.signature !== null) {
+    if (parsed.signed) {
       throw new ChainError(
         "invalid_transaction",
         "this transaction is already signed; an EVM transaction takes exactly one signature",
@@ -232,7 +232,8 @@ export class EvmTransactionService {
       ctx: scope,
       net: network,
       account: scope.activeAccount,
-      tx: parsed.toJSON ? JSON.parse(JSON.stringify(parsed.toJSON())) : parsed,
+      tx: parsed.transaction,
+      origin: "imported",
     });
     return { kind: "sign" as const, ...outcomeData(outcome) } as {
       kind: "sign";
@@ -247,15 +248,15 @@ export class EvmTransactionService {
     hex: string,
     dryRun = false,
   ) {
-    const parsed = parseEvmTransaction(hex);
-    if (parsed.signature === null) {
+    const gateway = this.gateways.get(network, "evm");
+    const parsed = gateway.decodeRawTransaction(hex);
+    if (!parsed.signed) {
       throw new ChainError("invalid_transaction", "this transaction carries no signature");
     }
-    const gateway = this.gateways.get(network, "evm");
     if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
     assertChainId(parsed, network);
-    const local = parsed.hash ?? undefined;
-    const serialized = parsed.serialized;
+    const local = parsed.hash;
+    const serialized = parsed.serialized!;
     const result = await submitWithTxId(local, () => gateway.sendRawTransaction(serialized));
     const txId = authoritativeTxId(local, result.hash, (m) => scope.warn(m));
     const submitted = {
@@ -284,7 +285,7 @@ export class EvmTransactionService {
     scope: TransactionScope,
     network: NetworkDescriptor,
     gateway: EvmGateway,
-    parsed: Transaction,
+    parsed: EvmRawTransaction,
   ) {
     const checks: Array<{ name: string; status: "ok" | "warning" | "skipped"; detail: string }> = [
       {
@@ -298,17 +299,17 @@ export class EvmTransactionService {
     checks.push({ name: "chainId", status: "ok", detail: `matches ${network.id}` });
 
     const from = parsed.from;
-    const perGasCeiling = parsed.maxFeePerGas ?? parsed.gasPrice ?? 0n;
-    const maxCostWei = parsed.gasLimit * perGasCeiling;
+    const perGasCeiling = BigInt(parsed.maxFeePerGasWei ?? parsed.gasPriceWei ?? "0");
+    const maxCostWei = BigInt(parsed.gasLimit) * perGasCeiling;
     const fee = {
-      feeModel: parsed.maxFeePerGas === null ? "legacy" : "eip1559",
+      feeModel: parsed.maxFeePerGasWei === undefined ? "legacy" : "eip1559",
       maxCostWei: maxCostWei.toString(),
-      gasLimit: parsed.gasLimit.toString(),
+      gasLimit: parsed.gasLimit,
       maxPerGasWei: perGasCeiling.toString(),
     };
 
     const state =
-      from === null
+      from === undefined
         ? undefined
         : await Promise.all([
             gateway.getTransactionCount(from, "latest"),
@@ -349,11 +350,11 @@ export class EvmTransactionService {
         });
       }
 
-      const required = parsed.value + maxCostWei;
+      const required = BigInt(parsed.valueWei) + maxCostWei;
       if (BigInt(balance) < required) {
         throw new ChainError(
           "insufficient_balance",
-          `the account holds ${balance} wei but this transaction needs ${required} wei (value ${parsed.value} + fee ceiling ${maxCostWei})`,
+          `the account holds ${balance} wei but this transaction needs ${required} wei (value ${parsed.valueWei} + fee ceiling ${maxCostWei})`,
         );
       }
       checks.push({
@@ -363,16 +364,16 @@ export class EvmTransactionService {
       });
     }
 
-    const txId = parsed.hash ?? undefined;
+    const txId = parsed.hash;
     return {
       kind: "broadcast" as const,
       mode: "dry-run" as const,
       ...(txId === undefined ? {} : { txId, hash: txId }),
-      ...(from === null ? {} : { address: from }),
-      ...(parsed.to === null ? {} : { to: parsed.to }),
-      rawAmount: parsed.value.toString(),
+      ...(from === undefined ? {} : { address: from }),
+      ...(parsed.to === undefined ? {} : { to: parsed.to }),
+      rawAmount: parsed.valueWei,
       fee,
-      tx: JSON.parse(JSON.stringify(parsed.toJSON())) as UnsignedTx,
+      tx: parsed.transaction,
       checks,
     };
   }
@@ -475,23 +476,8 @@ export class EvmTransactionService {
 }
 
 // Enforce the selected chain even when both networks are EVM.
-function assertChainId(tx: Transaction, network: NetworkDescriptor): void {
-  if (String(tx.chainId) === String(network.chainId)) return;
-  throw new ChainError(
-    "chain_id_mismatch",
-    `this transaction is built for chain ${tx.chainId}, but ${network.id} is chain ${network.chainId}`,
-  );
-}
-
-function parseEvmTransaction(hex: string): Transaction {
-  try {
-    return Transaction.from(hex);
-  } catch (e) {
-    throw new ChainError(
-      "invalid_transaction",
-      `not a valid EVM transaction: ${(e as Error).message}`,
-    );
-  }
+function assertChainId(tx: EvmRawTransaction, network: NetworkDescriptor): void {
+  assertEvmTransactionChain(tx.chainId === "0" ? undefined : tx.chainId, network);
 }
 
 function transactionType(transaction: Record<string, unknown>, isErc20Transfer: boolean): string {

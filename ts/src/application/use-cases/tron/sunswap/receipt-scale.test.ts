@@ -8,6 +8,7 @@ import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resol
 import { SunSwapLiquidityService } from "./liquidity-service.js";
 import { SunSwapRemoveLiquidityService } from "./remove-liquidity-service.js";
 import { SunSwapCollectFeesService } from "./collect-fees-service.js";
+import { SigningService } from "../../../services/signing/signing-service.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const MANAGER = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
@@ -131,6 +132,7 @@ function services() {
       resolver,
       noV4Permits,
       noV4Signers,
+      new SigningService({} as never),
     ),
     remove: new SunSwapRemoveLiquidityService(shared, gateways, pipeline, resolver),
     collect: new SunSwapCollectFeesService(shared, gateways, pipeline, resolver),

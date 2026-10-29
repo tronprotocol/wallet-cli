@@ -12,6 +12,7 @@ import {
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
 import { TronMultisigService } from "./multisig-service.js";
 import { TronSigService } from "./sig-service.js";
+import { SigningService } from "../../services/signing/signing-service.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -72,6 +73,7 @@ function fakeGateway(overrides: Partial<TronGateway> = {}): TronGateway {
     getMultiSignFee: vi.fn(async () => 1_000_000),
     broadcastHex: vi.fn(async () => ({ txId: "txid" })),
     getTransactionInfoById: vi.fn(async () => ({})),
+    referenceBlockStatus: vi.fn(async () => "held"),
     ...overrides,
   } as unknown as TronGateway;
 }
@@ -105,7 +107,7 @@ function service(gateway: TronGateway, signer?: Signer) {
     resolve: vi.fn(() => actualSigner),
   } as unknown as SignerResolver;
   const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
-  const signing = new TronSigService(provider, signers, () => NOW);
+  const signing = new TronSigService(provider, signers, new SigningService(provider), () => NOW);
   return new TronMultisigService(provider, signing, () => NOW);
 }
 
@@ -306,4 +308,49 @@ describe("TRON multisig submission outcome", () => {
       expect(gateway.broadcastHex).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("reference block check", () => {
+  const signerSpy = () => ({
+    kind: "software" as const,
+    address: A,
+    sign: vi.fn(async (transaction: unknown) => transaction),
+    signMessage: async () => "",
+    signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+  });
+  const commands = {
+    approvals: (svc: TronMultisigService) => svc.approvals(NETWORK, unsignedHex()),
+    "tx sign": (svc: TronMultisigService) => svc.signChecked(scope(), NETWORK, unsignedHex()),
+    broadcast: (svc: TronMultisigService) =>
+      svc.broadcastHex(scope(), NETWORK, unsignedHex(), false),
+    "broadcast --dry-run": (svc: TronMultisigService) =>
+      svc.broadcastHex(scope(), NETWORK, unsignedHex(), true),
+  };
+
+  describe.each(Object.entries(commands))("%s", (_name, run) => {
+    it.each([
+      ["another chain's block", "different", "chain_id_mismatch"],
+      ["a block the node has not reached", "not-reached", "rpc_error"],
+    ] as const)(
+      "refuses %s before any permission read, signature, or broadcast",
+      async (_label, status, code) => {
+        const gateway = fakeGateway({ referenceBlockStatus: vi.fn(async () => status) });
+        const signer = signerSpy();
+        await expect(run(service(gateway, signer))).rejects.toMatchObject({ code });
+        expect(gateway.getSignWeight).not.toHaveBeenCalled();
+        expect(gateway.getApprovedList).not.toHaveBeenCalled();
+        expect(signer.sign).not.toHaveBeenCalled();
+        expect(gateway.broadcastHex).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it("reads permissions after a held reference block", async () => {
+    const gateway = fakeGateway();
+    await service(gateway).approvals(NETWORK, unsignedHex());
+    const checked = (gateway.referenceBlockStatus as ReturnType<typeof vi.fn>).mock
+      .invocationCallOrder[0]!;
+    const read = (gateway.getSignWeight as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    expect(checked).toBeLessThan(read);
+  });
 });

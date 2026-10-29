@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { creditActiveDeadline, throwIfDeadlineExpired, withDeadline } from "./index.js";
+import { creditActiveDeadline, throwIfDeadlineExpired, withDeadline } from "./deadline.js";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

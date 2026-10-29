@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const ADDR = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
@@ -9,15 +10,15 @@ afterEach(() => {
 
 describe("TronRpcClient timeout", () => {
   it("a hung node call rejects with ChainError(timeout) instead of hanging", async () => {
-    const client = new TronRpcClient("http://localhost:1", 20);
-    client.tronweb.trx.getContract = (() => new Promise(() => {})) as never;
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 20));
+    tronweb.trx.getContract = (() => new Promise(() => {})) as never;
     await expect(client.getContract(ADDR)).rejects.toMatchObject({ code: "timeout" });
   });
 
   it("getContractMetadata fails not_found when no contract is deployed at the address", async () => {
-    const client = new TronRpcClient("http://localhost:1", 20);
-    client.tronweb.trx.getContract = (() => Promise.resolve({})) as never;
-    client.tronweb.trx.getContractInfo = (() => Promise.resolve({})) as never;
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 20));
+    tronweb.trx.getContract = (() => Promise.resolve({})) as never;
+    tronweb.trx.getContractInfo = (() => Promise.resolve({})) as never;
     await expect(client.getContractMetadata(ADDR)).rejects.toMatchObject({ code: "not_found" });
   });
 

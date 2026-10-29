@@ -5,6 +5,16 @@ import { X402PaymentClient } from "./payment-client.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 const network = { id: "eip155:8453", family: "evm", chainId: "8453" } as NetworkDescriptor;
 const scope = {
@@ -62,7 +72,15 @@ function fixture(wrongType = false, multiple = false) {
     wallet,
     signTypedData,
     fetcher,
-    client: new X402Service(new X402PaymentClient(fetcher), resolver, {} as never, {} as never),
+    client: new X402Service(
+      new X402PaymentClient(fetcher),
+      resolver,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      signing,
+    ),
   };
 }
 

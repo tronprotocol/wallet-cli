@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const CONTRACT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
 
@@ -18,8 +19,8 @@ const bytes32 = (text: string) => Buffer.from(text, "utf8").toString("hex").padE
 
 // A missing view can return result:true with empty constant_result.
 const stub = (responses: Record<string, string>) => {
-  const client = new TronRpcClient("http://localhost:1", 200);
-  client.tronweb.transactionBuilder.triggerConstantContract = ((_contract: string, fn: string) => {
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+  tronweb.transactionBuilder.triggerConstantContract = ((_contract: string, fn: string) => {
     const hex = responses[fn];
     if (hex === undefined) {
       return Promise.resolve({
@@ -33,15 +34,15 @@ const stub = (responses: Record<string, string>) => {
 };
 
 const notAContract = () => {
-  const client = new TronRpcClient("http://localhost:1", 200);
-  client.tronweb.transactionBuilder.triggerConstantContract = (() =>
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+  tronweb.transactionBuilder.triggerConstantContract = (() =>
     Promise.reject(new Error("Smart contract is not exist."))) as never;
   return client;
 };
 
 const unreachable = () => {
-  const client = new TronRpcClient("http://localhost:1", 200);
-  client.tronweb.transactionBuilder.triggerConstantContract = (() =>
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+  tronweb.transactionBuilder.triggerConstantContract = (() =>
     Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:1"))) as never;
   return client;
 };
@@ -107,8 +108,8 @@ describe("TronRpcClient.getTokenInfo", () => {
   });
 
   it("classifies a reverted view call the same way", async () => {
-    const client = new TronRpcClient("http://localhost:1", 200);
-    client.tronweb.transactionBuilder.triggerConstantContract = (() =>
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+    tronweb.transactionBuilder.triggerConstantContract = (() =>
       Promise.reject(new Error("REVERT opcode executed"))) as never;
 
     await expect(client.getTokenInfo(CONTRACT)).rejects.toMatchObject({

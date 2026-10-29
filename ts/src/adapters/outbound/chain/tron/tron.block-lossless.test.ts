@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -23,8 +24,8 @@ describe("TronRpcClient.getBlock", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    const client = new TronRpcClient("https://node.invalid", 100);
-    client.tronweb.trx.getBlockByNumber = vi.fn(async () => ({
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid", 100));
+    tronweb.trx.getBlockByNumber = vi.fn(async () => ({
       blockID: "abc",
       transactions: [
         {

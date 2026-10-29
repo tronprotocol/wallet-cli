@@ -1,4 +1,5 @@
 import type {
+  DecodedEvmApprove,
   DecodedTronApprove,
   PayerSigner,
   SignedApproval,
@@ -23,12 +24,14 @@ export interface PayerPolicy {
   readonly gasfreeFeeDecimals?: (token: string) => number | undefined;
   // Unix seconds; defaults to the current wall clock.
   readonly now?: () => number;
-  // Only approve(spender, MaxUint256) on these tokens from the payer; absent forbids TRON signing.
+  // Only approve(spender, MaxUint256) on these tokens from the payer; absent forbids signing transactions.
   readonly approveIntent?: { readonly spender: string; readonly tokens: readonly string[] };
 }
 
 // The payer's signing capability before the payment policy is applied.
-export type UnguardedPayer = Pick<PayerSigner, "address" | "signTypedData" | "signTransaction">;
+export interface UnguardedPayer extends Pick<PayerSigner, "address" | "signTypedData"> {
+  signTransaction(tx: unknown): Promise<unknown>;
+}
 
 const PERMIT_TRANSFER = "PermitTransfer";
 
@@ -156,11 +159,22 @@ function assertSignedTheRequest(signed: TypedDataSignature, primaryType: string)
   }
 }
 
-function refuseApprove(why: string): never {
+function refuseApprove(why: string, chain = "TRON"): never {
   throw new ChainError(
     "signed_payload_mismatch",
-    `x402 TRON transaction is not the requested Permit2 approve: ${why}; refusing to sign`,
+    `x402 ${chain} transaction is not the requested Permit2 approve: ${why}; refusing to sign`,
   );
+}
+
+// The SDK's sponsored EVM approve: approve(Permit2, MaxUint256) on a payment token, with no value.
+function assertEvmApproveIntent(decoded: DecodedEvmApprove, policy: PayerPolicy): void {
+  const intent = policy.approveIntent;
+  if (!intent) return refuseApprove("no approve was requested", "EVM");
+  if (decoded.token === undefined || !intent.tokens.includes(decoded.token))
+    return refuseApprove("unknown token contract", "EVM");
+  if (decoded.valueWei !== "0") return refuseApprove("value is not 0", "EVM");
+  if (decoded.unlimitedApproveSpender !== intent.spender)
+    return refuseApprove("calldata is not approve(Permit2, MaxUint256)", "EVM");
 }
 
 // The signer separately binds raw_data to raw_data_hex.
@@ -209,8 +223,9 @@ export function withPayerPolicy(payer: UnguardedPayer, policy: PayerPolicy): Pay
       assertNotExpired(payload, primaryType, now());
       return signed;
     },
-    async signTransaction(tx) {
+    async signTransaction(tx, decoded) {
       if (policy.family !== "evm") return refuseApprove("it was not decoded as an approve");
+      assertEvmApproveIntent(decoded, policy);
       return payer.signTransaction(tx);
     },
     async signPermit2Approval(tx, decoded) {

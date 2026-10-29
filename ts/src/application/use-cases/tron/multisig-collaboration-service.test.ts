@@ -10,7 +10,7 @@ import {
   decodeTransactionHex,
   encodeTransactionHex,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { TronMultisigService } from "./multisig-service.js";
 import { TronMultisigCollaborationService } from "./multisig-collaboration-service.js";
 
@@ -178,6 +178,7 @@ function setup(...given: TronLinkRemoteRecord[]) {
     service: new TronMultisigCollaborationService(collaboration, provider, local, () => NOW),
     collaboration,
     local,
+    chain,
     signedHex,
   };
 }
@@ -212,6 +213,26 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(result.transactions[0]!.unverifiedReason).toMatch(/disagree/i);
     expect(result.transactions[1]).toMatchObject({ verified: true });
     expect(result.transactions[1]!.unverifiedReason).toBeUndefined();
+  });
+
+  it("lists a record for another chain as unverified without reading its permission", async () => {
+    const { service, local, chain } = setup();
+    vi.mocked(local.approvals).mockRejectedValueOnce(
+      new ChainError("chain_id_mismatch", "this transaction's reference block is not on nile"),
+    );
+    const result = await service.list(NETWORK, A);
+
+    expect(result.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
+    expect(result.transactions[0]!.unverifiedReason).toMatch(/reference block/);
+    expect(chain.getSignWeight).not.toHaveBeenCalled();
+  });
+
+  it("fails the page when the node has not reached a record's reference block", async () => {
+    const { service, local } = setup();
+    vi.mocked(local.approvals).mockRejectedValueOnce(
+      new TransportError("rpc_error", "the node has not yet seen this reference block"),
+    );
+    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "rpc_error" });
   });
 
   it("omits an undecodable record and counts it instead of failing the whole page", async () => {

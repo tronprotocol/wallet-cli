@@ -5,6 +5,16 @@ import { TronWeb, providers, utils as tronUtils } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 beforeEach(() => {
   vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
@@ -58,6 +68,9 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
       signers as never,
       {} as never,
       {} as never,
+      undefined,
+      undefined,
+      signing,
     );
     await expect(
       client.pay(
@@ -159,6 +172,9 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
     signers as never,
     {} as never,
     {} as never,
+    undefined,
+    undefined,
+    signing,
   );
   await expect(
     client.pay(

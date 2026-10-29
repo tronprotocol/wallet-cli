@@ -8,6 +8,8 @@ import { TxPipeline } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
+import { withTronWeb } from "../../../adapters/outbound/chain/tron/__test-support__/tronweb.js";
+import { SigningService } from "../../services/signing/signing-service.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -100,7 +102,7 @@ function harness(overrides: Partial<TronGateway> = {}) {
     signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
   };
   const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
-  const pipeline = new TxPipeline(signers);
+  const pipeline = new TxPipeline(signers, new SigningService({} as never));
   const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
   return {
     gateway,
@@ -193,8 +195,10 @@ describe("--expiration means the same on governance as everywhere else", () => {
 
   async function realGatewayHarness() {
     const { TronRpcClient } = await import("../../../adapters/outbound/chain/tron/tron.js");
-    const rpc = new TronRpcClient("https://node.invalid", 1000);
-    rpc.tronweb.trx.getCurrentRefBlockParams = (async () => ({
+    const { client: rpc, tronweb: rpcTronweb } = withTronWeb(
+      () => new TronRpcClient("https://node.invalid", 1000),
+    );
+    rpcTronweb.trx.getCurrentRefBlockParams = (async () => ({
       ref_block_bytes: "4b6b",
       ref_block_hash: "4ad4875499feb0de",
       expiration: NOW + 60_000,
@@ -219,7 +223,10 @@ describe("--expiration means the same on governance as everywhere else", () => {
     };
     const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
     const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
-    return new TronProposalService(provider, new TxPipeline(signers));
+    return new TronProposalService(
+      provider,
+      new TxPipeline(signers, new SigningService({} as never)),
+    );
   }
 
   it.each([

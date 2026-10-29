@@ -10,7 +10,7 @@ import type {
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
-import { obtainSignature } from "../signing/obtain-signature.js";
+import type { SignOrigin, SigningService } from "../signing/signing-service.js";
 import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 import type { TransactionExecutionMode } from "../transaction-mode.js";
@@ -52,7 +52,10 @@ export interface TxPipelineParams {
 }
 
 export class TxPipeline {
-  constructor(private readonly signers: SignerResolver) {}
+  constructor(
+    private readonly signers: SignerResolver,
+    private readonly signing: SigningService,
+  ) {}
 
   assertCanSign(
     account: AccountRef,
@@ -67,10 +70,17 @@ export class TxPipeline {
     net: NetworkDescriptor;
     account: AccountRef;
     tx: UnsignedTx;
+    // Where the transaction came from; it was not built by this pipeline.
+    origin: Exclude<SignOrigin, "built">;
   }): Promise<TxOutcome> {
     this.assertCanSign(p.account, p.net.family);
     const signer = this.signers.resolve(p.account, p.net.family);
-    const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(p.tx, opts));
+    const signed = await this.signing.sign(p.ctx, {
+      network: p.net,
+      origin: p.origin,
+      signer,
+      payload: { kind: "transaction", transaction: p.tx },
+    });
     return { stage: "signed", signed, address: signer.address, txId: txIdOf(signed) };
   }
 
@@ -85,7 +95,7 @@ export class TxPipeline {
       );
     }
 
-    // Adapters bound RPC time; obtainSignature separately bounds device interaction.
+    // Adapters bound RPC time; the signing entry separately bounds device interaction.
     const ownerAddress = p.ctx.resolveAddress(p.net.family);
     let tx = await p.build(ownerAddress);
     if (p.prepare) {
@@ -120,7 +130,12 @@ export class TxPipeline {
     }
     p.assertNotExpired?.(tx);
     const authorization = await p.preflight?.(tx, signer.address);
-    const signed = await obtainSignature(signer, p.ctx, (opts) => signer.sign(tx, opts));
+    const signed = await this.signing.sign(p.ctx, {
+      network: p.net,
+      origin: "built",
+      signer,
+      payload: { kind: "transaction", transaction: tx },
+    });
 
     p.assertNotExpired?.(signed);
 

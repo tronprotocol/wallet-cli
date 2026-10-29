@@ -1,4 +1,5 @@
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { CliError } from "../../domain/errors/index.js";
 
 export interface AgentRegistryReader {
   registry(network: NetworkDescriptor): string;
@@ -8,6 +9,8 @@ export interface AgentRegistryReader {
     params: Array<{ type: string; value: unknown }>,
   ): Promise<unknown>;
   registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
+  // The error code a registry contract revert maps to; undefined when `error` is not one.
+  writeError(error: unknown): CliError | undefined;
 }
 
 export interface AgentRegistrationLoader {

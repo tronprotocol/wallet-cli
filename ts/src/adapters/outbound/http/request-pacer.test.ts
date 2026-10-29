@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { PacedHttpTransport, RequestPacer } from "./request-pacer.js";
 import type { HttpRequest, HttpTransport } from "./index.js";
-import { withDeadline } from "../../../domain/async/index.js";
+import { withDeadline } from "./deadline.js";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

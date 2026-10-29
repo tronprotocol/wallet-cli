@@ -13,6 +13,7 @@ import {
   errorMessage,
   classifyError,
 } from "../../../../domain/errors/index.js";
+import { SigningService } from "../../../services/signing/signing-service.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -173,6 +174,7 @@ function makeHarness(
     tokens,
     permits as never,
     signers as never,
+    new SigningService({} as never),
   );
   return { service, scope, gateway, pipeline, port, estimated, assertCanSign, callValues };
 }

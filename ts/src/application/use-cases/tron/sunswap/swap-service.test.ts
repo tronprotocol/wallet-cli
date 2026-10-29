@@ -14,6 +14,7 @@ import type { Permit2Port } from "../../../ports/sunswap/permit2.js";
 import type { SignerResolver } from "../../../services/signer/index.js";
 import { SunSwapSwapService } from "./swap-service.js";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
+import { SigningService } from "../../../services/signing/signing-service.js";
 
 const UNIVERSAL_ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
 const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
@@ -284,6 +285,7 @@ function makeHarness(
     routerExec,
     permits,
     signers,
+    new SigningService({} as never),
   );
   return {
     service,

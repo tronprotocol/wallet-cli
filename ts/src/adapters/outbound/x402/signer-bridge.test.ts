@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { toX402Wallet, type X402WalletOptions } from "./signer-bridge.js";
+import { decodeEvmApprove, toX402Wallet, type X402WalletOptions } from "./signer-bridge.js";
 import {
   withPayerPolicy,
   type PayerPolicy,
@@ -12,6 +12,15 @@ const EVM_ADDRESS = "0xaB5801a7D398351b8bE11C439e05C5B3259aeC9B";
 const TRON_ADDRESS = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
 // TRON_ADDRESS in 41-prefixed hex.
 const TRON_HEX = "4119e7e376e7c213b7e7e7e46cc70a5dd086daff2a";
+const EVM_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
+const EVM_PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+// approve(EVM_PERMIT2, MaxUint256)
+const EVM_APPROVE_DATA = `0x095ea7b3${EVM_PERMIT2.slice(2).toLowerCase().padStart(64, "0")}${"f".repeat(64)}`;
+const EVM_APPROVE = { to: EVM_TOKEN, data: EVM_APPROVE_DATA };
+const EVM_POLICY = {
+  family: "evm" as const,
+  approveIntent: { spender: EVM_PERMIT2, tokens: [EVM_TOKEN] },
+};
 
 it.each([
   [{ gas: 65000n }, 65000n],
@@ -20,12 +29,12 @@ it.each([
 ])(
   "normalizes EVM gas without mutating the SDK transaction (case %#)",
   async (fields, expected) => {
-    const tx = Object.freeze({ to: EVM_ADDRESS, ...fields });
+    const tx = Object.freeze({ ...EVM_APPROVE, ...fields });
     const signTransaction = vi.fn(async () => ({ raw: "0xraw" }));
     const payer = { ...payerOf(EVM_ADDRESS), signTransaction };
-    await bridged(payer, { family: "evm" }).signTransaction(tx);
-    expect(signTransaction).toHaveBeenCalledWith({ to: EVM_ADDRESS, gasLimit: expected });
-    expect(tx).toEqual({ to: EVM_ADDRESS, ...fields });
+    await bridged(payer, EVM_POLICY).signTransaction(tx);
+    expect(signTransaction).toHaveBeenCalledWith({ ...EVM_APPROVE, gasLimit: expected });
+    expect(tx).toEqual({ ...EVM_APPROVE, ...fields });
   },
 );
 
@@ -232,7 +241,7 @@ describe("toX402Wallet", () => {
       signTypedData: vi.fn(),
       signTransaction: vi.fn(async () => ({ raw: "0xraw", hash: "0xhash" })),
     };
-    expect(await bridged(payer, { family: "evm" }).signTransaction({})).toBe("0xraw");
+    expect(await bridged(payer, EVM_POLICY).signTransaction(EVM_APPROVE)).toBe("0xraw");
   });
 
   it("refuses an EVM signature that carries no raw transaction", async () => {
@@ -241,8 +250,41 @@ describe("toX402Wallet", () => {
       signTypedData: vi.fn(),
       signTransaction: vi.fn(async () => ({ hash: "0xhash" })),
     };
-    await expect(bridged(payer, { family: "evm" }).signTransaction({})).rejects.toMatchObject({
+    await expect(bridged(payer, EVM_POLICY).signTransaction(EVM_APPROVE)).rejects.toMatchObject({
       code: "signed_payload_mismatch",
+    });
+    expect(payer.signTransaction).toHaveBeenCalledOnce();
+  });
+
+  it("refuses an EVM transaction other than the requested approve without signing it", async () => {
+    const payer = payerOf(EVM_ADDRESS);
+    await expect(
+      bridged(payer, EVM_POLICY).signTransaction({ to: EVM_TOKEN, data: "0x" }),
+    ).rejects.toMatchObject({ code: "signed_payload_mismatch" });
+    expect(payer.signTransaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("decodeEvmApprove", () => {
+  it("reads the token, the native value and an unlimited approve's spender", () => {
+    expect(decodeEvmApprove({ to: EVM_TOKEN.toLowerCase(), data: EVM_APPROVE_DATA })).toEqual({
+      token: EVM_TOKEN,
+      valueWei: "0",
+      unlimitedApproveSpender: EVM_PERMIT2,
+    });
+  });
+
+  it("reads a bigint, hex or malformed native value", () => {
+    expect(decodeEvmApprove({ ...EVM_APPROVE, value: 10n }).valueWei).toBe("10");
+    expect(decodeEvmApprove({ ...EVM_APPROVE, value: "0x10" }).valueWei).toBe("16");
+    expect(decodeEvmApprove({ ...EVM_APPROVE, value: "abc" }).valueWei).toBe("malformed");
+  });
+
+  it("reports no spender for a bounded approve", () => {
+    const bounded = `${EVM_APPROVE_DATA.slice(0, -64)}${"0".repeat(63)}1`;
+    expect(decodeEvmApprove({ to: EVM_TOKEN, data: bounded })).toEqual({
+      token: EVM_TOKEN,
+      valueWei: "0",
     });
   });
 });

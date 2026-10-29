@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { homedir } from "node:os";
-import { redactErrorMessage } from "./redact.js";
+import { redactErrorMessage, setRedactedHomeDirectory } from "./redact.js";
 
 describe("redactErrorMessage", () => {
   it("collapses a URL with query/key to scheme://host", () => {
@@ -21,6 +21,7 @@ describe("redactErrorMessage", () => {
   });
 
   it("replaces the home directory prefix with ~", () => {
+    setRedactedHomeDirectory(homedir());
     const path = `${homedir()}/.wallet-cli/config.yaml`;
     const out = redactErrorMessage(`corrupt JSON at ${path}`);
     expect(out).toContain("~/.wallet-cli/config.yaml");

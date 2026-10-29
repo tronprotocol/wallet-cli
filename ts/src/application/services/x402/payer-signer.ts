@@ -1,14 +1,17 @@
 import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import type { ChainFamily } from "../../../domain/family/chain-family.js";
+import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { PayerSigner } from "../../contracts/x402-payer.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { SignerResolver } from "../signer/index.js";
-import { obtainSignature } from "../signing/obtain-signature.js";
+import type { SigningService } from "../signing/signing-service.js";
 import { withPayerPolicy, type PayerPolicy } from "./payer-policy.js";
 
 export function createPayerSigner(
   signers: SignerResolver,
+  signing: Pick<SigningService, "sign">,
   scope: TransactionScope,
+  network: NetworkDescriptor,
   policy: PayerPolicy,
 ): PayerSigner {
   const family = policy.family;
@@ -20,9 +23,21 @@ export function createPayerSigner(
   return withPayerPolicy(
     {
       address: signer.address,
-      signTypedData: (payload) =>
-        obtainSignature(signer, scope, (opts) => signer.signTypedData(payload, opts)),
-      signTransaction: (tx) => obtainSignature(signer, scope, (opts) => signer.sign(tx, opts)),
+      // SDK-built payloads; the entry checks their chain identity against the payment network.
+      signTypedData: (typedData) =>
+        signing.sign(scope, {
+          network,
+          origin: "service",
+          signer,
+          payload: { kind: "typed-data", typedData },
+        }),
+      signTransaction: (transaction) =>
+        signing.sign(scope, {
+          network,
+          origin: "service",
+          signer,
+          payload: { kind: "transaction", transaction },
+        }),
     },
     policy,
   );

@@ -129,6 +129,6 @@ export const messageSignSpec: ChainSpec = {
 export const messageSignBinding = (service: MessageService): FamilyBinding => ({
   run: async (ctx, net, input) => {
     const message = ctx.secrets.pick(input.message, "message", "message");
-    return service.sign(ctx, net.family, ctx.activeAccount, message);
+    return service.sign(ctx, net, ctx.activeAccount, message);
   },
 });

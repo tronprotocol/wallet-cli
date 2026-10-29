@@ -1,5 +1,6 @@
 import { createPayerSigner, preparePayerSigner } from "../services/x402/payer-signer.js";
 import type { SignerResolver } from "../services/signer/index.js";
+import type { SigningService } from "../services/signing/signing-service.js";
 import { processBroadcastGuard } from "../services/broadcast-guard.js";
 import type { Permit2Approver, X402PaymentFacts } from "../contracts/x402-payer.js";
 import type { X402Permit2Approvals } from "./x402-permit2-approval.js";
@@ -20,6 +21,7 @@ export class X402Service {
     private readonly networks: Pick<NetworkRegistry, "resolve">,
     private readonly server?: X402ServerPort,
     private readonly approvals?: Pick<X402Permit2Approvals, "approver">,
+    private readonly signing?: Pick<SigningService, "sign">,
   ) {}
 
   prepare(scope: TransactionScope, network: NetworkDescriptor): void {
@@ -33,15 +35,15 @@ export class X402Service {
     try {
       if (dryRun) return resource.inspection;
       const { facts } = resource;
-      const payer = createPayerSigner(this.signers, scope, {
+      const payer = createPayerSigner(this.signers, this.#signing(), scope, network, {
         family: network.family,
         ...(request.maxGasfreeFeeRaw === undefined
           ? {}
           : { maxGasfreeFeeRaw: request.maxGasfreeFeeRaw }),
         ...(request.maxGasfreeFee === undefined ? {} : { maxGasfreeFee: request.maxGasfreeFee }),
         gasfreeFeeDecimals: (token) => facts.tokenDecimals(token),
-        // Only the Permit2 approval a TRON payment needs may be signed as a transaction.
-        ...(network.family === "tron" && facts.permit2 ? { approveIntent: facts.permit2 } : {}),
+        // Only the Permit2 approval a payment needs may be signed as a transaction.
+        ...(facts.permit2 ? { approveIntent: facts.permit2 } : {}),
       });
       return await resource.pay({
         payer,
@@ -51,6 +53,18 @@ export class X402Service {
     } finally {
       await resource.close();
     }
+  }
+
+  #signing(): Pick<SigningService, "sign"> {
+    if (this.signing) return this.signing;
+    return {
+      sign: async () => {
+        throw new ExecutionError(
+          "internal_error",
+          "no signing entry is wired to the x402 service; nothing was signed",
+        );
+      },
+    };
   }
 
   #approver(

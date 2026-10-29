@@ -320,10 +320,9 @@ export class TronMultisigCollaborationService {
     remote: ValidatedRemoteRecord,
   ): Promise<void> {
     const gateway = this.gateways.get(network, "tron");
-    const [approval, signWeight] = await Promise.all([
-      this.multisig.approvals(network, remote.hex),
-      gateway.getSignWeight(gateway.decodeTransactionHex(remote.hex)),
-    ]);
+    // approvals checks the reference block, so no permission is read for another chain's record.
+    const approval = await this.multisig.approvals(network, remote.hex);
+    const signWeight = await gateway.getSignWeight(gateway.decodeTransactionHex(remote.hex));
     const signedProgress = remote.view.signatureProgress
       .filter((entry) => entry.signed)
       .map((entry) => entry.address);
@@ -393,7 +392,9 @@ function reason(error: unknown): string {
 function isChainDisagreement(error: unknown): error is ChainError {
   return (
     error instanceof ChainError &&
-    (error.code === "provider_error" || error.code === "not_authorized")
+    (error.code === "provider_error" ||
+      error.code === "not_authorized" ||
+      error.code === "chain_id_mismatch")
   );
 }
 

@@ -4,6 +4,7 @@ import type { SignerResolver } from "../signer/index.js";
 import type { Signer } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
+import { SigningService } from "../signing/signing-service.js";
 
 function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   return {
@@ -48,7 +49,9 @@ describe("TxPipeline device-sign timeout", () => {
     };
     const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
 
-    await expect(new TxPipeline(signers).run(params(signer))).rejects.toMatchObject({
+    await expect(
+      new TxPipeline(signers, new SigningService({} as never)).run(params(signer)),
+    ).rejects.toMatchObject({
       code: "timeout",
     });
     expect(captured?.aborted).toBe(true);
@@ -66,7 +69,7 @@ describe("TxPipeline device-sign timeout", () => {
       assertCanSign: vi.fn(),
       resolve: vi.fn(() => signer),
     } as unknown as SignerResolver;
-    const result = await new TxPipeline(signers).run(
+    const result = await new TxPipeline(signers, new SigningService({} as never)).run(
       params(signer, {
         mode: "build-only",
         buildOnly: true,
@@ -94,7 +97,7 @@ describe("TxPipeline device-sign timeout", () => {
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
-    await new TxPipeline(signers).run(
+    await new TxPipeline(signers, new SigningService({} as never)).run(
       params(signer, {
         preflight: async () => {
           order.push("preflight");
@@ -115,7 +118,7 @@ describe("TxPipeline device-sign timeout", () => {
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
     const broadcast = vi.fn(async () => ({ txId: "tx" }));
     await expect(
-      new TxPipeline(signers).run(
+      new TxPipeline(signers, new SigningService({} as never)).run(
         params(signer, {
           mode: "broadcast",
           broadcast: true,
@@ -146,7 +149,7 @@ describe("TxPipeline device-sign timeout", () => {
     const assertBroadcastable = vi.fn(() => {
       throw new ChainError("not_authorized", "unmet");
     });
-    const outcome = await new TxPipeline(signers).run(
+    const outcome = await new TxPipeline(signers, new SigningService({} as never)).run(
       params(signer, {
         mode: "sign-only",
         preflight: async () => ({ assertBroadcastable }),
@@ -171,7 +174,7 @@ describe("TxPipeline build-only", () => {
     const artifact = vi.fn(() => "0a02010202");
 
     await expect(
-      new TxPipeline(signers).run(
+      new TxPipeline(signers, new SigningService({} as never)).run(
         params(
           {} as Signer,
           {
@@ -196,7 +199,7 @@ describe("TxPipeline build-only", () => {
   it("refuses when the adapter cannot produce transaction hex", async () => {
     const signers = { resolve: vi.fn(), assertCanSign: vi.fn() } as unknown as SignerResolver;
     await expect(
-      new TxPipeline(signers).run(
+      new TxPipeline(signers, new SigningService({} as never)).run(
         params({} as Signer, {
           ctx: scope({ resolveAddress: () => "TWatchOnly" }),
           buildOnly: true,
@@ -221,7 +224,9 @@ describe("TxPipeline permission/expiration binding guard", () => {
     ["--expiration", { expiration: 60_000 }],
   ])("refuses %s when the adapter has no prepare hook", async (_label, opts) => {
     await expect(
-      new TxPipeline(signers()).run(params({} as Signer, { ...buildOnly, ...opts })),
+      new TxPipeline(signers(), new SigningService({} as never)).run(
+        params({} as Signer, { ...buildOnly, ...opts }),
+      ),
     ).rejects.toMatchObject({ code: "invalid_option" });
   });
 });
@@ -240,7 +245,7 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
-    const outcome = await new TxPipeline(signers).run(
+    const outcome = await new TxPipeline(signers, new SigningService({} as never)).run(
       params(signer, {
         ctx: scope({ warn: (m: string) => warnings.push(String(m)) }),
         broadcast: true,
@@ -298,7 +303,7 @@ describe("TRON signing lifetime", () => {
         resolve: () => signer,
       } as unknown as SignerResolver;
       try {
-        await new TxPipeline(signers).run(
+        await new TxPipeline(signers, new SigningService({} as never)).run(
           params(signer, {
             ...tronTransactionHooks(gateway),
             build: async () => tx,
@@ -333,10 +338,13 @@ describe("TRON signing lifetime", () => {
     const broadcast = vi.fn(async () => ({ txId: "tx" }));
     try {
       await expect(
-        new TxPipeline({
-          assertCanSign: () => {},
-          resolve: () => signer,
-        } as unknown as SignerResolver).run(
+        new TxPipeline(
+          {
+            assertCanSign: () => {},
+            resolve: () => signer,
+          } as unknown as SignerResolver,
+          new SigningService({} as never),
+        ).run(
           params(signer, {
             ...tronTransactionHooks(gateway),
             build: async () => tx,
@@ -361,10 +369,13 @@ describe("TxPipeline submission outcome", () => {
       address: "TSender",
       sign: vi.fn(async () => signed),
     } as unknown as Signer;
-    const pipeline = new TxPipeline({
-      assertCanSign: vi.fn(),
-      resolve: () => signer,
-    } as unknown as SignerResolver);
+    const pipeline = new TxPipeline(
+      {
+        assertCanSign: vi.fn(),
+        resolve: () => signer,
+      } as unknown as SignerResolver,
+      new SigningService({} as never),
+    );
     const broadcast = vi.fn(async (_signed: unknown) => ({ txId }));
     const input = params(signer, { broadcast: true, broadcaster: { broadcast } });
     return { pipeline, broadcast, input, signer };

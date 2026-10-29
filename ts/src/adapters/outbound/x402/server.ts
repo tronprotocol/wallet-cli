@@ -18,6 +18,7 @@ import type {
   X402ServerPort,
 } from "../../../application/ports/x402-server.js";
 import { TransportError, UsageError, ExecutionError } from "../../../domain/errors/index.js";
+import { silenceX402SdkLogs } from "./sdk-logs.js";
 
 export class X402HttpServer implements X402ServerPort {
   constructor(
@@ -27,7 +28,9 @@ export class X402HttpServer implements X402ServerPort {
       process.stderr.write(`${line}\n`);
     },
     private readonly debugLog: (line: string) => void = () => {},
-  ) {}
+  ) {
+    silenceX402SdkLogs();
+  }
 
   validate(network: NetworkDescriptor, input: X402ServeInput): void {
     this.requirement(network, input);

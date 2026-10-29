@@ -12,7 +12,7 @@ wallet-cli typed-data sign --typed-data <json> [options]
 
 Signs structured (typed) data with the active account's key (or `--account`), and prints the signature, the digest that was signed, and the primary type. Signing only — nothing is broadcast, and no node is contacted.
 
-Works on TRON and EVM: the selected network decides which of the account's keys signs and which address is reported. EIP-712 and TIP-712 are the same construction, so the same payload can be signed for either — the domain inside the payload, not `--network`, is what a verifying contract checks. `--network` is optional and falls back to `config.defaultNetwork`.
+Works on TRON and EVM. The selected network decides which of the account's keys signs and which address is reported, and must be the chain the payload is for: a `domain.chainId` that differs from the network's chain id is refused (`chain_id_mismatch`). A domain without `chainId` is signed as is. `--network` is optional and falls back to `config.defaultNetwork`.
 
 The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…,"types":…,"primaryType"?:…,"message":…}`. Three conveniences apply when it is parsed:
 
@@ -63,10 +63,10 @@ Ledger account — confirm on device, no master password needed:
 wallet-cli typed-data sign --typed-data "$(cat permit.json)" --network nile
 ```
 
-The same payload signed on an EVM network, with the account's EVM key:
+A payload for an EVM chain, signed with the account's EVM key:
 
 ```bash
-echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --password-stdin --network sepolia
+echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit-sepolia.json)" --password-stdin --network sepolia
 ```
 
 ## Output
@@ -80,7 +80,7 @@ echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit.json)" --pass
 
 ## Exit status
 
-`0` signed · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `signing_rejected` — declined on the Ledger, `ledger_setting_required` — enable blind signing / EIP-712 support in the device app, `ledger_unsupported` — the device app cannot sign this payload) · `2` usage error (`--typed-data` missing → `missing_option`, or its value is not JSON → `invalid_value`).
+`0` signed · `1` execution failure (`chain_id_mismatch` — `domain.chainId` is not the selected network's chain id, `watch_only_no_signer`, `auth_failed`, `signing_rejected` — declined on the Ledger, `ledger_setting_required` — enable blind signing / EIP-712 support in the device app, `ledger_unsupported` — the device app cannot sign this payload) · `2` usage error (`--typed-data` missing → `missing_option`, or its value is not JSON → `invalid_value`).
 
 ## See also
 

@@ -12,6 +12,7 @@ import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
 import type {
   DeployConstructorArgs,
   EvmGateway,
+  EvmRawTransaction,
 } from "../../../../application/ports/chain/gateway-provider.js";
 import {
   UNWIRED_BROADCAST_GUARD,
@@ -25,7 +26,7 @@ import {
   type HttpEndpointConfig,
   type HttpTransport,
 } from "../../http/index.js";
-import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+import type { NetworkDescriptor, UnsignedTx } from "../../../../domain/types/index.js";
 
 interface JsonRpcResponse {
   result?: unknown;
@@ -289,6 +290,14 @@ export class EvmRpcClient implements EvmGateway {
     }
   }
 
+  decodeRawTransaction(hex: string): EvmRawTransaction {
+    return decodeEvmRawTransaction(hex);
+  }
+
+  transactionChainId(tx: UnsignedTx): string | undefined {
+    return evmTransactionChainId(tx);
+  }
+
   encodeFunctionCall(signature: string, params: Array<{ type: string; value: unknown }>): string {
     try {
       const iface = new Interface([`function ${signature}`]);
@@ -543,3 +552,42 @@ function decodeBytes32(raw: string): string {
 }
 
 const ERC20_WRITE = new Interface(["function transfer(address,uint256) returns (bool)"]);
+
+export function decodeEvmRawTransaction(hex: string): EvmRawTransaction {
+  let parsed: Transaction;
+  try {
+    parsed = Transaction.from(hex);
+  } catch (e) {
+    throw new ChainError(
+      "invalid_transaction",
+      `not a valid EVM transaction: ${(e as Error).message}`,
+    );
+  }
+  const signed = parsed.signature !== null;
+  return {
+    chainId: parsed.chainId.toString(),
+    signed,
+    ...(signed && parsed.from !== null ? { from: parsed.from } : {}),
+    ...(parsed.to === null ? {} : { to: parsed.to }),
+    nonce: parsed.nonce,
+    gasLimit: parsed.gasLimit.toString(),
+    ...(parsed.maxFeePerGas === null ? {} : { maxFeePerGasWei: parsed.maxFeePerGas.toString() }),
+    ...(parsed.gasPrice === null ? {} : { gasPriceWei: parsed.gasPrice.toString() }),
+    valueWei: parsed.value.toString(),
+    ...(signed ? { hash: parsed.hash!, serialized: parsed.serialized } : {}),
+    transaction: JSON.parse(JSON.stringify(parsed.toJSON())) as UnsignedTx,
+  };
+}
+
+export function evmTransactionChainId(tx: UnsignedTx): string | undefined {
+  let chainId: bigint;
+  try {
+    chainId = Transaction.from(tx as TransactionLike).chainId;
+  } catch (e) {
+    throw new UsageError(
+      "invalid_payload",
+      `EVM transaction could not be encoded: ${(e as Error).message}`,
+    );
+  }
+  return chainId === 0n ? undefined : chainId.toString();
+}

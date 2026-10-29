@@ -6,6 +6,7 @@ import type { SignerResolver } from "../../services/signer/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor, SignedGasFreeAuthorization } from "../../../domain/types/index.js";
 import { GasFreeService } from "./gasfree-service.js";
+import { SigningService } from "../../services/signing/signing-service.js";
 
 const OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 const TOKEN = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -19,7 +20,7 @@ const NETWORK = {
   id: "tron:3448148188",
   family: "tron",
   nativeSymbol: "TRX",
-  chainId: "nile",
+  chainId: "3448148188",
   capabilities: [],
   gasfree: {
     baseUrl: "https://open-test.gasfree.io",
@@ -164,6 +165,7 @@ function fixture(
     provider,
     gateways,
     signers,
+    new SigningService(gateways as never),
     recipients as never,
     () => now,
     async (milliseconds: number) => {
@@ -254,6 +256,24 @@ describe("GasFreeService", () => {
         dryRun: false,
       }),
     ).rejects.toMatchObject({ code: "signing_rejected" });
+    expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
+  });
+
+  it("refuses a controller chain id that is not the network's chain before signing", async () => {
+    const fixtureValue = fixture({ active: true });
+    const network = {
+      ...NETWORK,
+      gasfree: { ...NETWORK.gasfree, controllerChainId: "728126428" },
+    };
+    await expect(
+      fixtureValue.service.transfer(scope(), network, {
+        to: RECEIVER,
+        amount: "25",
+        token: "USDT",
+        dryRun: false,
+      }),
+    ).rejects.toMatchObject({ code: "chain_id_mismatch" });
+    expect(fixtureValue.signer.signTypedData).not.toHaveBeenCalled();
     expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
   });
 

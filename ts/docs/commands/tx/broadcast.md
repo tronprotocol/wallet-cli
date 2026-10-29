@@ -22,6 +22,8 @@ Broadcasting is not blind. Whatever form the transaction arrives in, it is decod
 **TRON:**
 
 - **expired** → `tx_expired`
+- **built for another chain** — its reference block is not on the selected network → `chain_id_mismatch`
+- a **reference block newer than the node's head** → `rpc_error`; retry once the node has caught up, or use a node that is in sync
 - **insufficient signature weight** → `not_authorized`, naming the missing weight
 
 That check is what makes this safe as the last step of a multi-signature workflow: a transaction that has not yet reached its permission threshold never reaches the node.
@@ -97,7 +99,7 @@ As with `tx send`, the default return point is **submission** — confirm via `-
 
 ## Exit status
 
-`0` submitted · `1` execution failure (node rejected the tx, `timeout`, `rpc_error`, `invalid_node_response`; `tx_expired` / `not_authorized` on TRON; `invalid_transaction`, `chain_id_mismatch`, `nonce_too_low`, `insufficient_balance` on EVM) · `2` usage error (more than one, or none, of the input sources; `invalid_option` — `--transaction` / `--tx-stdin` on an EVM network).
+`0` submitted · `1` execution failure (node rejected the tx, `timeout`, `rpc_error`, `invalid_node_response`; `chain_id_mismatch`; `tx_expired` / `not_authorized` on TRON; `invalid_transaction`, `nonce_too_low`, `insufficient_balance` on EVM) · `2` usage error (more than one, or none, of the input sources; `invalid_option` — `--transaction` / `--tx-stdin` on an EVM network).
 
 A `timeout`, `rpc_error` or `invalid_node_response` from submission includes the locally computed signed transaction id in `error.details.txId`; text output shows it too. Check it with [`tx status`](status.md) before sending again. An EVM reply with no RPC error and no valid transaction hash, or a TRON reply without explicit acceptance or a rejection reason, is `invalid_node_response`: it does not prove rejection. Definite rejections and failures before submission do not gain `details.txId`.
 

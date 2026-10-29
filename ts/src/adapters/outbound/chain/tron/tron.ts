@@ -32,6 +32,7 @@ import type {
   TronGateway,
   TronNodeInfo,
   TronProposal,
+  TronReferenceBlockStatus,
   TronSignWeight,
   TronTokenInfo,
   TronTx,
@@ -41,7 +42,7 @@ import type {
 } from "../../../../application/ports/chain/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
-import { withDeadline } from "../../../../domain/async/index.js";
+import { withDeadline } from "../../http/deadline.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
@@ -171,9 +172,6 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     }
   }
 
-  get tronweb(): InstanceType<typeof TronWeb> {
-    return this.#tw;
-  }
   async getNativeBalance(address: string): Promise<string> {
     const account = await this.getAccount(address);
     return account.balance ?? "0";
@@ -538,6 +536,35 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         await this.#post(`/wallet/${endpoint}`, height === undefined ? {} : { num: height }),
       );
     });
+  }
+  async referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus> {
+    const raw = (transaction as { raw_data?: Record<string, unknown> } | null)?.raw_data;
+    const refBytes = raw?.ref_block_bytes;
+    const refHash = raw?.ref_block_hash;
+    if (
+      typeof refBytes !== "string" ||
+      !/^[0-9a-f]{4}$/i.test(refBytes) ||
+      typeof refHash !== "string" ||
+      !/^[0-9a-f]{16}$/i.test(refHash)
+    ) {
+      throw new ChainError("invalid_transaction", "transaction carries no valid reference block");
+    }
+    const head = await this.getBlock();
+    const headNumber = safeNodeInteger(head.block_header?.raw_data?.number, "head block number");
+    // ref_block_bytes is the low 16 bits of the height; take the highest such height at or below head.
+    const height = headNumber - ((((headNumber - parseInt(refBytes, 16)) % 65536) + 65536) % 65536);
+    if (height >= 0) {
+      const block = height === headNumber ? head : await this.getBlock(String(height));
+      // ref_block_hash is bytes 8..16 of the block id.
+      const blockId = typeof block.blockID === "string" ? block.blockID : "";
+      if (blockId.slice(16, 32).toLowerCase() === refHash.toLowerCase()) return "held";
+    }
+    const headTime = safeNodeInteger(
+      head.block_header?.raw_data?.timestamp,
+      "head block timestamp",
+    );
+    const createdAt = Number(raw?.timestamp);
+    return Number.isFinite(createdAt) && createdAt > headTime ? "not-reached" : "different";
   }
   async getTransactionById(txid: string): Promise<TronTx> {
     return this.#wrap("getTransaction", async () =>

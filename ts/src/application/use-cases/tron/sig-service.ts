@@ -1,6 +1,5 @@
 import type {
   NetworkDescriptor,
-  Signer,
   TronTransactionArtifact,
   OfflineTxSignView,
   TxSignTransactionView,
@@ -11,10 +10,12 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
-import { obtainSignature } from "../../services/signing/obtain-signature.js";
+import type { SigningService } from "../../services/signing/signing-service.js";
 import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
 
 export interface TronSignOptions {
+  // "imported" checks the transaction's reference block on the network's node before signing.
+  origin: "imported" | "offline";
   // Require the signer that passed authorization, before any signing interaction.
   expectedSigner?: string;
 }
@@ -24,6 +25,7 @@ export class TronSigService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly signers: SignerResolver,
+    private readonly signing: SigningService,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
@@ -31,7 +33,7 @@ export class TronSigService {
     scope: TransactionScope,
     network: NetworkDescriptor,
     hex: string,
-    options: TronSignOptions = {},
+    options: TronSignOptions,
   ): Promise<OfflineTxSignView> {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(hex);
@@ -48,7 +50,12 @@ export class TronSigService {
         "resolved signer does not match the signer that passed authorization",
       );
     }
-    const signed = await this.#sign(signer, transaction, scope);
+    const signed = await this.signing.sign(scope, {
+      network,
+      origin: options.origin,
+      signer,
+      payload: { kind: "transaction", transaction },
+    });
     const signedHex = gateway.encodeTransactionHex(signed);
     const decoded = gateway.decodeTransactionHex(signedHex);
     if (decoded.txID !== originalTxId || decoded.raw_data_hex !== originalRawDataHex) {
@@ -97,9 +104,5 @@ export class TronSigService {
       expired: expiration <= this.now(),
       signatures: transaction.signature?.length ?? 0,
     };
-  }
-
-  #sign(signer: Signer, transaction: TronTransactionArtifact, scope: TransactionScope) {
-    return obtainSignature(signer, scope, (options) => signer.sign(transaction, options));
   }
 }

@@ -1,4 +1,5 @@
 import type {
+  DecodedEvmApprove,
   DecodedTronApprove,
   PayerSigner,
   SignedApproval,
@@ -6,7 +7,7 @@ import type {
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import type { ChainFamily } from "../../../domain/family/chain-family.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { tronHexToBase58 } from "../../../domain/address/index.js";
+import { EvmAddress, tronHexToBase58 } from "../../../domain/address/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
 
 // TRON reads getAddress(); EVM reads address.
@@ -49,12 +50,46 @@ function tronAddressField(value: unknown): string | undefined {
   }
 }
 
-// approve(spender, MaxUint256) calldata yields the spender; any other calldata yields undefined.
-function unlimitedApproveSpender(data: unknown): string | undefined {
+// approve(spender, MaxUint256) calldata yields the spender's 20 bytes in hex; other calldata yields undefined.
+function unlimitedApproveSpenderHex(data: unknown): string | undefined {
   if (typeof data !== "string") return undefined;
   const hex = data.replace(/^0x/, "").toLowerCase();
-  const match = new RegExp(`^${APPROVE_SELECTOR}0{24}([0-9a-f]{40})${MAX_UINT256_HEX}$`).exec(hex);
-  return match ? tronAddressField(`41${match[1]}`) : undefined;
+  return new RegExp(`^${APPROVE_SELECTOR}0{24}([0-9a-f]{40})${MAX_UINT256_HEX}$`).exec(hex)?.[1];
+}
+
+function unlimitedApproveSpender(data: unknown): string | undefined {
+  const spender = unlimitedApproveSpenderHex(data);
+  return spender === undefined ? undefined : tronAddressField(`41${spender}`);
+}
+
+const evmAddress = new EvmAddress();
+
+function evmAddressField(value: unknown): string | undefined {
+  return typeof value === "string" && evmAddress.validate(value)
+    ? evmAddress.canonical(value)
+    : undefined;
+}
+
+function quantityText(value: unknown): string | undefined {
+  if (value === undefined || value === null) return "0";
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
+  if (typeof value === "string" && /^(?:[0-9]+|0x[0-9a-f]+)$/i.test(value)) {
+    return BigInt(value).toString();
+  }
+  return undefined;
+}
+
+export function decodeEvmApprove(tx: Record<string, unknown>): DecodedEvmApprove {
+  const token = evmAddressField(tx.to);
+  const spender = unlimitedApproveSpenderHex(tx.data);
+  const unlimitedApproveSpender =
+    spender === undefined ? undefined : evmAddressField(`0x${spender}`);
+  return {
+    ...(token === undefined ? {} : { token }),
+    valueWei: quantityText(tx.value) ?? "malformed",
+    ...(unlimitedApproveSpender === undefined ? {} : { unlimitedApproveSpender }),
+  };
 }
 
 export function decodeTronApprove(tx: unknown): DecodedTronApprove {
@@ -100,7 +135,8 @@ export function toX402Wallet(payer: PayerSigner, options: X402WalletOptions): X4
     },
     async signTransaction(tx) {
       if (options.family === "evm") {
-        return evmRawTransaction(await payer.signTransaction(evmTransactionInput(tx)));
+        const input = evmTransactionInput(tx);
+        return evmRawTransaction(await payer.signTransaction(input, decodeEvmApprove(input)));
       }
       const { signed, approval } = await payer.signPermit2Approval(tx, decodeTronApprove(tx));
       // The signer verifies txID against raw_data_hex.

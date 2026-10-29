@@ -1,4 +1,4 @@
-import { creditActiveDeadline, throwIfDeadlineExpired } from "../../../domain/async/index.js";
+import { creditActiveDeadline, throwIfDeadlineExpired } from "./deadline.js";
 import type { HttpRequest, HttpTransport } from "./index.js";
 
 export interface RequestPacerOptions {

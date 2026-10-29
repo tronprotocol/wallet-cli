@@ -127,7 +127,7 @@ A listing that accepts an ordering echoes it back as `{orderBy, sort}`, next to 
 
 ### Reading `meta.warnings`
 
-An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings and the post-confirmation checks; everything else is a bare string. Normalise before display, and never assume a uniform element type:
+An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings, the post-confirmation checks, and `network_not_verified` from a TRON [`tx sign`](commands/tx/sign.md) that contacted no node; everything else is a bare string. Normalise before display, and never assume a uniform element type:
 
 ```bash
 # text for humans — works for both forms
@@ -253,7 +253,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, or an error status from GasFree / TronLink. TronLink reports **every** non-404 status this way, 429 included |
 | `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI, the SunSwap market and route services, and the SunPump API: `error.details.httpStatus: 429`, plus `error.details.retryAfterSeconds` from SunSwap / SunPump when a `Retry-After` header was sent. TronLink's 429 is `provider_error` instead |
 | `tx_expired` | The transaction expired before or during signing — including while waiting for a Ledger confirmation, checked again after the device signs — or the TRON node rejected it as expired. Rebuild and sign again |
-| `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
+| `chain_id_mismatch` | A transaction or typed data names a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `history_not_supported` | The selected network exposes no transaction history endpoint (`account history`, TRON) |
 | `not_found` | The addressed thing does not exist — for example an unactivated account, a transaction, a block, or a GasFree / TronLink resource. Lookups with a group of their own use the specific code below |

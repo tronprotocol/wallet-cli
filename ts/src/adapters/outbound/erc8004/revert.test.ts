@@ -23,5 +23,5 @@ it.each([
 });
 it("does not turn unrelated RPC or undecodable failures into authorization failures", () => {
   for (const error of [new Error("timeout"), { details: { revertData: "0x12345678" } }, null])
-    expect(agentWriteError(error)).toBe(error);
+    expect(agentWriteError(error)).toBeUndefined();
 });

@@ -10,6 +10,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import { stageTronBroadcast } from "../../services/tron-confirmation.js";
+import { assertTronReferenceBlock } from "../../services/signing/chain-identity.js";
 import { localTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import type { TronSigService } from "./sig-service.js";
 import {
@@ -28,7 +29,9 @@ export class TronMultisigService {
 
   async approvals(network: NetworkDescriptor, hex: string): Promise<TxApprovalView> {
     const gateway = this.gateways.get(network, "tron");
-    return this.#approvalFor(gateway, gateway.decodeTransactionHex(hex));
+    const transaction = gateway.decodeTransactionHex(hex);
+    await assertTronReferenceBlock(gateway, network, transaction);
+    return this.#approvalFor(gateway, transaction);
   }
 
   async signChecked(
@@ -38,10 +41,15 @@ export class TronMultisigService {
   ): Promise<CheckedTxSignView> {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(hex);
+    // Wrong-network permission facts must not reach the signer; the signing entry checks again.
+    await assertTronReferenceBlock(gateway, network, transaction);
     const expectedSigner = scope.resolveAddress("tron");
     await assertTronSignerAuthorized(gateway, transaction, expectedSigner, this.now());
 
-    const signed = await this.signing.sign(scope, network, hex, { expectedSigner });
+    const signed = await this.signing.sign(scope, network, hex, {
+      origin: "imported",
+      expectedSigner,
+    });
     const approval = await this.#approvalFor(gateway, gateway.decodeTransactionHex(signed.hex));
     const approvedSigner = approval.approved.find((approved) => approved.address === signed.signer);
     if (!approvedSigner) {
@@ -66,7 +74,7 @@ export class TronMultisigService {
   ) {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(hex);
-    const approval = await this.#assertBroadcastable(gateway, transaction);
+    const approval = await this.#assertBroadcastable(gateway, network, transaction);
     const multiSignFeeSun = approval.signatures > 1 ? await gateway.getMultiSignFee() : 0;
     if (dryRun) {
       return {
@@ -96,8 +104,13 @@ export class TronMultisigService {
     return this.broadcastHex(scope, network, gateway.encodeTransactionHex(transaction), dryRun);
   }
 
-  async #assertBroadcastable(gateway: TronGateway, transaction: TronTransactionArtifact) {
+  async #assertBroadcastable(
+    gateway: TronGateway,
+    network: NetworkDescriptor,
+    transaction: TronTransactionArtifact,
+  ) {
     assertNotExpired(transaction, this.now());
+    await assertTronReferenceBlock(gateway, network, transaction);
     const approval = await this.#approvalFor(gateway, transaction);
     assertThresholdReached(approval.currentWeight, approval.permission.threshold);
     return approval;

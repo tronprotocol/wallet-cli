@@ -9,6 +9,8 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import { TronSigService } from "./sig-service.js";
+import { SigningService } from "../../services/signing/signing-service.js";
+import type { TronReferenceBlockStatus } from "../../ports/chain/tron-gateway.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -52,11 +54,12 @@ function scope(): TransactionScope {
   };
 }
 
-function setup(signerOverride?: Signer) {
+function setup(signerOverride?: Signer, referenceBlock: TronReferenceBlockStatus = "held") {
   const gateway = {
     decodeTransactionHex,
     encodeTransactionHex,
     decodeTransaction: () => ({ kind: "trx", from: A, to: B, rawAmount: "1" }),
+    referenceBlockStatus: vi.fn(async () => referenceBlock),
   } as unknown as TronGateway;
   const signer =
     signerOverride ??
@@ -75,13 +78,19 @@ function setup(signerOverride?: Signer) {
     resolve: vi.fn(() => signer),
   } as unknown as SignerResolver;
   const gateways = { get: vi.fn(() => gateway) } as unknown as ChainGatewayProvider;
-  return { service: new TronSigService(gateways, signers, () => NOW), signer };
+  return {
+    service: new TronSigService(gateways, signers, new SigningService(gateways), () => NOW),
+    signer,
+    gateway,
+  };
 }
 
 describe("TRON artifact signing", () => {
   it("appends a signature without requiring online approval endpoints", async () => {
     const before = decodeTransactionHex(unsignedHex());
-    const result: OfflineTxSignView = await setup().service.sign(scope(), NETWORK, unsignedHex());
+    const result: OfflineTxSignView = await setup().service.sign(scope(), NETWORK, unsignedHex(), {
+      origin: "offline",
+    });
     const after = decodeTransactionHex(result.hex);
 
     expect(after.txID).toBe(before.txID);
@@ -101,7 +110,9 @@ describe("TRON artifact signing", () => {
 
   it("rejects an expired artifact before invoking the signer", async () => {
     const { service, signer } = setup();
-    await expect(service.sign(scope(), NETWORK, unsignedHex(NOW))).rejects.toMatchObject({
+    await expect(
+      service.sign(scope(), NETWORK, unsignedHex(NOW), { origin: "offline" }),
+    ).rejects.toMatchObject({
       code: "tx_expired",
     });
     expect(signer.sign).not.toHaveBeenCalled();
@@ -119,9 +130,9 @@ describe("TRON artifact signing", () => {
       signMessage: async () => "",
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     } as Signer;
-    await expect(setup(signer).service.sign(scope(), NETWORK, unsignedHex())).rejects.toMatchObject(
-      { code: "invalid_transaction" },
-    );
+    await expect(
+      setup(signer).service.sign(scope(), NETWORK, unsignedHex(), { origin: "offline" }),
+    ).rejects.toMatchObject({ code: "invalid_transaction" });
   });
 
   it("rejects an unexpected signer before asking it to sign", async () => {
@@ -133,8 +144,42 @@ describe("TRON artifact signing", () => {
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     } as Signer;
     await expect(
-      setup(signer).service.sign(scope(), NETWORK, unsignedHex(), { expectedSigner: A }),
+      setup(signer).service.sign(scope(), NETWORK, unsignedHex(), {
+        origin: "offline",
+        expectedSigner: A,
+      }),
     ).rejects.toMatchObject({ code: "signing_rejected" });
     expect(signer.sign).not.toHaveBeenCalled();
   });
+
+  it("warns that an offline signature did not verify the network", async () => {
+    const { service, gateway } = setup();
+    const s = scope();
+    await service.sign(s, NETWORK, unsignedHex(), { origin: "offline" });
+    expect(gateway.referenceBlockStatus).not.toHaveBeenCalled();
+    expect(s.warn).toHaveBeenCalledWith(expect.objectContaining({ code: "network_not_verified" }));
+  });
+
+  it("signs an imported artifact whose reference block the node holds", async () => {
+    const { service, gateway, signer } = setup();
+    const s = scope();
+    await service.sign(s, NETWORK, unsignedHex(), { origin: "imported" });
+    expect(gateway.referenceBlockStatus).toHaveBeenCalledOnce();
+    expect(signer.sign).toHaveBeenCalledOnce();
+    expect(s.warn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["different", "chain_id_mismatch"],
+    ["not-reached", "rpc_error"],
+  ] as const)(
+    "refuses an imported artifact whose reference block is %s before the signer runs",
+    async (status, code) => {
+      const { service, signer } = setup(undefined, status);
+      await expect(
+        service.sign(scope(), NETWORK, unsignedHex(), { origin: "imported" }),
+      ).rejects.toMatchObject({ code });
+      expect(signer.sign).not.toHaveBeenCalled();
+    },
+  );
 });

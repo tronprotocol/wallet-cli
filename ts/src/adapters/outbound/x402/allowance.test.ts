@@ -7,6 +7,16 @@ import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { Permit2ApproveRequest } from "../../../application/contracts/x402-payer.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -163,6 +173,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
       {} as never,
       undefined,
       fake.approvals,
+      signing,
     );
     const payment = client.pay(
       { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
@@ -298,6 +309,9 @@ it.each([
     } as never,
     {} as never,
     {} as never,
+    undefined,
+    undefined,
+    signing,
   );
   const error = await client
     .pay(
@@ -433,6 +447,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
       {} as never,
       undefined,
       fakeApprovals().approvals,
+      signing,
     );
     const error = await client
       .pay(
@@ -504,6 +519,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
         {} as never,
         undefined,
         fakeApprovals().approvals,
+        signing,
       );
       const pending = client.pay(
         { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
@@ -563,6 +579,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
       {} as never,
       undefined,
       fakeApprovals().approvals,
+      signing,
     );
     const error = await client
       .pay({ activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never, net, input)
@@ -610,6 +627,9 @@ it("reports the SDK's default $1 ceiling as amount_exceeds_limit before anything
     } as never,
     {} as never,
     {} as never,
+    undefined,
+    undefined,
+    signing,
   );
   await expect(
     client.pay(
