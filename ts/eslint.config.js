@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
+import environmentReads from "./eslint-rules/environment-reads.mjs";
 
 export default tseslint.config(
   {
@@ -9,6 +10,20 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    plugins: { "wallet-cli": { rules: { "environment-reads": environmentReads } } },
+    rules: { "wallet-cli/environment-reads": "error" },
+  },
+  {
+    files: [
+      "src/bootstrap/**",
+      "src/adapters/inbound/cli/input/prompt/index.ts",
+      "src/adapters/inbound/cli/help/index.ts",
+      "src/adapters/outbound/config/index.ts",
+      "src/adapters/outbound/ledger/index.ts",
+    ],
+    rules: { "wallet-cli/environment-reads": "off" },
+  },
   {
     rules: {
       // CLI output must use the streams port.

@@ -38,7 +38,12 @@ describe("ESLint suppressions gate", () => {
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "wallet-cli-eslint-"));
     symlinkSync(join(repo, "node_modules"), join(dir, "node_modules"));
-    for (const file of ["eslint.config.js", "package.json", "scripts/lint.mjs"]) {
+    for (const file of [
+      "eslint.config.js",
+      "package.json",
+      "scripts/lint.mjs",
+      "eslint-rules/environment-reads.mjs",
+    ]) {
       mkdirSync(dirname(join(dir, file)), { recursive: true });
       copyFileSync(join(repo, file), join(dir, file));
     }

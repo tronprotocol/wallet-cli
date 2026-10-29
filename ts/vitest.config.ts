@@ -12,7 +12,7 @@ export default defineConfig({
           environment: "node",
           // Leave one CPU for the coordinator/OS.
           maxWorkers: Math.min(10, Math.max(1, availableParallelism() - 1)),
-          include: ["src/**/*.test.ts"],
+          include: ["src/**/*.test.ts", "test/lint/rules/**/*.test.ts"],
           testTimeout: 20_000,
           hookTimeout: 20_000,
         },
@@ -27,6 +27,7 @@ export default defineConfig({
           sequence: { groupOrder: 1 },
           environment: "node",
           include: ["test/**/*.test.ts"],
+          exclude: ["test/lint/rules/**"],
           // Allow repeated CLI startup and real scrypt on busy CI runners.
           testTimeout: 60_000,
           hookTimeout: 30_000,

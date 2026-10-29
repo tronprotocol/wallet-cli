@@ -47,6 +47,10 @@ diagnostics, run `npx --no-install eslint . --format json` and read each file's 
 Boolean ignore options use the last setting: `--ignore` or `--no-ignore`, optionally followed by `=true`
 or `=false`. The lint wrapper rejects other assignment values, including whitespace-padded booleans.
 
+Local ESLint rules live in `ts/eslint-rules/`; their tests in `ts/test/lint/rules/` run with
+`npm run test:unit`. The baseline can include test and tooling files. The npm-script integration suite
+`ts/test/lint/suppressions.test.ts` remains separate from these rule tests.
+
 ### Development rules
 
 The rules for `ts/` are in `ts/docs/dev/rules/`. They are the single source of truth; do not restate them here.
