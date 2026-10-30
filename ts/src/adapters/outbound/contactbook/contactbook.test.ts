@@ -132,6 +132,21 @@ describe("ContactBook holds every family", () => {
     );
   });
 
+  it("loads a stored book that holds one address under two names", () => {
+    const dir = root();
+    const book = new ContactBook(dir, new AtomicFileStore());
+    book.add(createContact("tron", "friend", TRON));
+    const path = join(dir, "contacts.json");
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    doc.entries.tron.push(createContact("tron", "friend cold", TRON));
+    writeFileSync(path, JSON.stringify(doc));
+
+    const reloaded = new ContactBook(dir, new AtomicFileStore());
+    expect(reloaded.list("tron").map((c) => c.name)).toEqual(["friend", "friend cold"]);
+    reloaded.add(createContact("tron", "other", ADDRESS));
+    expect(reloaded.list("tron")).toHaveLength(3);
+  });
+
   it("rejects a loaded file that holds one name in two families", () => {
     const dir = root();
     const book = new ContactBook(dir, new AtomicFileStore());

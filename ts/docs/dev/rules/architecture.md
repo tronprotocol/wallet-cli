@@ -98,6 +98,15 @@ stored: configuration loads, persisted records, and non-CLI callers of a use cas
 inbound early check is a convenience, not the enforcement point. Loading a value and writing the same value
 never disagree on whether it is valid. **test**, **review**.
 
+Exception: records that earlier releases stored under a looser rule load as they are, so users keep access to
+their files; a write checks only the records it adds or changes, and nothing rewrites, truncates, or drops the
+old ones. The tolerated cases are:
+- two contacts with the same address (a contact name stays unique on load);
+- a wallet label longer than 64 characters (every other label rule holds on load).
+
+A new tolerated case is added here by a design decision. **test**: each case loads, and a write that adds the
+same case is refused.
+
 2.3 Each command has one Zod schema. It drives validation, positional arity, help text, and `--json-schema`; no
 second definition of a command's arguments exists. **test**: every registered command has exactly one schema.
 
