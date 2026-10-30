@@ -116,7 +116,8 @@ second definition of a command's arguments exists. **test**: every registered co
 resolves to one of them (such as `UnsignedTx = unknown`), crossing a port toward the inside. A map keyed by an
 identifier (`Record<Id, T>`, `Map<Id, T>`) is closed when `T` is. This covers `application/ports`,
 `application/contracts`, and `domain/types`. Data passed through for display uses the named raw type of 3.2.
-**lint**.
+Values that inner layers send outward, such as contract call arguments or a document to write, are outside
+3.1; a payload sent to be signed is closed by the sign request of 6.4. **lint**.
 
 3.2 Outbound adapters normalize external facts into port types once. Inner layers do not read raw node, SDK, or
 wire fields to derive a fact. This covers at least: transaction execution result, decoded token and account
